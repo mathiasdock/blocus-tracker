@@ -444,7 +444,7 @@ export default function Dashboard() {
           )}
 
           {/* ── Timer display ── */}
-          <div className="text-center px-6 py-10">
+          <div className={`text-center px-6 py-10 ${running ? "bt-pulse-green rounded-3xl" : ""}`}>
             {pomodoro ? (
               <>
                 <div className="text-xs font-bold uppercase tracking-[0.15em] mb-4"
@@ -539,7 +539,7 @@ export default function Dashboard() {
               <>
                 {!running ? (
                   <button
-                    className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                     style={{
                       backgroundColor: "#14B885",
                       color: "#fff",
@@ -555,7 +555,7 @@ export default function Dashboard() {
                   </button>
                 ) : (
                   <button
-                    className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                     style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}
                     onClick={pause}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -565,7 +565,7 @@ export default function Dashboard() {
                   </button>
                 )}
                 <button
-                  className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                   style={{
                     backgroundColor: saveStatus === "success" ? "#14B885"
                       : saveStatus === "error" ? "#ef4444"
@@ -833,12 +833,12 @@ export default function Dashboard() {
               <>
                 {!running ? (
                   <button onClick={start} disabled={!courseId && !pomodoro}
-                    className="btn-primary px-10 py-3 text-base">
+                    className="btn-primary px-10 py-3 text-base bt-press">
                     {elapsed > 0 ? t("dash.resume") : t("dash.start")}
                   </button>
                 ) : (
                   <button onClick={pause}
-                    className="px-10 py-3 text-base rounded-2xl font-semibold transition-colors"
+                    className="px-10 py-3 text-base rounded-2xl font-semibold transition-colors bt-press"
                     style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
                     {t("dash.pause")}
                   </button>
@@ -846,7 +846,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => { setPomodoro(false); setPomoPhase("work"); setPomoCount(0); stopAndSave(); setFocusMode(false); }}
                   disabled={elapsed < 1 || saveStatus === "saving"}
-                  className="px-10 py-3 text-base rounded-2xl font-semibold transition-colors"
+                  className="px-10 py-3 text-base rounded-2xl font-semibold transition-colors bt-press"
                   style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
                   {saveStatus === "saving" ? t("common.saving") : t("dash.finish")}
                 </button>
@@ -1095,8 +1095,17 @@ export default function Dashboard() {
                 {t("dash.doneDuration")} : <strong>{formatMinutesShort(completionToast.durationSecs)}</strong>
               </div>
               {completionToast.xpGained > 0 && (
-                <div className="text-xs lg:text-sm font-bold mb-2" style={{ opacity: 0.95, color: "#A7F3D0" }}>
-                  +{completionToast.xpGained} {t("dash.doneXP")}
+                <div className="relative mb-2" style={{ minHeight: 24 }}>
+                  <div className="text-xs lg:text-sm font-bold" style={{ opacity: 0.95, color: "#A7F3D0" }}>
+                    +{completionToast.xpGained} {t("dash.doneXP")}
+                  </div>
+                  {/* Floating XP ghost — animates upward */}
+                  <div
+                    key={completionToast.durationSecs}
+                    className="bt-xp-float absolute left-0 top-0 text-base lg:text-lg font-extrabold pointer-events-none"
+                    style={{ color: "#FBBF24", textShadow: "0 0 12px rgba(251,191,36,0.6)" }}>
+                    +{completionToast.xpGained} XP
+                  </div>
                 </div>
               )}
               {completionToast.goalPct > 0 && (

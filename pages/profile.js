@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
+import BadgeIcon from "../components/BadgeIcon";
 
 // ── Dark mode ────────────────────────────────────────────────
 function useDarkMode() {
@@ -144,7 +145,7 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {missions.map((m, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: m.done ? "#14B885" : "rgba(255,255,255,0.14)" }}>
+                <span className={m.done ? "bt-check-pop" : ""} style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: m.done ? "#14B885" : "rgba(255,255,255,0.14)" }}>
                   {m.done ? (
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                   ) : (
@@ -171,10 +172,11 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
               return (
                 <button key={b.id} onClick={() => onBadgeClick(b)}
                   title={t(b.labelKey)}
-                  style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0, cursor: "pointer", backgroundColor: earned ? "rgba(20,184,133,0.25)" : "rgba(255,255,255,0.06)", border: earned ? "1px solid rgba(20,184,133,0.50)" : "1px solid rgba(255,255,255,0.12)", opacity: earned ? 1 : 0.30, transition: "opacity 0.15s, transform 0.12s" }}
-                  onMouseEnter={e => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.transform = "scale(1.12)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = earned ? "1" : "0.30"; e.currentTarget.style.transform = "scale(1)"; }}>
-                  {b.icon}
+                  className="bt-press"
+                  style={{ width: 40, height: 40, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", backgroundColor: earned ? "rgba(20,184,133,0.18)" : "rgba(255,255,255,0.04)", border: earned ? "1px solid rgba(20,184,133,0.40)" : "1px solid rgba(255,255,255,0.08)", transition: "background-color 0.15s, transform 0.12s, border-color 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.10)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
+                  <BadgeIcon id={b.id} earned={earned} size={28} />
                 </button>
               );
             })}
@@ -202,9 +204,9 @@ function BadgeSheet({ badge, earned, t, onClose }) {
           </div>
           <div className="p-6 pt-4 sm:pt-6 text-center">
             {/* Icon */}
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl text-[40px] mb-4"
+            <div className={`inline-flex items-center justify-center w-24 h-24 rounded-3xl mb-4 ${earned ? "badge-shine" : ""}`}
               style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: earned ? "1px solid var(--bt-accent-border)" : "1px solid var(--bt-border)" }}>
-              {badge.icon}
+              <BadgeIcon id={badge.id} earned={earned} size={72} />
             </div>
             {/* Name */}
             <h3 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>

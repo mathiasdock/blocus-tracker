@@ -5,6 +5,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, todayISO } from "../lib/format";
 import { getLevelInfo } from "../lib/xp";
+import LevelPill from "./LevelPill";
 
 export default function UserProfileModal({ userId, onClose }) {
   const { user } = useAuth();
@@ -127,15 +128,12 @@ export default function UserProfileModal({ userId, onClose }) {
                   </div>
                 ) : null;
               })()}
-              {/* Level badge */}
+              {/* Level pill + title */}
               {stats && Number(stats.total_seconds) > 0 && (() => {
                 const lvl = getLevelInfo(Math.floor(Number(stats.total_seconds) / 60));
                 return (
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <span className="inline-flex items-center justify-center rounded-full text-white font-bold"
-                      style={{ backgroundColor: "#14B885", width: 22, height: 22, fontSize: 10 }}>
-                      {lvl.current.level}
-                    </span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <LevelPill level={lvl.current.level} size="sm" solid />
                     <span className="text-xs font-medium" style={{ color: "var(--bt-text-2)" }}>
                       {t(lvl.current.titleKey)}
                     </span>

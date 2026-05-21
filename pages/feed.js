@@ -6,6 +6,8 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
+import { getLevelInfo } from "../lib/xp";
+import LevelPill from "../components/LevelPill";
 
 export default function Feed() {
   const { user, profile } = useAuth();
@@ -14,6 +16,7 @@ export default function Feed() {
   const { t, lang } = useI18n();
   const [posts, setPosts]               = useState([]);
   const [profiles, setProfiles]         = useState({});
+  const [authorLevels, setAuthorLevels] = useState({});
   const [caption, setCaption]           = useState("");
   const [file, setFile]                 = useState(null);
   const [visibility, setVisibility]     = useState("public");
@@ -64,13 +67,28 @@ export default function Feed() {
       post.likes.forEach((l) => ids.add(l.user_id));
     });
     if (ids.size) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, pseudo, first_name, last_name, avatar_url")
-        .in("id", [...ids]);
+      const idsArr = [...ids];
+      const [{ data: profs }, { data: sessRows }] = await Promise.all([
+        supabase.from("profiles")
+          .select("id, pseudo, first_name, last_name, avatar_url")
+          .in("id", idsArr),
+        supabase.from("sessions")
+          .select("user_id, duration_seconds")
+          .in("user_id", idsArr),
+      ]);
       const map = {};
       (profs || []).forEach((pr) => (map[pr.id] = pr));
       setProfiles(map);
+      // Aggregate total seconds → level per visible user (RLS limits to friends/self)
+      const totals = {};
+      (sessRows || []).forEach(r => {
+        totals[r.user_id] = (totals[r.user_id] || 0) + (r.duration_seconds || 0);
+      });
+      const lvls = {};
+      Object.entries(totals).forEach(([uid, secs]) => {
+        if (secs > 0) lvls[uid] = getLevelInfo(Math.floor(secs / 60)).current.level;
+      });
+      setAuthorLevels(lvls);
     }
   }, [user?.id]);
 
@@ -247,8 +265,11 @@ export default function Feed() {
                     <Avatar url={author.avatar_url} pseudo={displayName(author)} size={38} />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                          {displayName(author)}{" "}
+                        <p className="text-sm font-semibold inline-flex items-center gap-1.5 flex-wrap" style={{ color: "var(--bt-text-1)" }}>
+                          <span>{displayName(author)}</span>
+                          {authorLevels[post.user_id] && (
+                            <LevelPill level={authorLevels[post.user_id]} />
+                          )}
                           <span className="font-normal" style={{ color: "var(--bt-text-3)" }}>@{author.pseudo}</span>
                         </p>
                         {post.visibility === "friends" ? (

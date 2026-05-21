@@ -6,6 +6,8 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, todayISO, lastNDates, displayName } from "../lib/format";
+import { getLevelInfo } from "../lib/xp";
+import LevelPill from "../components/LevelPill";
 
 export default function Friends() {
   const { user, profile } = useAuth();
@@ -19,6 +21,7 @@ export default function Friends() {
   const [results, setResults]         = useState([]);
   const [links, setLinks]             = useState([]);
   const [friendData, setFriendData]   = useState({});
+  const [friendTotals, setFriendTotals] = useState({});
   const [peopleMap, setPeopleMap]     = useState({});
   const [suggestions, setSuggestions]   = useState([]);
   const [showSugg, setShowSugg]         = useState(false);
@@ -119,6 +122,17 @@ export default function Friends() {
     (sessions || []).forEach((s) => map[s.user_id]?.sessions.push(s));
     (objs || []).forEach((o) => map[o.user_id]?.objectives.push(o));
     setFriendData(map);
+
+    // Load lifetime total per friend (for the level pill)
+    const { data: totalsRows } = await supabase
+      .from("sessions")
+      .select("user_id, duration_seconds")
+      .in("user_id", acceptedIds);
+    const totals = {};
+    (totalsRows || []).forEach(r => {
+      totals[r.user_id] = (totals[r.user_id] || 0) + (r.duration_seconds || 0);
+    });
+    setFriendTotals(totals);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(acceptedIds)]);
 
@@ -467,8 +481,11 @@ export default function Friends() {
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>
-                                {displayName(fd.profile)}
+                              <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: "var(--bt-text-1)" }}>
+                                <span className="truncate">{displayName(fd.profile)}</span>
+                                {friendTotals[fid] > 0 && (
+                                  <LevelPill level={getLevelInfo(Math.floor(friendTotals[fid] / 60)).current.level} />
+                                )}
                               </p>
                               <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>@{fd.profile?.pseudo}</p>
                             </div>

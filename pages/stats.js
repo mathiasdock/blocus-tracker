@@ -7,6 +7,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, lastNDates, getWeekDates, displayName, todayISO } from "../lib/format";
+import { getLevelInfo } from "../lib/xp";
+import LevelPill from "../components/LevelPill";
 
 const Charts = dynamic(() => import("../components/StatsCharts"), { ssr: false });
 
@@ -664,8 +666,13 @@ export default function Stats() {
                         {medal[i] || i + 1}
                       </span>
                       <Avatar url={row.avatar_url} pseudo={name} size={32} />
-                      <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
-                        {name}
+                      <span className="flex-1 min-w-0 text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
+                        <span className="inline-flex items-center gap-1.5 max-w-full">
+                          <span className="truncate">{name}</span>
+                          {Number(row.total_seconds) > 0 && (
+                            <LevelPill level={getLevelInfo(Math.floor(Number(row.total_seconds) / 60)).current.level} />
+                          )}
+                        </span>
                         {isMe && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}
                       </span>
                       <span className="text-sm font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
