@@ -1,0 +1,46 @@
+{
+  "name": "Blocus Tracker",
+  "short_name": "Blocus",
+  "description": "Tracker d'étude pour étudiants — chrono, planning, social.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#fafaf9",
+  "theme_color": "#14B885",
+  "orientation": "portrait",
+  "lang": "fr",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Démarrer le chrono",
+      "short_name": "Chrono",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Planning",
+      "short_name": "Planning",
+      "url": "/planning",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

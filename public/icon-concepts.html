@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Concepts logo — Blocus Tracker</title>
+<style>
+  body { background: #e7e5e4; font-family: system-ui,sans-serif; display:flex; gap:40px; padding:48px; flex-wrap:wrap; align-items:flex-start; }
+  .concept { display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .sizes { display:flex; align-items:flex-end; gap:16px; }
+  .size-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .label { font-size:10px; color:#78716c; }
+  h3 { font-size:13px; color:#292524; text-align:center; margin:0; max-width:150px; line-height:1.4; }
+  p  { font-size:11px; color:#78716c; text-align:center; margin:0; max-width:150px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     A — SABLIER ACADÉMIQUE
+     Sablier dont les moitiés sont les
+     deux plateaux d'un livre ouvert.
+     Symbole direct du blocus : le temps
+     qui s'écoule pendant les révisions.
+════════════════════════════════════ -->
+<div class="concept">
+  <div class="sizes">
+
+    <div class="size-wrap">
+      <svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <!-- Couverture haut (livre) -->
+        <rect x="16" y="11" width="68" height="8" rx="4" fill="white"/>
+        <!-- Couverture bas -->
+        <rect x="16" y="81" width="68" height="8" rx="4" fill="white"/>
+        <!-- Triangle haut (pages = temps restant) -->
+        <path d="M19,19 L81,19 L57,48 L43,48 Z" fill="white"/>
+        <!-- Lignes de pages dans le triangle haut -->
+        <line x1="27" y1="26" x2="73" y2="26" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <line x1="31" y1="32" x2="69" y2="32" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <line x1="36" y1="38" x2="64" y2="38" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <line x1="41" y1="44" x2="59" y2="44" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <!-- Goulot (vert = fond visible) -->
+        <!-- Triangle bas (sable = temps écoulé) -->
+        <path d="M43,52 L57,52 L81,81 L19,81 Z" fill="rgba(255,255,255,0.55)"/>
+        <!-- Grain de sable qui tombe -->
+        <circle cx="50" cy="57" r="2" fill="rgba(255,255,255,0.9)"/>
+      </svg>
+      <div class="label">48px</div>
+    </div>
+
+    <div class="size-wrap">
+      <svg width="96" height="96" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <rect x="16" y="11" width="68" height="8" rx="4" fill="white"/>
+        <rect x="16" y="81" width="68" height="8" rx="4" fill="white"/>
+        <path d="M19,19 L81,19 L57,48 L43,48 Z" fill="white"/>
+        <line x1="27" y1="26" x2="73" y2="26" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <line x1="31" y1="32" x2="69" y2="32" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <line x1="36" y1="38" x2="64" y2="38" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <line x1="41" y1="44" x2="59" y2="44" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.22"/>
+        <path d="M43,52 L57,52 L81,81 L19,81 Z" fill="rgba(255,255,255,0.55)"/>
+        <circle cx="50" cy="57" r="2.5" fill="rgba(255,255,255,0.9)"/>
+        <circle cx="44" cy="66" r="1.8" fill="rgba(255,255,255,0.7)"/>
+        <circle cx="56" cy="66" r="1.8" fill="rgba(255,255,255,0.7)"/>
+        <circle cx="38" cy="75" r="1.8" fill="rgba(255,255,255,0.7)"/>
+        <circle cx="50" cy="74" r="2.2" fill="rgba(255,255,255,0.8)"/>
+        <circle cx="62" cy="75" r="1.8" fill="rgba(255,255,255,0.7)"/>
+      </svg>
+      <div class="label">96px</div>
+    </div>
+
+  </div>
+  <h3>A — Sablier académique</h3>
+  <p>Haut = pages à étudier · Bas = temps écoulé. Référence directe au blocus.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     B — CADENAS HORLOGE
+     Cadenas dont le corps est un cadran
+     d'horloge. "Blocus" = se barricader
+     pour étudier. Référence étymologique
+     directe au nom de l'appli.
+════════════════════════════════════ -->
+<div class="concept">
+  <div class="sizes">
+
+    <div class="size-wrap">
+      <svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <!-- Anse du cadenas -->
+        <path d="M33,52 L33,35 Q33,18 50,18 Q67,18 67,35 L67,52" fill="none" stroke="white" stroke-width="9" stroke-linecap="round"/>
+        <!-- Corps cadenas -->
+        <rect x="17" y="50" width="66" height="46" rx="10" fill="white"/>
+        <!-- Cadran horloge dans le corps -->
+        <circle cx="50" cy="71" r="15" fill="none" stroke="#10b981" stroke-width="2.5"/>
+        <!-- 4 ticks -->
+        <line x1="50" y1="57.5" x2="50" y2="60.5" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <line x1="64.5" y1="71" x2="61.5" y2="71" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <line x1="50" y1="84.5" x2="50" y2="81.5" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <line x1="35.5" y1="71" x2="38.5" y2="71" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <!-- Aiguille min → 12h -->
+        <line x1="50" y1="71" x2="50" y2="60" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Aiguille h → 2h -->
+        <line x1="50" y1="71" x2="59" y2="65" stroke="#059669" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="50" cy="71" r="2.5" fill="#059669"/>
+      </svg>
+      <div class="label">48px</div>
+    </div>
+
+    <div class="size-wrap">
+      <svg width="96" height="96" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <path d="M33,52 L33,35 Q33,18 50,18 Q67,18 67,35 L67,52" fill="none" stroke="white" stroke-width="9" stroke-linecap="round"/>
+        <rect x="17" y="50" width="66" height="46" rx="10" fill="white"/>
+        <circle cx="50" cy="71" r="15" fill="none" stroke="#10b981" stroke-width="2.5"/>
+        <line x1="50" y1="57.5" x2="50" y2="60.5" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <line x1="64.5" y1="71" x2="61.5" y2="71" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <line x1="50" y1="84.5" x2="50" y2="81.5" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <line x1="35.5" y1="71" x2="38.5" y2="71" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+        <line x1="50" y1="71" x2="50" y2="60" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="50" y1="71" x2="59" y2="65" stroke="#059669" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="50" cy="71" r="2.5" fill="#059669"/>
+      </svg>
+      <div class="label">96px</div>
+    </div>
+
+  </div>
+  <h3>B — Cadenas·horloge</h3>
+  <p>«Blocus» = se barricader. Le cadenas ET l'horloge en un seul objet.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     C — ÉCLAIR DE PAGES
+     Un éclair (énergie, focus, intensité)
+     dont l'intérieur est rayé de lignes
+     de pages de livre. L'éclair = le
+     flash de motivation, les pages = le
+     contenu à étudier.
+════════════════════════════════════ -->
+<div class="concept">
+  <div class="sizes">
+
+    <div class="size-wrap">
+      <svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="bolt48">
+            <path d="M60,7 L32,52 L50,52 L40,93 L68,48 L50,48 Z"/>
+          </clipPath>
+        </defs>
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <!-- Éclair solide blanc -->
+        <path d="M60,7 L32,52 L50,52 L40,93 L68,48 L50,48 Z" fill="white"/>
+        <!-- Lignes de pages à l'intérieur -->
+        <g clip-path="url(#bolt48)">
+          <line x1="0" y1="22" x2="100" y2="22" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="32" x2="100" y2="32" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="42" x2="100" y2="42" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="58" x2="100" y2="58" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="68" x2="100" y2="68" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="78" x2="100" y2="78" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+        </g>
+      </svg>
+      <div class="label">48px</div>
+    </div>
+
+    <div class="size-wrap">
+      <svg width="96" height="96" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="bolt96">
+            <path d="M60,7 L32,52 L50,52 L40,93 L68,48 L50,48 Z"/>
+          </clipPath>
+        </defs>
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <path d="M60,7 L32,52 L50,52 L40,93 L68,48 L50,48 Z" fill="white"/>
+        <g clip-path="url(#bolt96)">
+          <line x1="0" y1="22" x2="100" y2="22" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="32" x2="100" y2="32" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="42" x2="100" y2="42" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="58" x2="100" y2="58" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="68" x2="100" y2="68" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+          <line x1="0" y1="78" x2="100" y2="78" stroke="#10b981" stroke-width="2" stroke-opacity="0.2"/>
+        </g>
+      </svg>
+      <div class="label">96px</div>
+    </div>
+
+  </div>
+  <h3>C — Éclair de pages</h3>
+  <p>L'intensité du blocus = un éclair. Les lignes intérieures = tes notes de cours.</p>
+</div>
+
+
+<!-- ═══════════════════════════════════
+     D — FLAMME-LIVRE
+     Une flamme composée de deux pages
+     de livre qui s'enroulent vers le haut
+     comme une flamme de bougie. Étudier
+     jusqu'à tard = brûler la chandelle
+     par les deux bouts. Unique, chaud,
+     artistique.
+════════════════════════════════════ -->
+<div class="concept">
+  <div class="sizes">
+
+    <div class="size-wrap">
+      <svg width="48" height="48" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="flame-l48">
+            <path d="M50,85 C40,85 22,72 22,50 C22,32 36,18 50,12 L50,85 Z"/>
+          </clipPath>
+          <clipPath id="flame-r48">
+            <path d="M50,12 C64,18 78,32 78,50 C78,72 60,85 50,85 L50,12 Z"/>
+          </clipPath>
+        </defs>
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <!-- Mèche / base de bougie -->
+        <rect x="43" y="82" width="14" height="9" rx="3" fill="rgba(255,255,255,0.4)"/>
+        <!-- Page gauche (légèrement transparente, dos de page) -->
+        <path d="M50,85 C40,85 22,72 22,50 C22,32 36,18 50,12 L50,85 Z" fill="rgba(255,255,255,0.78)"/>
+        <!-- Lignes de texte page gauche -->
+        <g clip-path="url(#flame-l48)">
+          <line x1="0" y1="28" x2="52" y2="28" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="38" x2="52" y2="38" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="48" x2="52" y2="48" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="58" x2="52" y2="58" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="68" x2="52" y2="68" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="78" x2="52" y2="78" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+        </g>
+        <!-- Page droite (plus vive) -->
+        <path d="M50,12 C64,18 78,32 78,50 C78,72 60,85 50,85 L50,12 Z" fill="white"/>
+        <!-- Reliure / séparation des pages -->
+        <line x1="50" y1="12" x2="50" y2="85" stroke="#059669" stroke-width="1.5" stroke-opacity="0.6"/>
+      </svg>
+      <div class="label">48px</div>
+    </div>
+
+    <div class="size-wrap">
+      <svg width="96" height="96" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="flame-l96">
+            <path d="M50,85 C40,85 22,72 22,50 C22,32 36,18 50,12 L50,85 Z"/>
+          </clipPath>
+          <clipPath id="flame-r96">
+            <path d="M50,12 C64,18 78,32 78,50 C78,72 60,85 50,85 L50,12 Z"/>
+          </clipPath>
+        </defs>
+        <rect width="100" height="100" rx="20" fill="#10b981"/>
+        <rect x="43" y="82" width="14" height="9" rx="3" fill="rgba(255,255,255,0.4)"/>
+        <path d="M50,85 C40,85 22,72 22,50 C22,32 36,18 50,12 L50,85 Z" fill="rgba(255,255,255,0.78)"/>
+        <g clip-path="url(#flame-l96)">
+          <line x1="0" y1="28" x2="52" y2="28" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="38" x2="52" y2="38" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="48" x2="52" y2="48" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="58" x2="52" y2="58" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="68" x2="52" y2="68" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+          <line x1="0" y1="78" x2="52" y2="78" stroke="#10b981" stroke-width="1.5" stroke-opacity="0.3"/>
+        </g>
+        <path d="M50,12 C64,18 78,32 78,50 C78,72 60,85 50,85 L50,12 Z" fill="white"/>
+        <line x1="50" y1="12" x2="50" y2="85" stroke="#059669" stroke-width="1.5" stroke-opacity="0.6"/>
+      </svg>
+      <div class="label">96px</div>
+    </div>
+
+  </div>
+  <h3>D — Flamme·livre</h3>
+  <p>Deux pages de livre qui s'enroulent en flamme. Étudier tard = brûler la chandelle.</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,309 @@
+import { useEffect, useState, useRef, useCallback } from "react";
+import Layout, { Avatar } from "../components/Layout";
+import UserProfileModal from "../components/UserProfileModal";
+import { useAuth } from "../contexts/AuthContext";
+import { useNotifications } from "../contexts/NotificationContext";
+import { useI18n } from "../contexts/I18nContext";
+import { supabase } from "../lib/supabaseClient";
+import { displayName, timeAgo } from "../lib/format";
+import { COUNTRIES, COMMUNITY_BY_ID } from "../lib/universities";
+
+export default function Communautes() {
+  const { user, profile } = useAuth();
+  const isAdmin = profile?.is_admin === true;
+  const { communityCount, markSeen } = useNotifications();
+  const { t, lang } = useI18n();
+
+  // Default to first community of first country
+  const [active, setActive] = useState(COUNTRIES[0].universities[0].id);
+  // Track which country accordions are open
+  const [openCountries, setOpenCountries] = useState({ [COUNTRIES[0].code]: true });
+
+  const [messages, setMessages] = useState([]);
+  const [profiles, setProfiles] = useState({});
+  const [text, setText] = useState("");
+  const [file, setFile] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [viewUserId, setViewUserId] = useState(null);
+  const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const activeMeta = COMMUNITY_BY_ID[active];
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("community_messages")
+      .select("*")
+      .eq("community", active)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    setMessages(data || []);
+    const ids = [...new Set((data || []).map((m) => m.user_id))];
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, pseudo, first_name, last_name, avatar_url")
+        .in("id", ids);
+      const map = {};
+      (profs || []).forEach((p) => (map[p.id] = p));
+      setProfiles(map);
+    }
+  }, [active]);
+
+  useEffect(() => {
+    setMessages([]);
+    load();
+    markSeen(active);
+  }, [load, active, markSeen]);
+
+  useEffect(() => {
+    const id = setInterval(load, 5000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  function toggleCountry(code) {
+    setOpenCountries(prev => ({ ...prev, [code]: !prev[code] }));
+  }
+
+  function selectCommunity(id, countryCode) {
+    setActive(id);
+    setOpenCountries(prev => ({ ...prev, [countryCode]: true }));
+  }
+
+  async function send(e) {
+    e.preventDefault();
+    if (!text.trim() && !file) return;
+    setSending(true);
+
+    let attachment_url = null;
+    let attachment_type = null;
+    let attachment_name = null;
+
+    if (file) {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/${active}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("community").upload(path, file);
+      if (upErr) { setSending(false); alert("Échec de l'envoi du fichier : " + upErr.message); return; }
+      const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
+      attachment_url = pub.publicUrl;
+      attachment_type = file.type.startsWith("image/") ? "image" : "file";
+      attachment_name = file.name;
+    }
+
+    await supabase.from("community_messages").insert({
+      community: active, user_id: user.id,
+      content: text.trim() || null,
+      attachment_url, attachment_type, attachment_name,
+    });
+
+    setText("");
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setSending(false);
+    load();
+  }
+
+  async function remove(id) {
+    await supabase.from("community_messages").delete().eq("id", id);
+    load();
+  }
+
+  const who = (id) => profiles[id] || { pseudo: "Utilisateur", avatar_url: null };
+
+  // Total badge across all communities
+  const totalBadge = Object.values(communityCount).reduce((s, n) => s + n, 0);
+
+  return (
+    <Layout>
+      <h1 className="text-2xl mb-0.5" style={{ color: "#1F1A17" }}>{t("comm.title")}</h1>
+      <p className="text-sm mb-6" style={{ color: "#7C746E" }}>{t("comm.subtitle")}</p>
+
+      <div className="grid gap-5 lg:grid-cols-4">
+        {/* ── Sidebar ──────────────────────────────────────────── */}
+        <aside className="lg:col-span-1 space-y-0.5">
+          {COUNTRIES.map(country => {
+            const isOpen = !!openCountries[country.code];
+            const countryBadge = country.universities.reduce((s, u) => s + (communityCount[u.id] || 0), 0);
+            return (
+              <div key={country.code}>
+                <button onClick={() => toggleCountry(country.code)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-left"
+                  style={{ color: "#7C746E" }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "#F7F3EF"}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                  <span className="flex-1 text-xs font-semibold uppercase tracking-wide">{country.name}</span>
+                  {countryBadge > 0 && !isOpen && (
+                    <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] text-[9px] font-bold bg-red-500 text-white rounded-full px-0.5 leading-none">
+                      {countryBadge > 99 ? "99+" : countryBadge}
+                    </span>
+                  )}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    className={`transition-transform ${isOpen ? "rotate-180" : ""}`} style={{ color: "#A8A09A" }}>
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+
+                {isOpen && (
+                  <div className="pl-1.5 space-y-0.5 mb-1">
+                    {country.universities.slice().sort((a, b) => a.name.localeCompare(b.name, "fr")).map(u => {
+                      const isActive = active === u.id;
+                      const badge = communityCount[u.id] || 0;
+                      return (
+                        <button key={u.id} onClick={() => selectCommunity(u.id, country.code)}
+                          className="relative w-full text-left rounded-2xl px-3 py-2 transition-all flex items-center gap-2.5"
+                          style={isActive
+                            ? { backgroundColor: "#EAFBF4", color: "#0E8F68" }
+                            : { color: "#7C746E" }}
+                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = "#F7F3EF"; }}
+                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = ""; }}>
+                          {isActive && (
+                            <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+                              style={{ backgroundColor: "#14B885" }} />
+                          )}
+                          <div className="w-5 h-5 shrink-0 flex items-center justify-center rounded overflow-hidden"
+                            style={{ backgroundColor: "#F7F3EF", border: "1px solid #E8E2DC" }}>
+                            {u.logo ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={u.logo} alt="" className="w-5 h-5 object-contain" />
+                            ) : (
+                              <span className="text-[8px] font-bold text-white flex items-center justify-center w-5 h-5"
+                                style={{ backgroundColor: u.color }}>
+                                {u.name.slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          <span className={`flex-1 text-xs ${isActive ? "font-semibold" : "font-medium"}`}>
+                            {u.name}
+                          </span>
+                          {badge > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[15px] h-[15px] text-[9px] font-bold bg-red-500 text-white rounded-full px-0.5 leading-none shrink-0">
+                              {badge > 99 ? "99+" : badge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </aside>
+
+        {/* ── Chat ─────────────────────────────────────────────── */}
+        <section className="lg:col-span-3 card flex flex-col h-[72vh]">
+          {/* Header */}
+          <div className="px-5 py-3.5 flex items-center gap-3 shrink-0"
+            style={{ borderBottom: "1px solid #E8E2DC" }}>
+            <div className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl overflow-hidden"
+              style={{ backgroundColor: "#F7F3EF", border: "1px solid #E8E2DC" }}>
+              {activeMeta?.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={activeMeta.logo} alt="" className="w-8 h-8 object-contain" />
+              ) : (
+                <span className="text-xs font-bold text-white w-9 h-9 flex items-center justify-center rounded-xl"
+                  style={{ backgroundColor: activeMeta?.color || "#14B885" }}>
+                  {activeMeta?.name?.slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold leading-tight" style={{ color: "#1F1A17" }}>{activeMeta?.name}</h2>
+              <p className="text-xs" style={{ color: "#A8A09A" }}>{activeMeta?.full}</p>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto relative">
+            {activeMeta?.logo && (
+              <div className="sticky top-0 left-0 right-0 z-0 h-0 pointer-events-none" aria-hidden>
+                <div className="absolute left-0 right-0 flex items-center justify-center" style={{ top: 0, height: "calc(72vh - 8rem)" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={activeMeta.logo} alt=""
+                    style={{ width: "55%", maxWidth: 400, opacity: 0.10, objectFit: "contain" }} />
+                </div>
+              </div>
+            )}
+            <div className="relative z-10 px-5 py-4 space-y-3">
+              {messages.length === 0 && (
+                <p className="text-center text-sm mt-10" style={{ color: "#A8A09A" }}>
+                  {t("comm.empty")}
+                </p>
+              )}
+              {messages.map((m) => {
+                const author = who(m.user_id);
+                const mine = m.user_id === user.id;
+                return (
+                  <div key={m.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+                    <button onClick={() => setViewUserId(m.user_id)} className="shrink-0">
+                      <Avatar url={author.avatar_url} pseudo={displayName(author)} size={30} />
+                    </button>
+                    <div className={`max-w-[72%] ${mine ? "items-end text-right" : "items-start"} flex flex-col`}>
+                      <span className="text-[11px] mb-0.5" style={{ color: "#A8A09A" }}>
+                        {displayName(author)} · {timeAgo(m.created_at, lang)}
+                      </span>
+                      <div className="rounded-2xl px-3.5 py-2.5 text-sm"
+                        style={mine
+                          ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                          : { backgroundColor: "#F7F3EF", color: "#1F1A17", borderRadius: "18px 18px 18px 6px" }}>
+                        {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
+                        {m.attachment_url && m.attachment_type === "image" && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.attachment_url} alt={m.attachment_name || "image"}
+                            className="mt-2 rounded-xl max-h-60 object-cover" />
+                        )}
+                        {m.attachment_url && m.attachment_type === "file" && (
+                          <a href={m.attachment_url} target="_blank" rel="noreferrer"
+                            className="mt-2 inline-flex items-center gap-2 underline"
+                            style={{ color: mine ? "#fff" : "#0E8F68" }}>
+                            📎 {m.attachment_name || "Document"}
+                          </a>
+                        )}
+                      </div>
+                      {(mine || isAdmin) && (
+                        <button onClick={() => remove(m.id)}
+                          className="text-[10px] mt-0.5 transition-colors"
+                          style={{ color: "#D0C9C3" }}
+                          onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                          onMouseLeave={e => e.currentTarget.style.color = "#D0C9C3"}>
+                          {t("common.remove")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
+          </div>
+
+          {/* Input */}
+          <form onSubmit={send} className="p-3 flex items-center gap-2 shrink-0"
+            style={{ borderTop: "1px solid #E8E2DC" }}>
+            <label className="btn-ghost cursor-pointer px-3 shrink-0" title="Joindre un fichier">
+              📎
+              <input ref={fileInputRef} type="file"
+                accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+                className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            </label>
+            <input className="input flex-1"
+              placeholder={file ? `${t("msg.file")} : ${file.name}` : t("comm.placeholder")}
+              value={text} onChange={(e) => setText(e.target.value)} />
+            <button className="btn-primary shrink-0" disabled={sending || (!text.trim() && !file)}>
+              {sending ? "…" : t("common.send")}
+            </button>
+          </form>
+        </section>
+      </div>
+
+      {viewUserId && (
+        <UserProfileModal userId={viewUserId} onClose={() => setViewUserId(null)} />
+      )}
+    </Layout>
+  );
+}
