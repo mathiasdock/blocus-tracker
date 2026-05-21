@@ -26,7 +26,11 @@ export default function Feed() {
   const [emojiDraft, setEmojiDraft]     = useState({});
   const [viewUserId, setViewUserId]     = useState(null);
   const [formOpen, setFormOpen]         = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef  = useRef(null);
+  const pressTimerRef = useRef(null);
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editCaption,   setEditCaption]   = useState("");
+  const [reactorsPanel, setReactorsPanel] = useState(null);
 
   function openProfile(userId) {
     if (userId === user.id) return;
@@ -150,6 +154,24 @@ export default function Feed() {
   async function deleteComment(commentId) {
     await supabase.from("comments").delete().eq("id", commentId);
     load();
+  }
+
+  async function updatePost(postId, newCaption) {
+    await supabase.from("posts").update({ caption: newCaption.trim() || null }).eq("id", postId);
+    setEditingPostId(null);
+    setEditCaption("");
+    load();
+  }
+
+  function handlePressStart(postId) {
+    pressTimerRef.current = setTimeout(() => setReactorsPanel(postId), 600);
+  }
+
+  function handlePressEnd() {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
   }
 
   function submitEmojiReaction(post) {
@@ -295,33 +317,76 @@ export default function Feed() {
                     </div>
                   </button>
                   {(post.user_id === user.id || isAdmin) && (
-                    <button onClick={() => deletePost(post.id)}
-                      className="text-xs transition-colors"
-                      style={{ color: "#D0C9C3" }}
-                      onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                      onMouseLeave={e => e.currentTarget.style.color = "#D0C9C3"}>
-                      {t("common.remove")}
-                    </button>
+                    <div className="flex items-center gap-2.5">
+                      {post.user_id === user.id && (
+                        <button
+                          onClick={() => { setEditingPostId(post.id); setEditCaption(post.caption || ""); }}
+                          className="text-xs transition-colors"
+                          style={{ color: "#D0C9C3" }}
+                          onMouseEnter={e => e.currentTarget.style.color = "#14B885"}
+                          onMouseLeave={e => e.currentTarget.style.color = "#D0C9C3"}>
+                          {t("feed.editPost")}
+                        </button>
+                      )}
+                      <button onClick={() => deletePost(post.id)}
+                        className="text-xs transition-colors"
+                        style={{ color: "#D0C9C3" }}
+                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                        onMouseLeave={e => e.currentTarget.style.color = "#D0C9C3"}>
+                        {t("common.remove")}
+                      </button>
+                    </div>
                   )}
                 </div>
 
+                {/* Inline caption editor (own posts only) */}
+                {editingPostId === post.id && (
+                  <div className="px-4 pb-3 space-y-2">
+                    <input
+                      className="input"
+                      placeholder={t("feed.editCaption")}
+                      value={editCaption}
+                      onChange={e => setEditCaption(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter")  updatePost(post.id, editCaption);
+                        if (e.key === "Escape") setEditingPostId(null);
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => updatePost(post.id, editCaption)} className="btn-primary flex-1 text-sm py-2">
+                        {t("feed.saveEdit")}
+                      </button>
+                      <button onClick={() => setEditingPostId(null)} className="btn-ghost text-sm py-2">
+                        {t("common.cancel")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={post.image_url} alt="session"
-                  className="w-full object-cover" style={{ maxHeight: "26rem", backgroundColor: "#F7F3EF" }} />
+                <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
+                  <img src={post.image_url} alt="session" className="w-full h-full object-cover" />
+                </div>
 
                 <div className="p-4 space-y-3">
                   {/* Reactions — free emoji */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                  {/* Reactions — long-press (600ms) opens the reactors panel */}
+                  <div className="flex items-center gap-1.5 flex-wrap"
+                    onPointerDown={() => handlePressStart(post.id)}
+                    onPointerUp={handlePressEnd}
+                    onPointerLeave={handlePressEnd}>
                     {sortedEmojis.map((emoji) => {
                       const n = counts[emoji] || 0;
                       const active = myReaction === emoji;
+                      const isHeart = emoji === "♥";
                       return (
                         <button key={emoji} onClick={() => react(post, emoji)}
                           className="text-sm flex items-center gap-1 rounded-full px-2.5 py-1 transition-all"
                           style={active
                             ? { backgroundColor: "#EAFBF4", border: "1px solid #C6EED9", color: "#0E8F68" }
                             : { border: "1px solid #E8E2DC", color: "var(--bt-text-2)", backgroundColor: "transparent" }}>
-                          <span>{emoji}</span>
+                          <span style={{ color: isHeart ? "#ef4444" : undefined }}>{emoji}</span>
                           {n > 0 && <span className="text-xs tabular-nums font-medium">{n}</span>}
                         </button>
                       );
@@ -450,6 +515,63 @@ export default function Feed() {
           })}
         </div>
       </div>
+
+      {/* ── Reactors panel — long-press on reactions ────────────── */}
+      {reactorsPanel && (() => {
+        const rPost = posts.find(p => p.id === reactorsPanel);
+        if (!rPost) return null;
+        const groups = {};
+        rPost.likes.forEach(l => {
+          const e = l.emoji || "♥";
+          if (!groups[e]) groups[e] = [];
+          groups[e].push(l);
+        });
+        const sortedGroups = Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-end"
+            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            onClick={() => setReactorsPanel(null)}>
+            <div
+              className="w-full rounded-t-3xl p-5 overflow-y-auto"
+              style={{ backgroundColor: "var(--bt-surface)", maxHeight: "70vh" }}
+              onClick={e => e.stopPropagation()}>
+              {/* Handle */}
+              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ backgroundColor: "var(--bt-border)" }} />
+              <p className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>
+                {t("feed.reactions")}
+              </p>
+              {sortedGroups.length === 0 ? (
+                <p className="text-sm text-center py-4" style={{ color: "var(--bt-text-3)" }}>—</p>
+              ) : sortedGroups.map(([emoji, likers]) => (
+                <div key={emoji} className="mb-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xl" style={{ color: emoji === "♥" ? "#ef4444" : undefined }}>{emoji}</span>
+                    <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>{likers.length}</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {likers.map(l => {
+                      const p = profiles[l.user_id];
+                      if (!p) return null;
+                      return (
+                        <div key={l.id} className="flex items-center gap-3">
+                          <Avatar url={p.avatar_url} pseudo={displayName(p)} size={32} />
+                          <span className="text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
+                            {displayName(p)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              <button onClick={() => setReactorsPanel(null)} className="btn-ghost w-full mt-2">
+                {t("common.close")}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {viewUserId && (
         <UserProfileModal userId={viewUserId} onClose={() => setViewUserId(null)} />

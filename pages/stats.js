@@ -34,7 +34,7 @@ export default function Stats() {
   const [weekOffset, setWeekOffset] = useState(0); // 0=current week, -1=last week…
 
   // ── Leaderboard state ──────────────────────────────────────────
-  const [leaderPeriod, setLeaderPeriod] = useState("week");
+  const [leaderPeriod, setLeaderPeriod] = useState("day");
   const [leaderMode,   setLeaderMode]   = useState("public");
   const [myWeekSecs,   setMyWeekSecs]   = useState(0);
   const [myDaySecs,    setMyDaySecs]    = useState(0);
@@ -669,8 +669,8 @@ export default function Stats() {
                       <span className="flex-1 min-w-0 text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
                         <span className="inline-flex items-center gap-1.5 max-w-full">
                           <span className="truncate">{name}</span>
-                          {Number(row.total_seconds) > 0 && (
-                            <LevelPill level={getLevelInfo(Math.floor(Number(row.total_seconds) / 60)).current.level} />
+                          {Number(row.alltime_seconds ?? row.total_seconds) > 0 && (
+                            <LevelPill level={getLevelInfo(Math.floor(Number(row.alltime_seconds ?? row.total_seconds) / 60)).current.level} />
                           )}
                         </span>
                         {isMe && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}

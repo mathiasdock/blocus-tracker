@@ -6,6 +6,7 @@ import { ALL_UNIVERSITIES } from "../lib/universities";
 
 const NotificationContext = createContext({
   feedCount: 0,
+  commentCount: 0,
   friendCount: 0,
   communityCount: {},
   totalCommunity: 0,
@@ -31,6 +32,7 @@ export function NotificationProvider({ children }) {
   const { user } = useAuth();
   const router = useRouter();
   const [feedCount, setFeedCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
   const [friendCount, setFriendCount] = useState(0);
   const [communityCount, setCommunityCount] = useState({});
   const [messageCount, setMessageCount] = useState(0);
@@ -40,10 +42,15 @@ export function NotificationProvider({ children }) {
 
   const markSeen = useCallback((key) => {
     setLastSeen(key);
-    if (key === "feed") setFeedCount(0);
-    else if (key === "friends") setFriendCount(0);
-    else if (key === "messages") { setMessageCount(0); setMsgToast(false); }
-    else {
+    if (key === "feed") {
+      setFeedCount(0);
+      setCommentCount(0);
+      setLastSeen("comments"); // reset comment timestamp too
+    } else if (key === "friends") {
+      setFriendCount(0);
+    } else if (key === "messages") {
+      setMessageCount(0); setMsgToast(false);
+    } else {
       setCommunityCount((prev) => ({ ...prev, [key]: 0 }));
     }
   }, []);
@@ -121,6 +128,27 @@ export function NotificationProvider({ children }) {
       .eq("receiver_id", user.id)
       .eq("read", false);
     setMessageCount(mc || 0);
+
+    // New comments on my posts (from others)
+    const lastComments = getLastSeen("comments");
+    if (lastComments) {
+      const { data: myPosts } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("user_id", user.id)
+        .limit(100);
+      if (myPosts?.length) {
+        const { count: cc } = await supabase
+          .from("comments")
+          .select("id", { count: "exact", head: true })
+          .in("post_id", myPosts.map(p => p.id))
+          .neq("user_id", user.id)
+          .gt("created_at", lastComments);
+        setCommentCount(cc || 0);
+      }
+    } else {
+      setLastSeen("comments");
+    }
   }, [user]);
 
   useEffect(() => {
@@ -134,7 +162,7 @@ export function NotificationProvider({ children }) {
 
   return (
     <NotificationContext.Provider
-      value={{ feedCount, friendCount, communityCount, totalCommunity, messageCount, msgToast, clearMsgToast, markSeen }}
+      value={{ feedCount, commentCount, friendCount, communityCount, totalCommunity, messageCount, msgToast, clearMsgToast, markSeen }}
     >
       {children}
     </NotificationContext.Provider>

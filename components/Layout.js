@@ -235,7 +235,7 @@ const MOBILE_5 = [
 export default function Layout({ children }) {
   const { user, profile, loading, signOut } = useAuth();
   const { running, elapsed } = useTimer();
-  const { feedCount, friendCount, totalCommunity, messageCount, msgToast, clearMsgToast } = useNotifications();
+  const { feedCount, commentCount, friendCount, totalCommunity, messageCount, msgToast, clearMsgToast } = useNotifications();
   const { t, lang, setLang } = useI18n();
   const router = useRouter();
 
@@ -255,14 +255,14 @@ export default function Layout({ children }) {
   const isAdmin = profile?.is_admin === true;
 
   function badgeFor(href) {
-    if (href === "/feed")        return feedCount;
+    if (href === "/feed")        return feedCount + commentCount;
     if (href === "/friends")     return friendCount;
     if (href === "/communautes") return totalCommunity;
     if (href === "/messages")    return messageCount;
     return 0;
   }
 
-  const socialBadge = feedCount + friendCount + totalCommunity + messageCount;
+  const socialBadge = feedCount + commentCount + friendCount + totalCommunity + messageCount;
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
