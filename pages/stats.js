@@ -483,7 +483,7 @@ export default function Stats() {
       {/* ── Leaderboard ─────────────────────────────────────────── */}
       <section className="card p-5 mt-6">
         {/* Title */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-start justify-between mb-3">
           <div>
             <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
               {leaderMode === "friends" ? t("stats.leaderTitle") : t("stats.publicLeaderTitle")}
