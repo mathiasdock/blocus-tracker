@@ -98,9 +98,11 @@ export function AuthProvider({ children }) {
     // par Supabase Auth et l'index unique sur profiles.email.
 
     // Créer le compte Supabase Auth avec le vrai email
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
     const { data, error } = await supabase.auth.signUp({
       email: em,
       password,
+      options: { emailRedirectTo: `${siteUrl}/dashboard` },
     });
     if (error) return { error: error.message };
 
