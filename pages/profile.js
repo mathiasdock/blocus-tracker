@@ -84,12 +84,12 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
   return (
     <div id="xp-card" className="card overflow-hidden" style={{ position: "relative" }}>
       {/* Background images (mobile / desktop) */}
-      <img src="/fond%20d%27ecran/Carte%20progression%20tel.png"
+      <img src="/fond%20d%27ecran/format%20tel.png"
         alt="" aria-hidden="true" loading="lazy" className="block sm:hidden"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
-      <img src="/fond%20d%27ecran/Carte%20progression%20PC.png"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", pointerEvents: "none" }} />
+      <img src="/fond%20d%27ecran/format%20pc.png"
         alt="" aria-hidden="true" loading="lazy" className="hidden sm:block"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", pointerEvents: "none" }} />
       {/* Dark overlay */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(6,28,20,0.65)", pointerEvents: "none" }} />
 
