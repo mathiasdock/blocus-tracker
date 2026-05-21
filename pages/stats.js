@@ -46,7 +46,7 @@ export default function Stats() {
   const [publicLeader,  setPublicLeader]  = useState([]);
   const [loadingPublic, setLoadingPublic] = useState(false);
   const [myRank,        setMyRank]        = useState(null);
-  const [leaderUni,     setLeaderUni]     = useState(null); // null = global, string = filtered by uni
+  const [maFacActive,   setMaFacActive]   = useState(false);
 
   // ── Goals ─────────────────────────────────────────────────────
   const [editGoals, setEditGoals]     = useState(false);
@@ -89,7 +89,7 @@ export default function Stats() {
       const since7 = lastNDates(7)[0];
       const [{ data: profs }, { data: fSessions }] = await Promise.all([
         supabase.from("profiles")
-          .select("id, pseudo, first_name, last_name, avatar_url")
+          .select("id, pseudo, first_name, last_name, avatar_url, university")
           .in("id", ids),
         supabase.from("sessions")
           .select("user_id, duration_seconds, started_at")
@@ -131,12 +131,12 @@ export default function Stats() {
     (async () => {
       const { data } = await supabase.rpc("get_public_leaderboard", {
         p_period: leaderPeriod,
-        p_university: leaderUni,
+        p_university: maFacActive ? (profile?.university || null) : null,
       });
       setPublicLeader(data || []);
       setLoadingPublic(false);
     })();
-  }, [user, leaderPeriod, leaderUni]);
+  }, [user, leaderPeriod, leaderMode, maFacActive, profile?.university]);
 
   // ── Sync goals from profile ────────────────────────────────────
   useEffect(() => {
@@ -226,6 +226,7 @@ export default function Stats() {
     { id: user?.id, name: displayName(profile), avatar: profile?.avatar_url, secs: mySecs, me: true },
     ...acceptedIds
       .filter(fid => friendData[fid])
+      .filter(fid => !maFacActive || !profile?.university || friendData[fid].profile?.university === profile.university)
       .map(fid => {
         const fd = friendData[fid];
         const secs = leaderPeriod === "day"
@@ -481,136 +482,67 @@ export default function Stats() {
 
       {/* ── Leaderboard ─────────────────────────────────────────── */}
       <section className="card p-5 mt-6">
-        {/* Title row */}
-        <div className="flex items-start justify-between mb-3 gap-2">
-          <div>
-            <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
-              {leaderMode === "friends" ? t("stats.leaderTitle") : t("stats.publicLeaderTitle")}
-            </h2>
-            <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>
-              {leaderMode === "public"
-                ? leaderUni
-                  ? `Top 50 — ${leaderUni}`
-                  : (leaderPeriod === "day" ? t("stats.publicLeaderSubDay") : t("stats.publicLeaderSub"))
-                : (leaderPeriod === "day" ? t("common.today") : t("stats.last7days"))
-              }
-            </p>
+        {/* Title */}
+        <div className="mb-3">
+          <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
+            {leaderMode === "friends" ? t("stats.leaderTitle") : t("stats.publicLeaderTitle")}
+          </h2>
+          <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+            {leaderMode === "public"
+              ? (maFacActive && profile?.university
+                  ? `Top 50 — ${profile.university}`
+                  : (leaderPeriod === "day" ? t("stats.publicLeaderSubDay") : t("stats.publicLeaderSub")))
+              : (leaderPeriod === "day" ? t("common.today") : t("stats.last7days"))
+            }
+          </p>
+        </div>
+
+        {/* ── Single compact filter bar ─────────────────────────── */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+
+          {/* Left: Public / Amis */}
+          <div style={{ display: "inline-flex", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0 }}>
+            <button onClick={() => setLeaderMode("public")}
+              style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: leaderMode === "public" ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: leaderMode === "public" ? "#14B885" : "transparent", color: leaderMode === "public" ? "#fff" : "var(--bt-text-3)", boxShadow: leaderMode === "public" ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
+              {t("stats.filterPublic")}
+            </button>
+            {hasFriends && (
+              <button onClick={() => setLeaderMode("friends")}
+                style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: leaderMode === "friends" ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: leaderMode === "friends" ? "#14B885" : "transparent", color: leaderMode === "friends" ? "#fff" : "var(--bt-text-3)", boxShadow: leaderMode === "friends" ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
+                {t("stats.filterFriends")}
+              </button>
+            )}
           </div>
-          {/* Jour / Semaine — always visible */}
-          <div style={{
-            display: "inline-flex",
-            backgroundColor: "var(--bt-subtle)",
-            border: "1px solid var(--bt-border)",
-            borderRadius: 24,
-            padding: 3,
-            flexShrink: 0,
-          }}>
+
+          {/* Center: Ma fac toggle — visible only if user has a university */}
+          {profile?.university && (
+            <button onClick={() => setMaFacActive(f => !f)}
+              className="flex items-center gap-1.5"
+              style={{ borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: maFacActive ? 600 : 400, border: "1px solid", cursor: "pointer", transition: "all 0.15s", backgroundColor: maFacActive ? "#EAFBF4" : "transparent", color: maFacActive ? "#0E8F68" : "var(--bt-text-3)", borderColor: maFacActive ? "#C6EED9" : "var(--bt-border)", flexShrink: 0 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+              </svg>
+              {t("stats.filterMyUni")}
+            </button>
+          )}
+
+          {/* Right: Jour / Semaine — pushed to the right */}
+          <div style={{ display: "inline-flex", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0, marginLeft: "auto" }}>
             {[
-              { val: "day",  label: t("stats.day") },
+              { val: "day",  label: t("stats.day")  },
               { val: "week", label: t("stats.week") },
             ].map(opt => {
               const active = leaderPeriod === opt.val;
               return (
                 <button key={opt.val} onClick={() => setLeaderPeriod(opt.val)}
-                  style={{
-                    borderRadius: 20,
-                    padding: "5px 14px",
-                    fontSize: 12,
-                    fontWeight: active ? 600 : 400,
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    backgroundColor: active ? "#14B885" : "transparent",
-                    color: active ? "#fff" : "var(--bt-text-3)",
-                    boxShadow: active ? "0 1px 4px rgba(20,184,133,0.30)" : "none",
-                  }}>
+                  style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: active ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: active ? "#14B885" : "transparent", color: active ? "#fff" : "var(--bt-text-3)", boxShadow: active ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
                   {opt.label}
                 </button>
               );
             })}
           </div>
-        </div>
 
-        {/* Filter row: Amis/Public + université (public only) */}
-        <div className="flex gap-2 flex-wrap items-center mb-4">
-          {/* Amis / Public */}
-          <div style={{
-            display: "inline-flex",
-            backgroundColor: "var(--bt-subtle)",
-            border: "1px solid var(--bt-border)",
-            borderRadius: 24,
-            padding: 3,
-          }}>
-            {hasFriends && (
-              <button
-                onClick={() => { setLeaderMode("friends"); setLeaderUni(null); }}
-                style={{
-                  borderRadius: 20,
-                  padding: "5px 14px",
-                  fontSize: 12,
-                  fontWeight: leaderMode === "friends" ? 600 : 400,
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  backgroundColor: leaderMode === "friends" ? "var(--bt-surface)" : "transparent",
-                  color: leaderMode === "friends" ? "var(--bt-text-1)" : "var(--bt-text-3)",
-                  boxShadow: leaderMode === "friends" ? "0 1px 4px rgba(31,26,23,0.12)" : "none",
-                }}>
-                {t("stats.filterFriends")}
-              </button>
-            )}
-            <button
-              onClick={() => setLeaderMode("public")}
-              style={{
-                borderRadius: 20,
-                padding: "5px 14px",
-                fontSize: 12,
-                fontWeight: leaderMode === "public" ? 600 : 400,
-                border: "none",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                backgroundColor: leaderMode === "public" ? "var(--bt-surface)" : "transparent",
-                color: leaderMode === "public" ? "var(--bt-text-1)" : "var(--bt-text-3)",
-                boxShadow: leaderMode === "public" ? "0 1px 4px rgba(31,26,23,0.12)" : "none",
-              }}>
-              {t("stats.filterPublic")}
-            </button>
-          </div>
-
-          {/* Toutes / Ma fac — public + user has a university */}
-          {leaderMode === "public" && profile?.university && (
-            <div style={{
-              display: "inline-flex",
-              backgroundColor: "var(--bt-subtle)",
-              border: "1px solid var(--bt-border)",
-              borderRadius: 24,
-              padding: 3,
-            }}>
-              {[
-                { val: null,               label: t("stats.filterAllUnis") },
-                { val: profile.university, label: t("stats.filterMyUni")   },
-              ].map(opt => {
-                const active = leaderUni === opt.val;
-                return (
-                  <button key={String(opt.val)} onClick={() => setLeaderUni(opt.val)}
-                    style={{
-                      borderRadius: 20,
-                      padding: "5px 14px",
-                      fontSize: 12,
-                      fontWeight: active ? 600 : 400,
-                      border: "none",
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                      backgroundColor: active ? "var(--bt-surface)" : "transparent",
-                      color: active ? "var(--bt-text-1)" : "var(--bt-text-3)",
-                      boxShadow: active ? "0 1px 4px rgba(31,26,23,0.12)" : "none",
-                    }}>
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Friends leaderboard */}
