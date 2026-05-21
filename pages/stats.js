@@ -483,18 +483,34 @@ export default function Stats() {
       {/* ── Leaderboard ─────────────────────────────────────────── */}
       <section className="card p-5 mt-6">
         {/* Title */}
-        <div className="mb-3">
-          <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
-            {leaderMode === "friends" ? t("stats.leaderTitle") : t("stats.publicLeaderTitle")}
-          </h2>
-          <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>
-            {leaderMode === "public"
-              ? (maFacActive && profile?.university
-                  ? `Top 50 — ${profile.university}`
-                  : (leaderPeriod === "day" ? t("stats.publicLeaderSubDay") : t("stats.publicLeaderSub")))
-              : (leaderPeriod === "day" ? t("common.today") : t("stats.last7days"))
-            }
-          </p>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
+              {leaderMode === "friends" ? t("stats.leaderTitle") : t("stats.publicLeaderTitle")}
+            </h2>
+            <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+              {leaderMode === "public"
+                ? (maFacActive && profile?.university
+                    ? `Top 50 — ${profile.university}`
+                    : (leaderPeriod === "day" ? t("stats.publicLeaderSubDay") : t("stats.publicLeaderSub")))
+                : (leaderPeriod === "day" ? t("common.today") : t("stats.last7days"))
+              }
+            </p>
+          </div>
+          <div className="flex sm:hidden" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0 }}>
+            {[
+              { val: "day",  label: t("stats.day")  },
+              { val: "week", label: t("stats.week") },
+            ].map(opt => {
+              const active = leaderPeriod === opt.val;
+              return (
+                <button key={opt.val} onClick={() => setLeaderPeriod(opt.val)}
+                  style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: active ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: active ? "#14B885" : "transparent", color: active ? "#fff" : "var(--bt-text-3)", boxShadow: active ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Single compact filter bar ─────────────────────────── */}
@@ -527,8 +543,8 @@ export default function Stats() {
             </button>
           )}
 
-          {/* Right: Jour / Semaine — pushed to the right */}
-          <div style={{ display: "inline-flex", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0, marginLeft: "auto" }}>
+          {/* Right: Jour / Semaine — desktop only (mobile: in title row) */}
+          <div className="hidden sm:inline-flex" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0, marginLeft: "auto" }}>
             {[
               { val: "day",  label: t("stats.day")  },
               { val: "week", label: t("stats.week") },
