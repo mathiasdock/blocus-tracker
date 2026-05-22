@@ -289,6 +289,13 @@ html {
 }
 .bt-pop-in { animation: bt-pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
+@keyframes bt-confetti-fall {
+  0%   { transform: translateY(-12px) rotate(0deg);   opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translateY(120px) rotate(320deg); opacity: 0; }
+}
+.bt-confetti { animation: bt-confetti-fall 1.4s ease-in forwards; }
+
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
   .bt-xp-float,
@@ -297,7 +304,8 @@ html {
   .bt-check-pop,
   .bt-row-flash,
   .bt-cell-fade,
-  .bt-pop-in {
+  .bt-pop-in,
+  .bt-confetti {
     animation: none !important;
   }
   .bt-press { transition: none !important; }
