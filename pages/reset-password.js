@@ -35,30 +35,35 @@ export default function ResetPassword() {
   const [success, setSuccess]       = useState(false);
   const [err, setErr]               = useState("");
 
-  // Supabase injecte le token dans le hash de l'URL.
-  // onAuthStateChange détecte l'événement PASSWORD_RECOVERY
-  // et établit automatiquement la session temporaire.
+  // Deux flows possibles selon la config Supabase du projet :
+  // - Implicit flow : hash #access_token=...&type=recovery (détecté auto par supabase-js)
+  // - PKCE flow     : query param ?code=... (échange explicite requis)
   useEffect(() => {
+    if (!router.isReady) return;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setReady(true);
-      }
+      if (event === "PASSWORD_RECOVERY") setReady(true);
     });
 
-    // Timeout : si après 5s aucun événement PASSWORD_RECOVERY,
-    // le lien est invalide ou expiré.
-    const t = setTimeout(() => {
+    // PKCE flow : échangeons le code contre une session, ce qui déclenche PASSWORD_RECOVERY
+    const code = router.query.code;
+    if (code) {
+      supabase.auth.exchangeCodeForSession(String(code)).catch(() => setInvalid(true));
+    }
+
+    // Timeout : si après 8s aucun événement PASSWORD_RECOVERY, le lien est invalide ou expiré.
+    const timer = setTimeout(() => {
       setReady(r => {
         if (!r) setInvalid(true);
         return r;
       });
-    }, 5000);
+    }, 8000);
 
     return () => {
       subscription.unsubscribe();
-      clearTimeout(t);
+      clearTimeout(timer);
     };
-  }, []);
+  }, [router.isReady, router.query.code]);
 
   const pwdMatch = confirm === "" || password === confirm;
 
