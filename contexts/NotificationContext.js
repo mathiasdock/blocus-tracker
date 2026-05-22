@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
@@ -17,6 +17,10 @@ const NotificationContext = createContext({
 });
 
 const COMMUNITY_IDS = ALL_UNIVERSITIES.map(u => u.id);
+const POLL_VISIBLE_MS = 45000;
+const POLL_HIDDEN_MS = 120000;
+const POLL_DEBOUNCE_MS = 1200;
+const COMMUNITY_PAGE_SIZE = 1000;
 
 function getLastSeen(key) {
   if (typeof window === "undefined") return null;
@@ -37,6 +41,8 @@ export function NotificationProvider({ children }) {
   const [communityCount, setCommunityCount] = useState({});
   const [messageCount, setMessageCount] = useState(0);
   const [msgToast, setMsgToast] = useState(false);
+  const pollingRef = useRef(false);
+  const pollTimeoutRef = useRef(null);
 
   const clearMsgToast = useCallback(() => setMsgToast(false), []);
 
@@ -79,84 +85,160 @@ export function NotificationProvider({ children }) {
   }, [user, router.pathname]);
 
   const poll = useCallback(async () => {
-    if (!user) return;
+    if (!user || pollingRef.current) return;
+    pollingRef.current = true;
 
-    // Feed
-    const lastFeed = getLastSeen("feed");
-    if (lastFeed) {
-      const { count } = await supabase
-        .from("posts")
-        .select("id", { count: "exact", head: true })
-        .gt("created_at", lastFeed)
-        .neq("user_id", user.id);
-      setFeedCount(count || 0);
-    } else {
-      setLastSeen("feed");
-    }
-
-    // Friend requests
-    const { count: fc } = await supabase
-      .from("friendships")
-      .select("id", { count: "exact", head: true })
-      .eq("addressee", user.id)
-      .eq("status", "pending");
-    setFriendCount(fc || 0);
-
-    // Communities
-    const results = await Promise.all(
-      COMMUNITY_IDS.map(async (id) => {
-        const last = getLastSeen(id);
-        if (!last) {
-          setLastSeen(id);
-          return [id, 0];
-        }
-        const { count } = await supabase
-          .from("community_messages")
+    try {
+      // Feed
+      const lastFeed = getLastSeen("feed");
+      const feedPromise = lastFeed
+        ? supabase
+          .from("posts")
           .select("id", { count: "exact", head: true })
-          .eq("community", id)
-          .gt("created_at", last)
-          .neq("user_id", user.id);
-        return [id, count || 0];
-      })
-    );
-    setCommunityCount(Object.fromEntries(results));
+          .gt("created_at", lastFeed)
+          .neq("user_id", user.id)
+        : Promise.resolve(null);
+      if (!lastFeed) setLastSeen("feed");
 
-    // Unread private messages
-    const { count: mc } = await supabase
-      .from("private_messages")
-      .select("id", { count: "exact", head: true })
-      .eq("receiver_id", user.id)
-      .eq("read", false);
-    setMessageCount(mc || 0);
+      // Friend requests
+      const friendPromise = supabase
+        .from("friendships")
+        .select("id", { count: "exact", head: true })
+        .eq("addressee", user.id)
+        .eq("status", "pending");
 
-    // New comments on my posts (from others)
-    const lastComments = getLastSeen("comments");
-    if (lastComments) {
-      const { data: myPosts } = await supabase
-        .from("posts")
-        .select("id")
-        .eq("user_id", user.id)
-        .limit(100);
-      if (myPosts?.length) {
-        const { count: cc } = await supabase
+      // Communities: one grouped read instead of one count per community.
+      const seenCommunities = [];
+      for (const id of COMMUNITY_IDS) {
+        const last = getLastSeen(id);
+        if (last) seenCommunities.push([id, last]);
+        else setLastSeen(id);
+      }
+      const communityPromise = (async () => {
+        if (!seenCommunities.length) return { data: [] };
+        const communityIds = seenCommunities.map(([id]) => id);
+        const earliestLastSeen = seenCommunities.reduce(
+          (min, [, last]) => last < min ? last : min,
+          seenCommunities[0][1]
+        );
+        if (!earliestLastSeen) return { data: [] };
+
+        const rows = [];
+        for (let from = 0; ; from += COMMUNITY_PAGE_SIZE) {
+          const { data, error } = await supabase
+            .from("community_messages")
+            .select("community, created_at")
+            .in("community", communityIds)
+            .gt("created_at", earliestLastSeen)
+            .neq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .range(from, from + COMMUNITY_PAGE_SIZE - 1);
+          if (error) return { data: rows, error };
+          rows.push(...(data || []));
+          if (!data || data.length < COMMUNITY_PAGE_SIZE) break;
+        }
+        return { data: rows };
+      })();
+
+      // Unread private messages
+      const messagePromise = supabase
+        .from("private_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("receiver_id", user.id)
+        .eq("read", false);
+
+      // New comments on my posts (from others)
+      const lastComments = getLastSeen("comments");
+      const commentsPromise = (async () => {
+        if (!lastComments) {
+          setLastSeen("comments");
+          return 0;
+        }
+        const { data: myPosts } = await supabase
+          .from("posts")
+          .select("id")
+          .eq("user_id", user.id)
+          .limit(100);
+        if (!myPosts?.length) return 0;
+        const { count } = await supabase
           .from("comments")
           .select("id", { count: "exact", head: true })
           .in("post_id", myPosts.map(p => p.id))
           .neq("user_id", user.id)
           .gt("created_at", lastComments);
-        setCommentCount(cc || 0);
-      }
-    } else {
-      setLastSeen("comments");
+        return count || 0;
+      })();
+
+      const [feedRes, friendRes, communityRes, messageRes, commentsCount] = await Promise.all([
+        feedPromise,
+        friendPromise,
+        communityPromise,
+        messagePromise,
+        commentsPromise,
+      ]);
+
+      if (feedRes) setFeedCount(feedRes.count || 0);
+      setFriendCount(friendRes.count || 0);
+
+      const communityLastSeen = Object.fromEntries(seenCommunities);
+      const nextCommunityCount = {};
+      for (const id of COMMUNITY_IDS) nextCommunityCount[id] = 0;
+      (communityRes.data || []).forEach((row) => {
+        if (row.created_at > communityLastSeen[row.community]) {
+          nextCommunityCount[row.community] = (nextCommunityCount[row.community] || 0) + 1;
+        }
+      });
+      setCommunityCount(nextCommunityCount);
+
+      setMessageCount(messageRes.count || 0);
+      setCommentCount(commentsCount);
+    } finally {
+      pollingRef.current = false;
     }
   }, [user]);
 
+  const schedulePoll = useCallback((delay = POLL_DEBOUNCE_MS) => {
+    if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    pollTimeoutRef.current = setTimeout(() => {
+      pollTimeoutRef.current = null;
+      poll();
+    }, delay);
+  }, [poll]);
+
   useEffect(() => {
     if (!user) return;
+    let loopId;
+
+    function scheduleLoop() {
+      const delay = typeof document !== "undefined" && document.hidden
+        ? POLL_HIDDEN_MS
+        : POLL_VISIBLE_MS;
+      loopId = setTimeout(async () => {
+        await poll();
+        scheduleLoop();
+      }, delay);
+    }
+
+    function onFocus() {
+      schedulePoll(100);
+    }
+
+    function onVisibilityChange() {
+      if (!document.hidden) schedulePoll(100);
+    }
+
     poll();
-    const id = setInterval(poll, 30000);
-    return () => clearInterval(id);
-  }, [poll, user]);
+    scheduleLoop();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearTimeout(loopId);
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [poll, schedulePoll, user]);
 
   const totalCommunity = Object.values(communityCount).reduce((a, b) => a + b, 0);
 

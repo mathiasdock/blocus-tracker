@@ -6,6 +6,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -70,9 +71,31 @@ export default function Dashboard() {
 
   const POMO_WORK  = pomoWorkMin  * 60;
   const POMO_BREAK = pomoBreakMin * 60;
+  const dashboardCachePrefix = user ? `dashboard:${user.id}:` : "";
+
+  const applyDashboardData = useCallback((data) => {
+    const c = data.courses || [];
+    setCourses(c);
+    setCourseId(current => current || c[0]?.id || "");
+    setSessions(data.sessions || []);
+    setStreak(computeStreak(data.recentSessions || []));
+    setBestStreak(computeBestStreak(data.recentSessions || []));
+    setTodayObjectives(data.objectives || []);
+  }, [setCourseId]);
+
+  const clearDashboardCache = useCallback(() => {
+    if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
+  }, [dashboardCachePrefix]);
 
   const load = useCallback(async () => {
     if (!user) return;
+    const cacheKey = `${dashboardCachePrefix}${todayISO()}`;
+    const cached = getClientCache(cacheKey);
+    if (cached) {
+      applyDashboardData(cached);
+      return;
+    }
+
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
@@ -101,19 +124,15 @@ export default function Dashboard() {
         .order("done"),
     ]);
 
-    const c = coursesRes.data || [];
-    setCourses(c);
-    setCourseId(current => current || c[0]?.id || "");
-
-    const s = sessionsRes.data || [];
-    setSessions(s);
-
-    const recent = recentRes.data || [];
-    setStreak(computeStreak(recent || []));
-    setBestStreak(computeBestStreak(recent || []));
-
-    setTodayObjectives(objectivesRes.data || []);
-  }, [user, setCourseId]);
+    const data = {
+      courses: coursesRes.data || [],
+      sessions: sessionsRes.data || [],
+      recentSessions: recentRes.data || [],
+      objectives: objectivesRes.data || [],
+    };
+    setClientCache(cacheKey, data, 45000);
+    applyDashboardData(data);
+  }, [applyDashboardData, dashboardCachePrefix, user]);
 
   async function toggleObjective(o) {
     const { data } = await supabase
@@ -123,6 +142,7 @@ export default function Dashboard() {
       .select()
       .single();
     if (data) {
+      clearDashboardCache();
       setTodayObjectives((prev) => prev.map((x) => (x.id === o.id ? data : x)));
       notifyXPChanged();
     }
@@ -153,6 +173,7 @@ export default function Dashboard() {
         user_id: user.id, course_id: courseId, duration_seconds: secs,
         note: note || null, started_at: startedAt, ended_at: new Date().toISOString(),
       }).then(() => {
+        clearDashboardCache();
         notifyXPChanged();
         load();
       });
@@ -202,6 +223,7 @@ export default function Dashboard() {
 
     // Optimistic update — show session immediately without waiting for reload
     if (inserted) {
+      clearDashboardCache();
       setSessions(prev => [inserted, ...prev]);
       notifyXPChanged();
     }
@@ -222,11 +244,13 @@ export default function Dashboard() {
   }
 
   async function updateExamDate(courseId, examDate) {
+    clearDashboardCache();
     await supabase.from("courses").update({ exam_date: examDate || null }).eq("id", courseId);
     setCourses(prev => prev.map(c => c.id === courseId ? { ...c, exam_date: examDate || null } : c));
   }
 
   async function deleteSession(id) {
+    clearDashboardCache();
     await supabase.from("sessions").delete().eq("id", id);
     setSessions(prev => prev.filter(s => s.id !== id));
   }
@@ -236,6 +260,7 @@ export default function Dashboard() {
     const maxMins = Math.floor(session.duration_seconds / 60);
     if (isNaN(newMins) || newMins < 1 || newMins > maxMins) return;
     const newSecs = newMins * 60;
+    clearDashboardCache();
     await supabase.from("sessions").update({
       duration_seconds: newSecs,
       course_id: editCourseId || null,
@@ -258,12 +283,14 @@ export default function Dashboard() {
       .single();
     setNewCourse("");
     if (data) {
+      clearDashboardCache();
       setCourses((prev) => [...prev, data]);
       setCourseId(data.id);
     }
   }
 
   async function deleteCourse(id) {
+    clearDashboardCache();
     await supabase.from("courses").delete().eq("id", id);
     setCourses((prev) => prev.filter((c) => c.id !== id));
     if (courseId === id) setCourseId("");
