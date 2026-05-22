@@ -35,7 +35,7 @@ INSERT INTO public.university_communities (id, full_name) VALUES
   ('HECLG',  'HEC Liège — Management School'),
   ('ECAM',   'ECAM Brussels Engineering School'),
   ('VUB',    'Vrije Universiteit Brussel'),
-  ('HELDV',  'HEC Léonard de Vinci'),
+  ('HELDV',  'HE Vinci — Haute École Léonard de Vinci'),
   ('HE2B',   'HE2B'),
   ('UMONS',  'UMONS'),
   ('HELHA',  'HELHa'),
