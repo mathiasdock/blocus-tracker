@@ -206,11 +206,9 @@ function ReferralCard({ t }) {
     return () => { mounted = false; };
   }, []);
 
-  const siteOrigin = typeof window !== "undefined"
-    ? window.location.origin
-    : "https://www.blocus-tracker.com";
+  const siteOrigin = "https://www.blocus-tracker.com";
   const code = stats?.code || "";
-  const shareLink = code ? `${siteOrigin}/signup?ref=${code}` : "";
+  const shareLink = code ? `${siteOrigin.replace(/\/$/, "")}/signup?ref=${code}` : "";
 
   async function copy() {
     if (!shareLink) return;
