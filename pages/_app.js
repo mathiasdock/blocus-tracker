@@ -1,10 +1,227 @@
 import "../styles/globals.css";
 import Head from "next/head";
-import { useState, useEffect } from "react";
-import { AuthProvider } from "../contexts/AuthContext";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/router";
+import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { I18nProvider } from "../contexts/I18nContext";
+import { supabase } from "../lib/supabaseClient";
+import { computeStreak } from "../lib/format";
+import { computeEarnedBadgeIds } from "../lib/badges";
+import { computeTotalXP, getLevelInfo } from "../lib/xp";
+import LevelUpModal from "../components/LevelUpModal";
+
+async function loadCurrentLevel(userId) {
+  const [
+    profileRes, sessionsRes, examRes, objRes, doneObjRes, friendRes,
+    postRes, existingRes, likesRes, commentsRes, groupRes, commMsgRes,
+    referralStatsRes,
+  ] = await Promise.all([
+    supabase.from("profiles").select("bonus_xp").eq("id", userId).maybeSingle(),
+    supabase.from("sessions").select("started_at, duration_seconds").eq("user_id", userId),
+    supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("done", true),
+    supabase.from("friendships").select("id", { count: "exact", head: true })
+      .or(`requester.eq.${userId},addressee.eq.${userId}`).eq("status", "accepted"),
+    supabase.from("posts").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("user_badges").select("badge_id").eq("user_id", userId),
+    supabase.from("likes").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("comments").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("group_members").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("community_messages").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.rpc("get_my_referral_stats"),
+  ]);
+
+  const hardError = [
+    profileRes, sessionsRes, examRes, objRes, doneObjRes, friendRes,
+    postRes, existingRes, likesRes, commentsRes, groupRes, commMsgRes,
+  ].find(res => res.error);
+  if (hardError) throw hardError.error;
+
+  const sessions = sessionsRes.data || [];
+  const streak = computeStreak(sessions);
+  const totalSeconds = sessions.reduce((sum, s) => sum + Number(s.duration_seconds || 0), 0);
+  const dayTotals = {};
+  for (const s of sessions) {
+    const day = (s.started_at || "").slice(0, 10);
+    if (day) dayTotals[day] = (dayTotals[day] || 0) + Number(s.duration_seconds || 0);
+  }
+
+  const existingBadges = (existingRes.data || []).map(b => b.badge_id);
+  const earnedBadges = computeEarnedBadgeIds({
+    streak,
+    totalHours: totalSeconds / 3600,
+    maxDailyHours: Object.values(dayTotals).length ? Math.max(...Object.values(dayTotals)) / 3600 : 0,
+    sessionCount: sessions.length,
+    examCount: examRes.count || 0,
+    objectiveCount: objRes.count || 0,
+    completedObjCount: doneObjRes.count || 0,
+    friendCount: friendRes.count || 0,
+    postCount: postRes.count || 0,
+    reactionsCount: (likesRes.count || 0) + (commentsRes.count || 0),
+    groupMemberCount: groupRes.count || 0,
+    communityMsgCount: commMsgRes.count || 0,
+    referralCount: referralStatsRes.data?.ok ? (referralStatsRes.data.count || 0) : 0,
+  });
+
+  const totalXP = computeTotalXP({
+    totalMinutes: totalSeconds / 60,
+    completedObjectives: doneObjRes.count || 0,
+    streak,
+    examCount: examRes.count || 0,
+    badgeCount: new Set([...existingBadges, ...earnedBadges]).size,
+    bonusXP: profileRes.data?.bonus_xp || 0,
+  });
+
+  return getLevelInfo(totalXP).current;
+}
+
+function GlobalLevelUpWatcher() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [levelUp, setLevelUp] = useState(null);
+  const previousLevelRef = useRef(null);
+  const activeUserRef = useRef(null);
+  const loadingRef = useRef(false);
+  const pendingRef = useRef(null);
+  const rerunRef = useRef(false);
+
+  const checkLevel = useCallback(async () => {
+    if (!user || typeof window === "undefined") return;
+    if (loadingRef.current) {
+      rerunRef.current = true;
+      return;
+    }
+    loadingRef.current = true;
+    try {
+      const current = await loadCurrentLevel(user.id);
+      const currentLevel = current.level;
+      const storageKey = `blocus:last-announced-level:${user.id}`;
+      const storedLevel = Number(localStorage.getItem(storageKey) || 0);
+
+      localStorage.setItem("bt_level", String(currentLevel));
+      window.dispatchEvent(new CustomEvent("bt-level-updated", { detail: { level: currentLevel } }));
+
+      if (activeUserRef.current !== user.id) {
+        activeUserRef.current = user.id;
+        previousLevelRef.current = null;
+      }
+
+      if (previousLevelRef.current === null) {
+        const baseline = Math.max(storedLevel, currentLevel);
+        previousLevelRef.current = baseline;
+        if (storedLevel < baseline) localStorage.setItem(storageKey, String(baseline));
+        return;
+      }
+
+      if (currentLevel > previousLevelRef.current && currentLevel > storedLevel) {
+        setLevelUp({ level: currentLevel, titleKey: current.titleKey });
+        localStorage.setItem(storageKey, String(currentLevel));
+      }
+
+      previousLevelRef.current = Math.max(previousLevelRef.current, currentLevel);
+    } catch (error) {
+      console.error("Level watcher error:", error);
+    } finally {
+      loadingRef.current = false;
+      if (rerunRef.current) {
+        rerunRef.current = false;
+        setTimeout(checkLevel, 0);
+      }
+    }
+  }, [user]);
+
+  const scheduleCheck = useCallback(() => {
+    if (typeof window === "undefined") return;
+    clearTimeout(pendingRef.current);
+    pendingRef.current = setTimeout(checkLevel, 500);
+  }, [checkLevel]);
+
+  useEffect(() => {
+    if (!user) {
+      activeUserRef.current = null;
+      previousLevelRef.current = null;
+      setLevelUp(null);
+      return;
+    }
+
+    checkLevel();
+
+    const focus = () => checkLevel();
+    const visibility = () => {
+      if (!document.hidden) checkLevel();
+    };
+    window.addEventListener("focus", focus);
+    window.addEventListener("bt-xp-changed", scheduleCheck);
+    document.addEventListener("visibilitychange", visibility);
+    router.events.on("routeChangeComplete", scheduleCheck);
+    const interval = setInterval(checkLevel, 60000);
+
+    const watchedTables = [
+      ["sessions", "user_id"],
+      ["objectives", "user_id"],
+      ["exams", "user_id"],
+      ["user_badges", "user_id"],
+      ["posts", "user_id"],
+      ["likes", "user_id"],
+      ["comments", "user_id"],
+      ["group_members", "user_id"],
+      ["community_messages", "user_id"],
+      ["profiles", "id"],
+      ["referrals", "referrer_id"],
+    ];
+    const channels = watchedTables.map(([table, column]) =>
+      supabase.channel(`level-watch-${table}-${user.id}`)
+        .on("postgres_changes", {
+          event: "*",
+          schema: "public",
+          table,
+          filter: `${column}=eq.${user.id}`,
+        }, scheduleCheck)
+        .subscribe()
+    );
+    channels.push(
+      supabase.channel(`level-watch-friendships-requester-${user.id}`)
+        .on("postgres_changes", {
+          event: "*",
+          schema: "public",
+          table: "friendships",
+          filter: `requester=eq.${user.id}`,
+        }, scheduleCheck)
+        .subscribe()
+    );
+    channels.push(
+      supabase.channel(`level-watch-friendships-addressee-${user.id}`)
+        .on("postgres_changes", {
+          event: "*",
+          schema: "public",
+          table: "friendships",
+          filter: `addressee=eq.${user.id}`,
+        }, scheduleCheck)
+        .subscribe()
+    );
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(pendingRef.current);
+      window.removeEventListener("focus", focus);
+      window.removeEventListener("bt-xp-changed", scheduleCheck);
+      document.removeEventListener("visibilitychange", visibility);
+      router.events.off("routeChangeComplete", scheduleCheck);
+      channels.forEach(ch => supabase.removeChannel(ch));
+    };
+  }, [checkLevel, router.events, scheduleCheck, user]);
+
+  return levelUp ? (
+    <LevelUpModal
+      level={levelUp.level}
+      titleKey={levelUp.titleKey}
+      onClose={() => setLevelUp(null)}
+    />
+  ) : null;
+}
 
 // Capture du code de parrainage présent dans l'URL (?ref=XXXXXXXX) à la
 // première visite et conservation en localStorage jusqu'à la création du
@@ -95,6 +312,7 @@ export default function App({ Component, pageProps }) {
           <link rel="apple-touch-icon" href="/icon-192x192.png" />
         </Head>
         <Component {...pageProps} />
+        <GlobalLevelUpWatcher />
         <ReferralCapture />
         <InstallBanner />
       </NotificationProvider>

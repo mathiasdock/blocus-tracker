@@ -248,8 +248,13 @@ export default function Layout({ children }) {
 
   const [userLevel, setUserLevel] = useState(null);
   useEffect(() => {
-    const l = localStorage.getItem("bt_level");
-    if (l) setUserLevel(Number(l));
+    function syncLevel(e) {
+      const next = e?.detail?.level || localStorage.getItem("bt_level");
+      setUserLevel(next ? Number(next) : null);
+    }
+    syncLevel();
+    window.addEventListener("bt-level-updated", syncLevel);
+    return () => window.removeEventListener("bt-level-updated", syncLevel);
   }, []);
 
   const isAdmin = profile?.is_admin === true;

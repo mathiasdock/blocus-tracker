@@ -5,6 +5,7 @@ import { useTimer } from "../contexts/TimerContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak } from "../lib/format";
+import { notifyXPChanged } from "../lib/xpEvents";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -114,7 +115,10 @@ export default function Dashboard() {
       .eq("id", o.id)
       .select()
       .single();
-    if (data) setTodayObjectives((prev) => prev.map((x) => (x.id === o.id ? data : x)));
+    if (data) {
+      setTodayObjectives((prev) => prev.map((x) => (x.id === o.id ? data : x)));
+      notifyXPChanged();
+    }
   }
 
   useEffect(() => { load(); }, [load]);
@@ -141,7 +145,10 @@ export default function Dashboard() {
       supabase.from("sessions").insert({
         user_id: user.id, course_id: courseId, duration_seconds: secs,
         note: note || null, started_at: startedAt, ended_at: new Date().toISOString(),
-      }).then(() => load());
+      }).then(() => {
+        notifyXPChanged();
+        load();
+      });
       setPomoPhase("break");
       setPomoCount(c => c + 1);
       setTimeout(() => { start(); pomoHandled.current = false; }, 80);
@@ -187,7 +194,10 @@ export default function Dashboard() {
     const xpGained = Math.floor(seconds / 60);
 
     // Optimistic update — show session immediately without waiting for reload
-    if (inserted) setSessions(prev => [inserted, ...prev]);
+    if (inserted) {
+      setSessions(prev => [inserted, ...prev]);
+      notifyXPChanged();
+    }
     reset();
     setSaveStatus("success");
     setTimeout(() => setSaveStatus("idle"), 2500);

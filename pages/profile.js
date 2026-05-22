@@ -10,7 +10,6 @@ import { displayName, formatMinutesShort, computeStreak, computeBestStreak, toda
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import BadgeIcon from "../components/BadgeIcon";
-import LevelUpModal from "../components/LevelUpModal";
 
 // ── Dark mode ────────────────────────────────────────────────
 function useDarkMode() {
@@ -432,8 +431,6 @@ export default function Profile() {
   const [friendSentToday, setFriendSentToday] = useState(false);
   const [friendAcceptToday, setFriendAcceptToday] = useState(false);
   const [referredToday, setReferredToday] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [levelUp, setLevelUp] = useState(null);
   const [selectedBadge, setSelectedBadge] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -543,7 +540,6 @@ export default function Profile() {
       ]);
       setProfileSessions(heatSessions || []);
       setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
-      setLoaded(true);
     })();
   }, [user]);
 
@@ -638,22 +634,6 @@ export default function Profile() {
   });
   const levelInfo = getLevelInfo(totalXP);
 
-  // Save level to localStorage for the Layout badge + celebrate real level-ups.
-  // Gated on `loaded` so the transient level-1 (before data loads) never
-  // overwrites the stored level nor triggers a false celebration. We only
-  // celebrate when the new level is strictly higher than the last stored one,
-  // so a refresh at an already-reached level shows nothing. A multi-level jump
-  // shows the final (current) level.
-  useEffect(() => {
-    if (!loaded || typeof window === "undefined") return;
-    const newLevel = levelInfo.current.level;
-    const prev = Number(localStorage.getItem("bt_level") || 0);
-    if (prev > 0 && newLevel > prev) {
-      setLevelUp({ level: newLevel, titleKey: levelInfo.current.titleKey });
-    }
-    localStorage.setItem("bt_level", String(newLevel));
-  }, [loaded, levelInfo.current.level, levelInfo.current.titleKey]);
-
   const missionDefs = getDailyMissionDefs(todayStr, user?.id);
   const missions = evaluateMissions(missionDefs, {
     todaySecs, todayMaxSessionSecs, todayDoneObj, streak,
@@ -672,13 +652,6 @@ export default function Profile() {
 
   return (
     <Layout>
-      {levelUp && (
-        <LevelUpModal
-          level={levelUp.level}
-          titleKey={levelUp.titleKey}
-          onClose={() => setLevelUp(null)}
-        />
-      )}
       <div className="max-w-lg mx-auto pb-10 space-y-4">
 
         {/* ══ HEADER ══════════════════════════════════════════ */}

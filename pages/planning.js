@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { todayISO, formatMinutesShort } from "../lib/format";
+import { notifyXPChanged } from "../lib/xpEvents";
 
 // ── Constants ─────────────────────────────────────────────────
 const WEEKDAYS_SHORT = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
@@ -1104,6 +1105,7 @@ export default function Planning() {
     const { data } = await supabase.from("objectives").update({ done: !o.done }).eq("id", o.id).select().single();
     if (data) {
       setObjectives(p => p.map(x => x.id === o.id ? data : x));
+      notifyXPChanged();
       if (!o.done && o.recurrence) {
         const days = o.recurrence === "daily" ? 1 : 7;
         const nextDate = addDays(o.scheduled_date, days);
@@ -1136,7 +1138,10 @@ export default function Planning() {
   async function addExam(examData) {
     const { data } = await supabase.from("exams")
       .insert({ user_id: user.id, ...examData }).select().single();
-    if (data) setExams(p => [...p, data]);
+    if (data) {
+      setExams(p => [...p, data]);
+      notifyXPChanged();
+    }
   }
 
   async function removeExam(id) {
