@@ -29,6 +29,7 @@ const BADGE_VISUALS = {
   motivator:        { theme: "pink",   shape: "shield",   glyph: "chat"    },
   team_spirit:      { theme: "orange", shape: "shield",   glyph: "fist"    },
   community_pillar: { theme: "emerald",shape: "trophy",   glyph: "globe"   },
+  referrer:         { theme: "green",  shape: "star",     glyph: "users"   },
 };
 
 const THEMES = {

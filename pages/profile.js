@@ -509,6 +509,7 @@ export default function Profile() {
         reactionsCount: (likesRes.count || 0) + (commentsRes.count || 0),
         groupMemberCount: groupRes.count || 0,
         communityMsgCount: commMsgRes.count || 0,
+        referralCount: referralStatsRes.data?.ok ? (referralStatsRes.data.count || 0) : 0,
       });
 
       const existing = (existingRes.data || []).map(b => b.badge_id);
