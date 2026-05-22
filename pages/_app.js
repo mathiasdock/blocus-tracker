@@ -6,6 +6,24 @@ import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { I18nProvider } from "../contexts/I18nContext";
 
+// Capture du code de parrainage présent dans l'URL (?ref=XXXXXXXX) à la
+// première visite et conservation en localStorage jusqu'à la création du
+// compte. Expire après 30 jours pour éviter les attributions tardives.
+function ReferralCapture() {
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const code = (params.get("ref") || "").trim();
+      if (!code) return;
+      const clean = code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
+      if (!clean) return;
+      const payload = JSON.stringify({ code: clean, ts: Date.now() });
+      localStorage.setItem("bt_ref_code", payload);
+    } catch (_) {}
+  }, []);
+  return null;
+}
+
 function InstallBanner() {
   const [prompt, setPrompt] = useState(null);
 
@@ -77,6 +95,7 @@ export default function App({ Component, pageProps }) {
           <link rel="apple-touch-icon" href="/icon-192x192.png" />
         </Head>
         <Component {...pageProps} />
+        <ReferralCapture />
         <InstallBanner />
       </NotificationProvider>
       </TimerProvider>

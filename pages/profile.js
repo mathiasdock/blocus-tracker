@@ -187,6 +187,164 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
   );
 }
 
+// ── Referral / Parrainage card ───────────────────────────────
+function ReferralCard({ t }) {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [showList, setShowList] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_my_referral_stats");
+      if (!mounted) return;
+      if (!error && data && data.ok) setStats(data);
+      setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const siteOrigin = typeof window !== "undefined"
+    ? window.location.origin
+    : "https://www.blocus-tracker.com";
+  const code = stats?.code || "";
+  const shareLink = code ? `${siteOrigin}/signup?ref=${code}` : "";
+
+  async function copy() {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (_) {}
+  }
+
+  async function share() {
+    if (!shareLink) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: t("referral.shareTitle"),
+          text: t("referral.shareText"),
+          url: shareLink,
+        });
+      } catch (_) {}
+    } else {
+      copy();
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="card p-5">
+        <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>…</p>
+      </div>
+    );
+  }
+
+  const count = stats?.count || 0;
+  const list = stats?.list || [];
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 pt-5 pb-4">
+        <div className="flex items-center gap-3 mb-1">
+          <IconBox color="#14B885" bg="rgba(20,184,133,0.12)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="23" y1="11" x2="17" y2="11" />
+            </svg>
+          </IconBox>
+          <div className="min-w-0">
+            <SectionLabel>{t("referral.title")}</SectionLabel>
+            <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-2)" }}>
+              {t("referral.subtitle")}
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
+          {t("referral.help")}
+        </p>
+
+        {/* Share link box */}
+        <div className="mt-4 rounded-xl border flex items-stretch overflow-hidden"
+          style={{ borderColor: "var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+          <div className="flex-1 min-w-0 px-3 py-2.5 text-xs font-mono truncate"
+            style={{ color: "var(--bt-text-2)" }} title={shareLink}>
+            {shareLink || "—"}
+          </div>
+          <button onClick={copy} disabled={!shareLink}
+            className="px-3.5 text-xs font-semibold whitespace-nowrap transition-colors"
+            style={{
+              backgroundColor: copied ? "#14B885" : "var(--bt-accent-dark)",
+              color: "#fff",
+            }}>
+            {copied ? t("referral.copied") : t("referral.copy")}
+          </button>
+        </div>
+
+        {/* Native share button (mobile) */}
+        {typeof navigator !== "undefined" && navigator.share && (
+          <button onClick={share}
+            className="mt-2 w-full rounded-xl py-2 text-xs font-semibold transition-colors"
+            style={{ backgroundColor: "rgba(20,184,133,0.10)", color: "var(--bt-accent-dark)" }}>
+            {t("referral.share")}
+          </button>
+        )}
+
+        {/* Count */}
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+            {t("referral.signupsCount")}
+          </span>
+          <span className="text-sm font-display tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+            {count}
+          </span>
+        </div>
+      </div>
+
+      {/* Referred users list — collapsible */}
+      {count > 0 && (
+        <div style={{ borderTop: "1px solid var(--bt-border)" }}>
+          <button onClick={() => setShowList(o => !o)}
+            className="w-full flex items-center justify-between px-5 py-3 text-left transition-colors"
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+              {t("referral.listTitle")}
+            </span>
+            <IconChevronDown open={showList} />
+          </button>
+          {showList && (
+            <ul className="px-5 pb-4 pt-1 space-y-2.5">
+              {list.map((r, i) => (
+                <li key={i} className="flex items-center gap-3">
+                  <Avatar src={r.avatar_url} name={r.pseudo} size={32} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
+                      @{r.pseudo}
+                    </p>
+                    <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>
+                    +{r.xp_awarded} XP
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Badge detail bottom sheet ────────────────────────────────
 function BadgeSheet({ badge, earned, t, onClose }) {
   if (!badge) return null;
@@ -274,6 +432,7 @@ export default function Profile() {
   const [tomorrowObjCount, setTomorrowObjCount] = useState(0);
   const [friendSentToday, setFriendSentToday] = useState(false);
   const [friendAcceptToday, setFriendAcceptToday] = useState(false);
+  const [referredToday, setReferredToday] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -299,7 +458,7 @@ export default function Profile() {
         sessionsRes, examRes, objRes, friendRes, postRes, existingRes,
         doneObjRes, todayDoneRes, likesRes, commentsRes, groupRes,
         commMsgRes, todayPostRes, tomorrowObjRes,
-        friendSentRes, friendAcceptRes,
+        friendSentRes, friendAcceptRes, referralStatsRes,
       ] = await Promise.all([
         supabase.from("sessions").select("started_at, duration_seconds").eq("user_id", user.id),
         supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", user.id),
@@ -318,6 +477,7 @@ export default function Profile() {
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("scheduled_date", tomorrowStr),
         supabase.from("friendships").select("id", { count: "exact", head: true }).eq("requester", user.id).gte("created_at", today + "T00:00:00").lt("created_at", tomorrowStr + "T00:00:00"),
         supabase.from("friendships").select("id", { count: "exact", head: true }).eq("addressee", user.id).eq("status", "accepted").gte("created_at", today + "T00:00:00").lt("created_at", tomorrowStr + "T00:00:00"),
+        supabase.rpc("get_my_referral_stats"),
       ]);
 
       const sessions = sessionsRes.data || [];
@@ -362,6 +522,9 @@ export default function Profile() {
       setTomorrowObjCount(tomorrowObjRes.count || 0);
       setFriendSentToday((friendSentRes.count || 0) > 0);
       setFriendAcceptToday((friendAcceptRes.count || 0) > 0);
+
+      const refList = referralStatsRes.data?.ok ? (referralStatsRes.data.list || []) : [];
+      setReferredToday(refList.some(r => (r.created_at || "").slice(0, 10) === today));
     }
     loadBadges();
   }, [user]);
@@ -468,6 +631,7 @@ export default function Profile() {
     totalMinutes: profileTotalSecs / 60,
     completedObjectives: completedObjCount,
     streak, examCount, badgeCount: earnedBadgeIds.length,
+    bonusXP: profile?.bonus_xp || 0,
   });
   const levelInfo = getLevelInfo(totalXP);
 
@@ -482,7 +646,7 @@ export default function Profile() {
   const missions = evaluateMissions(missionDefs, {
     todaySecs, todayMaxSessionSecs, todayDoneObj, streak,
     studiedBeforeNoon, studiedAfter20, postedToday, tomorrowObjCount, todayCoursesCount,
-    friendSentToday, friendAcceptToday,
+    friendSentToday, friendAcceptToday, referredToday,
   });
 
   const stats = [
@@ -549,6 +713,9 @@ export default function Profile() {
           earnedBadgeIds={earnedBadgeIds} missions={missions}
           onBadgeClick={setSelectedBadge} t={t}
         />
+
+        {/* ══ PARRAINAGE ═══════════════════════════════════════ */}
+        <ReferralCard t={t} />
 
         {/* ══ MON ACTIVITÉ ════════════════════════════════════ */}
         <div className="card overflow-hidden">

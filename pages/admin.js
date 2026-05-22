@@ -134,18 +134,21 @@ function UserDetailModal({ user, userStat, isSelf, onClose, onEdit, onDelete }) 
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [friendCount, setFriendCount] = useState(null);
+  const [referrals, setReferrals] = useState([]);
   const isOnline = !!user.studying_since;
 
   useEffect(() => {
     async function load() {
-      const [{ data }, { count }] = await Promise.all([
+      const [{ data }, { count }, { data: refData }] = await Promise.all([
         supabase.from("sessions").select("duration_seconds, started_at, courses(name)")
           .eq("user_id", user.id).order("started_at", { ascending: false }).limit(8),
         supabase.from("friendships").select("id", { count: "exact", head: true })
           .or(`requester.eq.${user.id},addressee.eq.${user.id}`).eq("status", "accepted"),
+        supabase.rpc("admin_get_referrals", { p_user_id: user.id }),
       ]);
       setSessions(data || []);
       setFriendCount(count ?? 0);
+      setReferrals(refData?.ok ? (refData.list || []) : []);
       setLoading(false);
     }
     load();
@@ -196,7 +199,7 @@ function UserDetailModal({ user, userStat, isSelf, onClose, onEdit, onDelete }) 
             { label: "Heures totales", value: formatMinutesShort(userStat?.totalSecs || 0) },
             { label: "Sessions totales", value: userStat?.count ?? 0 },
             { label: "Amis", value: friendCount !== null ? friendCount : "—" },
-            { label: "Dernière session", value: userStat?.lastAt ? relDate(userStat.lastAt) : "Jamais" },
+            { label: "Parrainages", value: referrals.length },
           ].map(s => (
             <div key={s.label} className="rounded-xl p-3 text-center"
               style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
@@ -230,6 +233,44 @@ function UserDetailModal({ user, userStat, isSelf, onClose, onEdit, onDelete }) 
                   </div>
                   <span className="text-xs font-semibold shrink-0 ml-2" style={{ color: "#14B885" }}>
                     {formatMinutesShort(s.duration_seconds)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Parrainages */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--bt-text-3)" }}>
+            Parrainages
+          </p>
+          <div className="flex items-center justify-between py-1.5 px-3 rounded-xl mb-2"
+            style={{ backgroundColor: "var(--bt-subtle)" }}>
+            <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>Code de parrainage</span>
+            <span className="text-xs font-mono font-semibold" style={{ color: "var(--bt-text-1)" }}>
+              {user.referral_code || "—"}
+            </span>
+          </div>
+          {loading ? (
+            <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Chargement…</p>
+          ) : referrals.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun filleul.</p>
+          ) : (
+            <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+              {referrals.map((r, i) => (
+                <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-xl"
+                  style={{ backgroundColor: "var(--bt-subtle)" }}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
+                      @{r.pseudo}
+                    </p>
+                    <p className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>
+                      {new Date(r.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold shrink-0 ml-2" style={{ color: "#14B885" }}>
+                    +{r.xp_awarded} XP
                   </span>
                 </div>
               ))}
@@ -276,6 +317,7 @@ export default function Admin() {
   const [sessionStats, setSessionStats]       = useState(null);
   const [sessionChartData, setSessionChartData] = useState([]);
   const [userStats, setUserStats]             = useState({});
+  const [referralCounts, setReferralCounts]   = useState({});
   const [retentionStats, setRetentionStats]   = useState(null);
   const [uniDistribution, setUniDistribution] = useState([]);
 
@@ -289,10 +331,14 @@ export default function Admin() {
 
     /* ── Profiles ───────────────────────────────────────────── */
     const { data: u } = await supabase.from("profiles")
-      .select("id, pseudo, first_name, last_name, university, study_field, study_year, bio, created_at, is_admin, studying_since")
+      .select("id, pseudo, first_name, last_name, university, study_field, study_year, bio, created_at, is_admin, studying_since, referral_code")
       .order("created_at", { ascending: false });
     const allUsers = u || [];
     setUsers(allUsers);
+
+    /* ── Referral counts (admin RPC) ───────────────────────── */
+    const { data: refData } = await supabase.rpc("admin_get_referral_counts");
+    setReferralCounts(refData?.ok ? (refData.counts || {}) : {});
 
     /* ── All sessions ──────────────────────────────────────── */
     const { data: allSess } = await supabase
@@ -427,6 +473,9 @@ export default function Admin() {
       const aT = userStats[a.id]?.lastAt || "";
       const bT = userStats[b.id]?.lastAt || "";
       return bT.localeCompare(aT);
+    }
+    if (sortBy === "referrals") {
+      return (referralCounts[b.id] || 0) - (referralCounts[a.id] || 0);
     }
     return 0;
   });
@@ -681,6 +730,7 @@ export default function Admin() {
                     <select className="input w-44" value={sortBy} onChange={e => setSortBy(e.target.value)}>
                       <option value="created_at">Inscription (récent)</option>
                       <option value="last_session">Dernière session</option>
+                      <option value="referrals">Parrainages (haut)</option>
                       <option value="university">Université</option>
                       <option value="last_name">Nom</option>
                       <option value="first_name">Prénom</option>
@@ -700,6 +750,7 @@ export default function Admin() {
                           { label: "Inscrit le",      cls: "hidden md:table-cell" },
                           { label: "Dernière session",cls: "" },
                           { label: "Heures totales",  cls: "hidden lg:table-cell" },
+                          { label: "Parrainages",     cls: "" },
                           { label: "",                cls: "" },
                         ].map(h => (
                           <th key={h.label} className={`pb-3 text-left font-semibold ${h.cls}`}
@@ -755,6 +806,16 @@ export default function Admin() {
                               style={{ color: stat?.totalSecs ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>
                               {stat?.totalSecs ? formatMinutesShort(stat.totalSecs) : "—"}
                             </td>
+                            <td className="py-3 pr-3 text-xs whitespace-nowrap">
+                              {referralCounts[u.id] ? (
+                                <span className="inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 rounded-full font-semibold"
+                                  style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                                  {referralCounts[u.id]}
+                                </span>
+                              ) : (
+                                <span style={{ color: "var(--bt-text-4)" }}>—</span>
+                              )}
+                            </td>
                             <td className="py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                               <div className="flex items-center gap-1.5">
                                 <button onClick={() => setEditingUser(u)}
@@ -776,7 +837,7 @@ export default function Admin() {
                       })}
                       {filtered.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
+                          <td colSpan={9} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
                             Aucun résultat.
                           </td>
                         </tr>

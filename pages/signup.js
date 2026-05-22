@@ -77,8 +77,22 @@ export default function Signup() {
     if (password.length < 6){ setErr(t("signup.errPassword")); return; }
     if (password !== confirm){ setErr(t("signup.errPwdMatch")); return; }
 
+    // Récupère un éventuel code de parrainage stocké lors de l'arrivée sur le site.
+    // Expire après 30 jours pour éviter les attributions tardives.
+    let referralCode = null;
+    try {
+      const raw = localStorage.getItem("bt_ref_code");
+      if (raw) {
+        const { code, ts } = JSON.parse(raw);
+        const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+        if (code && ts && Date.now() - ts < THIRTY_DAYS) {
+          referralCode = code;
+        }
+      }
+    } catch (_) {}
+
     setBusy(true);
-    const { error } = await signUp(pseudo, password, email, firstName, lastName, finalUni);
+    const { error } = await signUp(pseudo, password, email, firstName, lastName, finalUni, referralCode);
     setBusy(false);
     if (error) {
       if (error.includes("already registered") || error.includes("already been registered"))

@@ -72,12 +72,13 @@ export function AuthProvider({ children }) {
   // signUp — nouveaux utilisateurs avec vrai email
   //   Anciens utilisateurs : toujours via pseudoToEmail (inchangé)
   // ---------------------------------------------------------------
-  const signUp = useCallback(async (pseudo, password, email, firstName, lastName, university) => {
+  const signUp = useCallback(async (pseudo, password, email, firstName, lastName, university, referralCode) => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
     const ln    = (lastName   || "").trim();
     const uni   = (university || "").trim() || null;
     const em    = (email      || "").trim().toLowerCase();
+    const ref   = (referralCode || "").trim().toUpperCase() || null;
 
     if (clean.length < 3)   return { error: "Le pseudo doit faire au moins 3 caractères." };
     if (!fn || !ln)          return { error: "Le prénom et le nom sont obligatoires." };
@@ -112,6 +113,19 @@ export function AuthProvider({ children }) {
         .from("profiles")
         .insert({ id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln, university: uni });
       if (pErr) return { error: "Compte créé mais profil non enregistré : " + pErr.message };
+
+      // Parrainage : si un code valide a été stocké à l'arrivée, on l'applique
+      // côté serveur via RPC SECURITY DEFINER. Erreurs silencieuses : un code
+      // invalide ne doit pas bloquer la création du compte.
+      if (ref) {
+        try {
+          await supabase.rpc("apply_referral", { p_code: ref });
+        } catch (_) {
+          // Pas critique. Le code reste en localStorage si jamais on veut retry.
+        }
+        try { localStorage.removeItem("bt_ref_code"); } catch (_) {}
+      }
+
       await loadProfile(uid);
     }
     return { error: null };
