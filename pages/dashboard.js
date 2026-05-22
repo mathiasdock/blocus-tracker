@@ -736,7 +736,17 @@ export default function Dashboard() {
               {courses.map((c) => {
                 const examDays = daysUntilExam(c.exam_date);
                 return (
-                  <li key={c.id} className="rounded-2xl px-3 py-2.5 transition-colors overflow-hidden"
+                  <li key={c.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setCourseId(c.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setCourseId(c.id);
+                      }
+                    }}
+                    className="rounded-2xl px-3 py-2.5 transition-colors overflow-hidden cursor-pointer"
                     style={{ border: "1px solid var(--bt-border)", backgroundColor: courseId === c.id ? "var(--bt-accent-bg)" : "var(--bt-surface)" }}>
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2.5 text-sm min-w-0 flex-1">
@@ -753,7 +763,7 @@ export default function Dashboard() {
                       </span>
                       <div className="flex items-center gap-2 shrink-0">
                         <button
-                          onClick={() => { setEditingExamId(editingExamId === c.id ? null : c.id); setExamDateInput(c.exam_date || ""); }}
+                          onClick={(e) => { e.stopPropagation(); setEditingExamId(editingExamId === c.id ? null : c.id); setExamDateInput(c.exam_date || ""); }}
                           title={t("exam.setDate")}
                           className="transition-colors w-7 h-7 flex items-center justify-center rounded-lg"
                           style={{ color: c.exam_date ? "#14B885" : "var(--bt-text-4)" }}
@@ -763,7 +773,7 @@ export default function Dashboard() {
                             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                           </svg>
                         </button>
-                        <button onClick={() => deleteCourse(c.id)}
+                        <button onClick={(e) => { e.stopPropagation(); deleteCourse(c.id); }}
                           className="transition-colors w-7 h-7 flex items-center justify-center rounded-lg"
                           style={{ color: "var(--bt-text-4)" }}
                           onMouseEnter={e => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.08)"; }}
@@ -776,7 +786,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     {editingExamId === c.id && (
-                      <div className="flex items-center gap-1.5 mt-2 overflow-hidden">
+                      <div className="flex items-center gap-1.5 mt-2 overflow-hidden" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="date"
                           value={examDateInput}
@@ -794,14 +804,14 @@ export default function Dashboard() {
                             flex: "1 1 auto",
                           }}
                         />
-                        <button onClick={() => { updateExamDate(c.id, examDateInput); setEditingExamId(null); }}
+                        <button onClick={(e) => { e.stopPropagation(); updateExamDate(c.id, examDateInput); setEditingExamId(null); }}
                           title={t("common.save")} style={{ color: "#14B885" }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
                         </button>
                         {c.exam_date && (
-                          <button onClick={() => { updateExamDate(c.id, null); setEditingExamId(null); }}
+                          <button onClick={(e) => { e.stopPropagation(); updateExamDate(c.id, null); setEditingExamId(null); }}
                             title={t("common.remove")}
                             style={{ color: "var(--bt-text-4)" }}
                             onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}

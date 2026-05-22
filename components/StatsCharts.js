@@ -62,14 +62,21 @@ function MiniToggle({ options, value, onChange }) {
   );
 }
 
-function CustomTooltip({ active, payload, label, unit }) {
+function formatHourMinutes(minutes) {
+  const total = Math.max(0, Math.round(Number(minutes) || 0));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
+}
+
+function CustomTooltip({ active, payload, label, showHours }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", borderRadius: 14, padding: "8px 14px", boxShadow: "0 4px 16px rgba(31,26,23,0.08)" }}>
       {label && <p style={{ fontSize: 11, color: "#A8A09A", marginBottom: 2 }}>{label}</p>}
       {payload.map((p, i) => (
         <p key={i} style={{ fontSize: 14, fontWeight: 600, color: p.fill || "var(--bt-text-1)" }}>
-          {p.value}{unit}
+          {showHours ? formatHourMinutes(p.value) : `${p.value} min`}
         </p>
       ))}
     </div>
@@ -80,7 +87,7 @@ function PieTooltip({ active, payload, showHours }) {
   if (!active || !payload?.length) return null;
   const p = payload[0];
   const displayVal = showHours
-    ? `${(p.value / 60).toFixed(1)}h`
+    ? formatHourMinutes(p.value)
     : `${p.value} min`;
   return (
     <div style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", borderRadius: 14, padding: "8px 14px", boxShadow: "0 4px 16px rgba(31,26,23,0.08)" }}>
@@ -113,13 +120,8 @@ export default function StatsCharts({
 
   const activeCourse = donutPeriod === "week" ? byCourseWeek : byCourseMonth;
 
-  const chartData = dailyData.map(d => ({
-    ...d,
-    hours: +(d.minutes / 60).toFixed(1),
-  }));
-
-  const barDataKey = showHours ? "hours" : "minutes";
-  const barUnit    = showHours ? "h" : " min";
+  const chartData = dailyData;
+  const barDataKey = "minutes";
 
   return (
     <div className="space-y-3">
@@ -190,9 +192,9 @@ export default function StatsCharts({
                   <BarChart data={chartData} barCategoryGap="35%">
                     <CartesianGrid strokeDasharray="0" stroke="#F0EBE4" vertical={false} />
                     <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} tick={{ fill: "#A8A09A" }} />
-                    <YAxis tickLine={false} axisLine={false} fontSize={12} width={32} tick={{ fill: "#A8A09A" }}
-                      tickFormatter={v => showHours ? `${v}h` : v} />
-                    <Tooltip content={(props) => <CustomTooltip {...props} unit={barUnit} />} cursor={{ fill: "var(--bt-subtle)" }} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={12} width={42} tick={{ fill: "#A8A09A" }}
+                      tickFormatter={v => showHours ? formatHourMinutes(v) : v} />
+                    <Tooltip content={(props) => <CustomTooltip {...props} showHours={showHours} />} cursor={{ fill: "var(--bt-subtle)" }} />
                     <Bar dataKey={barDataKey} fill="#14B885" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -247,7 +249,7 @@ export default function StatsCharts({
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color || "#14B885" }} />
                     <span className="truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
                     <span className="ml-auto tabular-nums text-xs" style={{ color: "#A8A09A" }}>
-                      {showHours ? `${(c.minutes / 60).toFixed(1)}h` : `${c.minutes} min`}
+                      {showHours ? formatHourMinutes(c.minutes) : `${c.minutes} min`}
                     </span>
                   </li>
                 ))}
