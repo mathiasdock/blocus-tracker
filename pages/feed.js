@@ -7,6 +7,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
 import { getLevelInfo } from "../lib/xp";
+import { optimizeFeedImage } from "../lib/imageCompression";
 import LevelPill from "../components/LevelPill";
 
 export default function Feed() {
@@ -105,11 +106,19 @@ export default function Feed() {
     e.preventDefault();
     if (!file) return;
     setBusy(true);
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/${Date.now()}.${ext}`;
+    let uploadFile = file;
+    let ext = file.name.split(".").pop() || "jpg";
+    try {
+      const optimized = await optimizeFeedImage(file);
+      uploadFile = optimized.file || file;
+      ext = optimized.extension || ext;
+    } catch (err) {
+      console.warn("Image compression failed, uploading original:", err);
+    }
+    const path = `${user.id}/${Date.now()}.${ext.toLowerCase()}`;
     const { error: upErr } = await supabase.storage
       .from("posts")
-      .upload(path, file, { upsert: false });
+      .upload(path, uploadFile, { upsert: false, contentType: uploadFile.type || file.type });
     if (upErr) { setBusy(false); alert("Échec de l'upload : " + upErr.message); return; }
     const { data: pub } = supabase.storage.from("posts").getPublicUrl(path);
     await supabase.from("posts").insert({
