@@ -16,10 +16,8 @@ export default function ForgotPassword() {
     setErr("");
     setBusy(true);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${siteUrl}/reset-password`,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
 
     setBusy(false);
