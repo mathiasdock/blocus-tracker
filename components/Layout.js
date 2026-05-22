@@ -73,6 +73,16 @@ function IconCommunity({ size = 20 }) {
   );
 }
 
+function IconBell({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  );
+}
+
 function IconFeed({ size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -154,6 +164,7 @@ function NavIcon({ href, size = 20 }) {
     "/historique":  <IconHistory size={size} />,
     "/groupes":     <IconGroups size={size} />,
     "social":       <IconSocial size={size} />,
+    "notifications": <IconBell size={size} />,
   };
   return map[href] || null;
 }
@@ -202,6 +213,136 @@ function Badge({ count, small = false }) {
   );
 }
 
+function NotificationPanel({
+  items,
+  t,
+  onClose,
+  onAcceptFriend,
+  onRefuseFriend,
+  onOpenFeed,
+  onDismissAnnouncement,
+}) {
+  const nameOf = (profile) => displayName(profile) || t("notif.someone");
+
+  return (
+    <div
+      className="fixed z-50 left-3 right-3 lg:left-[244px] lg:right-auto lg:w-[390px] rounded-2xl overflow-hidden"
+      style={{
+        top: "calc(58px + env(safe-area-inset-top))",
+        backgroundColor: "var(--bt-surface)",
+        border: "1px solid var(--bt-border)",
+        boxShadow: "0 18px 48px var(--bt-shadow)",
+      }}>
+      <div className="flex items-center justify-between px-4 py-3"
+        style={{ borderBottom: "1px solid var(--bt-border)" }}>
+        <div className="flex items-center gap-2" style={{ color: "var(--bt-text-1)" }}>
+          <IconBell size={18} />
+          <p className="text-sm font-semibold">{t("notif.title")}</p>
+        </div>
+        <button type="button" onClick={onClose}
+          className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+          style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }}
+          aria-label={t("common.close")}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div className="overflow-y-auto" style={{ maxHeight: "min(70vh, 520px)" }}>
+        {items.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
+            {t("notif.empty")}
+          </p>
+        ) : (
+          <ul>
+            {items.map((item, idx) => {
+              const bordered = idx > 0 ? { borderTop: "1px solid var(--bt-border)" } : {};
+
+              if (item.type === "announcement") {
+                return (
+                  <li key={item.key} style={bordered}>
+                    <button
+                      type="button"
+                      onClick={() => { onDismissAnnouncement(item.id, item.href); onClose(); }}
+                      className="w-full text-left flex gap-3 px-4 py-3 transition-colors"
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                      <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+                        <IconBell size={17} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                          {t(item.titleKey)}
+                        </span>
+                        <span className="block text-xs mt-0.5 leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                          {t(item.bodyKey)}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              }
+
+              if (item.type === "friend_request") {
+                return (
+                  <li key={item.key} className="px-4 py-3" style={bordered}>
+                    <div className="flex gap-3">
+                      <Avatar url={item.actor?.avatar_url} pseudo={nameOf(item.actor)} size={36} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
+                          <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                            {nameOf(item.actor)}
+                          </span>{" "}
+                          {t("notif.friendRequest")}
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <button type="button" onClick={() => onAcceptFriend(item.id).catch(console.error)}
+                            className="btn-primary text-xs px-3 py-1.5">
+                            {t("friends.accept")}
+                          </button>
+                          <button type="button" onClick={() => onRefuseFriend(item.id).catch(console.error)}
+                            className="btn-ghost text-xs px-3 py-1.5">
+                            {t("friends.refuse")}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              }
+
+              const textKey = item.type === "comment" ? "notif.commentedPost" : "notif.reactedPost";
+              return (
+                <li key={item.key} style={bordered}>
+                  <button
+                    type="button"
+                    onClick={() => { onOpenFeed(); onClose(); }}
+                    className="w-full text-left flex gap-3 px-4 py-3 transition-colors"
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                    <Avatar url={item.actor?.avatar_url} pseudo={nameOf(item.actor)} size={36} />
+                    <span className="min-w-0 flex-1 text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
+                      <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                        {nameOf(item.actor)}
+                      </span>{" "}
+                      {t(textKey)}
+                      {item.type === "reaction" && item.emoji && (
+                        <span className="ml-1 text-base">{item.emoji}</span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Nav data ──────────────────────────────────────────────────
 
 const SOCIAL_PATHS = ["/feed", "/friends", "/messages", "/communautes"];
@@ -235,9 +376,26 @@ const MOBILE_5 = [
 export default function Layout({ children }) {
   const { user, profile, loading, signOut } = useAuth();
   const { running, elapsed } = useTimer();
-  const { feedCount, commentCount, friendCount, totalCommunity, messageCount, msgToast, clearMsgToast } = useNotifications();
+  const {
+    feedCount,
+    commentCount,
+    reactionCount,
+    friendCount,
+    totalCommunity,
+    messageCount,
+    notificationItems,
+    notificationUnreadCount,
+    msgToast,
+    clearMsgToast,
+    refreshNotifications,
+    acceptFriendRequest,
+    refuseFriendRequest,
+    openFeedNotification,
+    dismissAnnouncement,
+  } = useNotifications();
   const { t, lang, setLang } = useI18n();
   const router = useRouter();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   useEffect(() => {
     if (profile?.lang && (profile.lang === "fr" || profile.lang === "en") && profile.lang !== lang) {
@@ -260,18 +418,22 @@ export default function Layout({ children }) {
   const isAdmin = profile?.is_admin === true;
 
   function badgeFor(href) {
-    if (href === "/feed")        return feedCount + commentCount;
+    if (href === "/feed")        return feedCount + commentCount + reactionCount;
     if (href === "/friends")     return friendCount;
     if (href === "/communautes") return totalCommunity;
     if (href === "/messages")    return messageCount;
     return 0;
   }
 
-  const socialBadge = feedCount + commentCount + friendCount + totalCommunity + messageCount;
+  const socialBadge = feedCount + commentCount + reactionCount + friendCount + totalCommunity + messageCount;
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    setNotificationsOpen(false);
+  }, [router.pathname]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center"
@@ -309,6 +471,32 @@ export default function Layout({ children }) {
     );
   }
 
+  function renderDesktopNotificationsItem() {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          refreshNotifications();
+          setNotificationsOpen((open) => !open);
+        }}
+        className="relative w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-medium transition-all text-left"
+        style={{
+          color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
+          backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "",
+        }}
+        onMouseEnter={e => { if (!notificationsOpen) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
+        onMouseLeave={e => { if (!notificationsOpen) e.currentTarget.style.backgroundColor = ""; }}>
+        {notificationsOpen && (
+          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+            style={{ backgroundColor: "#14B885" }} />
+        )}
+        <span><IconBell size={18} /></span>
+        <span className="flex-1">{t("nav.notifications")}</span>
+        {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} />}
+      </button>
+    );
+  }
+
   return (
     <div className="min-h-screen transition-colors duration-200"
       style={{ backgroundColor: "var(--bt-bg)" }}>
@@ -341,6 +529,7 @@ export default function Layout({ children }) {
           </div>
           <div className="space-y-0.5">
             {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
+            {renderDesktopNotificationsItem()}
           </div>
 
           {/* Admin section */}
@@ -421,6 +610,22 @@ export default function Layout({ children }) {
                 <span className="tabular-nums">{formatDuration(elapsed)}</span>
               </Link>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                refreshNotifications();
+                setNotificationsOpen((open) => !open);
+              }}
+              className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+              style={{
+                color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
+                backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
+                border: "1px solid var(--bt-border)",
+              }}
+              aria-label={t("nav.notifications")}>
+              <IconBell size={18} />
+              {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} small />}
+            </button>
             <Link href="/profile" style={{ position: "relative", display: "inline-block" }}>
               <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={32} />
               {userLevel && (
@@ -503,6 +708,18 @@ export default function Layout({ children }) {
         {/* Spacer safe area pour l'indicateur home iPhone */}
         <div style={{ height: "env(safe-area-inset-bottom)" }} />
       </nav>
+
+      {notificationsOpen && (
+        <NotificationPanel
+          items={notificationItems}
+          t={t}
+          onClose={() => setNotificationsOpen(false)}
+          onAcceptFriend={acceptFriendRequest}
+          onRefuseFriend={refuseFriendRequest}
+          onOpenFeed={openFeedNotification}
+          onDismissAnnouncement={dismissAnnouncement}
+        />
+      )}
 
       {/* PWA install banner (centré, modal) */}
       <PwaInstallBanner />

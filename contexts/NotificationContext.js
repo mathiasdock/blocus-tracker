@@ -7,13 +7,21 @@ import { ALL_UNIVERSITIES } from "../lib/universities";
 const NotificationContext = createContext({
   feedCount: 0,
   commentCount: 0,
+  reactionCount: 0,
   friendCount: 0,
   communityCount: {},
   totalCommunity: 0,
   messageCount: 0,
+  notificationItems: [],
+  notificationUnreadCount: 0,
   msgToast: false,
   clearMsgToast: () => {},
   markSeen: () => {},
+  refreshNotifications: () => {},
+  acceptFriendRequest: () => {},
+  refuseFriendRequest: () => {},
+  openFeedNotification: () => {},
+  dismissAnnouncement: () => {},
 });
 
 const COMMUNITY_IDS = ALL_UNIVERSITIES.map(u => u.id);
@@ -21,6 +29,14 @@ const POLL_VISIBLE_MS = 45000;
 const POLL_HIDDEN_MS = 120000;
 const POLL_DEBOUNCE_MS = 1200;
 const COMMUNITY_PAGE_SIZE = 1000;
+const PRODUCT_ANNOUNCEMENTS = [
+  {
+    id: "referral-links-v1",
+    titleKey: "notif.newFeature",
+    bodyKey: "notif.productReferral",
+    href: "/profile",
+  },
+];
 
 function getLastSeen(key) {
   if (typeof window === "undefined") return null;
@@ -32,14 +48,30 @@ function setLastSeen(key) {
   localStorage.setItem(`bt_last_seen_${key}`, new Date().toISOString());
 }
 
+function getDismissedAnnouncements(userId) {
+  if (typeof window === "undefined" || !userId) return new Set();
+  try {
+    return new Set(JSON.parse(localStorage.getItem(`bt_dismissed_announcements_${userId}`) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function setDismissedAnnouncements(userId, ids) {
+  if (typeof window === "undefined" || !userId) return;
+  localStorage.setItem(`bt_dismissed_announcements_${userId}`, JSON.stringify([...ids]));
+}
+
 export function NotificationProvider({ children }) {
   const { user } = useAuth();
   const router = useRouter();
   const [feedCount, setFeedCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
+  const [reactionCount, setReactionCount] = useState(0);
   const [friendCount, setFriendCount] = useState(0);
   const [communityCount, setCommunityCount] = useState({});
   const [messageCount, setMessageCount] = useState(0);
+  const [notificationItems, setNotificationItems] = useState([]);
   const [msgToast, setMsgToast] = useState(false);
   const pollingRef = useRef(false);
   const pollTimeoutRef = useRef(null);
@@ -51,7 +83,10 @@ export function NotificationProvider({ children }) {
     if (key === "feed") {
       setFeedCount(0);
       setCommentCount(0);
+      setReactionCount(0);
       setLastSeen("comments"); // reset comment timestamp too
+      setLastSeen("feed_interactions");
+      setNotificationItems((items) => items.filter((item) => item.type !== "comment" && item.type !== "reaction"));
     } else if (key === "friends") {
       setFriendCount(0);
     } else if (key === "messages") {
@@ -147,34 +182,125 @@ export function NotificationProvider({ children }) {
         .eq("receiver_id", user.id)
         .eq("read", false);
 
-      // New comments on my posts (from others)
-      const lastComments = getLastSeen("comments");
-      const commentsPromise = (async () => {
-        if (!lastComments) {
+      const notificationPromise = (async () => {
+        const [{ data: friendRows }, { data: myPosts }] = await Promise.all([
+          supabase
+            .from("friendships")
+            .select("id, requester, created_at")
+            .eq("addressee", user.id)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(10),
+          supabase
+            .from("posts")
+            .select("id")
+            .eq("user_id", user.id)
+            .limit(100),
+        ]);
+
+        let comments = [];
+        let reactions = [];
+        let commentsCount = 0;
+        let reactionsCount = 0;
+        const lastInteractions = getLastSeen("feed_interactions");
+        if (!lastInteractions) {
+          setLastSeen("feed_interactions");
           setLastSeen("comments");
-          return 0;
+        } else if (myPosts?.length) {
+          const postIds = myPosts.map(p => p.id);
+          const [commentsRes, reactionsRes] = await Promise.all([
+            supabase
+              .from("comments")
+              .select("id, post_id, user_id, content, created_at", { count: "exact" })
+              .in("post_id", postIds)
+              .neq("user_id", user.id)
+              .gt("created_at", lastInteractions)
+              .order("created_at", { ascending: false })
+              .limit(10),
+            supabase
+              .from("likes")
+              .select("id, post_id, user_id, emoji, created_at", { count: "exact" })
+              .in("post_id", postIds)
+              .neq("user_id", user.id)
+              .gt("created_at", lastInteractions)
+              .order("created_at", { ascending: false })
+              .limit(10),
+          ]);
+          comments = commentsRes.data || [];
+          reactions = reactionsRes.data || [];
+          commentsCount = commentsRes.count || 0;
+          reactionsCount = reactionsRes.count || 0;
         }
-        const { data: myPosts } = await supabase
-          .from("posts")
-          .select("id")
-          .eq("user_id", user.id)
-          .limit(100);
-        if (!myPosts?.length) return 0;
-        const { count } = await supabase
-          .from("comments")
-          .select("id", { count: "exact", head: true })
-          .in("post_id", myPosts.map(p => p.id))
-          .neq("user_id", user.id)
-          .gt("created_at", lastComments);
-        return count || 0;
+
+        const actorIds = new Set();
+        (friendRows || []).forEach((row) => actorIds.add(row.requester));
+        comments.forEach((row) => actorIds.add(row.user_id));
+        reactions.forEach((row) => actorIds.add(row.user_id));
+
+        let profileMap = {};
+        if (actorIds.size) {
+          const { data: actors } = await supabase
+            .from("profiles")
+            .select("id, pseudo, first_name, last_name, avatar_url")
+            .in("id", [...actorIds]);
+          profileMap = Object.fromEntries((actors || []).map((p) => [p.id, p]));
+        }
+
+        const dismissed = getDismissedAnnouncements(user.id);
+        const announcements = PRODUCT_ANNOUNCEMENTS
+          .filter((item) => !dismissed.has(item.id))
+          .map((item) => ({ ...item, type: "announcement", key: `announcement:${item.id}`, created_at: null }));
+
+        const items = [
+          ...announcements,
+          ...(friendRows || []).map((row) => ({
+            type: "friend_request",
+            key: `friend_request:${row.id}`,
+            id: row.id,
+            actorId: row.requester,
+            actor: profileMap[row.requester] || null,
+            created_at: row.created_at,
+          })),
+          ...comments.map((row) => ({
+            type: "comment",
+            key: `comment:${row.id}`,
+            id: row.id,
+            postId: row.post_id,
+            actorId: row.user_id,
+            actor: profileMap[row.user_id] || null,
+            content: row.content,
+            created_at: row.created_at,
+          })),
+          ...reactions.map((row) => ({
+            type: "reaction",
+            key: `reaction:${row.id}`,
+            id: row.id,
+            postId: row.post_id,
+            actorId: row.user_id,
+            actor: profileMap[row.user_id] || null,
+            emoji: row.emoji,
+            created_at: row.created_at,
+          })),
+        ].sort((a, b) => {
+          if (!a.created_at) return -1;
+          if (!b.created_at) return 1;
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
+
+        return {
+          items,
+          commentsCount,
+          reactionsCount,
+          announcementCount: announcements.length,
+        };
       })();
 
-      const [feedRes, friendRes, communityRes, messageRes, commentsCount] = await Promise.all([
+      const [feedRes, friendRes, communityRes, messageRes, notificationRes] = await Promise.all([
         feedPromise,
         friendPromise,
         communityPromise,
         messagePromise,
-        commentsPromise,
+        notificationPromise,
       ]);
 
       if (feedRes) setFeedCount(feedRes.count || 0);
@@ -191,7 +317,9 @@ export function NotificationProvider({ children }) {
       setCommunityCount(nextCommunityCount);
 
       setMessageCount(messageRes.count || 0);
-      setCommentCount(commentsCount);
+      setCommentCount(notificationRes.commentsCount || 0);
+      setReactionCount(notificationRes.reactionsCount || 0);
+      setNotificationItems(notificationRes.items || []);
     } finally {
       pollingRef.current = false;
     }
@@ -204,6 +332,56 @@ export function NotificationProvider({ children }) {
       poll();
     }, delay);
   }, [poll]);
+
+  const refreshNotifications = useCallback(() => {
+    schedulePoll(100);
+  }, [schedulePoll]);
+
+  const acceptFriendRequest = useCallback(async (requestId) => {
+    if (!requestId || !user) return;
+    const { error } = await supabase
+      .from("friendships")
+      .update({ status: "accepted" })
+      .eq("id", requestId)
+      .eq("addressee", user.id)
+      .eq("status", "pending");
+    if (error) throw error;
+    setFriendCount((count) => Math.max(0, count - 1));
+    setNotificationItems((items) => items.filter((item) => item.key !== `friend_request:${requestId}`));
+    schedulePoll(100);
+  }, [schedulePoll, user]);
+
+  const refuseFriendRequest = useCallback(async (requestId) => {
+    if (!requestId || !user) return;
+    const { error } = await supabase
+      .from("friendships")
+      .delete()
+      .eq("id", requestId)
+      .eq("addressee", user.id)
+      .eq("status", "pending");
+    if (error) throw error;
+    setFriendCount((count) => Math.max(0, count - 1));
+    setNotificationItems((items) => items.filter((item) => item.key !== `friend_request:${requestId}`));
+    schedulePoll(100);
+  }, [schedulePoll, user]);
+
+  const openFeedNotification = useCallback(() => {
+    setLastSeen("feed_interactions");
+    setLastSeen("comments");
+    setCommentCount(0);
+    setReactionCount(0);
+    setNotificationItems((items) => items.filter((item) => item.type !== "comment" && item.type !== "reaction"));
+    router.push("/feed");
+  }, [router]);
+
+  const dismissAnnouncement = useCallback((announcementId, href) => {
+    if (!user || !announcementId) return;
+    const dismissed = getDismissedAnnouncements(user.id);
+    dismissed.add(announcementId);
+    setDismissedAnnouncements(user.id, dismissed);
+    setNotificationItems((items) => items.filter((item) => item.key !== `announcement:${announcementId}`));
+    if (href) router.push(href);
+  }, [router, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -241,10 +419,30 @@ export function NotificationProvider({ children }) {
   }, [poll, schedulePoll, user]);
 
   const totalCommunity = Object.values(communityCount).reduce((a, b) => a + b, 0);
+  const announcementCount = notificationItems.filter((item) => item.type === "announcement").length;
+  const notificationUnreadCount = friendCount + commentCount + reactionCount + announcementCount;
 
   return (
     <NotificationContext.Provider
-      value={{ feedCount, commentCount, friendCount, communityCount, totalCommunity, messageCount, msgToast, clearMsgToast, markSeen }}
+      value={{
+        feedCount,
+        commentCount,
+        reactionCount,
+        friendCount,
+        communityCount,
+        totalCommunity,
+        messageCount,
+        notificationItems,
+        notificationUnreadCount,
+        msgToast,
+        clearMsgToast,
+        markSeen,
+        refreshNotifications,
+        acceptFriendRequest,
+        refuseFriendRequest,
+        openFeedNotification,
+        dismissAnnouncement,
+      }}
     >
       {children}
     </NotificationContext.Provider>
