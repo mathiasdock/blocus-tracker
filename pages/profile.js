@@ -39,6 +39,7 @@ function IconMoon() { return <svg width="17" height="17" viewBox="0 0 24 24" fil
 function IconSun() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>; }
 function IconSmartphone() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>; }
 function IconInfo() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>; }
+function IconFeedback() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8M8 12h5"/></svg>; }
 function IconShield({ color }) { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>; }
 function IconLogOut() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
 function IconTrash() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>; }
@@ -56,12 +57,17 @@ function SectionLabel({ children }) {
 function IconBox({ color, bg, children }) {
   return <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg || "var(--bt-subtle)", color: color || "var(--bt-text-2)" }}>{children}</span>;
 }
-function PrefRow({ icon, iconColor, iconBg, label, right, onClick, className = "" }) {
+function PrefRow({ icon, iconColor, iconBg, label, description, right, onClick, className = "" }) {
   const inner = (
     <div className={`flex items-center justify-between py-3.5 ${className}`}>
       <div className="flex items-center gap-3 min-w-0">
         <IconBox color={iconColor} bg={iconBg}>{icon}</IconBox>
-        <span className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{label}</span>
+        <span className="min-w-0">
+          <span className="block text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{label}</span>
+          {description && (
+            <span className="block text-xs mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }}>{description}</span>
+          )}
+        </span>
       </div>
       <div className="shrink-0 ml-2">{right}</div>
     </div>
@@ -853,6 +859,19 @@ export default function Profile() {
               </button>
             } />
             {sep}
+            <Link href="/feedback" className="block rounded-xl transition-colors"
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+              <PrefRow
+                icon={<IconFeedback />}
+                iconColor="#0E8F68"
+                iconBg="var(--bt-accent-bg)"
+                label={t("feedback.improveTitle")}
+                description={t("feedback.improveDesc")}
+                right={<IconChevronRight />}
+              />
+            </Link>
+            {sep}
             <div>
               <PrefRow icon={<IconSmartphone />} label={t("pwa.profileSection")} right={<IconChevronDown open={showPwa} />} onClick={() => setShowPwa(s => !s)} />
               {showPwa && (
@@ -897,6 +916,16 @@ export default function Profile() {
                 <div className="flex items-center gap-3">
                   <IconBox color="#0E8F68" bg="var(--bt-accent-bg)"><IconShield color="#0E8F68" /></IconBox>
                   <span className="text-sm font-medium" style={{ color: "#0E8F68" }}>{t("profile.adminDashboard")}</span>
+                </div>
+                <IconChevronRight />
+              </Link>
+              {sep}
+              <Link href="/feedback" className="flex items-center justify-between px-5 py-3.5 transition-colors"
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                <div className="flex items-center gap-3">
+                  <IconBox color="#0E8F68" bg="var(--bt-accent-bg)"><IconFeedback /></IconBox>
+                  <span className="text-sm font-medium" style={{ color: "#0E8F68" }}>{t("profile.suggestionInbox")}</span>
                 </div>
                 <IconChevronRight />
               </Link>

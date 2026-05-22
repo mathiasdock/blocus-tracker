@@ -103,6 +103,16 @@ function IconAdmin({ size = 20 }) {
   );
 }
 
+function IconFeedback({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <path d="M8 8h8M8 12h5"/>
+    </svg>
+  );
+}
+
 function IconSocial({ size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -160,6 +170,7 @@ function NavIcon({ href, size = 20 }) {
     "/communautes": <IconCommunity size={size} />,
     "/feed":        <IconFeed size={size} />,
     "/admin":       <IconAdmin size={size} />,
+    "/feedback":    <IconFeedback size={size} />,
     "/profile":     <IconProfile size={size} />,
     "/historique":  <IconHistory size={size} />,
     "/groupes":     <IconGroups size={size} />,
@@ -361,6 +372,7 @@ const NAV_SOCIAL = [
 ];
 
 const NAV_ADMIN = { href: "/admin", key: "nav.admin" };
+const NAV_ADMIN_FEEDBACK = { href: "/feedback", key: "nav.suggestionInbox" };
 
 // 5-tab mobile bottom nav
 const MOBILE_5 = [
@@ -541,6 +553,7 @@ export default function Layout({ children }) {
               </div>
               <div className="space-y-0.5">
                 {renderDesktopNavItem(NAV_ADMIN)}
+                {renderDesktopNavItem(NAV_ADMIN_FEEDBACK)}
               </div>
             </>
           )}
