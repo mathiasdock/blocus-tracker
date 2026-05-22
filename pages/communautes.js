@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import { useAuth } from "../contexts/AuthContext";
@@ -6,7 +6,7 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
-import { COUNTRIES, COMMUNITY_BY_ID } from "../lib/universities";
+import { COUNTRIES, COMMUNITY_BY_ID, communityIdForUniversity } from "../lib/universities";
 
 export default function Communautes() {
   const { user, profile } = useAuth();
@@ -14,10 +14,35 @@ export default function Communautes() {
   const { communityCount, markSeen } = useNotifications();
   const { t, lang } = useI18n();
 
-  // Default to first community of first country
-  const [active, setActive] = useState(COUNTRIES[0].universities[0].id);
+  // The community the current user belongs to (resolved from profile.university).
+  const myCommunityId = useMemo(
+    () => communityIdForUniversity(profile?.university),
+    [profile?.university]
+  );
+
+  // Normal users only see/access their own university; admins see them all.
+  const visibleCountries = useMemo(() => {
+    if (isAdmin) return COUNTRIES;
+    if (!myCommunityId) return [];
+    return COUNTRIES
+      .map(c => ({ ...c, universities: c.universities.filter(u => u.id === myCommunityId) }))
+      .filter(c => c.universities.length > 0);
+  }, [isAdmin, myCommunityId]);
+
+  const [active, setActive] = useState(null);
   // Track which country accordions are open
-  const [openCountries, setOpenCountries] = useState({ [COUNTRIES[0].code]: true });
+  const [openCountries, setOpenCountries] = useState({});
+
+  // Pick the initial active community: first one for admins, own for users.
+  useEffect(() => {
+    if (active) return;
+    if (isAdmin) {
+      setActive(COUNTRIES[0].universities[0].id);
+      setOpenCountries({ [COUNTRIES[0].code]: true });
+    } else if (myCommunityId) {
+      setActive(myCommunityId);
+    }
+  }, [active, isAdmin, myCommunityId]);
 
   const [messages, setMessages] = useState([]);
   const [profiles, setProfiles] = useState({});
@@ -31,6 +56,7 @@ export default function Communautes() {
   const activeMeta = COMMUNITY_BY_ID[active];
 
   const load = useCallback(async () => {
+    if (!active) return;
     const { data } = await supabase
       .from("community_messages")
       .select("*")
@@ -51,6 +77,7 @@ export default function Communautes() {
   }, [active]);
 
   useEffect(() => {
+    if (!active) return;
     setMessages([]);
     load();
     markSeen(active);
@@ -125,7 +152,7 @@ export default function Communautes() {
       <div className="grid gap-5 lg:grid-cols-4">
         {/* ── Sidebar ──────────────────────────────────────────── */}
         <aside className="lg:col-span-1 space-y-0.5">
-          {COUNTRIES.map(country => {
+          {visibleCountries.map(country => {
             const isOpen = !!openCountries[country.code];
             const countryBadge = country.universities.reduce((s, u) => s + (communityCount[u.id] || 0), 0);
             return (
@@ -196,6 +223,11 @@ export default function Communautes() {
         </aside>
 
         {/* ── Chat ─────────────────────────────────────────────── */}
+        {!isAdmin && !myCommunityId ? (
+        <section className="lg:col-span-3 card flex items-center justify-center h-[72vh] text-center px-6">
+          <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("comm.noUniversity")}</p>
+        </section>
+        ) : (
         <section className="lg:col-span-3 card flex flex-col h-[72vh]">
           {/* Header */}
           <div className="px-5 py-3.5 flex items-center gap-3 shrink-0"
@@ -299,6 +331,7 @@ export default function Communautes() {
             </button>
           </form>
         </section>
+        )}
       </div>
 
       {viewUserId && (
