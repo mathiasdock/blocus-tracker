@@ -73,40 +73,47 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data: c } = await supabase
-      .from("courses")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at");
-    setCourses(c || []);
-    if (c && c.length && !courseId) setCourseId(c[0].id);
-
-    const { data: s } = await supabase
-      .from("sessions")
-      .select("*")
-      .eq("user_id", user.id)
-      .gte("started_at", todayISO())
-      .order("started_at", { ascending: false });
-    setSessions(s || []);
-
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const { data: recent } = await supabase
-      .from("sessions")
-      .select("started_at")
-      .eq("user_id", user.id)
-      .gte("started_at", ninetyDaysAgo.toISOString());
+
+    const [coursesRes, sessionsRes, recentRes, objectivesRes] = await Promise.all([
+      supabase
+        .from("courses")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at"),
+      supabase
+        .from("sessions")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("started_at", todayISO())
+        .order("started_at", { ascending: false }),
+      supabase
+        .from("sessions")
+        .select("started_at")
+        .eq("user_id", user.id)
+        .gte("started_at", ninetyDaysAgo.toISOString()),
+      supabase
+        .from("objectives")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("scheduled_date", todayISO())
+        .order("done"),
+    ]);
+
+    const c = coursesRes.data || [];
+    setCourses(c);
+    setCourseId(current => current || c[0]?.id || "");
+
+    const s = sessionsRes.data || [];
+    setSessions(s);
+
+    const recent = recentRes.data || [];
     setStreak(computeStreak(recent || []));
     setBestStreak(computeBestStreak(recent || []));
 
-    const { data: objs } = await supabase
-      .from("objectives")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("scheduled_date", todayISO())
-      .order("done");
-    setTodayObjectives(objs || []);
-  }, [user, courseId, setCourseId]);
+    setTodayObjectives(objectivesRes.data || []);
+  }, [user, setCourseId]);
 
   async function toggleObjective(o) {
     const { data } = await supabase

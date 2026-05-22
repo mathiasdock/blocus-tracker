@@ -1,7 +1,6 @@
 import "../styles/globals.css";
 import Head from "next/head";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/router";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
@@ -80,7 +79,6 @@ async function loadCurrentLevel(userId) {
 
 function GlobalLevelUpWatcher() {
   const { user } = useAuth();
-  const router = useRouter();
   const [levelUp, setLevelUp] = useState(null);
   const previousLevelRef = useRef(null);
   const activeUserRef = useRef(null);
@@ -149,14 +147,13 @@ function GlobalLevelUpWatcher() {
 
     checkLevel();
 
-    const focus = () => checkLevel();
+    const focus = () => scheduleCheck();
     const visibility = () => {
-      if (!document.hidden) checkLevel();
+      if (!document.hidden) scheduleCheck();
     };
     window.addEventListener("focus", focus);
     window.addEventListener("bt-xp-changed", scheduleCheck);
     document.addEventListener("visibilitychange", visibility);
-    router.events.on("routeChangeComplete", scheduleCheck);
     const interval = setInterval(checkLevel, 60000);
 
     const watchedTables = [
@@ -209,10 +206,9 @@ function GlobalLevelUpWatcher() {
       window.removeEventListener("focus", focus);
       window.removeEventListener("bt-xp-changed", scheduleCheck);
       document.removeEventListener("visibilitychange", visibility);
-      router.events.off("routeChangeComplete", scheduleCheck);
       channels.forEach(ch => supabase.removeChannel(ch));
     };
-  }, [checkLevel, router.events, scheduleCheck, user]);
+  }, [checkLevel, scheduleCheck, user]);
 
   return levelUp ? (
     <LevelUpModal
