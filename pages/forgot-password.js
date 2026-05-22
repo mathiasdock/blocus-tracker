@@ -16,8 +16,12 @@ export default function ForgotPassword() {
     setErr("");
     setBusy(true);
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.blocus-tracker.com';
+    const redirectTo = `${origin.replace(/\/$/, '')}/reset-password`;
+    if (process.env.NODE_ENV === 'development') console.log('Password reset redirectTo:', redirectTo);
+
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo,
     });
 
     setBusy(false);
