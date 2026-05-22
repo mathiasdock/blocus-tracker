@@ -10,6 +10,27 @@ import { getLevelInfo } from "../lib/xp";
 import { optimizeFeedImage } from "../lib/imageCompression";
 import LevelPill from "../components/LevelPill";
 
+const DEFAULT_REACTION_EMOJI = "👍";
+const LEGACY_FALLBACK_EMOJI = "♥";
+const EMOJI_REACTION_OPTIONS = ["👍", "❤️", "😂", "🔥", "👏", "😮", "😢", "🤯", "💪", "✅"];
+
+function splitGraphemes(value) {
+  if (typeof Intl !== "undefined" && Intl.Segmenter) {
+    return Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value), s => s.segment);
+  }
+  return Array.from(value);
+}
+
+function normalizeEmojiReaction(value) {
+  const trimmed = String(value || "").trim();
+  const graphemes = splitGraphemes(trimmed);
+  if (graphemes.length !== 1) return "";
+  const emoji = graphemes[0];
+  if (!/\p{Extended_Pictographic}/u.test(emoji)) return "";
+  if (/[A-Za-z0-9]/.test(emoji)) return "";
+  return emoji;
+}
+
 export default function Feed() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
@@ -24,7 +45,7 @@ export default function Feed() {
   const [busy, setBusy]                 = useState(false);
   const [commentDraft, setCommentDraft] = useState({});
   const [emojiInputOpen, setEmojiInputOpen] = useState({});
-  const [emojiDraft, setEmojiDraft]     = useState({});
+  const [reactionError, setReactionError] = useState({});
   const [viewUserId, setViewUserId]     = useState(null);
   const [formOpen, setFormOpen]         = useState(false);
   const fileInputRef  = useRef(null);
@@ -136,14 +157,32 @@ export default function Feed() {
   }
 
   async function react(post, emoji) {
+    const normalizedEmoji = normalizeEmojiReaction(emoji);
     const mine = post.likes.find((l) => l.user_id === user.id);
-    if (mine && mine.emoji === emoji) {
-      await supabase.from("likes").delete().eq("id", mine.id);
-    } else if (mine) {
-      await supabase.from("likes").update({ emoji }).eq("id", mine.id);
-    } else {
-      await supabase.from("likes").insert({ post_id: post.id, user_id: user.id, emoji });
+
+    if (!normalizedEmoji) {
+      if (mine && mine.emoji === emoji) {
+        const { error } = await supabase.from("likes").delete().eq("id", mine.id);
+        if (error) console.error("Failed to remove legacy reaction:", error);
+        load();
+        return;
+      }
+      setReactionError((errors) => ({ ...errors, [post.id]: t("feed.emojiOnly") }));
+      return;
     }
+
+    setReactionError((errors) => ({ ...errors, [post.id]: "" }));
+    if (mine && mine.emoji === normalizedEmoji) {
+      const { error } = await supabase.from("likes").delete().eq("id", mine.id);
+      if (error) console.error("Failed to remove reaction:", error);
+    } else if (mine) {
+      const { error } = await supabase.from("likes").update({ emoji: normalizedEmoji }).eq("id", mine.id);
+      if (error) console.error("Failed to update reaction:", error);
+    } else {
+      const { error } = await supabase.from("likes").insert({ post_id: post.id, user_id: user.id, emoji: normalizedEmoji });
+      if (error) console.error("Failed to add reaction:", error);
+    }
+    setEmojiInputOpen(s => ({ ...s, [post.id]: false }));
     load();
   }
 
@@ -181,13 +220,6 @@ export default function Feed() {
       clearTimeout(pressTimerRef.current);
       pressTimerRef.current = null;
     }
-  }
-
-  function submitEmojiReaction(post) {
-    const em = (emojiDraft[post.id] || "").trim();
-    if (em) react(post, em);
-    setEmojiInputOpen(s => ({ ...s, [post.id]: false }));
-    setEmojiDraft(d => ({ ...d, [post.id]: "" }));
   }
 
   const who = (id) => profiles[id] || { pseudo: "?", avatar_url: null };
@@ -283,11 +315,12 @@ export default function Feed() {
             const author = who(post.user_id);
             const myReaction = post.likes.find((l) => l.user_id === user.id)?.emoji;
             const counts = post.likes.reduce((acc, l) => {
-              const e = l.emoji || "♥";
+              const e = l.emoji || LEGACY_FALLBACK_EMOJI;
               acc[e] = (acc[e] || 0) + 1;
               return acc;
             }, {});
             const sortedEmojis = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([e]) => e);
+            const otherEmojis = sortedEmojis.filter((emoji) => emoji !== DEFAULT_REACTION_EMOJI);
             return (
               <article key={post.id} className="card overflow-hidden">
                 <div className="flex items-center gap-3 p-4">
@@ -379,18 +412,36 @@ export default function Feed() {
                 </div>
 
                 <div className="p-4 space-y-3">
-                  {/* Reactions — free emoji */}
-                  {/* Reactions — long-press (600ms) opens the reactors panel */}
+                  {/* Reactions - long-press (600ms) opens the reactors panel */}
                   <div className="flex items-center gap-1.5 flex-wrap"
                     onPointerDown={() => handlePressStart(post.id)}
                     onPointerUp={handlePressEnd}
                     onPointerLeave={handlePressEnd}>
-                    {sortedEmojis.map((emoji) => {
+                    {(() => {
+                      const n = counts[DEFAULT_REACTION_EMOJI] || 0;
+                      const active = myReaction === DEFAULT_REACTION_EMOJI;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => react(post, DEFAULT_REACTION_EMOJI)}
+                          className="text-sm flex items-center gap-1 rounded-full px-2.5 py-1 transition-all"
+                          style={active
+                            ? { backgroundColor: "#EAFBF4", border: "1px solid #C6EED9", color: "#0E8F68" }
+                            : { border: "1px solid #E8E2DC", color: "var(--bt-text-2)", backgroundColor: "transparent" }}
+                          title={t("feed.likeReaction")}
+                          aria-label={t("feed.likeReaction")}>
+                          <span>{DEFAULT_REACTION_EMOJI}</span>
+                          {n > 0 && <span className="text-xs tabular-nums font-medium">{n}</span>}
+                        </button>
+                      );
+                    })()}
+
+                    {otherEmojis.map((emoji) => {
                       const n = counts[emoji] || 0;
                       const active = myReaction === emoji;
-                      const isHeart = emoji === "♥";
+                      const isHeart = emoji === LEGACY_FALLBACK_EMOJI;
                       return (
-                        <button key={emoji} onClick={() => react(post, emoji)}
+                        <button key={emoji} type="button" onClick={() => react(post, emoji)}
                           className="text-sm flex items-center gap-1 rounded-full px-2.5 py-1 transition-all"
                           style={active
                             ? { backgroundColor: "#EAFBF4", border: "1px solid #C6EED9", color: "#0E8F68" }
@@ -401,54 +452,48 @@ export default function Feed() {
                       );
                     })}
 
-                    {/* + button / emoji input (only if user hasn't reacted) */}
-                    {!myReaction && (
-                      emojiInputOpen[post.id] ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            autoFocus
-                            maxLength={4}
-                            placeholder="😊"
-                            value={emojiDraft[post.id] || ""}
-                            onChange={e => setEmojiDraft(d => ({ ...d, [post.id]: e.target.value }))}
-                            onKeyDown={e => {
-                              if (e.key === "Enter") submitEmojiReaction(post);
-                              if (e.key === "Escape") {
-                                setEmojiInputOpen(s => ({ ...s, [post.id]: false }));
-                                setEmojiDraft(d => ({ ...d, [post.id]: "" }));
-                              }
-                            }}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmojiInputOpen(s => ({ ...s, [post.id]: !s[post.id] }));
+                        setReactionError(errors => ({ ...errors, [post.id]: "" }));
+                      }}
+                      className="text-sm flex items-center justify-center rounded-full transition-all"
+                      style={{ width: 32, height: 32, border: "1px dashed var(--bt-border)", color: "var(--bt-text-3)", backgroundColor: "transparent" }}
+                      title={t("feed.addReaction")}
+                      aria-label={t("feed.addReaction")}>
+                      +
+                    </button>
+
+                    {emojiInputOpen[post.id] && (
+                      <div className="flex items-center gap-1.5 flex-wrap rounded-2xl px-2 py-1"
+                        style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                        {EMOJI_REACTION_OPTIONS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => react(post, emoji)}
+                            className="flex items-center justify-center rounded-full transition-all"
                             style={{
-                              width: 52, padding: "4px 6px", fontSize: 18, textAlign: "center",
-                              borderRadius: 10, border: "1px solid var(--bt-border)",
-                              backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)",
-                              outline: "none",
+                              width: 30,
+                              height: 30,
+                              backgroundColor: myReaction === emoji ? "#EAFBF4" : "transparent",
+                              color: myReaction === emoji ? "#0E8F68" : "var(--bt-text-1)",
+                              border: myReaction === emoji ? "1px solid #C6EED9" : "1px solid transparent",
+                              fontSize: 17,
                             }}
-                          />
-                          <button
-                            onClick={() => submitEmojiReaction(post)}
-                            className="text-xs px-2 py-1 rounded-lg font-semibold transition-all"
-                            style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
-                            OK
+                            aria-label={`${t("feed.addReaction")} ${emoji}`}>
+                            {emoji}
                           </button>
-                          <button
-                            onClick={() => { setEmojiInputOpen(s => ({ ...s, [post.id]: false })); setEmojiDraft(d => ({ ...d, [post.id]: "" })); }}
-                            style={{ color: "var(--bt-text-4)", fontSize: 15, lineHeight: 1 }}>
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setEmojiInputOpen(s => ({ ...s, [post.id]: true }))}
-                          className="text-sm flex items-center justify-center rounded-full transition-all"
-                          style={{ width: 32, height: 32, border: "1px dashed var(--bt-border)", color: "var(--bt-text-3)", backgroundColor: "transparent" }}
-                          title={t("feed.addReaction")}>
-                          +
-                        </button>
-                      )
+                        ))}
+                      </div>
                     )}
                   </div>
+                  {reactionError[post.id] && (
+                    <p className="text-xs -mt-1" style={{ color: "#ef4444" }}>
+                      {reactionError[post.id]}
+                    </p>
+                  )}
 
                   {/* Likers — clickable */}
                   {post.likes.length > 0 && (() => {
@@ -461,7 +506,7 @@ export default function Feed() {
                             <button onClick={() => openProfile(l.user_id)}
                               className="hover:underline"
                               style={{ color: "var(--bt-text-3)" }}>
-                              {l.emoji || "♥"} {displayName(profiles[l.user_id])}
+                              {l.emoji || LEGACY_FALLBACK_EMOJI} {displayName(profiles[l.user_id])}
                             </button>
                           </span>
                         ))}
@@ -531,7 +576,7 @@ export default function Feed() {
         if (!rPost) return null;
         const groups = {};
         rPost.likes.forEach(l => {
-          const e = l.emoji || "♥";
+          const e = l.emoji || LEGACY_FALLBACK_EMOJI;
           if (!groups[e]) groups[e] = [];
           groups[e].push(l);
         });
@@ -555,7 +600,7 @@ export default function Feed() {
               ) : sortedGroups.map(([emoji, likers]) => (
                 <div key={emoji} className="mb-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl" style={{ color: emoji === "♥" ? "#ef4444" : undefined }}>{emoji}</span>
+                    <span className="text-xl" style={{ color: emoji === LEGACY_FALLBACK_EMOJI ? "#ef4444" : undefined }}>{emoji}</span>
                     <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>{likers.length}</span>
                   </div>
                   <div className="space-y-2.5">
