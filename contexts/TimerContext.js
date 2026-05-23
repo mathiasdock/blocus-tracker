@@ -23,7 +23,12 @@ export function TimerProvider({ children }) {
   const [, forceRender] = useReducer((x) => x + 1, 0);
   const hydrated = useRef(false);
 
-  // Restore from localStorage on first mount
+  // Restore from localStorage on first mount.
+  //
+  // ⚠️ Sanity cap : si le timer était "running" mais que l'appareil a dormi /
+  // l'app a été fermée pendant > 12h, on ne compte PAS ce gap (sinon la session
+  // est artificiellement gonflée à plusieurs heures). On fige le timer en pause
+  // sur la dernière valeur connue ; l'utilisateur peut reprendre ou stopper.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
@@ -31,9 +36,18 @@ export function TimerProvider({ children }) {
         const s = JSON.parse(raw);
         setCourseId(s.courseId || "");
         setNote(s.note || "");
-        setRunning(!!s.running);
-        setStartMs(s.startMs || 0);
-        setBaseSeconds(s.baseSeconds || 0);
+        let nextRunning = !!s.running;
+        let nextStartMs = s.startMs || 0;
+        const nextBase = s.baseSeconds || 0;
+        const MAX_GAP_MS = 12 * 60 * 60 * 1000; // 12h
+        if (nextRunning && nextStartMs && Date.now() - nextStartMs > MAX_GAP_MS) {
+          nextRunning = false;
+          nextStartMs = 0;
+          // baseSeconds inchangé : on n'inclut PAS le gap suspect.
+        }
+        setRunning(nextRunning);
+        setStartMs(nextStartMs);
+        setBaseSeconds(nextBase);
       }
     } catch {}
     hydrated.current = true;

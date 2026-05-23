@@ -7,6 +7,8 @@ import { supabase } from "../lib/supabaseClient";
 import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
+import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
+import PendingSessionsBanner from "../components/PendingSessionsBanner";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -166,17 +168,35 @@ export default function Dashboard() {
 
     if (pomoPhase === "work") {
       const secs = Math.min(elapsed, POMO_WORK);
+      const endedAt = new Date().toISOString();
       const startedAt = new Date(Date.now() - secs * 1000).toISOString();
+
+      // 1) Snapshot LOCAL (queue) AVANT toute tentative Supabase → zéro perte
+      //    si l'auto-stop pomodoro tombe pendant un creux réseau.
+      const payload = {
+        id: newClientId(),
+        user_id: user.id,
+        course_id: courseId || null,
+        duration_seconds: secs,
+        note: note || null,
+        started_at: startedAt,
+        ended_at: endedAt,
+      };
+      enqueueSession(payload);
+
       pause();
       reset();
-      supabase.from("sessions").insert({
-        user_id: user.id, course_id: courseId, duration_seconds: secs,
-        note: note || null, started_at: startedAt, ended_at: new Date().toISOString(),
-      }).then(() => {
-        clearDashboardCache();
-        notifyXPChanged();
-        load();
+
+      // 2) Tentative d'envoi : la queue se vide d'elle-même via flushPending
+      //    (idempotent, dédupe via PK sur 23505).
+      flushPending(supabase, user.id).then((res) => {
+        if (res.synced + res.alreadyExists > 0) {
+          clearDashboardCache();
+          notifyXPChanged();
+          load();
+        }
       });
+
       setPomoPhase("break");
       setPomoCount(c => c + 1);
       setTimeout(() => { start(); pomoHandled.current = false; }, 80);
@@ -198,36 +218,62 @@ export default function Dashboard() {
     savingRef.current = true;
     setSaveStatus("saving");
 
-    const startedAt = new Date(Date.now() - seconds * 1000).toISOString();
     const endedAt   = new Date().toISOString();
-    const { data: inserted, error } = await supabase.from("sessions").insert({
-      user_id:          user.id,
-      course_id:        courseId,
+    const startedAt = new Date(Date.now() - seconds * 1000).toISOString();
+
+    // 1) Snapshot LOCAL immédiat. À partir d'ici la session ne peut plus être
+    //    perdue : même si le navigateur crashe ou si l'utilisateur ferme l'app,
+    //    elle reste dans la queue localStorage et sera renvoyée au prochain
+    //    focus / online / mount du dashboard (via PendingSessionsBanner).
+    const payload = {
+      id: newClientId(),
+      user_id: user.id,
+      course_id: courseId || null,
       duration_seconds: seconds,
-      note:             note || null,
-      started_at:       startedAt,
-      ended_at:         endedAt,
-    }).select().single();
+      note: note || null,
+      started_at: startedAt,
+      ended_at: endedAt,
+    };
+    enqueueSession(payload);
+
+    // 2) Reset UI : le travail est capturé dans la queue, l'utilisateur voit
+    //    le timer revenir à 0. Pas de risque de re-cliquer "stop" sur le même
+    //    elapsed (id idempotent via PK).
+    reset();
+
+    // 3) Tentative d'envoi (id explicite → idempotence parfaite via PK sessions).
+    const { data: inserted, error } = await supabase
+      .from("sessions")
+      .insert(payload)
+      .select()
+      .maybeSingle();
 
     savingRef.current = false;
 
-    if (error) {
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+    // 23505 = unique violation = déjà insérée → succès idempotent.
+    const isDuplicateOk = error && error.code === "23505";
+
+    if (error && !isDuplicateOk) {
+      // Échec réseau/serveur : la session reste dans la queue, le banner prend
+      // le relais et retentera automatiquement (online / focus / interval).
+      setSaveStatus("queued");
+      setTimeout(() => setSaveStatus("idle"), 3500);
       return;
     }
+
+    // Succès : on retire le draft de la queue.
+    removeFromQueue(payload.id);
 
     const currentTotal = sessions.reduce((a, s) => a + s.duration_seconds, 0);
     const newGoalPct = Math.min(100, Math.round(((currentTotal + seconds) / DAILY_GOAL_SECS) * 100));
     const xpGained = Math.floor(seconds / 60);
 
-    // Optimistic update — show session immediately without waiting for reload
-    if (inserted) {
-      clearDashboardCache();
-      setSessions(prev => [inserted, ...prev]);
-      notifyXPChanged();
-    }
-    reset();
+    // Optimistic update — use the server row si dispo, sinon notre payload
+    // (cas du 23505 idempotent où inserted === null mais la ligne existe).
+    const sessionRow = inserted || payload;
+    clearDashboardCache();
+    setSessions(prev => prev.some(s => s.id === sessionRow.id) ? prev : [sessionRow, ...prev]);
+    notifyXPChanged();
     setSaveStatus("success");
     setTimeout(() => setSaveStatus("idle"), 2500);
 
@@ -309,8 +355,26 @@ export default function Dashboard() {
   }));
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
 
+  // Anti-effacement accidentel : demande confirmation si une session > 60s est
+  // en cours / en pause au moment d'un changement de mode (libre ↔ pomodoro).
+  function confirmDiscardIfWorking() {
+    if (elapsed > 60 && typeof window !== "undefined") {
+      return window.confirm(t("dash.discardConfirm"));
+    }
+    return true;
+  }
+
+  // Quand la queue se vide en arrière-plan, on rafraîchit la liste pour que
+  // les sessions précédemment "queued" apparaissent enfin sur le dashboard.
+  function handlePendingSynced() {
+    clearDashboardCache();
+    load();
+    notifyXPChanged();
+  }
+
   return (
     <Layout>
+      <PendingSessionsBanner onSynced={handlePendingSynced} />
       {/* Backdrop pour fermer le menu cours */}
       {showCourseMenu && (
         <div className="fixed inset-0 z-10" onClick={() => setShowCourseMenu(false)} />
@@ -360,7 +424,7 @@ export default function Dashboard() {
               </button>
               {/* Libre */}
               <button
-                onClick={() => { setPomodoro(false); if (running) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }}
+                onClick={() => { if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }}
                 className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
                 style={!pomodoro ? {
                   backgroundColor: "var(--bt-surface)",
@@ -374,7 +438,7 @@ export default function Dashboard() {
               </button>
               {/* Pomodoro */}
               <button
-                onClick={() => { setPomodoro(true); if (running) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }}
+                onClick={() => { if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }}
                 className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
                 style={pomodoro ? {
                   backgroundColor: "#14B885",
