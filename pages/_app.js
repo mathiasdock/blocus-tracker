@@ -6,75 +6,17 @@ import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { I18nProvider } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { computeStreak } from "../lib/format";
-import { computeEarnedBadgeIds } from "../lib/badges";
-import { computeTotalXP, getLevelInfo } from "../lib/xp";
+import { loadUserLevelMap } from "../lib/userLevels";
 import LevelUpModal from "../components/LevelUpModal";
 
 async function loadCurrentLevel(userId) {
-  const [
-    profileRes, sessionsRes, examRes, objRes, doneObjRes, friendRes,
-    postRes, existingRes, likesRes, commentsRes, groupRes, commMsgRes,
-    referralStatsRes,
-  ] = await Promise.all([
-    supabase.from("profiles").select("bonus_xp").eq("id", userId).maybeSingle(),
-    supabase.from("sessions").select("started_at, duration_seconds").eq("user_id", userId),
-    supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("done", true),
-    supabase.from("friendships").select("id", { count: "exact", head: true })
-      .or(`requester.eq.${userId},addressee.eq.${userId}`).eq("status", "accepted"),
-    supabase.from("posts").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("user_badges").select("badge_id").eq("user_id", userId),
-    supabase.from("likes").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("comments").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("group_members").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("community_messages").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.rpc("get_my_referral_stats"),
-  ]);
-
-  const hardError = [
-    profileRes, sessionsRes, examRes, objRes, doneObjRes, friendRes,
-    postRes, existingRes, likesRes, commentsRes, groupRes, commMsgRes,
-  ].find(res => res.error);
-  if (hardError) throw hardError.error;
-
-  const sessions = sessionsRes.data || [];
-  const streak = computeStreak(sessions);
-  const totalSeconds = sessions.reduce((sum, s) => sum + Number(s.duration_seconds || 0), 0);
-  const dayTotals = {};
-  for (const s of sessions) {
-    const day = (s.started_at || "").slice(0, 10);
-    if (day) dayTotals[day] = (dayTotals[day] || 0) + Number(s.duration_seconds || 0);
-  }
-
-  const existingBadges = (existingRes.data || []).map(b => b.badge_id);
-  const earnedBadges = computeEarnedBadgeIds({
-    streak,
-    totalHours: totalSeconds / 3600,
-    maxDailyHours: Object.values(dayTotals).length ? Math.max(...Object.values(dayTotals)) / 3600 : 0,
-    sessionCount: sessions.length,
-    examCount: examRes.count || 0,
-    objectiveCount: objRes.count || 0,
-    completedObjCount: doneObjRes.count || 0,
-    friendCount: friendRes.count || 0,
-    postCount: postRes.count || 0,
-    reactionsCount: (likesRes.count || 0) + (commentsRes.count || 0),
-    groupMemberCount: groupRes.count || 0,
-    communityMsgCount: commMsgRes.count || 0,
-    referralCount: referralStatsRes.data?.ok ? (referralStatsRes.data.count || 0) : 0,
+  const levels = await loadUserLevelMap(supabase, [userId], {
+    selfUserId: userId,
+    includeSelfReferralStats: true,
   });
-
-  const totalXP = computeTotalXP({
-    totalMinutes: totalSeconds / 60,
-    completedObjectives: doneObjRes.count || 0,
-    streak,
-    examCount: examRes.count || 0,
-    badgeCount: new Set([...existingBadges, ...earnedBadges]).size,
-    bonusXP: profileRes.data?.bonus_xp || 0,
-  });
-
-  return getLevelInfo(totalXP).current;
+  const current = levels[userId]?.current;
+  if (!current) throw new Error("Unable to compute current level");
+  return current;
 }
 
 function GlobalLevelUpWatcher() {

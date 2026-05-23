@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { ALL_UNIVERSITIES } from "../lib/universities";
+import { notifyXPChanged } from "../lib/xpEvents";
 
 const NotificationContext = createContext({
   feedCount: 0,
@@ -346,6 +347,7 @@ export function NotificationProvider({ children }) {
       .eq("addressee", user.id)
       .eq("status", "pending");
     if (error) throw error;
+    notifyXPChanged();
     setFriendCount((count) => Math.max(0, count - 1));
     setNotificationItems((items) => items.filter((item) => item.key !== `friend_request:${requestId}`));
     schedulePoll(100);

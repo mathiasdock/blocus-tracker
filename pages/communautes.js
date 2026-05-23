@@ -7,6 +7,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
 import { COUNTRIES, COMMUNITY_BY_ID, communityIdForUniversity } from "../lib/universities";
+import { notifyXPChanged } from "../lib/xpEvents";
 
 export default function Communautes() {
   const { user, profile } = useAuth();
@@ -121,11 +122,12 @@ export default function Communautes() {
       attachment_name = file.name;
     }
 
-    await supabase.from("community_messages").insert({
+    const { error } = await supabase.from("community_messages").insert({
       community: active, user_id: user.id,
       content: text.trim() || null,
       attachment_url, attachment_type, attachment_name,
     });
+    if (!error) notifyXPChanged();
 
     setText("");
     setFile(null);

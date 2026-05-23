@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, lastNDates, getWeekDates, displayName, todayISO } from "../lib/format";
-import { getLevelInfo } from "../lib/xp";
+import { loadUserLevelMap } from "../lib/userLevels";
 import LevelPill from "../components/LevelPill";
 
 const Charts = dynamic(() => import("../components/StatsCharts"), { ssr: false });
@@ -44,6 +44,7 @@ export default function Stats() {
 
   // ── Public leaderboard + percentile ───────────────────────────
   const [publicLeader,  setPublicLeader]  = useState([]);
+  const [leaderLevels,  setLeaderLevels]  = useState({});
   const [loadingPublic, setLoadingPublic] = useState(false);
   const [myRank,        setMyRank]        = useState(null);
   const [maFacActive,   setMaFacActive]   = useState(false);
@@ -133,7 +134,20 @@ export default function Stats() {
         p_period: leaderPeriod,
         p_university: maFacActive ? (profile?.university || null) : null,
       });
-      setPublicLeader(data || []);
+      const rows = data || [];
+      setPublicLeader(rows);
+      if (rows.length) {
+        const fallbackTotalSecondsByUser = Object.fromEntries(
+          rows.map((row) => [row.user_id, Number(row.alltime_seconds ?? row.total_seconds ?? 0)])
+        );
+        const levelMap = await loadUserLevelMap(supabase, rows.map((row) => row.user_id), {
+          selfUserId: user.id,
+          fallbackTotalSecondsByUser,
+        });
+        setLeaderLevels(levelMap);
+      } else {
+        setLeaderLevels({});
+      }
       setLoadingPublic(false);
     })();
   }, [user, leaderPeriod, leaderMode, maFacActive, profile?.university]);
@@ -617,8 +631,8 @@ export default function Stats() {
                       <span className="flex-1 min-w-0 text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
                         <span className="inline-flex items-center gap-1.5 max-w-full">
                           <span className="truncate">{name}</span>
-                          {Number(row.alltime_seconds ?? row.total_seconds) > 0 && (
-                            <LevelPill level={getLevelInfo(Math.floor(Number(row.alltime_seconds ?? row.total_seconds) / 60)).current.level} />
+                          {Number(leaderLevels[row.user_id]?.totalXP) > 0 && (
+                            <LevelPill level={leaderLevels[row.user_id].current.level} />
                           )}
                         </span>
                         {isMe && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}

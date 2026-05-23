@@ -6,7 +6,8 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
-import { getLevelInfo } from "../lib/xp";
+import { loadUserLevelMap } from "../lib/userLevels";
+import { notifyXPChanged } from "../lib/xpEvents";
 import { optimizeFeedImage } from "../lib/imageCompression";
 import LevelPill from "../components/LevelPill";
 
@@ -94,27 +95,23 @@ export default function Feed() {
     });
     if (ids.size) {
       const idsArr = [...ids];
-      const [{ data: profs }, { data: sessRows }] = await Promise.all([
+      const [{ data: profs }, levelMap] = await Promise.all([
         supabase.from("profiles")
           .select("id, pseudo, first_name, last_name, avatar_url")
           .in("id", idsArr),
-        supabase.from("sessions")
-          .select("user_id, duration_seconds")
-          .in("user_id", idsArr),
+        loadUserLevelMap(supabase, idsArr, { selfUserId: user.id }),
       ]);
       const map = {};
       (profs || []).forEach((pr) => (map[pr.id] = pr));
       setProfiles(map);
-      // Aggregate total seconds → level per visible user (RLS limits to friends/self)
-      const totals = {};
-      (sessRows || []).forEach(r => {
-        totals[r.user_id] = (totals[r.user_id] || 0) + (r.duration_seconds || 0);
-      });
       const lvls = {};
-      Object.entries(totals).forEach(([uid, secs]) => {
-        if (secs > 0) lvls[uid] = getLevelInfo(Math.floor(secs / 60)).current.level;
+      Object.entries(levelMap).forEach(([uid, info]) => {
+        if (Number(info.totalXP) > 0) lvls[uid] = info.current.level;
       });
       setAuthorLevels(lvls);
+    } else {
+      setProfiles({});
+      setAuthorLevels({});
     }
   }, [user?.id]);
 
@@ -142,12 +139,13 @@ export default function Feed() {
       .upload(path, uploadFile, { upsert: false, contentType: uploadFile.type || file.type });
     if (upErr) { setBusy(false); alert("Échec de l'upload : " + upErr.message); return; }
     const { data: pub } = supabase.storage.from("posts").getPublicUrl(path);
-    await supabase.from("posts").insert({
+    const { error } = await supabase.from("posts").insert({
       user_id: user.id,
       image_url: pub.publicUrl,
       caption: caption.trim() || null,
       visibility,
     });
+    if (!error) notifyXPChanged();
     setCaption("");
     setFile(null);
     setVisibility("public");
@@ -181,6 +179,7 @@ export default function Feed() {
     } else {
       const { error } = await supabase.from("likes").insert({ post_id: post.id, user_id: user.id, emoji: normalizedEmoji });
       if (error) console.error("Failed to add reaction:", error);
+      else notifyXPChanged();
     }
     setEmojiInputOpen(s => ({ ...s, [post.id]: false }));
     load();
@@ -189,7 +188,8 @@ export default function Feed() {
   async function addComment(post) {
     const text = (commentDraft[post.id] || "").trim();
     if (!text) return;
-    await supabase.from("comments").insert({ post_id: post.id, user_id: user.id, content: text });
+    const { error } = await supabase.from("comments").insert({ post_id: post.id, user_id: user.id, content: text });
+    if (!error) notifyXPChanged();
     setCommentDraft((d) => ({ ...d, [post.id]: "" }));
     load();
   }

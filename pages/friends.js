@@ -6,7 +6,8 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, todayISO, lastNDates, displayName } from "../lib/format";
-import { getLevelInfo } from "../lib/xp";
+import { loadUserLevelMap } from "../lib/userLevels";
+import { notifyXPChanged } from "../lib/xpEvents";
 import LevelPill from "../components/LevelPill";
 
 export default function Friends() {
@@ -21,7 +22,7 @@ export default function Friends() {
   const [results, setResults]         = useState([]);
   const [links, setLinks]             = useState([]);
   const [friendData, setFriendData]   = useState({});
-  const [friendTotals, setFriendTotals] = useState({});
+  const [friendLevels, setFriendLevels] = useState({});
   const [peopleMap, setPeopleMap]     = useState({});
   const [suggestions, setSuggestions]   = useState([]);
   const [showSugg, setShowSugg]         = useState(false);
@@ -103,9 +104,9 @@ export default function Friends() {
 
   // Load friends' data (30 days to support all period filters) + refresh every 30s
   const loadFriends = useCallback(async () => {
-    if (!acceptedIds.length) { setFriendData({}); return; }
+    if (!acceptedIds.length) { setFriendData({}); setFriendLevels({}); return; }
     const since = lastNDates(30)[0];
-    const [{ data: profs }, { data: courses }, { data: sessions }, { data: objs }] =
+    const [{ data: profs }, { data: courses }, { data: sessions }, { data: objs }, levelMap] =
       await Promise.all([
         // Colonnes explicites — pas d'email exposé dans la liste d'amis
         supabase.from("profiles")
@@ -115,6 +116,7 @@ export default function Friends() {
         supabase.from("sessions").select("*").in("user_id", acceptedIds).gte("started_at", since),
         supabase.from("objectives").select("*").in("user_id", acceptedIds)
           .gte("scheduled_date", todayISO()).order("scheduled_date"),
+        loadUserLevelMap(supabase, acceptedIds, { selfUserId: user.id }),
       ]);
     const map = {};
     (profs || []).forEach((p) => { map[p.id] = { profile: p, courses: [], sessions: [], objectives: [] }; });
@@ -122,17 +124,7 @@ export default function Friends() {
     (sessions || []).forEach((s) => map[s.user_id]?.sessions.push(s));
     (objs || []).forEach((o) => map[o.user_id]?.objectives.push(o));
     setFriendData(map);
-
-    // Load lifetime total per friend (for the level pill)
-    const { data: totalsRows } = await supabase
-      .from("sessions")
-      .select("user_id, duration_seconds")
-      .in("user_id", acceptedIds);
-    const totals = {};
-    (totalsRows || []).forEach(r => {
-      totals[r.user_id] = (totals[r.user_id] || 0) + (r.duration_seconds || 0);
-    });
-    setFriendTotals(totals);
+    setFriendLevels(levelMap);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(acceptedIds)]);
 
@@ -171,7 +163,10 @@ export default function Friends() {
       .from("friendships")
       .insert({ requester: user.id, addressee: id, status: "pending" });
     if (error) setMsg(t("friends.requestError"));
-    else setMsg(t("friends.requestSent"));
+    else {
+      setMsg(t("friends.requestSent"));
+      notifyXPChanged();
+    }
     setSuggestions((prev) => prev.filter((p) => p.id !== id));
     loadLinks();
   }
@@ -200,7 +195,8 @@ export default function Friends() {
   }
 
   async function accept(linkId) {
-    await supabase.from("friendships").update({ status: "accepted" }).eq("id", linkId);
+    const { error } = await supabase.from("friendships").update({ status: "accepted" }).eq("id", linkId);
+    if (!error) notifyXPChanged();
     loadLinks();
   }
 
@@ -483,8 +479,8 @@ export default function Friends() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: "var(--bt-text-1)" }}>
                                 <span className="truncate">{displayName(fd.profile)}</span>
-                                {friendTotals[fid] > 0 && (
-                                  <LevelPill level={getLevelInfo(Math.floor(friendTotals[fid] / 60)).current.level} />
+                                {Number(friendLevels[fid]?.totalXP) > 0 && (
+                                  <LevelPill level={friendLevels[fid].current.level} />
                                 )}
                               </p>
                               <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>@{fd.profile?.pseudo}</p>

@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, todayISO } from "../lib/format";
-import { getLevelInfo } from "../lib/xp";
+import { loadUserLevelMap } from "../lib/userLevels";
 import LevelPill from "./LevelPill";
 
 export default function UserProfileModal({ userId, onClose }) {
@@ -19,6 +19,7 @@ export default function UserProfileModal({ userId, onClose }) {
   const [loading, setLoading] = useState(true);
   const [mutualCount, setMutualCount] = useState(0);
   const [mutualSample, setMutualSample] = useState([]);
+  const [levelInfo, setLevelInfo] = useState(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -31,18 +32,21 @@ export default function UserProfileModal({ userId, onClose }) {
     setStats(null);
     setMutualCount(0);
     setMutualSample([]);
+    setLevelInfo(null);
     (async () => {
-      const [{ data: prof }, { data: coursesData }, { data: statsData }] = await Promise.all([
+      const [{ data: prof }, { data: coursesData }, { data: statsData }, levelMap] = await Promise.all([
         // Colonnes explicites — n'exposer JAMAIS l'email d'un autre utilisateur
         supabase.from("profiles")
           .select("id, pseudo, first_name, last_name, university, study_field, study_year, bio, avatar_url, lang, planning_public, studying_since, is_admin, locked, created_at")
           .eq("id", userId).maybeSingle(),
         supabase.from("courses").select("id, user_id, name, color, exam_date").eq("user_id", userId).order("name"),
         supabase.rpc("get_user_profile_stats", { p_user_id: userId }),
+        loadUserLevelMap(supabase, [userId], { selfUserId: user?.id }),
       ]);
       setProfile(prof || { id: userId, pseudo: "Utilisateur" });
       setCourses(coursesData || []);
       if (statsData?.[0]) setStats(statsData[0]);
+      setLevelInfo(levelMap[userId] || null);
 
       if (userId !== user.id) {
         // Mutual friends — fetch both friend lists and intersect
@@ -129,17 +133,14 @@ export default function UserProfileModal({ userId, onClose }) {
                 ) : null;
               })()}
               {/* Level pill + title */}
-              {stats && Number(stats.total_seconds) > 0 && (() => {
-                const lvl = getLevelInfo(Math.floor(Number(stats.total_seconds) / 60));
-                return (
-                  <div className="flex items-center gap-2 mt-2">
-                    <LevelPill level={lvl.current.level} size="sm" solid />
-                    <span className="text-xs font-medium" style={{ color: "var(--bt-text-2)" }}>
-                      {t(lvl.current.titleKey)}
-                    </span>
-                  </div>
-                );
-              })()}
+              {levelInfo && Number(levelInfo.totalXP) > 0 && (
+                <div className="flex items-center gap-2 mt-2">
+                  <LevelPill level={levelInfo.current.level} size="sm" solid />
+                  <span className="text-xs font-medium" style={{ color: "var(--bt-text-2)" }}>
+                    {t(levelInfo.current.titleKey)}
+                  </span>
+                </div>
+              )}
               {/* Mutual friends */}
               {mutualCount > 0 && (
                 <div className="flex items-center gap-1.5 mt-2">
