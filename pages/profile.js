@@ -10,7 +10,6 @@ import { displayName, formatMinutesShort, computeStreak, computeBestStreak, toda
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import BadgeIcon from "../components/BadgeIcon";
-import PushNotificationsCard from "../components/PushNotificationsCard";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 
 // ── Dark mode ────────────────────────────────────────────────
@@ -918,9 +917,6 @@ export default function Profile() {
             </div>
           </div>
         </div>
-
-        {/* ══ NOTIFICATIONS PUSH ════════════════════════════════ */}
-        <PushNotificationsCard />
 
         {/* ══ COMPTE ════════════════════════════════════════════ */}
         <div className="card overflow-hidden">
