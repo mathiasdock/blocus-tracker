@@ -10,6 +10,8 @@ import { displayName, formatMinutesShort, computeStreak, computeBestStreak, toda
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import BadgeIcon from "../components/BadgeIcon";
+import PushNotificationsCard from "../components/PushNotificationsCard";
+import { optimizeAvatarImage } from "../lib/imageCompression";
 
 // ── Dark mode ────────────────────────────────────────────────
 function useDarkMode() {
@@ -571,12 +573,24 @@ export default function Profile() {
   }
 
   async function uploadAvatar(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
     setBusy(true); setAvatarMsg("");
-    const ext = file.name.split(".").pop();
+
+    // Compresse l'avatar (≤ 400×400 px, WebP si possible) avant l'upload.
+    // Chute silencieuse : on utilise le fichier original si la compression échoue.
+    let uploadFile = rawFile;
+    let ext = rawFile.name.split(".").pop();
+    try {
+      const optimized = await optimizeAvatarImage(rawFile);
+      uploadFile = optimized.file || rawFile;
+      ext = optimized.extension || ext;
+    } catch (_) {}
+
     const path = `${user.id}/avatar-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    const { error: upErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, uploadFile, { upsert: true, contentType: uploadFile.type || rawFile.type });
     if (upErr) { setBusy(false); setAvatarMsg(t("profile.avatarError")); return; }
     const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
     const { error: updErr } = await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", user.id);
@@ -904,6 +918,9 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {/* ══ NOTIFICATIONS PUSH ════════════════════════════════ */}
+        <PushNotificationsCard />
 
         {/* ══ COMPTE ════════════════════════════════════════════ */}
         <div className="card overflow-hidden">

@@ -72,11 +72,14 @@ export default function Feed() {
       (friendLinks || []).map(l => l.requester === user.id ? l.addressee : l.requester)
     );
 
+    // Filtre côté Supabase : seulement les posts des dernières 24h
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: p } = await supabase
       .from("posts")
       .select("*, likes(*), comments(*)")
+      .gte("created_at", cutoff24h)
       .order("created_at", { ascending: false })
-      .limit(80);
+      .limit(20);
 
     // Filter: public posts + my own posts + friends-only from friends
     const visible = (p || []).filter(post =>
@@ -302,13 +305,16 @@ export default function Feed() {
             <button className="btn-primary w-full" disabled={busy || !file}>
               {busy ? t("feed.publishing") : t("feed.publish")}
             </button>
+            <p className="text-center text-xs" style={{ color: "var(--bt-text-3)" }}>
+              {t("feed.storyHint")}
+            </p>
           </form>
         )}
 
         <div className="space-y-5">
           {posts.length === 0 && (
             <div className="card p-10 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
-              {t("feed.empty")}
+              {t("feed.emptyRecent")}
             </div>
           )}
           {posts.map((post) => {
@@ -408,7 +414,7 @@ export default function Feed() {
                 {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
-                  <img src={post.image_url} alt="session" className="w-full h-full object-cover" />
+                  <img src={post.image_url} alt="session" loading="lazy" className="w-full h-full object-cover" />
                 </div>
 
                 <div className="p-4 space-y-3">
