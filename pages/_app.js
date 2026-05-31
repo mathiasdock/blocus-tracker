@@ -8,6 +8,7 @@ import { I18nProvider } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { loadUserLevelMap } from "../lib/userLevels";
 import LevelUpModal from "../components/LevelUpModal";
+import { initOneSignal, loginUser } from "../lib/onesignal";
 
 async function loadCurrentLevel(userId) {
   const levels = await loadUserLevelMap(supabase, [userId], {
@@ -179,6 +180,26 @@ function ReferralCapture() {
   return null;
 }
 
+// Ré-associe l'abonnement push à l'utilisateur uniquement s'il l'a déjà activé
+// (flag localStorage). N'init RIEN pour les utilisateurs qui n'ont jamais opt-in
+// → aucun coût de chargement du SDK OneSignal pour eux.
+function PushInit() {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user || typeof window === "undefined") return;
+    if (localStorage.getItem("bt_push_enabled") !== "1") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await initOneSignal();
+        if (!cancelled) await loginUser(user.id);
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+  return null;
+}
+
 function InstallBanner() {
   const [prompt, setPrompt] = useState(null);
 
@@ -252,6 +273,7 @@ export default function App({ Component, pageProps }) {
         <Component {...pageProps} />
         <GlobalLevelUpWatcher />
         <ReferralCapture />
+        <PushInit />
         <InstallBanner />
       </NotificationProvider>
       </TimerProvider>

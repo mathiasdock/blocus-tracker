@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
+import PushNotificationsCard from "../components/PushNotificationsCard";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -919,6 +920,8 @@ export default function Profile() {
         </div>
 
         {/* ══ COMPTE ════════════════════════════════════════════ */}
+        <PushNotificationsCard />
+
         <div className="card overflow-hidden">
           <div className="px-5 pt-4 pb-2"><SectionLabel>{t("profile.accountSection")}</SectionLabel></div>
           {profile?.is_admin && (
