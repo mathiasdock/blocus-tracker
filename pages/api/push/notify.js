@@ -24,43 +24,71 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const WEBHOOK_SECRET = process.env.ONESIGNAL_WEBHOOK_SECRET;
 
+function safeId(id) {
+  return id ? `${String(id).slice(0, 8)}...` : null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   // 1. Authentifie l'appel (secret partagé Supabase ↔ ce endpoint)
-  const secret = req.headers["x-webhook-secret"];
+  const secretHeader = req.headers["x-webhook-secret"];
+  const secret = Array.isArray(secretHeader) ? secretHeader[0] : secretHeader;
   if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
+    console.warn("push/notify unauthorized webhook call");
     return res.status(401).json({ error: "Unauthorized" });
   }
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+    console.error("push/notify missing server configuration");
     return res.status(500).json({ error: "Server misconfigured" });
   }
 
-  const { type, table, record } = req.body || {};
-
   try {
+    const payload = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+    const { type, table, schema, record } = payload;
+
+    console.info("push/notify received", {
+      type,
+      table,
+      schema,
+      status: record?.status || null,
+      hasRecord: Boolean(record),
+    });
+
     // ── Demande d'ami reçue ─────────────────────────────────────────
     if (table === "friendships" && type === "INSERT" && record?.status === "pending") {
       const requesterId = record.requester;
       const addresseeId = record.addressee;
-      if (!requesterId || !addresseeId) return res.status(200).json({ skipped: true });
+      if (!requesterId || !addresseeId) {
+        console.warn("push/notify skipped friendship insert with missing ids", {
+          requester: safeId(requesterId),
+          addressee: safeId(addresseeId),
+        });
+        return res.status(200).json({ skipped: true, reason: "missing-friendship-ids" });
+      }
 
       const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
 
       // Jamais l'email : on ne sélectionne que les colonnes d'affichage.
-      const { data: prof } = await admin
+      const { data: prof, error: profileError } = await admin
         .from("profiles")
         .select("pseudo, first_name, last_name")
         .eq("id", requesterId)
         .maybeSingle();
+      if (profileError) {
+        console.warn("push/notify requester profile lookup failed", {
+          requester: safeId(requesterId),
+          code: profileError.code,
+        });
+      }
 
       const name = displayName(prof);
 
-      await sendPushToUser(addresseeId, {
+      const pushResult = await sendPushToUser(addresseeId, {
         title: { fr: "Nouvelle demande d'ami", en: "New friend request" },
         body: {
           fr: `${name} t'a envoyé une demande d'ami`,
@@ -69,13 +97,26 @@ export default async function handler(req, res) {
         url: "/friends",
       });
 
+      console.info("push/notify sent", {
+        kind: "friend_request",
+        requester: safeId(requesterId),
+        addressee: safeId(addresseeId),
+        notificationId: pushResult?.id || null,
+        recipients: pushResult?.recipients ?? null,
+      });
+
       return res.status(200).json({ ok: true });
     }
 
     // Aucun handler pour cet événement (extensible : messages, comments, likes…)
-    return res.status(200).json({ skipped: true });
+    console.info("push/notify skipped unsupported event", {
+      type,
+      table,
+      status: record?.status || null,
+    });
+    return res.status(200).json({ skipped: true, reason: "unsupported-event" });
   } catch (err) {
-    console.error("push/notify error:", err);
+    console.error("push/notify error:", err?.message || err);
     return res.status(500).json({ error: "Send failed" });
   }
 }
