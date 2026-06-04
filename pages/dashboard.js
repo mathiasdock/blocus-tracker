@@ -15,7 +15,7 @@ function daysUntilExam(dateStr) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const exam = new Date(dateStr + "T12:00:00");
-  return Math.round((exam - today) / 86400000);
+  return Math.floor((exam - today) / 86400000);
 }
 
 const DAILY_GOAL_SECS = 7200; // 2 hours
