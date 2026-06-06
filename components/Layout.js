@@ -271,6 +271,14 @@ function NotificationPanel({
               const bordered = idx > 0 ? { borderTop: "1px solid var(--bt-border)" } : {};
 
               if (item.type === "announcement") {
+                // Hardcoded announcements carry i18n keys; DB ones carry literal text.
+                const annTitle = item.titleKey ? t(item.titleKey) : item.title;
+                const annBody  = item.bodyKey  ? t(item.bodyKey)  : item.body;
+                const annStyle = {
+                  new:       { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: t("ann.typeNew") },
+                  info:      { bg: "rgba(3,105,161,0.14)",  color: "#0369a1", label: t("ann.typeInfo") },
+                  important: { bg: "rgba(220,38,38,0.14)",  color: "#DC2626", label: t("ann.typeImportant") },
+                }[item.annType || "info"] || { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: t("ann.typeInfo") };
                 return (
                   <li key={item.key} style={bordered}>
                     <button
@@ -280,15 +288,19 @@ function NotificationPanel({
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
                       <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+                        style={{ backgroundColor: annStyle.bg, color: annStyle.color }}>
                         <IconBell size={17} />
                       </span>
                       <span className="min-w-0 flex-1">
+                        <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mb-1"
+                          style={{ backgroundColor: annStyle.bg, color: annStyle.color }}>
+                          {annStyle.label}
+                        </span>
                         <span className="block text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                          {t(item.titleKey)}
+                          {annTitle}
                         </span>
                         <span className="block text-xs mt-0.5 leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                          {t(item.bodyKey)}
+                          {annBody}
                         </span>
                       </span>
                     </button>

@@ -184,7 +184,7 @@ export function NotificationProvider({ children }) {
         .eq("read", false);
 
       const notificationPromise = (async () => {
-        const [{ data: friendRows }, { data: myPosts }] = await Promise.all([
+        const [{ data: friendRows }, { data: myPosts }, { data: annRows }] = await Promise.all([
           supabase
             .from("friendships")
             .select("id, requester, created_at")
@@ -197,6 +197,14 @@ export function NotificationProvider({ children }) {
             .select("id")
             .eq("user_id", user.id)
             .limit(100),
+          // Admin announcements (active only). Safe before the migration runs:
+          // a missing table returns { data: null } and is treated as "none".
+          supabase
+            .from("app_announcements")
+            .select("id, title, message, type, href, created_at")
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(20),
         ]);
 
         let comments = [];
@@ -248,9 +256,26 @@ export function NotificationProvider({ children }) {
         }
 
         const dismissed = getDismissedAnnouncements(user.id);
-        const announcements = PRODUCT_ANNOUNCEMENTS
-          .filter((item) => !dismissed.has(item.id))
-          .map((item) => ({ ...item, type: "announcement", key: `announcement:${item.id}`, created_at: null }));
+        // Hardcoded product announcements (i18n keys) + DB-backed admin
+        // announcements (literal title/message). Both honour the same
+        // per-user localStorage dismissal.
+        const announcements = [
+          ...PRODUCT_ANNOUNCEMENTS
+            .filter((item) => !dismissed.has(item.id))
+            .map((item) => ({ ...item, type: "announcement", key: `announcement:${item.id}`, annType: "new", created_at: null })),
+          ...(annRows || [])
+            .filter((row) => !dismissed.has(row.id))
+            .map((row) => ({
+              type: "announcement",
+              key: `announcement:${row.id}`,
+              id: row.id,
+              title: row.title,
+              body: row.message,
+              annType: row.type || "info",
+              href: row.href || null,
+              created_at: row.created_at,
+            })),
+        ];
 
         const items = [
           ...announcements,

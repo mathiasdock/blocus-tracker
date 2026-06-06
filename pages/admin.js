@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import UniPicker from "../components/UniPicker";
 import { useAuth } from "../contexts/AuthContext";
+import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort } from "../lib/format";
 import { COMMUNITY_BY_ID, COUNTRIES } from "../lib/universities";
@@ -302,6 +303,7 @@ function UserDetailModal({ user, userStat, isSelf, onClose, onEdit, onDelete }) 
 /* ── Main page ─────────────────────────────────────────────── */
 export default function Admin() {
   const { profile, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   const [tab, setTab]                     = useState("members");
@@ -320,6 +322,11 @@ export default function Admin() {
   const [referralCounts, setReferralCounts]   = useState({});
   const [retentionStats, setRetentionStats]   = useState(null);
   const [uniDistribution, setUniDistribution] = useState([]);
+  const [announcements, setAnnouncements]     = useState([]);
+  const [annBusy, setAnnBusy]                 = useState(false);
+  const [annForm, setAnnForm]                 = useState({ title: "", message: "", type: "new", href: "" });
+  const [annCreating, setAnnCreating]         = useState(false);
+  const [annError, setAnnError]               = useState("");
 
   useEffect(() => {
     if (loading) return;
@@ -436,6 +443,19 @@ export default function Admin() {
 
   useEffect(() => { if (tab === "deleted") loadDeleted(); }, [tab, loadDeleted]);
 
+  const loadAnnouncements = useCallback(async () => {
+    if (!profile || !profile.is_admin) return;
+    setAnnBusy(true);
+    const { data } = await supabase
+      .from("app_announcements")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setAnnouncements(data || []);
+    setAnnBusy(false);
+  }, [profile]);
+
+  useEffect(() => { if (tab === "announcements") loadAnnouncements(); }, [tab, loadAnnouncements]);
+
   if (loading || !profile) return null;
   if (!profile.is_admin) return null;
 
@@ -446,6 +466,40 @@ export default function Admin() {
     if (error) { alert("Échec : " + error.message); return; }
     setUsers(prev => prev.filter(x => x.id !== u.id));
     setDetailUser(null);
+  }
+
+  async function createAnnouncement(e) {
+    e.preventDefault();
+    const title = annForm.title.trim();
+    const message = annForm.message.trim();
+    if (!title || !message) { setAnnError(t("admin.annRequired")); return; }
+    setAnnCreating(true); setAnnError("");
+    const { error } = await supabase.from("app_announcements").insert({
+      title,
+      message,
+      type: annForm.type,
+      href: annForm.href.trim() || null,
+      is_active: true,
+      created_by: profile.id,
+    });
+    setAnnCreating(false);
+    if (error) { setAnnError(error.message); return; }
+    setAnnForm({ title: "", message: "", type: "new", href: "" });
+    loadAnnouncements();
+  }
+
+  async function toggleAnnouncement(a) {
+    const { error } = await supabase.from("app_announcements")
+      .update({ is_active: !a.is_active }).eq("id", a.id);
+    if (error) { alert(error.message); return; }
+    setAnnouncements(prev => prev.map(x => x.id === a.id ? { ...x, is_active: !x.is_active } : x));
+  }
+
+  async function deleteAnnouncement(a) {
+    if (!confirm(t("admin.annDeleteConfirm"))) return;
+    const { error } = await supabase.from("app_announcements").delete().eq("id", a.id);
+    if (error) { alert(error.message); return; }
+    setAnnouncements(prev => prev.filter(x => x.id !== a.id));
   }
 
   /* ── Derived data ──────────────────────────────────────── */
@@ -646,6 +700,7 @@ export default function Admin() {
             <div className="flex gap-1 mb-5 p-1 rounded-2xl" style={{ backgroundColor: "var(--bt-subtle)" }}>
               {[
                 { val: "members", label: `Membres (${users.length})` },
+                { val: "announcements", label: `${t("admin.annTab")}${announcements.length ? ` (${announcements.length})` : ""}` },
                 { val: "deleted", label: `Supprimés${deletedAccounts.length ? ` (${deletedAccounts.length})` : ""}` },
               ].map(tOpt => (
                 <button key={tOpt.val} onClick={() => setTab(tOpt.val)}
@@ -701,6 +756,110 @@ export default function Admin() {
                       </tbody>
                     </table>
                   </div>
+                )}
+              </section>
+            )}
+
+            {/* ── Announcements ───────────────────────────────────── */}
+            {tab === "announcements" && (
+              <section className="card p-5">
+                <h2 className="text-base font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>
+                  {t("admin.annSectionTitle")}
+                </h2>
+
+                {/* Create form */}
+                <form onSubmit={createAnnouncement} className="space-y-3 mb-6 pb-6"
+                  style={{ borderBottom: "1px solid var(--bt-border)" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5" style={{ color: "var(--bt-text-3)" }}>
+                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ backgroundColor: "#14B885" }} />
+                    {t("admin.annFormTitle")}
+                  </p>
+                  <div>
+                    <label className="label">{t("admin.annTitleLabel")}</label>
+                    <input className="input" maxLength={120} value={annForm.title}
+                      onChange={e => setAnnForm(f => ({ ...f, title: e.target.value }))}
+                      placeholder={t("admin.annTitlePlaceholder")} />
+                  </div>
+                  <div>
+                    <label className="label">{t("admin.annMessageLabel")}</label>
+                    <textarea className="input" rows={2} maxLength={500} value={annForm.message}
+                      onChange={e => setAnnForm(f => ({ ...f, message: e.target.value }))}
+                      placeholder={t("admin.annMessagePlaceholder")} />
+                  </div>
+                  <div className="flex gap-3 flex-wrap">
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="label">{t("admin.annTypeLabel")}</label>
+                      <select className="input" value={annForm.type}
+                        onChange={e => setAnnForm(f => ({ ...f, type: e.target.value }))}>
+                        <option value="new">{t("ann.typeNew")}</option>
+                        <option value="info">{t("ann.typeInfo")}</option>
+                        <option value="important">{t("ann.typeImportant")}</option>
+                      </select>
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="label">{t("admin.annHrefLabel")}</label>
+                      <input className="input" maxLength={300} value={annForm.href}
+                        onChange={e => setAnnForm(f => ({ ...f, href: e.target.value }))}
+                        placeholder={t("admin.annHrefPlaceholder")} />
+                    </div>
+                  </div>
+                  {annError && <p className="text-xs" style={{ color: "#DC2626" }}>{annError}</p>}
+                  <button type="submit" disabled={annCreating} className="btn-primary">
+                    {annCreating ? t("admin.annCreating") : t("admin.annCreate")}
+                  </button>
+                </form>
+
+                {/* List */}
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--bt-text-3)" }}>
+                  {t("admin.annListTitle")}
+                </p>
+                {annBusy ? (
+                  <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Chargement…</p>
+                ) : announcements.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("admin.annEmpty")}</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {announcements.map(a => {
+                      const typeStyle = {
+                        new:       { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: t("ann.typeNew") },
+                        info:      { bg: "rgba(3,105,161,0.14)", color: "#0369a1", label: t("ann.typeInfo") },
+                        important: { bg: "rgba(220,38,38,0.14)", color: "#DC2626", label: t("ann.typeImportant") },
+                      }[a.type] || { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: a.type };
+                      return (
+                        <li key={a.id} className="rounded-xl p-3 flex items-start gap-3"
+                          style={{ backgroundColor: "var(--bt-subtle)", opacity: a.is_active ? 1 : 0.55 }}>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full"
+                                style={{ backgroundColor: typeStyle.bg, color: typeStyle.color }}>{typeStyle.label}</span>
+                              <span className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{a.title}</span>
+                              {!a.is_active && (
+                                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full"
+                                  style={{ backgroundColor: "var(--bt-border)", color: "var(--bt-text-3)" }}>{t("admin.annInactive")}</span>
+                              )}
+                            </div>
+                            <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{a.message}</p>
+                            {a.href && <p className="text-[11px] mt-0.5 font-mono" style={{ color: "var(--bt-text-3)" }}>{a.href}</p>}
+                            <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-4)" }}>
+                              {new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-1.5 shrink-0">
+                            <button onClick={() => toggleAnnouncement(a)}
+                              className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors whitespace-nowrap"
+                              style={{ backgroundColor: a.is_active ? "var(--bt-border)" : "#EAFBF4", color: a.is_active ? "var(--bt-text-2)" : "#0E8F68" }}>
+                              {a.is_active ? t("admin.annDeactivate") : t("admin.annActivate")}
+                            </button>
+                            <button onClick={() => deleteAnnouncement(a)}
+                              className="text-xs px-2 py-1 rounded-lg transition-colors"
+                              style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>
+                              {t("admin.annDelete")}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </section>
             )}
