@@ -6,7 +6,7 @@ import StudyHeatmap from "../components/StudyHeatmap";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatMinutesShort, lastNDates, getWeekDates, displayName, todayISO } from "../lib/format";
+import { formatMinutesShort, lastNDates, getWeekDates, displayName, todayISO, computeStreak, computeBestStreak } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
 import LevelPill from "../components/LevelPill";
 
@@ -29,6 +29,7 @@ export default function Stats() {
   const { t, lang } = useI18n();
   const [courses, setCourses]   = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [allTimeSecs, setAllTimeSecs] = useState(0);
 
   // ── Chart week navigation ──────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0); // 0=current week, -1=last week…
@@ -71,6 +72,18 @@ export default function Stats() {
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── All-time total (cheap: single column, own rows only) ───────
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("sessions")
+        .select("duration_seconds")
+        .eq("user_id", user.id);
+      setAllTimeSecs((data || []).reduce((a, s) => a + s.duration_seconds, 0));
+    })();
+  }, [user]);
 
   // ── Friends leaderboard data ───────────────────────────────────
   useEffect(() => {
@@ -234,6 +247,44 @@ export default function Stats() {
 
   const sessionCount = sessions.length;
 
+  // ── Overview stats (#1 streak, #2 all-time, #3 best day, #4 week evo) ──
+  const streak     = computeStreak(sessions);
+  const bestStreak = computeBestStreak(sessions);
+
+  // Best day: max total over a single calendar day (within loaded window)
+  const dayTotals = {};
+  for (const s of sessions) {
+    const d = s.started_at.slice(0, 10);
+    dayTotals[d] = (dayTotals[d] || 0) + s.duration_seconds;
+  }
+  const bestDayEntry = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0] || null;
+  const bestDaySecs  = bestDayEntry ? bestDayEntry[1] : 0;
+  const bestDayLabel = bestDayEntry
+    ? new Date(bestDayEntry[0] + "T12:00:00").toLocaleDateString(
+        lang === "en" ? "en-GB" : "fr-FR", { weekday: "short", day: "numeric", month: "short" })
+    : null;
+
+  // Week-over-week evolution (calendar weeks)
+  const lastWeekDates = getWeekDates(-1);
+  const lastWeekSecs  = sessions
+    .filter(s => lastWeekDates.includes(s.started_at.slice(0, 10)))
+    .reduce((a, s) => a + s.duration_seconds, 0);
+  const weekDeltaPct = lastWeekSecs > 0
+    ? Math.round((currentWeekSecs - lastWeekSecs) / lastWeekSecs * 100)
+    : null;
+
+  // ── #7 Course podium — top 3 over 30 days ──────────────────────
+  const podium = [...byCourse30].sort((a, b) => b.minutes - a.minutes).slice(0, 3);
+
+  // ── #9 Friends comparison (rolling 7 days, same window as myWeekSecs) ──
+  const friendWeekList = acceptedIds
+    .filter(fid => friendData[fid])
+    .map(fid => friendData[fid].sessions.reduce((a, s) => a + s.duration_seconds, 0));
+  const friendsAvgSecs = friendWeekList.length
+    ? Math.round(friendWeekList.reduce((a, b) => a + b, 0) / friendWeekList.length)
+    : null;
+  const vsFriendsSecs = friendsAvgSecs !== null ? myWeekSecs - friendsAvgSecs : null;
+
   // ── Friends leaderboard computation ───────────────────────────
   const mySecs = leaderPeriod === "day" ? myDaySecs : myWeekSecs;
   const leaderboard = [
@@ -302,6 +353,93 @@ export default function Stats() {
           })}
         </div>
       </div>
+
+      {/* ── Vue d'ensemble ─────────────────────────────────────── */}
+      {sessionCount > 0 && (
+        <div className="card p-5 mb-4">
+          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-2)" }}>
+            {t("stats.overviewTitle")}
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              {
+                icon: (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                  </svg>
+                ),
+                iconBg: "#FEF3C7", iconColor: "#D97706",
+                value: `${streak} ${t("stats.dayUnit")}`,
+                label: t("stats.streakLabel"),
+                sub: t("stats.streakRecord").replace("{n}", String(bestStreak)).replace("{unit}", t("stats.dayUnit")),
+                subColor: "var(--bt-text-3)",
+              },
+              {
+                icon: (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                ),
+                iconBg: "#EFF9FF", iconColor: "#0369a1",
+                value: formatMinutesShort(allTimeSecs),
+                label: t("stats.allTimeLabel"),
+                sub: t("stats.allTimeSub"),
+                subColor: "var(--bt-text-3)",
+              },
+              {
+                icon: (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9H3.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h2.5a2.5 2.5 0 0 0 0-5H18"/>
+                    <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                  </svg>
+                ),
+                iconBg: "#EAFBF4", iconColor: "#0E8F68",
+                value: formatMinutesShort(bestDaySecs),
+                label: t("stats.bestDayLabel"),
+                sub: bestDayLabel || t("stats.bestDaySub"),
+                subColor: "var(--bt-text-3)",
+              },
+              {
+                icon: (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+                  </svg>
+                ),
+                iconBg: "#EAFBF4", iconColor: "#0E8F68",
+                value: formatMinutesShort(currentWeekSecs),
+                label: t("stats.thisWeekLabel"),
+                sub: weekDeltaPct === null
+                  ? t("stats.weekNoCompare")
+                  : weekDeltaPct > 0 ? t("stats.weekUpPct").replace("{n}", String(weekDeltaPct))
+                  : weekDeltaPct < 0 ? t("stats.weekDownPct").replace("{n}", String(weekDeltaPct))
+                  : t("stats.weekSamePct"),
+                subColor: weekDeltaPct > 0 ? "#0E8F68" : weekDeltaPct < 0 ? "#DC2626" : "var(--bt-text-3)",
+              },
+            ].map((tile, i) => (
+              <div key={i} className="rounded-2xl p-3.5" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: tile.iconBg, color: tile.iconColor }}>
+                    {tile.icon}
+                  </span>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide leading-tight"
+                    style={{ color: "var(--bt-text-3)" }}>
+                    {tile.label}
+                  </span>
+                </div>
+                <p className="text-[22px] font-display leading-none tabular-nums mb-1.5"
+                  style={{ color: "var(--bt-text-1)" }}>
+                  {tile.value}
+                </p>
+                <p className="text-[11px] leading-tight font-medium" style={{ color: tile.subColor }}>
+                  {tile.sub}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Heatmap ────────────────────────────────────────────── */}
       <div className="card p-5 mb-4">
@@ -380,6 +518,44 @@ export default function Stats() {
           weekToggleLabel={t("stats.week")}
           monthToggleLabel={t("stats.month")}
         />
+      )}
+
+      {/* ── Podium des cours (30 jours) ────────────────────────── */}
+      {podium.length > 0 && (
+        <div className="card p-5 mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
+              {t("stats.podiumTitle")}
+            </h2>
+            <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("stats.podiumSub")}</span>
+          </div>
+          <ul className="space-y-3">
+            {podium.map((c, i) => {
+              const max = podium[0].minutes || 1;
+              const pct = Math.max(4, Math.round(c.minutes / max * 100));
+              return (
+                <li key={i} className="flex items-center gap-3">
+                  <span className="w-6 text-center text-lg shrink-0">{["🥇", "🥈", "🥉"][i]}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        <span className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
+                      </span>
+                      <span className="text-sm font-semibold tabular-nums shrink-0 ml-2" style={{ color: "#0E8F68" }}>
+                        {formatMinutesShort(c.minutes * 60)}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                      <div className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${pct}%`, backgroundColor: c.color }} />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       {/* ── Goals ──────────────────────────────────────────────── */}
@@ -493,6 +669,45 @@ export default function Stats() {
           </div>
         )}
       </div>
+
+      {/* ── Face à tes amis (7 derniers jours) ──────────────────── */}
+      {hasFriends && vsFriendsSecs !== null && (() => {
+        const positive = vsFriendsSecs >= 60;
+        const negative = vsFriendsSecs <= -60;
+        const absStr = formatMinutesShort(Math.abs(vsFriendsSecs));
+        const message = positive
+          ? t("stats.friendsMore").replace("{time}", absStr)
+          : negative
+            ? t("stats.friendsLess").replace("{time}", absStr)
+            : t("stats.friendsEqual");
+        const box = positive
+          ? { bg: "#EAFBF4", color: "#0E8F68" }
+          : negative
+            ? { bg: "#FEF3C7", color: "#D97706" }
+            : { bg: "#EFF9FF", color: "#0369a1" };
+        return (
+          <div className="card p-5 mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                {t("stats.friendsCompareTitle")}
+              </h2>
+              <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("stats.friendsCompareSub")}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: box.bg, color: box.color }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </span>
+              <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
+                {message}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Leaderboard ─────────────────────────────────────────── */}
       <section className="card p-5 mt-6">
