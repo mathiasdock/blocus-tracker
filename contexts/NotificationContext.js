@@ -26,8 +26,8 @@ const NotificationContext = createContext({
 });
 
 const COMMUNITY_IDS = ALL_UNIVERSITIES.map(u => u.id);
-const POLL_VISIBLE_MS = 45000;
-const POLL_HIDDEN_MS = 120000;
+const POLL_VISIBLE_MS = 120000; // 2 min (était 45s) — réduit l'egress API
+const POLL_HIDDEN_MS = 300000;  // 5 min (était 2 min) — onglet en arrière-plan
 const POLL_DEBOUNCE_MS = 1200;
 const COMMUNITY_PAGE_SIZE = 1000;
 const PRODUCT_ANNOUNCEMENTS = [

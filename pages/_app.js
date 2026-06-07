@@ -6,7 +6,7 @@ import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { I18nProvider } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { loadUserLevelMap } from "../lib/userLevels";
+import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import LevelUpModal from "../components/LevelUpModal";
 import { initOneSignal, loginUser } from "../lib/onesignal";
 
@@ -77,7 +77,9 @@ function GlobalLevelUpWatcher() {
   const scheduleCheck = useCallback(() => {
     if (typeof window === "undefined") return;
     clearTimeout(pendingRef.current);
-    pendingRef.current = setTimeout(checkLevel, 500);
+    // Debounce élargi (1.5s) : coalesce les rafales d'événements realtime en un
+    // seul recalcul au lieu d'un par événement.
+    pendingRef.current = setTimeout(checkLevel, 1500);
   }, [checkLevel]);
 
   useEffect(() => {
@@ -94,10 +96,15 @@ function GlobalLevelUpWatcher() {
     const visibility = () => {
       if (!document.hidden) scheduleCheck();
     };
+    // Changement XP EXPLICITE → on invalide le cache de niveau pour forcer un
+    // recalcul frais (le level-up reste instantané malgré le cache mémoire).
+    const onXpChanged = () => { clearUserLevelCache(); scheduleCheck(); };
     window.addEventListener("focus", focus);
-    window.addEventListener("bt-xp-changed", scheduleCheck);
+    window.addEventListener("bt-xp-changed", onXpChanged);
     document.addEventListener("visibilitychange", visibility);
-    const interval = setInterval(checkLevel, 60000);
+    // Polling de sécurité : 5 min (au lieu de 60s). Les events realtime + le
+    // cache mémoire de loadUserLevelMap couvrent les mises à jour entre-temps.
+    const interval = setInterval(checkLevel, 300000);
 
     const watchedTables = [
       ["sessions", "user_id"],
@@ -147,7 +154,7 @@ function GlobalLevelUpWatcher() {
       clearInterval(interval);
       clearTimeout(pendingRef.current);
       window.removeEventListener("focus", focus);
-      window.removeEventListener("bt-xp-changed", scheduleCheck);
+      window.removeEventListener("bt-xp-changed", onXpChanged);
       document.removeEventListener("visibilitychange", visibility);
       channels.forEach(ch => supabase.removeChannel(ch));
     };
