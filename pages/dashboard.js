@@ -9,6 +9,7 @@ import { notifyXPChanged } from "../lib/xpEvents";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
+import CourseChecklistModal from "../components/CourseChecklistModal";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -62,6 +63,8 @@ export default function Dashboard() {
   const [completionToast, setCompletionToast] = useState(null);
   const [toastVisible, setToastVisible] = useState(false);
   const [showCourseMenu, setShowCourseMenu] = useState(false);
+  const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
+  const [checklistCourse, setChecklistCourse] = useState(null);
 
   // Pomodoro
   const [pomodoro, setPomodoro]     = useState(false);
@@ -88,6 +91,23 @@ export default function Dashboard() {
   const clearDashboardCache = useCallback(() => {
     if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
   }, [dashboardCachePrefix]);
+
+  const loadChecklistCounts = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("course_checklist_items")
+      .select("course_id, is_done")
+      .eq("user_id", user.id);
+    const map = {};
+    (data || []).forEach(row => {
+      if (!map[row.course_id]) map[row.course_id] = { done: 0, total: 0 };
+      map[row.course_id].total += 1;
+      if (row.is_done) map[row.course_id].done += 1;
+    });
+    setChecklistCounts(map);
+  }, [user]);
+
+  useEffect(() => { loadChecklistCounts(); }, [loadChecklistCounts]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -849,6 +869,18 @@ export default function Dashboard() {
                         </button>
                       </div>
                     </div>
+                    {/* Checklist révision — aperçu + bouton */}
+                    <div className="flex items-center justify-between gap-2 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                      <span className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
+                        {t("checklist.revisionLabel")}{" "}
+                        {(() => { const cc = checklistCounts[c.id]; return `${cc?.done || 0}/${cc?.total || 0}`; })()}
+                      </span>
+                      <button onClick={(e) => { e.stopPropagation(); setChecklistCourse(c); }}
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-lg transition-colors"
+                        style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-border)" }}>
+                        {t("checklist.button")}
+                      </button>
+                    </div>
                     {editingExamId === c.id && (
                       <div className="flex items-center gap-1.5 mt-2 overflow-hidden" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -894,6 +926,16 @@ export default function Dashboard() {
           </section>
         </div>
       </div>
+
+      {/* Checklist de révision (depuis la carte Mes cours) */}
+      {checklistCourse && user && (
+        <CourseChecklistModal
+          course={checklistCourse}
+          userId={user.id}
+          onClose={() => setChecklistCourse(null)}
+          onChanged={loadChecklistCounts}
+        />
+      )}
 
       {/* Focus mode overlay */}
       {focusMode && (

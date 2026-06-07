@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import Layout from "../components/Layout";
+import CourseChecklistModal from "../components/CourseChecklistModal";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -356,6 +357,82 @@ function Legend() {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── RevisionChecklists ────────────────────────────────────────
+function RevisionChecklists() {
+  const { courses, t } = usePlan();
+  const { user } = useAuth();
+  const [counts, setCounts]         = useState({}); // courseId -> { done, total }
+  const [openCourse, setOpenCourse] = useState(null);
+
+  const loadCounts = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("course_checklist_items")
+      .select("course_id, is_done")
+      .eq("user_id", user.id);
+    const map = {};
+    (data || []).forEach(row => {
+      if (!map[row.course_id]) map[row.course_id] = { done: 0, total: 0 };
+      map[row.course_id].total += 1;
+      if (row.is_done) map[row.course_id].done += 1;
+    });
+    setCounts(map);
+  }, [user]);
+
+  useEffect(() => { loadCounts(); }, [loadCounts]);
+
+  if (!courses.length) return null;
+
+  return (
+    <div className="card p-5 mt-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider mb-3"
+        style={{ color: "var(--bt-text-4)" }}>
+        {t("checklist.sectionTitle")}
+      </p>
+      <ul className="space-y-2">
+        {courses.map(c => {
+          const cnt = counts[c.id] || { done: 0, total: 0 };
+          const pct = cnt.total ? Math.round(cnt.done / cnt.total * 100) : 0;
+          return (
+            <li key={c.id}>
+              <button onClick={() => setOpenCourse(c)}
+                className="w-full text-left rounded-2xl px-3.5 py-3 transition-colors flex items-center gap-3"
+                style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)" }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-surface)"}>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
+                    <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>
+                      {cnt.total === 0
+                        ? t("checklist.none")
+                        : `${cnt.done}/${cnt.total} ${t("checklist.tasks")} · ${pct}%`}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, backgroundColor: c.color }} />
+                  </div>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {openCourse && (
+        <CourseChecklistModal
+          course={openCourse}
+          userId={user.id}
+          onClose={() => setOpenCourse(null)}
+          onChanged={loadCounts}
+        />
+      )}
     </div>
   );
 }
@@ -1296,6 +1373,7 @@ export default function Planning() {
         )}
 
         <Legend />
+        <RevisionChecklists />
       </Layout>
 
       {/* Day detail modal — mounted outside Layout to avoid stacking context issues */}
