@@ -590,7 +590,7 @@ export default function Profile() {
     const path = `${user.id}/avatar-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, uploadFile, { upsert: true, contentType: uploadFile.type || rawFile.type });
+      .upload(path, uploadFile, { upsert: true, cacheControl: "31536000", contentType: uploadFile.type || rawFile.type });
     if (upErr) { setBusy(false); setAvatarMsg(t("profile.avatarError")); return; }
     const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
     const { error: updErr } = await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", user.id);

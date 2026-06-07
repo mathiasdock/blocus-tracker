@@ -139,7 +139,7 @@ export default function Feed() {
     const path = `${user.id}/${Date.now()}.${ext.toLowerCase()}`;
     const { error: upErr } = await supabase.storage
       .from("posts")
-      .upload(path, uploadFile, { upsert: false, contentType: uploadFile.type || file.type });
+      .upload(path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: uploadFile.type || file.type });
     if (upErr) { setBusy(false); alert("Échec de l'upload : " + upErr.message); return; }
     const { data: pub } = supabase.storage.from("posts").getPublicUrl(path);
     const { error } = await supabase.from("posts").insert({

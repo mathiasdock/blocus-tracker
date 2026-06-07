@@ -296,7 +296,7 @@ export default function Messages() {
     if (file) {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("dm").upload(path, file);
+      const { error: upErr } = await supabase.storage.from("dm").upload(path, file, { cacheControl: "31536000" });
       if (upErr) { setSending(false); alert("Échec upload : " + upErr.message); return; }
       const { data: pub } = supabase.storage.from("dm").getPublicUrl(path);
       attachment_url = pub.publicUrl;
@@ -332,7 +332,7 @@ export default function Messages() {
     if (grpFile) {
       const ext = grpFile.name.split(".").pop();
       const path = `${user.id}/${grpActiveId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("community").upload(path, grpFile);
+      const { error: upErr } = await supabase.storage.from("community").upload(path, grpFile, { cacheControl: "31536000" });
       if (upErr) { setGrpSending(false); alert("Erreur upload : " + upErr.message); return; }
       const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
       attachment_url = pub.publicUrl;
@@ -394,8 +394,10 @@ export default function Messages() {
   async function uploadGroupPhoto(file) {
     if (!file || !grpActiveId) return;
     const ext = file.name.split(".").pop();
-    const path = `groups/${grpActiveId}/avatar.${ext}`;
-    const { error: upErr } = await supabase.storage.from("community").upload(path, file, { upsert: true });
+    // Chemin unique par upload → un cacheControl long est sûr (la nouvelle
+    // photo a une nouvelle URL, donc pas de cache figé côté navigateur/CDN).
+    const path = `groups/${grpActiveId}/avatar-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("community").upload(path, file, { upsert: true, cacheControl: "31536000" });
     if (upErr) { alert(upErr.message); return; }
     const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
     const photoUrl = pub.publicUrl;

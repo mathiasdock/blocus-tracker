@@ -114,7 +114,7 @@ export default function Communautes() {
     if (file) {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${active}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("community").upload(path, file);
+      const { error: upErr } = await supabase.storage.from("community").upload(path, file, { cacheControl: "31536000" });
       if (upErr) { setSending(false); alert("Échec de l'envoi du fichier : " + upErr.message); return; }
       const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
       attachment_url = pub.publicUrl;
