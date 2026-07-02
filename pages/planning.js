@@ -68,7 +68,7 @@ function getDayCellStyle(items, courseColor) {
 // ── ObjectiveRow ──────────────────────────────────────────────
 function ObjectiveRow({ o }) {
   const { courses, editingId, editForm, setEditForm, startEdit, saveEdit, setEditingId,
-          toggle, remove, courseColor, courseName, postpone, sessions, dragId, setDragId } = usePlan();
+          toggle, remove, courseColor, courseName, postpone, sessions, dragId, setDragId, t } = usePlan();
   const [showPostpone, setShowPostpone] = useState(false);
   const [customDate, setCustomDate]     = useState("");
 
@@ -142,7 +142,7 @@ function ObjectiveRow({ o }) {
         {!o.done && (
           <div className="relative shrink-0">
             <button onClick={() => setShowPostpone(p => !p)}
-              title="Reporter" className="text-stone-300 hover:text-amber-500">
+              title={t("plan.postponeTooltip")} className="text-stone-300 hover:text-amber-500">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
@@ -152,16 +152,18 @@ function ObjectiveRow({ o }) {
               </svg>
             </button>
             {showPostpone && (
-              <div className="absolute right-0 bottom-full mb-1 rounded-xl shadow-lg z-20 min-w-[170px] overflow-hidden bg-white"
-                style={{ border: "1px solid #E8E2DC" }}>
+              <div className="absolute right-0 bottom-full mb-1 rounded-xl shadow-lg z-20 min-w-[170px] overflow-hidden"
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
                 <button
                   onClick={() => { postpone(o.id, tomorrow); setShowPostpone(false); }}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-stone-50 font-medium"
-                  style={{ color: "#1F1A17", borderBottom: "1px solid #F7F3EF" }}>
-                  Reporter à demain
+                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors"
+                  style={{ color: "var(--bt-text-1)", borderBottom: "1px solid var(--bt-border)" }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                  {t("plan.dayPostpone")}
                 </button>
                 <div className="px-3 py-2">
-                  <p className="text-[10px] mb-1" style={{ color: "#A8A09A" }}>Autre date</p>
+                  <p className="text-[10px] mb-1" style={{ color: "var(--bt-text-3)" }}>{t("plan.postponeOtherDate")}</p>
                   <input type="date" className="input text-xs py-1" min={tomorrow}
                     value={customDate}
                     onChange={e => setCustomDate(e.target.value)}
@@ -963,8 +965,24 @@ function MonthView() {
                     {d.getDate()}
                   </span>
 
-                  {/* Events */}
-                  <div className="space-y-0.5">
+                  {/* Events — mobile: dots only (cells too narrow for legible text) */}
+                  <div className="flex sm:hidden flex-wrap gap-1">
+                    {items.slice(0, 4).map(o => (
+                      <span key={o.id} className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.35 : 1 }} />
+                    ))}
+                    {examItems.slice(0, 2).map(e => (
+                      <span key={e.id} className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: "#DC2626" }} />
+                    ))}
+                    {(items.length + examItems.length) > 6 && (
+                      <span className="text-[9px] leading-none" style={{ color: "var(--bt-text-4)" }}>
+                        +{items.length + examItems.length - 6}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Events — sm+: full titles, room for text */}
+                  <div className="hidden sm:block space-y-0.5">
                     {items.slice(0, 2).map(o => (
                       <div key={o.id} className="flex items-center gap-1 truncate" title={o.title}>
                         <span className="w-1.5 h-1.5 rounded-full shrink-0 flex-none"
@@ -1023,7 +1041,7 @@ function TimeGrid({ days }) {
               style={{ borderRight: "1px solid #E8E2DC", backgroundColor: isSel ? "#EAFBF4" : "" }}
               onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = "#F7F3EF"; }}
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = isSel ? "#EAFBF4" : ""; }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#A8A09A" }}>{WEEKDAYS_SHORT[i % 7]}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#A8A09A" }}>{WEEKDAYS_SHORT[(d.getDay() + 6) % 7]}</p>
               <span className="mt-0.5 inline-flex w-7 h-7 items-center justify-center rounded-full text-sm font-semibold"
                 style={isToday ? { backgroundColor: "#14B885", color: "#fff" }
                   : isSel ? { backgroundColor: "#EAFBF4", color: "#0E8F68" }
@@ -1130,6 +1148,17 @@ export default function Planning() {
   const [showObjectives, setShowObjectives] = useState(false);
   const [modalDate, setModalDate] = useState(null);
   const prevSelectedDate = useRef(null);
+
+  // Sur mobile, la vue Mois est trop dense (titres tronqués, cellules
+  // minuscules) — on ouvre directement sur "Jour", la vue la plus utile
+  // pour consulter le planning du jour. Desktop/tablette gardent "Mois".
+  // Effet mount-only : ne rejoue jamais après le premier rendu, donc
+  // n'écrase pas un choix de vue fait ensuite par l'utilisateur.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 640) {
+      setView("day");
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -1341,15 +1370,21 @@ export default function Planning() {
           </div>
         </div>
 
-        <label className="flex items-center gap-2 mb-5 text-sm text-stone-600 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={!!profile?.planning_public}
-            onChange={togglePlanningPublic}
-            className="w-4 h-4 accent-emerald-600"
-          />
-          {t("plan.public")}
-        </label>
+        <div className="flex items-center gap-2.5 mb-5">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+            style={{ color: "var(--bt-text-3)", flexShrink: 0 }}>
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span className="text-sm flex-1" style={{ color: "var(--bt-text-2)" }}>{t("plan.public")}</span>
+          <button onClick={togglePlanningPublic}
+            role="switch" aria-checked={!!profile?.planning_public} aria-label={t("plan.public")}
+            className="relative w-10 h-6 rounded-full transition-colors shrink-0"
+            style={{ backgroundColor: profile?.planning_public ? "#14B885" : "var(--bt-border)" }}>
+            <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+              style={{ transform: profile?.planning_public ? "translateX(18px)" : "translateX(2px)" }} />
+          </button>
+        </div>
 
         <UpcomingExamsStrip />
 

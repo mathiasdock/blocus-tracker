@@ -122,7 +122,8 @@ export default function Friends() {
     (profs || []).forEach((p) => { map[p.id] = { profile: p, courses: [], sessions: [], objectives: [] }; });
     (courses || []).forEach((c) => map[c.user_id]?.courses.push(c));
     (sessions || []).forEach((s) => map[s.user_id]?.sessions.push(s));
-    (objs || []).forEach((o) => map[o.user_id]?.objectives.push(o));
+    // Respecte le toggle "planning public" du profil — même règle que UserProfileModal.
+    (objs || []).forEach((o) => { if (map[o.user_id]?.profile.planning_public) map[o.user_id].objectives.push(o); });
     setFriendData(map);
     setFriendLevels(levelMap);
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Planning : paquet "quick wins" (UX + bugs)
+
+Suite a une analyse du planning (fonctionnalites/design/simplicite), implementation du paquet de gains rapides identifie.
+
+- `pages/planning.js`, `lib/i18n.js` :
+  - Fix golden rule i18n : le popover "Reporter" de `ObjectiveRow` avait du francais en dur (`title="Reporter"`, "Reporter à demain", "Autre date") alors que la cle `plan.dayPostpone` existait deja mais n'etait jamais utilisee. Ajout de 2 nouvelles cles (`plan.postponeTooltip`, `plan.postponeOtherDate`) en FR+EN. Popover rendu dark-safe au passage (hex en dur -> variables CSS).
+  - Vue Mois mobile : les titres d'objectifs tronques au milieu d'un mot ("Re...", "Fi...") remplaces par des points de couleur (comme le fond deja tinte par cours) en dessous de `sm:`. Comportement desktop/tablette inchange (texte complet conserve).
+  - Toggle "planning public" : checkbox brute native remplacee par un switch coherent avec celui du profil (memes dimensions/couleurs), label dark-safe (etait `text-stone-600` en dur).
+  - Fix fuite de confidentialite : `pages/friends.js` affichait les objectifs de TOUS les amis acceptes sans jamais verifier leur flag `planning_public` (contrairement a `UserProfileModal.js` qui le respectait deja). Objectifs filtres cote client selon ce flag desormais.
+  - Mobile (<640px) : vue par defaut passee de "Mois" a "Jour" au premier chargement (effet mount-only, n'ecrase jamais un choix de vue fait ensuite). La vue Mois y etait trop dense pour etre utile.
+  - Bug decouvert en testant le changement ci-dessus : `TimeGrid` affichait le mauvais jour de la semaine en vue Jour (toujours "LUN" quelle que soit la vraie date) car le calcul utilisait l'index du tableau (`i % 7`) au lieu du vrai jour (`d.getDay()`). Corrige — impactait aussi potentiellement la vue Semaine dans certains cas limites.
+- Verification : `npm run build` OK (20/20) + verification visuelle navigateur (mode offline dev), light/dark, mobile 375px : popover i18n+dark confirme, points de couleur mois confirmes, switch confirme, jour de semaine correct confirme (Jeudi 2 juillet -> "JEU").
+
+Reste des pistes 🟡/🔴 identifiees (pont planning->chrono, unification des 3 formulaires objectif, TimeGrid a moderniser, auto-suggestion de revision avant examen) — non traitees, discussion produit necessaire avant de s'y attaquer.
+
 ## 2026-07-02 - Refonte design (passe 2 : stats + profil + feed)
 
 Suite de la refonte "instrument de focus". Cible : enlever les derniers tells "AI generated" signales (emojis podium, cartes profil mal organisees).
