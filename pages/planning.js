@@ -134,6 +134,49 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
   );
 }
 
+// ── ObjectiveForm ─────────────────────────────────────────────
+// Formulaire unique de creation/edition d'objectif, controle. Remplace les
+// 4 blocs de champs quasi-identiques qui existaient (DayPanel add,
+// ObjectiveRow edit, DayDetailModal add + edit). Chaque appelant fournit
+// `value` (title/courseId/minutes/time/weekdays/until) + `onChange(patch)`
+// + `onSubmit`. `onCancel` optionnel : s'il est absent, un seul bouton
+// pleine largeur (cas DayPanel) ; sinon submit + annuler cote a cote.
+const EMPTY_OBJECTIVE_FORM = { title: "", courseId: "", minutes: "", time: "", weekdays: [], until: "" };
+function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLabel, autoFocus, className = "space-y-2.5", style }) {
+  const { courses, t } = usePlan();
+  const weekdays = value.weekdays || [];
+  return (
+    <form onSubmit={onSubmit} className={className} style={style}>
+      <input className="input text-sm" value={value.title} autoFocus={autoFocus}
+        onChange={e => onChange({ title: e.target.value })}
+        placeholder={t("plan.newObjective")} />
+      <div className="flex gap-2">
+        <select className="input text-sm flex-1" value={value.courseId}
+          onChange={e => onChange({ courseId: e.target.value })}>
+          <option value="">{t("plan.courseSelect")}</option>
+          {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <input className="input text-sm w-20" type="number" min={5} step={5} placeholder="min"
+          value={value.minutes} onChange={e => onChange({ minutes: e.target.value })} />
+      </div>
+      <input className="input text-sm" type="time" value={value.time}
+        onChange={e => onChange({ time: e.target.value })} />
+      <RecurrencePicker
+        weekdays={weekdays}
+        onToggle={dow => onChange({ weekdays: weekdays.includes(dow) ? weekdays.filter(d => d !== dow) : [...weekdays, dow] })}
+        until={value.until || ""}
+        onUntilChange={v => onChange({ until: v })}
+        minDate={minDate} />
+      <div className="flex gap-2">
+        <button type="submit" className="btn-primary flex-1 text-sm py-2">{submitLabel}</button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className="btn-ghost flex-1 text-sm py-2">{t("common.cancel")}</button>
+        )}
+      </div>
+    </form>
+  );
+}
+
 // ── ObjectiveRow ──────────────────────────────────────────────
 function recurrenceBadgeLabel(o, t) {
   const days = weekdaysFromObjective(o);
@@ -144,7 +187,7 @@ function recurrenceBadgeLabel(o, t) {
 }
 
 function ObjectiveRow({ o }) {
-  const { courses, editingId, editForm, setEditForm, startEdit, saveEdit, setEditingId,
+  const { editingId, editForm, setEditForm, startEdit, saveEdit, setEditingId,
           toggle, remove, courseColor, courseName, postpone, sessions, dragId, setDragId,
           launchTimer, t } = usePlan();
   const [showPostpone, setShowPostpone] = useState(false);
@@ -161,31 +204,14 @@ function ObjectiveRow({ o }) {
 
   if (editingId === o.id) {
     return (
-      <li className="rounded-xl border border-accent/40 px-3 py-2 space-y-2">
-        <input className="input text-sm" value={editForm.title}
-          onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} />
-        <div className="flex gap-2">
-          <select className="input text-sm" value={editForm.courseId}
-            onChange={e => setEditForm(f => ({ ...f, courseId: e.target.value }))}>
-            <option value="">Cours —</option>
-            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <input className="input w-20 text-sm" type="number" min={5} step={5}
-            value={editForm.minutes}
-            onChange={e => setEditForm(f => ({ ...f, minutes: e.target.value }))} />
-        </div>
-        <input className="input text-sm" type="time" value={editForm.time}
-          onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))} />
-        <RecurrencePicker
-          weekdays={editForm.weekdays || []}
-          onToggle={dow => setEditForm(f => ({ ...f, weekdays: (f.weekdays || []).includes(dow) ? f.weekdays.filter(d => d !== dow) : [...(f.weekdays || []), dow] }))}
-          until={editForm.until || ""}
-          onUntilChange={v => setEditForm(f => ({ ...f, until: v }))}
-          minDate={o.scheduled_date} />
-        <div className="flex gap-2">
-          <button onClick={() => saveEdit(o.id)} className="btn-primary text-xs flex-1">Enregistrer</button>
-          <button onClick={() => setEditingId(null)} className="btn-ghost text-xs flex-1">Annuler</button>
-        </div>
+      <li className="rounded-xl border border-accent/40 px-3 py-2">
+        <ObjectiveForm
+          value={editForm}
+          onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
+          onSubmit={e => { e.preventDefault(); saveEdit(o.id); }}
+          onCancel={() => setEditingId(null)}
+          minDate={o.scheduled_date}
+          submitLabel={t("common.save")} />
       </li>
     );
   }
@@ -363,26 +389,21 @@ function DayPanel() {
         {dayObjectives.map(o => <ObjectiveRow key={o.id} o={o} />)}
       </ul>
 
-      <form onSubmit={addObjective} className="space-y-2 border-t border-stone-100 pt-3">
-        <input className="input" value={title} onChange={e => setTitle(e.target.value)}
-          placeholder={t("plan.newObjective")} />
-        <div className="flex gap-2">
-          <select className="input" value={courseId} onChange={e => setCourseId(e.target.value)}>
-            <option value="">Cours —</option>
-            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <input className="input w-24" type="number" min={5} step={5} placeholder="min"
-            value={minutes} onChange={e => setMinutes(e.target.value)} />
-        </div>
-        <input className="input" type="time" value={newTime} onChange={e => setNewTime(e.target.value)} />
-        <RecurrencePicker
-          weekdays={recurrenceWeekdays}
-          onToggle={dow => setRecurrenceWeekdays(ws => ws.includes(dow) ? ws.filter(d => d !== dow) : [...ws, dow])}
-          until={recurrenceUntil}
-          onUntilChange={setRecurrenceUntil}
-          minDate={selectedDate} />
-        <button className="btn-primary w-full">{t("common.add")}</button>
-      </form>
+      <ObjectiveForm
+        className="space-y-2.5 pt-3"
+        style={{ borderTop: "1px solid var(--bt-border)" }}
+        value={{ title, courseId, minutes, time: newTime, weekdays: recurrenceWeekdays, until: recurrenceUntil }}
+        onChange={patch => {
+          if ("title" in patch)    setTitle(patch.title);
+          if ("courseId" in patch) setCourseId(patch.courseId);
+          if ("minutes" in patch)  setMinutes(patch.minutes);
+          if ("time" in patch)     setNewTime(patch.time);
+          if ("weekdays" in patch) setRecurrenceWeekdays(patch.weekdays);
+          if ("until" in patch)    setRecurrenceUntil(patch.until);
+        }}
+        onSubmit={addObjective}
+        minDate={selectedDate}
+        submitLabel={t("common.add")} />
 
       <div className="mt-3 border-t border-stone-100 pt-3">
         {!showExamForm ? (
@@ -722,17 +743,12 @@ function ObjectivesToggle() {
 
 // ── DayDetailModal ────────────────────────────────────────────
 function DayDetailModal() {
-  const { modalDate, setModalDate, byDate, examsByDate, sessions, courses,
+  const { modalDate, setModalDate, byDate, examsByDate, sessions,
           courseColor, courseName, toggle, remove,
           addObjectiveForDate, saveObjEdit, removeExam, lang, t } = usePlan();
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formTitle, setFormTitle]     = useState("");
-  const [formCourseId, setFormCourseId] = useState("");
-  const [formMinutes, setFormMinutes] = useState("");
-  const [formTime, setFormTime]       = useState("");
-  const [formWeekdays, setFormWeekdays] = useState([]);
-  const [formUntil, setFormUntil]     = useState("");
+  const [addForm, setAddForm]         = useState(EMPTY_OBJECTIVE_FORM);
 
   // Inline edit state
   const [editingObjId, setEditingObjId] = useState(null);
@@ -771,13 +787,9 @@ function DayDetailModal() {
 
   async function handleAdd(e) {
     e.preventDefault();
-    const data = await addObjectiveForDate(modalDate, {
-      title: formTitle, courseId: formCourseId, minutes: formMinutes, time: formTime,
-      weekdays: formWeekdays, until: formUntil,
-    });
+    const data = await addObjectiveForDate(modalDate, addForm);
     if (data) {
-      setFormTitle(""); setFormCourseId(""); setFormMinutes(""); setFormTime("");
-      setFormWeekdays([]); setFormUntil("");
+      setAddForm(EMPTY_OBJECTIVE_FORM);
       setShowAddForm(false);
     }
   }
@@ -994,34 +1006,17 @@ function DayDetailModal() {
 
                       {/* ── Inline edit mode ── */}
                       {isEditing && (
-                        <form onSubmit={handleInlineSave} className="px-4 py-3 space-y-2.5"
-                          style={{ backgroundColor: "var(--bt-surface)" }}>
-                          <input className="input text-sm" value={editForm.title} autoFocus
-                            onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
-                            placeholder={t("plan.newObjective")} />
-                          <div className="flex gap-2">
-                            <select className="input text-sm flex-1" value={editForm.courseId}
-                              onChange={e => setEditForm(f => ({ ...f, courseId: e.target.value }))}>
-                              <option value="">Cours —</option>
-                              {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            <input className="input w-20 text-sm" type="number" min={5} step={5} placeholder="min"
-                              value={editForm.minutes}
-                              onChange={e => setEditForm(f => ({ ...f, minutes: e.target.value }))} />
-                          </div>
-                          <input className="input text-sm" type="time" value={editForm.time}
-                            onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))} />
-                          <RecurrencePicker
-                            weekdays={editForm.weekdays || []}
-                            onToggle={dow => setEditForm(f => ({ ...f, weekdays: (f.weekdays || []).includes(dow) ? f.weekdays.filter(d => d !== dow) : [...(f.weekdays || []), dow] }))}
-                            until={editForm.until || ""}
-                            onUntilChange={v => setEditForm(f => ({ ...f, until: v }))}
-                            minDate={modalDate} />
-                          <div className="flex gap-2">
-                            <button type="submit" className="btn-primary flex-1 text-sm py-2">{t("common.save")}</button>
-                            <button type="button" onClick={() => setEditingObjId(null)} className="btn-ghost flex-1 text-sm py-2">{t("common.cancel")}</button>
-                          </div>
-                        </form>
+                        <div style={{ backgroundColor: "var(--bt-surface)" }}>
+                          <ObjectiveForm
+                            className="px-4 py-3 space-y-2.5"
+                            value={editForm}
+                            onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
+                            onSubmit={handleInlineSave}
+                            onCancel={() => setEditingObjId(null)}
+                            minDate={modalDate}
+                            submitLabel={t("common.save")}
+                            autoFocus />
+                        </div>
                       )}
                     </div>
                   );
@@ -1043,33 +1038,16 @@ function DayDetailModal() {
                   {t("plan.dayAddObj")}
                 </button>
               ) : (
-                <form onSubmit={handleAdd} className="space-y-2.5 p-4 rounded-2xl"
-                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                  <input className="input text-sm" value={formTitle}
-                    onChange={e => setFormTitle(e.target.value)}
-                    placeholder={t("plan.newObjective")} autoFocus />
-                  <div className="flex gap-2">
-                    <select className="input text-sm flex-1" value={formCourseId}
-                      onChange={e => setFormCourseId(e.target.value)}>
-                      <option value="">Cours —</option>
-                      {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <input className="input w-20 text-sm" type="number" min={5} step={5} placeholder="min"
-                      value={formMinutes} onChange={e => setFormMinutes(e.target.value)} />
-                  </div>
-                  <input className="input text-sm" type="time" value={formTime}
-                    onChange={e => setFormTime(e.target.value)} />
-                  <RecurrencePicker
-                    weekdays={formWeekdays}
-                    onToggle={dow => setFormWeekdays(ws => ws.includes(dow) ? ws.filter(d => d !== dow) : [...ws, dow])}
-                    until={formUntil}
-                    onUntilChange={setFormUntil}
-                    minDate={modalDate} />
-                  <div className="flex gap-2">
-                    <button type="submit" className="btn-primary flex-1 text-sm py-2">{t("common.add")}</button>
-                    <button type="button" onClick={() => setShowAddForm(false)} className="btn-ghost flex-1 text-sm py-2">{t("common.cancel")}</button>
-                  </div>
-                </form>
+                <ObjectiveForm
+                  className="space-y-2.5 p-4 rounded-2xl"
+                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}
+                  value={addForm}
+                  onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
+                  onSubmit={handleAdd}
+                  onCancel={() => setShowAddForm(false)}
+                  minDate={modalDate}
+                  submitLabel={t("common.add")}
+                  autoFocus />
               )
             )}
           </div>

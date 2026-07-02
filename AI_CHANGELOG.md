@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Planning : unification des formulaires d'objectif
+
+Refactor a iso-comportement : les 4 blocs de champs quasi-identiques (titre / cours / minutes / heure / recurrence) qui existaient sont remplaces par un seul composant `ObjectiveForm` controle.
+
+- `pages/planning.js` :
+  - Nouveau composant `ObjectiveForm` (controle : `value` {title,courseId,minutes,time,weekdays,until} + `onChange(patch)` + `onSubmit` + `onCancel` optionnel). Constante `EMPTY_OBJECTIVE_FORM` partagee.
+  - Remplace les 4 formulaires dupliques :
+    - `DayPanel` (ajout, cote lateral) — mappe l'etat contexte (title/courseId/... + newTime, garde le couplage TimeGrid -> heure pre-remplie) via un onChange qui route chaque patch vers le bon setter ; bouton "Ajouter" pleine largeur (pas de onCancel).
+    - `ObjectiveRow` (edition inline dans la liste) — etait un `<li>` avec des `onClick`, devient un vrai `<form>` (Entree = submit).
+    - `DayDetailModal` (ajout) — les 6 useState separes consolides en un seul objet `addForm`.
+    - `DayDetailModal` (edition inline) — utilise `editForm` existant.
+  - i18n : le `Cours —` en dur (4 occurrences) remplace par la cle `plan.courseSelect` (FR+EN).
+  - Nettoyage : `courses` retire des destructurations de `ObjectiveRow` et `DayDetailModal` (desormais recupere via le contexte par `ObjectiveForm`).
+- Verification : `npm run build` OK + navigateur (mode offline dev) : les **4** sites testes en creation ET edition — ajout via DayPanel (avec weekday + reset du formulaire), ajout via modal, edition inline modal (titre modifie sauve), edition inline ObjectiveRow (pre-remplie, 7 pastilles). Recurrence "↻ hebdo" correctement persistee et affichee. Tout coherent visuellement (meme layout de champs partout).
+
 ## 2026-07-02 - Planning : modernisation TimeGrid (vue Semaine/Jour)
 
 Alignement de la grille horaire (vue Semaine et vue Jour) sur la passe design "instrument de focus". C'etait la partie la plus datee du fichier : couleurs hex en dur, aucun support dark mode, ancienne typo.
