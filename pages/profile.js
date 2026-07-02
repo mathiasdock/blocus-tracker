@@ -51,6 +51,42 @@ function IconActivity() { return <svg width="16" height="16" viewBox="0 0 24 24"
 function IconUser() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
 function IconChevronDown({ open }) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>; }
 function IconChevronRight() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.35 }}><polyline points="9 18 15 12 9 6"/></svg>; }
+function IconLock() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>; }
+function IconAlert() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
+
+// Rangée de réglage unifiée. Trois affordances distinctes et coherentes :
+//  • onClick + right=<IconChevronDown> → se deplie sur place (accordeon)
+//  • href + right=<IconChevronRight>  → mene a une autre page
+//  • right=<controle>                 → s'ajuste sur place (toggle/segmented)
+function SettingsRow({ icon, label, description, right, onClick, href, danger, accent }) {
+  const labelColor = danger ? "#DC2626" : accent ? "var(--bt-accent-dark)" : "var(--bt-text-1)";
+  const iconColor  = danger ? "#DC2626" : accent ? "var(--bt-accent-dark)" : "var(--bt-text-2)";
+  const iconBg     = danger ? "rgba(220,38,38,0.10)" : accent ? "var(--bt-accent-bg)" : "var(--bt-subtle)";
+  const inner = (
+    <div className="flex items-center justify-between px-5 py-3.5 gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <IconBox color={iconColor} bg={iconBg}>{icon}</IconBox>
+        <div className="min-w-0">
+          <span className="block text-sm font-medium truncate" style={{ color: labelColor }}>{label}</span>
+          {description && <span className="block text-xs mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }}>{description}</span>}
+        </div>
+      </div>
+      <div className="shrink-0">{right}</div>
+    </div>
+  );
+  const hoverBg = danger ? "#FEF2F2" : "var(--bt-subtle)";
+  if (href) return (
+    <Link href={href} className="block transition-colors"
+      onMouseEnter={e => e.currentTarget.style.backgroundColor = hoverBg}
+      onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>{inner}</Link>
+  );
+  if (onClick) return (
+    <button onClick={onClick} className="w-full text-left transition-colors"
+      onMouseEnter={e => e.currentTarget.style.backgroundColor = hoverBg}
+      onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>{inner}</button>
+  );
+  return inner;
+}
 
 // ── Helpers ──────────────────────────────────────────────────
 function SectionLabel({ children }) {
@@ -59,33 +95,6 @@ function SectionLabel({ children }) {
 function IconBox({ color, bg, children }) {
   return <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg || "var(--bt-subtle)", color: color || "var(--bt-text-2)" }}>{children}</span>;
 }
-function PrefRow({ icon, iconColor, iconBg, label, description, right, onClick, className = "" }) {
-  const inner = (
-    <div className={`flex items-center justify-between py-3.5 ${className}`}>
-      <div className="flex items-center gap-3 min-w-0">
-        <IconBox color={iconColor} bg={iconBg}>{icon}</IconBox>
-        <span className="min-w-0">
-          <span className="block text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{label}</span>
-          {description && (
-            <span className="block text-xs mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }}>{description}</span>
-          )}
-        </span>
-      </div>
-      <div className="shrink-0 ml-2">{right}</div>
-    </div>
-  );
-  if (onClick) {
-    return (
-      <button onClick={onClick} className="w-full text-left transition-colors rounded-xl"
-        onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-        onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-        {inner}
-      </button>
-    );
-  }
-  return inner;
-}
-
 // ── XP Progression card ──────────────────────────────────────
 function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, missions, onBadgeClick, t }) {
   const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
@@ -129,20 +138,6 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
           <div style={{ height: 10, borderRadius: 99, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" }}>
             <div style={{ height: "100%", borderRadius: 99, width: `${progressPct}%`, background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)", boxShadow: "0 0 10px rgba(20,184,133,0.70)", transition: "width 0.6s ease" }} />
           </div>
-        </div>
-
-        {/* Stats row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
-          {[
-            { label: t("profile.streakDays"), value: `${streak} j` },
-            { label: t("profile.totalHours"), value: formatMinutesShort(profileTotalSecs) },
-            { label: t("badge.title"),        value: `${earnedBadgeIds.length}/${BADGES.length}` },
-          ].map((s, i) => (
-            <div key={i} style={{ borderRadius: 12, padding: "10px 6px", textAlign: "center", backgroundColor: "rgba(255,255,255,0.10)" }}>
-              <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.50)", lineHeight: 1.2, marginBottom: 3 }}>{s.label}</p>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{s.value}</p>
-            </div>
-          ))}
         </div>
 
         {/* Daily missions */}
@@ -379,14 +374,16 @@ function BadgeSheet({ badge, earned, t, onClose }) {
             {/* Status + XP reward */}
             <div className="mt-2 mb-4 flex flex-wrap items-center justify-center gap-2">
               {earned ? (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full"
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
                   style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
-                  ✓ {t("badge.earnedStatus")}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  {t("badge.earnedStatus")}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full"
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
                   style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
-                  🔒 {t("badge.locked")}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  {t("badge.locked")}
                 </span>
               )}
               {badge.xp > 0 && (
@@ -426,7 +423,6 @@ export default function Profile() {
   const [earnedBadgeIds, setEarnedBadgeIds] = useState([]);
   const [profileSessions, setProfileSessions] = useState([]);
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
-  const [showActivity, setShowActivity] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -661,13 +657,6 @@ export default function Profile() {
     friendSentToday, friendAcceptToday, referredToday,
   });
 
-  const stats = [
-    { label: t("profile.totalHours"),    value: formatMinutesShort(profileTotalSecs) },
-    { label: t("profile.hours30d"),      value: formatMinutesShort(secs30d) },
-    { label: t("profile.streakDays"),    value: `${streak} j` },
-    { label: t("profile.bestStreakDays"),value: `${best} j` },
-  ];
-  const activitySummary = profileTotalSecs > 0 ? `${streak} j · ${formatMinutesShort(profileTotalSecs)}` : null;
   const sep = <div style={{ height: 1, backgroundColor: "var(--bt-border)" }} />;
 
   return (
@@ -705,81 +694,74 @@ export default function Profile() {
             {avatarMsg && (
               <p className="text-xs mt-2.5 text-center" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-dark)" : "#DC2626" }}>{avatarMsg}</p>
             )}
+
+            {/* Rail de stats-cles — chiffres surfaces immediatement, plus besoin de deplier */}
+            <div className="grid grid-cols-3 gap-2 w-full mt-5">
+              {[
+                { label: t("xp.level"), value: levelInfo.current.level },
+                { label: t("profile.streakDays"), value: `${streak} j` },
+                { label: t("profile.totalHours"), value: formatMinutesShort(profileTotalSecs) },
+              ].map((s, i) => (
+                <div key={i} className="rounded-2xl py-2.5 text-center"
+                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                  <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.05rem", color: "var(--bt-text-1)", letterSpacing: "-0.01em" }}>{s.value}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide mt-1" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Locked warning */}
         {profile?.locked && (
-          <div className="card p-4 flex items-start gap-3" style={{ borderColor: "#FECACA", backgroundColor: "#FEF2F2" }}>
-            <span className="text-xl leading-none shrink-0">🔒</span>
+          <div className="card p-4 flex items-start gap-3"
+            style={{ borderColor: "rgba(220,38,38,0.35)", backgroundColor: "rgba(220,38,38,0.08)" }}>
+            <span className="shrink-0" style={{ color: "#DC2626" }}><IconLock /></span>
             <div>
-              <p className="text-sm font-medium" style={{ color: "#B91C1C" }}>{t("profile.lockedTitle")}</p>
-              <p className="text-xs mt-0.5" style={{ color: "#DC2626" }}>{t("profile.lockedDesc")}</p>
+              <p className="text-sm font-medium" style={{ color: "#DC2626" }}>{t("profile.lockedTitle")}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-2)" }}>{t("profile.lockedDesc")}</p>
             </div>
           </div>
         )}
 
-        {/* ══ XP CARD ══════════════════════════════════════════ */}
+        {/* ══ PROGRESSION (XP) ═════════════════════════════════ */}
         <XPProgressCard
           levelInfo={levelInfo} streak={streak} profileTotalSecs={profileTotalSecs}
           earnedBadgeIds={earnedBadgeIds} missions={missions}
           onBadgeClick={setSelectedBadge} t={t}
         />
 
-        {/* ══ PARRAINAGE ═══════════════════════════════════════ */}
-        <ReferralCard t={t} />
-
-        {/* ══ MON ACTIVITÉ ════════════════════════════════════ */}
-        <div className="card overflow-hidden">
-          <button onClick={() => setShowActivity(o => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-            style={{ borderBottom: showActivity ? "1px solid var(--bt-border)" : "none" }}>
-            <div className="flex items-center gap-3">
-              <IconBox color="var(--bt-text-2)"><IconActivity /></IconBox>
-              <div>
-                <SectionLabel>{t("profile.activitySection")}</SectionLabel>
-                {!showActivity && activitySummary && (
-                  <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>{activitySummary}</p>
-                )}
-              </div>
-            </div>
-            <IconChevronDown open={showActivity} />
-          </button>
-          {showActivity && (
-            <div className="px-5 pb-5 pt-4">
-              {profileTotalSecs > 0 ? (
-                <>
-                  <div className="grid grid-cols-2 gap-2.5 mb-4">
-                    {stats.map((s, i) => (
-                      <div key={i} className="rounded-2xl p-3 text-center"
-                        style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
-                        <p className="text-base font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
-                      </div>
-                    ))}
+        {/* ══ ACTIVITÉ (toujours visible — contenu, pas un reglage) ══ */}
+        <div className="card p-5">
+          <SectionLabel>{t("profile.activitySection")}</SectionLabel>
+          {profileTotalSecs > 0 ? (
+            <div className="mt-3">
+              <div className="grid grid-cols-2 gap-2.5 mb-4">
+                {[
+                  { label: t("profile.hours30d"), value: formatMinutesShort(secs30d) },
+                  { label: t("profile.bestStreakDays"), value: `${best} j` },
+                ].map((s, i) => (
+                  <div key={i} className="rounded-2xl p-3 text-center"
+                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
+                    <p className="text-base font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
                   </div>
-                  <StudyHeatmap sessions={profileSessions} />
-                </>
-              ) : (
-                <p className="text-sm py-2" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
-              )}
+                ))}
+              </div>
+              <StudyHeatmap sessions={profileSessions} />
             </div>
+          ) : (
+            <p className="text-sm mt-3" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
           )}
         </div>
 
-        {/* ══ MES INFORMATIONS ════════════════════════════════ */}
+        {/* ══ MON COMPTE (infos + email, accordeons coherents) ══ */}
         <div className="card overflow-hidden">
-          <button onClick={() => setShowInfo(o => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-            style={{ borderBottom: showInfo ? "1px solid var(--bt-border)" : "none" }}>
-            <div className="flex items-center gap-3">
-              <IconBox color="var(--bt-text-2)"><IconUser /></IconBox>
-              <SectionLabel>{t("profile.myInfo")}</SectionLabel>
-            </div>
-            <IconChevronDown open={showInfo} />
-          </button>
+          <div className="px-5 pt-4 pb-1"><SectionLabel>{t("profile.accountSection")}</SectionLabel></div>
+          <SettingsRow icon={<IconUser />} label={t("profile.myInfo")}
+            onClick={() => setShowInfo(o => !o)} right={<IconChevronDown open={showInfo} />} />
           {showInfo && (
-            <div className="px-5 pb-5 pt-4">
+            <div className="px-5 pb-5 pt-1">
               <form onSubmit={profile?.locked ? e => e.preventDefault() : saveInfo} className="space-y-3">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex-1 min-w-0">
@@ -825,21 +807,11 @@ export default function Profile() {
               </form>
             </div>
           )}
-        </div>
-
-        {/* ══ EMAIL ════════════════════════════════════════════ */}
-        <div className="card overflow-hidden">
-          <button onClick={() => setShowEmail(o => !o)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left"
-            style={{ borderBottom: showEmail ? "1px solid var(--bt-border)" : "none" }}>
-            <div className="flex items-center gap-3">
-              <IconBox color="var(--bt-text-2)"><IconMail /></IconBox>
-              <SectionLabel>{t("profile.emailSection")}</SectionLabel>
-            </div>
-            <IconChevronDown open={showEmail} />
-          </button>
+          {sep}
+          <SettingsRow icon={<IconMail />} label={t("profile.emailSection")}
+            onClick={() => setShowEmail(o => !o)} right={<IconChevronDown open={showEmail} />} />
           {showEmail && (
-            <div className="px-5 pb-5 pt-4">
+            <div className="px-5 pb-5 pt-1">
               <form onSubmit={saveEmail} className="space-y-2">
                 <input className="input" type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} autoComplete="email" placeholder="ton@email.com" />
                 <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("profile.emailHint")}</p>
@@ -852,122 +824,92 @@ export default function Profile() {
           )}
         </div>
 
-        {/* ══ PRÉFÉRENCES ══════════════════════════════════════ */}
-        <div className="card p-5">
-          <SectionLabel>{t("profile.preferencesSection")}</SectionLabel>
-          <div className="mt-2">
-            <PrefRow icon={<IconGlobe />} label={t("profile.language")} right={
-              <div className="flex gap-1.5">
-                {[["fr", "🇫🇷 FR"], ["en", "🇬🇧 EN"]].map(([code, label]) => (
-                  <button key={code} onClick={() => changeLang(code)} className="px-3 py-1 rounded-lg text-xs font-semibold transition"
-                    style={lang === code ? { backgroundColor: "#14B885", color: "#fff" } : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            } />
-            {sep}
-            <PrefRow icon={dark ? <IconMoon /> : <IconSun />} label={t("profile.appearance")} right={
-              <button onClick={toggleDark} className="relative w-10 h-6 rounded-full transition-colors" style={{ backgroundColor: dark ? "#14B885" : "var(--bt-border)" }} aria-label="Toggle dark mode">
-                <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: dark ? "translateX(18px)" : "translateX(2px)" }} />
-              </button>
-            } />
-            {sep}
-            <Link href="/feedback" className="block rounded-xl transition-colors"
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-              <PrefRow
-                icon={<IconFeedback />}
-                iconColor="#0E8F68"
-                iconBg="var(--bt-accent-bg)"
-                label={t("feedback.improveTitle")}
-                description={t("feedback.improveDesc")}
-                right={<IconChevronRight />}
-              />
-            </Link>
-            {sep}
-            <div>
-              <PrefRow icon={<IconSmartphone />} label={t("pwa.profileSection")} right={<IconChevronDown open={showPwa} />} onClick={() => setShowPwa(s => !s)} />
-              {showPwa && (
-                <div className="pb-3 space-y-3 pl-11">
-                  <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("pwa.profileDesc")}</p>
-                  <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                    <span className="text-sm shrink-0">⚠️</span>
-                    <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("pwa.safariNote")}</p>
-                  </div>
-                  <ol className="space-y-2">
-                    {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
-                        <span className="font-semibold shrink-0 w-4 text-right" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
-            {sep}
-            <div>
-              <PrefRow icon={<IconInfo />} label={t("profile.about")} right={<IconChevronDown open={showAbout} />} onClick={() => setShowAbout(s => !s)} />
-              {showAbout && (
-                <div className="pb-3 space-y-2 text-sm leading-relaxed pl-11" style={{ color: "var(--bt-text-2)" }}>
-                  <p><span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>blocus·tracker</span>{" "}{t("profile.aboutCreatedBy")}{" "}<span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>Mathias Dock</span>{", "}{t("profile.aboutRole")}</p>
-                  <p>{t("profile.aboutDesc")}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ══ COMPTE ════════════════════════════════════════════ */}
+        {/* ══ NOTIFICATIONS ════════════════════════════════════ */}
         <PushNotificationsCard />
 
+        {/* ══ PARRAINAGE ═══════════════════════════════════════ */}
+        <ReferralCard t={t} />
+
+        {/* ══ PRÉFÉRENCES (controles en place — ni accordeon ni nav) ══ */}
         <div className="card overflow-hidden">
-          <div className="px-5 pt-4 pb-2"><SectionLabel>{t("profile.accountSection")}</SectionLabel></div>
-          {profile?.is_admin && (
-            <>
-              <Link href="/admin" className="flex items-center justify-between px-5 py-3.5 transition-colors"
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                <div className="flex items-center gap-3">
-                  <IconBox color="#0E8F68" bg="var(--bt-accent-bg)"><IconShield color="#0E8F68" /></IconBox>
-                  <span className="text-sm font-medium" style={{ color: "#0E8F68" }}>{t("profile.adminDashboard")}</span>
-                </div>
-                <IconChevronRight />
-              </Link>
-              {sep}
-              <Link href="/feedback" className="flex items-center justify-between px-5 py-3.5 transition-colors"
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                <div className="flex items-center gap-3">
-                  <IconBox color="#0E8F68" bg="var(--bt-accent-bg)"><IconFeedback /></IconBox>
-                  <span className="text-sm font-medium" style={{ color: "#0E8F68" }}>{t("profile.suggestionInbox")}</span>
-                </div>
-                <IconChevronRight />
-              </Link>
-              {sep}
-            </>
-          )}
-          <button onClick={signOut} className="w-full flex items-center justify-between px-5 py-3.5 transition-colors text-left"
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-            <div className="flex items-center gap-3">
-              <IconBox color="var(--bt-text-2)"><IconLogOut /></IconBox>
-              <span className="text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>{t("profile.signOut")}</span>
+          <div className="px-5 pt-4 pb-1"><SectionLabel>{t("profile.preferencesSection")}</SectionLabel></div>
+          <SettingsRow icon={<IconGlobe />} label={t("profile.language")} right={
+            <div className="flex gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 10, padding: 2 }}>
+              {["fr", "en"].map(code => (
+                <button key={code} onClick={() => changeLang(code)}
+                  className="px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+                  style={lang === code ? { backgroundColor: "#14B885", color: "#fff" } : { color: "var(--bt-text-3)" }}>
+                  {code.toUpperCase()}
+                </button>
+              ))}
             </div>
-            <IconChevronRight />
-          </button>
+          } />
+          {sep}
+          <SettingsRow icon={dark ? <IconMoon /> : <IconSun />} label={t("profile.appearance")} right={
+            <button onClick={toggleDark} className="relative w-10 h-6 rounded-full transition-colors" style={{ backgroundColor: dark ? "#14B885" : "var(--bt-border)" }} aria-label={t("profile.appearance")}>
+              <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: dark ? "translateX(18px)" : "translateX(2px)" }} />
+            </button>
+          } />
+        </div>
+
+        {/* ══ AIDE & À PROPOS ══════════════════════════════════ */}
+        <div className="card overflow-hidden">
+          <div className="px-5 pt-4 pb-1"><SectionLabel>{t("profile.helpSection")}</SectionLabel></div>
+          {/* → mene a une autre page (fleche droite) */}
+          <SettingsRow accent icon={<IconFeedback />} href="/feedback"
+            label={t("feedback.improveTitle")} description={t("feedback.improveDesc")}
+            right={<IconChevronRight />} />
+          {sep}
+          {/* ▾ se deplie sur place (accordeon) */}
+          <SettingsRow icon={<IconSmartphone />} label={t("pwa.profileSection")}
+            onClick={() => setShowPwa(s => !s)} right={<IconChevronDown open={showPwa} />} />
+          {showPwa && (
+            <div className="px-5 pb-4 pt-1 space-y-3">
+              <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("pwa.profileDesc")}</p>
+              <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                <span className="shrink-0 mt-0.5" style={{ color: "#D97706" }}><IconAlert /></span>
+                <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("pwa.safariNote")}</p>
+              </div>
+              <ol className="space-y-2">
+                {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
+                    <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {sep}
+          <SettingsRow icon={<IconInfo />} label={t("profile.about")}
+            onClick={() => setShowAbout(s => !s)} right={<IconChevronDown open={showAbout} />} />
+          {showAbout && (
+            <div className="px-5 pb-4 pt-1 space-y-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+              <p><span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>blocus·tracker</span>{" "}{t("profile.aboutCreatedBy")}{" "}<span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>Mathias Dock</span>{", "}{t("profile.aboutRole")}</p>
+              <p>{t("profile.aboutDesc")}</p>
+            </div>
+          )}
+        </div>
+
+        {/* ══ ADMIN (si admin — navigations) ═══════════════════ */}
+        {profile?.is_admin && (
+          <div className="card overflow-hidden">
+            <div className="px-5 pt-4 pb-1"><SectionLabel>{t("nav.admin")}</SectionLabel></div>
+            <SettingsRow accent icon={<IconShield color="var(--bt-accent-dark)" />} href="/admin"
+              label={t("profile.adminDashboard")} right={<IconChevronRight />} />
+            {sep}
+            <SettingsRow accent icon={<IconFeedback />} href="/feedback"
+              label={t("profile.suggestionInbox")} right={<IconChevronRight />} />
+          </div>
+        )}
+
+        {/* ══ SESSION (deconnexion + suppression — actions destructives isolees) ══ */}
+        <div className="card overflow-hidden">
+          <SettingsRow icon={<IconLogOut />} label={t("profile.signOut")} onClick={signOut} />
           {sep}
           {!deleteConfirm ? (
-            <button onClick={() => setDeleteConfirm(true)} className="w-full flex items-center justify-between px-5 py-3.5 pb-4 transition-colors text-left"
-              onMouseEnter={e => e.currentTarget.style.backgroundColor = "#FEF2F2"}
-              onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-              <div className="flex items-center gap-3">
-                <IconBox color="#DC2626" bg="#FEF2F2"><IconTrash /></IconBox>
-                <span className="text-sm font-medium" style={{ color: "#DC2626" }}>{t("profile.deleteAccount")}</span>
-              </div>
-              <IconChevronRight />
-            </button>
+            <SettingsRow danger icon={<IconTrash />} label={t("profile.deleteAccount")}
+              onClick={() => setDeleteConfirm(true)} />
           ) : (
             <div className="px-5 py-4 space-y-3">
               <p className="text-sm font-medium text-center" style={{ color: "#DC2626" }}>{t("profile.deleteWarning")}</p>

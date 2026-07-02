@@ -57,8 +57,13 @@ export default function PushNotificationsCard() {
 
   return (
     <div className="card p-5">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-base">🔔</span>
+      <div className="flex items-center gap-3 mb-1">
+        <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </span>
         <h3 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
           {t("push.title")}
         </h3>
@@ -70,14 +75,20 @@ export default function PushNotificationsCard() {
       ) : iosNeedsInstall ? (
         <div className="flex items-start gap-2 rounded-xl px-3 py-2"
           style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-          <span className="text-sm shrink-0">📲</span>
+          <span className="shrink-0 mt-0.5" style={{ color: "var(--bt-text-2)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 6v6M9 9l3 3 3-3"/>
+            </svg>
+          </span>
           <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("push.iosHint")}</p>
         </div>
       ) : !env.supported ? (
         <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("push.unsupported")}</p>
       ) : permission === "granted" ? (
         <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-accent-bg)" }}>
-          <span className="text-sm">✅</span>
+          <span className="shrink-0" style={{ color: "var(--bt-accent-dark)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
           <p className="text-xs font-medium" style={{ color: "var(--bt-accent-dark)" }}>{t("push.enabled")}</p>
         </div>
       ) : permission === "denied" ? (

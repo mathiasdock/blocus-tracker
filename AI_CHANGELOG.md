@@ -2,6 +2,39 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Refonte complete de l'onglet Profil
+
+Reorganisation totale de `pages/profile.js` (skill ui-ux-pro-max). Problemes corriges : cartes desorganisees, modeles d'interaction melanges (accordeon vs navigation de facon imprevisible), emojis "AI generated", redondances.
+
+### Interaction unifiee — 3 affordances distinctes et coherentes
+Nouveau composant `SettingsRow` partage. Chaque rangee exprime clairement ce qui va se passer :
+- chevron bas (`IconChevronDown`) = se deplie sur place (accordeon)
+- fleche droite (`IconChevronRight`) = mene a une autre page
+- controle inline (segmented / toggle) = s'ajuste sur place
+C'est le fix du "mal trie" : l'affordance annonce le comportement.
+
+### Nouvelle architecture d'information (de haut en bas)
+1. **Entete** (ink) + rail de 3 stats-cles (Niveau / Serie / Total) — chiffres surfaces immediatement, plus besoin de deplier "Mon activite" pour les voir.
+2. **Progression** (carte XP) — rangee de 3 stats redondante supprimee (deja dans le rail de l'entete).
+3. **Activite** — passee d'accordeon a **toujours visible** (c'est du contenu, pas un reglage) ; ne montre plus que les 2 stats distinctes du rail (30 jours + Record) + heatmap.
+4. **Compte** — "Mes informations" + "Email" regroupes dans UNE carte, accordeons coherents.
+5. **Notifications** (PushNotificationsCard).
+6. **Parrainage** (ReferralCard) — descendu (promotionnel, pas identitaire).
+7. **Preferences** — Langue + Apparence, controles en place uniquement.
+8. **Aide & a propos** — Ameliorer l'app (nav), Installer l'app (accordeon), A propos (accordeon).
+9. **Admin** (si admin) — carte dediee, navigations.
+10. **Session** — Se deconnecter + Supprimer mon compte, **carte isolee** (action destructive separee, rouge).
+
+### Dé-emojification complete
+- `pages/profile.js` : drapeaux `🇫🇷🇬🇧` du selecteur de langue -> segmented "FR"/"EN" propre ; `🔒` (warning verrouille + BadgeSheet) -> `IconLock` SVG ; `✓` (badge obtenu) -> SVG check.
+- `components/PushNotificationsCard.jsx` : `🔔` -> cloche SVG en chip accent, `📲` -> SVG telephone, `✅` -> SVG check.
+
+### Nettoyage
+Composants/vars devenus inutilises supprimes : `PrefRow`, `stats`, `activitySummary`, state `showActivity`, icones `IconGift`/`IconBell` non retenues. Warning "verrouille" et hover destructif rendus dark-safe (rgba au lieu de hex figes). Nouvelle cle i18n `profile.helpSection` (FR+EN).
+
+### Verification
+`npm run build` OK (20/20) + navigateur (mode offline dev) : profil complet parcouru en **light ET dark**, mobile 375px. Rail de stats OK, accordeon "Mes informations" se deplie avec le formulaire intact, selecteur FR/EN sans drapeaux, zone destructive isolee, zero emoji. profile.js : 995 -> 937 lignes.
+
 ## 2026-07-02 - Planning : unification des formulaires d'objectif
 
 Refactor a iso-comportement : les 4 blocs de champs quasi-identiques (titre / cours / minutes / heure / recurrence) qui existaient sont remplaces par un seul composant `ObjectiveForm` controle.
