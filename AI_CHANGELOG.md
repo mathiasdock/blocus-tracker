@@ -62,6 +62,14 @@ Changements effectues :
 ## Important pour Claude/Codex
 
 - Toujours lire `AI_CHANGELOG.md` avant de modifier le projet.
+- Vert officiel Blocus Tracker :
+  - vert principal : `#14B885` ;
+  - variable CSS : `var(--bt-accent)` ;
+  - Tailwind : `accent` / `text-accent` / `bg-accent` ;
+  - vert fonce : `#0E8F68` ou `var(--bt-accent-dark)` ;
+  - fond vert clair : `#EAFBF4` ou `var(--bt-accent-bg)` ;
+  - bordure vert clair : `#C6EED9` ou `var(--bt-accent-border)`.
+- Quand on ajoute du vert dans l'interface, utiliser en priorite les variables `--bt-accent`, `--bt-accent-dark`, `--bt-accent-bg` et `--bt-accent-border` plutot que d'inventer un nouveau vert.
 - Ne jamais commit `.env.local`.
 - Ne pas casser le vrai backend Supabase.
 - Le mode offline doit rester uniquement local/dev.
