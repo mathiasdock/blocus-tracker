@@ -2,6 +2,35 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Planning : 3 nouvelles fonctionnalites (paquet 🟡)
+
+Suite de l'analyse planning. Implementation des 3 fonctionnalites "valeur moyenne / effort modere" retenues.
+
+### 1. Carte "Aujourd'hui" permanente (`TodayCard`)
+
+- Nouvelle carte `.card-ink` (meme langage que le hero chrono du dashboard et la carte percentile des stats) affichee en permanence en tete de page, avant meme le calendrier — independante de la date navigee/selectionnee.
+- Contenu condense : ratio objectifs faits/total du jour, prochain examen (ou nombre d'examens si un examen tombe aujourd'hui), jusqu'a 3 objectifs du jour avec checkbox de completion inline + bouton de lancement du chrono.
+- Clic sur la carte (hors checkbox/bouton) -> ouvre `DayDetailModal` sur aujourd'hui.
+
+### 2. Recurrence par jours de semaine + date de fin
+
+- **Nouvelle migration** `supabase/migration_v23_objective_recurrence_weekdays.sql` (a executer manuellement) : ajoute `objectives.recurrence_weekdays` (integer[], jours JS getDay() 0-6) et `objectives.recurrence_until` (date). Contrainte CHECK sur les valeurs 0-6.
+- Nouveau composant partage `RecurrencePicker` (7 pastilles Lun->Dim + champ date de fin optionnel) integre dans les **3** formulaires d'objectif : `DayPanel` (ajout), `ObjectiveRow` (edition inline), `DayDetailModal` (ajout ET edition inline — cette derniere n'avait *aucun* champ recurrence avant et effacait silencieusement la recurrence existante a chaque edition, bug corrige au passage).
+- Retro-compatibilite : `weekdaysFromObjective()` derive un tableau de jours a partir de l'ancien `recurrence` ('daily'=7 jours, 'weekly'=jour de `scheduled_date`) pour les lignes existantes, donc aucune migration de donnees necessaire — l'edition d'un ancien objectif recurrent bascule naturellement vers le nouveau format des sa prochaine sauvegarde.
+- `toggle()` (marquer termine) et le badge d'affichage (`↻ Lun Mer`, ou "quotidien"/"hebdo" pour les motifs simples) utilisent la meme logique de calcul du prochain jour, qui respecte desormais la date de fin.
+
+### 3. Pont Planning -> Chrono
+
+- Bouton "lancer" (icone play) sur les objectifs du jour meme (dans `TodayCard` et `ObjectiveRow`, uniquement quand `scheduled_date === aujourd'hui` et qu'un cours est associe).
+- `launchTimer(courseId)` (nouvelle fonction de contexte) pre-remplit `TimerContext.courseId` puis navigue vers `/dashboard` — le chrono est deja pret a demarrer, plus besoin de rechoisir le cours manuellement.
+- Garde-fou : si une session est deja en cours (ou du temps non enregistre en pause) sur un **autre** cours, une confirmation est demandee avant d'ecraser (meme logique que `confirmDiscardIfWorking` deja utilisee sur le dashboard) — aucune perte de temps silencieuse.
+
+### Divers
+- 9 nouvelles cles i18n FR+EN (`plan.recurrenceUntil`, `plan.recurDaily`, `plan.recurWeekly`, `plan.launchTimer`, `plan.confirmSwitchCourse`, `plan.todayCard*`).
+- Verification : `npm run build` OK (20/20) + verification navigateur complete (mode offline dev) : creation d'un objectif avec recurrence Lun+Mer+date de fin, badge affiche correctement, formulaire se reinitialise apres ajout, lancement du chrono depuis planning confirme (cours pre-rempli sur /dashboard), tout verifie en light ET dark, desktop ET mobile 375px.
+
+**Action utilisateur requise** : executer `supabase/migration_v23_objective_recurrence_weekdays.sql` dans le Supabase SQL Editor avant que la recurrence par jours personnalises fonctionne en production (daily/weekly legacy continuent de fonctionner sans la migration).
+
 ## 2026-07-02 - Planning : paquet "quick wins" (UX + bugs)
 
 Suite a une analyse du planning (fonctionnalites/design/simplicite), implementation du paquet de gains rapides identifie.

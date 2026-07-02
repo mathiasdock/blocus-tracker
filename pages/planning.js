@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
 import { todayISO, formatMinutesShort } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
@@ -65,14 +67,91 @@ function getDayCellStyle(items, courseColor) {
   return { background: `linear-gradient(to right, ${stops.join(",")})` };
 }
 
+// ── Recurrence helpers ───────────────────────────────────────────
+// Weekdays stored as JS getDay() values (0=Dim..6=Sam), same convention
+// used everywhere else in this file (cf. TimeGrid weekday labels).
+// `recurrence_weekdays` (array) is the source of truth for new/edited
+// objectives. Legacy rows only have the old `recurrence` string
+// ('daily'|'weekly') — still honoured by nextRecurrenceDate() below so
+// existing repeating objectives keep working without a data migration.
+function weekdaysFromObjective(o) {
+  if (Array.isArray(o.recurrence_weekdays) && o.recurrence_weekdays.length) return o.recurrence_weekdays;
+  if (o.recurrence === "daily")  return [0, 1, 2, 3, 4, 5, 6];
+  if (o.recurrence === "weekly") return [dateFromYmd(o.scheduled_date).getDay()];
+  return [];
+}
+function recurrenceFields(weekdays, until) {
+  const days = Array.isArray(weekdays) ? [...new Set(weekdays)].filter(d => d >= 0 && d <= 6) : [];
+  if (!days.length) return { recurrence: null, recurrence_weekdays: null, recurrence_until: null };
+  return { recurrence: null, recurrence_weekdays: days, recurrence_until: until || null };
+}
+function nextRecurrenceDate(o) {
+  const weekdays = weekdaysFromObjective(o);
+  if (!weekdays.length) return null;
+  for (let i = 1; i <= 7; i++) {
+    const candidate = addDays(o.scheduled_date, i);
+    if (weekdays.includes(dateFromYmd(candidate).getDay())) {
+      if (o.recurrence_until && candidate > o.recurrence_until) return null;
+      return candidate;
+    }
+  }
+  return null;
+}
+
+// ── RecurrencePicker ─────────────────────────────────────────────
+// Weekday multi-select (Lun→Dim, sourced from WEEKDAYS_SHORT so labels
+// stay in sync with the rest of the file) + optional end date. Selecting
+// all 7 days = "daily", a single day = "weekly" — no separate mode
+// toggle needed, the picker itself expresses both plus anything between.
+function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate }) {
+  const { t } = usePlan();
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5, 6, 0].map(dow => {
+          const active = weekdays.includes(dow);
+          return (
+            <button key={dow} type="button" onClick={() => onToggle(dow)}
+              aria-pressed={active}
+              title={WEEKDAYS_SHORT[(dow + 6) % 7]}
+              className="w-8 h-8 rounded-full text-[11px] font-bold transition-all shrink-0"
+              style={active
+                ? { backgroundColor: "#14B885", color: "#fff" }
+                : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
+              {WEEKDAYS_SHORT[(dow + 6) % 7].slice(0, 1)}
+            </button>
+          );
+        })}
+      </div>
+      {weekdays.length > 0 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("plan.recurrenceUntil")}</span>
+          <input type="date" className="input text-xs py-1 flex-1" min={minDate}
+            value={until} onChange={e => onUntilChange(e.target.value)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── ObjectiveRow ──────────────────────────────────────────────
+function recurrenceBadgeLabel(o, t) {
+  const days = weekdaysFromObjective(o);
+  if (!days.length) return null;
+  if (days.length === 7) return t("plan.recurDaily");
+  if (days.length === 1) return t("plan.recurWeekly");
+  return days.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(d => WEEKDAYS_SHORT[(d + 6) % 7]).join(" ");
+}
+
 function ObjectiveRow({ o }) {
   const { courses, editingId, editForm, setEditForm, startEdit, saveEdit, setEditingId,
-          toggle, remove, courseColor, courseName, postpone, sessions, dragId, setDragId, t } = usePlan();
+          toggle, remove, courseColor, courseName, postpone, sessions, dragId, setDragId,
+          launchTimer, t } = usePlan();
   const [showPostpone, setShowPostpone] = useState(false);
   const [customDate, setCustomDate]     = useState("");
 
   const tomorrow = tomorrowISO();
+  const isToday  = o.scheduled_date === todayISO();
   const realSecs = o.course_id
     ? sessions
         .filter(s => s.course_id === o.course_id && s.started_at.slice(0, 10) === o.scheduled_date)
@@ -97,12 +176,12 @@ function ObjectiveRow({ o }) {
         </div>
         <input className="input text-sm" type="time" value={editForm.time}
           onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))} />
-        <select className="input text-sm" value={editForm.recurrence || ""}
-          onChange={e => setEditForm(f => ({ ...f, recurrence: e.target.value }))}>
-          <option value="">Aucune répétition</option>
-          <option value="daily">Quotidien</option>
-          <option value="weekly">Hebdomadaire</option>
-        </select>
+        <RecurrencePicker
+          weekdays={editForm.weekdays || []}
+          onToggle={dow => setEditForm(f => ({ ...f, weekdays: (f.weekdays || []).includes(dow) ? f.weekdays.filter(d => d !== dow) : [...(f.weekdays || []), dow] }))}
+          until={editForm.until || ""}
+          onUntilChange={v => setEditForm(f => ({ ...f, until: v }))}
+          minDate={o.scheduled_date} />
         <div className="flex gap-2">
           <button onClick={() => saveEdit(o.id)} className="btn-primary text-xs flex-1">Enregistrer</button>
           <button onClick={() => setEditingId(null)} className="btn-ghost text-xs flex-1">Annuler</button>
@@ -110,6 +189,8 @@ function ObjectiveRow({ o }) {
       </li>
     );
   }
+
+  const recurLabel = recurrenceBadgeLabel(o, t);
 
   return (
     <li className="rounded-xl border border-stone-100 px-3 py-2"
@@ -131,14 +212,22 @@ function ObjectiveRow({ o }) {
             )}
             {o.target_minutes > 0 && <span>{o.course_id ? " · " : ""}{o.target_minutes} min</span>}
             {o.scheduled_time && <span className="font-medium text-stone-500"> · {o.scheduled_time}</span>}
-            {o.recurrence && (
+            {recurLabel && (
               <span className="font-semibold" style={{ color: "#A8A09A" }}>
-                {" "}· ↻ {o.recurrence === "daily" ? "quotidien" : "hebdo"}
+                {" "}· ↻ {recurLabel}
               </span>
             )}
           </p>
         </div>
-        <button onClick={() => startEdit(o)} className="text-stone-300 hover:text-accent text-xs shrink-0" title="Modifier">✎</button>
+        {!o.done && isToday && o.course_id && (
+          <button onClick={() => launchTimer(o.course_id)} title={t("plan.launchTimer")}
+            className="text-stone-300 hover:text-accent shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </button>
+        )}
+        <button onClick={() => startEdit(o)} className="text-stone-300 hover:text-accent text-xs shrink-0" title={t("plan.dayEdit")}>✎</button>
         {!o.done && (
           <div className="relative shrink-0">
             <button onClick={() => setShowPostpone(p => !p)}
@@ -203,8 +292,9 @@ function ObjectiveRow({ o }) {
 // ── DayPanel ──────────────────────────────────────────────────
 function DayPanel() {
   const { selectedDate, courses, dayObjectives, title, setTitle, courseId, setCourseId,
-          minutes, setMinutes, newTime, setNewTime, recurrence, setRecurrence, addObjective,
-          addExam, removeExam, examsByDate, t } = usePlan();
+          minutes, setMinutes, newTime, setNewTime,
+          recurrenceWeekdays, setRecurrenceWeekdays, recurrenceUntil, setRecurrenceUntil,
+          addObjective, addExam, removeExam, examsByDate, t } = usePlan();
   const [showExamForm, setShowExamForm] = useState(false);
   const [examForm, setExamForm] = useState({ name: "", courseId: "", time: "", location: "" });
 
@@ -285,11 +375,12 @@ function DayPanel() {
             value={minutes} onChange={e => setMinutes(e.target.value)} />
         </div>
         <input className="input" type="time" value={newTime} onChange={e => setNewTime(e.target.value)} />
-        <select className="input" value={recurrence} onChange={e => setRecurrence(e.target.value)}>
-          <option value="">Aucune répétition</option>
-          <option value="daily">Répéter chaque jour</option>
-          <option value="weekly">Répéter chaque semaine</option>
-        </select>
+        <RecurrencePicker
+          weekdays={recurrenceWeekdays}
+          onToggle={dow => setRecurrenceWeekdays(ws => ws.includes(dow) ? ws.filter(d => d !== dow) : [...ws, dow])}
+          until={recurrenceUntil}
+          onUntilChange={setRecurrenceUntil}
+          minDate={selectedDate} />
         <button className="btn-primary w-full">{t("common.add")}</button>
       </form>
 
@@ -440,6 +531,93 @@ function RevisionChecklists() {
 }
 
 // ── UpcomingExamsStrip ────────────────────────────────────────
+// ── TodayCard ─────────────────────────────────────────────────
+// Résumé permanent de la journée en cours — toujours visible, avant le
+// calendrier, quelle que soit la date actuellement sélectionnée/naviguée.
+// Surface ink (même langage que le hero chrono du dashboard et la carte
+// percentile des stats) : c'est le "moment de marque" du planning.
+function TodayCard() {
+  const { byDate, examsByDate, exams, toggle, courseColor, courseName, launchTimer, setModalDate, lang, t } = usePlan();
+  const today = todayISO();
+  const todayObjectives = byDate[today] || [];
+  const todayExams      = examsByDate[today] || [];
+  const doneCount       = todayObjectives.filter(o => o.done).length;
+
+  const nextExam = exams
+    .filter(e => e.exam_date >= today)
+    .sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
+  const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
+
+  const locale = lang === "en" ? "en-GB" : "fr-FR";
+  const dateLabel = dateFromYmd(today).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
+
+  return (
+    <div className="card-ink px-5 py-4 mb-5 cursor-pointer" onClick={() => setModalDate(today)}>
+      <div className="flex items-center justify-between mb-3.5">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
+          {t("plan.todayCardEyebrow")}
+        </p>
+        <span className="text-xs capitalize" style={{ color: "var(--bt-ink-muted)" }}>{dateLabel}</span>
+      </div>
+
+      <div className="flex items-center gap-6 flex-wrap mb-3.5">
+        <div>
+          <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
+            {doneCount}/{todayObjectives.length}
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardObjectives")}</p>
+        </div>
+        {todayExams.length > 0 ? (
+          <div>
+            <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "#FCA5A5", letterSpacing: "-0.02em" }}>
+              {todayExams.length}
+            </p>
+            <p className="text-xs mt-1" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardExamsToday")}</p>
+          </div>
+        ) : nextExam ? (
+          <div className="min-w-0">
+            <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
+              J-{nextExamDays}
+            </p>
+            <p className="text-xs mt-1 truncate max-w-[160px]" style={{ color: "var(--bt-ink-muted)" }}>{nextExam.name}</p>
+          </div>
+        ) : null}
+      </div>
+
+      {todayObjectives.length > 0 ? (
+        <div className="space-y-1.5" onClick={e => e.stopPropagation()}>
+          {todayObjectives.slice(0, 3).map(o => (
+            <div key={o.id} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
+                className="w-3.5 h-3.5 accent-emerald-500 shrink-0" />
+              {o.course_id && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />}
+              <span className="flex-1 min-w-0 truncate" style={{ color: "var(--bt-ink-text)", opacity: o.done ? 0.5 : 1, textDecoration: o.done ? "line-through" : "none" }}>
+                {o.title || courseName(o.course_id) || "—"}
+              </span>
+              {!o.done && o.course_id && (
+                <button onClick={() => launchTimer(o.course_id)} title={t("plan.launchTimer")}
+                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+                  style={{ color: "var(--bt-ink-muted)" }}
+                  onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-ink-text)"; e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.10)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-ink-muted)"; e.currentTarget.style.backgroundColor = "transparent"; }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
+              )}
+            </div>
+          ))}
+          {todayObjectives.length > 3 && (
+            <p className="text-xs pl-6" style={{ color: "var(--bt-ink-muted)" }}>
+              +{todayObjectives.length - 3} {t("plan.todayCardMore")}
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.nothing")}</p>
+      )}
+    </div>
+  );
+}
+
 function UpcomingExamsStrip() {
   const { exams, courseColor } = usePlan();
   const today = todayISO();
@@ -553,6 +731,8 @@ function DayDetailModal() {
   const [formCourseId, setFormCourseId] = useState("");
   const [formMinutes, setFormMinutes] = useState("");
   const [formTime, setFormTime]       = useState("");
+  const [formWeekdays, setFormWeekdays] = useState([]);
+  const [formUntil, setFormUntil]     = useState("");
 
   // Inline edit state
   const [editingObjId, setEditingObjId] = useState(null);
@@ -560,7 +740,10 @@ function DayDetailModal() {
 
   function startInlineEdit(o) {
     setEditingObjId(o.id);
-    setEditForm({ title: o.title || "", courseId: o.course_id || "", minutes: o.target_minutes || "", time: o.scheduled_time || "" });
+    setEditForm({
+      title: o.title || "", courseId: o.course_id || "", minutes: o.target_minutes || "", time: o.scheduled_time || "",
+      weekdays: weekdaysFromObjective(o), until: o.recurrence_until || "",
+    });
   }
 
   async function handleInlineSave(e) {
@@ -590,9 +773,11 @@ function DayDetailModal() {
     e.preventDefault();
     const data = await addObjectiveForDate(modalDate, {
       title: formTitle, courseId: formCourseId, minutes: formMinutes, time: formTime,
+      weekdays: formWeekdays, until: formUntil,
     });
     if (data) {
       setFormTitle(""); setFormCourseId(""); setFormMinutes(""); setFormTime("");
+      setFormWeekdays([]); setFormUntil("");
       setShowAddForm(false);
     }
   }
@@ -826,6 +1011,12 @@ function DayDetailModal() {
                           </div>
                           <input className="input text-sm" type="time" value={editForm.time}
                             onChange={e => setEditForm(f => ({ ...f, time: e.target.value }))} />
+                          <RecurrencePicker
+                            weekdays={editForm.weekdays || []}
+                            onToggle={dow => setEditForm(f => ({ ...f, weekdays: (f.weekdays || []).includes(dow) ? f.weekdays.filter(d => d !== dow) : [...(f.weekdays || []), dow] }))}
+                            until={editForm.until || ""}
+                            onUntilChange={v => setEditForm(f => ({ ...f, until: v }))}
+                            minDate={modalDate} />
                           <div className="flex gap-2">
                             <button type="submit" className="btn-primary flex-1 text-sm py-2">{t("common.save")}</button>
                             <button type="button" onClick={() => setEditingObjId(null)} className="btn-ghost flex-1 text-sm py-2">{t("common.cancel")}</button>
@@ -868,6 +1059,12 @@ function DayDetailModal() {
                   </div>
                   <input className="input text-sm" type="time" value={formTime}
                     onChange={e => setFormTime(e.target.value)} />
+                  <RecurrencePicker
+                    weekdays={formWeekdays}
+                    onToggle={dow => setFormWeekdays(ws => ws.includes(dow) ? ws.filter(d => d !== dow) : [...ws, dow])}
+                    until={formUntil}
+                    onUntilChange={setFormUntil}
+                    minDate={modalDate} />
                   <div className="flex gap-2">
                     <button type="submit" className="btn-primary flex-1 text-sm py-2">{t("common.add")}</button>
                     <button type="button" onClick={() => setShowAddForm(false)} className="btn-ghost flex-1 text-sm py-2">{t("common.cancel")}</button>
@@ -1128,6 +1325,11 @@ function TimeGrid({ days }) {
 export default function Planning() {
   const { user, profile, refreshProfile } = useAuth();
   const { t, lang } = useI18n();
+  const router = useRouter();
+  const {
+    courseId: timerCourseId, setCourseId: setTimerCourseId,
+    running: timerRunning, elapsed: timerElapsed, pause: pauseTimer, reset: resetTimer,
+  } = useTimer();
   const [view, setView]             = useState("month");
   const [courses, setCourses]       = useState([]);
   const [objectives, setObjectives] = useState([]);
@@ -1141,7 +1343,8 @@ export default function Planning() {
   const [courseId, setCourseId]   = useState("");
   const [minutes, setMinutes]     = useState("");
   const [newTime, setNewTime]     = useState("");
-  const [recurrence, setRecurrence] = useState("");
+  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState([]);
+  const [recurrenceUntil, setRecurrenceUntil]       = useState("");
   const [dragId, setDragId]       = useState(null);
   const [editingId, setEditingId]   = useState(null);
   const [editForm, setEditForm]     = useState({});
@@ -1201,10 +1404,10 @@ export default function Planning() {
     const { data } = await supabase.from("objectives")
       .insert({ user_id: user.id, title: title.trim(), course_id: courseId || null,
         target_minutes: Number(minutes) || 0, scheduled_date: selectedDate,
-        scheduled_time: newTime || null, recurrence: recurrence || null })
+        scheduled_time: newTime || null, ...recurrenceFields(recurrenceWeekdays, recurrenceUntil) })
       .select().single();
     if (data) setObjectives(p => [...p, data]);
-    setTitle(""); setMinutes(""); setNewTime(""); setRecurrence("");
+    setTitle(""); setMinutes(""); setNewTime(""); setRecurrenceWeekdays([]); setRecurrenceUntil("");
   }
 
   async function toggle(o) {
@@ -1212,22 +1415,42 @@ export default function Planning() {
     if (data) {
       setObjectives(p => p.map(x => x.id === o.id ? data : x));
       notifyXPChanged();
-      if (!o.done && o.recurrence) {
-        const days = o.recurrence === "daily" ? 1 : 7;
-        const nextDate = addDays(o.scheduled_date, days);
-        const alreadyExists = objectives.some(x =>
-          !x.done && x.title === o.title && x.course_id === o.course_id && x.scheduled_date === nextDate
-        );
-        if (!alreadyExists) {
-          const { data: next } = await supabase.from("objectives")
-            .insert({ user_id: user.id, title: o.title, course_id: o.course_id,
-              target_minutes: o.target_minutes, scheduled_date: nextDate,
-              scheduled_time: o.scheduled_time || null, recurrence: o.recurrence, done: false })
-            .select().single();
-          if (next) setObjectives(p => [...p, next]);
+      if (!o.done) {
+        const nextDate = nextRecurrenceDate(o);
+        if (nextDate) {
+          const alreadyExists = objectives.some(x =>
+            !x.done && x.title === o.title && x.course_id === o.course_id && x.scheduled_date === nextDate
+          );
+          if (!alreadyExists) {
+            const { data: next } = await supabase.from("objectives")
+              .insert({ user_id: user.id, title: o.title, course_id: o.course_id,
+                target_minutes: o.target_minutes, scheduled_date: nextDate,
+                scheduled_time: o.scheduled_time || null, done: false,
+                recurrence: o.recurrence || null,
+                recurrence_weekdays: o.recurrence_weekdays || null,
+                recurrence_until: o.recurrence_until || null })
+              .select().single();
+            if (next) setObjectives(p => [...p, next]);
+          }
         }
       }
     }
+  }
+
+  // Pont planning -> chrono : lance le chrono du dashboard pré-rempli avec
+  // ce cours. Si une session est deja en cours (ou du temps non enregistre
+  // en pause) sur un AUTRE cours, on confirme avant d'ecraser (meme logique
+  // que confirmDiscardIfWorking sur le dashboard : on ne perd jamais du
+  // temps silencieusement).
+  function launchTimer(cId) {
+    if (!cId) return;
+    if ((timerRunning || timerElapsed > 0) && timerCourseId !== cId) {
+      if (!window.confirm(t("plan.confirmSwitchCourse"))) return;
+      if (timerRunning) pauseTimer();
+      resetTimer();
+    }
+    setTimerCourseId(cId);
+    router.push("/dashboard");
   }
 
   async function remove(id) {
@@ -1255,12 +1478,12 @@ export default function Planning() {
     setExams(p => p.filter(x => x.id !== id));
   }
 
-  async function addObjectiveForDate(date, { title: ft, courseId: fc, minutes: fm, time: fti }) {
+  async function addObjectiveForDate(date, { title: ft, courseId: fc, minutes: fm, time: fti, weekdays: fw, until: fu }) {
     if (!ft.trim() && !fc) return null;
     const { data } = await supabase.from("objectives")
       .insert({ user_id: user.id, title: ft.trim(), course_id: fc || null,
         target_minutes: Number(fm) || 0, scheduled_date: date,
-        scheduled_time: fti || null, recurrence: null })
+        scheduled_time: fti || null, ...recurrenceFields(fw, fu) })
       .select().single();
     if (data) setObjectives(p => [...p, data]);
     return data;
@@ -1268,14 +1491,17 @@ export default function Planning() {
 
   function startEdit(o) {
     setEditingId(o.id);
-    setEditForm({ title: o.title, courseId: o.course_id || "", minutes: o.target_minutes, time: o.scheduled_time || "", recurrence: o.recurrence || "" });
+    setEditForm({
+      title: o.title, courseId: o.course_id || "", minutes: o.target_minutes, time: o.scheduled_time || "",
+      weekdays: weekdaysFromObjective(o), until: o.recurrence_until || "",
+    });
   }
 
   async function saveEdit(id) {
     const { data } = await supabase.from("objectives")
       .update({ title: editForm.title.trim(), course_id: editForm.courseId || null,
         target_minutes: Number(editForm.minutes) || 0, scheduled_time: editForm.time || null,
-        recurrence: editForm.recurrence || null })
+        ...recurrenceFields(editForm.weekdays, editForm.until) })
       .eq("id", id).select().single();
     if (data) setObjectives(p => p.map(x => x.id === id ? data : x));
     setEditingId(null);
@@ -1285,7 +1511,7 @@ export default function Planning() {
     const { data } = await supabase.from("objectives")
       .update({ title: form.title.trim(), course_id: form.courseId || null,
         target_minutes: Number(form.minutes) || 0, scheduled_time: form.time || null,
-        recurrence: form.recurrence || null })
+        ...recurrenceFields(form.weekdays, form.until) })
       .eq("id", id).select().single();
     if (data) setObjectives(p => p.map(x => x.id === id ? data : x));
   }
@@ -1329,12 +1555,13 @@ export default function Planning() {
   const ctxValue = {
     view, courses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     title, setTitle, courseId, setCourseId, minutes, setMinutes, newTime, setNewTime,
-    recurrence, setRecurrence, dragId, setDragId,
+    recurrenceWeekdays, setRecurrenceWeekdays, recurrenceUntil, setRecurrenceUntil, dragId, setDragId,
     editingId, setEditingId, editForm, setEditForm,
     dayObjectives, addObjective, toggle, remove, startEdit, saveEdit,
     courseColor, courseName, exams, sessions, postpone, addExam, removeExam,
     showObjectives, setShowObjectives,
     modalDate, setModalDate, addObjectiveForDate, saveObjEdit,
+    launchTimer,
     lang, t,
   };
 
@@ -1386,6 +1613,7 @@ export default function Planning() {
           </button>
         </div>
 
+        <TodayCard />
         <UpcomingExamsStrip />
 
         {view === "month" && (
