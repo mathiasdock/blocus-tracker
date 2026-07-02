@@ -1215,8 +1215,9 @@ function MonthView() {
 
 // ── TimeGrid ──────────────────────────────────────────────────
 function TimeGrid({ days }) {
-  const { byDate, examsByDate, selectedDate, setSelectedDate, courseColor, setNewTime, startEdit } = usePlan();
+  const { byDate, examsByDate, selectedDate, setSelectedDate, courseColor, setNewTime, startEdit, t } = usePlan();
   const today = todayISO();
+  const TODAY_TINT = "rgba(20,184,133,0.06)"; // voile accent — lisible sur light ET dark
 
   function handleSlotClick(key, h) {
     setSelectedDate(key);
@@ -1225,24 +1226,25 @@ function TimeGrid({ days }) {
 
   return (
     <div className="card overflow-hidden flex flex-col">
-      <div className="grid border-b border-stone-200 bg-white sticky top-0 z-20"
-        style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)` }}>
-        <div className="border-r border-stone-100" />
+      {/* En-tête jours — sticky */}
+      <div className="grid sticky top-0 z-20"
+        style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)`, backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)" }}>
+        <div style={{ borderRight: "1px solid var(--bt-border)" }} />
         {days.map((d, i) => {
           const key     = ymd(d);
           const isToday = key === today;
           const isSel   = key === selectedDate;
           return (
             <button key={key} onClick={() => setSelectedDate(key)}
-              className="py-2 text-center transition"
-              style={{ borderRight: "1px solid #E8E2DC", backgroundColor: isSel ? "#EAFBF4" : "" }}
-              onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = "#F7F3EF"; }}
-              onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = isSel ? "#EAFBF4" : ""; }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#A8A09A" }}>{WEEKDAYS_SHORT[(d.getDay() + 6) % 7]}</p>
-              <span className="mt-0.5 inline-flex w-7 h-7 items-center justify-center rounded-full text-sm font-semibold"
+              className="py-2 text-center transition-colors"
+              style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isSel ? "var(--bt-accent-bg)" : "transparent" }}
+              onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
+              onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = "transparent"; }}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{WEEKDAYS_SHORT[(d.getDay() + 6) % 7]}</p>
+              <span className="mt-0.5 inline-flex w-7 h-7 items-center justify-center rounded-full text-sm font-num font-bold tabular-nums"
                 style={isToday ? { backgroundColor: "#14B885", color: "#fff" }
-                  : isSel ? { backgroundColor: "#EAFBF4", color: "#0E8F68" }
-                  : { color: "#1F1A17" }}>
+                  : isSel ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }
+                  : { color: "var(--bt-text-1)" }}>
                 {d.getDate()}
               </span>
             </button>
@@ -1250,17 +1252,21 @@ function TimeGrid({ days }) {
         })}
       </div>
 
-      <div className="grid border-b border-stone-200 bg-stone-50/60 min-h-[36px]"
-        style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)` }}>
-        <div className="border-r border-stone-100 flex items-center justify-center px-1">
-          <span className="text-[10px] text-stone-400 font-medium">Tj.</span>
+      {/* Ligne "toute la journée" (objectifs sans heure + examens) */}
+      <div className="grid min-h-[36px]"
+        style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)`, backgroundColor: "var(--bt-subtle)", borderBottom: "1px solid var(--bt-border)" }}>
+        <div className="flex items-center justify-center px-1" style={{ borderRight: "1px solid var(--bt-border)" }}>
+          <span className="text-[10px] font-medium" style={{ color: "var(--bt-text-3)" }}>{t("plan.allDayShort")}</span>
         </div>
         {days.map(d => {
           const key       = ymd(d);
           const items     = (byDate[key] || []).filter(o => !o.scheduled_time);
           const examItems = examsByDate[key] || [];
           return (
-            <div key={key} className="border-r border-stone-100 p-0.5 space-y-0.5 cursor-pointer hover:bg-stone-100/50"
+            <div key={key} className="p-0.5 space-y-0.5 cursor-pointer transition-colors"
+              style={{ borderRight: "1px solid var(--bt-border)" }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = "var(--bt-border)"; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; }}
               onClick={() => handleSlotClick(key, null)}>
               {items.map(o => (
                 <div key={o.id} className="text-[11px] rounded px-1.5 py-0.5 truncate text-white font-medium"
@@ -1275,7 +1281,7 @@ function TimeGrid({ days }) {
                   style={{ backgroundColor: "#DC2626", color: "#fff" }}
                   title={e.name}
                   onClick={ev => { ev.stopPropagation(); setSelectedDate(key); }}>
-                  Examen : {e.name}
+                  {t("plan.examTag")} : {e.name}
                 </div>
               ))}
             </div>
@@ -1283,12 +1289,13 @@ function TimeGrid({ days }) {
         })}
       </div>
 
+      {/* Grille horaire */}
       <div className="overflow-y-auto" style={{ maxHeight: 520 }}>
         {HOURS.map(h => (
-          <div key={h} className="grid border-b border-stone-100"
-            style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)`, minHeight: 64 }}>
-            <div className="border-r border-stone-100 px-2 pt-1.5 shrink-0">
-              <span className="text-xs text-stone-400">{String(h).padStart(2,"0")}h</span>
+          <div key={h} className="grid"
+            style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)`, minHeight: 64, borderBottom: "1px solid var(--bt-border)" }}>
+            <div className="px-2 pt-1.5 shrink-0" style={{ borderRight: "1px solid var(--bt-border)" }}>
+              <span className="text-xs font-num tabular-nums" style={{ color: "var(--bt-text-3)" }}>{String(h).padStart(2,"0")}h</span>
             </div>
             {days.map(d => {
               const key      = ymd(d);
@@ -1296,10 +1303,10 @@ function TimeGrid({ days }) {
               const slotObjs = (byDate[key] || []).filter(o => getHour(o.scheduled_time) === h);
               return (
                 <div key={key}
-                  className="p-0.5 cursor-pointer transition"
-                  style={{ borderRight: "1px solid #E8E2DC", backgroundColor: isToday ? "#F0FBF6" : "" }}
-                  onMouseEnter={e => { if (!isToday) e.currentTarget.style.backgroundColor = "#F7F3EF"; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = isToday ? "#F0FBF6" : ""; }}
+                  className="p-0.5 cursor-pointer transition-colors"
+                  style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isToday ? TODAY_TINT : "transparent" }}
+                  onMouseEnter={e => { if (!isToday) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = isToday ? TODAY_TINT : "transparent"; }}
                   onClick={() => handleSlotClick(key, h)}>
                   {slotObjs.map(o => (
                     <div key={o.id}
@@ -1308,7 +1315,7 @@ function TimeGrid({ days }) {
                       title={o.title}
                       onClick={e => { e.stopPropagation(); setSelectedDate(key); startEdit(o); }}>
                       <span className="block truncate">{o.title}</span>
-                      <span className="opacity-80 text-[10px]">{o.target_minutes} min</span>
+                      <span className="opacity-80 text-[10px] font-num tabular-nums">{o.target_minutes} min</span>
                     </div>
                   ))}
                 </div>
@@ -1583,14 +1590,14 @@ export default function Planning() {
             <button onClick={handlePrev} className="btn-ghost px-2.5 py-1.5 text-lg leading-none">‹</button>
             <button onClick={handleNext} className="btn-ghost px-2.5 py-1.5 text-lg leading-none">›</button>
           </div>
-          <h2 className="font-display text-lg capitalize flex-1">{periodLabel()}</h2>
-          <div className="flex rounded-xl p-0.5 gap-0.5" style={{ backgroundColor: "#E8E2DC" }}>
+          <h2 className="font-display text-lg capitalize flex-1" style={{ color: "var(--bt-text-1)" }}>{periodLabel()}</h2>
+          <div className="flex rounded-xl p-0.5 gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
             {[["day",t("plan.day")],["week",t("plan.week")],["month",t("plan.month")]].map(([v, label]) => (
               <button key={v} onClick={() => setView(v)}
                 className="px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all"
                 style={view === v
-                  ? { backgroundColor: "#FFFDFB", color: "#1F1A17", boxShadow: "0 1px 4px rgba(31,26,23,0.10)" }
-                  : { color: "#7C746E" }}>
+                  ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
+                  : { color: "var(--bt-text-2)" }}>
                 {label}
               </button>
             ))}

@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Planning : modernisation TimeGrid (vue Semaine/Jour)
+
+Alignement de la grille horaire (vue Semaine et vue Jour) sur la passe design "instrument de focus". C'etait la partie la plus datee du fichier : couleurs hex en dur, aucun support dark mode, ancienne typo.
+
+- `pages/planning.js` (`TimeGrid` + toggle de vue de l'en-tete) :
+  - Tous les hex en dur (`#E8E2DC`, `#F7F3EF`, `#EAFBF4`, `#F0FBF6`, `#A8A09A`, `#1F1A17`, `bg-white`, `bg-stone-50/60`, `border-stone-*`) remplaces par les variables CSS `--bt-*` -> **dark mode fonctionne enfin** sur la grille horaire (avant : grille blanche figee en mode sombre).
+  - Colonne du jour : teinte `rgba(20,184,133,0.06)` (voile accent lisible en light ET dark) au lieu du `#F0FBF6` fige.
+  - Chiffres (numeros de jour dans l'en-tete, heures `07h`, minutes des blocs) passes en Space Grotesk tabulaire (`font-num`).
+  - Toggle Jour/Semaine/Mois de l'en-tete : hex en dur -> variables, dark-safe.
+  - i18n : 2 chaines FR en dur corrigees (`Tj.` -> `plan.allDayShort`, `Examen :` -> `plan.examTag`), FR+EN.
+- Verification : `npm run build` OK + navigateur (mode offline dev), vue Semaine en light ET dark, colonne du jour teintee, chips objectifs/examens lisibles, plus aucune fuite light-mode en dark.
+
 ## 2026-07-02 - Planning : 3 nouvelles fonctionnalites (paquet 🟡)
 
 Suite de l'analyse planning. Implementation des 3 fonctionnalites "valeur moyenne / effort modere" retenues.
