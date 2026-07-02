@@ -579,7 +579,7 @@ export default function Layout({ children }) {
         <div className="h-16 flex items-center px-5 shrink-0"
           style={{ borderBottom: "1px solid var(--bt-border)" }}>
           <Link href="/dashboard"
-            className="font-display text-xl select-none"
+            className="font-display font-bold text-xl tracking-tight select-none"
             style={{ color: "var(--bt-text-1)" }}>
             blocus<span style={{ color: "#14B885" }}>·</span>tracker
           </Link>
@@ -685,7 +685,7 @@ export default function Layout({ children }) {
         style={{ backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-border)", paddingTop: "env(safe-area-inset-top)" }}>
         <div className="h-12 flex items-center justify-between px-4">
           <Link href="/dashboard"
-            className="font-display text-lg select-none"
+            className="font-display font-bold text-lg tracking-tight select-none"
             style={{ color: "var(--bt-text-1)" }}>
             blocus<span style={{ color: "#14B885" }}>·</span>tracker
           </Link>
@@ -693,9 +693,9 @@ export default function Layout({ children }) {
             {running && router.pathname !== "/dashboard" && (
               <Link href="/dashboard"
                 className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ backgroundColor: "#14B885" }}>
+                style={{ backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 2px 8px rgba(20,184,133,0.3)" }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                <span className="tabular-nums">{formatDuration(elapsed)}</span>
+                <span className="font-num tabular-nums">{formatDuration(elapsed)}</span>
               </Link>
             )}
             {isGuest ? (
@@ -791,13 +791,15 @@ export default function Layout({ children }) {
           const badge = n.isSocial ? socialBadge : badgeFor(n.href);
           return (
             <Link key={n.href} href={n.href}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors"
-              style={{ color: active ? "#14B885" : "var(--bt-text-3)" }}>
-              <div className="relative">
+              className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"
+              style={{ color: active ? "var(--bt-accent-dark)" : "var(--bt-text-3)" }}>
+              <div className="relative rounded-full px-3.5 py-0.5 transition-all duration-200"
+                style={{ backgroundColor: active ? "var(--bt-accent-bg)" : "transparent" }}>
                 <NavIcon href={n.iconKey} size={22} />
                 {badge > 0 && <Badge count={badge} small />}
               </div>
-              <span className="text-[10px] font-medium leading-none">{t(n.key)}</span>
+              <span className="text-[10px] leading-none"
+                style={{ fontWeight: active ? 700 : 500 }}>{t(n.key)}</span>
             </Link>
           );
         })}
@@ -825,11 +827,11 @@ export default function Layout({ children }) {
       {running && router.pathname !== "/dashboard" && (
         <Link href="/dashboard"
           className="hidden lg:flex fixed bottom-6 right-6 z-40 items-center gap-2 rounded-full text-white pl-4 pr-5 py-2.5 text-sm font-semibold transition-all"
-          style={{ backgroundColor: "#14B885", boxShadow: "0 4px 16px rgba(20,184,133,0.35)" }}
-          onMouseEnter={e => e.currentTarget.style.backgroundColor = "#0E8F68"}
-          onMouseLeave={e => e.currentTarget.style.backgroundColor = "#14B885"}>
+          style={{ backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 16px rgba(20,184,133,0.35)" }}
+          onMouseEnter={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, #0FA173, #0E8F68 115%)"}
+          onMouseLeave={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, #14B885, #0E8F68 115%)"}>
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-          <span className="tabular-nums">{formatDuration(elapsed)}</span>
+          <span className="font-num tabular-nums">{formatDuration(elapsed)}</span>
         </Link>
       )}
 

@@ -5,8 +5,9 @@ export default function AuthBackground({ children, className = "min-h-screen fle
     <>
       {/* Image de fond — responsive via CSS */}
       <div className="auth-bg" style={{ position: "fixed", inset: 0, zIndex: 0 }} />
-      {/* Overlay blanc pour que le contenu reste lisible */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 1, backgroundColor: "rgba(255,255,255,0.62)" }} />
+      {/* Overlay adaptatif : blanc en light, sombre en dark — garde le
+          contenu lisible dans les deux thèmes */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 1, backgroundColor: "var(--bt-auth-overlay)" }} />
       {/* Contenu au-dessus */}
       <div style={{ position: "relative", zIndex: 2 }} className={className}>
         {children}

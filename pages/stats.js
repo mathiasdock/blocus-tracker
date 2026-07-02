@@ -40,8 +40,8 @@ function StatTile({ icon, chip, label, value, sub, subColor, spanFull }) {
           {label}
         </span>
       </div>
-      <p className="text-[20px] sm:text-[22px] font-display leading-none tabular-nums"
-        style={{ color: "var(--bt-text-1)" }}>
+      <p className="text-[20px] sm:text-[22px] font-num font-bold leading-none tabular-nums"
+        style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
         {value}
       </p>
       {sub && (
@@ -309,6 +309,7 @@ export default function Stats() {
 
   return (
     <Layout>
+      <div className="bt-stagger">
       <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("stats.title")}</h1>
       <p className="text-sm mb-4" style={{ color: "var(--bt-text-2)" }}>{t("stats.subtitle")}</p>
 
@@ -709,6 +710,7 @@ export default function Stats() {
           </div>
         )}
       </section>
+      </div>
 
       {viewUserId && (
         <UserProfileModal userId={viewUserId} onClose={() => setViewUserId(null)} />

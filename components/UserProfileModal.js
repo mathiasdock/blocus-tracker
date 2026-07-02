@@ -176,7 +176,7 @@ export default function UserProfileModal({ userId, onClose }) {
                   ].map((s, i) => (
                     <div key={i} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
                       <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
-                      <p className="text-sm font-display tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
+                      <p className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
                     </div>
                   ))}
                 </div>

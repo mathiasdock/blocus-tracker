@@ -561,7 +561,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 min-w-0">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 min-w-0 bt-stagger">
 
         {/* ══════════════════════════════════════════
             SECTION 1 — Chronomètre
@@ -574,15 +574,8 @@ export default function Dashboard() {
           }}>
 
           {/* ── Header ── */}
-          <div className="flex flex-col items-center pt-8 pb-2 px-6">
-            {/* Icône */}
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-              style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#14B885" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 3h5M12 3v2"/>
-              </svg>
-            </div>
-            <h1 className="text-[22px] text-center mb-1" style={{ color: "var(--bt-text-1)" }}>{t("dash.title")}</h1>
+          <div className="flex flex-col items-center pt-7 pb-1 px-6">
+            <h1 className="text-2xl text-center mb-1" style={{ color: "var(--bt-text-1)" }}>{t("dash.title")}</h1>
             <p className="text-sm text-center" style={{ color: "var(--bt-text-3)" }}>{t("dash.subtitle")}</p>
           </div>
 
@@ -741,8 +734,8 @@ export default function Dashboard() {
                   {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                   {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
                 </div>
-                <div className="font-display tabular-nums"
-                  style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, color: "var(--bt-text-1)" }}>
+                <div className="font-num font-bold tabular-nums"
+                  style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: "var(--bt-text-1)" }}>
                   {formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))}
                 </div>
                 <div className="mt-6 w-full max-w-[200px] mx-auto h-1.5 rounded-full overflow-hidden"
@@ -759,8 +752,8 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <div className="font-display tabular-nums transition-colors duration-300"
-                  style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, color: isPaused ? "#ef4444" : "var(--bt-text-1)" }}>
+                <div className="font-num font-bold tabular-nums transition-colors duration-300"
+                  style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: isPaused ? "#ef4444" : "var(--bt-text-1)" }}>
                   {formatDuration(elapsed)}
                 </div>
                 {isPaused && (
@@ -830,7 +823,7 @@ export default function Dashboard() {
                   <button
                     className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                     style={{
-                      backgroundColor: "#14B885",
+                      backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)",
                       color: "#fff",
                       boxShadow: "0 4px 16px rgba(20,184,133,0.30)",
                       opacity: (!courseId && !pomodoro) ? 0.45 : 1,
@@ -890,9 +883,8 @@ export default function Dashboard() {
         ══════════════════════════════════════════ */}
         <div className="space-y-5 min-w-0">
 
-          {/* ── Aujourd'hui ── */}
-          <section className="card p-5 min-w-0 overflow-hidden relative"
-            style={{ backgroundColor: "#EAFBF4", borderColor: "#C6EED9" }}>
+          {/* ── Aujourd'hui — surface ink signature ── */}
+          <section className="card-ink p-5 min-w-0 relative">
             {/* Streak badge */}
             {streak > 0 && (
               <div className="absolute top-4 right-4 flex items-center gap-1 px-2.5 py-1 rounded-full"
@@ -901,20 +893,21 @@ export default function Dashboard() {
                 <span className="text-xs font-bold" style={{ color: "#92400E" }}>{streak} {t("dash.streak")}</span>
               </div>
             )}
-            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "#14B885" }}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-accent)" }}>
               {t("dash.today")}
             </p>
-            <div className="font-display tabular-nums mb-3" style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "#0E8F68", lineHeight: 1.1 }}>
+            <div className="font-num font-bold tabular-nums mb-3"
+              style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "var(--bt-ink-text)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
               {formatMinutesShort(totalToday)}
             </div>
             <div className="mb-4">
-              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "#0E8F68", opacity: 0.75 }}>
+              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "var(--bt-ink-muted)" }}>
                 <span>{t("dash.goal")}</span>
-                <span className="font-bold">{goalPct}%</span>
+                <span className="font-bold tabular-nums">{goalPct}%</span>
               </div>
-              <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(20,184,133,0.18)" }}>
+              <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
                 <div className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${goalPct}%`, backgroundColor: "#14B885" }} />
+                  style={{ width: `${goalPct}%`, backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
               </div>
             </div>
             <ul className="space-y-2">
@@ -922,13 +915,13 @@ export default function Dashboard() {
                 <li key={c.id} className="flex items-center justify-between gap-2 text-sm overflow-hidden">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="truncate min-w-0" style={{ color: "#0E8F68" }}>{c.name}</span>
+                    <span className="truncate min-w-0" style={{ color: "var(--bt-ink-muted)" }}>{c.name}</span>
                   </span>
-                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "#0E8F68" }}>{formatMinutesShort(c.secs)}</span>
+                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-ink-text)" }}>{formatMinutesShort(c.secs)}</span>
                 </li>
               ))}
               {totalToday === 0 && (
-                <li className="text-sm" style={{ color: "#14B885", opacity: 0.7 }}>{t("dash.noSession")}</li>
+                <li className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.noSession")}</li>
               )}
             </ul>
           </section>
@@ -1101,7 +1094,12 @@ export default function Dashboard() {
       {/* Focus mode overlay */}
       {focusMode && (
         <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-500"
-          style={{ backgroundColor: (isPaused && !pomodoro) ? "#220000" : "#1F1A17", zIndex: 100 }}>
+          style={{
+            background: (isPaused && !pomodoro)
+              ? "#220000"
+              : "radial-gradient(120% 90% at 50% -20%, rgba(20,184,133,0.16), transparent 60%), var(--bt-ink)",
+            zIndex: 100,
+          }}>
 
           {pomodoro && (
             <p className="text-xs font-semibold uppercase tracking-widest mb-3"
@@ -1115,11 +1113,12 @@ export default function Dashboard() {
             {courseId ? courseName(courseId) : t("dash.noCourse")}
           </p>
 
-          <div className="font-display tabular-nums transition-colors duration-300"
+          <div className="font-num font-bold tabular-nums transition-colors duration-300"
             style={{
               fontSize: "clamp(4rem,15vw,7rem)",
               lineHeight: 1.1,
-              color: (isPaused && !pomodoro) ? "#ef4444" : "#ffffff",
+              letterSpacing: "-0.03em",
+              color: (isPaused && !pomodoro) ? "#ef4444" : "var(--bt-ink-text)",
             }}>
             {pomodoro
               ? formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))

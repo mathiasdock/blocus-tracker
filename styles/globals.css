@@ -37,6 +37,18 @@ html {
   --bt-shadow:        rgba(31,26,23,0.055);
   --bt-mobile-bg:     rgba(255,253,251,0.95);
   --bt-mobile-nav-bg: rgba(255,253,251,0.97);
+  /* Surface "ink" — vert profond de la famille accent, réservé aux moments
+     de marque (hero chrono, records). Jamais pour du contenu courant. */
+  --bt-ink:           #0B2E23;
+  --bt-ink-soft:      #114134;
+  --bt-ink-text:      #F2FBF7;
+  --bt-ink-muted:     #8FD4B8;
+  --bt-ink-border:    rgba(255,255,255,0.08);
+  --bt-scrollbar:     #D0C9C3;
+  --bt-scrollbar-h:   #B8AEA6;
+  /* Voile au-dessus de la photo des pages auth — s'assombrit en dark mode
+     pour que les textes (qui flippent) restent lisibles. */
+  --bt-auth-overlay:  rgba(255,255,255,0.62);
 }
 
 .dark {
@@ -53,6 +65,14 @@ html {
   --bt-shadow:        rgba(0,0,0,0.18);
   --bt-mobile-bg:     rgba(26,23,21,0.95);
   --bt-mobile-nav-bg: rgba(26,23,21,0.97);
+  --bt-ink:           #0A2A20;
+  --bt-ink-soft:      #0F3A2C;
+  --bt-ink-text:      #ECFAF4;
+  --bt-ink-muted:     #7FC7AB;
+  --bt-ink-border:    rgba(255,255,255,0.07);
+  --bt-scrollbar:     #3A332E;
+  --bt-scrollbar-h:   #4A4642;
+  --bt-auth-overlay:  rgba(14,12,10,0.78);
 }
 
 @layer base {
@@ -67,6 +87,23 @@ html {
   }
   h1, h2, h3 {
     @apply font-display;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* Focus clavier visible partout — ring vert accessible */
+  :focus-visible {
+    outline: 2px solid var(--bt-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .input:focus-visible,
+  .btn:focus-visible {
+    border-radius: inherit;
+  }
+
+  ::selection {
+    background-color: rgba(20, 184, 133, 0.22);
   }
 }
 
@@ -75,8 +112,33 @@ html {
   .card {
     background-color: var(--bt-surface);
     border: 1px solid var(--bt-border);
-    border-radius: 22px;
+    border-radius: 20px;
     box-shadow: 0 4px 24px var(--bt-shadow);
+  }
+
+  /* Carte interactive — lift discret au hover (desktop pointer only) */
+  @media (hover: hover) {
+    .card-lift {
+      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+    }
+    .card-lift:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px var(--bt-shadow);
+    }
+  }
+
+  /* Surface "ink" — moment de marque (hero chrono, records).
+     Voile radial accent en haut à droite + dégradé vertical profond. */
+  .card-ink {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid var(--bt-ink-border);
+    background:
+      radial-gradient(120% 100% at 88% -12%, rgba(20, 184, 133, 0.38), transparent 55%),
+      linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink) 70%);
+    color: var(--bt-ink-text);
+    box-shadow: 0 16px 44px rgba(9, 38, 29, 0.30);
   }
 
   /* ── Buttons ──────────────────────────────────────────────── */
@@ -87,7 +149,8 @@ html {
     font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.25rem;
-    transition: background-color 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
+    transition: background-color 0.14s ease, box-shadow 0.14s ease,
+                opacity 0.14s ease, transform 0.12s ease;
     cursor: pointer;
     border: none;
     white-space: nowrap;
@@ -96,16 +159,20 @@ html {
     opacity: 0.45;
     cursor: not-allowed;
   }
+  /* Feedback tactile intégré : tous les boutons répondent au press */
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 
   .btn-primary {
     @apply btn;
-    background-color: #14B885;
+    background-image: linear-gradient(165deg, #14B885, #0E8F68 115%);
     color: #fff;
-    box-shadow: 0 2px 8px rgba(20, 184, 133, 0.25);
+    box-shadow: 0 2px 10px rgba(20, 184, 133, 0.28);
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: #0E8F68;
-    box-shadow: 0 3px 12px rgba(20, 184, 133, 0.3);
+    background-image: linear-gradient(165deg, #0FA173, #0E8F68 115%);
+    box-shadow: 0 4px 14px rgba(20, 184, 133, 0.34);
   }
 
   .btn-ghost {
@@ -167,8 +234,8 @@ html {
 /* ── Scrollbars ─────────────────────────────────────────────── */
 ::-webkit-scrollbar            { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track      { background: transparent; }
-::-webkit-scrollbar-thumb      { background: #D0C9C3; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover{ background: #B8AEA6; }
+::-webkit-scrollbar-thumb      { background: var(--bt-scrollbar); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover{ background: var(--bt-scrollbar-h); }
 
 /* ── Dark mode: Tailwind utility overrides ──────────────────── */
 
@@ -289,6 +356,24 @@ html {
 }
 .bt-pop-in { animation: bt-pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
+/* Entrée de page — fade-up doux, appliqué carte par carte */
+@keyframes bt-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bt-rise { animation: bt-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+
+/* Conteneur stagger : chaque enfant direct entre avec un léger décalage */
+.bt-stagger > * { animation: bt-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.bt-stagger > *:nth-child(1)  { animation-delay: 0.02s; }
+.bt-stagger > *:nth-child(2)  { animation-delay: 0.07s; }
+.bt-stagger > *:nth-child(3)  { animation-delay: 0.12s; }
+.bt-stagger > *:nth-child(4)  { animation-delay: 0.17s; }
+.bt-stagger > *:nth-child(5)  { animation-delay: 0.22s; }
+.bt-stagger > *:nth-child(6)  { animation-delay: 0.27s; }
+.bt-stagger > *:nth-child(7)  { animation-delay: 0.32s; }
+.bt-stagger > *:nth-child(n+8){ animation-delay: 0.36s; }
+
 @keyframes bt-confetti-fall {
   0%   { transform: translateY(-12px) rotate(0deg);   opacity: 0; }
   10%  { opacity: 1; }
@@ -305,8 +390,12 @@ html {
   .bt-row-flash,
   .bt-cell-fade,
   .bt-pop-in,
-  .bt-confetti {
+  .bt-confetti,
+  .bt-rise,
+  .bt-stagger > * {
     animation: none !important;
   }
   .bt-press { transition: none !important; }
+  .btn:active:not(:disabled) { transform: none !important; }
+  .card-lift, .card-lift:hover { transform: none !important; transition: none !important; }
 }

@@ -35,7 +35,7 @@ export default function Login() {
 
   return (
     <AuthBackground>
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm bt-stagger">
         <div className="text-center mb-8">
           <h1 className="font-display text-4xl text-stone-900">
             blocus<span className="text-accent">·</span>tracker

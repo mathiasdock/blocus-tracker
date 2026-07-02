@@ -1,5 +1,14 @@
 # UI conventions — blocus-tracker
 
+## Design direction — "l'instrument de focus"
+
+L'app est un instrument de mesure du temps d'étude. Trois piliers :
+- **Bricolage Grotesque** (`font-display`) pour les titres — h1/h2/h3 l'appliquent automatiquement (700, tracking -0.02em).
+- **Space Grotesk** (`font-num` + `tabular-nums`) pour TOUT chiffre affiché en grand : chrono, stats, records, XP.
+- **Surface "ink"** (`.card-ink`, vert profond) réservée aux moments de marque : hero chrono "Aujourd'hui", records. Jamais pour du contenu courant.
+
+Les deux fontes sont chargées via Google Fonts dans `pages/_document.js`.
+
 ## Design tokens
 
 All colors live in `styles/globals.css` as CSS variables. **Never hardcode** colors except for the brand accent.
@@ -25,6 +34,21 @@ All colors live in `styles/globals.css` as CSS variables. **Never hardcode** col
 | `--bt-text-4` | quaternary / placeholders |
 | `--bt-shadow` | card shadows |
 
+### Ink surface (brand moments only)
+| Token | Use |
+|-------|-----|
+| `--bt-ink` | deep green surface bg |
+| `--bt-ink-soft` | ink gradient top |
+| `--bt-ink-text` | primary text on ink |
+| `--bt-ink-muted` | secondary text on ink |
+| `--bt-ink-border` | hairline border on ink |
+
+### Misc
+| Token | Use |
+|-------|-----|
+| `--bt-auth-overlay` | veil over auth photo (white in light, dark in dark) |
+| `--bt-scrollbar` / `--bt-scrollbar-h` | theme-aware scrollbar thumb |
+
 ### Status colors (hardcoded — used sparingly)
 - Red: `#ef4444` (delete, errors, heart ♥)
 - Amber/gold: `#FBBF24` (XP, badges)
@@ -33,11 +57,16 @@ All colors live in `styles/globals.css` as CSS variables. **Never hardcode** col
 
 | Class | Use |
 |-------|-----|
-| `card` | rounded card with surface bg + border + soft shadow |
-| `btn-primary` | green CTA button |
+| `card` | rounded card (20px) with surface bg + border + soft shadow |
+| `card-ink` | deep-green brand-moment card (radial accent veil) |
+| `card-lift` | subtle hover lift for interactive cards (desktop only) |
+| `btn-primary` | green gradient CTA button (press feedback built-in) |
 | `btn-ghost` | transparent secondary button |
 | `input` | text input with subtle bg |
 | `label` | small uppercase form label |
+| `font-num` | Space Grotesk — pair with `tabular-nums` for any displayed number |
+| `bt-rise` | fade-up entrance for a single element |
+| `bt-stagger` | parent class: direct children fade-up with staggered delays |
 
 ## Layout
 

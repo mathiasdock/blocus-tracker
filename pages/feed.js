@@ -229,7 +229,7 @@ export default function Feed() {
 
   return (
     <Layout>
-      <div style={{ maxWidth: 680, margin: "0 auto" }}>
+      <div className="bt-stagger" style={{ maxWidth: 680, margin: "0 auto" }}>
         <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("feed.title")}</h1>
         <p className="text-sm mb-6" style={{ color: "var(--bt-text-2)" }}>{t("feed.subtitle")}</p>
 

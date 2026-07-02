@@ -2,6 +2,51 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Refonte design "instrument de focus"
+
+Refonte visuelle globale pour enlever le look "AI generated" (fond creme + serif Fraunces). Le vert officiel `#14B885` est conserve partout.
+
+Direction : l'app est un instrument de mesure du temps d'etude. Typographie expressive pour les titres, chiffres tabulaires geometriques pour le chrono et les stats, surface verte profonde "ink" pour les moments de marque.
+
+Changements effectues :
+
+- Typographie (`pages/_document.js`, `tailwind.config.js`) :
+  - Fraunces (serif) remplace par **Bricolage Grotesque** (display, `font-display`, poids 500-800) ;
+  - **Space Grotesk** ajoute pour les chiffres (`font-num`, poids 500-700) : chrono, stats, records ;
+  - `h1/h2/h3` recoivent automatiquement Bricolage 700 + tracking -0.02em (via `@layer base`).
+- Nouveaux tokens (`styles/globals.css`, light + dark) :
+  - `--bt-ink`, `--bt-ink-soft`, `--bt-ink-text`, `--bt-ink-muted`, `--bt-ink-border` : surface verte profonde derivee de la famille accent (reservee aux moments de marque) ;
+  - `--bt-auth-overlay` : voile des pages auth, blanc en light / sombre en dark ;
+  - `--bt-scrollbar` / `--bt-scrollbar-h` : scrollbars adaptatives au theme.
+- Nouvelles classes composants (`styles/globals.css`) :
+  - `.card-ink` : carte hero vert profond avec voile radial accent ;
+  - `.card-lift` : lift discret au hover (desktop uniquement) ;
+  - `.bt-rise` / `.bt-stagger` : entree fade-up staggeree des cartes ;
+  - `.btn:active` : press scale(0.97) integre a tous les boutons ;
+  - `:focus-visible` : ring vert accessible global ; `::selection` teinte accent.
+  - `.card` : radius 22px -> 20px ; `.btn-primary` : degrade `#14B885 -> #0E8F68`.
+- Dashboard (`pages/dashboard.js`) :
+  - digits du chrono en Space Grotesk bold (carte, pomodoro, mode focus) ;
+  - carte "Aujourd'hui" convertie en `.card-ink` (le moment de marque) ;
+  - icone decorative du header supprimee (AI-tell), header compact ;
+  - bouton Demarrer en degrade ; mode focus plein ecran sur fond ink + halo accent ;
+  - entree staggeree de la grille.
+- Shell (`components/Layout.js`) :
+  - wordmark en Bricolage bold tracking-tight (sidebar + topbar mobile) ;
+  - bottom nav mobile : pill accent derriere l'icone active + label bold ;
+  - pilules chrono flottantes (mobile + desktop) en degrade + `font-num`.
+- Pages auth (`components/AuthBackground.js`, `pages/login.js`, `pages/signup.js`) :
+  - fix dark mode : l'overlay photo s'assombrit en dark (`--bt-auth-overlay`), les textes redeviennent lisibles ;
+  - entree staggeree du formulaire.
+- Chiffres en Space Grotesk : `pages/stats.js` (tuiles), `pages/profile.js` (2 endroits), `components/UserProfileModal.js`.
+- Entrees staggerees : `pages/stats.js`, `pages/feed.js`, `pages/profile.js`, `pages/historique.js`.
+- Toutes les animations respectent `prefers-reduced-motion` (bloc etendu).
+- `.claude/launch.json` ajoute (config preview dev server pour verification visuelle).
+- `docs/UI.md` mis a jour avec les nouveaux tokens/classes/typo.
+- Verification : `npm run build` OK (20/20 pages) + verification visuelle navigateur (mode offline dev) en light/dark, mobile 375px et desktop 1280px.
+
+Non touche volontairement : `planning.js` et `messages.js` (pages geantes, refonte incrementale a suivre — elles beneficient deja automatiquement des nouvelles fontes et des classes globales).
+
 ## 2026-07-02 - Mode offline local Supabase
 
 Ajout d'un mode offline local pour continuer a developper Blocus Tracker pendant l'indisponibilite de la database Supabase de production.

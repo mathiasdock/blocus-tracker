@@ -307,7 +307,7 @@ function ReferralCard({ t }) {
           <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>
             {t("referral.signupsCount")}
           </span>
-          <span className="text-sm font-display tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+          <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
             {count}
           </span>
         </div>
@@ -672,7 +672,7 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="max-w-lg mx-auto pb-10 space-y-4">
+      <div className="max-w-lg mx-auto pb-10 space-y-4 bt-stagger">
 
         {/* ══ HEADER ══════════════════════════════════════════ */}
         <div className="card overflow-hidden">
@@ -754,7 +754,7 @@ export default function Profile() {
                       <div key={i} className="rounded-2xl p-3 text-center"
                         style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
                         <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
-                        <p className="text-base font-display tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
+                        <p className="text-base font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
                       </div>
                     ))}
                   </div>

@@ -9,7 +9,8 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
-        display: ["Fraunces", "ui-serif", "Georgia", "serif"],
+        display: ["Bricolage Grotesque", "ui-sans-serif", "system-ui", "sans-serif"],
+        num: ["Space Grotesk", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
         accent: {
