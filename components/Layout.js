@@ -396,6 +396,47 @@ const MOBILE_5 = [
   { href: "/profile",   key: "nav.profile",  iconKey: "/profile"   },
 ];
 
+const GUEST_PUBLIC_PATHS = ["/dashboard"];
+const GUEST_NAV_MAIN = [
+  { href: "/dashboard", key: "nav.chrono" },
+  { href: "/stats",     key: "nav.stats" },
+];
+const GUEST_MOBILE = [
+  { href: "/dashboard", key: "nav.chrono",  iconKey: "/dashboard" },
+  { href: "/stats",     key: "nav.stats",   iconKey: "/stats" },
+  { href: "/profile",   key: "nav.profile", iconKey: "/profile" },
+];
+
+function GuestLockedPanel() {
+  return (
+    <div className="max-w-xl mx-auto">
+      <section className="card p-6 sm:p-8 text-center">
+        <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+          style={{ backgroundColor: "var(--bt-accent-bg)", color: "#14B885", border: "1px solid var(--bt-accent-border)" }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4" y="11" width="16" height="9" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+        </div>
+        <h1 className="text-xl sm:text-2xl mb-2" style={{ color: "var(--bt-text-1)" }}>
+          Crée un compte pour garder ta progression
+        </h1>
+        <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--bt-text-2)" }}>
+          Le chrono est disponible en mode découverte. Les statistiques, le profil, le planning et les fonctions sociales ont besoin d'un compte pour enregistrer tes données.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <Link href="/signup" className="btn-primary px-5 py-3 text-sm">
+            Créer un compte
+          </Link>
+          <Link href="/login" className="btn-ghost px-5 py-3 text-sm">
+            Se connecter
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // ── Layout ────────────────────────────────────────────────────
 
 export default function Layout({ children }) {
@@ -421,6 +462,10 @@ export default function Layout({ children }) {
   const { t, lang, setLang } = useI18n();
   const router = useRouter();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const isGuest = !user;
+  const guestLocked = isGuest && !GUEST_PUBLIC_PATHS.includes(router.pathname);
+  const mainNav = isGuest ? GUEST_NAV_MAIN : NAV_MAIN;
+  const mobileNav = isGuest ? GUEST_MOBILE : MOBILE_5;
 
   useEffect(() => {
     if (profile?.lang && (profile.lang === "fr" || profile.lang === "en") && profile.lang !== lang) {
@@ -431,6 +476,10 @@ export default function Layout({ children }) {
 
   const [userLevel, setUserLevel] = useState(null);
   useEffect(() => {
+    if (!user) {
+      setUserLevel(null);
+      return;
+    }
     function syncLevel(e) {
       const next = e?.detail?.level || localStorage.getItem("bt_level");
       setUserLevel(next ? Number(next) : null);
@@ -438,11 +487,12 @@ export default function Layout({ children }) {
     syncLevel();
     window.addEventListener("bt-level-updated", syncLevel);
     return () => window.removeEventListener("bt-level-updated", syncLevel);
-  }, []);
+  }, [user]);
 
   const isAdmin = profile?.is_admin === true;
 
   function badgeFor(href) {
+    if (isGuest) return 0;
     if (href === "/feed")        return feedCount + commentCount + reactionCount;
     if (href === "/friends")     return friendCount;
     if (href === "/communautes") return totalCommunity;
@@ -451,10 +501,6 @@ export default function Layout({ children }) {
   }
 
   const socialBadge = feedCount + commentCount + reactionCount + friendCount + totalCommunity + messageCount;
-
-  useEffect(() => {
-    if (!loading && !user) router.replace("/login");
-  }, [loading, user, router]);
 
   useEffect(() => {
     setNotificationsOpen(false);
@@ -466,7 +512,6 @@ export default function Layout({ children }) {
       {t("common.loading")}
     </div>
   );
-  if (!user) return null;
 
   function renderDesktopNavItem(n) {
     const active = router.pathname === n.href;
@@ -544,18 +589,22 @@ export default function Layout({ children }) {
         <nav className="flex-1 py-3 px-3 overflow-y-auto">
           {/* Main */}
           <div className="space-y-0.5">
-            {NAV_MAIN.map(n => renderDesktopNavItem(n))}
+            {mainNav.map(n => renderDesktopNavItem(n))}
           </div>
 
           {/* Social section */}
-          <div className="pt-4 pb-1.5 px-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider"
-              style={{ color: "var(--bt-text-4)" }}>Social</p>
-          </div>
-          <div className="space-y-0.5">
-            {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
-            {renderDesktopNotificationsItem()}
-          </div>
+          {!isGuest && (
+            <>
+              <div className="pt-4 pb-1.5 px-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider"
+                  style={{ color: "var(--bt-text-4)" }}>Social</p>
+              </div>
+              <div className="space-y-0.5">
+                {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
+                {renderDesktopNotificationsItem()}
+              </div>
+            </>
+          )}
 
           {/* Admin section */}
           {isAdmin && (
@@ -574,45 +623,58 @@ export default function Layout({ children }) {
 
         {/* Profile block */}
         <div className="shrink-0 p-3" style={{ borderTop: "1px solid var(--bt-border)" }}>
-          <Link href="/profile"
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl transition-all"
-            style={router.pathname === "/profile" ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
-            onMouseEnter={e => { if (router.pathname !== "/profile") e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-            onMouseLeave={e => { if (router.pathname !== "/profile") e.currentTarget.style.backgroundColor = ""; }}>
-            <div className="relative shrink-0">
-              <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={32} />
-              {userLevel && (
-                <span style={{
-                  position: "absolute", bottom: -3, right: -7,
-                  backgroundColor: "#14B885", color: "#fff",
-                  fontSize: 9, fontWeight: 800,
-                  borderRadius: 99, padding: "1px 5px",
-                  border: "1.5px solid var(--bt-surface)",
-                  lineHeight: 1.4, pointerEvents: "none",
-                }}>{userLevel}</span>
-              )}
+          {isGuest ? (
+            <div className="space-y-2">
+              <Link href="/signup" className="btn-primary w-full text-sm py-2.5">
+                Créer un compte
+              </Link>
+              <Link href="/login" className="btn-ghost w-full text-sm py-2.5">
+                Se connecter
+              </Link>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>
-                {displayName(profile)}
-              </p>
-              <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
-                @{profile?.pseudo}
-              </p>
-            </div>
-          </Link>
-          <button onClick={signOut}
-            className="mt-0.5 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] transition-colors text-left"
-            style={{ color: "var(--bt-text-3)" }}
-            onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-text-2)"; e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-            onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-3)"; e.currentTarget.style.backgroundColor = ""; }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            {t("nav.quit")}
-          </button>
+          ) : (
+            <>
+              <Link href="/profile"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl transition-all"
+                style={router.pathname === "/profile" ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
+                onMouseEnter={e => { if (router.pathname !== "/profile") e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
+                onMouseLeave={e => { if (router.pathname !== "/profile") e.currentTarget.style.backgroundColor = ""; }}>
+                <div className="relative shrink-0">
+                  <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={32} />
+                  {userLevel && (
+                    <span style={{
+                      position: "absolute", bottom: -3, right: -7,
+                      backgroundColor: "#14B885", color: "#fff",
+                      fontSize: 9, fontWeight: 800,
+                      borderRadius: 99, padding: "1px 5px",
+                      border: "1.5px solid var(--bt-surface)",
+                      lineHeight: 1.4, pointerEvents: "none",
+                    }}>{userLevel}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>
+                    {displayName(profile)}
+                  </p>
+                  <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
+                    @{profile?.pseudo}
+                  </p>
+                </div>
+              </Link>
+              <button onClick={signOut}
+                className="mt-0.5 w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] transition-colors text-left"
+                style={{ color: "var(--bt-text-3)" }}
+                onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-text-2)"; e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
+                onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-3)"; e.currentTarget.style.backgroundColor = ""; }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                {t("nav.quit")}
+              </button>
+            </>
+          )}
         </div>
       </aside>
 
@@ -636,35 +698,44 @@ export default function Layout({ children }) {
                 <span className="tabular-nums">{formatDuration(elapsed)}</span>
               </Link>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                refreshNotifications();
-                setNotificationsOpen((open) => !open);
-              }}
-              className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-              style={{
-                color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
-                backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-                border: "1px solid var(--bt-border)",
-              }}
-              aria-label={t("nav.notifications")}>
-              <IconBell size={18} />
-              {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} small />}
-            </button>
-            <Link href="/profile" style={{ position: "relative", display: "inline-block" }}>
-              <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={32} />
-              {userLevel && (
-                <span style={{
-                  position: "absolute", bottom: -3, right: -7,
-                  backgroundColor: "#14B885", color: "#fff",
-                  fontSize: 9, fontWeight: 800,
-                  borderRadius: 99, padding: "1px 5px",
-                  border: "1.5px solid var(--bt-surface)",
-                  lineHeight: 1.4, pointerEvents: "none",
-                }}>{userLevel}</span>
-              )}
-            </Link>
+            {isGuest ? (
+              <Link href="/login" className="text-xs font-semibold px-3 py-2 rounded-full"
+                style={{ color: "#0E8F68", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+                Login
+              </Link>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    refreshNotifications();
+                    setNotificationsOpen((open) => !open);
+                  }}
+                  className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+                  style={{
+                    color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
+                    backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
+                    border: "1px solid var(--bt-border)",
+                  }}
+                  aria-label={t("nav.notifications")}>
+                  <IconBell size={18} />
+                  {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} small />}
+                </button>
+                <Link href="/profile" style={{ position: "relative", display: "inline-block" }}>
+                  <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={32} />
+                  {userLevel && (
+                    <span style={{
+                      position: "absolute", bottom: -3, right: -7,
+                      backgroundColor: "#14B885", color: "#fff",
+                      fontSize: 9, fontWeight: 800,
+                      borderRadius: 99, padding: "1px 5px",
+                      border: "1.5px solid var(--bt-surface)",
+                      lineHeight: 1.4, pointerEvents: "none",
+                    }}>{userLevel}</span>
+                  )}
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -700,7 +771,7 @@ export default function Layout({ children }) {
         )}
 
         <main className="w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip">
-          {children}
+          {guestLocked ? <GuestLockedPanel /> : children}
         </main>
         <footer className="hidden lg:block text-center text-xs py-6"
           style={{ color: "var(--bt-text-3)" }}>
@@ -713,7 +784,7 @@ export default function Layout({ children }) {
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30"
         style={{ backgroundColor: "var(--bt-mobile-nav-bg)", borderTop: "1px solid var(--bt-border)", backdropFilter: "blur(10px)" }}>
         <div className="h-14 flex items-stretch">
-        {MOBILE_5.map(n => {
+        {mobileNav.map(n => {
           const active = n.isSocial
             ? SOCIAL_PATHS.includes(router.pathname)
             : router.pathname === n.href;
@@ -735,7 +806,7 @@ export default function Layout({ children }) {
         <div style={{ height: "env(safe-area-inset-bottom)" }} />
       </nav>
 
-      {notificationsOpen && (
+      {!isGuest && notificationsOpen && (
         <NotificationPanel
           items={notificationItems}
           t={t}
@@ -763,7 +834,7 @@ export default function Layout({ children }) {
       )}
 
       {/* ══ Toast nouveau message ════════════════════════════════ */}
-      {msgToast && router.pathname !== "/messages" && (
+      {!isGuest && msgToast && router.pathname !== "/messages" && (
         <button
           onClick={() => { clearMsgToast(); router.push("/messages"); }}
           className="fixed bottom-20 lg:bottom-6 left-4 lg:left-auto lg:right-6 z-40 flex items-center gap-3 rounded-2xl text-white pl-4 pr-5 py-3 transition-all"

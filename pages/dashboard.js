@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import Layout from "../components/Layout";
 import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
@@ -29,6 +30,56 @@ const COLORS = [
   "#7c3aed", "#d946ef", "#ec4899", "#f43f5e",
   "#ef4444", "#be123c", "#f97316", "#f59e0b",
 ];
+
+const GUEST_USER_ID = "guest-local";
+const GUEST_DASHBOARD_KEY = "bt_guest_dashboard_v1";
+
+function defaultGuestDashboardData() {
+  return {
+    courses: [
+      {
+        id: "guest-course-discovery",
+        user_id: GUEST_USER_ID,
+        name: "Session découverte",
+        color: "#14b8a6",
+        exam_date: null,
+        created_at: new Date().toISOString(),
+      },
+    ],
+    sessions: [],
+    recentSessions: [],
+    objectives: [],
+  };
+}
+
+function readGuestDashboardData() {
+  if (typeof window === "undefined") return defaultGuestDashboardData();
+  try {
+    const raw = localStorage.getItem(GUEST_DASHBOARD_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...defaultGuestDashboardData(),
+        ...parsed,
+        recentSessions: parsed.recentSessions || parsed.sessions || [],
+      };
+    }
+  } catch {}
+  const seed = defaultGuestDashboardData();
+  try { localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(seed)); } catch {}
+  return seed;
+}
+
+function writeGuestDashboardData(data) {
+  if (typeof window === "undefined") return;
+  const snapshot = {
+    courses: data.courses || [],
+    sessions: data.sessions || [],
+    recentSessions: data.recentSessions || data.sessions || [],
+    objectives: data.objectives || [],
+  };
+  try { localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(snapshot)); } catch {}
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -76,6 +127,7 @@ export default function Dashboard() {
 
   const POMO_WORK  = pomoWorkMin  * 60;
   const POMO_BREAK = pomoBreakMin * 60;
+  const isGuest = !user;
   const dashboardCachePrefix = user ? `dashboard:${user.id}:` : "";
 
   const applyDashboardData = useCallback((data) => {
@@ -93,7 +145,10 @@ export default function Dashboard() {
   }, [dashboardCachePrefix]);
 
   const loadChecklistCounts = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setChecklistCounts({});
+      return;
+    }
     const { data } = await supabase
       .from("course_checklist_items")
       .select("course_id, is_done")
@@ -110,7 +165,10 @@ export default function Dashboard() {
   useEffect(() => { loadChecklistCounts(); }, [loadChecklistCounts]);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      applyDashboardData(readGuestDashboardData());
+      return;
+    }
     const cacheKey = `${dashboardCachePrefix}${todayISO()}`;
     const cached = getClientCache(cacheKey);
     if (cached) {
@@ -157,6 +215,7 @@ export default function Dashboard() {
   }, [applyDashboardData, dashboardCachePrefix, user]);
 
   async function toggleObjective(o) {
+    if (isGuest) return;
     const { data } = await supabase
       .from("objectives")
       .update({ done: !o.done })
@@ -195,27 +254,39 @@ export default function Dashboard() {
       //    si l'auto-stop pomodoro tombe pendant un creux réseau.
       const payload = {
         id: newClientId(),
-        user_id: user.id,
+        user_id: user?.id || GUEST_USER_ID,
         course_id: courseId || null,
         duration_seconds: secs,
         note: note || null,
         started_at: startedAt,
         ended_at: endedAt,
       };
-      enqueueSession(payload);
 
       pause();
       reset();
 
-      // 2) Tentative d'envoi : la queue se vide d'elle-même via flushPending
-      //    (idempotent, dédupe via PK sur 23505).
-      flushPending(supabase, user.id).then((res) => {
-        if (res.synced + res.alreadyExists > 0) {
-          clearDashboardCache();
-          notifyXPChanged();
-          load();
-        }
-      });
+      if (isGuest) {
+        const nextSessions = [payload, ...sessions];
+        const snapshot = {
+          courses,
+          sessions: nextSessions,
+          recentSessions: nextSessions,
+          objectives: todayObjectives,
+        };
+        writeGuestDashboardData(snapshot);
+        setSessions(nextSessions);
+      } else {
+        enqueueSession(payload);
+        // 2) Tentative d'envoi : la queue se vide d'elle-même via flushPending
+        //    (idempotent, dédupe via PK sur 23505).
+        flushPending(supabase, user.id).then((res) => {
+          if (res.synced + res.alreadyExists > 0) {
+            clearDashboardCache();
+            notifyXPChanged();
+            load();
+          }
+        });
+      }
 
       setPomoPhase("break");
       setPomoCount(c => c + 1);
@@ -247,19 +318,45 @@ export default function Dashboard() {
     //    focus / online / mount du dashboard (via PendingSessionsBanner).
     const payload = {
       id: newClientId(),
-      user_id: user.id,
+      user_id: user?.id || GUEST_USER_ID,
       course_id: courseId || null,
       duration_seconds: seconds,
       note: note || null,
       started_at: startedAt,
       ended_at: endedAt,
     };
-    enqueueSession(payload);
 
     // 2) Reset UI : le travail est capturé dans la queue, l'utilisateur voit
     //    le timer revenir à 0. Pas de risque de re-cliquer "stop" sur le même
     //    elapsed (id idempotent via PK).
     reset();
+
+    if (isGuest) {
+      savingRef.current = false;
+      const currentTotal = sessions.reduce((a, s) => a + s.duration_seconds, 0);
+      const newGoalPct = Math.min(100, Math.round(((currentTotal + seconds) / DAILY_GOAL_SECS) * 100));
+      const xpGained = Math.floor(seconds / 60);
+      const nextSessions = [payload, ...sessions];
+      writeGuestDashboardData({
+        courses,
+        sessions: nextSessions,
+        recentSessions: nextSessions,
+        objectives: todayObjectives,
+      });
+      setSessions(nextSessions);
+      setSaveStatus("success");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+      setCompletionToast({ durationSecs: seconds, goalPct: newGoalPct, xpGained });
+      setToastVisible(false);
+      setTimeout(() => setToastVisible(true), 50);
+      setTimeout(() => {
+        setToastVisible(false);
+        setTimeout(() => setCompletionToast(null), 350);
+      }, 4000);
+      return;
+    }
+
+    enqueueSession(payload);
 
     // 3) Tentative d'envoi (id explicite → idempotence parfaite via PK sessions).
     const { data: inserted, error } = await supabase
@@ -311,12 +408,24 @@ export default function Dashboard() {
 
   async function updateExamDate(courseId, examDate) {
     clearDashboardCache();
+    if (isGuest) {
+      const nextCourses = courses.map(c => c.id === courseId ? { ...c, exam_date: examDate || null } : c);
+      setCourses(nextCourses);
+      writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions: sessions, objectives: todayObjectives });
+      return;
+    }
     await supabase.from("courses").update({ exam_date: examDate || null }).eq("id", courseId);
     setCourses(prev => prev.map(c => c.id === courseId ? { ...c, exam_date: examDate || null } : c));
   }
 
   async function deleteSession(id) {
     clearDashboardCache();
+    if (isGuest) {
+      const nextSessions = sessions.filter(s => s.id !== id);
+      setSessions(nextSessions);
+      writeGuestDashboardData({ courses, sessions: nextSessions, recentSessions: nextSessions, objectives: todayObjectives });
+      return;
+    }
     await supabase.from("sessions").delete().eq("id", id);
     setSessions(prev => prev.filter(s => s.id !== id));
   }
@@ -327,6 +436,16 @@ export default function Dashboard() {
     if (isNaN(newMins) || newMins < 1 || newMins > maxMins) return;
     const newSecs = newMins * 60;
     clearDashboardCache();
+    if (isGuest) {
+      const nextSessions = sessions.map(s => s.id === session.id
+        ? { ...s, duration_seconds: newSecs, course_id: editCourseId || null }
+        : s
+      );
+      setSessions(nextSessions);
+      writeGuestDashboardData({ courses, sessions: nextSessions, recentSessions: nextSessions, objectives: todayObjectives });
+      setEditingSessionId(null);
+      return;
+    }
     await supabase.from("sessions").update({
       duration_seconds: newSecs,
       course_id: editCourseId || null,
@@ -342,6 +461,22 @@ export default function Dashboard() {
     e.preventDefault();
     const name = newCourse.trim();
     if (!name) return;
+    if (isGuest) {
+      const data = {
+        id: newClientId(),
+        user_id: GUEST_USER_ID,
+        name,
+        color: newColor,
+        exam_date: null,
+        created_at: new Date().toISOString(),
+      };
+      const nextCourses = [...courses, data];
+      setNewCourse("");
+      setCourses(nextCourses);
+      setCourseId(data.id);
+      writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions: sessions, objectives: todayObjectives });
+      return;
+    }
     const { data } = await supabase
       .from("courses")
       .insert({ user_id: user.id, name, color: newColor })
@@ -357,6 +492,15 @@ export default function Dashboard() {
 
   async function deleteCourse(id) {
     clearDashboardCache();
+    if (isGuest) {
+      const nextCourses = courses.filter((c) => c.id !== id);
+      const nextSessions = sessions.map((s) => s.course_id === id ? { ...s, course_id: null } : s);
+      setCourses(nextCourses);
+      setSessions(nextSessions);
+      writeGuestDashboardData({ courses: nextCourses, sessions: nextSessions, recentSessions: nextSessions, objectives: todayObjectives });
+      if (courseId === id) setCourseId(nextCourses[0]?.id || "");
+      return;
+    }
     await supabase.from("courses").delete().eq("id", id);
     setCourses((prev) => prev.filter((c) => c.id !== id));
     if (courseId === id) setCourseId("");
@@ -387,6 +531,7 @@ export default function Dashboard() {
   // Quand la queue se vide en arrière-plan, on rafraîchit la liste pour que
   // les sessions précédemment "queued" apparaissent enfin sur le dashboard.
   function handlePendingSynced() {
+    if (isGuest) return;
     clearDashboardCache();
     load();
     notifyXPChanged();
@@ -394,10 +539,26 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <PendingSessionsBanner onSynced={handlePendingSynced} />
+      {!isGuest && <PendingSessionsBanner onSynced={handlePendingSynced} />}
       {/* Backdrop pour fermer le menu cours */}
       {showCourseMenu && (
         <div className="fixed inset-0 z-10" onClick={() => setShowCourseMenu(false)} />
+      )}
+
+      {isGuest && (
+        <section className="mb-5 rounded-2xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "#0E8F68" }}>Mode découverte</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-2)" }}>
+              Tu peux tester le chrono ici. Pour synchroniser tes sessions, tes stats et ton profil, crée un compte.
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Link href="/signup" className="btn-primary text-xs px-3 py-2">Créer un compte</Link>
+            <Link href="/login" className="btn-ghost text-xs px-3 py-2">Login</Link>
+          </div>
+        </section>
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 min-w-0">

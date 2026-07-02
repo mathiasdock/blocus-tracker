@@ -30,6 +30,35 @@ Changements effectues :
   - `/admin`.
 - Verification : `npm run build` OK.
 
+## 2026-07-02 - Mode invite public
+
+Ajout d'un mode invite pour que la premiere visite arrive directement sur le chrono au lieu d'une page login obligatoire.
+
+Changements effectues :
+
+- `/` redirige maintenant vers `/dashboard` pour tous les visiteurs.
+- `Layout` n'oblige plus les visiteurs non connectes a aller vers `/login`.
+- Le dashboard/chrono est visible sans compte.
+- Les visiteurs peuvent tester le chrono avec des donnees locales `localStorage`.
+- Les pages necessitant un compte affichent un panneau verrouille avec CTA login/signup :
+  - stats ;
+  - profil ;
+  - planning ;
+  - social ;
+  - admin et autres pages internes.
+- Le mode invite ne sauvegarde rien dans Supabase.
+- Le mode invite n'appelle pas les mutations Supabase du dashboard.
+- Le faux backend offline n'auto-connecte plus Mathias au chargement :
+  - en mode offline dev, il faut passer par `/login` ;
+  - n'importe quel identifiant local connecte le profil seedé Mathias admin.
+- `AuthContext.signIn` bypass `/api/login` en mode offline dev pour eviter d'attendre Supabase prod.
+- Verification navigateur :
+  - invite : `/dashboard` visible ;
+  - invite : `/stats` verrouille ;
+  - invite : `/profile` verrouille ;
+  - offline login : dashboard complet ;
+  - offline login : `/admin` accessible.
+
 ## Important pour Claude/Codex
 
 - Toujours lire `AI_CHANGELOG.md` avant de modifier le projet.

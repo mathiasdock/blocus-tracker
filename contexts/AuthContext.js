@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { supabase, pseudoToEmail } from "../lib/supabaseClient";
+import { supabase, pseudoToEmail, isOfflineDev } from "../lib/supabaseClient";
 
 const AuthContext = createContext(null);
 
@@ -139,6 +139,15 @@ export function AuthProvider({ children }) {
   // ---------------------------------------------------------------
   const signIn = useCallback(async (loginId, password) => {
     const clean = (loginId || "").trim();
+
+    if (isOfflineDev) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: clean.includes("@") ? clean.toLowerCase() : pseudoToEmail(clean || "mathias"),
+        password,
+      });
+      if (error) return { error: "LOGIN_INVALID_CREDENTIALS" };
+      return { error: null };
+    }
 
     // Cas 1 : email fourni → signin direct
     if (clean.includes("@")) {
