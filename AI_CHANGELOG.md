@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Refonte design (passe 2 : stats + profil + feed)
+
+Suite de la refonte "instrument de focus". Cible : enlever les derniers tells "AI generated" signales (emojis podium, cartes profil mal organisees).
+
+- `pages/stats.js` :
+  - Emojis medailles supprimes partout (podium + 2 leaderboards). Nouveau composant `RankBadge` : #1 en accent plein, top 3 en tint accent, reste en numero discret (Space Grotesk).
+  - Carte "percentile" : les "decorative blobs" + degrade triple-stop (tell IA) remplaces par la surface `.card-ink`, chiffre en Space Grotesk. Copie i18n inchangee.
+  - Temps des classements/podium en `font-num`.
+- `pages/profile.js` :
+  - Header : banniere degrade mint generique remplacee par une banniere ink (vert profond + halo accent) qui s'enchaine avec la carte XP. Avatar agrandi (82px) + ring/ombre.
+  - Section "Mon activite" ouverte par defaut (heatmap + stats visibles au lieu d'etre repliees).
+- `pages/dashboard.js` : badge streak sur la carte ink : `🔥` amber (jurait sur le vert) remplace par flamme SVG ambre sur pastille translucide.
+- `pages/feed.js` : formulaire de post rendu dark-safe (bordure dashed + toggles visibilite utilisaient des hex codes en dur -> variables) ; bouton photo : emoji trombone remplace par icone (camera / check).
+- Verification : `npm run build` OK + navigateur (mode offline dev) light/dark, mobile 375px.
+
+Reste (passe 3 a venir) : friends, communautes, groupes, historique — polish incremental.
+
 ## 2026-07-02 - Refonte design "instrument de focus"
 
 Refonte visuelle globale pour enlever le look "AI generated" (fond creme + serif Fraunces). Le vert officiel `#14B885` est conserve partout.

@@ -426,7 +426,7 @@ export default function Profile() {
   const [earnedBadgeIds, setEarnedBadgeIds] = useState([]);
   const [profileSessions, setProfileSessions] = useState([]);
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
-  const [showActivity, setShowActivity] = useState(false);
+  const [showActivity, setShowActivity] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -676,11 +676,11 @@ export default function Profile() {
 
         {/* ══ HEADER ══════════════════════════════════════════ */}
         <div className="card overflow-hidden">
-          <div className="h-[72px]" style={{ background: "linear-gradient(135deg, var(--bt-accent-bg) 0%, var(--bt-accent-border) 60%, var(--bt-accent-bg) 100%)" }} />
-          <div className="flex flex-col items-center px-6 pb-6" style={{ marginTop: -36 }}>
+          <div className="h-24" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }} />
+          <div className="flex flex-col items-center px-6 pb-6" style={{ marginTop: -44 }}>
             <div className="relative">
-              <div style={{ borderRadius: "50%", padding: 3, backgroundColor: "var(--bt-surface)" }}>
-                <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={76} />
+              <div style={{ borderRadius: "50%", padding: 3, backgroundColor: "var(--bt-surface)", boxShadow: "0 6px 20px var(--bt-shadow)" }}>
+                <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={82} />
               </div>
               <button onClick={() => avatarInputRef.current?.click()} disabled={busy}
                 title={t("profile.changePhoto")}

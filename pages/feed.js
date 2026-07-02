@@ -267,9 +267,14 @@ export default function Feed() {
             </div>
 
             <button type="button" onClick={() => fileInputRef.current?.click()}
-              className="block w-full rounded-2xl text-sm font-medium text-center py-3 transition-colors"
-              style={{ border: "2px dashed #E8E2DC", color: "var(--bt-text-2)", backgroundColor: file ? "var(--bt-accent-bg)" : "var(--bt-subtle)" }}>
-              {file ? `📎 ${file.name}` : t("feed.choosePhoto")}
+              className="w-full rounded-2xl text-sm font-medium py-3 px-4 transition-colors flex items-center justify-center gap-2"
+              style={{ border: "2px dashed var(--bt-border)", color: file ? "var(--bt-accent-dark)" : "var(--bt-text-2)", backgroundColor: file ? "var(--bt-accent-bg)" : "var(--bt-subtle)", borderColor: file ? "var(--bt-accent-border)" : "var(--bt-border)" }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                {file
+                  ? <><path d="M20 6 9 17l-5-5"/></>
+                  : <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></>}
+              </svg>
+              <span className="truncate">{file ? file.name : t("feed.choosePhoto")}</span>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -295,8 +300,8 @@ export default function Feed() {
                   onClick={() => setVisibility(opt.val)}
                   className="flex-1 text-xs py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-1.5"
                   style={visibility === opt.val
-                    ? { backgroundColor: "#EAFBF4", color: "#0E8F68", border: "1px solid #C6EED9" }
-                    : { backgroundColor: "#F7F3EF", color: "var(--bt-text-2)", border: "1px solid #E8E2DC" }}>
+                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
+                    : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
                   {opt.icon}{opt.label}
                 </button>
               ))}

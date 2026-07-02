@@ -24,6 +24,22 @@ function weekLabel(dates, lang) {
   return `${start.toLocaleDateString(locale, opts)} – ${end.toLocaleDateString(locale, opts)}`;
 }
 
+// Pastille de rang — remplace les emojis médailles. #1 en accent plein,
+// top 3 en tint accent, le reste en numéro discret. Chiffres en Space Grotesk.
+function RankBadge({ rank }) {
+  const style = rank === 1
+    ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 2px 6px rgba(20,184,133,0.30)" }
+    : rank <= 3
+    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
+    : { color: "var(--bt-text-3)" };
+  return (
+    <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-num font-bold text-xs tabular-nums"
+      style={style}>
+      {rank}
+    </span>
+  );
+}
+
 // Mini-carte de stat partagée — fond vert pastel très léger + bordure verte
 // subtile (dark-safe via var(--bt-accent-border)) + chip d'icône coloré.
 function StatTile({ icon, chip, label, value, sub, subColor, spanFull }) {
@@ -299,7 +315,6 @@ export default function Stats() {
       }),
   ].sort((a, b) => b.secs - a.secs);
 
-  const medal = ["🥇", "🥈", "🥉"];
   const hasFriends = acceptedIds.length > 0;
 
   // ── Percentile ────────────────────────────────────────────────
@@ -444,20 +459,12 @@ export default function Stats() {
         <StudyHeatmap sessions={sessions} />
       </div>
 
-      {/* ── Percentile ─────────────────────────────────────────── */}
-      <div className="mb-4 relative overflow-hidden rounded-2xl px-5 py-4"
-        style={{
-          background: "linear-gradient(135deg, #0A7A5A 0%, #14B885 60%, #20D998 100%)",
-          boxShadow: "0 6px 24px rgba(20,184,133,0.30)",
-        }}>
-        {/* Decorative blobs */}
-        <div style={{ position: "absolute", right: -16, top: -24, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.10)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", right: 55, bottom: -36, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
-        <div className="flex items-center gap-4 relative">
-          {/* Trophy */}
-          <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.20)" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {/* ── Percentile — moment de marque (surface ink) ────────── */}
+      <div className="card-ink px-5 py-4 mb-4">
+        <div className="flex items-center gap-4">
+          <div className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.10)", border: "1px solid var(--bt-ink-border)" }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--bt-ink-text)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 9H3.5a2.5 2.5 0 0 1 0-5H6" />
               <path d="M18 9h2.5a2.5 2.5 0 0 0 0-5H18" />
               <path d="M4 22h16" />
@@ -469,20 +476,23 @@ export default function Stats() {
           <div className="flex-1 min-w-0">
             {pct !== null ? (
               <>
-                <p className="text-white font-bold leading-tight" style={{ fontSize: "clamp(0.9rem,4vw,1.05rem)" }}>
-                  {t("stats.percentilePre")}{" "}
-                  <span style={{ fontSize: "clamp(1.25rem,6vw,1.5rem)" }}>{pct}%</span>
+                <p className="leading-tight" style={{ color: "var(--bt-ink-muted)", fontSize: "0.78rem" }}>
+                  {t("stats.percentilePre")}
                 </p>
-                <p className="mt-0.5 leading-snug" style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(0.7rem,3vw,0.78rem)" }}>
+                <p className="font-num font-bold leading-none mt-0.5 tabular-nums"
+                  style={{ fontSize: "clamp(1.6rem,7vw,2.1rem)", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
+                  {pct}%
+                </p>
+                <p className="mt-1 leading-snug" style={{ color: "var(--bt-ink-muted)", fontSize: "0.75rem" }}>
                   {t("stats.percentilePost")}
                 </p>
               </>
             ) : (
               <>
-                <p className="text-white font-bold leading-tight" style={{ fontSize: "clamp(0.9rem,4vw,1.05rem)" }}>
+                <p className="font-semibold leading-tight" style={{ color: "var(--bt-ink-text)", fontSize: "0.95rem" }}>
                   {t("stats.percentileNoData")}
                 </p>
-                <p className="mt-0.5 leading-snug" style={{ color: "rgba(255,255,255,0.82)", fontSize: "clamp(0.7rem,3vw,0.78rem)" }}>
+                <p className="mt-1 leading-snug" style={{ color: "var(--bt-ink-muted)", fontSize: "0.75rem" }}>
                   {t("stats.percentileNoDataSub")}
                 </p>
               </>
@@ -530,14 +540,14 @@ export default function Stats() {
               const pct = Math.max(4, Math.round(c.minutes / max * 100));
               return (
                 <li key={i} className="flex items-center gap-3">
-                  <span className="w-6 text-center text-lg shrink-0">{["🥇", "🥈", "🥉"][i]}</span>
+                  <RankBadge rank={i + 1} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="flex items-center gap-2 min-w-0">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                         <span className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
                       </span>
-                      <span className="text-sm font-semibold tabular-nums shrink-0 ml-2" style={{ color: "#0E8F68" }}>
+                      <span className="text-sm font-num font-semibold tabular-nums shrink-0 ml-2" style={{ color: "#0E8F68" }}>
                         {formatMinutesShort(c.minutes * 60)}
                       </span>
                     </div>
@@ -646,15 +656,13 @@ export default function Stats() {
                   onClick={() => { if (!row.me) setViewUserId(row.id); }}
                   onMouseEnter={e => { if (!row.me) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                   onMouseLeave={e => { if (!row.me) e.currentTarget.style.backgroundColor = ""; }}>
-                  <span className="w-6 text-center text-sm font-bold" style={{ color: "var(--bt-text-3)" }}>
-                    {medal[i] || i + 1}
-                  </span>
+                  <RankBadge rank={i + 1} />
                   <Avatar url={row.avatar} pseudo={row.name} size={32} />
                   <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
                     {row.name}
                     {row.me && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}
                   </span>
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
+                  <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
                     {formatMinutesShort(row.secs)}
                   </span>
                 </li>
@@ -683,9 +691,7 @@ export default function Stats() {
                       onClick={() => { if (!isMe) setViewUserId(row.user_id); }}
                       onMouseEnter={e => { if (!isMe) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                       onMouseLeave={e => { if (!isMe) e.currentTarget.style.backgroundColor = ""; }}>
-                      <span className="w-6 text-center text-sm font-bold" style={{ color: "var(--bt-text-3)" }}>
-                        {medal[i] || i + 1}
-                      </span>
+                      <RankBadge rank={i + 1} />
                       <Avatar url={row.avatar_url} pseudo={name} size={32} />
                       <span className="flex-1 min-w-0 text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
                         <span className="inline-flex items-center gap-1.5 max-w-full">
@@ -696,7 +702,7 @@ export default function Stats() {
                         </span>
                         {isMe && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}
                       </span>
-                      <span className="text-sm font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
+                      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
                         {formatMinutesShort(Number(row.total_seconds))}
                       </span>
                     </li>
