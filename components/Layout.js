@@ -541,7 +541,7 @@ export default function Layout({ children }) {
     );
   }
 
-  function renderDesktopNotificationsItem() {
+  function renderDesktopNotificationsBell() {
     return (
       <button
         type="button"
@@ -549,20 +549,15 @@ export default function Layout({ children }) {
           refreshNotifications();
           setNotificationsOpen((open) => !open);
         }}
-        className="relative w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-medium transition-all text-left"
+        className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0"
         style={{
           color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
-          backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "",
+          backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
+          border: "1px solid var(--bt-border)",
         }}
-        onMouseEnter={e => { if (!notificationsOpen) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-        onMouseLeave={e => { if (!notificationsOpen) e.currentTarget.style.backgroundColor = ""; }}>
-        {notificationsOpen && (
-          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-            style={{ backgroundColor: "#14B885" }} />
-        )}
-        <span><IconBell size={18} /></span>
-        <span className="flex-1">{t("nav.notifications")}</span>
-        {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} />}
+        aria-label={t("nav.notifications")}>
+        <IconBell size={18} />
+        {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} small />}
       </button>
     );
   }
@@ -576,13 +571,14 @@ export default function Layout({ children }) {
         style={{ backgroundColor: "var(--bt-surface)", borderRight: "1px solid var(--bt-border)" }}>
 
         {/* Logo */}
-        <div className="h-16 flex items-center px-5 shrink-0"
+        <div className="h-16 flex items-center justify-between px-5 shrink-0"
           style={{ borderBottom: "1px solid var(--bt-border)" }}>
           <Link href="/dashboard"
             className="font-display font-bold text-xl tracking-tight select-none"
             style={{ color: "var(--bt-text-1)" }}>
             blocus<span style={{ color: "#14B885" }}>·</span>tracker
           </Link>
+          {!isGuest && renderDesktopNotificationsBell()}
         </div>
 
         {/* Nav items */}
@@ -601,7 +597,6 @@ export default function Layout({ children }) {
               </div>
               <div className="space-y-0.5">
                 {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
-                {renderDesktopNotificationsItem()}
               </div>
             </>
           )}

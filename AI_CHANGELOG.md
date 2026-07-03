@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Sidebar desktop : cloche de notifications deplacee dans l'en-tete
+
+Sur demande explicite (capture d'ecran annotee) : la cloche de notifications quittait sa place dans la liste de nav "Social" (melangee aux vraies pages Feed/Messages/Amis/Communautes alors qu'elle ouvre un panneau, pas une page) pour rejoindre l'en-tete a cote du logo.
+
+- `components/Layout.js` :
+  - `renderDesktopNotificationsItem()` (rangee pleine largeur dans la liste nav) renomme `renderDesktopNotificationsBell()` et transforme en bouton icone circulaire (`w-9 h-9`, meme style que la cloche du top bar mobile deja existante) — coherence entre les deux tailles d'ecran.
+  - Retire de la liste "Social" ; ajoute dans le header du logo (`justify-between`, cote droit), visible uniquement hors invite.
+  - Comportement inchange : toggle du panneau, badge de compteur non lu, position du `NotificationPanel` deja compatible (calee sur la hauteur d'en-tete).
+- Verification : `npm run build` OK (20/20) + navigateur — cloche + badge visibles a cote du logo, clic ouvre bien le panneau au bon endroit, liste "Social" ne montre plus que les vraies pages (Feed/Messages/Amis/Communautes).
+
 ## 2026-07-02 - Profil : carte XP unifiee sur le langage ink (+6,5 Mo d'images mortes supprimees)
 
 Dernier decalage d'identite de l'app : la carte XP du profil etait le seul endroit avec un fond photo + voile sombre, la ou tout le reste (hero chrono, percentile stats, TodayCard planning, mode Focus) utilise la surface ink.
