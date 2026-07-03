@@ -49,6 +49,8 @@ html {
   /* Voile au-dessus de la photo des pages auth — s'assombrit en dark mode
      pour que les textes (qui flippent) restent lisibles. */
   --bt-auth-overlay:  rgba(255,255,255,0.62);
+  /* Grain filmique — bruit alpha-only (feTurbulence), theme-neutre. */
+  --bt-noise: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.85'%20numOctaves='2'%20stitchTiles='stitch'/%3E%3CfeColorMatrix%20type='matrix'%20values='0%200%200%200%201%200%200%200%200%201%200%200%200%200%201%200%200%200%200.05%200'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .dark {
@@ -139,6 +141,25 @@ html {
       linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink) 70%);
     color: var(--bt-ink-text);
     box-shadow: 0 16px 44px rgba(9, 38, 29, 0.30);
+  }
+
+  /* Grain + vignette filmique — opt-in sur les surfaces ink qui le veulent
+     (dashboard "Aujourd'hui", stats percentile, mode Focus). Toujours en
+     ::after pointer-events:none, jamais sur un conteneur qui scrolle. */
+  .bt-grain { position: relative; isolation: isolate; }
+  .bt-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image:
+      radial-gradient(130% 140% at 50% 0%, transparent 45%, rgba(0,0,0,0.30) 100%),
+      var(--bt-noise);
+    background-size: cover, 180px 180px;
+    opacity: 0.55;
+    mix-blend-mode: overlay;
   }
 
   /* ── Buttons ──────────────────────────────────────────────── */
@@ -298,6 +319,23 @@ html {
 }
 .bt-pulse-green { animation: bt-pulse-green 2.2s ease-out infinite; }
 
+/* Dégradé ink vivant — mode Focus. Un blob radial flou dérive lentement
+   (transform uniquement, pas de repaint de background-position) derrière
+   le contenu. Ambiant, jamais distrayant : 18s, ease-in-out, amplitude faible. */
+.bt-ink-drift {
+  position: absolute;
+  inset: -25%;
+  background: radial-gradient(42% 38% at 50% 42%, rgba(20,184,133,0.24), transparent 72%);
+  filter: blur(60px);
+  animation: bt-ink-drift 18s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes bt-ink-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(4%, 3%) scale(1.08); }
+  66%      { transform: translate(-3%, -2%) scale(0.95); }
+}
+
 /* Button press — quick scale + opacity tap */
 .bt-press { transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .bt-press:active:not(:disabled) { transform: scale(0.96); }
@@ -392,7 +430,8 @@ html {
   .bt-pop-in,
   .bt-confetti,
   .bt-rise,
-  .bt-stagger > * {
+  .bt-stagger > *,
+  .bt-ink-drift {
     animation: none !important;
   }
   .bt-press { transition: none !important; }

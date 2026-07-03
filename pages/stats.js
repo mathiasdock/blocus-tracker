@@ -460,8 +460,8 @@ export default function Stats() {
       </div>
 
       {/* ── Percentile — moment de marque (surface ink) ────────── */}
-      <div className="card-ink px-5 py-4 mb-4">
-        <div className="flex items-center gap-4">
+      <div className="card-ink bt-grain px-5 py-4 mb-4">
+        <div className="relative z-10 flex items-center gap-4">
           <div className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
             style={{ background: "rgba(255,255,255,0.10)", border: "1px solid var(--bt-ink-border)" }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--bt-ink-text)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

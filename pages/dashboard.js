@@ -20,6 +20,34 @@ function daysUntilExam(dateStr) {
   return Math.floor((exam - today) / 86400000);
 }
 
+// Anneau de progression circulaire — s'affiche derrière les chiffres du
+// chrono. `pct` 0-1. viewBox fixe (200) + tailles Tailwind responsives sur
+// le conteneur : le SVG s'étire proportionnellement, le trait reste net.
+function ProgressRing({ pct, color, className = "" }) {
+  const r = 92;
+  const circumference = 2 * Math.PI * r;
+  const clamped = Math.min(1, Math.max(0, pct || 0));
+  const offset = circumference * (1 - clamped);
+  return (
+    <svg viewBox="0 0 200 200" className={`absolute inset-0 w-full h-full ${className}`}
+      style={{ transform: "rotate(-90deg)", pointerEvents: "none" }} aria-hidden="true">
+      <circle cx="100" cy="100" r={r} fill="none" stroke="rgba(20,184,133,0.16)" strokeWidth="6" />
+      <circle cx="100" cy="100" r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
+        strokeDasharray={circumference} strokeDashoffset={offset}
+        style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+    </svg>
+  );
+}
+
+// Message contextuel selon l'heure — mode Focus uniquement, discret.
+function focusGreeting(t) {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12)  return t("dash.focusGreetingMorning");
+  if (h >= 12 && h < 18) return t("dash.focusGreetingAfternoon");
+  if (h >= 18 && h < 23) return t("dash.focusGreetingEvening");
+  return t("dash.focusGreetingNight");
+}
+
 const DAILY_GOAL_SECS = 7200; // 2 hours
 const POMO_WORK_OPTIONS  = [15, 20, 25, 30, 45, 50, 60];
 const POMO_BREAK_OPTIONS = [3, 5, 10, 15];
@@ -511,6 +539,16 @@ export default function Dashboard() {
 
   const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
   const goalPct = Math.min(100, Math.round((totalToday / DAILY_GOAL_SECS) * 100));
+
+  // Anneau du chrono : en pomodoro, progression de la phase en cours ;
+  // sinon, progression réelle vers l'objectif du jour (déjà enregistré
+  // aujourd'hui + session en cours), cohérent avec goalPct ci-dessus.
+  const pomoTargetSecs = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
+  const timerRingPct = pomodoro
+    ? (pomoTargetSecs > 0 ? elapsed / pomoTargetSecs : 0)
+    : (totalToday + elapsed) / DAILY_GOAL_SECS;
+  const timerRingColor = pomodoro && pomoPhase === "break" ? "#0ea5e9" : "#14B885";
+
   const perCourse = courses.map((c) => ({
     ...c,
     secs: sessions
@@ -734,9 +772,13 @@ export default function Dashboard() {
                   {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                   {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
                 </div>
-                <div className="font-num font-bold tabular-nums"
-                  style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: "var(--bt-text-1)" }}>
-                  {formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))}
+                <div className="relative mx-auto flex items-center justify-center"
+                  style={{ width: "clamp(240px, 82vw, 320px)", height: "clamp(240px, 82vw, 320px)" }}>
+                  <ProgressRing pct={timerRingPct} color={timerRingColor} />
+                  <div className="font-num font-bold tabular-nums relative z-10"
+                    style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: "var(--bt-text-1)" }}>
+                    {formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))}
+                  </div>
                 </div>
                 <div className="mt-6 w-full max-w-[200px] mx-auto h-1.5 rounded-full overflow-hidden"
                   style={{ backgroundColor: "var(--bt-border)" }}>
@@ -752,9 +794,13 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <div className="font-num font-bold tabular-nums transition-colors duration-300"
-                  style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: isPaused ? "#ef4444" : "var(--bt-text-1)" }}>
-                  {formatDuration(elapsed)}
+                <div className="relative mx-auto flex items-center justify-center"
+                  style={{ width: "clamp(240px, 82vw, 320px)", height: "clamp(240px, 82vw, 320px)" }}>
+                  <ProgressRing pct={timerRingPct} color={timerRingColor} />
+                  <div className="font-num font-bold tabular-nums relative z-10 transition-colors duration-300"
+                    style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: isPaused ? "#ef4444" : "var(--bt-text-1)" }}>
+                    {formatDuration(elapsed)}
+                  </div>
                 </div>
                 {isPaused && (
                   <div className="text-xs font-bold uppercase tracking-[0.15em] mt-2"
@@ -884,7 +930,8 @@ export default function Dashboard() {
         <div className="space-y-5 min-w-0">
 
           {/* ── Aujourd'hui — surface ink signature ── */}
-          <section className="card-ink p-5 min-w-0 relative">
+          <section className="card-ink bt-grain p-5 min-w-0 relative">
+          <div className="relative z-10">
             {/* Streak badge */}
             {streak > 0 && (
               <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
@@ -926,6 +973,7 @@ export default function Dashboard() {
                 <li className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.noSession")}</li>
               )}
             </ul>
+          </div>
           </section>
 
           {/* ── Mes cours ── */}
@@ -1095,48 +1143,56 @@ export default function Dashboard() {
 
       {/* Focus mode overlay */}
       {focusMode && (
-        <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-500"
+        <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-500 overflow-hidden bt-grain"
           style={{
-            background: (isPaused && !pomodoro)
-              ? "#220000"
-              : "radial-gradient(120% 90% at 50% -20%, rgba(20,184,133,0.16), transparent 60%), var(--bt-ink)",
+            background: (isPaused && !pomodoro) ? "#220000" : "var(--bt-ink)",
             zIndex: 100,
           }}>
+          {/* Dégradé ink vivant — dérive lentement, coupé sur l'état "pausé" rouge */}
+          {!(isPaused && !pomodoro) && <div className="bt-ink-drift" />}
+
+          <p className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
+            {focusGreeting(t)}
+          </p>
 
           {pomodoro && (
-            <p className="text-xs font-semibold uppercase tracking-widest mb-3"
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
               style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
               {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
               {pomoCount > 0 && <span className="font-normal ml-2" style={{ color: "#555" }}>· {t("dash.cycle")} {pomoCount}</span>}
             </p>
           )}
 
-          <p className="text-sm mb-2" style={{ color: "#A8A09A" }}>
+          <p className="text-sm mb-2 relative z-10" style={{ color: "#A8A09A" }}>
             {courseId ? courseName(courseId) : t("dash.noCourse")}
           </p>
 
-          <div className="font-num font-bold tabular-nums transition-colors duration-300"
-            style={{
-              fontSize: "clamp(4rem,15vw,7rem)",
-              lineHeight: 1.1,
-              letterSpacing: "-0.03em",
-              color: (isPaused && !pomodoro) ? "#ef4444" : "var(--bt-ink-text)",
-            }}>
-            {pomodoro
-              ? formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))
-              : formatDuration(elapsed)}
+          <div className={`relative z-10 mx-auto flex items-center justify-center ${running ? "bt-pulse-green rounded-full" : ""}`}
+            style={{ width: "clamp(300px, 62vw, 460px)", height: "clamp(300px, 62vw, 460px)" }}>
+            <ProgressRing pct={timerRingPct} color={timerRingColor} />
+            <div className="font-num font-bold tabular-nums transition-colors duration-300 relative z-10"
+              style={{
+                fontSize: "clamp(4rem,15vw,7rem)",
+                lineHeight: 1.1,
+                letterSpacing: "-0.03em",
+                color: (isPaused && !pomodoro) ? "#ef4444" : "var(--bt-ink-text)",
+              }}>
+              {pomodoro
+                ? formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))
+                : formatDuration(elapsed)}
+            </div>
           </div>
 
           {/* Indicateur EN PAUSE en mode focus */}
           {isPaused && !pomodoro && (
-            <div className="mt-3 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
+            <div className="relative z-10 mt-3 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
               style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.15)", letterSpacing: "0.12em" }}>
               {t("dash.pausedStatus")}
             </div>
           )}
 
           {pomodoro && (
-            <div className="mt-6 w-full max-w-xs h-1 rounded-full" style={{ backgroundColor: "#333" }}>
+            <div className="relative z-10 mt-6 w-full max-w-xs h-1 rounded-full" style={{ backgroundColor: "#333" }}>
               <div className="h-full rounded-full transition-all duration-1000"
                 style={{
                   width: `${Math.min(100, (elapsed / (pomoPhase === "work" ? POMO_WORK : POMO_BREAK)) * 100)}%`,
@@ -1145,7 +1201,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="mt-8 flex gap-3">
+          <div className="relative z-10 mt-8 flex gap-3">
             {pomoPhase === "break" && pomodoro ? (
               <button className="btn-ghost text-white border-white/20 px-8 py-3"
                 onClick={() => { pause(); reset(); setPomoPhase("work"); pomoHandled.current = false; }}>
@@ -1177,7 +1233,7 @@ export default function Dashboard() {
           </div>
 
           <button onClick={() => setFocusMode(false)}
-            className="mt-6 flex items-center gap-2 text-sm font-medium rounded-2xl px-5 py-2.5 transition-colors"
+            className="relative z-10 mt-6 flex items-center gap-2 text-sm font-medium rounded-2xl px-5 py-2.5 transition-colors"
             style={{ color: "rgba(255,255,255,0.45)" }}
             onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.8)"}
             onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}>

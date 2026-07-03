@@ -2,6 +2,27 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Chrono : degrade ink vivant + 4 ajouts (mode Focus)
+
+Suite du brainstorm sur l'arriere-plan du Chrono. Option B retenue (degrade anime plutot que wallpaper photo) + les 4 ajouts "petits, reversibles".
+
+- `styles/globals.css` :
+  - `--bt-noise` : variable de bruit alpha-only (feTurbulence SVG en data-URI), theme-neutre.
+  - `.bt-grain` : classe opt-in (grain + vignette via `::after`, `pointer-events:none`, `mix-blend-mode: overlay`) — reutilisable sur toute surface ink.
+  - `.bt-ink-drift` + `@keyframes bt-ink-drift` : blob radial flou qui derive lentement (18s, transform uniquement — jamais `background-position`) derriere le contenu du mode Focus. Ajoute a `prefers-reduced-motion: reduce`.
+- `pages/dashboard.js` :
+  - Nouveau composant `ProgressRing` (SVG, viewBox fixe 200, `strokeDashoffset` anime) reutilise a 3 endroits : carte chrono principale (Libre + Pomodoro) et mode Focus.
+  - Calcul du pourcentage : en Pomodoro, progression de la phase en cours ; en Libre, `(totalToday + elapsed) / DAILY_GOAL_SECS` — progression reelle vers l'objectif du jour, coherent avec `goalPct` et qui avance en temps reel pendant la session en cours.
+  - Mode Focus : fond remplace par `var(--bt-ink)` + `.bt-ink-drift` (coupe automatiquement sur l'etat "pause" rouge, qui reste un flat `#220000`) + `.bt-grain`.
+  - Halo pulse (`bt-pulse-green`, deja utilise sur la carte principale) etendu au mode Focus : applique sur le conteneur circulaire de l'anneau (forme naturelle pour un box-shadow qui se propage), actif uniquement quand `running`.
+  - Message contextuel selon l'heure (`focusGreeting()`) en mode Focus : 4 tranches (matin/apres-midi/soir/nuit), discret, au-dessus du nom du cours.
+  - `.card-ink` + `.bt-grain` ajoutes sur la carte "Aujourd'hui" (tout le contenu existant enveloppe dans un `relative z-10` pour rester au-dessus du nouveau `::after`).
+- `pages/stats.js` : meme traitement `.bt-grain` sur la carte percentile (contenu deja dans un seul conteneur, juste passe en `relative z-10`).
+- i18n : 4 nouvelles cles `dash.focusGreeting*` (FR+EN).
+- Verification : `npm run build` OK (20/20) + navigateur (mode offline dev) — anneau verifie via `stroke-dashoffset` reel (50.1% pour 1h loggee/2h objectif, cross-check DOM), Libre/Pomodoro/Focus tous testes, etat pause rouge confirme sans derive/pulse, dark mode, mobile 375px, `bt-ink-drift` confirme present dans le bloc `prefers-reduced-motion`.
+
+Non fait (mis de cote lors du brainstorm, pas demande) : wallpaper photo (option A) — reste disponible comme piste future si voulu, l'anneau/pulse/grain resteraient compatibles avec une image en fond.
+
 ## 2026-07-02 - Refonte complete de l'onglet Profil
 
 Reorganisation totale de `pages/profile.js` (skill ui-ux-pro-max). Problemes corriges : cartes desorganisees, modeles d'interaction melanges (accordeon vs navigation de facon imprevisible), emojis "AI generated", redondances.
