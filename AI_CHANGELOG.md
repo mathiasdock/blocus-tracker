@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Profil : carte XP unifiee sur le langage ink (+6,5 Mo d'images mortes supprimees)
+
+Dernier decalage d'identite de l'app : la carte XP du profil etait le seul endroit avec un fond photo + voile sombre, la ou tout le reste (hero chrono, percentile stats, TodayCard planning, mode Focus) utilise la surface ink.
+
+- `pages/profile.js` (`XPProgressCard`) :
+  - Coquille photo (2 `<img>` mobile/desktop + overlay `rgba(6,28,20,0.65)`) remplacee par `.card-ink bt-grain` — meme degrade + grain que partout ailleurs.
+  - Couleurs alignees sur les tokens ink : `rgba(255,255,255,*)` -> `var(--bt-ink-text)` / `var(--bt-ink-muted)` / `var(--bt-ink-border)`.
+  - Typo alignee : numero de niveau et valeurs XP en Space Grotesk tabulaire (`font-num`), titre de niveau en Bricolage (`font-display`) ; pastille de niveau passee au degrade officiel `#14B885 -> #0E8F68` (comme btn-primary).
+  - Barre de progression, missions et grille de badges inchangees fonctionnellement.
+- `public/fond d'ecran/` **supprime entierement** (~6,5 Mo) :
+  - `format pc.png` / `format tel.png` : uniquement utilisees par la carte XP, desormais mortes.
+  - `ECran d'entrée Tel.png` / `Ecran d'entrée PC.png` : verifiees byte-identiques (`cmp`) a `bg-mobile.png` / `bg-desktop.png` (les copies racine utilisees par `.auth-bg`) — doublons morts depuis longtemps.
+  - Verifie par grep : plus aucune reference a `fond d'ecran` dans le code. Le precache PWA (sw.js auto-genere) ne les inclura plus au prochain build -> pages plus legeres a precacher.
+- Verification : `npm run build` OK (20/20) + navigateur (mode offline dev), profil en light ET dark, mobile 375px — carte XP coherente avec le reste, aucune image cassee.
+
 ## 2026-07-02 - Chrono : degrade ink vivant + 4 ajouts (mode Focus)
 
 Suite du brainstorm sur l'arriere-plan du Chrono. Option B retenue (degrade anime plutot que wallpaper photo) + les 4 ajouts "petits, reversibles".

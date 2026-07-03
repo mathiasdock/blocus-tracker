@@ -99,39 +99,29 @@ function IconBox({ color, bg, children }) {
 function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, missions, onBadgeClick, t }) {
   const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
   return (
-    <div id="xp-card" className="card overflow-hidden" style={{ position: "relative" }}>
-      {/* Background images (mobile / desktop) */}
-      <img src="/fond%20d%27ecran/format%20tel.png"
-        alt="" aria-hidden="true" loading="lazy" className="block sm:hidden"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", pointerEvents: "none" }} />
-      <img src="/fond%20d%27ecran/format%20pc.png"
-        alt="" aria-hidden="true" loading="lazy" className="hidden sm:block"
-        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", pointerEvents: "none" }} />
-      {/* Dark overlay */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(6,28,20,0.65)", pointerEvents: "none" }} />
-
-      <div style={{ position: "relative", zIndex: 10, padding: 20 }}>
+    <div id="xp-card" className="card-ink bt-grain">
+      <div className="relative z-10" style={{ padding: 20 }}>
 
         {/* Card title */}
-        <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(255,255,255,0.55)", marginBottom: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 14 }}>
           {t("xp.cardTitle")}
         </p>
 
         {/* Level badge + title */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(20,184,133,0.85)", boxShadow: "0 4px 20px rgba(20,184,133,0.50)", flexShrink: 0 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 20px rgba(20,184,133,0.50)", flexShrink: 0 }}>
             <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.70)", lineHeight: 1 }}>{t("xp.level")}</span>
-            <span style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>{current.level}</span>
+            <span className="font-num tabular-nums" style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>{current.level}</span>
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 20, fontWeight: 700, color: "#fff", lineHeight: 1.2 }}>{t(current.titleKey)}</p>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.58)", marginTop: 2 }}>{totalXP} {t("xp.xpLabel")}</p>
+            <p className="font-display" style={{ fontSize: 20, fontWeight: 700, color: "var(--bt-ink-text)", lineHeight: 1.2, letterSpacing: "-0.01em" }}>{t(current.titleKey)}</p>
+            <p className="tabular-nums" style={{ fontSize: 12, color: "var(--bt-ink-muted)", marginTop: 2 }}>{totalXP} {t("xp.xpLabel")}</p>
           </div>
         </div>
 
         {/* XP progress bar */}
         <div style={{ marginBottom: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 6 }}>
+          <div className="tabular-nums" style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--bt-ink-muted)", marginBottom: 6 }}>
             <span>{next ? `${progressXP} / ${rangeXP} XP` : t("xp.maxLevel")}</span>
             {next && <span>{t("xp.nextLevel")} : {t(next.titleKey)}</span>}
           </div>
@@ -141,8 +131,8 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
         </div>
 
         {/* Daily missions */}
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.12)", paddingTop: 14 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>
+        <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 10 }}>
             {t("xp.missions")}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -155,18 +145,18 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
                     <span style={{ width: 6, height: 6, borderRadius: "50%", display: "block", backgroundColor: "rgba(255,255,255,0.30)" }} />
                   )}
                 </span>
-                <span style={{ fontSize: 13, flex: 1, color: m.done ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.50)", textDecoration: m.done ? "line-through" : "none" }}>
+                <span style={{ fontSize: 13, flex: 1, color: m.done ? "var(--bt-ink-text)" : "var(--bt-ink-muted)", textDecoration: m.done ? "line-through" : "none" }}>
                   {t(m.key)}
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "#22E4A4" }}>+{m.xp} XP</span>
+                <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "#22E4A4" }}>+{m.xp} XP</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Badges — clickable */}
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.12)", paddingTop: 14, marginTop: 14 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>
+        <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14, marginTop: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 10 }}>
             {t("badge.title")}
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
