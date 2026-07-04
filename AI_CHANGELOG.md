@@ -2,6 +2,22 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-04 - Refonte page Stats (cartes, graphiques, podium, tendances)
+
+### `pages/stats.js`
+- **Cartes de stats (StatTile)** : fond vert uniforme `rgba(20,184,133,0.06)` -> fond neutre `var(--bt-subtle)` + `var(--bt-border)` (comme la carte activite du profil, deja neutralisee). Les puces d'icones passent de tints doux a des couleurs PLEINES (vert accent / ambre serie / bleu total) pour ressortir sur le fond neutre.
+- **Podium & classements (RankBadge)** : le 1/2/3 tout-vert -> or (#F59E0B + glow ambré) / argent (#9AA4B2) / bronze (#C2703D), le reste en numero discret. Le 1er se demarque nettement. S'applique aux 3 endroits (podium cours + leaderboard amis + leaderboard public, deja unifies sur RankBadge).
+- **Fleches de tendance** : nouveau composant `TrendChip` (fleche ▲/▼/– + %, vert/rouge/neutre). Ajoute sur la tuile "Aujourd'hui" (vs hier, `todayDeltaPct` calcule via `lastNDates(2)[0]`) et "Cette semaine" (vs semaine derniere, `weekDeltaPct` deja calcule ; l'ancien sous-texte delta est remplace par la chip + un sous-titre court `stats.vsLastWeek`).
+- **Objectif du jour** : la tuile "Aujourd'hui" a maintenant une barre de progression vers l'objectif 2h (meme logique que le dashboard, `DAILY_GOAL_SECS=7200`) + libelle "X% · Objectif 2h" (reutilise `dash.goal`).
+- Nettoyage : `todayLabel` (devenu inutilise) supprime. `stats.weekUpPct/weekDownPct/weekSamePct` deviennent orphelines (laissees, inoffensives).
+- 1 nouvelle cle i18n `stats.vsLastWeek` (FR+EN).
+
+### `components/StatsCharts.js`
+- **Heures par defaut** : `showHours` initialise a `true` (etait `false`/minutes).
+- **Ouverture des graphiques** : l'ancien affichage "au-dessus de la grille grisee-mais-toujours-presente" (qui doublait la hauteur) remplace par une VRAIE modale plein ecran (bottom-sheet mobile / centree desktop, backdrop assombri + blur, comme les autres modales de l'app). La mini-grille reste en place dessous.
+- **Dark mode** (ce composant n'y avait JAMAIS ete passe) : couleurs en dur corrigees. Habillage des graphiques (axes/grille) en gris neutre `#94908B` (car Recharts applique `tick.fill`/`stroke` comme ATTRIBUTS SVG ou var(--bt-*) ne se resout pas) ; tooltips/modale/boutons/toggle en `var(--bt-*)` (inline-style, vars OK). Bouton fermer neutralise, MiniToggle actif en vert plein.
+- Verification : `npm run build` OK (20/20) + navigateur mode offline dev, LIGHT et DARK, mobile 375px : fond neutre + icones pleines OK, podium or/argent/bronze avec 1er qui ressort, tuile Aujourd'hui avec tendance ▲33% + barre 50% objectif 2h, heures par defaut, modale graphique bottom-sheet propre en clair ET sombre (le vrai gain : le composant est enfin correct en dark).
+
 ## 2026-07-04 - Partie sociale : badge messages de groupe + de-emojification
 
 Suite de l'analyse "partie sociale" (apres la suppression de /groupes).

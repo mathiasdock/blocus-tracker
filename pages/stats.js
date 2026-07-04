@@ -24,28 +24,59 @@ function weekLabel(dates, lang) {
   return `${start.toLocaleDateString(locale, opts)} – ${end.toLocaleDateString(locale, opts)}`;
 }
 
-// Pastille de rang — remplace les emojis médailles. #1 en accent plein,
-// top 3 en tint accent, le reste en numéro discret. Chiffres en Space Grotesk.
+// Pastille de rang — podium or / argent / bronze pour bien démarquer le 1er.
+// Réservé et intentionnel (comme le rouge pour le destructif) ; le reste en
+// numéro discret. Chiffres en Space Grotesk. Dark-safe (couleurs pleines).
 function RankBadge({ rank }) {
-  const style = rank === 1
-    ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 2px 6px rgba(20,184,133,0.30)" }
-    : rank <= 3
-    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
-    : { color: "var(--bt-text-3)" };
+  const medal = rank === 1
+    ? { backgroundColor: "#F59E0B", color: "#fff", boxShadow: "0 2px 10px rgba(245,158,11,0.5)" }   // or
+    : rank === 2
+    ? { backgroundColor: "#9AA4B2", color: "#fff", boxShadow: "0 1px 5px rgba(154,164,178,0.45)" }  // argent
+    : rank === 3
+    ? { backgroundColor: "#C2703D", color: "#fff", boxShadow: "0 1px 5px rgba(194,112,61,0.45)" }   // bronze
+    : null;
+  if (!medal) {
+    return (
+      <span className="shrink-0 w-6 h-6 flex items-center justify-center font-num font-bold text-xs tabular-nums"
+        style={{ color: "var(--bt-text-3)" }}>
+        {rank}
+      </span>
+    );
+  }
   return (
     <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-num font-bold text-xs tabular-nums"
-      style={style}>
+      style={medal}>
       {rank}
     </span>
   );
 }
 
-// Mini-carte de stat partagée — fond vert pastel très léger + bordure verte
-// subtile (dark-safe via var(--bt-accent-border)) + chip d'icône coloré.
-function StatTile({ icon, chip, label, value, sub, subColor, spanFull }) {
+// Chip de tendance — flèche ▲/▼ + pourcentage. Vert en hausse, rouge en baisse,
+// neutre si stable. Direction portée par la flèche (pct affiché en absolu).
+function TrendChip({ dir, pct }) {
+  const cfg = dir === "up"
+    ? { color: "#0E8F68", bg: "rgba(20,184,133,0.14)", arrow: <polyline points="5 12 12 5 19 12" /> }
+    : dir === "down"
+    ? { color: "#DC2626", bg: "rgba(220,38,38,0.12)", arrow: <polyline points="5 12 12 19 19 12" /> }
+    : { color: "var(--bt-text-3)", bg: "var(--bt-subtle)", arrow: <line x1="5" y1="12" x2="19" y2="12" /> };
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[11px] font-bold rounded-md px-1.5 py-0.5 tabular-nums shrink-0"
+      style={{ color: cfg.color, backgroundColor: cfg.bg }}>
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        {cfg.arrow}
+      </svg>
+      {pct}%
+    </span>
+  );
+}
+
+// Mini-carte de stat partagée — fond neutre (l'accent ne reste que sur la puce
+// d'icône, pleine, pour qu'elle ressorte). Supporte une chip de tendance
+// inline et une barre de progression (ex. objectif du jour).
+function StatTile({ icon, chip, label, value, sub, subColor, spanFull, trend, progress, progressLabel }) {
   return (
     <div className={`rounded-2xl p-3.5 ${spanFull ? "col-span-2 sm:col-span-1" : ""}`}
-      style={{ backgroundColor: "rgba(20,184,133,0.06)", border: "1px solid var(--bt-accent-border)" }}>
+      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
       <div className="flex items-center gap-2 mb-3">
         <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
           style={{ backgroundColor: chip.bg, color: chip.color }}>
@@ -56,15 +87,28 @@ function StatTile({ icon, chip, label, value, sub, subColor, spanFull }) {
           {label}
         </span>
       </div>
-      <p className="text-[20px] sm:text-[22px] font-num font-bold leading-none tabular-nums"
-        style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
-        {value}
-      </p>
-      {sub && (
+      <div className="flex items-baseline gap-1.5 flex-wrap">
+        <p className="text-[20px] sm:text-[22px] font-num font-bold leading-none tabular-nums"
+          style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
+          {value}
+        </p>
+        {trend && <TrendChip dir={trend.dir} pct={trend.pct} />}
+      </div>
+      {progress != null ? (
+        <div className="mt-2.5">
+          <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${progress}%`, backgroundImage: "linear-gradient(90deg,#14B885,#2BD9A4)" }} />
+          </div>
+          {progressLabel && (
+            <p className="text-[10px] font-medium mt-1 tabular-nums truncate" style={{ color: "var(--bt-text-3)" }}>{progressLabel}</p>
+          )}
+        </div>
+      ) : sub ? (
         <p className="text-[11px] leading-tight font-medium mt-1.5 truncate" style={{ color: subColor }}>
           {sub}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -226,6 +270,24 @@ export default function Stats() {
     .filter(s => s.started_at.slice(0, 10) === todayISO())
     .reduce((a, s) => a + s.duration_seconds, 0);
 
+  // Objectif du jour (aligné sur le dashboard : 2h) + progression.
+  const DAILY_GOAL_SECS = 7200;
+  const todayGoalPct = Math.min(100, Math.round(todaySecs / DAILY_GOAL_SECS * 100));
+
+  // Tendance aujourd'hui vs hier.
+  const yesterdayISO = lastNDates(2)[0];
+  const yesterdaySecs = sessions
+    .filter(s => s.started_at.slice(0, 10) === yesterdayISO)
+    .reduce((a, s) => a + s.duration_seconds, 0);
+  const todayDeltaPct = yesterdaySecs > 0
+    ? Math.round((todaySecs - yesterdaySecs) / yesterdaySecs * 100)
+    : null;
+
+  // Convertit un delta signé (ou null) en prop de TrendChip.
+  const trendOf = (deltaPct) => deltaPct == null
+    ? undefined
+    : { dir: deltaPct > 0 ? "up" : deltaPct < 0 ? "down" : "flat", pct: Math.abs(deltaPct) };
+
   const thisWeekDates = getWeekDates(0); // always current week for stat card
   const currentWeekSecs = sessions
     .filter(s => thisWeekDates.includes(s.started_at.slice(0, 10)))
@@ -292,9 +354,6 @@ export default function Stats() {
     ? Math.round((currentWeekSecs - lastWeekSecs) / lastWeekSecs * 100)
     : null;
 
-  const todayLabel = new Date().toLocaleDateString(
-    lang === "en" ? "en-GB" : "fr-FR", { weekday: "short", day: "numeric", month: "short" });
-
   // ── #7 Course podium — top 3 over 30 days ──────────────────────
   const podium = [...byCourse30].sort((a, b) => b.minutes - a.minutes).slice(0, 3);
 
@@ -345,11 +404,12 @@ export default function Stats() {
                   <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
                 </svg>
               ),
-              chip: { bg: "rgba(20,184,133,0.14)", color: "#14B885" },
+              chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactToday"),
               value: formatMinutesShort(todaySecs),
-              sub: todayLabel,
-              subColor: "var(--bt-text-3)",
+              trend: trendOf(todayDeltaPct),
+              progress: todayGoalPct,
+              progressLabel: `${todayGoalPct}% · ${t("dash.goal")}`,
             },
             {
               icon: (
@@ -357,15 +417,12 @@ export default function Stats() {
                   <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
                 </svg>
               ),
-              chip: { bg: "rgba(20,184,133,0.14)", color: "#14B885" },
+              chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactWeek"),
               value: formatMinutesShort(currentWeekSecs),
-              sub: weekDeltaPct === null
-                ? t("stats.weekNoCompare")
-                : weekDeltaPct > 0 ? t("stats.weekUpPct").replace("{n}", String(weekDeltaPct))
-                : weekDeltaPct < 0 ? t("stats.weekDownPct").replace("{n}", String(weekDeltaPct))
-                : t("stats.weekSamePct"),
-              subColor: weekDeltaPct > 0 ? "#14B885" : weekDeltaPct < 0 ? "#DC2626" : "var(--bt-text-3)",
+              trend: trendOf(weekDeltaPct),
+              sub: weekDeltaPct === null ? t("stats.weekNoCompare") : t("stats.vsLastWeek"),
+              subColor: "var(--bt-text-3)",
             },
             {
               icon: (
@@ -373,7 +430,7 @@ export default function Stats() {
                   <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
                 </svg>
               ),
-              chip: { bg: "rgba(20,184,133,0.14)", color: "#14B885" },
+              chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactMonth"),
               value: formatMinutesShort(total30),
               sub: t("stats.subLast30"),
@@ -385,7 +442,7 @@ export default function Stats() {
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                 </svg>
               ),
-              chip: { bg: "rgba(20,184,133,0.14)", color: "#14B885" },
+              chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactAvg7d"),
               value: formatMinutesShort(avgPerDay),
               sub: t("stats.subPerDay"),
@@ -412,7 +469,7 @@ export default function Stats() {
                       <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
                     </svg>
                   ),
-                  chip: { bg: "rgba(217,119,6,0.15)", color: "#D97706" },
+                  chip: { bg: "#D97706", color: "#fff" },
                   label: t("stats.streakLabel"),
                   value: `${streak} ${t("stats.dayUnit")}`,
                   sub: t("stats.streakRecord").replace("{n}", String(bestStreak)).replace("{unit}", t("stats.dayUnit")),
@@ -424,7 +481,7 @@ export default function Stats() {
                       <circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>
                     </svg>
                   ),
-                  chip: { bg: "rgba(3,105,161,0.13)", color: "#0369a1" },
+                  chip: { bg: "#0369a1", color: "#fff" },
                   label: t("stats.allTimeLabel"),
                   value: formatMinutesShort(allTimeSecs),
                   sub: t("stats.allTimeSub"),
@@ -438,7 +495,7 @@ export default function Stats() {
                       <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
                     </svg>
                   ),
-                  chip: { bg: "rgba(20,184,133,0.14)", color: "#14B885" },
+                  chip: { bg: "#14B885", color: "#fff" },
                   label: t("stats.bestDayLabel"),
                   value: formatMinutesShort(bestDaySecs),
                   sub: bestDayLabel || t("stats.bestDaySub"),
