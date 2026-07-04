@@ -2,6 +2,35 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-02 - Partie legale du site (confidentialite, CGU, cookies, mentions)
+
+Ajout de tout le volet legal, accessible depuis le profil et le footer. Contenu redige d'apres un AUDIT REEL des pratiques de l'app (pas un template generique).
+
+### Nouveaux fichiers
+- `lib/legal.js` : contenu bilingue (FR + EN) des 4 documents, structure en sections. Constantes `LEGAL_CONTACT_EMAIL` et `LEGAL_EFFECTIVE_DATE`. En-tete du fichier = liste des points a verifier/completer par Mathias (voir plus bas).
+- `pages/legal.js` : page unique avec un selecteur d'onglets (Confidentialite / CGU / Cookies & stockage / Mentions legales), deep-linkable via `/legal?doc=cookies`. Rendu selon la langue active.
+
+### Contenu (fonde sur l'audit)
+- **Confidentialite** : responsable = Mathias Dock (projet perso etudiant) ; donnees reellement collectees (profil, sessions, cours/objectifs/examens, contenu social, XP/badges/parrainages, technique) ; finalites + bases legales ; sous-traitants reels (Supabase, Vercel, Resend, OneSignal si push active) ; conservation (photos feed = 24 h) ; droits RGPD (rectification = profil, effacement = suppression de compte in-app) ; APD Belgique.
+- **CGU** : objet, compte, usage acceptable, contenu, disponibilite "en l'etat" (projet etudiant), resiliation, responsabilite, droit belge.
+- **Cookies & stockage** : point honnete cle -> AUCUN cookie publicitaire ni traceur tiers ; uniquement localStorage fonctionnel (liste des cles reelles), cache PWA, jetons de session Supabase ; OneSignal charge seulement si notifications activees.
+- **Mentions legales** : editeur, directeur de publication, hebergement (Vercel + Supabase), propriete intellectuelle.
+
+### Integrations
+- `components/Layout.js` : `/legal` ajoute a `GUEST_PUBLIC_PATHS` (les pages legales DOIVENT etre publiques) ; lien "Legal & confidentialite" ajoute au footer desktop.
+- `pages/profile.js` : rangee "Legal & confidentialite" (nav, fleche droite) dans la carte "Aide & a propos", nouvelle icone `IconLegal`.
+- `pages/signup.js` : ligne de consentement sous le bouton ("En creant un compte, tu acceptes...") liant vers `/legal`.
+- `lib/i18n.js` : cles UI (titre, sous-titre, 4 onglets, "derniere mise a jour", libelle profil, footer, consentement signup) en FR+EN. Le contenu long-forme reste dans `lib/legal.js` (bilingue).
+- Verification : `npm run build` OK (21/21, nouvelle route `/legal`) + navigateur : page publique en invite, onglets + deep-link OK, light ET dark, rangee profil + lien footer OK.
+
+### ⚠️ A FAIRE / VERIFIER PAR MATHIAS avant de s'y fier (aussi liste en tete de lib/legal.js)
+- Adresse de contact publiee (`LEGAL_CONTACT_EMAIL` = mathias.dock.management@gmail.com actuellement).
+- Statut de l'editeur : le texte suppose une personne physique / projet perso. Si structure (asbl, entreprise) -> ajouter n° d'entreprise/TVA, adresse.
+- Regions d'hebergement exactes Supabase/Vercel + transferts hors UE.
+- Age minimum (fixe a 16 ans).
+- Date de derniere mise a jour.
+- Ce contenu est une base serieuse et honnete mais N'EST PAS un avis juridique -> faire relire.
+
 ## 2026-07-02 - Sidebar desktop : cloche de notifications deplacee dans l'en-tete
 
 Sur demande explicite (capture d'ecran annotee) : la cloche de notifications quittait sa place dans la liste de nav "Social" (melangee aux vraies pages Feed/Messages/Amis/Communautes alors qu'elle ouvre un panneau, pas une page) pour rejoindre l'en-tete a cote du logo.

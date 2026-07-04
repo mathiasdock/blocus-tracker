@@ -226,6 +226,13 @@ export default function Signup() {
           <button className="btn-primary w-full" disabled={busy || !canSubmit}>
             {busy ? t("signup.creating") : t("signup.create")}
           </button>
+
+          <p className="text-center text-xs leading-relaxed text-stone-500">
+            {t("signup.legalPre")}{" "}
+            <Link href="/legal" className="text-accent-dark font-medium hover:underline">
+              {t("signup.legalLink")}
+            </Link>.
+          </p>
         </form>
 
         <p className="text-center text-sm text-stone-800 font-medium mt-4">

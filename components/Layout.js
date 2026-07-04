@@ -396,7 +396,7 @@ const MOBILE_5 = [
   { href: "/profile",   key: "nav.profile",  iconKey: "/profile"   },
 ];
 
-const GUEST_PUBLIC_PATHS = ["/dashboard"];
+const GUEST_PUBLIC_PATHS = ["/dashboard", "/legal"];
 const GUEST_NAV_MAIN = [
   { href: "/dashboard", key: "nav.chrono" },
   { href: "/stats",     key: "nav.stats" },
@@ -768,9 +768,15 @@ export default function Layout({ children }) {
         <main className="w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip">
           {guestLocked ? <GuestLockedPanel /> : children}
         </main>
-        <footer className="hidden lg:block text-center text-xs py-6"
+        <footer className="hidden lg:flex items-center justify-center gap-3 text-xs py-6"
           style={{ color: "var(--bt-text-3)" }}>
-          {t("footer.tagline")}
+          <span>{t("footer.tagline")}</span>
+          <span aria-hidden="true">·</span>
+          <Link href="/legal" className="transition-colors hover:underline"
+            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-accent-dark)"}
+            onMouseLeave={e => e.currentTarget.style.color = ""}>
+            {t("footer.legal")}
+          </Link>
         </footer>
       </div>
 
