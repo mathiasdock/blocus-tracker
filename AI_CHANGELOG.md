@@ -2,6 +2,29 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-04 - Partie sociale : badge messages de groupe + de-emojification
+
+Suite de l'analyse "partie sociale" (apres la suppression de /groupes).
+
+### Decouverte en cours de route : le chrono de groupe n'a PAS de lacune XP
+Verifie dans `supabase/migration_v12_group_chrono.sql` : la fonction `finish_group_chrono` insere deja une vraie ligne dans `sessions` (duration_seconds, note "Chrono de groupe — {nom}") pour CHAQUE participant accepte. Le chrono de groupe compte donc deja normalement dans les minutes totales, le streak et les stats — exactement comme une session solo. Pas de rééquilibrage necessaire sur ce point ; le vrai "trou" XP se limite au chat/messagerie (chatter ne devrait probablement pas rapporter d'XP de toute facon, pour eviter le farming).
+
+### Badge de notification manquant pour les messages de groupe (corrige)
+`contexts/NotificationContext.js` ne suivait que les DM prives (`private_messages`) — les nouveaux messages dans un chat de groupe ne remontaient nulle part (ni badge nav, ni panneau de notifications).
+- Nouveau `groupCount` (dict par groupe) + `totalGroups`, calcules dans `poll()` avec le meme pattern de lecture groupee deja utilise pour les communautes (derniere-vue en localStorage, cle `group_<uuid>` — aucun risque de collision avec les slugs de communaute).
+- Nouvelle fonction `markGroupSeen(groupId)`, appelee depuis `pages/messages.js` a l'ouverture d'un groupe.
+- `components/Layout.js` : le badge `/messages` et le total social incluent desormais `totalGroups`.
+- `pages/messages.js` : badge non-lu par groupe dans la liste laterale (meme style que le badge non-lu par ami en DM).
+
+### De-emojification (messages.js, communautes.js, feed.js)
+- `chronoStatusChip` (statuts participant du chrono de groupe) : suffixes texte `✓`/`✗`/`⌛` remplaces par des icones SVG (check / croix / horloge).
+- Trombone `📎` (4 occurrences messages.js, 2 communautes.js) remplace par un composant local `IconPaperclip` reutilisable.
+- `title="Joindre"` / `"Joindre un fichier"` en dur -> cle i18n `common.attach` (FR+EN).
+- Alertes d'upload en dur (`"Échec upload : "`, `"Erreur upload : "`, `"Échec de l'envoi du fichier : "`) unifiees sous une seule cle `common.uploadFailed`, appliquee aussi a `feed.js` qui avait la meme chaine en dur (`"Échec de l'upload : "`) — meme classe de bug, meme correction.
+- Fallback `pseudo: "Utilisateur"` (messages.js + communautes.js) -> cle `common.unknownUser`.
+- 3 nouvelles cles i18n FR+EN : `common.attach`, `common.uploadFailed`, `common.unknownUser`.
+- Verification : `npm run build` OK (20/20) + navigateur (mode offline dev) : nav "Messages" badge=1 sans NaN/doublon apres l'ajout de `totalGroups`, icone trombone rendue correctement dans le composeur, aucune erreur console. Les icones de statut chrono (✓/✗/⌛→SVG) n'ont pas pu etre testees visuellement en mock offline (necessite plusieurs participants), verifiees par lecture de code + build reussi.
+
 ## 2026-07-04 - Suppression de la page fantome /groupes (analyse "partie sociale")
 
 Suite a une analyse complete des 5 pages sociales (feed, messages, amis, communautes, groupes). Premiere action retenue : nettoyer `/groupes`.

@@ -13,11 +13,14 @@ const NotificationContext = createContext({
   communityCount: {},
   totalCommunity: 0,
   messageCount: 0,
+  groupCount: {},
+  totalGroups: 0,
   notificationItems: [],
   notificationUnreadCount: 0,
   msgToast: false,
   clearMsgToast: () => {},
   markSeen: () => {},
+  markGroupSeen: () => {},
   refreshNotifications: () => {},
   acceptFriendRequest: () => {},
   refuseFriendRequest: () => {},
@@ -72,6 +75,7 @@ export function NotificationProvider({ children }) {
   const [friendCount, setFriendCount] = useState(0);
   const [communityCount, setCommunityCount] = useState({});
   const [messageCount, setMessageCount] = useState(0);
+  const [groupCount, setGroupCount] = useState({});
   const [notificationItems, setNotificationItems] = useState([]);
   const [msgToast, setMsgToast] = useState(false);
   const pollingRef = useRef(false);
@@ -174,6 +178,49 @@ export function NotificationProvider({ children }) {
           if (!data || data.length < COMMUNITY_PAGE_SIZE) break;
         }
         return { data: rows };
+      })();
+
+      // Group messages: same grouped-read pattern as communities, but the
+      // group list is per-user (not a static array) so it must be fetched
+      // first. Last-seen keys are namespaced "group_<uuid>" — no collision
+      // risk with community slugs (short strings from ALL_UNIVERSITIES).
+      const groupPromise = (async () => {
+        const { data: memberships } = await supabase
+          .from("group_members")
+          .select("group_id")
+          .eq("user_id", user.id);
+        const groupIds = [...new Set((memberships || []).map(m => m.group_id))];
+        if (!groupIds.length) return { data: [], groupIds };
+
+        const seenGroups = [];
+        for (const id of groupIds) {
+          const last = getLastSeen(`group_${id}`);
+          if (last) seenGroups.push([id, last]);
+          else setLastSeen(`group_${id}`);
+        }
+        if (!seenGroups.length) return { data: [], groupIds };
+
+        const seenGroupIds = seenGroups.map(([id]) => id);
+        const earliestLastSeen = seenGroups.reduce(
+          (min, [, last]) => last < min ? last : min,
+          seenGroups[0][1]
+        );
+
+        const rows = [];
+        for (let from = 0; ; from += COMMUNITY_PAGE_SIZE) {
+          const { data, error } = await supabase
+            .from("group_messages")
+            .select("group_id, created_at")
+            .in("group_id", seenGroupIds)
+            .gt("created_at", earliestLastSeen)
+            .neq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .range(from, from + COMMUNITY_PAGE_SIZE - 1);
+          if (error) return { data: rows, groupIds, seenGroups };
+          rows.push(...(data || []));
+          if (!data || data.length < COMMUNITY_PAGE_SIZE) break;
+        }
+        return { data: rows, groupIds, seenGroups };
       })();
 
       // Unread private messages
@@ -321,10 +368,11 @@ export function NotificationProvider({ children }) {
         };
       })();
 
-      const [feedRes, friendRes, communityRes, messageRes, notificationRes] = await Promise.all([
+      const [feedRes, friendRes, communityRes, groupRes, messageRes, notificationRes] = await Promise.all([
         feedPromise,
         friendPromise,
         communityPromise,
+        groupPromise,
         messagePromise,
         notificationPromise,
       ]);
@@ -341,6 +389,16 @@ export function NotificationProvider({ children }) {
         }
       });
       setCommunityCount(nextCommunityCount);
+
+      const groupLastSeen = Object.fromEntries(groupRes.seenGroups || []);
+      const nextGroupCount = {};
+      for (const id of groupRes.groupIds || []) nextGroupCount[id] = 0;
+      (groupRes.data || []).forEach((row) => {
+        if (row.created_at > groupLastSeen[row.group_id]) {
+          nextGroupCount[row.group_id] = (nextGroupCount[row.group_id] || 0) + 1;
+        }
+      });
+      setGroupCount(nextGroupCount);
 
       setMessageCount(messageRes.count || 0);
       setCommentCount(notificationRes.commentsCount || 0);
@@ -391,6 +449,12 @@ export function NotificationProvider({ children }) {
     setNotificationItems((items) => items.filter((item) => item.key !== `friend_request:${requestId}`));
     schedulePoll(100);
   }, [schedulePoll, user]);
+
+  const markGroupSeen = useCallback((groupId) => {
+    if (!groupId) return;
+    setLastSeen(`group_${groupId}`);
+    setGroupCount((prev) => ({ ...prev, [groupId]: 0 }));
+  }, []);
 
   const openFeedNotification = useCallback(() => {
     setLastSeen("feed_interactions");
@@ -446,6 +510,7 @@ export function NotificationProvider({ children }) {
   }, [poll, schedulePoll, user]);
 
   const totalCommunity = Object.values(communityCount).reduce((a, b) => a + b, 0);
+  const totalGroups = Object.values(groupCount).reduce((a, b) => a + b, 0);
   const announcementCount = notificationItems.filter((item) => item.type === "announcement").length;
   const notificationUnreadCount = friendCount + commentCount + reactionCount + announcementCount;
 
@@ -459,11 +524,14 @@ export function NotificationProvider({ children }) {
         communityCount,
         totalCommunity,
         messageCount,
+        groupCount,
+        totalGroups,
         notificationItems,
         notificationUnreadCount,
         msgToast,
         clearMsgToast,
         markSeen,
+        markGroupSeen,
         refreshNotifications,
         acceptFriendRequest,
         refuseFriendRequest,

@@ -436,6 +436,7 @@ export default function Layout({ children }) {
     friendCount,
     totalCommunity,
     messageCount,
+    totalGroups,
     notificationItems,
     notificationUnreadCount,
     msgToast,
@@ -483,11 +484,11 @@ export default function Layout({ children }) {
     if (href === "/feed")        return feedCount + commentCount + reactionCount;
     if (href === "/friends")     return friendCount;
     if (href === "/communautes") return totalCommunity;
-    if (href === "/messages")    return messageCount;
+    if (href === "/messages")    return messageCount + totalGroups;
     return 0;
   }
 
-  const socialBadge = feedCount + commentCount + reactionCount + friendCount + totalCommunity + messageCount;
+  const socialBadge = feedCount + commentCount + reactionCount + friendCount + totalCommunity + messageCount + totalGroups;
 
   useEffect(() => {
     setNotificationsOpen(false);

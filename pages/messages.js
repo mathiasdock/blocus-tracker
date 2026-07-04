@@ -7,6 +7,14 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo, formatDuration } from "../lib/format";
 
+function IconPaperclip({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.93a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+    </svg>
+  );
+}
+
 // ── Calcule le temps écoulé d'un chrono de groupe ─────────────
 function computeChronoElapsed(session) {
   if (!session?.started_at) return 0;
@@ -30,7 +38,7 @@ function computeChronoElapsed(session) {
 
 export default function Messages() {
   const { user, profile } = useAuth();
-  const { markSeen }      = useNotifications();
+  const { markSeen, groupCount, markGroupSeen } = useNotifications();
   const { t, lang }       = useI18n();
   const isAdmin = profile?.is_admin === true;
 
@@ -297,7 +305,7 @@ export default function Messages() {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("dm").upload(path, file, { cacheControl: "31536000" });
-      if (upErr) { setSending(false); alert("Échec upload : " + upErr.message); return; }
+      if (upErr) { setSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
       const { data: pub } = supabase.storage.from("dm").getPublicUrl(path);
       attachment_url = pub.publicUrl;
       attachment_type = file.type.startsWith("image/") ? "image" : "file";
@@ -322,6 +330,7 @@ export default function Messages() {
     setShowInvite(false);
     setShowGroupInfo(false);
     setShowChronoStart(false);
+    markGroupSeen(groupId);
   }
 
   async function sendGroup(e) {
@@ -333,7 +342,7 @@ export default function Messages() {
       const ext = grpFile.name.split(".").pop();
       const path = `${user.id}/${grpActiveId}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("community").upload(path, grpFile, { cacheControl: "31536000" });
-      if (upErr) { setGrpSending(false); alert("Erreur upload : " + upErr.message); return; }
+      if (upErr) { setGrpSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
       const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
       attachment_url = pub.publicUrl;
       attachment_type = grpFile.type.startsWith("image/") ? "image" : "file";
@@ -556,16 +565,25 @@ export default function Messages() {
   const activeFriend  = friends.find(f => f.profile.id === dmActiveId);
   const activeGroup   = groups.find(g => g.id === grpActiveId);
   const amCreator     = activeGroup?.created_by === user?.id;
-  const grpWho        = id => msgProfiles[id] || { pseudo: "Utilisateur", avatar_url: null };
+  const grpWho        = id => msgProfiles[id] || { pseudo: t("common.unknownUser"), avatar_url: null };
   const chatVisible   = mobileView === "list" ? "hidden lg:flex" : "flex";
 
   // Chip de statut du chrono
   function chronoStatusChip(status) {
     if (status === "accepted")
-      return { bg: "#EAFBF4", color: "#0E8F68", suffix: " ✓" };
+      return {
+        bg: "#EAFBF4", color: "#0E8F68",
+        icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+      };
     if (status === "declined")
-      return { bg: "#FEF2F2", color: "#ef4444", suffix: " ✗" };
-    return { bg: "var(--bt-subtle)", color: "var(--bt-text-3)", suffix: " ⌛" };
+      return {
+        bg: "#FEF2F2", color: "#ef4444",
+        icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+      };
+    return {
+      bg: "var(--bt-subtle)", color: "var(--bt-text-3)",
+      icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>,
+    };
   }
 
   // Avatar de groupe (photo ou initiale)
@@ -715,10 +733,14 @@ export default function Messages() {
                               </p>
                             )}
                           </div>
-                          {isAct && (
+                          {isAct ? (
                             <span className="w-2 h-2 rounded-full shrink-0"
                               style={{ backgroundColor: "var(--bt-accent-dark)" }} />
-                          )}
+                          ) : groupCount[g.id] > 0 ? (
+                            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-red-500 text-white rounded-full px-1 leading-none shrink-0">
+                              {groupCount[g.id] > 99 ? "99+" : groupCount[g.id]}
+                            </span>
+                          ) : null}
                         </li>
                       );
                     })}
@@ -774,7 +796,7 @@ export default function Messages() {
                         {m.attachment_url && m.attachment_type === "file" && (
                           <a href={m.attachment_url} target="_blank" rel="noreferrer"
                             className={`mt-2 inline-flex items-center gap-2 underline ${mine ? "text-white" : "text-accent-dark"}`}>
-                            📎 {m.attachment_name || "Document"}
+                            <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                           </a>
                         )}
                         <p className="text-[10px] mt-0.5"
@@ -790,8 +812,8 @@ export default function Messages() {
 
               <form onSubmit={sendDM} className="p-3 flex items-center gap-2 shrink-0"
                 style={{ borderTop: "1px solid var(--bt-border)" }}>
-                <label className="btn-ghost cursor-pointer px-3 shrink-0" title="Joindre">
-                  📎
+                <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
+                  <IconPaperclip />
                   <input ref={dmFileRef} type="file"
                     accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
                     className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
@@ -987,7 +1009,8 @@ export default function Messages() {
                           <span key={p.user_id}
                             className="inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 font-medium"
                             style={{ backgroundColor: chip.bg, color: chip.color }}>
-                            {displayName(prof || { pseudo: "…" })}{chip.suffix}
+                            <span>{displayName(prof || { pseudo: "…" })}</span>
+                            <span className="shrink-0" aria-hidden="true">{chip.icon}</span>
                           </span>
                         );
                       })}
@@ -1028,7 +1051,7 @@ export default function Messages() {
                             <a href={m.attachment_url} target="_blank" rel="noreferrer"
                               className="mt-2 inline-flex items-center gap-2 underline"
                               style={{ color: mine ? "#fff" : "#0E8F68" }}>
-                              📎 {m.attachment_name || "Document"}
+                              <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                             </a>
                           )}
                         </div>
@@ -1050,8 +1073,8 @@ export default function Messages() {
 
               <form onSubmit={sendGroup} className="p-3 flex items-center gap-2 shrink-0"
                 style={{ borderTop: "1px solid var(--bt-border)" }}>
-                <label className="btn-ghost cursor-pointer px-3 shrink-0" title="Joindre">
-                  📎
+                <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
+                  <IconPaperclip />
                   <input ref={grpFileRef} type="file"
                     accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
                     className="hidden" onChange={e => setGrpFile(e.target.files?.[0] || null)} />

@@ -140,7 +140,7 @@ export default function Feed() {
     const { error: upErr } = await supabase.storage
       .from("posts")
       .upload(path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: uploadFile.type || file.type });
-    if (upErr) { setBusy(false); alert("Échec de l'upload : " + upErr.message); return; }
+    if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
     const { data: pub } = supabase.storage.from("posts").getPublicUrl(path);
     const { error } = await supabase.from("posts").insert({
       user_id: user.id,

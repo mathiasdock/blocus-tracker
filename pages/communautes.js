@@ -9,6 +9,14 @@ import { displayName, timeAgo } from "../lib/format";
 import { COUNTRIES, COMMUNITY_BY_ID, communityIdForUniversity } from "../lib/universities";
 import { notifyXPChanged } from "../lib/xpEvents";
 
+function IconPaperclip({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.93a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+    </svg>
+  );
+}
+
 export default function Communautes() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
@@ -115,7 +123,7 @@ export default function Communautes() {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/${active}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("community").upload(path, file, { cacheControl: "31536000" });
-      if (upErr) { setSending(false); alert("Échec de l'envoi du fichier : " + upErr.message); return; }
+      if (upErr) { setSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
       const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
       attachment_url = pub.publicUrl;
       attachment_type = file.type.startsWith("image/") ? "image" : "file";
@@ -141,7 +149,7 @@ export default function Communautes() {
     load();
   }
 
-  const who = (id) => profiles[id] || { pseudo: "Utilisateur", avatar_url: null };
+  const who = (id) => profiles[id] || { pseudo: t("common.unknownUser"), avatar_url: null };
 
   // Total badge across all communities
   const totalBadge = Object.values(communityCount).reduce((s, n) => s + n, 0);
@@ -295,7 +303,7 @@ export default function Communautes() {
                           <a href={m.attachment_url} target="_blank" rel="noreferrer"
                             className="mt-2 inline-flex items-center gap-2 underline"
                             style={{ color: mine ? "#fff" : "#0E8F68" }}>
-                            📎 {m.attachment_name || "Document"}
+                            <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                           </a>
                         )}
                       </div>
@@ -319,8 +327,8 @@ export default function Communautes() {
           {/* Input */}
           <form onSubmit={send} className="p-3 flex items-center gap-2 shrink-0"
             style={{ borderTop: "1px solid #E8E2DC" }}>
-            <label className="btn-ghost cursor-pointer px-3 shrink-0" title="Joindre un fichier">
-              📎
+            <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
+              <IconPaperclip />
               <input ref={fileInputRef} type="file"
                 accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
                 className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
