@@ -267,7 +267,7 @@ export default function Communautes() {
                 <div className="absolute left-0 right-0 flex items-center justify-center" style={{ top: 0, height: "calc(72vh - 8rem)" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={activeMeta.logo} alt=""
-                    style={{ width: "55%", maxWidth: 400, opacity: 0.10, objectFit: "contain" }} />
+                    style={{ width: "26%", maxWidth: 190, opacity: 0.08, objectFit: "contain" }} />
                 </div>
               </div>
             )}

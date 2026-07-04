@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-04 - Communautes : reduction du logo en filigrane
+
+Le logo d'universite affiche en fond de chaque chat de communaute prenait trop de place — confirme visuellement (logo ULB "UNIVERSITE LIBRE DE BRUXELLES" bien lisible, dominant presque toute la zone de messages).
+
+- `pages/communautes.js` : filigrane reduit de `width: 55% / maxWidth 400 / opacity 0.10` a `width: 26% / maxWidth 190 / opacity 0.08`.
+- Verification : `npm run build` OK (20/20) + navigateur (mode offline dev) : logo desormais discret sur ULB ET UCLouvain (le fix s'applique via `activeMeta.logo`, donc a toutes les communautes), verifie en light et dark.
+
 ## 2026-07-04 - Refonte page Stats (cartes, graphiques, podium, tendances)
 
 ### `pages/stats.js`
