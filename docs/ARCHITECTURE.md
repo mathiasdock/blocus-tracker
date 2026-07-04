@@ -57,8 +57,7 @@
 | `/stats` | `stats.js` | Heatmap, charts, leaderboard, goals |
 | `/historique` | `historique.js` | Past sessions list |
 | `/friends` | `friends.js` | Friends list, requests, suggestions |
-| `/messages` | `messages.js` | Private DMs between friends |
-| `/groupes` | `groupes.js` | Study group chats |
+| `/messages` | `messages.js` | Private DMs + study group chats (incl. synchronized group chrono) |
 | `/communautes` | `communautes.js` | University-wide chats |
 | `/feed` | `feed.js` | Photo feed (sessions, reactions, comments) |
 | `/profile` | `profile.js` | Profile, badges, XP, settings |

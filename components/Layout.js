@@ -138,18 +138,6 @@ function IconHistory({ size = 20 }) {
   );
 }
 
-function IconGroups({ size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="7" r="3"/>
-      <circle cx="17" cy="7" r="3"/>
-      <path d="M1 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2"/>
-      <path d="M17 11a4 4 0 0 1 4 4v2"/>
-    </svg>
-  );
-}
-
 function IconProfile({ size = 20 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -173,7 +161,6 @@ function NavIcon({ href, size = 20 }) {
     "/feedback":    <IconFeedback size={size} />,
     "/profile":     <IconProfile size={size} />,
     "/historique":  <IconHistory size={size} />,
-    "/groupes":     <IconGroups size={size} />,
     "social":       <IconSocial size={size} />,
     "notifications": <IconBell size={size} />,
   };

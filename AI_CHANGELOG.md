@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-04 - Suppression de la page fantome /groupes (analyse "partie sociale")
+
+Suite a une analyse complete des 5 pages sociales (feed, messages, amis, communautes, groupes). Premiere action retenue : nettoyer `/groupes`.
+
+**Constat verifie independamment** : `pages/groupes.js` (490 lignes) n'avait **aucun lien entrant nulle part** dans le code (absent de `NAV_SOCIAL`, `SOCIAL_PATHS`, et de tout `href`/`router.push`). Seul un utilisateur devinant l'URL aurait pu y acceder. Son contenu (creation/gestion de groupes d'etude, messagerie de groupe) etait quasi duplique dans `pages/messages.js`, qui est un **sur-ensemble strict** : memes tables (`study_groups`, `group_members`, `group_messages`) + en plus le chrono de groupe synchronise (invitations, statuts accepte/refuse/en attente, RPC `finish_group_chrono`) que `groupes.js` n'avait pas.
+
+- `pages/groupes.js` **supprime** entierement (git rm).
+- `components/Layout.js` : `IconGroups` (fonction morte, utilisee nulle part ailleurs) et l'entree `"/groupes"` du map d'icones (deja inatteignable) retires.
+- `lib/i18n.js` : `nav.groups` (FR+EN, jamais consomme par un tableau de nav) + 10 cles `groups.*` verifiees comme exclusivement utilisees par la page supprimee (`title`, `subtitle`, `noGroups`, `members`, `delete`, `chronoNote`, `chronoParticipants`, `viewMembers`, `photoUpdated`, `noActive`) retirees en FR+EN. Les ~18 autres cles `groups.*` **conservees** : verifie qu'elles sont activement utilisees par la fonctionnalite groupe de `messages.js` (chrono, invitations, membres...).
+- `docs/ARCHITECTURE.md` : ligne de route `/groupes` retiree du tableau, note ajoutee sur `/messages` precisant qu'il couvre aussi les groupes + le chrono synchronise.
+- Verification : `npm run build` OK (21 -> **20 pages**, confirmant la route disparue) + navigateur (mode offline dev) : nav sans "Groupes", `/messages` fonctionne toujours normalement (liste des groupes, ouverture d'un groupe, panneau "Nouveau chrono de groupe" — toutes les cles i18n partagees rendent correctement apres le nettoyage).
+
+Reste de l'analyse sociale (non traite maintenant) : rééquilibrage XP/missions (messagerie/chat de groupe/communaute ne rapportent actuellement aucun XP, contrairement au feed et aux demandes d'ami), emojis decoratifs a corriger (📎 trombone, ✓/✗/⌛ statuts chrono, ★ badge admin dans messages.js et communautes.js), chaines FR en dur restantes dans messages.js, badge de notification manquant pour les messages de groupe non lus.
+
 ## 2026-07-02 - Partie legale du site (confidentialite, CGU, cookies, mentions)
 
 Ajout de tout le volet legal, accessible depuis le profil et le footer. Contenu redige d'apres un AUDIT REEL des pratiques de l'app (pas un template generique).
