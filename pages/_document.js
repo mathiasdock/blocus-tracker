@@ -13,8 +13,10 @@ export default function Document() {
         {/* PWA */}
         {/* PWA meta tags are in _app.js via next/head */}
         <meta name="format-detection" content="telephone=no" />
-      {/* Dark mode: apply class before first paint to avoid flash */}
-      <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem('bt_dark')==='true')document.documentElement.classList.add('dark')}catch(e){}})()` }} />
+      {/* Theme: apply class before first paint to avoid flash.
+          bt_theme = "light" | "dark" | "system" (bt_dark is the legacy key,
+          migrated on the fly). "system" follows prefers-color-scheme. */}
+      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){t=localStorage.getItem('bt_dark')==='true'?'dark':'light';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()` }} />
       </Head>
       <body>
         <Main />

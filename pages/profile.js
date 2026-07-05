@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
-import PushNotificationsCard from "../components/PushNotificationsCard";
+import LevelPill from "../components/LevelPill";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -12,18 +12,53 @@ import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
+import { isPushSupported, isIOS, isStandalone, enablePush, loginUser } from "../lib/onesignal";
 
-// ── Dark mode ────────────────────────────────────────────────
-function useDarkMode() {
-  const [dark, setDark] = useState(false);
-  useEffect(() => { setDark(document.documentElement.classList.contains("dark")); }, []);
-  function toggle() {
-    const next = !dark;
-    setDark(next);
-    localStorage.setItem("bt_dark", next);
-    document.documentElement.classList.toggle("dark", next);
+// ── Thème ────────────────────────────────────────────────────
+// bt_theme = "light" | "dark" | "system" (bt_dark est la clé héritée,
+// migrée à la volée). "system" suit prefers-color-scheme en direct.
+// Le script anti-flash équivalent vit dans pages/_document.js.
+const THEME_MODES = ["light", "system", "dark"];
+
+function useTheme() {
+  const [theme, setThemeState] = useState("light");
+  // `ready` est un STATE (batché avec la restauration) et non une ref :
+  // sinon l'effet d'application tournerait une fois avec le défaut "light"
+  // et écraserait le thème sombre déjà posé par le script _document.
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      let t = localStorage.getItem("bt_theme");
+      if (!t) t = localStorage.getItem("bt_dark") === "true" ? "dark" : "light";
+      if (!THEME_MODES.includes(t)) t = "light";
+      setThemeState(t);
+    } catch {}
+    setReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const dark = theme === "dark" || (theme === "system" && mq.matches);
+      document.documentElement.classList.toggle("dark", dark);
+    };
+    apply();
+    if (theme !== "system") return;
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [ready, theme]);
+
+  function setTheme(t) {
+    setThemeState(t);
+    try {
+      localStorage.setItem("bt_theme", t);
+      localStorage.removeItem("bt_dark"); // clé héritée
+    } catch {}
   }
-  return { dark, toggle };
+
+  return { theme, setTheme };
 }
 
 // ── Constants ────────────────────────────────────────────────
@@ -38,7 +73,6 @@ const YEARS = [
 // ── Icons ────────────────────────────────────────────────────
 function IconGlobe() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>; }
 function IconMoon() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>; }
-function IconSun() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>; }
 function IconSmartphone() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>; }
 function IconInfo() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>; }
 function IconLegal() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>; }
@@ -54,6 +88,37 @@ function IconChevronDown({ open }) { return <svg width="16" height="16" viewBox=
 function IconChevronRight() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.35 }}><polyline points="9 18 15 12 9 6"/></svg>; }
 function IconLock() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>; }
 function IconAlert() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
+function IconBell() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>; }
+function IconEdit() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>; }
+function IconClock() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>; }
+function IconAward() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>; }
+function IconSliders() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>; }
+function IconGift() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>; }
+function IconX() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
+function IconSun() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>; }
+
+// ── UI primitives (uniformes sur toute la page) ─────────────
+function SectionLabel({ children }) {
+  return <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{children}</p>;
+}
+
+function IconBox({ color, bg, children }) {
+  return <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg || "var(--bt-subtle)", color: color || "var(--bt-text-2)" }}>{children}</span>;
+}
+
+// En-tête de carte standard : icône + libellé + contenu optionnel à droite.
+// Toutes les cartes de la page l'utilisent → même rythme visuel partout.
+function CardHead({ icon, label, right }) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
+      <div className="flex items-center gap-2.5 min-w-0">
+        {icon && <span style={{ color: "var(--bt-text-3)" }}>{icon}</span>}
+        <SectionLabel>{label}</SectionLabel>
+      </div>
+      {right && <div className="shrink-0">{right}</div>}
+    </div>
+  );
+}
 
 // Rangée de réglage unifiée. Trois affordances distinctes et coherentes :
 //  • onClick + right=<IconChevronDown> → se deplie sur place (accordeon)
@@ -69,7 +134,7 @@ function SettingsRow({ icon, label, description, right, onClick, href, danger, a
         <IconBox color={iconColor} bg={iconBg}>{icon}</IconBox>
         <div className="min-w-0">
           <span className="block text-sm font-medium truncate" style={{ color: labelColor }}>{label}</span>
-          {description && <span className="block text-xs mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }}>{description}</span>}
+          {description && <span className="block text-xs mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }} title={description}>{description}</span>}
         </div>
       </div>
       <div className="shrink-0">{right}</div>
@@ -89,21 +154,41 @@ function SettingsRow({ icon, label, description, right, onClick, href, danger, a
   return inner;
 }
 
-// ── Helpers ──────────────────────────────────────────────────
-function SectionLabel({ children }) {
-  return <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{children}</p>;
+// Segmented control générique (langue, thème…) — le pattern de réglage
+// moderne de la page : état visible d'un coup d'œil, bascule en un tap.
+function Segmented({ options, value, onChange }) {
+  return (
+    <div className="flex gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 10, padding: 2 }}>
+      {options.map(o => (
+        <button key={o.value} onClick={() => onChange(o.value)} title={o.title || undefined}
+          className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+          style={value === o.value ? { backgroundColor: "#14B885", color: "#fff" } : { color: "var(--bt-text-3)" }}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
 }
-function IconBox({ color, bg, children }) {
-  return <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg || "var(--bt-subtle)", color: color || "var(--bt-text-2)" }}>{children}</span>;
+
+// Tuile de statistique — même style dans le hero et la carte Activité.
+function StatTile({ label, value, sub }) {
+  return (
+    <div className="rounded-2xl px-2 py-2.5 text-center min-w-0"
+      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+      <p className="font-num font-bold tabular-nums leading-none truncate" style={{ fontSize: "1.05rem", color: "var(--bt-text-1)", letterSpacing: "-0.01em" }}>{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wide mt-1 truncate" style={{ color: "var(--bt-text-3)" }} title={label}>{label}</p>
+      {sub && <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--bt-text-4)" }}>{sub}</p>}
+    </div>
+  );
 }
-// ── XP Progression card ──────────────────────────────────────
-function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, missions, onBadgeClick, t }) {
+
+// ── Progression (XP) — surface ink signature ─────────────────
+function XPCard({ levelInfo, missions, t }) {
   const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
   return (
     <div id="xp-card" className="card-ink bt-grain">
       <div className="relative z-10" style={{ padding: 20 }}>
 
-        {/* Card title */}
         <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 14 }}>
           {t("xp.cardTitle")}
         </p>
@@ -154,37 +239,46 @@ function XPProgressCard({ levelInfo, streak, profileTotalSecs, earnedBadgeIds, m
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* Badges — clickable */}
-        <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14, marginTop: 14 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 10 }}>
-            {t("badge.title")}
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {BADGES.map(b => {
-              const earned = earnedBadgeIds.includes(b.id);
-              return (
-                <button key={b.id} onClick={() => onBadgeClick(b)}
-                  title={t(b.labelKey)}
-                  className="bt-press"
-                  style={{ width: 40, height: 40, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", backgroundColor: earned ? "rgba(20,184,133,0.18)" : "rgba(255,255,255,0.04)", border: earned ? "1px solid rgba(20,184,133,0.40)" : "1px solid rgba(255,255,255,0.08)", transition: "background-color 0.15s, transform 0.12s, border-color 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.10)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                  <BadgeIcon id={b.id} earned={earned} size={28} />
-                </button>
-              );
-            })}
-          </div>
+// ── Badges — carte claire, compteur + grille cliquable ───────
+function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
+  return (
+    <div className="card overflow-hidden">
+      <CardHead icon={<IconAward />} label={t("badge.title")}
+        right={
+          <span className="font-num text-xs font-bold tabular-nums px-2.5 py-1 rounded-full"
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+            {earnedBadgeIds.length}/{BADGES.length}
+          </span>
+        } />
+      <div className="px-5 pb-5">
+        <div className="flex flex-wrap gap-2">
+          {BADGES.map(b => {
+            const earned = earnedBadgeIds.includes(b.id);
+            return (
+              <button key={b.id} onClick={() => onBadgeClick(b)}
+                title={t(b.labelKey)}
+                className="bt-press"
+                style={{ width: 40, height: 40, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: earned ? "1px solid var(--bt-accent-border)" : "1px solid var(--bt-border)", transition: "transform 0.12s", opacity: earned ? 1 : 0.55 }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.10)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
+                <BadgeIcon id={b.id} earned={earned} size={28} />
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Referral / Parrainage card ───────────────────────────────
+// ── Parrainage — version compacte (lien + compteur, sans pavé) ──
 function ReferralCard({ t }) {
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showList, setShowList] = useState(false);
 
@@ -194,14 +288,14 @@ function ReferralCard({ t }) {
       const { data, error } = await supabase.rpc("get_my_referral_stats");
       if (!mounted) return;
       if (!error && data && data.ok) setStats(data);
-      setLoading(false);
     })();
     return () => { mounted = false; };
   }, []);
 
-  const siteOrigin = "https://www.blocus-tracker.com";
   const code = stats?.code || "";
-  const shareLink = code ? `${siteOrigin.replace(/\/$/, "")}/signup?ref=${code}` : "";
+  const shareLink = code ? `https://www.blocus-tracker.com/signup?ref=${code}` : "";
+  const count = stats?.count || 0;
+  const list = stats?.list || [];
 
   async function copy() {
     if (!shareLink) return;
@@ -212,94 +306,29 @@ function ReferralCard({ t }) {
     } catch (_) {}
   }
 
-  async function share() {
-    if (!shareLink) return;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: t("referral.shareTitle"),
-          text: t("referral.shareText"),
-          url: shareLink,
-        });
-      } catch (_) {}
-    } else {
-      copy();
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="card p-5">
-        <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>…</p>
-      </div>
-    );
-  }
-
-  const count = stats?.count || 0;
-  const list = stats?.list || [];
-
   return (
     <div className="card overflow-hidden">
-      <div className="px-5 pt-5 pb-4">
-        <div className="flex items-center gap-3 mb-1">
-          <IconBox color="#14B885" bg="rgba(20,184,133,0.12)">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="8.5" cy="7" r="4" />
-              <line x1="20" y1="8" x2="20" y2="14" />
-              <line x1="23" y1="11" x2="17" y2="11" />
-            </svg>
-          </IconBox>
-          <div className="min-w-0">
-            <SectionLabel>{t("referral.title")}</SectionLabel>
-            <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-2)" }}>
-              {t("referral.subtitle")}
-            </p>
-          </div>
-        </div>
-
-        <p className="text-xs mt-2 leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
-          {t("referral.help")}
-        </p>
-
-        {/* Share link box */}
-        <div className="mt-4 rounded-xl border flex items-stretch overflow-hidden"
+      <CardHead icon={<IconGift />} label={t("referral.title")}
+        right={
+          <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
+            {t("referral.signupsCount")} : <span className="font-num font-bold" style={{ color: "var(--bt-text-1)" }}>{count}</span>
+          </span>
+        } />
+      <div className="px-5 pb-4">
+        <p className="text-xs mb-3" style={{ color: "var(--bt-text-3)" }}>{t("referral.subtitle")}</p>
+        <div className="rounded-xl border flex items-stretch overflow-hidden"
           style={{ borderColor: "var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
           <div className="flex-1 min-w-0 px-3 py-2.5 text-xs font-mono truncate"
             style={{ color: "var(--bt-text-2)" }} title={shareLink}>
-            {shareLink || "—"}
+            {shareLink || "…"}
           </div>
           <button onClick={copy} disabled={!shareLink}
             className="px-3.5 text-xs font-semibold whitespace-nowrap transition-colors"
-            style={{
-              backgroundColor: copied ? "#14B885" : "var(--bt-accent-dark)",
-              color: "#fff",
-            }}>
+            style={{ backgroundColor: copied ? "#14B885" : "var(--bt-accent-dark)", color: "#fff" }}>
             {copied ? t("referral.copied") : t("referral.copy")}
           </button>
         </div>
-
-        {/* Native share button (mobile) */}
-        {typeof navigator !== "undefined" && navigator.share && (
-          <button onClick={share}
-            className="mt-2 w-full rounded-xl py-2 text-xs font-semibold transition-colors"
-            style={{ backgroundColor: "rgba(20,184,133,0.10)", color: "var(--bt-accent-dark)" }}>
-            {t("referral.share")}
-          </button>
-        )}
-
-        {/* Count */}
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>
-            {t("referral.signupsCount")}
-          </span>
-          <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-            {count}
-          </span>
-        </div>
       </div>
-
-      {/* Referred users list — collapsible */}
       {count > 0 && (
         <div style={{ borderTop: "1px solid var(--bt-border)" }}>
           <button onClick={() => setShowList(o => !o)}
@@ -315,18 +344,12 @@ function ReferralCard({ t }) {
             <ul className="px-5 pb-4 pt-1 space-y-2.5">
               {list.map((r, i) => (
                 <li key={i} className="flex items-center gap-3">
-                  <Avatar src={r.avatar_url} name={r.pseudo} size={32} />
+                  <Avatar url={r.avatar_url} pseudo={r.pseudo} size={32} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
-                      @{r.pseudo}
-                    </p>
-                    <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
-                      {new Date(r.created_at).toLocaleDateString()}
-                    </p>
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>@{r.pseudo}</p>
+                    <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>{new Date(r.created_at).toLocaleDateString()}</p>
                   </div>
-                  <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>
-                    +{r.xp_awarded} XP
-                  </span>
+                  <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>+{r.xp_awarded} XP</span>
                 </li>
               ))}
             </ul>
@@ -334,6 +357,77 @@ function ReferralCard({ t }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Notifications push — rangée de réglage compacte ──────────
+function PushRow({ t, user }) {
+  const [env, setEnv] = useState({ ready: false, supported: false, ios: false, standalone: false });
+  const [permission, setPermission] = useState("default");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setEnv({ ready: true, supported: isPushSupported(), ios: isIOS(), standalone: isStandalone() });
+    if (typeof Notification !== "undefined") setPermission(Notification.permission);
+  }, []);
+
+  async function enable() {
+    setBusy(true); setError("");
+    try {
+      const res = await enablePush();
+      if (res?.reason === "unconfigured") { setError(t("push.unconfigured")); return; }
+      const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
+      setPermission(perm);
+      if (perm === "granted") {
+        if (user) await loginUser(user.id);
+        try { localStorage.setItem("bt_push_enabled", "1"); } catch (_) {}
+      }
+    } catch (_) {
+      setError(t("push.error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!env.ready) return null;
+
+  const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+  const iosNeedsInstall = env.ios && !env.standalone;
+
+  let description = t("push.desc");
+  let right = null;
+  if (!appId) {
+    description = t("push.unconfigured");
+  } else if (iosNeedsInstall) {
+    description = t("push.iosHint");
+  } else if (!env.supported) {
+    description = t("push.unsupported");
+  } else if (permission === "granted") {
+    description = t("push.enabled");
+    right = (
+      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
+        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        OK
+      </span>
+    );
+  } else if (permission === "denied") {
+    description = t("push.denied");
+  } else {
+    right = (
+      <button onClick={enable} disabled={busy}
+        className="px-3 py-1.5 rounded-full text-xs font-semibold transition disabled:opacity-60"
+        style={{ backgroundColor: "#14B885", color: "#fff" }}>
+        {busy ? "…" : t("push.enable")}
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <SettingsRow icon={<IconBell />} label={t("push.title")} description={error || description} right={right} />
+    </>
   );
 }
 
@@ -353,16 +447,13 @@ function BadgeSheet({ badge, earned, t, onClose }) {
             <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
           </div>
           <div className="p-6 pt-4 sm:pt-6 text-center">
-            {/* Icon */}
             <div className={`inline-flex items-center justify-center w-24 h-24 rounded-3xl mb-4 ${earned ? "badge-shine" : ""}`}
               style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: earned ? "1px solid var(--bt-accent-border)" : "1px solid var(--bt-border)" }}>
               <BadgeIcon id={badge.id} earned={earned} size={72} />
             </div>
-            {/* Name */}
             <h3 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
               {t(badge.labelKey)}
             </h3>
-            {/* Status + XP reward */}
             <div className="mt-2 mb-4 flex flex-wrap items-center justify-center gap-2">
               {earned ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
@@ -384,7 +475,6 @@ function BadgeSheet({ badge, earned, t, onClose }) {
                 </span>
               )}
             </div>
-            {/* Description */}
             {!earned && (
               <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-4)" }}>
                 {t("badge.howToEarn")}
@@ -403,18 +493,92 @@ function BadgeSheet({ badge, earned, t, onClose }) {
   );
 }
 
+// ── Modal d'édition du profil (infos personnelles) ───────────
+function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locked, t }) {
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
+      <div className="fixed z-50 bottom-0 inset-x-0 sm:inset-0 sm:flex sm:items-center sm:justify-center" onClick={onClose}>
+        <div className="rounded-t-[28px] sm:rounded-[24px] sm:max-w-md w-full sm:mx-4"
+          style={{ backgroundColor: "var(--bt-surface)", maxHeight: "92vh", overflowY: "auto" }}
+          onClick={e => e.stopPropagation()}>
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
+          </div>
+          <div className="flex items-center justify-between px-6 pt-3 sm:pt-5">
+            <h3 className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("profile.myInfo")}</h3>
+            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+              style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }} aria-label={t("common.close")}>
+              <IconX />
+            </button>
+          </div>
+          <div className="px-6 pb-6 pt-4">
+            <form onSubmit={locked ? e => e.preventDefault() : saveInfo} className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 min-w-0">
+                  <label className="label">{t("profile.firstName")}</label>
+                  <input className="input" value={form.first_name} onChange={e => set("first_name", e.target.value)} disabled={locked} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="label">{t("profile.lastName")}</label>
+                  <input className="input" value={form.last_name} onChange={e => set("last_name", e.target.value)} disabled={locked} />
+                </div>
+              </div>
+              <div>
+                <label className="label">{t("profile.university")}</label>
+                <UniPicker value={form.university} onChange={v => set("university", v)} disabled={!!locked} placeholder={t("profile.choose")} />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 min-w-0">
+                  <label className="label">{t("profile.studies")}</label>
+                  <input className="input" placeholder={t("profile.studiesPlaceholder")} value={form.study_field} onChange={e => set("study_field", e.target.value)} disabled={locked} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="label">{t("profile.year")}</label>
+                  <select className="input" value={form.study_year} onChange={e => { set("study_year", e.target.value); set("study_year_custom", ""); }} disabled={locked}>
+                    <option value="">—</option>
+                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </div>
+              {form.study_year === "Autre" && (
+                <div>
+                  <label className="label">{t("profile.customYear")}</label>
+                  <input className="input" placeholder={t("profile.customYearPlaceholder")} value={form.study_year_custom} onChange={e => set("study_year_custom", e.target.value)} disabled={locked} />
+                </div>
+              )}
+              <div>
+                <label className="label">{t("profile.bio")}</label>
+                <textarea className="input" rows={2} maxLength={160} placeholder={t("profile.bioPlaceholder")} value={form.bio} onChange={e => set("bio", e.target.value)} disabled={locked} />
+              </div>
+              <button className="btn-primary w-full" type="submit" disabled={busy || !!locked}>
+                {busy ? t("common.saving") : t("common.save")}
+              </button>
+              {msg && <p className="text-xs text-center" style={{ color: msg.startsWith("Erreur") ? "#DC2626" : "var(--bt-accent-dark)" }}>{msg}</p>}
+            </form>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────────
 export default function Profile() {
   const { user, profile, refreshProfile, signOut, updateEmail } = useAuth();
   const { t, lang, setLang } = useI18n();
-  const { dark, toggle: toggleDark } = useDarkMode();
+  const { theme, setTheme } = useTheme();
   const avatarInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState("");
   const [earnedBadgeIds, setEarnedBadgeIds] = useState([]);
   const [profileSessions, setProfileSessions] = useState([]);
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
-  const [showInfo, setShowInfo] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0);
+  const [courseMap, setCourseMap] = useState({});
+  const [myRank, setMyRank] = useState(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showPwa, setShowPwa] = useState(false);
@@ -476,7 +640,6 @@ export default function Profile() {
       const sessions = sessionsRes.data || [];
       const streak = computeStreak(sessions);
       const totalHours = sessions.reduce((a, s) => a + s.duration_seconds, 0) / 3600;
-      const sessionCount = sessions.length;
 
       // Compute maxDailyHours for marathon_day badge
       const dayTotals = {};
@@ -490,7 +653,7 @@ export default function Profile() {
       const earned = computeEarnedBadgeIds({
         streak, totalHours,
         maxDailyHours: maxDailySecs / 3600,
-        sessionCount,
+        sessionCount: sessions.length,
         examCount: examRes.count || 0,
         objectiveCount: objRes.count || 0,
         completedObjCount: completedObj,
@@ -509,6 +672,7 @@ export default function Profile() {
           .upsert(newIds.map(badge_id => ({ user_id: user.id, badge_id })), { onConflict: "user_id,badge_id", ignoreDuplicates: true });
       }
       setEarnedBadgeIds([...new Set([...existing, ...earned])]);
+      setSessionCount(sessions.length);
       setExamCount(examRes.count || 0);
       setCompletedObjCount(completedObj);
       setTodayDoneObj(todayDoneRes.count || 0);
@@ -523,18 +687,32 @@ export default function Profile() {
     loadBadges();
   }, [user]);
 
-  // ── Load sessions for heatmap + activity stats ────────────
+  // ── Load sessions for heatmap + activity + course names ───
   useEffect(() => {
     if (!user) return;
     const since370 = new Date();
     since370.setDate(since370.getDate() - 370);
     (async () => {
-      const [{ data: heatSessions }, { data: allSessions }] = await Promise.all([
+      const [{ data: heatSessions }, { data: allSessions }, { data: courses }] = await Promise.all([
         supabase.from("sessions").select("started_at, duration_seconds, course_id").eq("user_id", user.id).gte("started_at", since370.toISOString()),
         supabase.from("sessions").select("duration_seconds").eq("user_id", user.id),
+        supabase.from("courses").select("id, name, color").eq("user_id", user.id),
       ]);
       setProfileSessions(heatSessions || []);
       setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
+      const map = {};
+      (courses || []).forEach(c => { map[c.id] = c; });
+      setCourseMap(map);
+    })();
+  }, [user]);
+
+  // ── Classement de la semaine (RPC leaderboard existant) ───
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase.rpc("get_my_study_rank", { p_period: "week" });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) setMyRank(row);
     })();
   }, [user]);
 
@@ -623,6 +801,8 @@ export default function Profile() {
   const secs30d = profileSessions.filter(s => new Date(s.started_at) >= thirtyDaysAgo).reduce((a, s) => a + s.duration_seconds, 0);
   const streak = computeStreak(profileSessions);
   const best = computeBestStreak(profileSessions);
+  const activeDays = new Set(profileSessions.map(s => (s.started_at || "").slice(0, 10))).size;
+  const avgDaySecs30 = Math.round(secs30d / 30);
 
   const todayStr = todayISO();
   const todaySessions = profileSessions.filter(s => s.started_at?.startsWith(todayStr));
@@ -648,64 +828,93 @@ export default function Profile() {
     friendSentToday, friendAcceptToday, referredToday,
   });
 
+  // Classement : #N parmi les actifs de la semaine (RPC leaderboard).
+  const rankValue = myRank
+    ? (Number(myRank.my_secs) > 0 ? `#${Number(myRank.better_count) + 1}` : "—")
+    : "…";
+
+  // Les 8 sessions les plus récentes, avec leur cours (nom + couleur).
+  const recentSessions = [...profileSessions]
+    .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
+    .slice(0, 8);
+  const dateLocale = lang === "fr" ? "fr-BE" : "en-GB";
+
   const sep = <div style={{ height: 1, backgroundColor: "var(--bt-border)" }} />;
+
+  const heroStats = [
+    { label: t("profile.statTotalTime"), value: formatMinutesShort(profileTotalSecs) },
+    { label: t("profile.statSessions"), value: sessionCount },
+    { label: t("profile.streakDays"), value: `${streak} ${t("dash.daysShort")}` },
+    { label: t("profile.bestStreakDays"), value: `${best} ${t("dash.daysShort")}` },
+    { label: t("profile.statRank7d"), value: rankValue },
+  ];
 
   return (
     <Layout>
-      <div className="max-w-lg mx-auto pb-10 space-y-4 bt-stagger">
+      <div className="max-w-[1200px] mx-auto pb-10 bt-stagger">
 
-        {/* ══ HEADER ══════════════════════════════════════════ */}
+        {/* ══ HERO — identité (pleine largeur, horizontal en desktop) ══ */}
         <div className="card overflow-hidden">
-          <div className="h-24" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }} />
-          <div className="flex flex-col items-center px-6 pb-6" style={{ marginTop: -44 }}>
-            <div className="relative">
-              <div style={{ borderRadius: "50%", padding: 3, backgroundColor: "var(--bt-surface)", boxShadow: "0 6px 20px var(--bt-shadow)" }}>
-                <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={82} />
+          <div className="h-20 sm:h-24" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }} />
+          <div className="px-5 sm:px-7 pb-5 sm:pb-6">
+            <div className="flex flex-col items-center text-center sm:flex-row sm:items-end sm:text-left gap-3 sm:gap-5 pt-2">
+              {/* Avatar + caméra — seul l'avatar chevauche le cover, le texte
+                  reste sous la ligne pour garder son contraste */}
+              <div className="relative shrink-0" style={{ marginTop: -58 }}>
+                <div style={{ borderRadius: "50%", padding: 3, backgroundColor: "var(--bt-surface)", boxShadow: "0 6px 20px var(--bt-shadow)" }}>
+                  <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={88} />
+                </div>
+                <button onClick={() => avatarInputRef.current?.click()} disabled={busy}
+                  title={t("profile.changePhoto")}
+                  className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full flex items-center justify-center transition-all"
+                  style={{ backgroundColor: "#14B885", color: "#fff", boxShadow: "0 1px 6px rgba(0,0,0,0.25)" }}>
+                  {busy ? <span className="block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <IconCamera />}
+                </button>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={uploadAvatar} disabled={busy} />
               </div>
-              <button onClick={() => avatarInputRef.current?.click()} disabled={busy}
-                title={t("profile.changePhoto")}
-                className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-                style={{ backgroundColor: "#14B885", color: "#fff", boxShadow: "0 1px 6px rgba(0,0,0,0.25)" }}>
-                {busy ? <span className="block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <IconCamera />}
-              </button>
-              <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={uploadAvatar} disabled={busy} />
+
+              {/* Identité */}
+              <div className="flex-1 min-w-0 sm:pb-1">
+                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                  <h2 className="text-xl font-display" style={{ color: "var(--bt-text-1)" }}>{displayName(profile)}</h2>
+                  <LevelPill level={levelInfo.current.level} size="sm" solid />
+                </div>
+                <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-3)" }}>
+                  @{profile?.pseudo}
+                  {(profile?.study_field || profile?.study_year || profile?.university) && (
+                    <span> · {[profile.study_field, profile.study_year, profile.university].filter(Boolean).join(" · ")}</span>
+                  )}
+                </p>
+                {profile?.bio && (
+                  <p className="text-sm mt-1.5 italic leading-snug" style={{ color: "var(--bt-text-2)" }}>« {profile.bio} »</p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="shrink-0 sm:pb-1">
+                <button onClick={() => { setMsg(""); setShowEditProfile(true); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-colors bt-press"
+                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-1)" }}>
+                  <IconEdit />
+                  {t("profile.editProfile")}
+                </button>
+              </div>
             </div>
-            <h2 className="text-xl mt-3 text-center" style={{ color: "var(--bt-text-1)" }}>{displayName(profile)}</h2>
-            <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-3)" }}>@{profile?.pseudo}</p>
-            {(profile?.study_field || profile?.study_year || profile?.university) && (
-              <p className="text-xs mt-1.5 text-center leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                {[profile.study_field, profile.study_year].filter(Boolean).join(" · ")}
-                {(profile.study_field || profile.study_year) && profile.university ? " — " : ""}
-                {profile.university}
-              </p>
-            )}
-            {profile?.bio && (
-              <p className="text-sm mt-2 italic text-center px-4 leading-snug" style={{ color: "var(--bt-text-3)" }}>« {profile.bio} »</p>
-            )}
+
             {avatarMsg && (
-              <p className="text-xs mt-2.5 text-center" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-dark)" : "#DC2626" }}>{avatarMsg}</p>
+              <p className="text-xs mt-2.5 text-center sm:text-left" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-dark)" : "#DC2626" }}>{avatarMsg}</p>
             )}
 
-            {/* Rail de stats-cles — chiffres surfaces immediatement, plus besoin de deplier */}
-            <div className="grid grid-cols-3 gap-2 w-full mt-5">
-              {[
-                { label: t("xp.level"), value: levelInfo.current.level },
-                { label: t("profile.streakDays"), value: `${streak} j` },
-                { label: t("profile.totalHours"), value: formatMinutesShort(profileTotalSecs) },
-              ].map((s, i) => (
-                <div key={i} className="rounded-2xl py-2.5 text-center"
-                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                  <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.05rem", color: "var(--bt-text-1)", letterSpacing: "-0.01em" }}>{s.value}</p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide mt-1" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
-                </div>
-              ))}
+            {/* Rail de stats-clés — l'essentiel du profil chiffré d'un coup d'œil */}
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-5 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
+              {heroStats.map((s, i) => <StatTile key={i} label={s.label} value={s.value} />)}
             </div>
           </div>
         </div>
 
         {/* Locked warning */}
         {profile?.locked && (
-          <div className="card p-4 flex items-start gap-3"
+          <div className="card p-4 mt-4 flex items-start gap-3"
             style={{ borderColor: "rgba(220,38,38,0.35)", backgroundColor: "rgba(220,38,38,0.08)" }}>
             <span className="shrink-0" style={{ color: "#DC2626" }}><IconLock /></span>
             <div>
@@ -715,218 +924,196 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ══ PROGRESSION (XP) ═════════════════════════════════ */}
-        <XPProgressCard
-          levelInfo={levelInfo} streak={streak} profileTotalSecs={profileTotalSecs}
-          earnedBadgeIds={earnedBadgeIds} missions={missions}
-          onBadgeClick={setSelectedBadge} t={t}
-        />
+        {/* ══ GRILLE DESKTOP : contenu 2/3 + gamification 1/3 ══
+            Sur mobile, la colonne Progression vient en premier (ordre DOM),
+            sur desktop elle passe à droite. */}
+        <div className="mt-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:items-start">
 
-        {/* ══ ACTIVITÉ (toujours visible — contenu, pas un reglage) ══ */}
-        <div className="card p-5">
-          <SectionLabel>{t("profile.activitySection")}</SectionLabel>
-          {profileTotalSecs > 0 ? (
-            <div className="mt-3">
-              <div className="grid grid-cols-2 gap-2.5 mb-4">
-                {[
-                  { label: t("profile.hours30d"), value: formatMinutesShort(secs30d) },
-                  { label: t("profile.bestStreakDays"), value: `${best} j` },
-                ].map((s, i) => (
-                  <div key={i} className="rounded-2xl p-3 text-center"
-                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
-                    <p className="text-base font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
-                  </div>
-                ))}
-              </div>
-              <StudyHeatmap sessions={profileSessions} />
-            </div>
-          ) : (
-            <p className="text-sm mt-3" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
-          )}
-        </div>
-
-        {/* ══ MON COMPTE (infos + email, accordeons coherents) ══ */}
-        <div className="card overflow-hidden">
-          <div className="px-5 pt-4 pb-1"><SectionLabel>{t("profile.accountSection")}</SectionLabel></div>
-          <SettingsRow icon={<IconUser />} label={t("profile.myInfo")}
-            onClick={() => setShowInfo(o => !o)} right={<IconChevronDown open={showInfo} />} />
-          {showInfo && (
-            <div className="px-5 pb-5 pt-1">
-              <form onSubmit={profile?.locked ? e => e.preventDefault() : saveInfo} className="space-y-3">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1 min-w-0">
-                    <label className="label">{t("profile.firstName")}</label>
-                    <input className="input" value={form.first_name} onChange={e => set("first_name", e.target.value)} disabled={profile?.locked} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="label">{t("profile.lastName")}</label>
-                    <input className="input" value={form.last_name} onChange={e => set("last_name", e.target.value)} disabled={profile?.locked} />
-                  </div>
-                </div>
-                <div>
-                  <label className="label">{t("profile.university")}</label>
-                  <UniPicker value={form.university} onChange={v => set("university", v)} disabled={!!profile?.locked} placeholder={t("profile.choose")} />
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1 min-w-0">
-                    <label className="label">{t("profile.studies")}</label>
-                    <input className="input" placeholder={t("profile.studiesPlaceholder")} value={form.study_field} onChange={e => set("study_field", e.target.value)} disabled={profile?.locked} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="label">{t("profile.year")}</label>
-                    <select className="input" value={form.study_year} onChange={e => { set("study_year", e.target.value); set("study_year_custom", ""); }} disabled={profile?.locked}>
-                      <option value="">—</option>
-                      {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-                </div>
-                {form.study_year === "Autre" && (
-                  <div>
-                    <label className="label">{t("profile.customYear")}</label>
-                    <input className="input" placeholder={t("profile.customYearPlaceholder")} value={form.study_year_custom} onChange={e => set("study_year_custom", e.target.value)} disabled={profile?.locked} />
-                  </div>
-                )}
-                <div>
-                  <label className="label">{t("profile.bio")}</label>
-                  <textarea className="input" rows={2} maxLength={160} placeholder={t("profile.bioPlaceholder")} value={form.bio} onChange={e => set("bio", e.target.value)} disabled={profile?.locked} />
-                </div>
-                <button className="btn-primary w-full" type="submit" disabled={busy || !!profile?.locked}>
-                  {busy ? t("common.saving") : t("common.save")}
-                </button>
-                {msg && <p className="text-xs text-center" style={{ color: msg.startsWith("Erreur") ? "#DC2626" : "var(--bt-accent-dark)" }}>{msg}</p>}
-              </form>
-            </div>
-          )}
-          {sep}
-          <SettingsRow icon={<IconMail />} label={t("profile.emailSection")}
-            onClick={() => setShowEmail(o => !o)} right={<IconChevronDown open={showEmail} />} />
-          {showEmail && (
-            <div className="px-5 pb-5 pt-1">
-              <form onSubmit={saveEmail} className="space-y-2">
-                <input className="input" type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} autoComplete="email" placeholder="ton@email.com" />
-                <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("profile.emailHint")}</p>
-                {emailMsg && <p className="text-xs" style={{ color: emailMsg === t("profile.emailSaved") ? "var(--bt-accent-dark)" : "#DC2626" }}>{emailMsg}</p>}
-                <button className="btn-primary w-full" type="submit" disabled={emailBusy || !emailInput.trim() || emailInput === (profile?.email || "")}>
-                  {emailBusy ? t("profile.emailSaving") : t("profile.emailSave")}
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
-
-        {/* ══ NOTIFICATIONS ════════════════════════════════════ */}
-        <PushNotificationsCard />
-
-        {/* ══ PARRAINAGE ═══════════════════════════════════════ */}
-        <ReferralCard t={t} />
-
-        {/* ══ PRÉFÉRENCES (controles en place — ni accordeon ni nav) ══ */}
-        <div className="card overflow-hidden">
-          <div className="px-5 pt-4 pb-1"><SectionLabel>{t("profile.preferencesSection")}</SectionLabel></div>
-          <SettingsRow icon={<IconGlobe />} label={t("profile.language")} right={
-            <div className="flex gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 10, padding: 2 }}>
-              {["fr", "en"].map(code => (
-                <button key={code} onClick={() => changeLang(code)}
-                  className="px-3 py-1 rounded-lg text-xs font-bold transition-colors"
-                  style={lang === code ? { backgroundColor: "#14B885", color: "#fff" } : { color: "var(--bt-text-3)" }}>
-                  {code.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          } />
-          {sep}
-          <SettingsRow icon={dark ? <IconMoon /> : <IconSun />} label={t("profile.appearance")} right={
-            <button onClick={toggleDark} className="relative w-10 h-6 rounded-full transition-colors" style={{ backgroundColor: dark ? "#14B885" : "var(--bt-border)" }} aria-label={t("profile.appearance")}>
-              <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: dark ? "translateX(18px)" : "translateX(2px)" }} />
-            </button>
-          } />
-        </div>
-
-        {/* ══ AIDE & À PROPOS ══════════════════════════════════ */}
-        <div className="card overflow-hidden">
-          <div className="px-5 pt-4 pb-1"><SectionLabel>{t("profile.helpSection")}</SectionLabel></div>
-          {/* → mene a une autre page (fleche droite) */}
-          <SettingsRow accent icon={<IconFeedback />} href="/feedback"
-            label={t("feedback.improveTitle")} description={t("feedback.improveDesc")}
-            right={<IconChevronRight />} />
-          {sep}
-          {/* ▾ se deplie sur place (accordeon) */}
-          <SettingsRow icon={<IconSmartphone />} label={t("pwa.profileSection")}
-            onClick={() => setShowPwa(s => !s)} right={<IconChevronDown open={showPwa} />} />
-          {showPwa && (
-            <div className="px-5 pb-4 pt-1 space-y-3">
-              <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("pwa.profileDesc")}</p>
-              <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                <span className="shrink-0 mt-0.5" style={{ color: "#D97706" }}><IconAlert /></span>
-                <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("pwa.safariNote")}</p>
-              </div>
-              <ol className="space-y-2">
-                {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
-                    <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-          {sep}
-          <SettingsRow icon={<IconInfo />} label={t("profile.about")}
-            onClick={() => setShowAbout(s => !s)} right={<IconChevronDown open={showAbout} />} />
-          {showAbout && (
-            <div className="px-5 pb-4 pt-1 space-y-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-              <p><span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>blocus·tracker</span>{" "}{t("profile.aboutCreatedBy")}{" "}<span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>Mathias Dock</span>{", "}{t("profile.aboutRole")}</p>
-              <p>{t("profile.aboutDesc")}</p>
-            </div>
-          )}
-          {sep}
-          {/* → mene a la page legale */}
-          <SettingsRow icon={<IconLegal />} href="/legal"
-            label={t("legal.profileRow")} description={t("legal.profileRowDesc")}
-            right={<IconChevronRight />} />
-        </div>
-
-        {/* ══ ADMIN (si admin — navigations) ═══════════════════ */}
-        {profile?.is_admin && (
-          <div className="card overflow-hidden">
-            <div className="px-5 pt-4 pb-1"><SectionLabel>{t("nav.admin")}</SectionLabel></div>
-            <SettingsRow accent icon={<IconShield color="var(--bt-accent-dark)" />} href="/admin"
-              label={t("profile.adminDashboard")} right={<IconChevronRight />} />
-            {sep}
-            <SettingsRow accent icon={<IconFeedback />} href="/feedback"
-              label={t("profile.suggestionInbox")} right={<IconChevronRight />} />
+          {/* ── Colonne PROGRESSION (droite en desktop, 1ère en mobile) ── */}
+          <div className="space-y-4 lg:order-2">
+            <XPCard levelInfo={levelInfo} missions={missions} t={t} />
+            <BadgesCard earnedBadgeIds={earnedBadgeIds} onBadgeClick={setSelectedBadge} t={t} />
+            <ReferralCard t={t} />
           </div>
-        )}
 
-        {/* ══ SESSION (deconnexion + suppression — actions destructives isolees) ══ */}
-        <div className="card overflow-hidden">
-          <SettingsRow icon={<IconLogOut />} label={t("profile.signOut")} onClick={signOut} />
-          {sep}
-          {!deleteConfirm ? (
-            <SettingsRow danger icon={<IconTrash />} label={t("profile.deleteAccount")}
-              onClick={() => setDeleteConfirm(true)} />
-          ) : (
-            <div className="px-5 py-4 space-y-3">
-              <p className="text-sm font-medium text-center" style={{ color: "#DC2626" }}>{t("profile.deleteWarning")}</p>
-              <div className="flex gap-2">
-                <button onClick={deleteAccount} disabled={deleting} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition" style={{ backgroundColor: "#DC2626", color: "#fff" }}>
-                  {deleting ? "…" : t("profile.confirmDelete")}
-                </button>
-                <button onClick={() => setDeleteConfirm(false)} className="btn-ghost flex-1 text-sm">{t("common.cancel")}</button>
+          {/* ── Colonne CONTENU (gauche en desktop) ── */}
+          <div className="space-y-4 lg:col-span-2 lg:order-1">
+
+            {/* Activité — heatmap GitHub + tuiles */}
+            <div className="card overflow-hidden">
+              <CardHead icon={<IconActivity />} label={t("profile.activitySection")} />
+              <div className="px-5 pb-5">
+                {profileTotalSecs > 0 ? (
+                  <>
+                    <StudyHeatmap sessions={profileSessions} />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                      <StatTile label={t("profile.hours30d")} value={formatMinutesShort(secs30d)} />
+                      <StatTile label={t("profile.statAvgDay")} value={formatMinutesShort(avgDaySecs30)} />
+                      <StatTile label={t("profile.statActiveDays")} value={activeDays} />
+                      <StatTile label={t("profile.statObjDone")} value={completedObjCount} />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
+                )}
               </div>
             </div>
-          )}
-        </div>
 
+            {/* Activité récente — les dernières sessions, ancrées dans le réel */}
+            <div className="card overflow-hidden">
+              <CardHead icon={<IconClock />} label={t("profile.recentActivity")} />
+              <div className="pb-2">
+                {recentSessions.length === 0 ? (
+                  <p className="px-5 pb-4 text-sm" style={{ color: "var(--bt-text-3)" }}>{t("profile.noRecentActivity")}</p>
+                ) : (
+                  <ul>
+                    {recentSessions.map((s, i) => {
+                      const course = courseMap[s.course_id];
+                      const d = new Date(s.started_at);
+                      return (
+                        <li key={`${s.started_at}-${i}`} className="flex items-center gap-3 px-5 py-2.5"
+                          style={{ borderTop: i > 0 ? "1px solid var(--bt-border)" : "none" }}>
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: course?.color || "var(--bt-text-4)" }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
+                              {course?.name || t("profile.noCourseSession")}
+                            </p>
+                            <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
+                              {d.toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })}
+                              {" · "}
+                              {d.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                          <span className="shrink-0 font-num text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
+                            {formatMinutesShort(s.duration_seconds)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Préférences — réglages en place, aucun texte superflu */}
+            <div className="card overflow-hidden">
+              <CardHead icon={<IconSliders />} label={t("profile.preferencesSection")} />
+              <SettingsRow icon={<IconGlobe />} label={t("profile.language")} right={
+                <Segmented value={lang} onChange={changeLang}
+                  options={[{ value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
+              } />
+              {sep}
+              <SettingsRow icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} right={
+                <Segmented value={theme} onChange={setTheme}
+                  options={[
+                    { value: "light", label: t("profile.themeLight") },
+                    { value: "system", label: t("profile.themeSystem") },
+                    { value: "dark", label: t("profile.themeDark") },
+                  ]} />
+              } />
+              {sep}
+              <PushRow t={t} user={user} />
+            </div>
+
+            {/* Compte — email, app, avis, légal, à propos + zone de sortie */}
+            <div className="card overflow-hidden">
+              <CardHead icon={<IconUser />} label={t("profile.accountSection")} />
+              <SettingsRow icon={<IconMail />} label={t("profile.emailSection")}
+                description={profile?.email || undefined}
+                onClick={() => setShowEmail(o => !o)} right={<IconChevronDown open={showEmail} />} />
+              {showEmail && (
+                <div className="px-5 pb-5 pt-1">
+                  <form onSubmit={saveEmail} className="space-y-2">
+                    <input className="input" type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} autoComplete="email" placeholder="ton@email.com" />
+                    <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("profile.emailHint")}</p>
+                    {emailMsg && <p className="text-xs" style={{ color: emailMsg === t("profile.emailSaved") ? "var(--bt-accent-dark)" : "#DC2626" }}>{emailMsg}</p>}
+                    <button className="btn-primary w-full" type="submit" disabled={emailBusy || !emailInput.trim() || emailInput === (profile?.email || "")}>
+                      {emailBusy ? t("profile.emailSaving") : t("profile.emailSave")}
+                    </button>
+                  </form>
+                </div>
+              )}
+              {sep}
+              <SettingsRow icon={<IconSmartphone />} label={t("pwa.profileSection")}
+                onClick={() => setShowPwa(s => !s)} right={<IconChevronDown open={showPwa} />} />
+              {showPwa && (
+                <div className="px-5 pb-4 pt-1 space-y-3">
+                  <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                    <span className="shrink-0 mt-0.5" style={{ color: "#D97706" }}><IconAlert /></span>
+                    <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("pwa.safariNote")}</p>
+                  </div>
+                  <ol className="space-y-2">
+                    {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
+                        <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+              {sep}
+              <SettingsRow accent icon={<IconFeedback />} href="/feedback"
+                label={t("feedback.improveTitle")} right={<IconChevronRight />} />
+              {sep}
+              <SettingsRow icon={<IconLegal />} href="/legal"
+                label={t("legal.profileRow")} right={<IconChevronRight />} />
+              {sep}
+              <SettingsRow icon={<IconInfo />} label={t("profile.about")}
+                onClick={() => setShowAbout(s => !s)} right={<IconChevronDown open={showAbout} />} />
+              {showAbout && (
+                <div className="px-5 pb-4 pt-1 space-y-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                  <p><span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>blocus·tracker</span>{" "}{t("profile.aboutCreatedBy")}{" "}<span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>Mathias Dock</span>{", "}{t("profile.aboutRole")}</p>
+                  <p>{t("profile.aboutDesc")}</p>
+                </div>
+              )}
+              {sep}
+              <SettingsRow icon={<IconLogOut />} label={t("profile.signOut")} onClick={signOut} />
+              {sep}
+              {!deleteConfirm ? (
+                <SettingsRow danger icon={<IconTrash />} label={t("profile.deleteAccount")}
+                  onClick={() => setDeleteConfirm(true)} />
+              ) : (
+                <div className="px-5 py-4 space-y-3">
+                  <p className="text-sm font-medium text-center" style={{ color: "#DC2626" }}>{t("profile.deleteWarning")}</p>
+                  <div className="flex gap-2">
+                    <button onClick={deleteAccount} disabled={deleting} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition" style={{ backgroundColor: "#DC2626", color: "#fff" }}>
+                      {deleting ? "…" : t("profile.confirmDelete")}
+                    </button>
+                    <button onClick={() => setDeleteConfirm(false)} className="btn-ghost flex-1 text-sm">{t("common.cancel")}</button>
+                  </div>
+                  {msg && <p className="text-xs text-center" style={{ color: "#DC2626" }}>{msg}</p>}
+                </div>
+              )}
+            </div>
+
+            {/* Administration — visible uniquement pour les admins */}
+            {profile?.is_admin && (
+              <div className="card overflow-hidden">
+                <CardHead icon={<IconShield color="var(--bt-text-3)" />} label={t("nav.admin")} />
+                <SettingsRow accent icon={<IconShield color="var(--bt-accent-dark)" />} href="/admin"
+                  label={t("profile.adminDashboard")} right={<IconChevronRight />} />
+                {sep}
+                <SettingsRow accent icon={<IconFeedback />} href="/feedback"
+                  label={t("profile.suggestionInbox")} right={<IconChevronRight />} />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ══ Badge detail sheet ════════════════════════════════ */}
+      {/* ══ Overlays ══════════════════════════════════════════ */}
       <BadgeSheet
         badge={selectedBadge}
         earned={selectedBadge ? earnedBadgeIds.includes(selectedBadge.id) : false}
         t={t}
         onClose={() => setSelectedBadge(null)}
+      />
+      <EditProfileModal
+        open={showEditProfile}
+        onClose={() => setShowEditProfile(false)}
+        form={form} set={set} saveInfo={saveInfo} busy={busy} msg={msg}
+        locked={!!profile?.locked} t={t}
       />
     </Layout>
   );

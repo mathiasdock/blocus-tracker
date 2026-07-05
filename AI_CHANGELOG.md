@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Profil : refonte complete avec vraie version desktop
+
+Refonte totale de `pages/profile.js` demandee par l'utilisateur : fin de la "version mobile etiree", vraie mise en page desktop multi-colonnes, esprit GitHub (heatmap) x Duolingo (progression) x Strava (profil).
+
+- **Layout desktop** : conteneur `max-w-[1200px]`, hero identite pleine largeur puis grille `lg:grid-cols-3` — contenu 2/3 (activite, activite recente, preferences, compte, admin) + gamification 1/3 (XP/missions, badges, parrainage). Sur mobile l'ordre DOM place la progression juste apres le hero (colonne droite en premier), rien de casse.
+- **Hero horizontal (Strava)** : cover ink + avatar chevauchant (seul l'avatar chevauche — le nom reste sous la ligne pour le contraste), nom + LevelPill, @pseudo · etudes · fac sur une ligne, bio, bouton "Modifier le profil" → **modal d'edition** (l'ancien accordeon "Mes infos" devient `EditProfileModal`). **Rail de 5 stats** : Temps total · Sessions · Serie · Record · Rang (7 j) via le RPC existant `get_my_study_rank('week')` (normalise objet/tableau).
+- **Activite** : heatmap GitHub en piece maitresse pleine largeur + 4 tuiles (30 derniers jours, Moyenne/jour 30 j, Jours actifs 1 an, Objectifs atteints). **Activite recente** : les 8 dernieres sessions reelles avec pastille couleur du cours, date + heure locale, duree (nouvelle requete `courses` id/name/color pour le mapping, donnees propres a l'utilisateur).
+- **Preferences modernes** : rangees uniformes (`SettingsRow` + `CardHead` partout) — Langue en segmented FR/EN, **Theme en segmented Clair / Systeme / Sombre** (nouveau mode Systeme), Notifications push reduites a une rangee compacte (`PushRow` inline, `PushNotificationsCard` devenu orphelin mais conserve).
+- **Fix theme** : nouveau `useTheme` — storage `bt_theme` ("light"|"dark"|"system"), migration de la cle heritee `bt_dark`, ecoute `prefers-color-scheme` en mode systeme, `ready` en state (meme pattern que le fix TimerContext pour eviter l'ecrasement StrictMode). Script anti-flash de `pages/_document.js` mis a jour (lit bt_theme, gere system, migre bt_dark).
+- **Compte** : email (valeur visible en description), installer l'app (texte raccourci, pave d'aide supprime), avis, legal, a propos, deconnexion et suppression regroupes dans une seule carte coherente. **Parrainage compact** : lien + copier + compteur, gros texte d'aide supprime, liste filleuls repliable conservee (fix props Avatar url/pseudo au passage).
+- **Admin** : carte dediee en bas, visible uniquement `is_admin` (dashboard + boite a suggestions).
+- i18n : ~16 cles `profile.*` FR+EN (stats, theme, activite recente...).
+- Verification navigateur (offline dev) : desktop 1280/1360 clair+sombre, theme Sombre/Systeme/Clair + persistance apres reload (segment actif restaure), migration bt_dark → bt_theme observee, modal edition ouvert/ferme, mobile 390 (hero centre, rail 3+2, progression en premier). `npm run build` OK (20/20).
+
 ## 2026-07-05 - Correctifs Social : logos communautes, scroll naturel, Messages premium
 
 Passe de correction apres la refonte Social phase 1.
