@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
@@ -7,10 +8,108 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, lastNDates, getWeekDates, displayName, todayISO, computeStreak, computeBestStreak } from "../lib/format";
+import { computeInsights } from "../lib/statsInsights";
 import { loadUserLevelMap } from "../lib/userLevels";
 import LevelPill from "../components/LevelPill";
 
 const Charts = dynamic(() => import("../components/StatsCharts"), { ssr: false });
+
+// 1er janvier 2024 = un lundi → sert de référence pour nommer un jour ISO
+// (0=lun) dans la langue courante sans dépendre d'une locale figée.
+function weekdayName(isoIndex, lang) {
+  if (isoIndex == null) return "—";
+  const d = new Date(2024, 0, 1 + isoIndex);
+  return d.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { weekday: "long" });
+}
+
+// Formate des minutes-depuis-minuit en heure lisible (18h42 / 6:42 PM).
+function formatClock(minutes, lang) {
+  if (minutes == null) return "—";
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  if (lang === "en") {
+    const ap = h < 12 ? "AM" : "PM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, "0")} ${ap}`;
+  }
+  return `${h}h${String(m).padStart(2, "0")}`;
+}
+
+// Compteur animé (micro-interaction) — anime un entier de 0 → value au montage.
+// Respecte prefers-reduced-motion (saute direct à la valeur finale).
+function useCountUp(value, duration = 900) {
+  const [display, setDisplay] = useState(value);
+  const ref = useRef(value);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(value); ref.current = value; return;
+    }
+    const from = ref.current, to = value, start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const p = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(from + (to - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else ref.current = to;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return display;
+}
+
+function CountInt({ value, suffix = "" }) {
+  const n = useCountUp(value || 0);
+  return <>{n}{suffix}</>;
+}
+
+// Barre d'objectif proéminente — libellé, valeur/cible, pourcentage, reste.
+function GoalBar({ icon, chip, label, pct, valueText, targetText, footer, footerColor }) {
+  const reached = pct >= 100;
+  return (
+    <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+      <div className="flex items-center gap-2 mb-2.5">
+        <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: chip.bg, color: chip.color }}>{icon}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide flex-1 min-w-0 truncate" style={{ color: "var(--bt-text-2)" }}>{label}</span>
+        <span className="text-sm font-num font-bold tabular-nums" style={{ color: reached ? "#0E8F68" : "var(--bt-text-1)" }}>
+          <CountInt value={Math.round(pct)} suffix="%" />
+        </span>
+      </div>
+      <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
+        <div className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${Math.min(100, pct)}%`, backgroundImage: reached ? "linear-gradient(90deg,#0E8F68,#14B885)" : "linear-gradient(90deg,#14B885,#2BD9A4)" }} />
+      </div>
+      <div className="flex items-center justify-between mt-2 gap-2">
+        <span className="text-[11px] font-num tabular-nums" style={{ color: "var(--bt-text-3)" }}>{valueText}{targetText ? ` / ${targetText}` : ""}</span>
+        {footer && <span className="text-[11px] font-semibold truncate" style={{ color: footerColor || "var(--bt-text-3)" }}>{footer}</span>}
+      </div>
+    </div>
+  );
+}
+
+// Ligne d'insight compacte — icône + libellé + valeur (Habitudes / Perf).
+function InsightRow({ icon, label, value }) {
+  return (
+    <div className="flex items-center gap-2.5 py-2">
+      <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>{icon}</span>
+      <span className="text-xs flex-1 min-w-0 truncate" style={{ color: "var(--bt-text-2)" }}>{label}</span>
+      <span className="text-sm font-num font-semibold tabular-nums shrink-0" style={{ color: "var(--bt-text-1)" }}>{value}</span>
+    </div>
+  );
+}
+
+// Puce de badge statistique — icône SVG teintée accent (débloqué) ou grisée.
+function StatBadge({ earned, label, icon }) {
+  return (
+    <div className="flex flex-col items-center text-center gap-1.5" style={{ opacity: earned ? 1 : 0.45 }} title={label}>
+      <span className="w-12 h-12 rounded-2xl flex items-center justify-center"
+        style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: `1px solid ${earned ? "var(--bt-accent-border)" : "var(--bt-border)"}`, color: earned ? "#0E8F68" : "var(--bt-text-4)" }}>
+        {icon}
+      </span>
+      <span className="text-[10px] leading-tight font-medium" style={{ color: earned ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{label}</span>
+    </div>
+  );
+}
 
 // Format the Mon–Sun label for a week
 function weekLabel(dates, lang) {
@@ -380,6 +479,77 @@ export default function Stats() {
   const pct = myRank?.total_active > 0 && Number(myRank?.my_secs) > 0
     ? Math.max(1, Math.ceil(Number(myRank.better_count) / Number(myRank.total_active) * 100))
     : null;
+  const rankPos   = myRank && Number(myRank.my_secs) > 0 ? Number(myRank.better_count) + 1 : null;
+  const rankTotal = myRank ? Number(myRank.total_active) : null;
+
+  // ── Insights (module pur) ─────────────────────────────────────
+  const insights = computeInsights(sessions, {
+    todaySecs, streak, bestStreak, allTimeSecs, dailyGoalSecs: DAILY_GOAL_SECS,
+  });
+
+  // ── Objectifs (journalier déjà = 2h ; semaine 10h ; mois 40h) ──
+  const WEEKLY_GOAL_SECS  = 10 * 3600;
+  const MONTHLY_GOAL_SECS = 40 * 3600;
+  const weekGoalPct  = Math.min(100, Math.round(currentWeekSecs / WEEKLY_GOAL_SECS * 100));
+  const monthGoalPct = Math.min(100, Math.round(total30 / MONTHLY_GOAL_SECS * 100));
+  const dailyRemain  = Math.max(0, DAILY_GOAL_SECS  - todaySecs);
+  const weekRemain   = Math.max(0, WEEKLY_GOAL_SECS  - currentWeekSecs);
+  const monthRemain  = Math.max(0, MONTHLY_GOAL_SECS - total30);
+  const streakTarget = streak < 7 ? 7 : streak < 14 ? 14 : streak < 30 ? 30 : streak < 100 ? 100 : streak + 10;
+  const streakPct    = Math.min(100, Math.round(streak / streakTarget * 100));
+
+  // ── Résumé « intelligent » — phrases dynamiques et priorisées ──
+  const aiLines = [];
+  if (todaySecs === 0) {
+    aiLines.push({ text: t("stats.aiNoToday"), strong: true });
+    aiLines.push({ text: streak > 0
+      ? t("stats.aiStreakSave").replace("{n}", String(streak))
+      : t("stats.aiStreakStart") });
+  } else {
+    aiLines.push({ text: t("stats.aiTodayGood").replace("{time}", formatMinutesShort(todaySecs)), strong: true });
+    if (insights.monthSecs > 0) aiLines.push({ text: t("stats.aiMonth").replace("{time}", formatMinutesShort(insights.monthSecs)) });
+    if (insights.bestWeekday != null) aiLines.push({ text: t("stats.aiBestDay").replace("{day}", weekdayName(insights.bestWeekday, lang)) });
+  }
+  // Ligne de régularité seulement si la semaine passée avait de l'activité.
+  if (insights.activeDaysLastWeek > 0) {
+    aiLines.push({ text: insights.moreRegular ? t("stats.aiMoreRegular") : t("stats.aiLessRegular"),
+      color: insights.moreRegular ? "#0E8F68" : "var(--bt-text-2)" });
+  }
+  if (todaySecs > 0) aiLines.push({ text: t("stats.aiKeepGoing"), color: "#0E8F68" });
+  const aiLinesShown = aiLines.slice(0, 4);
+
+  // ── Badges statistiques (icône SVG teintée accent) ────────────
+  const iconOf = {
+    firstHour:     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>,
+    streak7:       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
+    hours50:       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+    hours100:      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>,
+    session3h:     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+    marathonDay:   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 6-2"/><path d="M12 10v4"/></svg>,
+    afterMidnight: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
+    earlyBird:     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>,
+    goal10:        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+  };
+  const badgeDefs = [
+    { id: "firstHour",     label: t("stats.badgeFirstHour") },
+    { id: "streak7",       label: t("stats.badgeStreak7") },
+    { id: "session3h",     label: t("stats.badgeSession3h") },
+    { id: "marathonDay",   label: t("stats.badgeMarathon") },
+    { id: "hours50",       label: t("stats.badgeHours50") },
+    { id: "hours100",      label: t("stats.badgeHours100") },
+    { id: "afterMidnight", label: t("stats.badgeNight") },
+    { id: "earlyBird",     label: t("stats.badgeEarly") },
+    { id: "goal10",        label: t("stats.badgeGoal10") },
+  ];
+  const earnedBadges = badgeDefs.filter(b => insights.badges[b.id]).length;
+
+  // Répartition du temps par moment de la journée (Habitudes).
+  const slots = [
+    { key: "morning",   label: t("stats.slotMorning"),   color: "#F59E0B" },
+    { key: "afternoon", label: t("stats.slotAfternoon"), color: "#14B885" },
+    { key: "evening",   label: t("stats.slotEvening"),   color: "#6366F1" },
+    { key: "night",     label: t("stats.slotNight"),     color: "#8B5CF6" },
+  ];
 
   return (
     <Layout>
@@ -508,6 +678,55 @@ export default function Stats() {
         )}
       </div>
 
+      {/* ── Résumé intelligent ─────────────────────────────────── */}
+      <div className="card p-5 mb-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundImage: "linear-gradient(180deg,#14B885,#2BD9A4)" }} />
+        <div className="flex items-center gap-2 mb-3 pl-1">
+          <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5 10.1 10.9 5.5 9l4.6-1.4L12 3z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/></svg>
+          </span>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-2)" }}>{t("stats.aiTitle")}</h2>
+        </div>
+        <div className="pl-1 space-y-1">
+          {aiLinesShown.map((l, i) => (
+            <p key={i} className={l.strong ? "text-lg font-semibold leading-snug" : "text-sm leading-snug"}
+              style={{ color: l.color || (l.strong ? "var(--bt-text-1)" : "var(--bt-text-2)") }}>
+              {l.text}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Objectifs — proéminents ────────────────────────────── */}
+      <div className="card p-5 mb-4">
+        <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>{t("stats.goalsTitle")}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+          <GoalBar
+            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
+            chip={{ bg: "#14B885", color: "#fff" }} label={t("stats.goalDaily")} pct={todayGoalPct}
+            valueText={formatMinutesShort(todaySecs)} targetText={formatMinutesShort(DAILY_GOAL_SECS)}
+            footer={todayGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(dailyRemain))}
+            footerColor={todayGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
+          <GoalBar
+            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+            chip={{ bg: "#0369a1", color: "#fff" }} label={t("stats.goalWeekly")} pct={weekGoalPct}
+            valueText={formatMinutesShort(currentWeekSecs)} targetText={formatMinutesShort(WEEKLY_GOAL_SECS)}
+            footer={weekGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(weekRemain))}
+            footerColor={weekGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
+          <GoalBar
+            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>}
+            chip={{ bg: "#6366F1", color: "#fff" }} label={t("stats.goalMonthly")} pct={monthGoalPct}
+            valueText={formatMinutesShort(total30)} targetText={formatMinutesShort(MONTHLY_GOAL_SECS)}
+            footer={monthGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(monthRemain))}
+            footerColor={monthGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
+          <GoalBar
+            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>}
+            chip={{ bg: "#D97706", color: "#fff" }} label={t("stats.goalStreakCard")} pct={streakPct}
+            valueText={t("stats.goalStreakUnit").replace("{n}", String(streak)).replace("{target}", String(streakTarget))} targetText=""
+            footer={t("stats.goalStreakKeep")} footerColor="var(--bt-text-3)" />
+        </div>
+      </div>
+
       {/* ── Heatmap ────────────────────────────────────────────── */}
       <div className="card p-5 mb-4">
         <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--bt-text-2)" }}>
@@ -515,6 +734,83 @@ export default function Stats() {
         </h2>
         <StudyHeatmap sessions={sessions} />
       </div>
+
+      {/* ── Habitudes + Performances/Records (insights) ────────── */}
+      {insights.hasData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          {/* Habitudes */}
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>{t("stats.habitsTitle")}</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>{t("stats.habitsWhen")}</p>
+            <div className="space-y-2 mb-4">
+              {slots.map(s => {
+                const p = insights.timeOfDayPct[s.key];
+                return (
+                  <div key={s.key} className="flex items-center gap-2.5">
+                    <span className="text-xs w-16 shrink-0" style={{ color: "var(--bt-text-2)" }}>{s.label}</span>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${p}%`, backgroundColor: s.color }} />
+                    </div>
+                    <span className="text-xs font-num font-semibold tabular-nums w-9 text-right shrink-0" style={{ color: "var(--bt-text-1)" }}>{p}%</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="pt-2" style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+                label={t("stats.habitPreferredDay")} value={weekdayName(insights.bestWeekday, lang)} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
+                label={t("stats.habitAvgSession")} value={formatMinutesShort(insights.avgSessionSecs)} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 22h14M5 2h14M17 2v5a5 5 0 0 1-10 0V2M7 22v-5a5 5 0 0 1 10 0v5"/></svg>}
+                label={t("stats.habitAvgStart")} value={formatClock(insights.avgStartMinutes, lang)} />
+            </div>
+          </div>
+
+          {/* Performances + Records */}
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold mb-2" style={{ color: "var(--bt-text-1)" }}>{t("stats.perfTitle")}</h2>
+            <div className="mb-3">
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+                label={t("stats.perfProductiveDay")} value={weekdayName(insights.bestWeekday, lang)} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
+                label={t("stats.perfProductiveHour")}
+                value={insights.mostProductiveHour == null ? "—" : t("stats.hourRange").replace("{h}", String(insights.mostProductiveHour)).replace("{h2}", String((insights.mostProductiveHour + 1) % 24))} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>}
+                label={t("stats.perfLongest")} value={formatMinutesShort(insights.longestSessionSecs)} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/></svg>}
+                label={t("stats.perfBestDay")} value={formatMinutesShort(insights.bestDaySecs)} />
+            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1 pt-3" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-border)" }}>{t("stats.recordsTitle")}</p>
+            <div className="grid grid-cols-2 gap-x-4">
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>}
+                label={t("stats.recLongestStreak")} value={`${bestStreak} ${t("stats.dayUnit")}`} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>}
+                label={t("stats.recBestWeek")} value={formatMinutesShort(insights.bestWeekSecs)} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>}
+                label={t("stats.recBestMonth")} value={formatMinutesShort(insights.bestMonthSecs)} />
+              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>}
+                label={t("stats.recTotal")} value={formatMinutesShort(allTimeSecs)} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Badges statistiques ────────────────────────────────── */}
+      {insights.hasData && (
+        <div className="card p-5 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("stats.badgesTitle")}</h2>
+            <span className="text-xs font-num tabular-nums px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+              {t("stats.badgesEarned").replace("{n}", String(earnedBadges)).replace("{total}", String(badgeDefs.length))}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
+            {badgeDefs.map(b => (
+              <StatBadge key={b.id} earned={!!insights.badges[b.id]} label={b.label} icon={iconOf[b.id]} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Percentile — moment de marque (surface ink) ────────── */}
       <div className="card-ink bt-grain px-5 py-4 mb-4">
@@ -540,9 +836,17 @@ export default function Stats() {
                   style={{ fontSize: "clamp(1.6rem,7vw,2.1rem)", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
                   {pct}%
                 </p>
-                <p className="mt-1 leading-snug" style={{ color: "var(--bt-ink-muted)", fontSize: "0.75rem" }}>
-                  {t("stats.percentilePost")}
-                </p>
+                <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: "rgba(255,255,255,0.12)", color: "var(--bt-ink-text)", border: "1px solid var(--bt-ink-border)" }}>
+                    {t("stats.rankTop").replace("{pct}", String(pct))}
+                  </span>
+                  {rankPos != null && rankTotal != null && (
+                    <span className="text-[11px] tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
+                      {t("stats.rankPosition").replace("{rank}", String(rankPos)).replace("{total}", String(rankTotal))}
+                    </span>
+                  )}
+                </div>
               </>
             ) : (
               <>
@@ -559,8 +863,17 @@ export default function Stats() {
       </div>
 
       {sessionCount === 0 ? (
-        <div className="card p-10 text-center text-sm" style={{ color: "#A8A09A" }}>
-          {t("stats.empty")}
+        <div className="card p-8 sm:p-10 flex flex-col items-center text-center">
+          <span className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="0.5"/><rect x="12" y="8" width="3" height="10" rx="0.5"/><rect x="17" y="4" width="3" height="14" rx="0.5"/></svg>
+          </span>
+          <h3 className="text-base font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>{t("stats.emptyChartsTitle")}</h3>
+          <p className="text-sm mb-5 max-w-xs" style={{ color: "var(--bt-text-3)" }}>{t("stats.emptyChartsSub")}</p>
+          <Link href="/dashboard" className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            {t("stats.emptyCta")}
+          </Link>
         </div>
       ) : (
         <Charts

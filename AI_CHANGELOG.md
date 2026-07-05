@@ -2,6 +2,22 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - Stats : enrichissement insights (vague 1) — resume, objectifs, habitudes, records, badges
+
+Enrichissement de `pages/stats.js` (design minimal conserve) a la demande de l'utilisateur : rendre la page plus intelligente/motivante sans la surcharger. Nouveau module pur `lib/statsInsights.js` (calculs depuis les sessions deja chargees, aucun nouveau backend).
+
+- **Resume intelligent** (haut de page) : 2-4 phrases dynamiques priorisees (rien etudie aujourd'hui + relance de serie ; sinon temps du jour + total du mois + meilleur jour + regularite vs semaine passee + encouragement).
+- **Objectifs proeminents** : 4 barres `GoalBar` (journalier 2h, hebdo 10h, mensuel 40h, serie en cours) avec %, valeur/cible, reste ("Encore X !") et etat atteint. Pourcentage anime (count-up, respecte reduced-motion).
+- **Habitudes** : repartition matin/apres-midi/soir/nuit (barres), jour prefere, duree moyenne de session, heure moyenne de debut.
+- **Performances + Records** : jour/heure les plus productifs, plus longue session, plus grande journee ; records serie/semaine/mois/total.
+- **Badges statistiques** : 9 badges a icones SVG teintees accent (premiere heure, serie 7j, session 3h+, journee marathon, 50h, 100h, apres minuit, leve-tot, objectif 10j d'affilee), debloques auto + compteur. NB : icones SVG et non emojis pour rester coherent avec la dir. "de-emojifiee" de l'app.
+- **Classement enrichi** : la carte percentile ink affiche desormais "Top X%" + "#N sur T etudiants" (depuis le RPC get_my_study_rank existant, better_count/total_active).
+- **Etat vide premium** des graphiques : illustration + titre + sous-titre motivant + CTA "Lancer un chrono" (vers /dashboard) au lieu d'un texte nu.
+- **Responsive/mobile** : ordre pense mobile-first (Resume + Objectifs juste apres les KPI), grilles 1→2 colonnes.
+- i18n : ~60 cles `stats.*` FR+EN. Micro-interactions : count-up (`useCountUp`), reveal via `bt-stagger` existant.
+- **Reporte en vague 2 (necessite backend/composant graphique)** : comparaison avec les autres (moyennes uni/app → nouvelles RPC agregees), export PNG/CSV + zoom + plein ecran des graphiques (composant StatsCharts), historique/evolution du classement, enrichissement du tooltip de la heatmap.
+- **Verification** : `npm run build` OK (20/20). ATTENTION : verification visuelle en direct NON faite — le dev local pointait sur le vrai Supabase (flag offline retire) sans identifiants de test ; a controler visuellement des que le mode offline est reactive ou avec un vrai compte.
+
 ## 2026-07-05 - Securite : hardening Next/Supabase anti-abus
 
 Passe de durcissement securite appliquee cote code, avec migration Supabase preparee mais **non appliquee automatiquement**.
