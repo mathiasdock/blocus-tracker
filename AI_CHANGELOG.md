@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - Stats : vague 2 (comparaison, export CSV, heatmap enrichie)
+
+Suite de l'enrichissement Stats. Verifie visuellement cette fois (voir note preview plus bas).
+
+- **Comparaison avec les autres** (item 11) : nouvelle carte comparant, sur 30 j, tes moyennes a celles de ta fac et de toute l'app (temps moyen/jour, sessions, jours actifs), en barres Toi/Ta fac/Toute l'app + chip d'ecart vs l'app. **Migration `supabase/migration_v24_stats_comparison.sql`** : RPC `get_study_comparison()` SECURITY DEFINER qui ne renvoie QUE des moyennes, jamais de donnees individuelles, et masque une cohorte de < 3 utilisateurs (anti-desanonymisation). A EXECUTER MANUELLEMENT dans le SQL Editor. Tant que non executee en prod, la RPC renvoie une erreur → la section se masque proprement (aucun crash). Mock offline ajoute dans `lib/offlineSupabaseClient.js`.
+- **Export CSV des graphiques** (item 4, partiel) : bouton telecharger dans la modale plein ecran de `StatsCharts.js` (barres semaine + repartition cours). Client pur (Blob + `<a download>`, BOM UTF-8, separateur `;`). Le plein ecran + navigation semaine + toggle h/min existaient deja. PNG differe (necessiterait une dependance de rasterisation).
+- **Heatmap enrichie** (item 5) : tooltip au survol enrichi (jour + date localises + duree formatee / "Aucune etude") dans `StudyHeatmap.js` ; ligne de synthese sous la heatmap (serie en cours, plus longue serie, meilleur mois, moy./jour).
+- i18n : ~12 cles `stats.cmp*` + `stats.exportCsv` FR+EN.
+- **Reporte** (honnete) : historique/evolution du classement (necessite des snapshots de rang periodiques → table + job cron), export PNG des graphiques (dependance).
+- **Verification visuelle FAITE** : build de production avec `NEXT_PUBLIC_OFFLINE_DEV=true` puis `next start` sur un port dedie, pilote au navigateur. Necessaire car le nouveau CSP de `next.config.js` (ajoute par Codex, sans `unsafe-eval`) casse le Fast Refresh en **dev** (page blanche) — la prod n'utilise pas `eval` donc passe. Toutes les sections vues en clair ET sombre : Resume, Objectifs, Habitudes, Perf/Records, Badges (3/9), Comparaison (avec garde-fou cohorte < 3 → barre "Ta fac" masquee), export CSV present.
+- **A signaler a Codex** : le CSP inconditionnel de `next.config.js` rend `npm run dev` inutilisable (EvalError react-refresh). A conditionner a la production, ou ajouter `'unsafe-eval'` en dev.
+
 ## 2026-07-06 - Stats : enrichissement insights (vague 1) — resume, objectifs, habitudes, records, badges
 
 Enrichissement de `pages/stats.js` (design minimal conserve) a la demande de l'utilisateur : rendre la page plus intelligente/motivante sans la surcharger. Nouveau module pur `lib/statsInsights.js` (calculs depuis les sessions deja chargees, aucun nouveau backend).

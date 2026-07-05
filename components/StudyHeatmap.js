@@ -164,8 +164,17 @@ export default function StudyHeatmap({ sessions = [] }) {
           zIndex: 9999,
           whiteSpace: "nowrap",
           boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+          textAlign: "center",
+          lineHeight: 1.35,
         }}>
-          {tooltip.minutes > 0 ? `${tooltip.minutes} min` : "—"} · {tooltip.iso}
+          <div style={{ fontWeight: 600, textTransform: "capitalize" }}>
+            {new Date(tooltip.iso + "T12:00:00").toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { weekday: "long", day: "numeric", month: "short" })}
+          </div>
+          <div style={{ color: tooltip.minutes > 0 ? "#2BD9A4" : "rgba(255,255,255,0.55)" }}>
+            {tooltip.minutes > 0
+              ? (tooltip.minutes >= 60 ? `${Math.floor(tooltip.minutes / 60)}h${String(tooltip.minutes % 60).padStart(2, "0")}` : `${tooltip.minutes} min`)
+              : (lang === "en" ? "No study" : "Aucune étude")}
+          </div>
         </div>
       )}
     </div>

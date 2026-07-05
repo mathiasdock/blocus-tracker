@@ -218,6 +218,7 @@ export default function Stats() {
   const [courses, setCourses]   = useState([]);
   const [sessions, setSessions] = useState([]);
   const [allTimeSecs, setAllTimeSecs] = useState(0);
+  const [comparison, setComparison] = useState(undefined); // undefined=loading, null=indispo
 
   // ── Chart week navigation ──────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0); // 0=current week, -1=last week…
@@ -318,6 +319,17 @@ export default function Stats() {
     (async () => {
       const { data } = await supabase.rpc("get_my_study_rank", { p_period: "day" });
       if (data?.[0]) setMyRank(data[0]);
+    })();
+  }, [user]);
+
+  // ── Comparaison vs autres (RPC agrégée ; null si non déployée) ─
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data, error } = await supabase.rpc("get_study_comparison");
+      // RPC absente en prod tant que la migration v24 n'est pas exécutée →
+      // on masque proprement la section (null) plutôt que de crasher.
+      setComparison(error ? null : (data || null));
     })();
   }, [user]);
 
@@ -551,6 +563,16 @@ export default function Stats() {
     { key: "night",     label: t("stats.slotNight"),     color: "#8B5CF6" },
   ];
 
+  // ── Comparaison vs autres (uniquement des moyennes) ───────────
+  const cmpReady = comparison && comparison.me && comparison.app;
+  const cmpMetrics = cmpReady ? [
+    { label: t("stats.cmpAvgDaily"),   fmt: v => formatMinutesShort(v * 60), me: comparison.me.avg_daily_min, uni: comparison.uni?.avg_daily_min, app: comparison.app.avg_daily_min },
+    { label: t("stats.cmpSessions"),   fmt: v => String(Math.round(v)),      me: comparison.me.sessions,      uni: comparison.uni?.sessions,      app: comparison.app.sessions },
+    { label: t("stats.cmpActiveDays"), fmt: v => `${Math.round(v)} ${t("stats.dayUnit")}`, me: comparison.me.active_days, uni: comparison.uni?.active_days, app: comparison.app.active_days },
+  ] : [];
+  const cmpDelta = (mine, other) => (other && other > 0) ? Math.round((mine - other) / other * 100) : null;
+
+  // Moyenne / jour (7j glissants) déjà calculée : avgPerDay (secs).
   return (
     <Layout>
       <div className="bt-stagger">
@@ -727,12 +749,27 @@ export default function Stats() {
         </div>
       </div>
 
-      {/* ── Heatmap ────────────────────────────────────────────── */}
+      {/* ── Heatmap + synthèse ─────────────────────────────────── */}
       <div className="card p-5 mb-4">
         <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--bt-text-2)" }}>
           {t("heatmap.title")}
         </h2>
         <StudyHeatmap sessions={sessions} />
+        {insights.hasData && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
+            {[
+              { label: t("stats.streakLabel"),     value: `${streak} ${t("stats.dayUnit")}` },
+              { label: t("stats.recLongestStreak"), value: `${bestStreak} ${t("stats.dayUnit")}` },
+              { label: t("stats.recBestMonth"),     value: formatMinutesShort(insights.bestMonthSecs) },
+              { label: t("stats.compactAvg7d"),     value: formatMinutesShort(avgPerDay) },
+            ].map((s, i) => (
+              <div key={i} className="text-center">
+                <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Habitudes + Performances/Records (insights) ────────── */}
@@ -862,6 +899,52 @@ export default function Stats() {
         </div>
       </div>
 
+      {/* ── Comparaison avec les autres (moyennes uniquement) ──── */}
+      {cmpReady && (
+        <div className="card p-5 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("stats.cmpTitle")}</h2>
+            <span className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>{t("stats.cmpSub")}</span>
+          </div>
+          <div className="space-y-4">
+            {cmpMetrics.map((m, i) => {
+              const max = Math.max(m.me, m.uni || 0, m.app || 0) || 1;
+              const bars = [
+                { key: "me",  label: t("stats.cmpYou"),   val: m.me,  color: "#14B885" },
+                ...(m.uni != null ? [{ key: "uni", label: t("stats.cmpUni"), val: m.uni, color: "#0369a1" }] : []),
+                { key: "app", label: t("stats.cmpApp"),   val: m.app, color: "#94908B" },
+              ];
+              const dApp = cmpDelta(m.me, m.app);
+              return (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>{m.label}</span>
+                    <span className="flex items-center gap-1.5">
+                      {dApp != null && <TrendChip dir={dApp > 0 ? "up" : dApp < 0 ? "down" : "flat"} pct={Math.abs(dApp)} />}
+                      {dApp != null && <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{t("stats.cmpVsApp")}</span>}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {bars.map(b => (
+                      <div key={b.key} className="flex items-center gap-2">
+                        <span className="text-[11px] w-16 shrink-0" style={{ color: b.key === "me" ? "var(--bt-text-1)" : "var(--bt-text-3)", fontWeight: b.key === "me" ? 600 : 400 }}>{b.label}</span>
+                        <div className="flex-1 h-4 rounded-md overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                          <div className="h-full rounded-md transition-all duration-700 flex items-center justify-end pr-1.5"
+                            style={{ width: `${Math.max(6, Math.round(b.val / max * 100))}%`, backgroundColor: b.color }}>
+                            <span className="text-[9px] font-num font-bold tabular-nums" style={{ color: "#fff" }}>{m.fmt(b.val)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] mt-4" style={{ color: "var(--bt-text-4)" }}>{t("stats.cmpPrivacy")}</p>
+        </div>
+      )}
+
       {sessionCount === 0 ? (
         <div className="card p-8 sm:p-10 flex flex-col items-center text-center">
           <span className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
@@ -892,6 +975,7 @@ export default function Stats() {
           unitHrLabel={t("stats.unitHrs")}
           weekToggleLabel={t("stats.week")}
           monthToggleLabel={t("stats.month")}
+          csvLabel={t("stats.exportCsv")}
         />
       )}
 

@@ -43,6 +43,32 @@ function ExpandIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+// Déclenche le téléchargement d'un CSV à partir de lignes [{...}]. Client pur,
+// aucune dépendance : Blob + <a download>. Échappe les guillemets/points-virgules.
+function downloadCsv(filename, rows) {
+  if (!rows || !rows.length) return;
+  const headers = Object.keys(rows[0]);
+  const esc = (v) => {
+    const s = String(v ?? "");
+    return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.join(";"), ...rows.map(r => headers.map(h => esc(r[h])).join(";"))].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function MiniToggle({ options, value, onChange }) {
   return (
     <div style={{
@@ -127,12 +153,31 @@ export default function StatsCharts({
   unitHrLabel,
   weekToggleLabel,
   monthToggleLabel,
+  csvLabel,
 }) {
   const [showHours, setShowHours] = useState(true); // heures par défaut
   const [donutPeriod, setDonutPeriod] = useState("week");
   const [expanded, setExpanded] = useState(null); // null | "bar" | "pie"
 
   const activeCourse = donutPeriod === "week" ? byCourseWeek : byCourseMonth;
+
+  function exportActive() {
+    if (expanded === "bar") {
+      downloadCsv("blocus-semaine.csv", dailyData.map(d => ({ jour: d.day, minutes: d.minutes })));
+    } else if (expanded === "pie") {
+      downloadCsv(`blocus-cours-${donutPeriod}.csv`, activeCourse.map(c => ({ cours: c.name, minutes: c.minutes })));
+    }
+  }
+
+  const csvButton = (
+    <button
+      onClick={exportActive}
+      title={csvLabel || "CSV"}
+      className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors shrink-0"
+      style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)", cursor: "pointer" }}>
+      <DownloadIcon />
+    </button>
+  );
 
   const closeButton = (
     <button
@@ -224,6 +269,7 @@ export default function StatsCharts({
                       value={showHours ? "h" : "min"}
                       onChange={v => setShowHours(v === "h")}
                     />
+                    {csvButton}
                     {closeButton}
                   </div>
                 </div>
@@ -264,6 +310,7 @@ export default function StatsCharts({
                       value={donutPeriod}
                       onChange={setDonutPeriod}
                     />
+                    {csvButton}
                     {closeButton}
                   </div>
                 </div>
