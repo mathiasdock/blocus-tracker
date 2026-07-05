@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Admin : transformation en cockpit de gestion
+
+Refonte complete de `pages/admin.js` (monolithe 1014 L) en cockpit multi-sections, a la demande de l'utilisateur. Design premium/vert conserve. Nouveau module pur `lib/adminAnalytics.js` pour les agregations.
+
+- **Navigation en 6 sections** (segmented) : Vue d'ensemble · Analytics · Activite · Membres · Technique · Contenu.
+- **Recherche globale** (`GlobalSearch`) : membres (pseudo/nom/fac), communautes (statique), annonces, suggestions — dropdown groupe, clic membre → fiche.
+- **Flux d'activite temps reel** : backfill initial (comptes, sessions, posts, messages, badges, suggestions fusionnes/tries) + abonnement Supabase Realtime `postgres_changes` INSERT sur 6 tables → prepend en direct. Indicateur LIVE/hors-ligne (timeout 4 s ; en offline le stub `channel()` ne crashe pas). 
+- **Fiche utilisateur complete** (`UserSheet`) : avatar, niveau, stats (temps/sessions/amis/parrainages), inscription + derniere activite + code parrain, **heatmap 1 an** (reutilise StudyHeatmap), **grille de badges** (via `user_badges`), sessions recentes. Actions rapides : Editer, **Message** (insert `private_messages` depuis l'admin), **Suspendre/Reactiver** (toggle colonne `locked`, autorise par le trigger v7 pour un admin editant autrui), Supprimer (RPC `admin_delete_user`).
+- **Analytics** (filtre periode 7/30/90 j, tooltips au survol, dark-safe) : nouveaux users/jour, progression cumulee des inscriptions, DAU/WAU/MAU, heures d'etude/jour, sessions/jour, temps moyen/session, retention J1/J7/J30 (anneaux, "revient apres N jours" sur comptes eligibles), publications feed/jour, messages/jour, repartition par universite, universites les plus actives, statut d'activation (donut), actifs vs inscrits.
+- **Honnetete des donnees non calculables** : repartition mobile/desktop → carte "non suivi, necessite une colonne device" (pas de chiffre invente).
+- **Dashboard technique** : verifies auto (latence DB chronometree, temps reel via subscribe, push via env, auth) avec pastilles vert/orange/rouge ; Storage/Egress/Emails/Sauvegarde → "a brancher" (necessitent l'API Management Supabase, endpoint serveur) ; dernier deploiement via `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` si expose ; volumetrie des donnees chargees.
+- **Contenu** : sous-onglets Annonces (formulaire conserve) · **Suggestions** (`app_feedback`, changement de statut new/read/done) · Comptes supprimes.
+- **Seed offline enrichi** (`lib/offlineSupabaseClient.js`, DB_KEY v1→v2) : ~16 membres deterministes (mulberry32) sur plusieurs universites, sessions/posts/messages/badges etales sur 45 j → cockpit reellement demontrable en dev.
+- **Echelle** : agregations client plafonnees (sessions limit 8000) ; commentaire indiquant de passer a des RPC SQL `GROUP BY` au-dela de quelques milliers d'utilisateurs.
+- **i18n** : la page admin etait deja en francais code en dur (page admin-only) ; convention conservee pour la coherence du fichier. Fix hooks-order : garde `is_admin` deplacee apres tous les `useMemo`.
+- Verification navigateur (offline dev, 16 membres/121 sessions) : les 6 sections, tous les graphiques (clair + sombre), fiche + suspension persistee, recherche globale, panneau technique, `npm run build` OK (20/20).
+
 ## 2026-07-05 - Profil : refonte complete avec vraie version desktop
 
 Refonte totale de `pages/profile.js` demandee par l'utilisateur : fin de la "version mobile etiree", vraie mise en page desktop multi-colonnes, esprit GitHub (heatmap) x Duolingo (progression) x Strava (profil).
