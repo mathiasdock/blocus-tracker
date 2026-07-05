@@ -356,7 +356,7 @@ function NotificationPanel({
 
 // ── Nav data ──────────────────────────────────────────────────
 
-const SOCIAL_PATHS = ["/feed", "/friends", "/messages", "/communautes"];
+const SOCIAL_PATHS = ["/feed", "/messages", "/communautes"];
 
 const NAV_MAIN = [
   { href: "/dashboard", key: "nav.chrono" },
@@ -367,7 +367,6 @@ const NAV_MAIN = [
 const NAV_SOCIAL = [
   { href: "/feed",        key: "nav.feed" },
   { href: "/messages",    key: "nav.messages" },
-  { href: "/friends",     key: "nav.friends" },
   { href: "/communautes", key: "nav.communities" },
 ];
 
@@ -482,9 +481,8 @@ export default function Layout({ children }) {
   function badgeFor(href) {
     if (isGuest) return 0;
     if (href === "/feed")        return feedCount + commentCount + reactionCount;
-    if (href === "/friends")     return friendCount;
     if (href === "/communautes") return totalCommunity;
-    if (href === "/messages")    return messageCount + totalGroups;
+    if (href === "/messages")    return messageCount + totalGroups + friendCount;
     return 0;
   }
 

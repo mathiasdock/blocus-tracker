@@ -14,6 +14,19 @@ import LevelPill from "../components/LevelPill";
 const DEFAULT_REACTION_EMOJI = "👍";
 const LEGACY_FALLBACK_EMOJI = "♥";
 const EMOJI_REACTION_OPTIONS = ["👍", "❤️", "😂", "🔥", "👏", "😮", "😢", "🤯", "💪", "✅"];
+const TEXT_ONLY_ACTIVITY_IMAGE = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const AUTO_SHARE_STORAGE_KEY = "bt_social_auto_share_v1";
+const DEFAULT_AUTO_SHARE = {
+  session_completed: true,
+  goal_completed: true,
+  record: true,
+  level_up: true,
+  streak: true,
+};
+
+function isTextOnlyActivity(post) {
+  return !post.image_url || post.image_url === TEXT_ONLY_ACTIVITY_IMAGE;
+}
 
 function splitGraphemes(value) {
   if (typeof Intl !== "undefined" && Intl.Segmenter) {
@@ -49,6 +62,8 @@ export default function Feed() {
   const [reactionError, setReactionError] = useState({});
   const [viewUserId, setViewUserId]     = useState(null);
   const [formOpen, setFormOpen]         = useState(false);
+  const [showAutoSettings, setShowAutoSettings] = useState(false);
+  const [autoShare, setAutoShare] = useState(DEFAULT_AUTO_SHARE);
   const fileInputRef  = useRef(null);
   const pressTimerRef = useRef(null);
   const [editingPostId, setEditingPostId] = useState(null);
@@ -123,28 +138,52 @@ export default function Feed() {
     markSeen("feed");
   }, [load, markSeen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem(AUTO_SHARE_STORAGE_KEY);
+      if (saved) setAutoShare({ ...DEFAULT_AUTO_SHARE, ...JSON.parse(saved) });
+    } catch {
+      setAutoShare(DEFAULT_AUTO_SHARE);
+    }
+  }, []);
+
+  function toggleAutoShare(key) {
+    setAutoShare((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(AUTO_SHARE_STORAGE_KEY, JSON.stringify(next));
+      }
+      return next;
+    });
+  }
+
   async function createPost(e) {
     e.preventDefault();
-    if (!file) return;
+    if (!file && !caption.trim()) return;
     setBusy(true);
-    let uploadFile = file;
-    let ext = file.name.split(".").pop() || "jpg";
-    try {
-      const optimized = await optimizeFeedImage(file);
-      uploadFile = optimized.file || file;
-      ext = optimized.extension || ext;
-    } catch (err) {
-      console.warn("Image compression failed, uploading original:", err);
+    let imageUrl = TEXT_ONLY_ACTIVITY_IMAGE;
+    if (file) {
+      let uploadFile = file;
+      let ext = file.name.split(".").pop() || "jpg";
+      try {
+        const optimized = await optimizeFeedImage(file);
+        uploadFile = optimized.file || file;
+        ext = optimized.extension || ext;
+      } catch (err) {
+        console.warn("Image compression failed, uploading original:", err);
+      }
+      const path = `${user.id}/${Date.now()}.${ext.toLowerCase()}`;
+      const { error: upErr } = await supabase.storage
+        .from("posts")
+        .upload(path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: uploadFile.type || file.type });
+      if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
+      const { data: pub } = supabase.storage.from("posts").getPublicUrl(path);
+      imageUrl = pub.publicUrl;
     }
-    const path = `${user.id}/${Date.now()}.${ext.toLowerCase()}`;
-    const { error: upErr } = await supabase.storage
-      .from("posts")
-      .upload(path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: uploadFile.type || file.type });
-    if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
-    const { data: pub } = supabase.storage.from("posts").getPublicUrl(path);
     const { error } = await supabase.from("posts").insert({
       user_id: user.id,
-      image_url: pub.publicUrl,
+      image_url: imageUrl,
       caption: caption.trim() || null,
       visibility,
     });
@@ -307,7 +346,7 @@ export default function Feed() {
               ))}
             </div>
 
-            <button className="btn-primary w-full" disabled={busy || !file}>
+            <button className="btn-primary w-full" disabled={busy || (!file && !caption.trim())}>
               {busy ? t("feed.publishing") : t("feed.publish")}
             </button>
             <p className="text-center text-xs" style={{ color: "var(--bt-text-3)" }}>
@@ -315,6 +354,50 @@ export default function Feed() {
             </p>
           </form>
         )}
+
+        <section className="card p-4 mb-6">
+          <button
+            type="button"
+            onClick={() => setShowAutoSettings(v => !v)}
+            className="w-full flex items-center justify-between text-left">
+            <span>
+              <span className="block text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                {t("feed.autoShareTitle")}
+              </span>
+              <span className="block text-xs" style={{ color: "var(--bt-text-3)" }}>
+                {t("feed.autoShareSubtitle")}
+              </span>
+            </span>
+            <span className="text-xl leading-none" style={{ color: "var(--bt-text-3)" }}>
+              {showAutoSettings ? "−" : "+"}
+            </span>
+          </button>
+          {showAutoSettings && (
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {[
+                ["session_completed", t("feed.autoSession")],
+                ["goal_completed", t("feed.autoGoal")],
+                ["record", t("feed.autoRecord")],
+                ["level_up", t("feed.autoLevel")],
+                ["streak", t("feed.autoStreak")],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleAutoShare(key)}
+                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm"
+                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)" }}>
+                  <span>{label}</span>
+                  <span className="w-9 h-5 rounded-full p-0.5 transition-colors"
+                    style={{ backgroundColor: autoShare[key] ? "#14B885" : "var(--bt-border)" }}>
+                    <span className="block w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: autoShare[key] ? "translateX(16px)" : "translateX(0)" }} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
 
         <div className="space-y-5">
           {posts.length === 0 && (
@@ -416,11 +499,28 @@ export default function Feed() {
                   </div>
                 )}
 
-                {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
-                  <img src={post.image_url} alt="session" loading="lazy" className="w-full h-full object-cover" />
-                </div>
+                {!isTextOnlyActivity(post) ? (
+                  <>
+                    {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
+                      <img src={post.image_url} alt="session" loading="lazy" className="w-full h-full object-cover" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="px-4 pb-1">
+                    <div className="rounded-2xl px-4 py-4"
+                      style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+                      <p className="text-[11px] font-bold uppercase tracking-wide mb-1"
+                        style={{ color: "var(--bt-accent-dark)" }}>
+                        {t("feed.activityBadge")}
+                      </p>
+                      <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>
+                        {post.caption || t("feed.activityFallback")}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-4 space-y-3">
                   {/* Reactions - long-press (600ms) opens the reactors panel */}
@@ -529,7 +629,7 @@ export default function Feed() {
                   })()}
 
                   {/* Caption */}
-                  {post.caption && (
+                  {post.caption && !isTextOnlyActivity(post) && (
                     <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>
                       <span className="font-semibold">{displayName(author)}</span>{" "}{post.caption}
                     </p>

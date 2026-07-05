@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Refonte sociale phase 1 : Activite, Relations, Communautes entraide
+
+Premiere passe concrete de la refonte Social avec objectif prioritaire : rendre la partie sociale plus vivante et moins couteuse en stockage/egress Supabase, sans migration destructive.
+
+- **Navigation sociale simplifiee** (`components/Layout.js`) : l'onglet separe `/friends` est retire de la navigation Social. Les demandes d'amis sont maintenant comptees dans le badge de `/messages`.
+- **Fusion Amis -> Messages** (`pages/messages.js`) : ajout d'un espace **Relations** dans Messages avec recherche d'utilisateur, demandes recues/envoyees, suggestions, liste d'amis et ouverture directe d'une conversation. La route `/friends` redirige vers `/messages?tab=relations`.
+- **Feed -> Activite** (`pages/feed.js`, `lib/i18n.js`) : le feed devient un fil d'activite. Il accepte maintenant une publication texte sans photo. Pour rester compatible avec le schema actuel (`posts.image_url not null`), les posts texte utilisent une minuscule image placeholder en data URL au lieu d'uploader un fichier Supabase. Les photos restent possibles, compressees avant upload comme avant.
+- **Preparation du partage automatique** : ajout d'un panneau de preferences locales dans Activite pour les futurs posts generes automatiquement : fin de session, objectif atteint, record, niveau, streak. Pour l'instant ces preferences sont stockees dans `localStorage` (`bt_social_auto_share_v1`) et ne modifient pas la base.
+- **Communautes -> entraide** (`pages/communautes.js`) : ajout d'espaces visibles **Salon / Questions / Ressources / Examens** sans nouvelle table. Les messages hors Salon sont tagues dans `community_messages.content` (`[Question]`, `[Ressource]`, `[Examen]`) afin de tester l'UX avant une vraie migration `community_threads`.
+- **Important technique** : aucune table, policy RLS, bucket, secret ou migration Supabase n'a ete modifie dans cette phase. La prochaine phase propre sera une migration dediee pour `posts.kind/event_type/payload` ou une table `social_activities`, puis de vraies tables `community_threads/community_replies` si l'UX est validee.
+
 ## 2026-07-05 - Chrono : passe motion design (signature) + fix restore du timer
 
 Second passage sur la page Chrono a la demande de l'utilisateur : micro-interactions et motion design pour en faire une signature. Aucune nouvelle fonctionnalite metier.

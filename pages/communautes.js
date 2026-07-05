@@ -17,6 +17,24 @@ function IconPaperclip({ size = 15 }) {
   );
 }
 
+const COMMUNITY_SPACES = [
+  { id: "salon", labelKey: "comm.spaceSalon", prefix: "" },
+  { id: "questions", labelKey: "comm.spaceQuestions", prefix: "[Question]" },
+  { id: "resources", labelKey: "comm.spaceResources", prefix: "[Ressource]" },
+  { id: "exams", labelKey: "comm.spaceExams", prefix: "[Examen]" },
+];
+
+function spaceForId(id) {
+  return COMMUNITY_SPACES.find((space) => space.id === id) || COMMUNITY_SPACES[0];
+}
+
+function parseCommunityContent(content) {
+  const raw = content || "";
+  const tagged = COMMUNITY_SPACES.find((space) => space.prefix && raw.startsWith(`${space.prefix} `));
+  if (!tagged) return { space: "salon", text: raw };
+  return { space: tagged.id, text: raw.slice(tagged.prefix.length + 1) };
+}
+
 export default function Communautes() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
@@ -59,6 +77,7 @@ export default function Communautes() {
   const [file, setFile] = useState(null);
   const [sending, setSending] = useState(false);
   const [viewUserId, setViewUserId] = useState(null);
+  const [communitySpace, setCommunitySpace] = useState("salon");
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -130,9 +149,12 @@ export default function Communautes() {
       attachment_name = file.name;
     }
 
+    const selectedSpace = spaceForId(communitySpace);
+    const cleanText = text.trim();
+    const content = cleanText && selectedSpace.prefix ? `${selectedSpace.prefix} ${cleanText}` : cleanText || null;
     const { error } = await supabase.from("community_messages").insert({
       community: active, user_id: user.id,
-      content: text.trim() || null,
+      content,
       attachment_url, attachment_type, attachment_name,
     });
     if (!error) notifyXPChanged();
@@ -150,6 +172,10 @@ export default function Communautes() {
   }
 
   const who = (id) => profiles[id] || { pseudo: t("common.unknownUser"), avatar_url: null };
+  const visibleMessages = messages.filter((message) => {
+    if (communitySpace === "salon") return true;
+    return parseCommunityContent(message.content).space === communitySpace;
+  });
 
   // Total badge across all communities
   const totalBadge = Object.values(communityCount).reduce((s, n) => s + n, 0);
@@ -260,6 +286,22 @@ export default function Communautes() {
             </div>
           </div>
 
+          <div className="px-5 py-2.5 flex gap-2 overflow-x-auto shrink-0"
+            style={{ borderBottom: "1px solid #E8E2DC" }}>
+            {COMMUNITY_SPACES.map((space) => (
+              <button
+                key={space.id}
+                type="button"
+                onClick={() => setCommunitySpace(space.id)}
+                className="shrink-0 text-xs font-semibold rounded-full px-3 py-1.5 transition-colors"
+                style={communitySpace === space.id
+                  ? { backgroundColor: "#EAFBF4", color: "#0E8F68", border: "1px solid #C6EED9" }
+                  : { backgroundColor: "#F7F3EF", color: "#7C746E", border: "1px solid #E8E2DC" }}>
+                {t(space.labelKey)}
+              </button>
+            ))}
+          </div>
+
           {/* Messages */}
           <div className="flex-1 overflow-y-auto relative">
             {activeMeta?.logo && (
@@ -272,14 +314,16 @@ export default function Communautes() {
               </div>
             )}
             <div className="relative z-10 px-5 py-4 space-y-3">
-              {messages.length === 0 && (
+              {visibleMessages.length === 0 && (
                 <p className="text-center text-sm mt-10" style={{ color: "#A8A09A" }}>
                   {t("comm.empty")}
                 </p>
               )}
-              {messages.map((m) => {
+              {visibleMessages.map((m) => {
                 const author = who(m.user_id);
                 const mine = m.user_id === user.id;
+                const parsed = parseCommunityContent(m.content);
+                const space = spaceForId(parsed.space);
                 return (
                   <div key={m.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                     <button onClick={() => setViewUserId(m.user_id)} className="shrink-0">
@@ -293,7 +337,13 @@ export default function Communautes() {
                         style={mine
                           ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
                           : { backgroundColor: "#F7F3EF", color: "#1F1A17", borderRadius: "18px 18px 18px 6px" }}>
-                        {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
+                        {space.id !== "salon" && (
+                          <span className="inline-flex mb-1 text-[10px] font-bold rounded-full px-2 py-0.5"
+                            style={{ backgroundColor: mine ? "rgba(255,255,255,0.18)" : "#EAFBF4", color: mine ? "#fff" : "#0E8F68" }}>
+                            {t(space.labelKey)}
+                          </span>
+                        )}
+                        {parsed.text && <p className="whitespace-pre-wrap">{parsed.text}</p>}
                         {m.attachment_url && m.attachment_type === "image" && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={m.attachment_url} alt={m.attachment_name || "image"}
@@ -334,7 +384,7 @@ export default function Communautes() {
                 className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </label>
             <input className="input flex-1"
-              placeholder={file ? `${t("msg.file")} : ${file.name}` : t("comm.placeholder")}
+              placeholder={file ? `${t("msg.file")} : ${file.name}` : t(`comm.placeholder.${communitySpace}`)}
               value={text} onChange={(e) => setText(e.target.value)} />
             <button className="btn-primary shrink-0" disabled={sending || (!text.trim() && !file)}>
               {sending ? "…" : t("common.send")}

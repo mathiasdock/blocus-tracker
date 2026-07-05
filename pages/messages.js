@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import { useAuth } from "../contexts/AuthContext";
@@ -6,6 +7,7 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo, formatDuration } from "../lib/format";
+import { notifyXPChanged } from "../lib/xpEvents";
 
 function IconPaperclip({ size = 15 }) {
   return (
@@ -37,6 +39,7 @@ function computeChronoElapsed(session) {
 }
 
 export default function Messages() {
+  const router = useRouter();
   const { user, profile } = useAuth();
   const { markSeen, groupCount, markGroupSeen } = useNotifications();
   const { t, lang }       = useI18n();
@@ -92,6 +95,17 @@ export default function Messages() {
   const [createInviteQuery, setCreateInviteQuery] = useState("");
   const [createInviteResults, setCreateInviteResults] = useState([]);
 
+  // ── Relations / friends state ──────────────────────────────────
+  const [friendLinks, setFriendLinks] = useState([]);
+  const [peopleMap, setPeopleMap] = useState({});
+  const [relationQuery, setRelationQuery] = useState("");
+  const [relationResults, setRelationResults] = useState([]);
+  const [relationMsg, setRelationMsg] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showOutgoing, setShowOutgoing] = useState(false);
+
   // ── Navigation ─────────────────────────────────────────────────
   const [activeType, setActiveType] = useState("dm");
   const [mobileView, setMobileView] = useState("list");
@@ -139,6 +153,112 @@ export default function Messages() {
         })
     );
   }, [user]);
+
+  const loadFriendLinks = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("friendships")
+      .select("*")
+      .or(`requester.eq.${user.id},addressee.eq.${user.id}`);
+    setFriendLinks(data || []);
+  }, [user]);
+
+  useEffect(() => {
+    loadFriendLinks();
+  }, [loadFriendLinks]);
+
+  useEffect(() => {
+    const ids = new Set();
+    friendLinks.forEach((l) => { ids.add(l.requester); ids.add(l.addressee); });
+    ids.delete(user?.id);
+    if (ids.size === 0) {
+      setPeopleMap({});
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, pseudo, first_name, last_name, avatar_url, university")
+        .in("id", [...ids]);
+      const map = {};
+      (data || []).forEach((p) => { map[p.id] = p; });
+      setPeopleMap(map);
+    })();
+  }, [friendLinks, user?.id]);
+
+  function relationOf(id) {
+    const link = friendLinks.find(
+      (l) => (l.requester === id && l.addressee === user?.id) ||
+             (l.addressee === id && l.requester === user?.id)
+    );
+    return link ? link.status : null;
+  }
+
+  async function searchRelations(e) {
+    e.preventDefault();
+    setRelationMsg("");
+    const q = relationQuery.trim();
+    if (!q || !user) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, pseudo, first_name, last_name, avatar_url, university")
+      .or(`pseudo.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+      .neq("id", user.id)
+      .limit(10);
+    setRelationResults(data || []);
+  }
+
+  async function addFriend(id) {
+    if (!user) return;
+    const { error } = await supabase
+      .from("friendships")
+      .insert({ requester: user.id, addressee: id, status: "pending" });
+    if (error) {
+      setRelationMsg(t("friends.requestError"));
+    } else {
+      setRelationMsg(t("friends.requestSent"));
+      notifyXPChanged();
+    }
+    setSuggestions((prev) => prev.filter((p) => p.id !== id));
+    await loadFriendLinks();
+  }
+
+  async function acceptFriend(linkId) {
+    const { error } = await supabase.from("friendships").update({ status: "accepted" }).eq("id", linkId);
+    if (!error) notifyXPChanged();
+    await loadFriendLinks();
+    await loadFriends();
+  }
+
+  async function removeFriendLink(linkId) {
+    await supabase.from("friendships").delete().eq("id", linkId);
+    await loadFriendLinks();
+    await loadFriends();
+  }
+
+  async function loadSuggestions() {
+    if (!user) return;
+    setShowSuggestions(true);
+    setLoadingSuggestions(true);
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, pseudo, first_name, last_name, avatar_url, university")
+      .neq("id", user.id)
+      .limit(200);
+    const connected = new Set();
+    friendLinks.forEach((l) => { connected.add(l.requester); connected.add(l.addressee); });
+    const myUni = (profile?.university || "").trim().toLowerCase();
+    const list = (data || [])
+      .filter((p) => !connected.has(p.id))
+      .sort((a, b) => {
+        const sameA = myUni && (a.university || "").trim().toLowerCase() === myUni ? 0 : 1;
+        const sameB = myUni && (b.university || "").trim().toLowerCase() === myUni ? 0 : 1;
+        return sameA - sameB;
+      })
+      .slice(0, 40);
+    setSuggestions(list);
+    setLoadingSuggestions(false);
+  }
 
   const loadMessages = useCallback(async () => {
     if (!dmActiveId || !user) return;
@@ -268,6 +388,10 @@ export default function Messages() {
 
   useEffect(() => { dmBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { grpBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [groupMessages]);
+  useEffect(() => {
+    if (router.query.tab === "relations") openRelations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.query.tab]);
 
   // Realtime DMs
   const loadMessagesRef = useRef(loadMessages);
@@ -294,6 +418,12 @@ export default function Messages() {
     setDmActiveId(friendId);
     setActiveType("dm");
     setMobileView("chat");
+  }
+
+  function openRelations() {
+    setActiveType("relations");
+    setMobileView("chat");
+    markSeen("friends");
   }
 
   async function sendDM(e) {
@@ -567,6 +697,8 @@ export default function Messages() {
   const amCreator     = activeGroup?.created_by === user?.id;
   const grpWho        = id => msgProfiles[id] || { pseudo: t("common.unknownUser"), avatar_url: null };
   const chatVisible   = mobileView === "list" ? "hidden lg:flex" : "flex";
+  const incoming = friendLinks.filter((l) => l.status === "pending" && l.addressee === user?.id);
+  const outgoing = friendLinks.filter((l) => l.status === "pending" && l.requester === user?.id);
 
   // Chip de statut du chrono
   function chronoStatusChip(status) {
@@ -616,6 +748,43 @@ export default function Messages() {
         {/* ── Sidebar ────────────────────────────────────────────── */}
         <aside className={`${mobileView === "chat" ? "hidden lg:block" : ""} lg:col-span-1`}>
           <div className="flex flex-col gap-2.5" style={{ height: "70vh" }}>
+
+            {/* ── Carte Relations ── */}
+            <button
+              type="button"
+              onClick={openRelations}
+              className="card px-4 py-3 shrink-0 text-left transition-colors"
+              style={activeType === "relations"
+                ? { backgroundColor: "var(--bt-accent-bg)", borderColor: "var(--bt-accent-border)" }
+                : {}}
+              onMouseEnter={e => { if (activeType !== "relations") e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
+              onMouseLeave={e => { if (activeType !== "relations") e.currentTarget.style.backgroundColor = "var(--bt-surface)"; }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 11h-6M19 8v6"/>
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                    {t("msg.relations")}
+                  </p>
+                  <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
+                    {incoming.length > 0
+                      ? `${incoming.length} ${t("msg.pendingRequests")}`
+                      : t("msg.relationsHint")}
+                  </p>
+                </div>
+                {incoming.length > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-red-500 text-white rounded-full px-1 leading-none">
+                    {incoming.length > 99 ? "99+" : incoming.length}
+                  </span>
+                )}
+              </div>
+            </button>
 
             {/* ── Carte Messages privés ── */}
             <div className="card overflow-hidden flex flex-col" style={{ flex: "3", minHeight: 0 }}>
@@ -752,7 +921,199 @@ export default function Messages() {
         </aside>
 
         {/* ── Chat area ──────────────────────────────────────────── */}
-        {activeType === "dm" ? (
+        {activeType === "relations" ? (
+          <section className={`${chatVisible} lg:col-span-2 card flex-col overflow-hidden`} style={{ height: "70vh" }}>
+            <div className="flex items-center gap-3 px-4 py-3 shrink-0"
+              style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              <button onClick={() => setMobileView("list")} className="lg:hidden btn-ghost px-2 py-1 text-sm">‹</button>
+              <div>
+                <h1 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                  {t("msg.relations")}
+                </h1>
+                <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+                  {t("msg.relationsSubtitle")}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <section className="rounded-2xl p-4"
+                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--bt-text-1)" }}>
+                  {t("friends.add")}
+                </h2>
+                <form onSubmit={searchRelations} className="flex gap-2">
+                  <input className="input" placeholder={t("friends.searchPlaceholder")}
+                    value={relationQuery} onChange={(e) => setRelationQuery(e.target.value)} />
+                  <button className="btn-primary shrink-0">OK</button>
+                </form>
+                {relationMsg && <p className="text-xs mt-2" style={{ color: "#0E8F68" }}>{relationMsg}</p>}
+                {relationResults.length > 0 && (
+                  <ul className="mt-3 space-y-2">
+                    {relationResults.map((r) => {
+                      const rel = relationOf(r.id);
+                      return (
+                        <li key={r.id} className="flex items-center gap-2 text-sm">
+                          <button onClick={() => openProfile(r.id)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                            <Avatar url={r.avatar_url} pseudo={displayName(r)} size={30} />
+                            <span className="flex-1 min-w-0" style={{ color: "var(--bt-text-1)" }}>
+                              <span className="block truncate">{displayName(r)}</span>
+                              <span className="block truncate text-xs" style={{ color: "var(--bt-text-3)" }}>@{r.pseudo}</span>
+                            </span>
+                          </button>
+                          {rel === "accepted" ? (
+                            <button onClick={() => openDM(r.id)} className="btn-ghost text-xs px-2.5 py-1">
+                              {t("msg.openChat")}
+                            </button>
+                          ) : rel === "pending" ? (
+                            <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("friends.pendingStatus")}</span>
+                          ) : (
+                            <button onClick={() => addFriend(r.id)} className="btn-primary text-xs px-2.5 py-1">
+                              {t("friends.addBtn")}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
+              {incoming.length > 0 && (
+                <section className="rounded-2xl p-4"
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+                  <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--bt-text-1)" }}>
+                    {t("friends.incoming")}
+                  </h2>
+                  <ul className="space-y-2">
+                    {incoming.map((l) => {
+                      const p = peopleMap[l.requester];
+                      return (
+                        <li key={l.id} className="flex items-center gap-2 text-sm">
+                          <button onClick={() => openProfile(l.requester)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                            <Avatar url={p?.avatar_url} pseudo={displayName(p)} size={30} />
+                            <span className="font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{displayName(p)}</span>
+                          </button>
+                          <button onClick={() => acceptFriend(l.id)} className="btn-primary text-xs px-2.5 py-1">{t("friends.accept")}</button>
+                          <button onClick={() => removeFriendLink(l.id)} className="btn-ghost text-xs px-2.5 py-1">{t("friends.refuse")}</button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
+              {outgoing.length > 0 && (
+                <section className="rounded-2xl px-4 py-3"
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+                  <button
+                    onClick={() => setShowOutgoing(v => !v)}
+                    className="w-full flex items-center justify-between text-sm"
+                    style={{ color: "var(--bt-text-2)" }}>
+                    <span>{outgoing.length} {outgoing.length > 1 ? t("friends.outgoingPlural") : t("friends.outgoingSingular")}</span>
+                    <span style={{ color: "var(--bt-text-3)" }}>{showOutgoing ? "−" : "+"}</span>
+                  </button>
+                  {showOutgoing && (
+                    <ul className="mt-3 space-y-2">
+                      {outgoing.map((l) => {
+                        const p = peopleMap[l.addressee];
+                        return (
+                          <li key={l.id} className="flex items-center gap-2 text-sm">
+                            <Avatar url={p?.avatar_url} pseudo={displayName(p)} size={26} />
+                            <span className="flex-1 truncate" style={{ color: "var(--bt-text-2)" }}>{displayName(p)}</span>
+                            <button onClick={() => removeFriendLink(l.id)} className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+                              {t("friends.cancel")}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+              )}
+
+              <section className="rounded-2xl p-4"
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                    {t("friends.suggestions")}
+                  </h2>
+                  {showSuggestions && (
+                    <button onClick={() => setShowSuggestions(false)} className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+                      {t("common.close")}
+                    </button>
+                  )}
+                </div>
+                {!showSuggestions ? (
+                  <button onClick={loadSuggestions} className="btn-ghost w-full text-sm">
+                    {t("friends.seeSuggestions")}
+                  </button>
+                ) : loadingSuggestions ? (
+                  <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("common.loading")}</p>
+                ) : suggestions.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("friends.noSuggestions")}</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {suggestions.map((s) => {
+                      const sameUni = profile?.university &&
+                        (s.university || "").trim().toLowerCase() === profile.university.trim().toLowerCase();
+                      return (
+                        <li key={s.id} className="flex items-center gap-2 text-sm">
+                          <button onClick={() => openProfile(s.id)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
+                            <Avatar url={s.avatar_url} pseudo={displayName(s)} size={30} />
+                            <span className="flex-1 min-w-0" style={{ color: "var(--bt-text-1)" }}>
+                              <span className="block truncate">{displayName(s)}</span>
+                              {sameUni && <span className="block text-[10px] font-semibold" style={{ color: "#14B885" }}>{t("friends.sameUni")}</span>}
+                            </span>
+                          </button>
+                          <button onClick={() => addFriend(s.id)} className="btn-primary text-xs px-2.5 py-1">
+                            {t("friends.addBtn")}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+
+              <section className="rounded-2xl overflow-hidden"
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+                <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+                  <h2 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                    {t("msg.myFriends")}
+                  </h2>
+                </div>
+                {friends.length === 0 ? (
+                  <p className="p-4 text-sm" style={{ color: "var(--bt-text-3)" }}>{t("friends.none")}</p>
+                ) : (
+                  <ul>
+                    {friends.map(({ profile: fp, unread, lastMsg }, idx) => (
+                      <li key={fp.id} style={idx > 0 ? { borderTop: "1px solid var(--bt-border)" } : {}}>
+                        <button onClick={() => openDM(fp.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                          <Avatar url={fp.avatar_url} pseudo={displayName(fp)} size={36} />
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{displayName(fp)}</span>
+                            <span className="block text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
+                              {lastMsg?.content || t("msg.start")}
+                            </span>
+                          </span>
+                          {unread > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-red-500 text-white rounded-full px-1 leading-none">
+                              {unread > 99 ? "99+" : unread}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+          </section>
+        ) : activeType === "dm" ? (
           !dmActiveId ? (
             <div className="hidden lg:flex lg:col-span-2 card items-center justify-center"
               style={{ height: "70vh", color: "var(--bt-text-3)", fontSize: 14 }}>
