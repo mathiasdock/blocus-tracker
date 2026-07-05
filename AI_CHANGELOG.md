@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Planning : export calendrier (.ics / Google Agenda, Apple, Outlook)
+
+Nouvelle fonctionnalite : bouton "Agenda" dans la barre d'outils du planning qui telecharge un fichier `.ics` (iCalendar RFC 5545) regroupant les examens et les objectifs, importable dans n'importe quel agenda externe. Evite de ressaisir manuellement examens/objectifs dans son vrai calendrier.
+
+- `lib/ics.js` (NOUVEAU, pur / sans Supabase) : `buildIcs()`, `downloadIcs()`, `countExportable()`.
+  - Objectifs et examens avec heure → evenements en heure LOCALE flottante (14:30 reste 14:30 quel que soit le fuseau) ; sans heure → journee entiere (VALUE=DATE, DTEND exclusif).
+  - Objectifs recurrents → `RRULE:FREQ=WEEKLY;BYDAY=…` (+ `UNTIL` optionnel). `recurrence_weekdays` = valeurs getDay() (0=Dim…6=Sam) mappees vers BYDAY.
+  - Examens → `LOCATION` si renseigne, prefixe SUMMARY "Examen —"/"Exam —".
+  - Objectifs deja `done` exclus (un agenda regarde vers l'avenir). Echappement RFC (`\; \, \n`), pliage de lignes, CRLF.
+- `pages/planning.js` : import + handler `exportCalendar()` (alert si rien a exporter) + bouton "Agenda" (icone calendrier) a cote du bouton PDF, `no-print`.
+- `lib/i18n.js` : 6 cles FR+EN (`plan.exportCalendar`, `plan.exportCalendarHint`, `plan.calendarName`, `plan.examPrefix`, `plan.icsStudyBlock`, `plan.exportEmpty`).
+- Verification : test unitaire Node du generateur (evenements timed/all-day, RRULE lun/mer, echappement, `done` exclu, CRLF) + `npm run build` OK (20/20) + navigateur (offline dev) : clic sur "Agenda" produit bien un Blob `text/calendar` valide (3 VEVENT depuis les donnees offline).
+
 ## 2026-07-04 - Communautes : reduction du logo en filigrane
 
 Le logo d'universite affiche en fond de chaque chat de communaute prenait trop de place — confirme visuellement (logo ULB "UNIVERSITE LIBRE DE BRUXELLES" bien lisible, dominant presque toute la zone de messages).

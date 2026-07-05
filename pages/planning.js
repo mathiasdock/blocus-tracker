@@ -7,6 +7,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
 import { todayISO, formatMinutesShort } from "../lib/format";
+import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { notifyXPChanged } from "../lib/xpEvents";
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1510,6 +1511,13 @@ export default function Planning() {
   const courseColor = id => courses.find(c => c.id === id)?.color || "#94a3b8";
   const courseName  = id => courses.find(c => c.id === id)?.name;
 
+  // Export .ics : examens + objectifs (non terminés) vers un agenda externe.
+  function exportCalendar() {
+    if (countExportable({ objectives, exams }) === 0) { alert(t("plan.exportEmpty")); return; }
+    const ics = buildIcs({ objectives, exams, courseName, t, calName: t("plan.calendarName") });
+    downloadIcs(`blocus-tracker-${todayISO()}.ics`, ics);
+  }
+
   const byDate = objectives.reduce((acc, o) => {
     (acc[o.scheduled_date] = acc[o.scheduled_date] || []).push(o); return acc;
   }, {});
@@ -1563,6 +1571,18 @@ export default function Planning() {
               <rect x="6" y="14" width="12" height="8"/>
             </svg>
             PDF
+          </button>
+          <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
+            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+              <path d="M12 14v4"/>
+              <path d="m10 16 2 2 2-2"/>
+            </svg>
+            {t("plan.exportCalendar")}
           </button>
           <div className="flex items-center gap-1">
             <button onClick={handlePrev} className="btn-ghost px-2.5 py-1.5 text-lg leading-none">‹</button>
