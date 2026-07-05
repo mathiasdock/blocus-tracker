@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Chrono : refonte premium de l'experience (onde de session, objectif, messages vivants, records)
+
+Refonte complete de la page Chrono (`pages/dashboard.js`) demandee par l'utilisateur : design premium/minimaliste inspire Apple/Notion/Spotify, le chrono redevient le heros. Aucune logique metier touchee (save/queue/pomodoro/guest intacts).
+
+- **L'onde de session remplace l'anneau circulaire** : 56 fines barres (enveloppe symetrique, hauteurs deterministes) qui se remplissent de vert selon la progression — objectif de session > phase pomodoro > 2h du jour. Composants `SessionWave` + `TimerDigits` (secondes de-emphasees, plus d'heures affichees sous 1h).
+- **Objectif de session** : chips 25 min / 45 min / 1 h / 1 h 30 / 2 h / infini avant de demarrer (mode libre uniquement), persiste dans localStorage `bt_session_goal_v1`. L'onde vise cet objectif.
+- **Messages vivants** : ligne contextuelle qui tourne toutes les 12 s pendant la session (objectif de session restant/atteint, 2h du jour, XP de la session, serie en cours, record du jour a battre / en train d'etre battu, plus longue session depassee). Que des faits calcules, hauteur fixe (zero layout shift), animation `.bt-msg-swap` (globals.css, reduced-motion ok).
+- **Records (90 j)** dans la carte ink Aujourd'hui : Meilleur jour / Plus longue session / Cette semaine / Meilleure serie. Requete `recentRes` etendue a `started_at, duration_seconds` (donnees propres a l'utilisateur, RLS ok).
+- **Layout epure** : titre/sous-titre supprimes → barre de contexte (pill cours + badge examen J-X + segmented Libre·Pomodoro neutre + bouton plein ecran) ; note discrete (soulignee au focus) ; boutons pill inline centres (Terminer masque tant que rien a enregistrer) ; micro-caption "le chrono continue…" sous les boutons.
+- **Mode focus** aligne : onde + memes chiffres + message vivant (anneau supprime la aussi).
+- i18n : ~19 cles `dash.*` FR+EN (messages, records, objectif). `ProgressRing` supprime.
+- Verification : `npm run build` OK (20/20) + navigateur offline dev — idle/running/pause/pomodoro/focus, light + dark, desktop 1280 + mobile 390, flux save complet (records mis a jour en direct apres enregistrement), zero erreur console.
+
 ## 2026-07-05 - Planning : export calendrier (.ics / Google Agenda, Apple, Outlook)
 
 Nouvelle fonctionnalite : bouton "Agenda" dans la barre d'outils du planning qui telecharge un fichier `.ics` (iCalendar RFC 5545) regroupant les examens et les objectifs, importable dans n'importe quel agenda externe. Evite de ressaisir manuellement examens/objectifs dans son vrai calendrier.

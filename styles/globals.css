@@ -340,6 +340,13 @@ html {
 .bt-press { transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .bt-press:active:not(:disabled) { transform: scale(0.96); }
 
+/* Live message swap — soft fade + rise when the contextual line rotates */
+@keyframes bt-msg-swap {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bt-msg-swap { animation: bt-msg-swap 0.45s ease both; }
+
 /* XP float — number rises and fades out */
 @keyframes bt-xp-float {
   0%   { opacity: 0; transform: translateY(8px) scale(0.94); }
@@ -421,6 +428,7 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
+  .bt-msg-swap,
   .bt-xp-float,
   .badge-shine,
   .bt-card-glow,

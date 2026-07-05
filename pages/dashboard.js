@@ -20,22 +20,53 @@ function daysUntilExam(dateStr) {
   return Math.floor((exam - today) / 86400000);
 }
 
-// Anneau de progression circulaire — s'affiche derrière les chiffres du
-// chrono. `pct` 0-1. viewBox fixe (200) + tailles Tailwind responsives sur
-// le conteneur : le SVG s'étire proportionnellement, le trait reste net.
-function ProgressRing({ pct, color, className = "" }) {
-  const r = 92;
-  const circumference = 2 * Math.PI * r;
+// ── L'onde de session ─────────────────────────────────────────
+// Signature visuelle du chrono : une rangée de fines barres (enveloppe
+// symétrique, hauteurs déterministes — même rendu à chaque visite) qui se
+// remplissent de vert au fil de la progression : objectif de session,
+// phase pomodoro, ou les 2h du jour. Remplace l'ancien anneau circulaire.
+const WAVE_N = 56;
+const WAVE_HEIGHTS = Array.from({ length: WAVE_N }, (_, i) => {
+  const env = Math.sin((Math.PI * i) / (WAVE_N - 1));            // taper doux aux extrémités
+  const rnd = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;  // pseudo-aléa stable
+  return 0.26 + env * (0.32 + 0.68 * rnd) * 0.74;
+});
+
+function SessionWave({ pct, running, color = "#14B885", trackColor = "var(--bt-border)", height = 44 }) {
   const clamped = Math.min(1, Math.max(0, pct || 0));
-  const offset = circumference * (1 - clamped);
+  const lastFilled = Math.ceil(clamped * WAVE_N) - 1;
   return (
-    <svg viewBox="0 0 200 200" className={`absolute inset-0 w-full h-full ${className}`}
-      style={{ transform: "rotate(-90deg)", pointerEvents: "none" }} aria-hidden="true">
-      <circle cx="100" cy="100" r={r} fill="none" stroke="rgba(20,184,133,0.16)" strokeWidth="6" />
-      <circle cx="100" cy="100" r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round"
-        strokeDasharray={circumference} strokeDashoffset={offset}
-        style={{ transition: "stroke-dashoffset 0.6s ease" }} />
-    </svg>
+    <div className="flex items-center justify-center gap-[3px] w-full" style={{ height }} aria-hidden="true">
+      {WAVE_HEIGHTS.map((h, i) => {
+        const filled = i <= lastFilled;
+        const isEdge = running && filled && i === lastFilled;
+        return (
+          <span key={i} className="flex-1 rounded-full"
+            style={{
+              maxWidth: 4,
+              minWidth: 1.5,
+              height: `${h * 100}%`,
+              backgroundColor: filled ? color : trackColor,
+              boxShadow: isEdge ? `0 0 10px ${color}` : "none",
+              transition: "background-color 0.5s ease",
+            }} />
+        );
+      })}
+    </div>
+  );
+}
+
+// Chiffres du chrono — heures:minutes en héros, secondes dé-emphasées
+// (plus petites, atténuées) : la lecture premium façon minuteur Apple.
+function TimerDigits({ seconds, color, size = "clamp(3.6rem, 11vw, 6rem)" }) {
+  const [hh, mm, ss] = formatDuration(seconds).split(":");
+  const showHours = hh !== "00";
+  return (
+    <div className="font-num font-bold tabular-nums"
+      style={{ fontSize: size, lineHeight: 1, letterSpacing: "-0.04em", color, transition: "color 0.3s" }}>
+      {showHours ? `${hh}:${mm}` : mm}
+      <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.45, marginLeft: "0.06em" }}>:{ss}</span>
+    </div>
   );
 }
 
@@ -144,6 +175,11 @@ export default function Dashboard() {
   const [showCourseMenu, setShowCourseMenu] = useState(false);
   const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
   const [checklistCourse, setChecklistCourse] = useState(null);
+  const [recentSessions, setRecentSessions] = useState([]); // 90 jours — records & semaine
+  // Objectif de session — l'intention posée avant de démarrer. Persisté
+  // (localStorage) pour que l'habitude survive aux rechargements.
+  const [sessionGoalMin, setSessionGoalMin] = useState(null);
+  const [msgIdx, setMsgIdx] = useState(0); // rotation des messages vivants
 
   // Pomodoro
   const [pomodoro, setPomodoro]     = useState(false);
@@ -163,6 +199,7 @@ export default function Dashboard() {
     setCourses(c);
     setCourseId(current => current || c[0]?.id || "");
     setSessions(data.sessions || []);
+    setRecentSessions(data.recentSessions || []);
     setStreak(computeStreak(data.recentSessions || []));
     setBestStreak(computeBestStreak(data.recentSessions || []));
     setTodayObjectives(data.objectives || []);
@@ -221,7 +258,7 @@ export default function Dashboard() {
         .order("started_at", { ascending: false }),
       supabase
         .from("sessions")
-        .select("started_at")
+        .select("started_at, duration_seconds")
         .eq("user_id", user.id)
         .gte("started_at", ninetyDaysAgo.toISOString()),
       supabase
@@ -265,6 +302,29 @@ export default function Dashboard() {
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [focusMode]);
+
+  // Objectif de session : restaure le dernier choix.
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("bt_session_goal_v1");
+      if (v) setSessionGoalMin(parseInt(v, 10) || null);
+    } catch {}
+  }, []);
+
+  function pickSessionGoal(min) {
+    setSessionGoalMin(min);
+    try {
+      if (min) localStorage.setItem("bt_session_goal_v1", String(min));
+      else localStorage.removeItem("bt_session_goal_v1");
+    } catch {}
+  }
+
+  // Message vivant : tourne toutes les 12 s pendant la session.
+  useEffect(() => {
+    if (!running) { setMsgIdx(0); return; }
+    const id = setInterval(() => setMsgIdx(i => i + 1), 12000);
+    return () => clearInterval(id);
+  }, [running]);
 
   // ── Pomodoro auto-transition ────────────────────────────────
   useEffect(() => {
@@ -540,14 +600,57 @@ export default function Dashboard() {
   const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
   const goalPct = Math.min(100, Math.round((totalToday / DAILY_GOAL_SECS) * 100));
 
-  // Anneau du chrono : en pomodoro, progression de la phase en cours ;
-  // sinon, progression réelle vers l'objectif du jour (déjà enregistré
-  // aujourd'hui + session en cours), cohérent avec goalPct ci-dessus.
+  // Onde de session : en pomodoro, progression de la phase en cours ; avec
+  // un objectif de session, progression vers cet objectif ; sinon,
+  // progression réelle vers les 2h du jour (enregistré + en cours).
   const pomoTargetSecs = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
-  const timerRingPct = pomodoro
+  const sessionGoalSecs = !pomodoro && sessionGoalMin ? sessionGoalMin * 60 : null;
+  const wavePct = pomodoro
     ? (pomoTargetSecs > 0 ? elapsed / pomoTargetSecs : 0)
-    : (totalToday + elapsed) / DAILY_GOAL_SECS;
-  const timerRingColor = pomodoro && pomoPhase === "break" ? "#0ea5e9" : "#14B885";
+    : sessionGoalSecs
+      ? elapsed / sessionGoalSecs
+      : (totalToday + elapsed) / DAILY_GOAL_SECS;
+  const waveColor = pomodoro && pomoPhase === "break" ? "#0ea5e9" : "#14B885";
+
+  // ── Records (fenêtre 90 jours) ────────────────────────────────
+  const dayTotals = {};
+  recentSessions.forEach(s => {
+    const d = (s.started_at || "").slice(0, 10);
+    if (d) dayTotals[d] = (dayTotals[d] || 0) + (s.duration_seconds || 0);
+  });
+  const bestDaySecs = Object.values(dayTotals).reduce((m, v) => Math.max(m, v), 0);
+  const longestSessionSecs = recentSessions.reduce((m, s) => Math.max(m, s.duration_seconds || 0), 0);
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - 6);
+  const weekStartISO = weekStart.toISOString().slice(0, 10);
+  const weekSecs = Object.entries(dayTotals).reduce((a, [d, v]) => (d >= weekStartISO ? a + v : a), 0);
+
+  // ── Messages vivants — uniquement des faits réels, jamais du remplissage ──
+  function buildLiveMessages() {
+    const msgs = [];
+    const sessionXP = Math.floor(elapsed / 60);
+    if (sessionGoalSecs) {
+      const rem = Math.ceil((sessionGoalSecs - elapsed) / 60);
+      msgs.push(rem > 0
+        ? t("dash.msgSessionRemaining").replace("{m}", String(rem))
+        : t("dash.msgSessionReached"));
+    }
+    const dailyRem = Math.ceil((DAILY_GOAL_SECS - (totalToday + elapsed)) / 60);
+    msgs.push(dailyRem > 0
+      ? t("dash.msgDailyRemaining").replace("{m}", String(dailyRem))
+      : t("dash.msgDailyReached"));
+    if (sessionXP >= 2) msgs.push(t("dash.msgXP").replace("{xp}", String(sessionXP)));
+    if (streak > 0) msgs.push(t("dash.msgStreak").replace("{n}", String(streak)));
+    if (bestDaySecs > 0) {
+      msgs.push(totalToday + elapsed > bestDaySecs
+        ? t("dash.msgBestDayLive")
+        : t("dash.msgBestDay").replace("{d}", formatMinutesShort(bestDaySecs)));
+    }
+    if (longestSessionSecs > 0 && elapsed > longestSessionSecs) msgs.push(t("dash.msgLongestLive"));
+    return msgs;
+  }
+  const liveMessages = running && !(pomodoro && pomoPhase === "break") ? buildLiveMessages() : [];
+  const liveMessage = liveMessages.length ? liveMessages[msgIdx % liveMessages.length] : null;
 
   const perCourse = courses.map((c) => ({
     ...c,
@@ -611,58 +714,114 @@ export default function Dashboard() {
             boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.10)" : "0 4px 32px var(--bt-shadow)",
           }}>
 
-          {/* ── Header ── */}
-          <div className="flex flex-col items-center pt-7 pb-1 px-6">
-            <h1 className="text-2xl text-center mb-1" style={{ color: "var(--bt-text-1)" }}>{t("dash.title")}</h1>
-            <p className="text-sm text-center" style={{ color: "var(--bt-text-3)" }}>{t("dash.subtitle")}</p>
-          </div>
+          {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
+          <div className="flex flex-wrap items-center gap-2 px-5 pt-5 sm:px-6 sm:pt-6 relative z-20">
+            {/* Sélecteur de cours */}
+            <div className="relative min-w-0">
+              {courses.length === 0 ? (
+                <span className="inline-flex items-center px-3 py-2 rounded-full text-xs font-medium"
+                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px dashed var(--bt-border)", color: "var(--bt-text-3)" }}>
+                  {t("dash.addCourseHint")}
+                </span>
+              ) : (
+                <button
+                  onClick={() => !running && setShowCourseMenu(s => !s)}
+                  disabled={running}
+                  className="inline-flex items-center gap-2 pl-3 pr-2.5 py-2 rounded-full text-sm font-medium transition-all max-w-full"
+                  style={{
+                    backgroundColor: "var(--bt-subtle)",
+                    border: `1px solid ${showCourseMenu ? "#14B885" : "var(--bt-border)"}`,
+                    boxShadow: showCourseMenu ? "0 0 0 3px rgba(20,184,133,0.12)" : "none",
+                    color: courseId ? "var(--bt-text-1)" : "var(--bt-text-3)",
+                  }}>
+                  {courseId && (
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: courses.find(c => c.id === courseId)?.color }} />
+                  )}
+                  <span className="truncate max-w-[130px] sm:max-w-[200px]">
+                    {courseId ? courseName(courseId) : t("dash.selectCourse")}
+                  </span>
+                  {!running && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ transform: showCourseMenu ? "rotate(180deg)" : "none", transition: "transform 0.2s", opacity: 0.6 }}>
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  )}
+                </button>
+              )}
 
-          {/* ── Mode toggle ── */}
-          <div className="px-6 pt-5 pb-0">
-            <div className="flex items-center gap-2 rounded-2xl p-1.5"
-              style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              {/* Mode focus */}
-              <button
-                onClick={() => setFocusMode(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-all"
-                style={{ color: "var(--bt-text-3)", backgroundColor: "transparent" }}
-                onMouseEnter={e => { e.currentTarget.style.backgroundColor = "var(--bt-surface)"; e.currentTarget.style.color = "var(--bt-text-2)"; }}
-                onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "var(--bt-text-3)"; }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                </svg>
-                <span className="hidden xs:inline">{t("dash.focusMode")}</span>
-                <span className="xs:hidden">Focus</span>
-              </button>
-              {/* Libre */}
-              <button
-                onClick={() => { if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
-                style={!pomodoro ? {
-                  backgroundColor: "var(--bt-surface)",
-                  color: "var(--bt-text-1)",
-                  boxShadow: "0 1px 6px var(--bt-shadow)",
-                } : {
-                  backgroundColor: "transparent",
-                  color: "var(--bt-text-3)",
+              {/* Menu déroulant des cours */}
+              {showCourseMenu && !running && (
+                <div className="absolute top-full left-0 mt-1.5 w-72 max-w-[78vw] rounded-2xl z-30 overflow-hidden"
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 32px var(--bt-shadow)" }}>
+                  {courses.map((c, i) => (
+                    <button key={c.id}
+                      onClick={() => { setCourseId(c.id); setShowCourseMenu(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                      style={{ borderBottom: i < courses.length - 1 ? "1px solid var(--bt-border)" : "none" }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                      <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
+                      {courseId === c.id && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14B885" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Badge examen du cours actif */}
+            {(() => {
+              const c = courses.find(x => x.id === courseId);
+              if (!c?.exam_date) return null;
+              const d = daysUntilExam(c.exam_date);
+              return (
+                <span className="text-[11px] px-2.5 py-1 rounded-full font-bold shrink-0 whitespace-nowrap" style={{
+                  backgroundColor: d <= 0 ? "#FEF2F2" : d <= 7 ? "#FEF3C7" : "#EAFBF4",
+                  color: d <= 0 ? "#DC2626" : d <= 7 ? "#D97706" : "#0E8F68",
                 }}>
+                  {d === 0 ? t("exam.today") : d < 0 ? t("exam.passed") : `J-${d}`}
+                </span>
+              );
+            })()}
+
+            <div className="flex-1" />
+
+            {/* Segmented Libre / Pomodoro */}
+            <div className="flex rounded-full p-0.5 gap-0.5 shrink-0"
+              style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+              <button
+                onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }}
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
+                style={!pomodoro
+                  ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
+                  : { color: "var(--bt-text-3)" }}>
                 {t("dash.free")}
               </button>
-              {/* Pomodoro */}
               <button
-                onClick={() => { if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
-                style={pomodoro ? {
-                  backgroundColor: "#14B885",
-                  color: "#fff",
-                  boxShadow: "0 2px 8px rgba(20,184,133,0.30)",
-                } : {
-                  backgroundColor: "transparent",
-                  color: "var(--bt-text-3)",
-                }}>
+                onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }}
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
+                style={pomodoro
+                  ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
+                  : { color: "var(--bt-text-3)" }}>
                 Pomodoro
               </button>
             </div>
+
+            {/* Plein écran → mode focus */}
+            <button onClick={() => setFocusMode(true)} title={t("dash.focusMode")} aria-label={t("dash.focusMode")}
+              className="w-9 h-9 flex items-center justify-center rounded-full shrink-0 transition-colors"
+              style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}
+              onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-text-1)"; }}
+              onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-3)"; }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+              </svg>
+            </button>
           </div>
 
           {/* ── Pomodoro settings ── */}
@@ -702,172 +861,92 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ── Course selector ── */}
-          {(!pomodoro || pomoPhase === "work") && (
-            <div className="px-6 mt-5 relative z-20">
-              {courses.length === 0 ? (
-                <p className="text-sm text-center py-2" style={{ color: "var(--bt-text-3)" }}>{t("dash.addCourseHint")}</p>
-              ) : (
-                <button
-                  onClick={() => !running && setShowCourseMenu(s => !s)}
-                  disabled={running}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all text-left"
-                  style={{
-                    backgroundColor: "var(--bt-subtle)",
-                    border: `1px solid ${showCourseMenu ? "#14B885" : "var(--bt-border)"}`,
-                    boxShadow: showCourseMenu ? "0 0 0 3px rgba(20,184,133,0.12)" : "none",
-                  }}>
-                  {courses.find(c => c.id === courseId) && (
-                    <span className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: courses.find(c => c.id === courseId)?.color }} />
-                  )}
-                  <span className="flex-1 text-sm font-medium truncate min-w-0"
-                    style={{ color: courseId ? "var(--bt-text-1)" : "var(--bt-text-3)" }}>
-                    {courseId ? courseName(courseId) : t("dash.selectCourse")}
-                  </span>
-                  {!running && (
-                    <span className="text-xs font-semibold shrink-0 flex items-center gap-1"
-                      style={{ color: "#14B885" }}>
-                      {t("dash.changeCourse")}
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                        style={{ transform: showCourseMenu ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                    </span>
-                  )}
-                </button>
-              )}
+          {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
+          <div className="px-5 sm:px-6 pt-9 sm:pt-11 pb-1 text-center">
+            {pomodoro && (
+              <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-5"
+                style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
+                {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
+                {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
+              </div>
+            )}
+            {isPaused && !pomodoro && (
+              <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-5" style={{ color: "#ef4444" }}>
+                {t("dash.pausedStatus")}
+              </div>
+            )}
 
-              {/* Dropdown menu */}
-              {showCourseMenu && !running && (
-                <div className="absolute top-full left-6 right-6 mt-1.5 rounded-2xl z-20 overflow-hidden"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 32px var(--bt-shadow)" }}>
-                  {courses.map((c, i) => (
-                    <button key={c.id}
-                      onClick={() => { setCourseId(c.id); setShowCourseMenu(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
-                      style={{ borderBottom: i < courses.length - 1 ? "1px solid var(--bt-border)" : "none" }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                      <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
-                      {courseId === c.id && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14B885" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            <TimerDigits
+              seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
+              color={isPaused && !pomodoro ? "#ef4444" : "var(--bt-text-1)"} />
+
+            <div className="mt-8 mx-auto w-full max-w-[420px]">
+              <SessionWave pct={wavePct} running={running} color={waveColor} />
+            </div>
+
+            {/* Ligne vivante — hauteur fixe : aucun saut de layout */}
+            <div className="h-5 mt-5">
+              {liveMessage && (
+                <p key={liveMessage} className="bt-msg-swap text-sm" style={{ color: "var(--bt-text-3)" }}>
+                  {liveMessage}
+                </p>
+              )}
+              {!liveMessage && pomodoro && pomoPhase === "break" && (
+                <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("dash.nextAutoStart")}</p>
               )}
             </div>
-          )}
-
-          {/* ── Timer display ── */}
-          <div className={`text-center px-6 py-10 ${running ? "bt-pulse-green rounded-3xl" : ""}`}>
-            {pomodoro ? (
-              <>
-                <div className="text-xs font-bold uppercase tracking-[0.15em] mb-4"
-                  style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
-                  {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
-                  {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
-                </div>
-                <div className="relative mx-auto flex items-center justify-center"
-                  style={{ width: "clamp(240px, 82vw, 320px)", height: "clamp(240px, 82vw, 320px)" }}>
-                  <ProgressRing pct={timerRingPct} color={timerRingColor} />
-                  <div className="font-num font-bold tabular-nums relative z-10"
-                    style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: "var(--bt-text-1)" }}>
-                    {formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))}
-                  </div>
-                </div>
-                <div className="mt-6 w-full max-w-[200px] mx-auto h-1.5 rounded-full overflow-hidden"
-                  style={{ backgroundColor: "var(--bt-border)" }}>
-                  <div className="h-full rounded-full transition-all duration-1000"
-                    style={{
-                      width: `${Math.min(100, (elapsed / (pomoPhase === "work" ? POMO_WORK : POMO_BREAK)) * 100)}%`,
-                      backgroundColor: pomoPhase === "work" ? "#14B885" : "#0ea5e9",
-                    }} />
-                </div>
-                {pomoPhase === "break" && (
-                  <p className="text-xs mt-2" style={{ color: "var(--bt-text-3)" }}>{t("dash.nextAutoStart")}</p>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="relative mx-auto flex items-center justify-center"
-                  style={{ width: "clamp(240px, 82vw, 320px)", height: "clamp(240px, 82vw, 320px)" }}>
-                  <ProgressRing pct={timerRingPct} color={timerRingColor} />
-                  <div className="font-num font-bold tabular-nums relative z-10 transition-colors duration-300"
-                    style={{ fontSize: "clamp(3.5rem,12vw,5.5rem)", lineHeight: 1, letterSpacing: "-0.03em", color: isPaused ? "#ef4444" : "var(--bt-text-1)" }}>
-                    {formatDuration(elapsed)}
-                  </div>
-                </div>
-                {isPaused && (
-                  <div className="text-xs font-bold uppercase tracking-[0.15em] mt-2"
-                    style={{ color: "#ef4444" }}>
-                    {t("dash.pausedStatus")}
-                  </div>
-                )}
-                {/* Cours actif + badge examen */}
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                  {courseId && courses.find(c => c.id === courseId) && (
-                    <span className="flex items-center gap-1.5 text-sm" style={{ color: "var(--bt-text-2)" }}>
-                      <span className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: courses.find(c => c.id === courseId)?.color }} />
-                      <span className="truncate max-w-[180px]">{courseName(courseId)}</span>
-                    </span>
-                  )}
-                  {(() => {
-                    const c = courses.find(c => c.id === courseId);
-                    if (!c?.exam_date) return null;
-                    const d = daysUntilExam(c.exam_date);
-                    return (
-                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold shrink-0 whitespace-nowrap" style={{
-                        backgroundColor: d <= 0 ? "#FEF2F2" : d <= 7 ? "#FEF3C7" : "#EAFBF4",
-                        color: d <= 0 ? "#DC2626" : d <= 7 ? "#D97706" : "#0E8F68",
-                      }}>
-                        {d === 0 ? t("exam.today") : d < 0 ? t("exam.passed") : `${t("exam.setDate")} : ${d} ${t("exam.inDays")}`}
-                      </span>
-                    );
-                  })()}
-                </div>
-              </>
-            )}
           </div>
 
-          {/* ── Note ── */}
-          {(!pomodoro || pomoPhase === "work") && (
-            <div className="px-6 pb-0">
-              <div className="relative">
-                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                  width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ color: "var(--bt-text-4)" }}>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-                </svg>
-                <input
-                  className="input"
-                  style={{ paddingLeft: "2.25rem" }}
-                  placeholder={t("dash.notePlaceholder")}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)} />
+          {/* ── Objectif de session — poser l'intention avant de démarrer ── */}
+          {!pomodoro && !running && elapsed === 0 && (
+            <div className="px-5 sm:px-6 mt-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-center mb-2.5" style={{ color: "var(--bt-text-4)" }}>
+                {t("dash.sessionGoalLabel")}
+              </p>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {[[25, "25 min"], [45, "45 min"], [60, "1 h"], [90, "1 h 30"], [120, "2 h"], [null, "∞"]].map(([m, label]) => (
+                  <button key={label} type="button" onClick={() => pickSessionGoal(m)}
+                    title={m === null ? t("dash.noGoal") : undefined}
+                    aria-pressed={sessionGoalMin === m}
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all bt-press"
+                    style={sessionGoalMin === m
+                      ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 2px 8px rgba(20,184,133,0.25)" }
+                      : { backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
-          {/* ── Action buttons ── */}
-          <div className="px-6 pt-4 pb-6 space-y-2.5">
+          {/* ── Note — champ discret, souligné au focus seulement ── */}
+          {(!pomodoro || pomoPhase === "work") && (
+            <div className="px-5 sm:px-6 mt-4">
+              <input
+                className="block w-full max-w-xs mx-auto text-center text-sm bg-transparent outline-none py-1.5"
+                style={{ color: "var(--bt-text-1)", borderBottom: "1px solid transparent", transition: "border-color 0.2s" }}
+                onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--bt-border)"; }}
+                onBlur={e => { e.currentTarget.style.borderBottomColor = "transparent"; }}
+                placeholder={t("dash.notePlaceholder")}
+                value={note}
+                onChange={(e) => setNote(e.target.value)} />
+            </div>
+          )}
+
+          {/* ── Actions ── */}
+          <div className="px-5 sm:px-6 pt-6 pb-5 sm:pb-6">
             {pomoPhase === "break" && pomodoro ? (
-              <button className="btn-ghost w-full py-3 text-sm"
-                onClick={() => { pause(); reset(); setPomoPhase("work"); pomoHandled.current = false; }}>
-                {t("dash.skipBreak")} →
-              </button>
+              <div className="max-w-md mx-auto">
+                <button className="btn-ghost w-full py-3 text-sm"
+                  onClick={() => { pause(); reset(); setPomoPhase("work"); pomoHandled.current = false; }}>
+                  {t("dash.skipBreak")} →
+                </button>
+              </div>
             ) : (
-              <>
+              <div className="flex flex-col xs:flex-row items-stretch justify-center gap-2.5 max-w-md mx-auto">
                 {!running ? (
                   <button
-                    className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
+                    className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                     style={{
                       backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)",
                       color: "#fff",
@@ -876,51 +955,54 @@ export default function Dashboard() {
                     }}
                     onClick={() => { start(); setFocusMode(true); }}
                     disabled={!courseId && !pomodoro}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                     {elapsed > 0 ? t("dash.resume") : t("dash.start")}
                   </button>
                 ) : (
                   <button
-                    className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
+                    className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                     style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}
                     onClick={pause}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
                     </svg>
                     {t("dash.pause")}
                   </button>
                 )}
-                <button
-                  className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
-                  style={{
-                    backgroundColor: saveStatus === "success" ? "#14B885"
-                      : saveStatus === "error" ? "#ef4444"
-                      : "var(--bt-text-1)",
-                    color: "#fff",
-                    opacity: (elapsed < 1 || saveStatus === "saving") ? 0.45 : 1,
-                  }}
-                  onClick={() => { setPomodoro(false); setPomoPhase("work"); setPomoCount(0); stopAndSave(); }}
-                  disabled={elapsed < 1 || saveStatus === "saving"}>
-                  {saveStatus === "saving" ? (
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : saveStatus === "success" ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  ) : (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    </svg>
-                  )}
-                  {saveStatus === "saving"  ? t("common.saving")
-                    : saveStatus === "success" ? t("dash.saveSuccess")
-                    : saveStatus === "error"   ? t("dash.saveError")
-                    : t("dash.finish")}
-                </button>
-              </>
+                {(elapsed >= 1 || saveStatus !== "idle") && (
+                  <button
+                    className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
+                    style={{
+                      backgroundColor: saveStatus === "success" ? "#14B885"
+                        : saveStatus === "error" ? "#ef4444"
+                        : "var(--bt-text-1)",
+                      color: saveStatus === "success" || saveStatus === "error" ? "#fff" : "var(--bt-surface)",
+                      opacity: (elapsed < 1 && saveStatus === "idle") || saveStatus === "saving" ? 0.45 : 1,
+                    }}
+                    onClick={() => { setPomodoro(false); setPomoPhase("work"); setPomoCount(0); stopAndSave(); }}
+                    disabled={elapsed < 1 || saveStatus === "saving"}>
+                    {saveStatus === "saving" ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : saveStatus === "success" ? (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    ) : (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      </svg>
+                    )}
+                    {saveStatus === "saving"  ? t("common.saving")
+                      : saveStatus === "success" ? t("dash.saveSuccess")
+                      : saveStatus === "error"   ? t("dash.saveError")
+                      : t("dash.finish")}
+                  </button>
+                )}
+              </div>
             )}
+            <p className="text-[11px] text-center mt-4" style={{ color: "var(--bt-text-4)" }}>{t("dash.subtitle")}</p>
           </div>
         </section>
 
@@ -973,6 +1055,25 @@ export default function Dashboard() {
                 <li className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.noSession")}</li>
               )}
             </ul>
+
+            {/* Records — repères à battre, calculés sur les 90 derniers jours */}
+            {(bestDaySecs > 0 || weekSecs > 0) && (
+              <div className="mt-4 pt-4 grid grid-cols-2 gap-x-4 gap-y-3"
+                style={{ borderTop: "1px solid var(--bt-ink-border)" }}>
+                {[
+                  [t("dash.recBestDay"), formatMinutesShort(bestDaySecs)],
+                  [t("dash.recLongest"), formatMinutesShort(longestSessionSecs)],
+                  [t("dash.recWeek"), formatMinutesShort(weekSecs)],
+                  [t("dash.recBestStreak"), `${bestStreak} ${t("dash.daysShort")}`],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
+                      style={{ color: "var(--bt-ink-muted)", opacity: 0.8 }}>{label}</p>
+                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-ink-text)" }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           </section>
 
@@ -1167,39 +1268,37 @@ export default function Dashboard() {
             {courseId ? courseName(courseId) : t("dash.noCourse")}
           </p>
 
-          <div className={`relative z-10 mx-auto flex items-center justify-center ${running ? "bt-pulse-green rounded-full" : ""}`}
-            style={{ width: "clamp(300px, 62vw, 460px)", height: "clamp(300px, 62vw, 460px)" }}>
-            <ProgressRing pct={timerRingPct} color={timerRingColor} />
-            <div className="font-num font-bold tabular-nums transition-colors duration-300 relative z-10"
-              style={{
-                fontSize: "clamp(4rem,15vw,7rem)",
-                lineHeight: 1.1,
-                letterSpacing: "-0.03em",
-                color: (isPaused && !pomodoro) ? "#ef4444" : "var(--bt-ink-text)",
-              }}>
-              {pomodoro
-                ? formatDuration(Math.max(0, (pomoPhase === "work" ? POMO_WORK : POMO_BREAK) - elapsed))
-                : formatDuration(elapsed)}
+          <div className="relative z-10 w-full text-center px-6">
+            <TimerDigits
+              seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
+              color={(isPaused && !pomodoro) ? "#ef4444" : "var(--bt-ink-text)"}
+              size="clamp(4.5rem, 16vw, 8.5rem)" />
+
+            <div className="mt-10 mx-auto w-full max-w-[560px]">
+              <SessionWave pct={wavePct} running={running} color={waveColor}
+                trackColor="rgba(255,255,255,0.13)" height={56} />
             </div>
+
+            {/* Ligne vivante — hauteur fixe : aucun saut de layout */}
+            <div className="h-5 mt-6">
+              {liveMessage && (
+                <p key={liveMessage} className="bt-msg-swap text-sm" style={{ color: "var(--bt-ink-muted)" }}>
+                  {liveMessage}
+                </p>
+              )}
+              {!liveMessage && pomodoro && pomoPhase === "break" && (
+                <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.nextAutoStart")}</p>
+              )}
+            </div>
+
+            {/* Indicateur EN PAUSE en mode focus */}
+            {isPaused && !pomodoro && (
+              <div className="inline-block mt-4 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
+                style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.15)", letterSpacing: "0.12em" }}>
+                {t("dash.pausedStatus")}
+              </div>
+            )}
           </div>
-
-          {/* Indicateur EN PAUSE en mode focus */}
-          {isPaused && !pomodoro && (
-            <div className="relative z-10 mt-3 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
-              style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.15)", letterSpacing: "0.12em" }}>
-              {t("dash.pausedStatus")}
-            </div>
-          )}
-
-          {pomodoro && (
-            <div className="relative z-10 mt-6 w-full max-w-xs h-1 rounded-full" style={{ backgroundColor: "#333" }}>
-              <div className="h-full rounded-full transition-all duration-1000"
-                style={{
-                  width: `${Math.min(100, (elapsed / (pomoPhase === "work" ? POMO_WORK : POMO_BREAK)) * 100)}%`,
-                  backgroundColor: pomoPhase === "work" ? "#14B885" : "#0ea5e9",
-                }} />
-            </div>
-          )}
 
           <div className="relative z-10 mt-8 flex gap-3">
             {pomoPhase === "break" && pomodoro ? (
