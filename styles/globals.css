@@ -347,6 +347,36 @@ html {
 }
 .bt-msg-swap { animation: bt-msg-swap 0.45s ease both; }
 
+/* Moment message — milestone pop, slightly more present than the ambient swap */
+@keyframes bt-msg-pop {
+  0%   { opacity: 0; transform: translateY(7px) scale(0.96); }
+  60%  { opacity: 1; transform: translateY(-1px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.bt-msg-pop { animation: bt-msg-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Odometer digit roll — new digit slides up into a clipped slot */
+@keyframes bt-digit-roll {
+  from { opacity: 0; transform: translateY(0.34em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bt-digit-roll { display: inline-block; animation: bt-digit-roll 0.34s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Session wave — gentle breathing of the bars near the progression edge */
+@keyframes bt-wave-bob {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(1.38); }
+}
+.bt-wave-bob { animation: bt-wave-bob 1.6s ease-in-out infinite; transform-origin: center; }
+
+/* Session wave — wake sweep when the timer starts (staggered per bar) */
+@keyframes bt-wave-wake {
+  0%   { opacity: 0.2; transform: scaleY(0.35); }
+  60%  { opacity: 1;   transform: scaleY(1.18); }
+  100% { transform: scaleY(1); }
+}
+.bt-wave-wake { animation: bt-wave-wake 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards; transform-origin: center; }
+
 /* XP float — number rises and fades out */
 @keyframes bt-xp-float {
   0%   { opacity: 0; transform: translateY(8px) scale(0.94); }
@@ -429,6 +459,10 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
   .bt-msg-swap,
+  .bt-msg-pop,
+  .bt-digit-roll,
+  .bt-wave-bob,
+  .bt-wave-wake,
   .bt-xp-float,
   .badge-shine,
   .bt-card-glow,

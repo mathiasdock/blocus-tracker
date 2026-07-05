@@ -26,33 +26,66 @@ function daysUntilExam(dateStr) {
 // remplissent de vert au fil de la progression : objectif de session,
 // phase pomodoro, ou les 2h du jour. Remplace l'ancien anneau circulaire.
 const WAVE_N = 56;
-const WAVE_HEIGHTS = Array.from({ length: WAVE_N }, (_, i) => {
-  const env = Math.sin((Math.PI * i) / (WAVE_N - 1));            // taper doux aux extrémités
-  const rnd = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;  // pseudo-aléa stable
-  return 0.26 + env * (0.32 + 0.68 * rnd) * 0.74;
-});
+// Profil de l'onde : enveloppe symétrique × pseudo-aléa stable, puis deux
+// passes de lissage voisin-à-voisin → une "colline sonore" organique plutôt
+// qu'un peigne dentelé. Calculé une seule fois au chargement du module.
+const WAVE_HEIGHTS = (() => {
+  let hs = Array.from({ length: WAVE_N }, (_, i) => {
+    const env = Math.sin((Math.PI * i) / (WAVE_N - 1));            // taper doux aux extrémités
+    const rnd = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;  // pseudo-aléa stable
+    return env * (0.32 + 0.68 * rnd);
+  });
+  for (let p = 0; p < 2; p++) {
+    hs = hs.map((v, i) => ((hs[i - 1] ?? v) * 0.28) + v * 0.44 + ((hs[i + 1] ?? v) * 0.28));
+  }
+  return hs.map(v => 0.26 + v * 0.74);
+})();
 
-function SessionWave({ pct, running, color = "#14B885", trackColor = "var(--bt-border)", height = 44 }) {
+// L'onde de session — micro-interactions :
+//  • `wake`  : sweep de réveil au démarrage (chaque barre s'allume en cascade)
+//  • running : les 4 barres au bord de la progression "respirent" (scaleY
+//    désynchronisé) + glow sur la barre de tête
+//  • traînée : le remplissage ancien est légèrement estompé, le récent plein
+//  • paused  : le vert se met en veille (opacité réduite)
+function SessionWave({ pct, running, paused, wake, color = "#14B885", trackColor = "var(--bt-border)", height = 44 }) {
   const clamped = Math.min(1, Math.max(0, pct || 0));
   const lastFilled = Math.ceil(clamped * WAVE_N) - 1;
   return (
     <div className="flex items-center justify-center gap-[3px] w-full" style={{ height }} aria-hidden="true">
       {WAVE_HEIGHTS.map((h, i) => {
         const filled = i <= lastFilled;
-        const isEdge = running && filled && i === lastFilled;
+        const edgeDist = lastFilled - i;
+        const bobbing = !wake && running && !paused && filled && edgeDist <= 3;
+        const depth = filled && lastFilled > 0 ? i / lastFilled : 1;
         return (
-          <span key={i} className="flex-1 rounded-full"
+          <span key={i}
+            className={`flex-1 rounded-full ${wake ? "bt-wave-wake" : bobbing ? "bt-wave-bob" : ""}`}
             style={{
               maxWidth: 4,
               minWidth: 1.5,
               height: `${h * 100}%`,
               backgroundColor: filled ? color : trackColor,
-              boxShadow: isEdge ? `0 0 10px ${color}` : "none",
-              transition: "background-color 0.5s ease",
+              opacity: filled ? (paused ? 0.4 : 0.62 + 0.38 * depth) : 1,
+              boxShadow: running && !paused && filled && edgeDist === 0 ? `0 0 12px ${color}` : "none",
+              transition: "background-color 0.5s ease, opacity 0.5s ease",
+              animationDelay: wake ? `${i * 12}ms` : bobbing ? `${-(edgeDist * 0.35)}s` : undefined,
+              animationDuration: bobbing ? `${1.4 + (i % 3) * 0.25}s` : undefined,
             }} />
         );
       })}
     </div>
+  );
+}
+
+// Un caractère du chrono dans une fente à largeur fixe : quand sa valeur
+// change, le nouveau chiffre glisse vers le haut en fondu (effet odomètre).
+// Seuls les caractères qui changent s'animent — la clé porte la valeur.
+// Pas de clip : un overflow-hidden inline-block casserait la baseline.
+function RollChar({ ch }) {
+  return (
+    <span className="inline-block" style={{ width: /\d/.test(ch) ? "1ch" : undefined }}>
+      <span key={ch} className="bt-digit-roll">{ch}</span>
+    </span>
   );
 }
 
@@ -61,11 +94,14 @@ function SessionWave({ pct, running, color = "#14B885", trackColor = "var(--bt-b
 function TimerDigits({ seconds, color, size = "clamp(3.6rem, 11vw, 6rem)" }) {
   const [hh, mm, ss] = formatDuration(seconds).split(":");
   const showHours = hh !== "00";
+  const main = showHours ? `${hh}:${mm}` : mm;
   return (
     <div className="font-num font-bold tabular-nums"
       style={{ fontSize: size, lineHeight: 1, letterSpacing: "-0.04em", color, transition: "color 0.3s" }}>
-      {showHours ? `${hh}:${mm}` : mm}
-      <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.45, marginLeft: "0.06em" }}>:{ss}</span>
+      {main.split("").map((ch, i) => <RollChar key={`m${i}`} ch={ch} />)}
+      <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.45, marginLeft: "0.06em" }}>
+        :{ss.split("").map((ch, i) => <RollChar key={`s${i}`} ch={ch} />)}
+      </span>
     </div>
   );
 }
@@ -325,6 +361,56 @@ export default function Dashboard() {
     const id = setInterval(() => setMsgIdx(i => i + 1), 12000);
     return () => clearInterval(id);
   }, [running]);
+
+  // Sweep de réveil de l'onde au passage idle → running.
+  const [waveWake, setWaveWake] = useState(false);
+  const prevRunningRef = useRef(false);
+  useEffect(() => {
+    const was = prevRunningRef.current;
+    prevRunningRef.current = running;
+    if (running && !was) {
+      setWaveWake(true);
+      const id = setTimeout(() => setWaveWake(false), 1500);
+      return () => clearTimeout(id);
+    }
+  }, [running]);
+
+  // Contrôles du mode focus : s'estompent après 4,5 s d'inactivité (pattern
+  // lecteur vidéo) — tout mouvement / toucher / touche les fait réapparaître.
+  const [focusCtlVisible, setFocusCtlVisible] = useState(true);
+  const focusCtlTimer = useRef(null);
+  useEffect(() => {
+    if (!focusMode) return;
+    function poke() {
+      setFocusCtlVisible(true);
+      clearTimeout(focusCtlTimer.current);
+      focusCtlTimer.current = setTimeout(() => setFocusCtlVisible(false), 4500);
+    }
+    poke();
+    window.addEventListener("mousemove", poke);
+    window.addEventListener("touchstart", poke);
+    window.addEventListener("keydown", poke);
+    return () => {
+      clearTimeout(focusCtlTimer.current);
+      window.removeEventListener("mousemove", poke);
+      window.removeEventListener("touchstart", poke);
+      window.removeEventListener("keydown", poke);
+    };
+  }, [focusMode]);
+
+  // Barre espace en mode focus : pause / reprise.
+  useEffect(() => {
+    if (!focusMode) return;
+    function onKey(e) {
+      if (e.code !== "Space" || e.repeat) return;
+      if (/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName || "")) return;
+      e.preventDefault();
+      if (running) pause();
+      else if (courseId || pomodoro) start();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [focusMode, running, courseId, pomodoro, pause, start]);
 
   // ── Pomodoro auto-transition ────────────────────────────────
   useEffect(() => {
@@ -652,6 +738,44 @@ export default function Dashboard() {
   const liveMessages = running && !(pomodoro && pomoPhase === "break") ? buildLiveMessages() : [];
   const liveMessage = liveMessages.length ? liveMessages[msgIdx % liveMessages.length] : null;
 
+  // ── Moments — le bon message au bon moment ────────────────────
+  // Détectés au franchissement d'un seuil (une seule fois par session),
+  // affichés 8 s en priorité sur la rotation ambiante, en vert accent.
+  const [moment, setMoment] = useState(null);
+  const momentsFired = useRef(new Set());
+  const momentTimer = useRef(null);
+  const sessionActiveRef = useRef(false);
+
+  // La fin de session (retour à zéro) réarme les moments.
+  useEffect(() => {
+    const active = running || elapsed > 0;
+    if (!active && sessionActiveRef.current) {
+      momentsFired.current = new Set();
+      setMoment(null);
+    }
+    sessionActiveRef.current = active;
+  }, [running, elapsed]);
+
+  useEffect(() => {
+    if (!running || (pomodoro && pomoPhase === "break")) return;
+    function fire(id, text) {
+      if (momentsFired.current.has(id)) return;
+      momentsFired.current.add(id);
+      setMoment({ id, text });
+      clearTimeout(momentTimer.current);
+      momentTimer.current = setTimeout(() => setMoment(null), 8000);
+    }
+    // Du plus banal au plus précieux : si plusieurs seuils tombent dans le
+    // même tick, le dernier setMoment gagne → le plus rare l'emporte.
+    const hours = Math.floor(elapsed / 3600);
+    if (hours >= 1) fire(`hour${hours}`, t("dash.momentHour").replace("{h}", String(hours)));
+    if (sessionGoalSecs && elapsed >= sessionGoalSecs) fire("sessionGoal", t("dash.momentSessionGoal"));
+    if (totalToday < DAILY_GOAL_SECS && totalToday + elapsed >= DAILY_GOAL_SECS) fire("daily", t("dash.momentDaily"));
+    if (longestSessionSecs > 0 && elapsed > longestSessionSecs) fire("longest", t("dash.momentLongest"));
+    if (bestDaySecs > 0 && totalToday < bestDaySecs && totalToday + elapsed > bestDaySecs) fire("bestDay", t("dash.momentBestDay"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elapsed, running, pomodoro, pomoPhase]);
+
   const perCourse = courses.map((c) => ({
     ...c,
     secs: sessions
@@ -707,12 +831,22 @@ export default function Dashboard() {
         {/* ══════════════════════════════════════════
             SECTION 1 — Chronomètre
         ══════════════════════════════════════════ */}
-        <section className="card lg:col-span-2 min-w-0 transition-all duration-300 overflow-hidden"
+        <section className="card relative lg:col-span-2 min-w-0 transition-all duration-300 overflow-hidden"
           style={{
             backgroundColor: isPaused ? "rgba(239,68,68,0.06)" : "var(--bt-surface)",
             borderColor:     isPaused ? "rgba(239,68,68,0.35)" : "var(--bt-border)",
             boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.10)" : "0 4px 32px var(--bt-shadow)",
           }}>
+
+          {/* Halo de progression — le fond respire et s'intensifie avec la
+              session (opacité seule : GPU, aucun re-layout) */}
+          <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none"
+            style={{
+              height: "58%",
+              background: "radial-gradient(ellipse at 50% 100%, rgba(20,184,133,0.10), transparent 70%)",
+              opacity: (running || elapsed > 0) && !isPaused ? 0.35 + Math.min(1, wavePct) * 0.65 : 0,
+              transition: "opacity 1.5s ease",
+            }} />
 
           {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
           <div className="flex flex-wrap items-center gap-2 px-5 pt-5 sm:px-6 sm:pt-6 relative z-20">
@@ -881,19 +1015,23 @@ export default function Dashboard() {
               color={isPaused && !pomodoro ? "#ef4444" : "var(--bt-text-1)"} />
 
             <div className="mt-8 mx-auto w-full max-w-[420px]">
-              <SessionWave pct={wavePct} running={running} color={waveColor} />
+              <SessionWave pct={wavePct} running={running} paused={isPaused && !pomodoro} wake={waveWake} color={waveColor} />
             </div>
 
-            {/* Ligne vivante — hauteur fixe : aucun saut de layout */}
+            {/* Ligne vivante — hauteur fixe : aucun saut de layout.
+                Un moment (seuil franchi) prime sur la rotation ambiante. */}
             <div className="h-5 mt-5">
-              {liveMessage && (
+              {moment ? (
+                <p key={moment.id} className="bt-msg-pop text-sm font-semibold" style={{ color: "#14B885" }}>
+                  {moment.text}
+                </p>
+              ) : liveMessage ? (
                 <p key={liveMessage} className="bt-msg-swap text-sm" style={{ color: "var(--bt-text-3)" }}>
                   {liveMessage}
                 </p>
-              )}
-              {!liveMessage && pomodoro && pomoPhase === "break" && (
+              ) : pomodoro && pomoPhase === "break" ? (
                 <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("dash.nextAutoStart")}</p>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -1252,6 +1390,18 @@ export default function Dashboard() {
           {/* Dégradé ink vivant — dérive lentement, coupé sur l'état "pausé" rouge */}
           {!(isPaused && !pomodoro) && <div className="bt-ink-drift" />}
 
+          {/* Marée de progression — une lueur verte monte lentement du bas de
+              l'écran au fil de la session (transform GPU, aucun re-layout) */}
+          <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none"
+            style={{
+              height: "80%",
+              background: "linear-gradient(to top, rgba(20,184,133,0.20), rgba(20,184,133,0.06) 55%, transparent)",
+              transform: `scaleY(${(0.18 + Math.min(1, wavePct) * 0.82).toFixed(3)})`,
+              transformOrigin: "bottom",
+              opacity: (isPaused && !pomodoro) ? 0 : 1,
+              transition: "transform 2.5s ease, opacity 0.6s ease",
+            }} />
+
           <p className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}
           </p>
@@ -1275,20 +1425,24 @@ export default function Dashboard() {
               size="clamp(4.5rem, 16vw, 8.5rem)" />
 
             <div className="mt-10 mx-auto w-full max-w-[560px]">
-              <SessionWave pct={wavePct} running={running} color={waveColor}
+              <SessionWave pct={wavePct} running={running} paused={isPaused && !pomodoro} wake={waveWake} color={waveColor}
                 trackColor="rgba(255,255,255,0.13)" height={56} />
             </div>
 
-            {/* Ligne vivante — hauteur fixe : aucun saut de layout */}
+            {/* Ligne vivante — hauteur fixe : aucun saut de layout.
+                Un moment (seuil franchi) prime sur la rotation ambiante. */}
             <div className="h-5 mt-6">
-              {liveMessage && (
+              {moment ? (
+                <p key={moment.id} className="bt-msg-pop text-sm font-semibold" style={{ color: "#2BD9A4" }}>
+                  {moment.text}
+                </p>
+              ) : liveMessage ? (
                 <p key={liveMessage} className="bt-msg-swap text-sm" style={{ color: "var(--bt-ink-muted)" }}>
                   {liveMessage}
                 </p>
-              )}
-              {!liveMessage && pomodoro && pomoPhase === "break" && (
+              ) : pomodoro && pomoPhase === "break" ? (
                 <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.nextAutoStart")}</p>
-              )}
+              ) : null}
             </div>
 
             {/* Indicateur EN PAUSE en mode focus */}
@@ -1300,7 +1454,12 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="relative z-10 mt-8 flex gap-3">
+          <div className="relative z-10 mt-8 flex gap-3"
+            style={{
+              opacity: (focusCtlVisible || !running) ? 1 : 0,
+              pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
+              transition: "opacity 0.8s ease",
+            }}>
             {pomoPhase === "break" && pomodoro ? (
               <button className="btn-ghost text-white border-white/20 px-8 py-3"
                 onClick={() => { pause(); reset(); setPomoPhase("work"); pomoHandled.current = false; }}>
@@ -1332,8 +1491,13 @@ export default function Dashboard() {
           </div>
 
           <button onClick={() => setFocusMode(false)}
-            className="relative z-10 mt-6 flex items-center gap-2 text-sm font-medium rounded-2xl px-5 py-2.5 transition-colors"
-            style={{ color: "rgba(255,255,255,0.45)" }}
+            className="relative z-10 mt-6 flex items-center gap-2 text-sm font-medium rounded-2xl px-5 py-2.5"
+            style={{
+              color: "rgba(255,255,255,0.45)",
+              opacity: (focusCtlVisible || !running) ? 1 : 0,
+              pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
+              transition: "opacity 0.8s ease, color 0.2s ease",
+            }}
             onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.8)"}
             onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -1341,6 +1505,16 @@ export default function Dashboard() {
             </svg>
             {t("dash.exitFocus")}
           </button>
+
+          {/* Raccourci clavier — desktop uniquement */}
+          <p className="hidden sm:block relative z-10 mt-2 text-[11px]"
+            style={{
+              color: "rgba(255,255,255,0.25)",
+              opacity: (focusCtlVisible || !running) ? 1 : 0,
+              transition: "opacity 0.8s ease",
+            }}>
+            {t("dash.spaceHint")}
+          </p>
 
         </div>
       )}

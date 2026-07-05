@@ -21,7 +21,11 @@ export function TimerProvider({ children }) {
   const [startMs, setStartMs] = useState(0);
   const [baseSeconds, setBaseSeconds] = useState(0);
   const [, forceRender] = useReducer((x) => x + 1, 0);
-  const hydrated = useRef(false);
+  // `hydrated` est un STATE (pas une ref) : il est appliqué dans le même
+  // batch que les valeurs restaurées. Avec une ref, le double-effect de
+  // React StrictMode (dev) réécrivait le storage avec les états par défaut
+  // AVANT la relecture du restore → le chrono ne survivait pas au reload.
+  const [hydrated, setHydrated] = useState(false);
 
   // Restore from localStorage on first mount.
   //
@@ -50,20 +54,21 @@ export function TimerProvider({ children }) {
         setBaseSeconds(nextBase);
       }
     } catch {}
-    hydrated.current = true;
+    setHydrated(true);
     forceRender();
   }, []);
 
-  // Persist any change
+  // Persist any change — jamais avant l'hydration (sinon on écrase le
+  // storage avec les états par défaut).
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (!hydrated) return;
     try {
       localStorage.setItem(
         KEY,
         JSON.stringify({ courseId, note, running, startMs, baseSeconds })
       );
     } catch {}
-  }, [courseId, note, running, startMs, baseSeconds]);
+  }, [hydrated, courseId, note, running, startMs, baseSeconds]);
 
   // Re-render every 500ms while running
   useEffect(() => {

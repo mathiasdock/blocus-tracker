@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Chrono : passe motion design (signature) + fix restore du timer
+
+Second passage sur la page Chrono a la demande de l'utilisateur : micro-interactions et motion design pour en faire une signature. Aucune nouvelle fonctionnalite metier.
+
+- **Chiffres vivants** : effet odometre (`RollChar`) — chaque caractere qui change glisse vers le haut en fondu, fente a largeur fixe `1ch` (pas de clip : un overflow-hidden inline-block casse la baseline, bug rencontre puis corrige).
+- **Onde plus naturelle** : profil lisse par 2 passes de moyenne voisin-a-voisin (colline organique au lieu du peigne) ; **respiration** des 4 barres au bord de progression (scaleY desynchronise, durees variees) ; **sweep de reveil** au demarrage (56 barres en cascade, delai 12 ms/barre) ; trainee d'opacite (0.62 → 1 vers la tete) ; dim a 0.4 en pause.
+- **Fond evolutif** : halo radial vert en bas de la carte dont l'opacite suit la progression (GPU, opacity seule) ; en mode focus, **maree verte** qui monte du bas de l'ecran au fil de la session (transform scaleY, origin bottom, transition 2.5 s), coupee sur l'etat pause rouge.
+- **Moments** : messages evenementiels au franchissement de seuil, une fois par session, affiches 8 s en vert accent (pop `.bt-msg-pop`) en priorite sur la rotation ambiante — objectif de session atteint, 2h du jour, record du jour battu, plus longue session depassee, chaque heure pleine. Ordre d'ecrasement du plus banal au plus precieux.
+- **Focus habitable** : controles qui s'estompent apres 4,5 s d'inactivite (pattern lecteur video, pointer-events coupes) et reapparaissent au moindre mouvement ; **barre espace = pause/reprise** (hint discret desktop) ; jamais caches quand le chrono est en pause.
+- **Fix `contexts/TimerContext.js`** (bug latent revele par les tests) : en dev, le double-effect de React StrictMode ecrasait le localStorage avec les etats par defaut avant la relecture → le chrono ne survivait pas au reload. `hydrated` passe de ref a state (batch avec les valeurs restaurees). Comportement prod inchange, promesse "le chrono continue apres reload" reparee en dev.
+- CSS : keyframes `bt-msg-pop`, `bt-digit-roll`, `bt-wave-bob`, `bt-wave-wake` + ajout au bloc reduced-motion. i18n : 6 cles `dash.moment*`/`dash.spaceHint` FR+EN.
+- Verification navigateur (offline dev) : restore 25 min apres reload OK, moment "objectif de session" observe en direct a 25:01, bascule 59→1:00 des chiffres, auto-hide/reapparition des controles focus, espace pause/reprise, light+dark, `npm run build` OK (20/20).
+
 ## 2026-07-05 - Chrono : refonte premium de l'experience (onde de session, objectif, messages vivants, records)
 
 Refonte complete de la page Chrono (`pages/dashboard.js`) demandee par l'utilisateur : design premium/minimaliste inspire Apple/Notion/Spotify, le chrono redevient le heros. Aucune logique metier touchee (save/queue/pomodoro/guest intacts).
