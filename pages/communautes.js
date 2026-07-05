@@ -35,6 +35,47 @@ function parseCommunityContent(content) {
   return { space: tagged.id, text: raw.slice(tagged.prefix.length + 1) };
 }
 
+function isNearBottom(el) {
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 96;
+}
+
+function CommunityLogo({ university, size = 36, rounded = 12, className = "" }) {
+  const [failed, setFailed] = useState(false);
+  const initials = (university?.name || "?").slice(0, 2).toUpperCase();
+  const style = {
+    width: size,
+    height: size,
+    borderRadius: rounded,
+    backgroundColor: "#F7F3EF",
+    border: "1px solid #E8E2DC",
+  };
+
+  if (university?.logo && !failed) {
+    return (
+      <div className={`shrink-0 flex items-center justify-center overflow-hidden ${className}`} style={style}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={university.logo}
+          alt=""
+          className="object-contain"
+          style={{ width: size - 4, height: size - 4 }}
+          onError={() => setFailed(true)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`shrink-0 flex items-center justify-center overflow-hidden ${className}`}
+      style={{ ...style, backgroundColor: university?.color || "#14B885", border: "1px solid transparent" }}>
+      <span className="font-bold text-white" style={{ fontSize: Math.max(8, size * 0.34) }}>
+        {initials}
+      </span>
+    </div>
+  );
+}
+
 export default function Communautes() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
@@ -79,11 +120,14 @@ export default function Communautes() {
   const [viewUserId, setViewUserId] = useState(null);
   const [communitySpace, setCommunitySpace] = useState("salon");
   const bottomRef = useRef(null);
+  const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
+  const lastMessageIdRef = useRef(null);
+  const shouldScrollRef = useRef(false);
 
   const activeMeta = COMMUNITY_BY_ID[active];
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ forceScroll = false } = {}) => {
     if (!active) return;
     const { data } = await supabase
       .from("community_messages")
@@ -91,8 +135,17 @@ export default function Communautes() {
       .eq("community", active)
       .order("created_at", { ascending: true })
       .limit(200);
-    setMessages(data || []);
-    const ids = [...new Set((data || []).map((m) => m.user_id))];
+    const rows = data || [];
+    const nextLastId = rows[rows.length - 1]?.id || null;
+    const prevLastId = lastMessageIdRef.current;
+    shouldScrollRef.current =
+      forceScroll ||
+      !prevLastId ||
+      (nextLastId && nextLastId !== prevLastId && isNearBottom(scrollRef.current));
+    lastMessageIdRef.current = nextLastId;
+
+    setMessages(rows);
+    const ids = [...new Set(rows.map((m) => m.user_id))];
     if (ids.length) {
       const { data: profs } = await supabase
         .from("profiles")
@@ -107,7 +160,9 @@ export default function Communautes() {
   useEffect(() => {
     if (!active) return;
     setMessages([]);
-    load();
+    lastMessageIdRef.current = null;
+    shouldScrollRef.current = true;
+    load({ forceScroll: true });
     markSeen(active);
   }, [load, active, markSeen]);
 
@@ -117,7 +172,11 @@ export default function Communautes() {
   }, [load]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!shouldScrollRef.current) return;
+    shouldScrollRef.current = false;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   function toggleCountry(code) {
@@ -163,7 +222,7 @@ export default function Communautes() {
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setSending(false);
-    load();
+    load({ forceScroll: true });
   }
 
   async function remove(id) {
@@ -228,18 +287,7 @@ export default function Communautes() {
                             <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
                               style={{ backgroundColor: "#14B885" }} />
                           )}
-                          <div className="w-5 h-5 shrink-0 flex items-center justify-center rounded overflow-hidden"
-                            style={{ backgroundColor: "#F7F3EF", border: "1px solid #E8E2DC" }}>
-                            {u.logo ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={u.logo} alt="" className="w-5 h-5 object-contain" />
-                            ) : (
-                              <span className="text-[8px] font-bold text-white flex items-center justify-center w-5 h-5"
-                                style={{ backgroundColor: u.color }}>
-                                {u.name.slice(0, 2).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
+                          <CommunityLogo university={u} size={20} rounded={6} />
                           <span className={`flex-1 text-xs ${isActive ? "font-semibold" : "font-medium"}`}>
                             {u.name}
                           </span>
@@ -268,18 +316,7 @@ export default function Communautes() {
           {/* Header */}
           <div className="px-5 py-3.5 flex items-center gap-3 shrink-0"
             style={{ borderBottom: "1px solid #E8E2DC" }}>
-            <div className="w-9 h-9 shrink-0 flex items-center justify-center rounded-xl overflow-hidden"
-              style={{ backgroundColor: "#F7F3EF", border: "1px solid #E8E2DC" }}>
-              {activeMeta?.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={activeMeta.logo} alt="" className="w-8 h-8 object-contain" />
-              ) : (
-                <span className="text-xs font-bold text-white w-9 h-9 flex items-center justify-center rounded-xl"
-                  style={{ backgroundColor: activeMeta?.color || "#14B885" }}>
-                  {activeMeta?.name?.slice(0, 2).toUpperCase()}
-                </span>
-              )}
-            </div>
+            <CommunityLogo university={activeMeta} size={36} rounded={12} />
             <div>
               <h2 className="text-sm font-semibold leading-tight" style={{ color: "#1F1A17" }}>{activeMeta?.name}</h2>
               <p className="text-xs" style={{ color: "#A8A09A" }}>{activeMeta?.full}</p>
@@ -303,13 +340,14 @@ export default function Communautes() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto relative">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
             {activeMeta?.logo && (
               <div className="sticky top-0 left-0 right-0 z-0 h-0 pointer-events-none" aria-hidden>
                 <div className="absolute left-0 right-0 flex items-center justify-center" style={{ top: 0, height: "calc(72vh - 8rem)" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={activeMeta.logo} alt=""
-                    style={{ width: "26%", maxWidth: 190, opacity: 0.08, objectFit: "contain" }} />
+                    style={{ width: "26%", maxWidth: 190, opacity: 0.08, objectFit: "contain" }}
+                    onError={e => { e.currentTarget.style.display = "none"; }} />
                 </div>
               </div>
             )}

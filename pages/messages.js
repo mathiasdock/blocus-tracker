@@ -741,21 +741,23 @@ export default function Messages() {
     );
   }
 
+  const panelStyle = { height: "min(820px, calc(100dvh - 148px))" };
+
   return (
     <Layout>
       <div className="grid gap-4 lg:grid-cols-3">
 
         {/* ── Sidebar ────────────────────────────────────────────── */}
         <aside className={`${mobileView === "chat" ? "hidden lg:block" : ""} lg:col-span-1`}>
-          <div className="flex flex-col gap-2.5" style={{ height: "70vh" }}>
+          <div className="flex flex-col gap-3" style={panelStyle}>
 
-            {/* ── Carte Relations ── */}
+            {/* ── Carte Amis ── */}
             <button
               type="button"
               onClick={openRelations}
               className="card px-4 py-3 shrink-0 text-left transition-colors"
               style={activeType === "relations"
-                ? { backgroundColor: "var(--bt-accent-bg)", borderColor: "var(--bt-accent-border)" }
+                ? { backgroundColor: "var(--bt-surface)", borderColor: "var(--bt-accent-border)", boxShadow: "0 0 0 1px var(--bt-accent-border) inset" }
                 : {}}
               onMouseEnter={e => { if (activeType !== "relations") e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
               onMouseLeave={e => { if (activeType !== "relations") e.currentTarget.style.backgroundColor = "var(--bt-surface)"; }}>
@@ -787,7 +789,7 @@ export default function Messages() {
             </button>
 
             {/* ── Carte Messages privés ── */}
-            <div className="card overflow-hidden flex flex-col" style={{ flex: "3", minHeight: 0 }}>
+            <div className="card overflow-hidden flex flex-col" style={{ flex: "1.15 1 0", minHeight: 0 }}>
               <div className="px-4 py-3 shrink-0 flex items-center gap-2"
                 style={{ borderBottom: "1px solid var(--bt-border)" }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -839,16 +841,16 @@ export default function Messages() {
             {/* ── Carte Groupes ── */}
             <div className="card overflow-hidden flex flex-col"
               style={{
-                flex: "2", minHeight: 0,
-                border: "1px solid var(--bt-accent-border)",
-                backgroundColor: "var(--bt-accent-bg)",
+                flex: "0.9 1 0", minHeight: 0,
+                border: "1px solid var(--bt-border)",
+                backgroundColor: "var(--bt-surface)",
               }}>
               {/* Header groupes */}
               <div className="px-4 py-2.5 shrink-0 flex items-center justify-between"
-                style={{ borderBottom: "1px solid var(--bt-accent-border)" }}>
+                style={{ borderBottom: "1px solid var(--bt-border)" }}>
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: "var(--bt-accent-dark)", color: "#fff" }}>
+                    style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="9" cy="7" r="3"/><circle cx="17" cy="7" r="3"/>
                       <path d="M1 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2"/>
@@ -860,7 +862,7 @@ export default function Messages() {
                   </h2>
                   {groups.length > 0 && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ backgroundColor: "var(--bt-accent-dark)", color: "#fff" }}>
+                      style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
                       {groups.length}
                     </span>
                   )}
@@ -877,7 +879,7 @@ export default function Messages() {
 
               <div className="overflow-y-auto flex-1">
                 {groups.length === 0 ? (
-                  <p className="text-xs px-4 py-3" style={{ color: "var(--bt-accent-dark)", opacity: 0.7 }}>
+                  <p className="text-xs px-4 py-3" style={{ color: "var(--bt-text-3)" }}>
                     {t("msg.noGroups")}
                   </p>
                 ) : (
@@ -887,13 +889,13 @@ export default function Messages() {
                       return (
                         <li key={g.id}
                           className="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors"
-                          style={isAct ? { backgroundColor: "rgba(14,143,104,0.15)" } : {}}
+                          style={isAct ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
                           onClick={() => openGroup(g.id)}
-                          onMouseEnter={e => { if (!isAct) e.currentTarget.style.backgroundColor = "rgba(14,143,104,0.08)"; }}
+                          onMouseEnter={e => { if (!isAct) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                           onMouseLeave={e => { if (!isAct) e.currentTarget.style.backgroundColor = ""; }}>
                           <GroupAvatar group={g} size={32} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" style={{ color: "var(--bt-accent-dark)" }}>
+                            <p className="text-sm font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>
                               {g.name}
                             </p>
                             {g.description && (
@@ -922,7 +924,7 @@ export default function Messages() {
 
         {/* ── Chat area ──────────────────────────────────────────── */}
         {activeType === "relations" ? (
-          <section className={`${chatVisible} lg:col-span-2 card flex-col overflow-hidden`} style={{ height: "70vh" }}>
+          <section className={`${chatVisible} lg:col-span-2 card flex-col overflow-hidden`} style={panelStyle}>
             <div className="flex items-center gap-3 px-4 py-3 shrink-0"
               style={{ borderBottom: "1px solid var(--bt-border)" }}>
               <button onClick={() => setMobileView("list")} className="lg:hidden btn-ghost px-2 py-1 text-sm">‹</button>
@@ -1116,11 +1118,11 @@ export default function Messages() {
         ) : activeType === "dm" ? (
           !dmActiveId ? (
             <div className="hidden lg:flex lg:col-span-2 card items-center justify-center"
-              style={{ height: "70vh", color: "var(--bt-text-3)", fontSize: 14 }}>
+              style={{ ...panelStyle, color: "var(--bt-text-3)", fontSize: 14 }}>
               {t("msg.pickConv")}
             </div>
           ) : (
-            <section className={`${chatVisible} lg:col-span-2 card flex-col`} style={{ height: "70vh" }}>
+            <section className={`${chatVisible} lg:col-span-2 card flex-col`} style={panelStyle}>
               <div className="flex items-center gap-3 px-4 py-3 shrink-0"
                 style={{ borderBottom: "1px solid var(--bt-border)" }}>
                 <button onClick={() => setMobileView("list")} className="lg:hidden btn-ghost px-2 py-1 text-sm">‹</button>
@@ -1192,11 +1194,11 @@ export default function Messages() {
         ) : (
           !grpActiveId ? (
             <div className="hidden lg:flex lg:col-span-2 card items-center justify-center"
-              style={{ height: "70vh", color: "var(--bt-text-3)", fontSize: 14 }}>
+              style={{ ...panelStyle, color: "var(--bt-text-3)", fontSize: 14 }}>
               {t("groups.selectGroup")}
             </div>
           ) : (
-            <section className={`${chatVisible} lg:col-span-2 card flex-col`} style={{ height: "70vh" }}>
+            <section className={`${chatVisible} lg:col-span-2 card flex-col`} style={panelStyle}>
 
               {/* ── Group header — clean & compact ────────────────── */}
               <div className="px-3 py-2.5 flex items-center gap-3 shrink-0"

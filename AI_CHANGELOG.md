@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Correctifs Social : logos communautes, scroll naturel, Messages premium
+
+Passe de correction apres la refonte Social phase 1.
+
+- **Logos communautes** : `lib/universities.js` pointe maintenant vers `/logos-commu/...` (les anciens fichiers `/public/logos` ayant ete deplaces hors de cette passe). `pages/communautes.js` utilise un composant `CommunityLogo` avec fallback initiales couleur si l'image manque vraiment ou echoue au chargement.
+- **Scroll communautes** : suppression de l'auto-scroll global a chaque refresh. Le scroll va en bas au chargement initial et apres envoi ; lors du polling, il ne descend automatiquement que si un nouveau message arrive et que l'utilisateur est deja proche du bas.
+- **Messages** : hauteur unifiee des panneaux avec `calc(100dvh - 148px)` pour mieux utiliser l'espace desktop/mobile. La carte Groupes redevient neutre, avec le vert uniquement en accent. L'espace "Relations" est renomme **Amis** dans l'interface.
+- Aucune logique Supabase, table, policy, bucket ou migration modifiee.
+
 ## 2026-07-05 - Refonte sociale phase 1 : Activite, Relations, Communautes entraide
 
 Premiere passe concrete de la refonte Social avec objectif prioritaire : rendre la partie sociale plus vivante et moins couteuse en stockage/egress Supabase, sans migration destructive.
