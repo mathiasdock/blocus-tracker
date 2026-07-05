@@ -152,7 +152,7 @@ SET
   file_size_limit = 8388608,
   allowed_mime_types = ARRAY[
     'image/jpeg','image/png','image/webp','image/avif',
-    'application/pdf','text/plain',
+    'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-powerpoint',
@@ -168,7 +168,7 @@ SET
   file_size_limit = 8388608,
   allowed_mime_types = ARRAY[
     'image/jpeg','image/png','image/webp','image/avif',
-    'application/pdf','text/plain',
+    'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-powerpoint',
@@ -186,6 +186,7 @@ DROP POLICY IF EXISTS "dm_read_own" ON storage.objects;
 
 -- New DM reads are handled by /api/storage/sign after checking private_messages.
 -- Direct Storage SELECT remains available only to the uploader's own folder.
+DROP POLICY IF EXISTS "dm_read_own_uploads" ON storage.objects;
 CREATE POLICY "dm_read_own_uploads" ON storage.objects
   FOR SELECT TO authenticated
   USING (

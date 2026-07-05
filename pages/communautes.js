@@ -25,7 +25,6 @@ const CHAT_ACCEPT = [
   "image/webp",
   "image/avif",
   "application/pdf",
-  "text/plain",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.ms-powerpoint",
