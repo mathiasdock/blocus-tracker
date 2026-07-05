@@ -22,7 +22,7 @@ Next.js 14 (pages router, JS) · Tailwind 3 · Supabase (DB + Auth + Storage + R
 
 1. **i18n FR + EN, no exceptions.** Every visible string in `lib/i18n.js` in both blocks. Never hardcode French in JSX. → `docs/I18N.md` + `.claude/skills/add-i18n.md`
 2. **Never expose other users' emails.** When querying `profiles` for non-self, list explicit columns and exclude `email`. → `docs/SUPABASE.md` + `.claude/skills/supabase-safe.md`
-3. **Service role key is server-only.** Lives in env var `SUPABASE_SERVICE_ROLE_KEY`, used only by `pages/api/login.js`. Never reference it from `pages/`, `components/`, `contexts/`, or `lib/`.
+3. **Service role key is server-only.** Lives in env var `SUPABASE_SERVICE_ROLE_KEY`, used only by server routes/helpers such as `pages/api/login.js`, `pages/api/storage/sign.js`, and push webhook handling. Never reference it from browser code in `pages/`, `components/`, `contexts/`, or client utilities.
 4. **CSS variables only for colors.** Use `var(--bt-*)` and the accent green `#14B885` family. No new colors. Dark mode works automatically. → `docs/UI.md`
 5. **Don't run migrations.** SQL files in `supabase/` are written by Claude but **executed manually** by the user in Supabase SQL Editor. Never `psql` or `supabase db push`.
 6. **Don't push if `npm run build` fails.** Vercel auto-deploys on push to `main`.
@@ -32,7 +32,7 @@ Next.js 14 (pages router, JS) · Tailwind 3 · Supabase (DB + Auth + Storage + R
 ## Project tree (skim)
 
 ```
-pages/         → routes (and pages/api/login.js for server-side pseudo→email)
+pages/         → routes + server APIs (login, private storage signing, push notify)
 components/    → shared UI (Layout, Avatar, BadgeIcon, LevelPill, modals, charts)
 contexts/      → React state (Auth, I18n, Notification, Timer)
 lib/           → utilities (supabaseClient, i18n, format, badges, xp, rateLimit)

@@ -17,8 +17,16 @@
 //   { type: "INSERT", table: "friendships", record: {...}, schema: "public" }
 
 import { createClient } from "@supabase/supabase-js";
+import { getClientIp, requireJson, setBaseSecurityHeaders, timingSafeEqualText } from "../../../lib/apiSecurity";
+import { rateLimit } from "../../../lib/rateLimit";
 import { sendPushToUser } from "../../../lib/pushServer";
 import { displayName } from "../../../lib/format";
+
+export const config = {
+  api: {
+    bodyParser: { sizeLimit: "64kb" },
+  },
+};
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -29,14 +37,22 @@ function safeId(id) {
 }
 
 export default async function handler(req, res) {
+  setBaseSecurityHeaders(res);
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+  if (!requireJson(req, res)) return;
+
+  const limited = rateLimit(`push-notify:${getClientIp(req)}`, 120, 60_000);
+  if (!limited.ok) {
+    return res.status(429).json({ error: "Too many requests" });
   }
 
   // 1. Authentifie l'appel (secret partagé Supabase ↔ ce endpoint)
   const secretHeader = req.headers["x-webhook-secret"];
   const secret = Array.isArray(secretHeader) ? secretHeader[0] : secretHeader;
-  if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
+  if (!WEBHOOK_SECRET || !timingSafeEqualText(secret || "", WEBHOOK_SECRET)) {
     console.warn("push/notify unauthorized webhook call");
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -48,6 +64,10 @@ export default async function handler(req, res) {
   try {
     const payload = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const { type, table, schema, record } = payload;
+
+    if (schema !== "public" || typeof table !== "string" || typeof type !== "string") {
+      return res.status(400).json({ error: "Invalid webhook payload" });
+    }
 
     console.info("push/notify received", {
       type,

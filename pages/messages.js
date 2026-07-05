@@ -5,9 +5,35 @@ import UserProfileModal from "../components/UserProfileModal";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
-import { supabase } from "../lib/supabaseClient";
+import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo, formatDuration } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
+import {
+  TEXT_LIMITS,
+  attachmentKind,
+  clientRateLimit,
+  safeStoragePath,
+  sanitizeFileName,
+  storagePathFromReference,
+  trimmedText,
+  uploadErrorMessage,
+  validateUploadFile,
+} from "../lib/security";
+
+const CHAT_ACCEPT = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+].join(",");
 
 function IconPaperclip({ size = 15 }) {
   return (
@@ -49,6 +75,7 @@ export default function Messages() {
   const [friends, setFriends]       = useState([]);
   const [dmActiveId, setDmActiveId] = useState(null);
   const [messages, setMessages]     = useState([]);
+  const [signedDmUrls, setSignedDmUrls] = useState({});
   const [text, setText]             = useState("");
   const [file, setFile]             = useState(null);
   const [sending, setSending]       = useState(false);
@@ -114,6 +141,26 @@ export default function Messages() {
   function openProfile(userId) {
     if (userId === user?.id) return;
     setViewUserId(userId);
+  }
+
+  function pickFile(setter, input) {
+    const f = input.files?.[0] || null;
+    if (!f) { setter(null); return; }
+    const check = validateUploadFile(f, "chatAttachment");
+    if (!check.ok) {
+      alert(uploadErrorMessage(t, check));
+      input.value = "";
+      setter(null);
+      return;
+    }
+    setter(f);
+  }
+
+  function signedDmUrl(ref) {
+    const path = storagePathFromReference(ref, "dm");
+    if (!path) return ref;
+    if (isOfflineDev) return `/offline-upload/dm/${path}`;
+    return signedDmUrls[ref] || "";
   }
 
   // ── DM loading ─────────────────────────────────────────────────
@@ -210,6 +257,8 @@ export default function Messages() {
 
   async function addFriend(id) {
     if (!user) return;
+    const action = clientRateLimit(`friends:add:${user.id}`, 12, 60_000);
+    if (!action.ok) { setRelationMsg(t("security.rateLimited")); return; }
     const { error } = await supabase
       .from("friendships")
       .insert({ requester: user.id, addressee: id, status: "pending" });
@@ -344,6 +393,45 @@ export default function Messages() {
   // ── Effects ────────────────────────────────────────────────────
   useEffect(() => { loadFriends(); markSeen("messages"); }, [loadFriends, markSeen]);
   useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => {
+    let cancelled = false;
+    const refs = [...new Set(
+      messages
+        .map((m) => m.attachment_url)
+        .filter((ref) => ref && storagePathFromReference(ref, "dm") && !signedDmUrls[ref])
+    )];
+    if (isOfflineDev) return () => { cancelled = true; };
+    if (!refs.length) return () => { cancelled = true; };
+
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) return;
+
+      const entries = await Promise.all(refs.map(async (ref) => {
+        try {
+          const res = await fetch("/api/storage/sign", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ bucket: "dm", ref }),
+          });
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data?.signedUrl ? [ref, data.signedUrl] : null;
+        } catch {
+          return null;
+        }
+      }));
+      if (cancelled) return;
+      const next = Object.fromEntries(entries.filter(Boolean));
+      if (Object.keys(next).length) setSignedDmUrls((prev) => ({ ...prev, ...next }));
+    })();
+
+    return () => { cancelled = true; };
+  }, [messages, signedDmUrls]);
   useEffect(() => { loadGroups(); }, [loadGroups]);
   useEffect(() => {
     if (!grpActiveId) {
@@ -428,22 +516,27 @@ export default function Messages() {
 
   async function sendDM(e) {
     e.preventDefault();
-    if (!text.trim() && !file) return;
+    const cleanText = trimmedText(text, TEXT_LIMITS.directMessage);
+    if (!cleanText && !file) return;
+    const action = clientRateLimit(`dm:send:${user.id}`, 20, 60_000);
+    if (!action.ok) { alert(t("security.rateLimited")); return; }
     setSending(true);
     let attachment_url = null, attachment_type = null, attachment_name = null;
     if (file) {
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("dm").upload(path, file, { cacheControl: "31536000" });
+      const pathInfo = safeStoragePath(user.id, file, [], "chatAttachment");
+      if (!pathInfo.ok) { setSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
+      const { error: upErr } = await supabase.storage.from("dm").upload(pathInfo.path, file, {
+        cacheControl: "31536000",
+        contentType: pathInfo.contentType,
+      });
       if (upErr) { setSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
-      const { data: pub } = supabase.storage.from("dm").getPublicUrl(path);
-      attachment_url = pub.publicUrl;
-      attachment_type = file.type.startsWith("image/") ? "image" : "file";
-      attachment_name = file.name;
+      attachment_url = `dm:${pathInfo.path}`;
+      attachment_type = attachmentKind(file);
+      attachment_name = sanitizeFileName(file.name);
     }
     await supabase.from("private_messages").insert({
       sender_id: user.id, receiver_id: dmActiveId,
-      content: text.trim() || null,
+      content: cleanText || null,
       attachment_url, attachment_type, attachment_name,
     });
     setText(""); setFile(null);
@@ -465,22 +558,28 @@ export default function Messages() {
 
   async function sendGroup(e) {
     e.preventDefault();
-    if (!grpText.trim() && !grpFile) return;
+    const cleanText = trimmedText(grpText, TEXT_LIMITS.groupMessage);
+    if (!cleanText && !grpFile) return;
+    const action = clientRateLimit(`group:send:${user.id}`, 20, 60_000);
+    if (!action.ok) { alert(t("security.rateLimited")); return; }
     setGrpSending(true);
     let attachment_url = null, attachment_type = null, attachment_name = null;
     if (grpFile) {
-      const ext = grpFile.name.split(".").pop();
-      const path = `${user.id}/${grpActiveId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("community").upload(path, grpFile, { cacheControl: "31536000" });
+      const pathInfo = safeStoragePath(user.id, grpFile, [grpActiveId], "chatAttachment");
+      if (!pathInfo.ok) { setGrpSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
+      const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, grpFile, {
+        cacheControl: "31536000",
+        contentType: pathInfo.contentType,
+      });
       if (upErr) { setGrpSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
-      const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from("community").getPublicUrl(pathInfo.path);
       attachment_url = pub.publicUrl;
-      attachment_type = grpFile.type.startsWith("image/") ? "image" : "file";
-      attachment_name = grpFile.name;
+      attachment_type = attachmentKind(grpFile);
+      attachment_name = sanitizeFileName(grpFile.name);
     }
     await supabase.from("group_messages").insert({
       group_id: grpActiveId, user_id: user.id,
-      content: grpText.trim() || null,
+      content: cleanText || null,
       attachment_url, attachment_type, attachment_name,
     });
     setGrpText(""); setGrpFile(null);
@@ -517,6 +616,8 @@ export default function Messages() {
   }
 
   async function inviteUser(userId) {
+    const action = clientRateLimit(`group:invite:${user.id}`, 20, 60_000);
+    if (!action.ok) return;
     setInviting(userId);
     await supabase.from("group_members").insert({ group_id: grpActiveId, user_id: userId, role: "member" });
     setInviting(null);
@@ -532,13 +633,15 @@ export default function Messages() {
   // ── Group photo ────────────────────────────────────────────────
   async function uploadGroupPhoto(file) {
     if (!file || !grpActiveId) return;
-    const ext = file.name.split(".").pop();
-    // Chemin unique par upload → un cacheControl long est sûr (la nouvelle
-    // photo a une nouvelle URL, donc pas de cache figé côté navigateur/CDN).
-    const path = `groups/${grpActiveId}/avatar-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("community").upload(path, file, { upsert: true, cacheControl: "31536000" });
+    const pathInfo = safeStoragePath(user.id, file, ["groups", grpActiveId], "groupPhoto");
+    if (!pathInfo.ok) { alert(uploadErrorMessage(t, pathInfo)); return; }
+    const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, file, {
+      upsert: true,
+      cacheControl: "31536000",
+      contentType: pathInfo.contentType,
+    });
     if (upErr) { alert(upErr.message); return; }
-    const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
+    const { data: pub } = supabase.storage.from("community").getPublicUrl(pathInfo.path);
     const photoUrl = pub.publicUrl;
     await supabase.from("study_groups").update({ photo_url: photoUrl }).eq("id", grpActiveId);
     setGroups(prev => prev.map(g => g.id === grpActiveId ? { ...g, photo_url: photoUrl } : g));
@@ -1145,6 +1248,7 @@ export default function Messages() {
                 )}
                 {messages.map(m => {
                   const mine = m.sender_id === user.id;
+                  const attachmentUrl = m.attachment_url ? signedDmUrl(m.attachment_url) : "";
                   return (
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className="max-w-[75%] px-3.5 py-2.5 text-sm"
@@ -1152,15 +1256,20 @@ export default function Messages() {
                           ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
                           : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                         {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
-                        {m.attachment_url && m.attachment_type === "image" && (
+                        {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.attachment_url} alt={m.attachment_name || "image"} className="mt-2 rounded-lg max-h-64 object-cover" />
+                          <img src={attachmentUrl} alt={m.attachment_name || "image"} className="mt-2 rounded-lg max-h-64 object-cover" />
                         )}
-                        {m.attachment_url && m.attachment_type === "file" && (
-                          <a href={m.attachment_url} target="_blank" rel="noreferrer"
+                        {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
+                          <a href={attachmentUrl} target="_blank" rel="noreferrer"
                             className={`mt-2 inline-flex items-center gap-2 underline ${mine ? "text-white" : "text-accent-dark"}`}>
                             <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                           </a>
+                        )}
+                        {m.attachment_url && !attachmentUrl && (
+                          <p className="mt-2 text-xs" style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--bt-text-3)" }}>
+                            {t("security.signingAttachment")}
+                          </p>
                         )}
                         <p className="text-[10px] mt-0.5"
                           style={{ color: mine ? "rgba(255,255,255,0.65)" : "var(--bt-text-3)", textAlign: mine ? "right" : "left" }}>
@@ -1178,11 +1287,12 @@ export default function Messages() {
                 <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
                   <IconPaperclip />
                   <input ref={dmFileRef} type="file"
-                    accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
-                    className="hidden" onChange={e => setFile(e.target.files?.[0] || null)} />
+                    accept={CHAT_ACCEPT}
+                    className="hidden" onChange={e => pickFile(setFile, e.currentTarget)} />
                 </label>
                 <input className="input flex-1"
                   placeholder={file ? `${t("msg.file")} : ${file.name}` : t("msg.placeholder")}
+                  maxLength={TEXT_LIMITS.directMessage}
                   value={text} onChange={e => setText(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) sendDM(e); }} />
                 <button className="btn-primary shrink-0" disabled={sending || (!text.trim() && !file)}>
@@ -1439,11 +1549,12 @@ export default function Messages() {
                 <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
                   <IconPaperclip />
                   <input ref={grpFileRef} type="file"
-                    accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
-                    className="hidden" onChange={e => setGrpFile(e.target.files?.[0] || null)} />
+                    accept={CHAT_ACCEPT}
+                    className="hidden" onChange={e => pickFile(setGrpFile, e.currentTarget)} />
                 </label>
                 <input className="input flex-1"
                   placeholder={grpFile ? `${t("msg.file")} : ${grpFile.name}` : t("msg.msgPlaceholder")}
+                  maxLength={TEXT_LIMITS.groupMessage}
                   value={grpText} onChange={e => setGrpText(e.target.value)} />
                 <button className="btn-primary shrink-0" disabled={grpSending || (!grpText.trim() && !grpFile)}>
                   {grpSending ? "…" : t("common.send")}
@@ -1464,7 +1575,7 @@ export default function Messages() {
             onClick={e => e.stopPropagation()}>
 
             {/* Input photo (caché) */}
-            <input ref={grpPhotoRef} type="file" accept="image/*" className="hidden"
+            <input ref={grpPhotoRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) { uploadGroupPhoto(f); } }} />
 
             {/* Header modal */}

@@ -8,6 +8,31 @@ import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
 import { COUNTRIES, COMMUNITY_BY_ID, communityIdForUniversity } from "../lib/universities";
 import { notifyXPChanged } from "../lib/xpEvents";
+import {
+  TEXT_LIMITS,
+  attachmentKind,
+  clientRateLimit,
+  safeStoragePath,
+  sanitizeFileName,
+  trimmedText,
+  uploadErrorMessage,
+  validateUploadFile,
+} from "../lib/security";
+
+const CHAT_ACCEPT = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+].join(",");
 
 function IconPaperclip({ size = 15 }) {
   return (
@@ -127,6 +152,19 @@ export default function Communautes() {
 
   const activeMeta = COMMUNITY_BY_ID[active];
 
+  function pickFile(input) {
+    const f = input.files?.[0] || null;
+    if (!f) { setFile(null); return; }
+    const check = validateUploadFile(f, "chatAttachment");
+    if (!check.ok) {
+      alert(uploadErrorMessage(t, check));
+      input.value = "";
+      setFile(null);
+      return;
+    }
+    setFile(f);
+  }
+
   const load = useCallback(async ({ forceScroll = false } = {}) => {
     if (!active) return;
     const { data } = await supabase
@@ -190,7 +228,10 @@ export default function Communautes() {
 
   async function send(e) {
     e.preventDefault();
-    if (!text.trim() && !file) return;
+    const cleanText = trimmedText(text, TEXT_LIMITS.communityMessage);
+    if (!cleanText && !file) return;
+    const action = clientRateLimit(`community:send:${user.id}`, 20, 60_000);
+    if (!action.ok) { alert(t("security.rateLimited")); return; }
     setSending(true);
 
     let attachment_url = null;
@@ -198,18 +239,20 @@ export default function Communautes() {
     let attachment_name = null;
 
     if (file) {
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/${active}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("community").upload(path, file, { cacheControl: "31536000" });
+      const pathInfo = safeStoragePath(user.id, file, [active], "chatAttachment");
+      if (!pathInfo.ok) { setSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
+      const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, file, {
+        cacheControl: "31536000",
+        contentType: pathInfo.contentType,
+      });
       if (upErr) { setSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
-      const { data: pub } = supabase.storage.from("community").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from("community").getPublicUrl(pathInfo.path);
       attachment_url = pub.publicUrl;
-      attachment_type = file.type.startsWith("image/") ? "image" : "file";
-      attachment_name = file.name;
+      attachment_type = attachmentKind(file);
+      attachment_name = sanitizeFileName(file.name);
     }
 
     const selectedSpace = spaceForId(communitySpace);
-    const cleanText = text.trim();
     const content = cleanText && selectedSpace.prefix ? `${selectedSpace.prefix} ${cleanText}` : cleanText || null;
     const { error } = await supabase.from("community_messages").insert({
       community: active, user_id: user.id,
@@ -418,11 +461,12 @@ export default function Communautes() {
             <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
               <IconPaperclip />
               <input ref={fileInputRef} type="file"
-                accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
-                className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                accept={CHAT_ACCEPT}
+                className="hidden" onChange={(e) => pickFile(e.currentTarget)} />
             </label>
             <input className="input flex-1"
               placeholder={file ? `${t("msg.file")} : ${file.name}` : t(`comm.placeholder.${communitySpace}`)}
+              maxLength={TEXT_LIMITS.communityMessage}
               value={text} onChange={(e) => setText(e.target.value)} />
             <button className="btn-primary shrink-0" disabled={sending || (!text.trim() && !file)}>
               {sending ? "…" : t("common.send")}

@@ -13,6 +13,7 @@ import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } f
 import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser } from "../lib/onesignal";
+import { safeStoragePath, uploadErrorMessage, validateUploadFile } from "../lib/security";
 
 // ── Thème ────────────────────────────────────────────────────
 // bt_theme = "light" | "dark" | "system" (bt_dark est la clé héritée,
@@ -740,24 +741,25 @@ export default function Profile() {
   async function uploadAvatar(e) {
     const rawFile = e.target.files?.[0];
     if (!rawFile) return;
+    const precheck = validateUploadFile(rawFile, "avatar");
+    if (!precheck.ok) { setAvatarMsg(uploadErrorMessage(t, precheck)); return; }
     setBusy(true); setAvatarMsg("");
 
     // Compresse l'avatar (≤ 400×400 px, WebP si possible) avant l'upload.
     // Chute silencieuse : on utilise le fichier original si la compression échoue.
     let uploadFile = rawFile;
-    let ext = rawFile.name.split(".").pop();
     try {
       const optimized = await optimizeAvatarImage(rawFile);
       uploadFile = optimized.file || rawFile;
-      ext = optimized.extension || ext;
     } catch (_) {}
 
-    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+    const pathInfo = safeStoragePath(user.id, uploadFile, ["avatars"], "avatar");
+    if (!pathInfo.ok) { setBusy(false); setAvatarMsg(uploadErrorMessage(t, pathInfo)); return; }
     const { error: upErr } = await supabase.storage
       .from("avatars")
-      .upload(path, uploadFile, { upsert: true, cacheControl: "31536000", contentType: uploadFile.type || rawFile.type });
+      .upload(pathInfo.path, uploadFile, { upsert: true, cacheControl: "31536000", contentType: pathInfo.contentType });
     if (upErr) { setBusy(false); setAvatarMsg(t("profile.avatarError")); return; }
-    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(pathInfo.path);
     const { error: updErr } = await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", user.id);
     setBusy(false);
     if (updErr) setAvatarMsg(t("profile.avatarError"));
@@ -870,7 +872,7 @@ export default function Profile() {
                   style={{ backgroundColor: "#14B885", color: "#fff", boxShadow: "0 1px 6px rgba(0,0,0,0.25)" }}>
                   {busy ? <span className="block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <IconCamera />}
                 </button>
-                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={uploadAvatar} disabled={busy} />
+                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={uploadAvatar} disabled={busy} />
               </div>
 
               {/* Identité */}

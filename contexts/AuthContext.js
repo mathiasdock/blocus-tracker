@@ -3,6 +3,27 @@ import { supabase, pseudoToEmail, isOfflineDev } from "../lib/supabaseClient";
 
 const AuthContext = createContext(null);
 
+const PROFILE_COLUMNS = [
+  "id",
+  "pseudo",
+  "first_name",
+  "last_name",
+  "university",
+  "study_field",
+  "study_year",
+  "bio",
+  "avatar_url",
+  "created_at",
+  "is_admin",
+  "locked",
+  "studying_since",
+  "referral_code",
+  "referred_by",
+  "bonus_xp",
+  "lang",
+  "planning_public",
+].join(",");
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -15,10 +36,25 @@ export function AuthProvider({ children }) {
     }
     const { data } = await supabase
       .from("profiles")
-      .select("*")
+      .select(PROFILE_COLUMNS)
       .eq("id", uid)
       .maybeSingle();
-    setProfile(data || null);
+    if (!data) {
+      setProfile(null);
+      return;
+    }
+
+    let email = null;
+    try {
+      const { data: rpcEmail } = await supabase.rpc("get_my_email");
+      if (typeof rpcEmail === "string") email = rpcEmail;
+    } catch {}
+    if (!email) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id === uid) email = userData.user.email || null;
+    }
+
+    setProfile({ ...data, email });
   }, []);
 
   useEffect(() => {
@@ -213,21 +249,15 @@ export function AuthProvider({ children }) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
       return { error: "L'adresse email n'est pas valide." };
 
-    // Vérifier que l'email n'est pas déjà pris
-    const { data: taken } = await supabase
-      .from("profiles")
-      .select("id")
-      .ilike("email", em)
-      .neq("id", (await supabase.auth.getUser()).data.user?.id)
-      .maybeSingle();
-    if (taken) return { error: "Cet email est déjà utilisé." };
-
-    // Sauvegarder dans profiles
-    const { error: pErr } = await supabase
-      .from("profiles")
-      .update({ email: em })
-      .eq("id", (await supabase.auth.getUser()).data.user?.id);
-    if (pErr) return { error: pErr.message };
+	    // Sauvegarder dans profiles
+	    const { error: pErr } = await supabase
+	      .from("profiles")
+	      .update({ email: em })
+	      .eq("id", (await supabase.auth.getUser()).data.user?.id);
+	    if (pErr) {
+	      if (pErr.code === "23505") return { error: "Cet email est déjà utilisé." };
+	      return { error: pErr.message };
+	    }
 
     // Mettre à jour l'email Supabase Auth (envoie un email de confirmation)
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;

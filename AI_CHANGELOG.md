@@ -2,6 +2,28 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-05 - Securite : hardening Next/Supabase anti-abus
+
+Passe de durcissement securite appliquee cote code, avec migration Supabase preparee mais **non appliquee automatiquement**.
+
+- **Headers securite Next/Vercel** (`next.config.js`) : CSP compatible Supabase/OneSignal/PWA, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS, `poweredByHeader: false`.
+- **API routes** : nouveau helper `lib/apiSecurity.js`; body size limite, `no-store`, validation JSON, rate limit et comparaison timing-safe du secret webhook. Nouvelle route serveur `pages/api/storage/sign.js` pour signer les pieces jointes DM privees apres verification JWT + participation a la conversation.
+- **Uploads** : nouveau helper `lib/security.js` avec tailles max, MIME autorises, noms/chemins Storage generes sans faire confiance au nom original. SVG/HTML/JS/EXE bloques. Feed/avatars images uniquement; DM/groupes/communautes acceptent images + PDF/TXT/Office. Messages/captions/commentaires bornes.
+- **DM prives** : les nouveaux fichiers DM sont stockes comme reference `dm:<path>` et lus via URL signee courte. Le code est pret pour fermer la policy Storage trop large `dm_read_authenticated`.
+- **Emails profils** : `contexts/AuthContext.js` ne fait plus `select("*")` sur `profiles`; l'email du compte courant passe par `get_my_email()` ou l'utilisateur Auth. La migration v24 revoque `SELECT(email)` pour `anon/authenticated`.
+- **Anti-abus client** : cooldowns locaux sur posts, commentaires, reactions, DM, messages de groupe/communaute, invitations, annonces admin. Ce n'est pas la barriere principale, juste une protection UX.
+- **Admin** : liens d'annonces limites aux chemins internes (`/…`), et les notifications refusent de naviguer vers un href externe/technique.
+- **Migration SQL ajoutee** : `supabase/migration_v24_security_hardening.sql` prepare :
+  - revoke des RPC `SECURITY DEFINER` exposables a `anon`;
+  - limites MIME/taille buckets `avatars`, `posts`, `community`, `dm`;
+  - suppression des policies Storage de listing public large;
+  - lecture DM directe limitee a l'uploader, lecture receiver via `/api/storage/sign`;
+  - contraintes texte/visibility/attachment type en `NOT VALID`;
+  - triggers DB anti-spam sur posts/comments/likes/messages/friend requests;
+  - suppression de policies legacy en double.
+- **Important** : appliquer la migration v24 dans Supabase SQL Editor seulement apres revue. Ne pas executer sans backup mental du plan, car elle change des permissions RLS/Storage en production.
+- Verification : `npm run build` OK (20 pages). La migration n'a pas ete appliquee a Supabase pendant cette passe.
+
 ## 2026-07-05 - Admin : transformation en cockpit de gestion
 
 Refonte complete de `pages/admin.js` (monolithe 1014 L) en cockpit multi-sections, a la demande de l'utilisateur. Design premium/vert conserve. Nouveau module pur `lib/adminAnalytics.js` pour les agregations.

@@ -9,6 +9,14 @@ import { displayName, timeAgo } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { optimizeFeedImage } from "../lib/imageCompression";
+import {
+  TEXT_LIMITS,
+  clientRateLimit,
+  safeStoragePath,
+  trimmedText,
+  uploadErrorMessage,
+  validateUploadFile,
+} from "../lib/security";
 import LevelPill from "../components/LevelPill";
 
 const DEFAULT_REACTION_EMOJI = "👍";
@@ -161,30 +169,34 @@ export default function Feed() {
   async function createPost(e) {
     e.preventDefault();
     if (!file && !caption.trim()) return;
+    const action = clientRateLimit(`feed:create:${user.id}`, 4, 60_000);
+    if (!action.ok) { alert(t("security.rateLimited")); return; }
     setBusy(true);
     let imageUrl = TEXT_ONLY_ACTIVITY_IMAGE;
+    const cleanCaption = trimmedText(caption, TEXT_LIMITS.postCaption);
     if (file) {
+      const precheck = validateUploadFile(file, "postImage");
+      if (!precheck.ok) { setBusy(false); alert(uploadErrorMessage(t, precheck)); return; }
       let uploadFile = file;
-      let ext = file.name.split(".").pop() || "jpg";
       try {
         const optimized = await optimizeFeedImage(file);
         uploadFile = optimized.file || file;
-        ext = optimized.extension || ext;
       } catch (err) {
         console.warn("Image compression failed, uploading original:", err);
       }
-      const path = `${user.id}/${Date.now()}.${ext.toLowerCase()}`;
+      const pathInfo = safeStoragePath(user.id, uploadFile, [], "postImage");
+      if (!pathInfo.ok) { setBusy(false); alert(uploadErrorMessage(t, pathInfo)); return; }
       const { error: upErr } = await supabase.storage
         .from("posts")
-        .upload(path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: uploadFile.type || file.type });
+        .upload(pathInfo.path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: pathInfo.contentType });
       if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
-      const { data: pub } = supabase.storage.from("posts").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from("posts").getPublicUrl(pathInfo.path);
       imageUrl = pub.publicUrl;
     }
     const { error } = await supabase.from("posts").insert({
       user_id: user.id,
       image_url: imageUrl,
-      caption: caption.trim() || null,
+      caption: cleanCaption || null,
       visibility,
     });
     if (!error) notifyXPChanged();
@@ -197,6 +209,8 @@ export default function Feed() {
   }
 
   async function react(post, emoji) {
+    const action = clientRateLimit(`feed:react:${user.id}`, 40, 60_000);
+    if (!action.ok) return;
     const normalizedEmoji = normalizeEmojiReaction(emoji);
     const mine = post.likes.find((l) => l.user_id === user.id);
 
@@ -228,8 +242,10 @@ export default function Feed() {
   }
 
   async function addComment(post) {
-    const text = (commentDraft[post.id] || "").trim();
+    const text = trimmedText(commentDraft[post.id], TEXT_LIMITS.comment);
     if (!text) return;
+    const action = clientRateLimit(`feed:comment:${user.id}`, 12, 60_000);
+    if (!action.ok) { alert(t("security.rateLimited")); return; }
     const { error } = await supabase.from("comments").insert({ post_id: post.id, user_id: user.id, content: text });
     if (!error) notifyXPChanged();
     setCommentDraft((d) => ({ ...d, [post.id]: "" }));
@@ -315,9 +331,10 @@ export default function Feed() {
               </svg>
               <span className="truncate">{file ? file.name : t("feed.choosePhoto")}</span>
             </button>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden"
               onChange={(e) => setFile(e.target.files?.[0] || null)} />
             <input className="input" placeholder={t("feed.caption")}
+              maxLength={TEXT_LIMITS.postCaption}
               value={caption} onChange={(e) => setCaption(e.target.value)} />
 
             {/* Visibility toggle */}
@@ -669,6 +686,7 @@ export default function Feed() {
                   {/* Comment input */}
                   <div className="flex gap-2 pt-1">
                     <input className="input" placeholder={t("feed.comment")}
+                      maxLength={TEXT_LIMITS.comment}
                       value={commentDraft[post.id] || ""}
                       onChange={(e) => setCommentDraft((d) => ({ ...d, [post.id]: e.target.value }))}
                       onKeyDown={(e) => e.key === "Enter" && addComment(post)} />

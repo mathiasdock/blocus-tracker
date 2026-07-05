@@ -12,7 +12,14 @@
 //   SUPABASE_SERVICE_ROLE_KEY  ← server-only, à ajouter dans Vercel
 
 import { createClient } from "@supabase/supabase-js";
+import { getClientIp, requireJson, setBaseSecurityHeaders } from "../../lib/apiSecurity";
 import { rateLimit } from "../../lib/rateLimit";
+
+export const config = {
+  api: {
+    bodyParser: { sizeLimit: "8kb" },
+  },
+};
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -35,18 +42,7 @@ function setCors(req, res) {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }
-  // Sécurité supplémentaire
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-}
-
-function getClientIp(req) {
-  const fwd = req.headers["x-forwarded-for"];
-  if (typeof fwd === "string" && fwd.length > 0) return fwd.split(",")[0].trim();
-  if (Array.isArray(fwd) && fwd[0]) return String(fwd[0]).split(",")[0].trim();
-  const ra = req.headers["x-real-ip"];
-  if (typeof ra === "string" && ra.length > 0) return ra;
-  return req.socket?.remoteAddress || "unknown";
+  setBaseSecurityHeaders(res);
 }
 
 export default async function handler(req, res) {
@@ -56,6 +52,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  if (!requireJson(req, res)) return;
 
   // Rate limit : 8 tentatives / minute / IP
   const ip = getClientIp(req);

@@ -16,6 +16,7 @@ import {
   buildTimeSeries, activeUserKpis, retention,
   usersByUniversity, topActiveUniversities, activationBreakdown,
 } from "../lib/adminAnalytics";
+import { TEXT_LIMITS, clientRateLimit, isSafeInternalHref, trimmedText } from "../lib/security";
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -707,10 +708,15 @@ export default function Admin() {
 
   async function createAnnouncement(e) {
     e.preventDefault();
-    const title = annForm.title.trim(), message = annForm.message.trim();
+    const title = trimmedText(annForm.title, TEXT_LIMITS.announcementTitle);
+    const message = trimmedText(annForm.message, TEXT_LIMITS.announcementMessage);
+    const href = trimmedText(annForm.href, TEXT_LIMITS.announcementHref);
     if (!title || !message) { setAnnError(t("admin.annRequired")); return; }
+    if (!isSafeInternalHref(href)) { setAnnError(t("security.invalidInternalLink")); return; }
+    const action = clientRateLimit(`admin:announcement:${profile.id}`, 12, 60_000);
+    if (!action.ok) { setAnnError(t("security.rateLimited")); return; }
     setAnnCreating(true); setAnnError("");
-    const { error } = await supabase.from("app_announcements").insert({ title, message, type: annForm.type, href: annForm.href.trim() || null, is_active: true, created_by: profile.id });
+    const { error } = await supabase.from("app_announcements").insert({ title, message, type: annForm.type, href: href || null, is_active: true, created_by: profile.id });
     setAnnCreating(false);
     if (error) { setAnnError(error.message); return; }
     setAnnForm({ title: "", message: "", type: "new", href: "" });

@@ -24,7 +24,7 @@
                              │  service_role (server-only)
                              │
                 ┌────────────┴───────────┐
-                │  pages/api/login.js    │  ← resolves pseudo → email
+                │  pages/api/*.js        │  ← login, signed storage, webhooks
                 └────────────────────────┘
 ```
 
@@ -32,8 +32,8 @@
 
 | Folder | Purpose |
 |--------|---------|
-| `pages/` | One file = one route. Includes `api/login.js` (server route). |
-| `pages/api/` | Next.js server routes. Currently only `login.js` (uses `SUPABASE_SERVICE_ROLE_KEY`). |
+| `pages/` | One file = one route. Includes server routes under `pages/api/`. |
+| `pages/api/` | Next.js server routes: login, private Storage signing, and push webhooks. Server-only routes may use `SUPABASE_SERVICE_ROLE_KEY`. |
 | `components/` | Shared UI components (Layout, Avatar, BadgeIcon, LevelPill, modals, charts). |
 | `contexts/` | React contexts: Auth, I18n, Notification, Timer. |
 | `lib/` | Pure utilities: supabaseClient, i18n, format, badges, xp, rateLimit, universities. |
@@ -73,7 +73,7 @@
 
 ### Login (all users)
 1. `AuthContext.signIn(pseudo, password)` POSTs to `/api/login` with `{ pseudo, password }`.
-2. Server (`pages/api/login.js`) uses `SUPABASE_SERVICE_ROLE_KEY` to look up the real email via the `get_login_email(pseudo)` RPC.
+2. Server (`pages/api/login.js`) uses `SUPABASE_SERVICE_ROLE_KEY` to look up the real email from `profiles` without exposing it to the browser.
 3. Server calls `supabase.auth.signInWithPassword({ email, password })`, returns only the session tokens — no email exposed.
 4. Client calls `supabase.auth.setSession(tokens)`.
 5. Rate limit: 8 attempts/minute/IP (in-memory, `lib/rateLimit.js`).
@@ -104,6 +104,6 @@
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `NEXT_PUBLIC_SITE_URL` (used for email redirects + CORS)
-  - `SUPABASE_SERVICE_ROLE_KEY` (server-only, for `/api/login`)
+  - `SUPABASE_SERVICE_ROLE_KEY` (server-only, for `/api/login`, `/api/storage/sign`, and trusted webhook helpers)
 
 - Migrations are **not** automated — user runs them manually in Supabase SQL Editor after pushing the code that depends on them. See `docs/SUPABASE.md`.

@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { ALL_UNIVERSITIES } from "../lib/universities";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { isSafeInternalHref } from "../lib/security";
 
 const NotificationContext = createContext({
   feedCount: 0,
@@ -471,7 +472,7 @@ export function NotificationProvider({ children }) {
     dismissed.add(announcementId);
     setDismissedAnnouncements(user.id, dismissed);
     setNotificationItems((items) => items.filter((item) => item.key !== `announcement:${announcementId}`));
-    if (href) router.push(href);
+    if (href && isSafeInternalHref(href)) router.push(href);
   }, [router, user]);
 
   useEffect(() => {
