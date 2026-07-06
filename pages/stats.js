@@ -220,6 +220,20 @@ export default function Stats() {
   const [allTimeSecs, setAllTimeSecs] = useState(0);
   const [comparison, setComparison] = useState(undefined); // undefined=loading, null=indispo
 
+  // ── Niveau 2 : section « Analyse avancée » repliable ───────────
+  // Persistée : un utilisateur curieux qui l'ouvre la retrouve ouverte.
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  useEffect(() => {
+    try { if (localStorage.getItem("bt_stats_advanced") === "1") setShowAdvanced(true); } catch {}
+  }, []);
+  function toggleAdvanced() {
+    setShowAdvanced(v => {
+      const next = !v;
+      try { localStorage.setItem("bt_stats_advanced", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }
+
   // ── Chart week navigation ──────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0); // 0=current week, -1=last week…
 
@@ -772,82 +786,8 @@ export default function Stats() {
         )}
       </div>
 
-      {/* ── Habitudes + Performances/Records (insights) ────────── */}
-      {insights.hasData && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          {/* Habitudes */}
-          <div className="card p-5">
-            <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>{t("stats.habitsTitle")}</h2>
-            <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>{t("stats.habitsWhen")}</p>
-            <div className="space-y-2 mb-4">
-              {slots.map(s => {
-                const p = insights.timeOfDayPct[s.key];
-                return (
-                  <div key={s.key} className="flex items-center gap-2.5">
-                    <span className="text-xs w-16 shrink-0" style={{ color: "var(--bt-text-2)" }}>{s.label}</span>
-                    <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${p}%`, backgroundColor: s.color }} />
-                    </div>
-                    <span className="text-xs font-num font-semibold tabular-nums w-9 text-right shrink-0" style={{ color: "var(--bt-text-1)" }}>{p}%</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="pt-2" style={{ borderTop: "1px solid var(--bt-border)" }}>
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-                label={t("stats.habitPreferredDay")} value={weekdayName(insights.bestWeekday, lang)} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
-                label={t("stats.habitAvgSession")} value={formatMinutesShort(insights.avgSessionSecs)} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 22h14M5 2h14M17 2v5a5 5 0 0 1-10 0V2M7 22v-5a5 5 0 0 1 10 0v5"/></svg>}
-                label={t("stats.habitAvgStart")} value={formatClock(insights.avgStartMinutes, lang)} />
-            </div>
-          </div>
-
-          {/* Performances + Records */}
-          <div className="card p-5">
-            <h2 className="text-sm font-semibold mb-2" style={{ color: "var(--bt-text-1)" }}>{t("stats.perfTitle")}</h2>
-            <div className="mb-3">
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-                label={t("stats.perfProductiveDay")} value={weekdayName(insights.bestWeekday, lang)} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
-                label={t("stats.perfProductiveHour")}
-                value={insights.mostProductiveHour == null ? "—" : t("stats.hourRange").replace("{h}", String(insights.mostProductiveHour)).replace("{h2}", String((insights.mostProductiveHour + 1) % 24))} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>}
-                label={t("stats.perfLongest")} value={formatMinutesShort(insights.longestSessionSecs)} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/></svg>}
-                label={t("stats.perfBestDay")} value={formatMinutesShort(insights.bestDaySecs)} />
-            </div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1 pt-3" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-border)" }}>{t("stats.recordsTitle")}</p>
-            <div className="grid grid-cols-2 gap-x-4">
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>}
-                label={t("stats.recLongestStreak")} value={`${bestStreak} ${t("stats.dayUnit")}`} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>}
-                label={t("stats.recBestWeek")} value={formatMinutesShort(insights.bestWeekSecs)} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>}
-                label={t("stats.recBestMonth")} value={formatMinutesShort(insights.bestMonthSecs)} />
-              <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>}
-                label={t("stats.recTotal")} value={formatMinutesShort(allTimeSecs)} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Badges statistiques ────────────────────────────────── */}
-      {insights.hasData && (
-        <div className="card p-5 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("stats.badgesTitle")}</h2>
-            <span className="text-xs font-num tabular-nums px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
-              {t("stats.badgesEarned").replace("{n}", String(earnedBadges)).replace("{total}", String(badgeDefs.length))}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
-            {badgeDefs.map(b => (
-              <StatBadge key={b.id} earned={!!insights.badges[b.id]} label={b.label} icon={iconOf[b.id]} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Niveau 2 (Habitudes, Performances, Records, Badges) déplacé
+          plus bas dans la section repliable « Analyse avancée ». */}
 
       {/* ── Percentile — moment de marque (surface ink) ────────── */}
       <div className="card-ink bt-grain px-5 py-4 mb-4">
@@ -945,7 +885,7 @@ export default function Stats() {
         </div>
       )}
 
-      {sessionCount === 0 ? (
+      {sessionCount === 0 && (
         <div className="card p-8 sm:p-10 flex flex-col items-center text-center">
           <span className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
             style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
@@ -958,25 +898,6 @@ export default function Stats() {
             {t("stats.emptyCta")}
           </Link>
         </div>
-      ) : (
-        <Charts
-          dailyData={dailyData}
-          byCourseWeek={byCourse7}
-          byCourseMonth={byCourse30}
-          weekLabel={weekLabel(weekDates, lang)}
-          onPrev={() => setWeekOffset(o => Math.max(-3, o - 1))}
-          onNext={() => setWeekOffset(o => Math.min(0, o + 1))}
-          canPrev={weekOffset > -3}
-          canNext={weekOffset < 0}
-          chartTitle={t("stats.chartTitle")}
-          courseChartTitle={t("stats.chartCourses")}
-          noDataText={t("stats.chartNoData")}
-          unitMinLabel={t("stats.unitMin")}
-          unitHrLabel={t("stats.unitHrs")}
-          weekToggleLabel={t("stats.week")}
-          monthToggleLabel={t("stats.month")}
-          csvLabel={t("stats.exportCsv")}
-        />
       )}
 
       {/* ── Podium des cours (30 jours) ────────────────────────── */}
@@ -1170,6 +1091,131 @@ export default function Stats() {
           </div>
         )}
       </section>
+
+      {/* ══ NIVEAU 2 — Analyse avancée (repliable) ══════════════ */}
+      {sessionCount > 0 && (
+        <div className="mt-6">
+          <button onClick={toggleAdvanced}
+            className="w-full card p-4 flex items-center gap-3 text-left transition-colors"
+            style={{ cursor: "pointer" }}
+            aria-expanded={showAdvanced}
+            onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("stats.advancedTitle")}</span>
+              <span className="block text-xs truncate" style={{ color: "var(--bt-text-3)" }}>{t("stats.advancedSub")}</span>
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ color: "var(--bt-text-3)", transform: showAdvanced ? "rotate(180deg)" : "none", transition: "transform 0.25s", flexShrink: 0 }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {showAdvanced && (
+            <div className="mt-4 space-y-4 bt-stagger">
+              {/* Graphiques détaillés */}
+              <Charts
+                dailyData={dailyData}
+                byCourseWeek={byCourse7}
+                byCourseMonth={byCourse30}
+                weekLabel={weekLabel(weekDates, lang)}
+                onPrev={() => setWeekOffset(o => Math.max(-3, o - 1))}
+                onNext={() => setWeekOffset(o => Math.min(0, o + 1))}
+                canPrev={weekOffset > -3}
+                canNext={weekOffset < 0}
+                chartTitle={t("stats.chartTitle")}
+                courseChartTitle={t("stats.chartCourses")}
+                noDataText={t("stats.chartNoData")}
+                unitMinLabel={t("stats.unitMin")}
+                unitHrLabel={t("stats.unitHrs")}
+                weekToggleLabel={t("stats.week")}
+                monthToggleLabel={t("stats.month")}
+                csvLabel={t("stats.exportCsv")}
+              />
+
+              {/* Habitudes + Performances/Records */}
+              {insights.hasData && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Habitudes */}
+                  <div className="card p-5">
+                    <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>{t("stats.habitsTitle")}</h2>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>{t("stats.habitsWhen")}</p>
+                    <div className="space-y-2 mb-4">
+                      {slots.map(s => {
+                        const p = insights.timeOfDayPct[s.key];
+                        return (
+                          <div key={s.key} className="flex items-center gap-2.5">
+                            <span className="text-xs w-16 shrink-0" style={{ color: "var(--bt-text-2)" }}>{s.label}</span>
+                            <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${p}%`, backgroundColor: s.color }} />
+                            </div>
+                            <span className="text-xs font-num font-semibold tabular-nums w-9 text-right shrink-0" style={{ color: "var(--bt-text-1)" }}>{p}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="pt-2" style={{ borderTop: "1px solid var(--bt-border)" }}>
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+                        label={t("stats.habitPreferredDay")} value={weekdayName(insights.bestWeekday, lang)} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
+                        label={t("stats.habitAvgSession")} value={formatMinutesShort(insights.avgSessionSecs)} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 22h14M5 2h14M17 2v5a5 5 0 0 1-10 0V2M7 22v-5a5 5 0 0 1 10 0v5"/></svg>}
+                        label={t("stats.habitAvgStart")} value={formatClock(insights.avgStartMinutes, lang)} />
+                    </div>
+                  </div>
+
+                  {/* Performances + Records */}
+                  <div className="card p-5">
+                    <h2 className="text-sm font-semibold mb-2" style={{ color: "var(--bt-text-1)" }}>{t("stats.perfTitle")}</h2>
+                    <div className="mb-3">
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+                        label={t("stats.perfProductiveDay")} value={weekdayName(insights.bestWeekday, lang)} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
+                        label={t("stats.perfProductiveHour")}
+                        value={insights.mostProductiveHour == null ? "—" : t("stats.hourRange").replace("{h}", String(insights.mostProductiveHour)).replace("{h2}", String((insights.mostProductiveHour + 1) % 24))} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>}
+                        label={t("stats.perfLongest")} value={formatMinutesShort(insights.longestSessionSecs)} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M4 22h16"/></svg>}
+                        label={t("stats.perfBestDay")} value={formatMinutesShort(insights.bestDaySecs)} />
+                    </div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide mb-1 pt-3" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-border)" }}>{t("stats.recordsTitle")}</p>
+                    <div className="grid grid-cols-2 gap-x-4">
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>}
+                        label={t("stats.recLongestStreak")} value={`${bestStreak} ${t("stats.dayUnit")}`} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>}
+                        label={t("stats.recBestWeek")} value={formatMinutesShort(insights.bestWeekSecs)} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>}
+                        label={t("stats.recBestMonth")} value={formatMinutesShort(insights.bestMonthSecs)} />
+                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>}
+                        label={t("stats.recTotal")} value={formatMinutesShort(allTimeSecs)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Badges statistiques */}
+              {insights.hasData && (
+                <div className="card p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("stats.badgesTitle")}</h2>
+                    <span className="text-xs font-num tabular-nums px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+                      {t("stats.badgesEarned").replace("{n}", String(earnedBadges)).replace("{total}", String(badgeDefs.length))}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
+                    {badgeDefs.map(b => (
+                      <StatBadge key={b.id} earned={!!insights.badges[b.id]} label={b.label} icon={iconOf[b.id]} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       </div>
 
       {viewUserId && (

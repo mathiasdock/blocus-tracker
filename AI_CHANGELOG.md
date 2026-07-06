@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - Stats : hierarchie a deux niveaux (essentiel vs Analyse avancee)
+
+La page etait devenue trop dense (tout au meme niveau). Reorganisation SANS rien supprimer (`pages/stats.js`), inspiree Strava/GitHub Insights/Apple Fitness.
+
+- **Niveau 1 (toujours visible)** : Temps d'etude (KPI) → Resume intelligent → Objectifs → Heatmap (+ synthese) → Comparaison → Podium des cours → Classement (percentile Top X% + leaderboard). C'est la page principale, aeree.
+- **Niveau 2 (repliable « Analyse avancee »)** : un seul bouton premium en bas de page ouvre en accordeon Graphiques detailles + Habitudes + Performances/Records + Badges. Etat persiste dans localStorage (`bt_stats_advanced`) : un curieux qui l'ouvre le retrouve ouvert. Chevron qui pivote, reveal en cascade (`bt-stagger`), affiche seulement si des sessions existent.
+- Aucune statistique retiree : Habitudes, Performances, Records, Badges, graphiques sont juste deplaces sous le pli. L'etat vide premium (CTA "Lancer un chrono") reste au Niveau 1 pour les nouveaux comptes.
+- i18n : 2 cles `stats.advancedTitle` / `stats.advancedSub` FR+EN.
+- Verification navigateur (build prod offline, dark mode, cohorte de demo) : ordre Niveau 1 correct, toggle ouvre/ferme, tout le Niveau 2 s'affiche (habitudes, perf/records, badges 3/9). `npm run build` propre OK (20/20).
+
 ## 2026-07-06 - Stats : vague 2 (comparaison, export CSV, heatmap enrichie)
 
 Suite de l'enrichissement Stats. Verifie visuellement cette fois (voir note preview plus bas).
