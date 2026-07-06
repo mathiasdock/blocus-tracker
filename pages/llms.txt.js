@@ -1,8 +1,11 @@
-import { SEO_INDEXABLE_ROUTES, absoluteUrl } from "../lib/seo";
+import { SEO_INDEXABLE_ROUTES, absoluteUrl, getSeoForPath } from "../lib/seo";
 
 function buildLlmsTxt() {
   const publicPages = SEO_INDEXABLE_ROUTES
-    .map((route) => `- ${absoluteUrl(route.path)}`)
+    .map((route) => {
+      const seo = getSeoForPath(route.path);
+      return `- ${absoluteUrl(route.path)} — ${seo.title}. ${seo.description}`;
+    })
     .join("\n");
 
   return `# Blocus Tracker
@@ -24,6 +27,7 @@ ${publicPages}
 - Study statistics, streaks, XP, badges, and progress tracking.
 - Optional social features for friends, groups, and student communities.
 - Privacy-first account features: personal study data is not intended for public indexing.
+- Public French guides for Pomodoro, revision planning, study statistics, study goals, student productivity apps, and Belgian blocus preparation.
 
 ## Crawl Guidance
 

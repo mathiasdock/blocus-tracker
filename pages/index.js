@@ -22,6 +22,39 @@ const features = [
   },
 ];
 
+const guides = [
+  {
+    href: "/pomodoro",
+    title: "Méthode Pomodoro",
+    text: "Découpe tes révisions en blocs de concentration plus faciles à tenir.",
+  },
+  {
+    href: "/planning-revision",
+    title: "Planning de révision",
+    text: "Construis une semaine réaliste autour de tes examens et priorités.",
+  },
+  {
+    href: "/stats-etude",
+    title: "Statistiques d'étude",
+    text: "Comprends ton rythme réel, tes séries et ta progression.",
+  },
+  {
+    href: "/objectifs-etude",
+    title: "Objectifs d'étude",
+    text: "Transforme tes intentions en actions concrètes et mesurables.",
+  },
+  {
+    href: "/application-etudiant",
+    title: "Application pour étudier",
+    text: "Vois comment choisir un outil utile sans ajouter de friction.",
+  },
+  {
+    href: "/blocus-belgique",
+    title: "Blocus Belgique",
+    text: "Prépare une période de blocus avec planning, chrono et pauses.",
+  },
+];
+
 const faq = [
   {
     q: "Blocus Tracker est-il gratuit ?",
@@ -117,6 +150,27 @@ export default function Home() {
                   <h3 className="text-base" style={{ color: "var(--bt-text-1)" }}>{feature.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{feature.text}</p>
                 </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="px-5 py-14" style={{ backgroundColor: "var(--bt-surface)", borderTop: "1px solid var(--bt-border)" }}>
+          <div className="mx-auto max-w-6xl">
+            <div className="max-w-2xl">
+              <h2 className="text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>
+                Guides pour mieux réviser
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                Des pages courtes et actionnables pour choisir une méthode, organiser ton blocus et suivre tes progrès.
+              </p>
+            </div>
+            <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {guides.map((guide) => (
+                <Link key={guide.href} href={guide.href} className="card card-lift block p-5">
+                  <h3 className="text-base" style={{ color: "var(--bt-text-1)" }}>{guide.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{guide.text}</p>
+                </Link>
               ))}
             </div>
           </div>

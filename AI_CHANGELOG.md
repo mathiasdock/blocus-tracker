@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - SEO contenu phase 2 : 6 landing pages publiques
+
+Creation d'une vraie presence SEO publique pour Blocus Tracker, orientee requetes etudiantes FR/BE/CH et comprehension par moteurs IA.
+
+- **Strategie retenue** : 6 pages a meilleur ROI au lieu d'un blog generique : `/pomodoro`, `/planning-revision`, `/stats-etude`, `/objectifs-etude`, `/application-etudiant`, `/blocus-belgique`.
+- **Contenu** : chaque page a un H1, reponse courte lisible par LLM, sections H2 utiles, FAQ, CTA vers l'app et liens internes vers les pages proches.
+- **Implementation** : contenu centralise dans `lib/seoLandingPages.js`, rendu par `components/SeoLandingPage.js`, avec 6 fichiers de routes Next.js tres fins.
+- **SEO technique** : `lib/seo.js` ajoute les metadata uniques, sitemap indexable, JSON-LD `Article` + `FAQPage` + breadcrumbs pour ces pages. `llms.txt` liste maintenant les pages publiques avec titre et description.
+- **Maillage interne** : la homepage pointe vers les 6 guides ; chaque guide relie 3 pages proches pour construire les silos Pomodoro -> Planning -> Stats -> Objectifs -> App et Blocus Belgique.
+- **Important** : ces pages sont publiques et indexables. Les pages privees (`/dashboard`, `/admin`, `/messages`, `/profile`, etc.) restent hors sitemap et en `noindex`.
+
 ## 2026-07-06 - SEO technique : metadata, sitemap, robots, JSON-LD et homepage publique
 
 Passe SEO/GEO appliquee pour rendre Blocus Tracker plus lisible par Google et les moteurs IA, sans changer les pages connectees.
