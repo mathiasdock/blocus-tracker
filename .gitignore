@@ -7,3 +7,13 @@ out
 *.log
 
 .vercel
+
+# PWA — fichiers auto-générés par next-pwa à chaque build (régénérés par
+# Vercel au déploiement). On ne les suit pas : ça évitait un churn permanent
+# du git status à chaque `npm run build`.
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/swe-worker-*.js
+public/fallback-*.js

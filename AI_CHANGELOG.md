@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - Nettoyage : gitignore des fichiers PWA auto-generes
+
+Fin du churn permanent du `git status` a chaque build (valide par l'utilisateur).
+
+- `.gitignore` : ajout de `public/sw.js`, `public/sw.js.map`, `public/workbox-*.js`, `public/workbox-*.js.map`, `public/swe-worker-*.js`, `public/fallback-*.js`.
+- `git rm --cached` sur les 3 fichiers suivis (`public/sw.js`, `public/swe-worker-5c72df51bb1f6ee0.js`, `public/workbox-f1770938.js`) : retires du suivi Git mais CONSERVES sur le disque. Vercel les regenere au build, donc zero impact prod.
+- Resultat : plus aucun fichier PWA en untracked/modifie dans `git status`.
+
 ## 2026-07-06 - Nettoyage : suppression du composant push orphelin
 
 Petit menage de code mort (aucun changement fonctionnel).
