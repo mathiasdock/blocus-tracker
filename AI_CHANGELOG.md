@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - SEO technique : metadata, sitemap, robots, JSON-LD et homepage publique
+
+Passe SEO/GEO appliquee pour rendre Blocus Tracker plus lisible par Google et les moteurs IA, sans changer les pages connectees.
+
+- **SEO centralise** : `lib/seo.js` definit les routes indexables, les titres/descriptions/canoniques/robots et les schemas JSON-LD. `components/SeoHead.js` injecte title, description, canonical, Open Graph, Twitter Cards, robots et structured data depuis `_app.js`.
+- **Pages indexables** : seules `/`, `/dashboard` et `/legal` sont dans le sitemap. Les pages de compte, app privee, admin, auth et social prive restent en `noindex`.
+- **Homepage publique** : `/` devient une vraie page produit statique/SSR-friendly avec H1, sections, FAQ visible et CTA vers le chrono. Les utilisateurs deja connectes sont toujours rediriges cote client vers `/dashboard`.
+- **Crawl** : ajout de `/sitemap.xml`, `/robots.txt` et `/llms.txt` generes cote serveur. `robots.txt` bloque uniquement `/api/` et declare le sitemap.
+- **Structured data** : schemas `Organization`, `WebSite`, `SoftwareApplication`, `FAQPage`, `WebPage` et `BreadcrumbList` sur les pages publiques pertinentes. Pas de schema `Article` tant qu'il n'existe pas de vrais articles publics.
+- **Partage social** : nouvelle image Open Graph `public/seo-preview.png` en 1200x630.
+
 ## 2026-07-06 - Nettoyage : gitignore des fichiers PWA auto-generes
 
 Fin du churn permanent du `git status` a chaque build (valide par l'utilisateur).

@@ -139,7 +139,7 @@ export default function Feed() {
       setProfiles({});
       setAuthorLevels({});
     }
-  }, [user?.id]);
+  }, [user]);
 
   useEffect(() => {
     load();
@@ -519,8 +519,8 @@ export default function Feed() {
                 {!isTextOnlyActivity(post) ? (
                   <>
                     {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={post.image_url} alt="session" loading="lazy" className="w-full h-full object-cover" />
                     </div>
                   </>

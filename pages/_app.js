@@ -9,6 +9,7 @@ import { supabase } from "../lib/supabaseClient";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import LevelUpModal from "../components/LevelUpModal";
 import { initOneSignal, loginUser } from "../lib/onesignal";
+import SeoHead from "../components/SeoHead";
 
 async function loadCurrentLevel(userId) {
   const levels = await loadUserLevelMap(supabase, [userId], {
@@ -247,7 +248,7 @@ function InstallBanner() {
         }}>
           Installer
         </button>
-        <button onClick={() => setPrompt(null)} style={{
+        <button onClick={() => setPrompt(null)} aria-label="Fermer" style={{
           color: "#A8A09A", background: "none", border: "none",
           cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4,
         }}>
@@ -265,18 +266,16 @@ export default function App({ Component, pageProps }) {
       <TimerProvider>
       <NotificationProvider>
         <Head>
-          <title>blocus-tracker</title>
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-          <meta name="description" content="Suivi d'étude avec un réseau social entre amis." />
           <meta name="application-name" content="Blocus Tracker" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="apple-mobile-web-app-title" content="Blocus" />
           <meta name="mobile-web-app-capable" content="yes" />
-          <meta name="theme-color" content="#14B885" />
           <link rel="manifest" href="/manifest.json" />
           <link rel="apple-touch-icon" href="/icon-192x192.png" />
         </Head>
+        <SeoHead />
         <Component {...pageProps} />
         <GlobalLevelUpWatcher />
         <ReferralCapture />

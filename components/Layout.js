@@ -171,12 +171,14 @@ function NavIcon({ href, size = 20 }) {
 
 function Avatar({ url, pseudo, size = 32 }) {
   if (url) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
-      <img src={url} alt={pseudo || "avatar"}
-        loading="lazy" decoding="async"
-        className="rounded-full object-cover shrink-0"
-        style={{ width: size, height: size, border: "1.5px solid var(--bt-border)" }} />
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={pseudo || "avatar"}
+          loading="lazy" decoding="async"
+          className="rounded-full object-cover shrink-0"
+          style={{ width: size, height: size, border: "1.5px solid var(--bt-border)" }} />
+      </>
     );
   }
   return (
