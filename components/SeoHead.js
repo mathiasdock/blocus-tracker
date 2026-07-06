@@ -18,6 +18,7 @@ export default function SeoHead() {
       <meta name="robots" content={seo.robots} />
       <meta name="author" content={SITE_AUTHOR} />
       <meta name="theme-color" content={BRAND_COLOR} />
+      <meta name="google-site-verification" content="mhpsTs_xVeQeT2qhnbJfEEV5IehHEAK6LHAUaFZDQ9U" />
       <link rel="canonical" href={seo.canonicalUrl} />
 
       <meta property="og:site_name" content={SITE_NAME} />
