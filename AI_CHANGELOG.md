@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - Nettoyage : suppression du composant push orphelin
+
+Petit menage de code mort (aucun changement fonctionnel).
+
+- `components/PushNotificationsCard.jsx` supprime : devenu orphelin depuis la refonte du Profil (le reglage "Notifications push" est desormais inline via `PushRow` dans `pages/profile.js`). Verifie : plus aucun import dans tout le repo, seul un commentaire le referencait.
+- `lib/onesignal.js` : commentaire mis a jour pour pointer vers `pages/profile.js` au lieu du composant supprime.
+- `npm run build` OK (20/20).
+- NON traite ici (necessite une action manuelle / decision partagee) : (1) le dossier `.next.corrupt-*` (~377 Mo de litiere, `rm -rf` refuse par les permissions) a supprimer a la main ; (2) `public/sw.js` et `public/workbox-*.js` (auto-generes par next-pwa) ne sont pas gitignores et polluent le `git status` a chaque build — a gitignorer + `git rm --cached` si validé.
+
 ## 2026-07-06 - Stats : hierarchie a deux niveaux (essentiel vs Analyse avancee)
 
 La page etait devenue trop dense (tout au meme niveau). Reorganisation SANS rien supprimer (`pages/stats.js`), inspiree Strava/GitHub Insights/Apple Fitness.
