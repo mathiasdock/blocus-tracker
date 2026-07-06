@@ -7,7 +7,7 @@ Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avan
 Passe SEO/GEO appliquee pour rendre Blocus Tracker plus lisible par Google et les moteurs IA, sans changer les pages connectees.
 
 - **SEO centralise** : `lib/seo.js` definit les routes indexables, les titres/descriptions/canoniques/robots et les schemas JSON-LD. `components/SeoHead.js` injecte title, description, canonical, Open Graph, Twitter Cards, robots et structured data depuis `_app.js`.
-- **Pages indexables** : seules `/`, `/dashboard` et `/legal` sont dans le sitemap. Les pages de compte, app privee, admin, auth et social prive restent en `noindex`.
+- **Pages indexables** : seules `/` et `/legal` sont dans le sitemap. Les pages de compte, app privee, `/dashboard`, admin, auth et social prive restent en `noindex`.
 - **Homepage publique** : `/` devient une vraie page produit statique/SSR-friendly avec H1, sections, FAQ visible et CTA vers le chrono. Les utilisateurs deja connectes sont toujours rediriges cote client vers `/dashboard`.
 - **Crawl** : ajout de `/sitemap.xml`, `/robots.txt` et `/llms.txt` generes cote serveur. `robots.txt` bloque uniquement `/api/` et declare le sitemap.
 - **Structured data** : schemas `Organization`, `WebSite`, `SoftwareApplication`, `FAQPage`, `WebPage` et `BreadcrumbList` sur les pages publiques pertinentes. Pas de schema `Article` tant qu'il n'existe pas de vrais articles publics.

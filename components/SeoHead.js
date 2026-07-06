@@ -9,7 +9,7 @@ function safeJsonLd(data) {
 export default function SeoHead() {
   const router = useRouter();
   const seo = getSeoForPath(router.pathname || "/");
-  const jsonLd = structuredDataForPath(seo.canonicalPath);
+  const jsonLd = structuredDataForPath(seo.path);
 
   return (
     <Head>
