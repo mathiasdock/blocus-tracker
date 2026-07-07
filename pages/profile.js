@@ -91,7 +91,6 @@ function IconLock() { return <svg width="17" height="17" viewBox="0 0 24 24" fil
 function IconAlert() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
 function IconBell() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>; }
 function IconEdit() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>; }
-function IconClock() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>; }
 function IconAward() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>; }
 function IconSliders() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>; }
 function IconGift() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>; }
@@ -577,7 +576,6 @@ export default function Profile() {
   const [profileSessions, setProfileSessions] = useState([]);
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
-  const [courseMap, setCourseMap] = useState({});
   const [myRank, setMyRank] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
@@ -688,22 +686,18 @@ export default function Profile() {
     loadBadges();
   }, [user]);
 
-  // ── Load sessions for heatmap + activity + course names ───
+  // ── Load sessions for heatmap + profile activity stats ───
   useEffect(() => {
     if (!user) return;
     const since370 = new Date();
     since370.setDate(since370.getDate() - 370);
     (async () => {
-      const [{ data: heatSessions }, { data: allSessions }, { data: courses }] = await Promise.all([
+      const [{ data: heatSessions }, { data: allSessions }] = await Promise.all([
         supabase.from("sessions").select("started_at, duration_seconds, course_id").eq("user_id", user.id).gte("started_at", since370.toISOString()),
         supabase.from("sessions").select("duration_seconds").eq("user_id", user.id),
-        supabase.from("courses").select("id, name, color").eq("user_id", user.id),
       ]);
       setProfileSessions(heatSessions || []);
       setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
-      const map = {};
-      (courses || []).forEach(c => { map[c.id] = c; });
-      setCourseMap(map);
     })();
   }, [user]);
 
@@ -835,12 +829,6 @@ export default function Profile() {
     ? (Number(myRank.my_secs) > 0 ? `#${Number(myRank.better_count) + 1}` : "—")
     : "…";
 
-  // Les 8 sessions les plus récentes, avec leur cours (nom + couleur).
-  const recentSessions = [...profileSessions]
-    .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
-    .slice(0, 8);
-  const dateLocale = lang === "fr" ? "fr-BE" : "en-GB";
-
   const sep = <div style={{ height: 1, backgroundColor: "var(--bt-border)" }} />;
 
   const heroStats = [
@@ -957,42 +945,6 @@ export default function Profile() {
                   </>
                 ) : (
                   <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Activité récente — les dernières sessions, ancrées dans le réel */}
-            <div className="card overflow-hidden">
-              <CardHead icon={<IconClock />} label={t("profile.recentActivity")} />
-              <div className="pb-2">
-                {recentSessions.length === 0 ? (
-                  <p className="px-5 pb-4 text-sm" style={{ color: "var(--bt-text-3)" }}>{t("profile.noRecentActivity")}</p>
-                ) : (
-                  <ul>
-                    {recentSessions.map((s, i) => {
-                      const course = courseMap[s.course_id];
-                      const d = new Date(s.started_at);
-                      return (
-                        <li key={`${s.started_at}-${i}`} className="flex items-center gap-3 px-5 py-2.5"
-                          style={{ borderTop: i > 0 ? "1px solid var(--bt-border)" : "none" }}>
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: course?.color || "var(--bt-text-4)" }} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
-                              {course?.name || t("profile.noCourseSession")}
-                            </p>
-                            <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
-                              {d.toLocaleDateString(dateLocale, { weekday: "short", day: "numeric", month: "short" })}
-                              {" · "}
-                              {d.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                          <span className="shrink-0 font-num text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
-                            {formatMinutesShort(s.duration_seconds)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
                 )}
               </div>
             </div>
