@@ -78,6 +78,10 @@ function egressStatusLabel(status, t) {
   return t("admin.egressUnknown");
 }
 
+function cleanupReasonLabel(candidate, t) {
+  return t(candidate?.reasonKey || "admin.egressUnknown");
+}
+
 function buildEgressAlerts(data, t) {
   if (!data) return [];
   const alerts = [];
@@ -301,6 +305,139 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
         </div>
       ) : (
         <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("admin.egressRefresh")}.</p>
+      )}
+    </section>
+  );
+}
+
+function StorageCleanupPanel({
+  data,
+  selectedIds,
+  loading,
+  deleting,
+  error,
+  result,
+  onScan,
+  onDelete,
+  onToggle,
+  t,
+}) {
+  const selected = data?.candidates?.filter((candidate) => selectedIds.has(candidate.id)) || [];
+  const selectedBytes = selected.reduce((sum, candidate) => sum + (candidate.sizeBytes || 0), 0);
+  const safeSelected = selected.filter((candidate) => candidate.safeDelete);
+
+  return (
+    <section className="card p-5">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+            {t("admin.cleanupTitle")}
+          </p>
+          <p className="text-xs mt-1 max-w-2xl" style={{ color: "var(--bt-text-4)" }}>
+            {t("admin.cleanupDesc")}
+          </p>
+        </div>
+        <button onClick={onScan} disabled={loading || deleting}
+          className="btn-ghost text-xs px-3 py-1.5 shrink-0">
+          {loading ? "…" : t("admin.cleanupScan")}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-xs rounded-xl px-3 py-2 mb-4" style={{ backgroundColor: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>
+          {error}
+        </p>
+      )}
+
+      {result && (
+        <div className="rounded-2xl px-3 py-2 mb-4 text-xs"
+          style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68", border: "1px solid var(--bt-accent-border)" }}>
+          <span className="font-semibold">{t("admin.cleanupDeleted")} : {result.deletedCount}</span>
+          <span> · {formatBytes(result.deletedBytes)}</span>
+          {result.skippedCount > 0 && <span> · {t("admin.cleanupSkipped")} : {result.skippedCount}</span>}
+          {result.errors?.length > 0 && <span> · {result.errors.length} erreur(s)</span>}
+        </div>
+      )}
+
+      {!data ? (
+        <div className="rounded-2xl p-4 text-sm" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
+          {t("admin.cleanupEmpty")}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard label={t("admin.cleanupCandidates")} value={data.summary.candidateCount} />
+            <StatCard label={t("admin.cleanupSafe")} value={data.summary.safeCount} accent="#14B885" />
+            <StatCard label={t("admin.cleanupRecoverable")} value={formatBytes(data.summary.safeSizeBytes)} />
+            <StatCard label="DM" value={data.summary.dmPreviewCount} sub={t("admin.cleanupDmExcluded")} accent={data.summary.dmPreviewCount ? "#C2410C" : undefined} />
+          </div>
+
+          {data.warnings?.length > 0 && (
+            <p className="text-xs rounded-xl px-3 py-2" style={{ backgroundColor: "#FFF7ED", color: "#C2410C", border: "1px solid #FED7AA" }}>
+              {data.warnings.length} avertissement(s) de scan. Les éléments incertains ne sont pas supprimables.
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={onDelete} disabled={deleting || safeSelected.length === 0}
+              className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">
+              {deleting ? "…" : t("admin.cleanupDeleteSelected")}
+            </button>
+            <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+              {safeSelected.length} {t("admin.cleanupSelected")} · {formatBytes(selectedBytes)}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl max-h-[420px]" style={{ border: "1px solid var(--bt-border)" }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                  {["", "Bucket", "Path", "Taille", "Raison", "Statut"].map((h) => (
+                    <th key={h} className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--bt-text-3)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.candidates.map((candidate) => (
+                  <tr key={candidate.id} style={{ borderBottom: "1px solid var(--bt-subtle)" }}>
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(candidate.id)}
+                        disabled={!candidate.safeDelete}
+                        onChange={() => onToggle(candidate)}
+                        aria-label={candidate.safeDelete ? t("admin.cleanupSelected") : t("admin.cleanupDmExcluded")}
+                      />
+                    </td>
+                    <td className="px-3 py-2 font-semibold" style={{ color: "var(--bt-text-1)" }}>{candidate.bucket}</td>
+                    <td className="px-3 py-2 font-mono text-[11px] max-w-[340px] truncate" title={candidate.path} style={{ color: "var(--bt-text-2)" }}>{candidate.path}</td>
+                    <td className="px-3 py-2 tabular-nums whitespace-nowrap" style={{ color: "var(--bt-text-2)" }}>{formatBytes(candidate.sizeBytes)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: "var(--bt-text-2)" }}>{cleanupReasonLabel(candidate, t)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5"
+                        style={candidate.safeDelete
+                          ? { backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }
+                          : { backgroundColor: "#FFF7ED", color: "#C2410C" }}>
+                        {candidate.safeDelete ? t("admin.cleanupSafe") : t("admin.cleanupDmExcluded")}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {data.candidates.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-3 py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
+                      {t("admin.cleanupNothing")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-[11px]" style={{ color: "var(--bt-text-4)" }}>
+            {t("admin.egressGeneratedAt")} {new Date(data.generatedAt).toLocaleString("fr-FR")} · max {data.limits.maxDeleteIds} suppressions par action.
+          </p>
+        </div>
       )}
     </section>
   );
@@ -739,6 +876,12 @@ export default function Admin() {
   const [egressGuard, setEgressGuard] = useState(null);
   const [egressLoading, setEgressLoading] = useState(false);
   const [egressError, setEgressError] = useState("");
+  const [cleanupScan, setCleanupScan] = useState(null);
+  const [cleanupSelected, setCleanupSelected] = useState(() => new Set());
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupDeleting, setCleanupDeleting] = useState(false);
+  const [cleanupError, setCleanupError] = useState("");
+  const [cleanupResult, setCleanupResult] = useState(null);
 
   useEffect(() => {
     if (loading) return;
@@ -886,6 +1029,77 @@ export default function Admin() {
     if (section !== "technical" || !profile?.is_admin || egressGuard || egressLoading) return;
     loadEgressGuard();
   }, [section, profile?.is_admin, egressGuard, egressLoading, loadEgressGuard]);
+
+  const loadStorageCleanup = useCallback(async () => {
+    if (!profile?.is_admin) return;
+    setCleanupLoading(true);
+    setCleanupError("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Session admin introuvable.");
+
+      const res = await fetch("/api/admin/storage-cleanup", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || "Impossible de scanner Storage.");
+      setCleanupScan(body);
+      setCleanupSelected(new Set((body.candidates || []).filter((candidate) => candidate.safeDelete).map((candidate) => candidate.id)));
+    } catch (err) {
+      setCleanupError(err?.message || "Impossible de scanner Storage.");
+    } finally {
+      setCleanupLoading(false);
+    }
+  }, [profile?.is_admin]);
+
+  function toggleCleanupCandidate(candidate) {
+    if (!candidate?.safeDelete) return;
+    setCleanupSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(candidate.id)) next.delete(candidate.id);
+      else next.add(candidate.id);
+      return next;
+    });
+  }
+
+  const deleteSelectedCleanup = useCallback(async () => {
+    if (!profile?.is_admin || !cleanupScan) return;
+    const safeSelected = cleanupScan.candidates.filter((candidate) => candidate.safeDelete && cleanupSelected.has(candidate.id));
+    const selectedBytes = safeSelected.reduce((sum, candidate) => sum + (candidate.sizeBytes || 0), 0);
+    if (!safeSelected.length) return;
+    const msg = t("admin.cleanupConfirm")
+      .replace("{count}", String(safeSelected.length))
+      .replace("{size}", formatBytes(selectedBytes));
+    if (!confirm(msg)) return;
+
+    setCleanupDeleting(true);
+    setCleanupError("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Session admin introuvable.");
+
+      const res = await fetch("/api/admin/storage-cleanup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ids: safeSelected.map((candidate) => candidate.id) }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || "Suppression impossible.");
+      setCleanupResult(body);
+      await loadEgressGuard();
+      await loadStorageCleanup();
+    } catch (err) {
+      setCleanupError(err?.message || "Suppression impossible.");
+    } finally {
+      setCleanupDeleting(false);
+    }
+  }, [cleanupScan, cleanupSelected, loadEgressGuard, loadStorageCleanup, profile?.is_admin, t]);
 
   const loadDeleted = useCallback(async () => {
     if (!profile?.is_admin) return;
@@ -1365,6 +1579,18 @@ export default function Admin() {
                   loading={egressLoading}
                   error={egressError}
                   onRefresh={loadEgressGuard}
+                  t={t}
+                />
+                <StorageCleanupPanel
+                  data={cleanupScan}
+                  selectedIds={cleanupSelected}
+                  loading={cleanupLoading}
+                  deleting={cleanupDeleting}
+                  error={cleanupError}
+                  result={cleanupResult}
+                  onScan={loadStorageCleanup}
+                  onDelete={deleteSelectedCleanup}
+                  onToggle={toggleCleanupCandidate}
                   t={t}
                 />
                 <div>
