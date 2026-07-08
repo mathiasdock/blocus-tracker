@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-08 - Planning : 8 corrections cibles (export, partage, vue, legende, examens, ajout, semaine)
+
+Serie de 8 demandes precises sur `pages/planning.js`, precedee d'une vague d'investigation (7 agents en parallele) pour cartographier chaque zone avant edition. Design conserve, aucune migration Supabase.
+
+1. **Bouton PDF supprime** (appelait juste `window.print()` — aucune vraie lib PDF, donc aucun code mort a nettoyer).
+2. **Bouton Agenda renomme** "Exporter calendrier" + tooltip explicite ("Exporte tes examens et objectifs vers Apple, Google Calendar ou Outlook.") — le tooltip existait deja via `title={t(...)}`, seules les valeurs i18n ont change (`plan.exportCalendar` / `plan.exportCalendarHint`, FR+EN).
+3. **Toggle de partage corrige** : la cause etait une race condition — sans garde ni await, un clic pendant la requete relisait le meme `profile.planning_public` perime (stale closure) et recalculait la meme valeur au lieu d'inverser, donnant l'impression d'un toggle fige. Fix en 2 temps : garde `useState` (disable visuel du bouton) PUIS, suite a un test qui a revele qu'un double-clic strictement synchrone contournait encore la garde (une maj de state React n'est visible qu'apres le prochain rendu), ajout d'un verrou `useRef` mis a jour immediatement. Erreur Supabase desormais signalee (`plan.shareError`) au lieu d'echouer silencieusement.
+4. **Vue "Mois" par defaut partout** : le `useState` etait deja `"month"`, mais un effet au montage forcait `"day"` sur mobile (<640px). Retire pour honorer la demande litteralement ; verifie a 390-500px que MonthView reste lisible (rendu mobile deja en points colores, pas de regression).
+5. **Legende supprimee** (redondante avec "Revision par cours" juste en dessous qui affiche deja les memes couleurs de cours + une info utile en plus) — composant, appel et cle i18n `plan.legend` retires.
+6. **Badges d'examen J-X unifies** : nouveau composant `ExamBadge` (3 paliers de couleur repris du pattern deja utilise sur le Chrono/dashboard.js — rouge <=0j, orange <=7j, vert au-dela), applique dans DayPanel, DayDetailModal et la nouvelle carte hebdo. Au passage, les chaines francaises codees en dur du formulaire examen (non traduites en EN) ont ete corrigees.
+7. **Ajout objectif / examen clairement separes** : DayPanel a desormais deux sections a puce coloree distinctes ("Ajouter un objectif" vert, "Ajouter un examen" rouge). DayDetailModal (vue Mois) n'offrait AUCUN moyen d'ajouter un examen (affichage/suppression seulement) — capacite ajoutee, symetrique a l'ajout d'objectif deja present.
+8. **Nouvelle zone "A preparer cette semaine"** : `UpcomingExamsStrip` renomme/etendu en `WeekAheadCard` plutot que d'ajouter un widget redondant a cote — fenetre fixe de 7 jours (aujourd'hui inclus), examens ET objectifs non termines confondus, calcul 100% client (donnees deja chargees par `load()`, aucun nouvel appel Supabase).
+
+i18n : ~10 cles `plan.*` ajoutees/modifiees en FR+EN (`plan.tomorrow`, `plan.dayAddExam`, `plan.newExamTitle`, `plan.examNamePlaceholder`, `plan.examLocationPlaceholder`, `plan.examSubmit`, `plan.weekAheadTitle`, `plan.shareError`, plus le renommage export/tooltip et le retrait de `plan.legend`).
+
+Verification : `npm run lint` clean, `npm run build` propre OK (26/26). Verifie en navigateur (build prod offline) : toolbar (PDF absent, tooltip confirme via l'arbre d'accessibilite), vue Mois par defaut a toutes les largeurs, WeekAheadCard avec badges colores corrects (J-3 orange, objectifs "Aujourd'hui"/"Demain"/jour court), DayDetailModal — ajout d'examen teste de bout en bout (soumission + affichage + suppression), toggle de partage teste avec double-clic synchrone volontairement agressif (aucun blocage residuel), responsive 390-500px.
+
 ## 2026-07-06 - Chrono : fix espace blanc sous la carte (grille etiree)
 
 Signale par l'utilisateur avec capture d'ecran (compte reel, 5 cours dans "Mes cours").
