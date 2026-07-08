@@ -64,6 +64,47 @@ function deltaLabel(pct) {
   return { sign: pct >= 0 ? "↑" : "↓", abs: Math.abs(pct), positive: pct >= 0 };
 }
 
+function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined) return "—";
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(value / 1024 / 1024).toFixed(value < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+
+function egressStatusLabel(status, t) {
+  if (status === "referenced") return t("admin.egressReferenced");
+  if (status === "orphan") return t("admin.egressOrphanObjects");
+  return t("admin.egressUnknown");
+}
+
+function buildEgressAlerts(data, t) {
+  if (!data) return [];
+  const alerts = [];
+  const avatars = data.buckets?.avatars;
+  if (avatars?.count > 0 && avatars.averageBytes <= 400 * 1024 && avatars.p90Bytes <= 700 * 1024) {
+    alerts.push({ level: "ok", text: `${t("admin.egressOk")} · avatars ${formatBytes(avatars.averageBytes)} avg / p90 ${formatBytes(avatars.p90Bytes)}` });
+  } else if (avatars?.count > 0) {
+    alerts.push({ level: "warn", text: `${t("admin.egressWarning")} · avatars avg ${formatBytes(avatars.averageBytes)} / p90 ${formatBytes(avatars.p90Bytes)}` });
+  }
+  if ((data.heavy?.over1Mb || 0) >= 5) {
+    alerts.push({ level: "critical", text: `${t("admin.egressCritical")} · ${data.heavy.over1Mb} objets > 1 MB` });
+  } else if ((data.heavy?.over1Mb || 0) > 0) {
+    alerts.push({ level: "warn", text: `${t("admin.egressWarning")} · ${data.heavy.over1Mb} objets > 1 MB` });
+  }
+  if ((data.heavy?.over500Kb || 0) >= 10) {
+    alerts.push({ level: "warn", text: `${t("admin.egressWarning")} · ${data.heavy.over500Kb} objets > 500 KB` });
+  }
+  if ((data.posts?.expiredWithImage || 0) > 0) {
+    alerts.push({ level: "warn", text: `${t("admin.egressWarning")} · ${data.posts.expiredWithImage} posts expirés avec image` });
+  }
+  if ((data.posts?.activeWithImage || 0) > 10) {
+    alerts.push({ level: "warn", text: `${t("admin.egressWarning")} · ${data.posts.activeWithImage} posts actifs avec image` });
+  }
+  if (!alerts.length) alerts.push({ level: "ok", text: `${t("admin.egressOk")} · aucun risque majeur détecté` });
+  return alerts;
+}
+
 /* ── Tooltip graphiques (compatible dark via variables CSS) ─── */
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
@@ -128,6 +169,140 @@ function HealthPill({ label, value, status, hint }) {
       <p className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>{value}</p>
       {hint && <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--bt-text-4)" }}>{hint}</p>}
     </div>
+  );
+}
+
+function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
+  const bucketRows = [
+    ["posts", "posts"],
+    ["avatars", "avatars"],
+    ["dm", "dm"],
+    ["community", "community"],
+  ];
+  const alerts = buildEgressAlerts(data, t);
+  const alertStyles = {
+    ok: { bg: "var(--bt-accent-bg)", color: "#0E8F68", border: "var(--bt-accent-border)" },
+    warn: { bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA" },
+    critical: { bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
+  };
+
+  return (
+    <section className="card p-5">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+            {t("admin.egressGuard")}
+          </p>
+          <p className="text-xs mt-1 max-w-2xl" style={{ color: "var(--bt-text-4)" }}>
+            {t("admin.egressGuardDesc")}
+          </p>
+        </div>
+        <button onClick={onRefresh} disabled={loading}
+          className="btn-ghost text-xs px-3 py-1.5 shrink-0">
+          {loading ? "…" : t("admin.egressRefresh")}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-xs rounded-xl px-3 py-2 mb-4" style={{ backgroundColor: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>
+          {error}
+        </p>
+      )}
+
+      {!data && loading ? (
+        <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("common.loading")}</p>
+      ) : data ? (
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard label={t("admin.egressActivePosts")} value={data.posts.active} sub={`${data.posts.activeWithImage} images`} />
+            <StatCard label={t("admin.egressExpiredPosts")} value={data.posts.expired} />
+            <StatCard label={t("admin.egressExpiredImages")} value={data.posts.expiredWithImage} accent={data.posts.expiredWithImage > 0 ? "#C2410C" : "#14B885"} />
+            <StatCard label={t("admin.egressHeavyFiles")} value={data.heavy.over1Mb} sub="> 1 MB" accent={data.heavy.over1Mb ? "#DC2626" : "#14B885"} />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {alerts.map((alert, index) => {
+              const style = alertStyles[alert.level] || alertStyles.ok;
+              return (
+                <span key={`${alert.level}-${index}`} className="text-xs font-semibold rounded-full px-3 py-1"
+                  style={{ backgroundColor: style.bg, color: style.color, border: `1px solid ${style.border}` }}>
+                  {alert.text}
+                </span>
+              );
+            })}
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid var(--bt-border)" }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                  {[t("admin.egressBucket"), "Objets", t("admin.egressTotalSize"), "Moyenne", "p90", t("admin.egressOrphanObjects"), "Uploads 24h"].map((h) => (
+                    <th key={h} className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "var(--bt-text-3)" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {bucketRows.map(([bucket, label]) => {
+                  const row = data.buckets?.[bucket] || {};
+                  return (
+                    <tr key={bucket} style={{ borderBottom: "1px solid var(--bt-subtle)" }}>
+                      <td className="px-3 py-2 font-semibold" style={{ color: "var(--bt-text-1)" }}>{label}</td>
+                      <td className="px-3 py-2 tabular-nums" style={{ color: "var(--bt-text-2)" }}>{row.count ?? "—"}</td>
+                      <td className="px-3 py-2 tabular-nums whitespace-nowrap" style={{ color: "var(--bt-text-2)" }}>{formatBytes(row.totalBytes)}</td>
+                      <td className="px-3 py-2 tabular-nums whitespace-nowrap" style={{ color: "var(--bt-text-2)" }}>{formatBytes(row.averageBytes)}</td>
+                      <td className="px-3 py-2 tabular-nums whitespace-nowrap" style={{ color: "var(--bt-text-2)" }}>{formatBytes(row.p90Bytes)}</td>
+                      <td className="px-3 py-2 tabular-nums" style={{ color: row.orphanCount ? "#C2410C" : "var(--bt-text-2)" }}>
+                        {row.orphanCount === null ? t("admin.egressUnknown") : row.orphanCount}
+                      </td>
+                      <td className="px-3 py-2 tabular-nums" style={{ color: "var(--bt-text-2)" }}>{row.recent24h ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--bt-text-1)" }}>{t("admin.egressHeavyFiles")}</h3>
+            {data.heavy.top.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("admin.egressNoHeavyFiles")}</p>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid var(--bt-border)" }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                      {["Bucket", "Path", "Taille", "Statut"].map((h) => (
+                        <th key={h} className="px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.heavy.top.map((file) => (
+                      <tr key={`${file.bucket}:${file.path}`} style={{ borderBottom: "1px solid var(--bt-subtle)" }}>
+                        <td className="px-3 py-2 font-semibold" style={{ color: "var(--bt-text-1)" }}>{file.bucket}</td>
+                        <td className="px-3 py-2 font-mono text-[11px] max-w-[360px] truncate" title={file.path} style={{ color: "var(--bt-text-2)" }}>{file.path}</td>
+                        <td className="px-3 py-2 tabular-nums whitespace-nowrap" style={{ color: file.sizeBytes > 1024 * 1024 ? "#DC2626" : "var(--bt-text-2)" }}>{formatBytes(file.sizeBytes)}</td>
+                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: file.status === "orphan" ? "#C2410C" : "var(--bt-text-2)" }}>{egressStatusLabel(file.status, t)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--bt-text-4)" }}>
+            <span>{t("admin.egressGeneratedAt")} {new Date(data.generatedAt).toLocaleString("fr-FR")}</span>
+            <span>Scan max {data.limits.maxFilesPerBucket} objets/bucket</span>
+            {data.scan?.warnings?.length > 0 && <span>{data.scan.warnings.length} avertissement(s) de scan</span>}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("admin.egressRefresh")}.</p>
+      )}
+    </section>
   );
 }
 
@@ -561,6 +736,9 @@ export default function Admin() {
 
   // Technical
   const [health, setHealth] = useState(null);
+  const [egressGuard, setEgressGuard] = useState(null);
+  const [egressLoading, setEgressLoading] = useState(false);
+  const [egressError, setEgressError] = useState("");
 
   useEffect(() => {
     if (loading) return;
@@ -680,6 +858,34 @@ export default function Admin() {
     })();
     return () => { cancelled = true; };
   }, [section, profile]);
+
+  const loadEgressGuard = useCallback(async () => {
+    if (!profile?.is_admin) return;
+    setEgressLoading(true);
+    setEgressError("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Session admin introuvable.");
+
+      const res = await fetch("/api/admin/egress-guard", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || "Impossible de charger Egress Guard.");
+      setEgressGuard(body);
+    } catch (err) {
+      setEgressError(err?.message || "Impossible de charger Egress Guard.");
+    } finally {
+      setEgressLoading(false);
+    }
+  }, [profile?.is_admin]);
+
+  useEffect(() => {
+    if (section !== "technical" || !profile?.is_admin || egressGuard || egressLoading) return;
+    loadEgressGuard();
+  }, [section, profile?.is_admin, egressGuard, egressLoading, loadEgressGuard]);
 
   const loadDeleted = useCallback(async () => {
     if (!profile?.is_admin) return;
@@ -1154,6 +1360,13 @@ export default function Admin() {
                     ) : <p className="text-sm col-span-full" style={{ color: "var(--bt-text-3)" }}>Vérification en cours…</p>}
                   </div>
                 </div>
+                <EgressGuardPanel
+                  data={egressGuard}
+                  loading={egressLoading}
+                  error={egressError}
+                  onRefresh={loadEgressGuard}
+                  t={t}
+                />
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-text-3)" }}>Nécessite l'API Management Supabase</p>
                   <p className="text-xs mb-3" style={{ color: "var(--bt-text-4)" }}>Ces métriques ne sont pas exposées côté client. Elles demandent un endpoint serveur (clé Management Supabase / Vercel) — affichées ici en attente de branchement pour éviter des chiffres inventés.</p>
