@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-08 - Chrono : "Sessions du jour" deplacee dans la colonne gauche, alignee sur "Mes cours"
+
+Suite du fix de grille etiree (`lg:items-start`) : ce fix avait bien supprime le vide DANS la carte Chrono, mais en creait un NOUVEAU entre les deux blocs de grille — "Sessions du jour" vivait dans une grille separee, plus bas dans le fichier, qui ne demarrait qu'apres la fin de toute la sidebar (tres haute avec plusieurs cours). Signale par l'utilisateur avec capture d'ecran.
+
+- **Restructuration** (`pages/dashboard.js`) : "Sessions du jour" et "A faire aujourd'hui" sont deplacees physiquement dans la MEME colonne que le Chrono (empilees dessous), au lieu d'une grille separee `mt-5` plus bas. La colonne gauche (`lg:col-span-2`) est desormais un flex-col : Chrono (hauteur naturelle) + ces deux cartes (`flex-1`, hauteur variable).
+- **Alignement dynamique** : la grille externe passe en `alignItems: stretch` UNIQUEMENT s'il y a des sessions ou objectifs a afficher (`sessions.length > 0 || todayObjectives.length > 0`), sinon `start` (comme avant) — evite de re-etirer la carte Chrono dans le vide quand il n'y a rien a afficher en dessous.
+- **Defilement interne, pas de croissance** : "Sessions du jour" / "A faire aujourd'hui" utilisent `flex:1 1 260px/200px` (a partir de `lg:` seulement) — la carte s'etire pour egaler la hauteur de la colonne Aujourd'hui/Mes cours (qui reste le "moteur" naturel, non borne), et si le contenu de la LISTE depasse cette hauteur, c'est elle qui defile (`overflow-y-auto`), jamais la carte.
+- **Bug trouve et corrige pendant la verification** : le premier essai utilisait `style={{ flex: "1 1 260px" }}` en dur, actif a TOUTE largeur — en dessous du breakpoint `lg` (mobile, mono-colonne, aucune colonne a egaler), ca forcait quand meme une hauteur minimale de 260px, recreant un petit vide artificiel. Corrige en passant a la classe Tailwind responsive `lg:[flex:1_1_260px]` (active uniquement a partir de `lg:`, hauteur 100% naturelle en dessous).
+- Verification navigateur (build prod offline, 5 cours + sessions demo) : plus de vide entre Chrono et Sessions du jour, alignement desktop confirme au pixel pres (mesure DOM directe), defilement interne confirme avec 20 sessions injectees (`scrollHeight` 860 vs `clientHeight` 182, carte plafonnee a 260px), et le fix mobile confirme via simulation CSS du mono-colonne (fenetre du navigateur bloquee a 1130px dans cet environnement, resize impossible en dessous). `npm run lint` clean, `npm run build` propre OK (26/26).
+
 ## 2026-07-08 - Planning : 8 corrections cibles (export, partage, vue, legende, examens, ajout, semaine)
 
 Serie de 8 demandes precises sur `pages/planning.js`, precedee d'une vague d'investigation (7 agents en parallele) pour cartographier chaque zone avant edition. Design conserve, aucune migration Supabase.

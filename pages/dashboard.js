@@ -880,12 +880,18 @@ export default function Dashboard() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start min-w-0 bt-stagger">
+      {/* Étirement de la ligne UNIQUEMENT s'il y a un second bloc (Sessions
+          du jour / À faire) pour remplir la colonne gauche : sinon (rien à
+          afficher là), on reste en hauteur naturelle pour ne pas étirer la
+          carte Chrono dans le vide comme le faisait l'ancien alignement. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 min-w-0 bt-stagger"
+        style={{ alignItems: (sessions.length > 0 || todayObjectives.length > 0) ? "stretch" : "start" }}>
 
         {/* ══════════════════════════════════════════
-            SECTION 1 — Chronomètre
+            COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
         ══════════════════════════════════════════ */}
-        <section className="card relative lg:col-span-2 min-w-0 transition-all duration-300 overflow-hidden"
+        <div className="lg:col-span-2 flex flex-col gap-5 min-w-0">
+        <section className="card relative min-w-0 transition-all duration-300 overflow-hidden"
           style={{
             backgroundColor: isPaused ? "rgba(239,68,68,0.06)" : "var(--bt-surface)",
             borderColor:     isPaused ? "rgba(239,68,68,0.35)" : "var(--bt-border)",
@@ -1200,6 +1206,208 @@ export default function Dashboard() {
             <p className="text-[11px] text-center mt-4" style={{ color: "var(--bt-text-4)" }}>{t("dash.subtitle")}</p>
           </div>
         </section>
+
+        {/* Sessions du jour / À faire — flex-1 À PARTIR DE lg seulement : à
+            ce breakpoint la carte partage une ligne de grille avec la
+            colonne Aujourd'hui/Mes cours et doit s'étirer pour l'égaler
+            (contenu débordant → la LISTE défile, la carte n'excède jamais
+            cette hauteur). En dessous de lg (mono-colonne, pas de colonne à
+            égaler), un flex-basis fixe non conditionnel créerait un vide
+            artificiel — d'où le préfixe lg: sur la classe flex ci-dessous. */}
+        {sessions.length > 0 && (
+          <section className="card p-5 flex flex-col min-h-0 lg:[flex:1_1_260px]">
+            <h2 className="text-sm font-bold uppercase tracking-wider mb-4 shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("dash.todaySessions")}</h2>
+            <ul className="divide-y flex-1 min-h-0 overflow-y-auto" style={{ borderColor: "var(--bt-border)" }}>
+              {sessions.map((s) => {
+                const maxMins = Math.floor(s.duration_seconds / 60);
+                const isEditing = editingSessionId === s.id;
+                return (
+                  <li key={s.id} className="py-2.5 flex items-center gap-2 text-sm">
+                    {isEditing ? (
+                      /* ── Inline editor ── */
+                      <div className="flex-1 flex flex-col gap-2">
+                        {/* Course selector */}
+                        <select
+                          value={editCourseId ?? ""}
+                          onChange={e => setEditCourseId(e.target.value || null)}
+                          style={{
+                            width: "100%",
+                            padding: "3px 8px",
+                            fontSize: 13,
+                            borderRadius: 8,
+                            border: "1px solid var(--bt-border)",
+                            backgroundColor: "var(--bt-surface)",
+                            color: "var(--bt-text-1)",
+                            outline: "none",
+                          }}>
+                          <option value="">{t("dash.noCourse")}</option>
+                          {courses.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                        {/* Duration row */}
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={1}
+                            max={maxMins}
+                            value={editMinutes}
+                            onChange={e => setEditMinutes(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") updateSession(s);
+                              if (e.key === "Escape") setEditingSessionId(null);
+                            }}
+                            autoFocus
+                            style={{
+                              width: 52,
+                              padding: "2px 6px",
+                              fontSize: 13,
+                              textAlign: "center",
+                              borderRadius: 8,
+                              border: "1px solid var(--bt-border)",
+                              backgroundColor: "var(--bt-surface)",
+                              color: "var(--bt-text-1)",
+                              outline: "none",
+                            }}
+                          />
+                          <span className="text-xs tabular-nums flex-1" style={{ color: "var(--bt-text-3)" }}>
+                            / {maxMins} min
+                          </span>
+                          {/* Confirm */}
+                          <button
+                            onClick={() => updateSession(s)}
+                            title={t("common.save")}
+                            className="shrink-0 transition-colors"
+                            style={{ color: "#14B885" }}
+                            onMouseEnter={e => e.currentTarget.style.color = "#0E8F68"}
+                            onMouseLeave={e => e.currentTarget.style.color = "#14B885"}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          </button>
+                          {/* Cancel */}
+                          <button
+                            onClick={() => setEditingSessionId(null)}
+                            title={t("common.cancel")}
+                            className="shrink-0 transition-colors"
+                            style={{ color: "var(--bt-text-3)" }}
+                            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
+                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Normal view ── */
+                      <>
+                        <span className="flex-1 min-w-0">
+                          <span className="font-medium" style={{ color: "var(--bt-text-1)" }}>{courseName(s.course_id)}</span>
+                          {s.note && <span style={{ color: "#A8A09A" }}> — {s.note}</span>}
+                        </span>
+                        <span className="shrink-0 tabular-nums" style={{ color: "var(--bt-text-2)" }}>
+                          {formatMinutesShort(s.duration_seconds)}
+                        </span>
+                        {/* Edit */}
+                        <button
+                          onClick={() => { setEditingSessionId(s.id); setEditMinutes(String(maxMins)); setEditCourseId(s.course_id); }}
+                          title={t("dash.editSession")}
+                          className="shrink-0 transition-colors"
+                          style={{ color: "var(--bt-text-4)" }}
+                          onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
+                          onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                          </svg>
+                        </button>
+                        {/* Delete — double confirmation */}
+                        {confirmDeleteId === s.id ? (
+                          <>
+                            <button
+                              onClick={() => { deleteSession(s.id); setConfirmDeleteId(null); }}
+                              title={t("common.delete")}
+                              className="shrink-0 transition-colors"
+                              style={{ color: "#ef4444" }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              title={t("common.cancel")}
+                              className="shrink-0 transition-colors"
+                              style={{ color: "var(--bt-text-3)" }}
+                              onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
+                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(s.id)}
+                            title={t("common.delete")}
+                            className="shrink-0 transition-colors"
+                            style={{ color: "var(--bt-text-4)" }}
+                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                            </svg>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        {todayObjectives.length > 0 && (
+          <section className="card p-5 flex flex-col min-h-0 lg:[flex:1_1_200px]">
+            <h2 className="text-sm font-bold uppercase tracking-wider mb-4 shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("dash.todo")}</h2>
+            <ul className="space-y-2 flex-1 min-h-0 overflow-y-auto">
+              {todayObjectives.map((o) => {
+                const course = courses.find((c) => c.id === o.course_id);
+                return (
+                  <li key={o.id}
+                    className="flex items-center gap-3 text-sm rounded-2xl px-3.5 py-3 transition-colors"
+                    style={{
+                      border: "1px solid var(--bt-border)",
+                      backgroundColor: o.done ? "var(--bt-subtle)" : "var(--bt-surface)",
+                    }}>
+                    <input type="checkbox" checked={o.done} onChange={() => toggleObjective(o)}
+                      className="w-4 h-4 shrink-0 rounded" style={{ accentColor: "#14B885" }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate" style={{
+                        color: o.done ? "var(--bt-text-3)" : "var(--bt-text-1)",
+                        textDecoration: o.done ? "line-through" : "none",
+                        fontWeight: o.done ? 400 : 500,
+                      }}>
+                        {o.title}
+                      </p>
+                      <p className="text-xs flex items-center gap-1.5 mt-0.5" style={{ color: "var(--bt-text-3)" }}>
+                        {course && (
+                          <>
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: course.color }} />
+                            <span className="truncate">{course.name}</span>
+                            <span>·</span>
+                          </>
+                        )}
+                        <span>{o.target_minutes} min</span>
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+        </div>
 
         {/* ══════════════════════════════════════════
             SIDE — Aujourd'hui + Mes cours
@@ -1580,202 +1788,6 @@ export default function Dashboard() {
 
         </div>
       )}
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 mt-5 min-w-0">
-        {sessions.length > 0 && (
-          <section className="card p-5">
-            <h2 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: "var(--bt-text-3)" }}>{t("dash.todaySessions")}</h2>
-            <ul className="divide-y" style={{ borderColor: "var(--bt-border)" }}>
-              {sessions.map((s) => {
-                const maxMins = Math.floor(s.duration_seconds / 60);
-                const isEditing = editingSessionId === s.id;
-                return (
-                  <li key={s.id} className="py-2.5 flex items-center gap-2 text-sm">
-                    {isEditing ? (
-                      /* ── Inline editor ── */
-                      <div className="flex-1 flex flex-col gap-2">
-                        {/* Course selector */}
-                        <select
-                          value={editCourseId ?? ""}
-                          onChange={e => setEditCourseId(e.target.value || null)}
-                          style={{
-                            width: "100%",
-                            padding: "3px 8px",
-                            fontSize: 13,
-                            borderRadius: 8,
-                            border: "1px solid var(--bt-border)",
-                            backgroundColor: "var(--bt-surface)",
-                            color: "var(--bt-text-1)",
-                            outline: "none",
-                          }}>
-                          <option value="">{t("dash.noCourse")}</option>
-                          {courses.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                        {/* Duration row */}
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min={1}
-                            max={maxMins}
-                            value={editMinutes}
-                            onChange={e => setEditMinutes(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter") updateSession(s);
-                              if (e.key === "Escape") setEditingSessionId(null);
-                            }}
-                            autoFocus
-                            style={{
-                              width: 52,
-                              padding: "2px 6px",
-                              fontSize: 13,
-                              textAlign: "center",
-                              borderRadius: 8,
-                              border: "1px solid var(--bt-border)",
-                              backgroundColor: "var(--bt-surface)",
-                              color: "var(--bt-text-1)",
-                              outline: "none",
-                            }}
-                          />
-                          <span className="text-xs tabular-nums flex-1" style={{ color: "var(--bt-text-3)" }}>
-                            / {maxMins} min
-                          </span>
-                          {/* Confirm */}
-                          <button
-                            onClick={() => updateSession(s)}
-                            title={t("common.save")}
-                            className="shrink-0 transition-colors"
-                            style={{ color: "#14B885" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "#0E8F68"}
-                            onMouseLeave={e => e.currentTarget.style.color = "#14B885"}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                          </button>
-                          {/* Cancel */}
-                          <button
-                            onClick={() => setEditingSessionId(null)}
-                            title={t("common.cancel")}
-                            className="shrink-0 transition-colors"
-                            style={{ color: "var(--bt-text-3)" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* ── Normal view ── */
-                      <>
-                        <span className="flex-1 min-w-0">
-                          <span className="font-medium" style={{ color: "var(--bt-text-1)" }}>{courseName(s.course_id)}</span>
-                          {s.note && <span style={{ color: "#A8A09A" }}> — {s.note}</span>}
-                        </span>
-                        <span className="shrink-0 tabular-nums" style={{ color: "var(--bt-text-2)" }}>
-                          {formatMinutesShort(s.duration_seconds)}
-                        </span>
-                        {/* Edit */}
-                        <button
-                          onClick={() => { setEditingSessionId(s.id); setEditMinutes(String(maxMins)); setEditCourseId(s.course_id); }}
-                          title={t("dash.editSession")}
-                          className="shrink-0 transition-colors"
-                          style={{ color: "var(--bt-text-4)" }}
-                          onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
-                          onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-                          </svg>
-                        </button>
-                        {/* Delete — double confirmation */}
-                        {confirmDeleteId === s.id ? (
-                          <>
-                            <button
-                              onClick={() => { deleteSession(s.id); setConfirmDeleteId(null); }}
-                              title={t("common.delete")}
-                              className="shrink-0 transition-colors"
-                              style={{ color: "#ef4444" }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => setConfirmDeleteId(null)}
-                              title={t("common.cancel")}
-                              className="shrink-0 transition-colors"
-                              style={{ color: "var(--bt-text-3)" }}
-                              onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
-                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDeleteId(s.id)}
-                            title={t("common.delete")}
-                            className="shrink-0 transition-colors"
-                            style={{ color: "var(--bt-text-4)" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                            </svg>
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-
-        {todayObjectives.length > 0 && (
-          <section className="card p-5">
-            <h2 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: "var(--bt-text-3)" }}>{t("dash.todo")}</h2>
-            <ul className="space-y-2">
-              {todayObjectives.map((o) => {
-                const course = courses.find((c) => c.id === o.course_id);
-                return (
-                  <li key={o.id}
-                    className="flex items-center gap-3 text-sm rounded-2xl px-3.5 py-3 transition-colors"
-                    style={{
-                      border: "1px solid var(--bt-border)",
-                      backgroundColor: o.done ? "var(--bt-subtle)" : "var(--bt-surface)",
-                    }}>
-                    <input type="checkbox" checked={o.done} onChange={() => toggleObjective(o)}
-                      className="w-4 h-4 shrink-0 rounded" style={{ accentColor: "#14B885" }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate" style={{
-                        color: o.done ? "var(--bt-text-3)" : "var(--bt-text-1)",
-                        textDecoration: o.done ? "line-through" : "none",
-                        fontWeight: o.done ? 400 : 500,
-                      }}>
-                        {o.title}
-                      </p>
-                      <p className="text-xs flex items-center gap-1.5 mt-0.5" style={{ color: "var(--bt-text-3)" }}>
-                        {course && (
-                          <>
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: course.color }} />
-                            <span className="truncate">{course.name}</span>
-                            <span>·</span>
-                          </>
-                        )}
-                        <span>{o.target_minutes} min</span>
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-      </div>
 
       {/* Session completion toast */}
       {completionToast && (
