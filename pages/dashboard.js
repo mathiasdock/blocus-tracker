@@ -880,7 +880,7 @@ export default function Dashboard() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 min-w-0 bt-stagger">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:items-start min-w-0 bt-stagger">
 
         {/* ══════════════════════════════════════════
             SECTION 1 — Chronomètre

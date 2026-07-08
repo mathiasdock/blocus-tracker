@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - Chrono : fix espace blanc sous la carte (grille etiree)
+
+Signale par l'utilisateur avec capture d'ecran (compte reel, 5 cours dans "Mes cours").
+
+- **Cause** : la grille `grid grid-cols-1 gap-5 lg:grid-cols-3` (carte Chrono `lg:col-span-2` + colonne laterale Aujourd'hui/Mes cours) etire par defaut toutes les colonnes a la hauteur de la plus haute ligne. Avec 5 cours listes, la colonne laterale devient haute → la carte Chrono (peu de contenu a l'arret) etait etiree, laissant un grand vide sous le bouton Demarrer.
+- **Fix** : ajout de `lg:items-start` sur le conteneur de grille (`pages/dashboard.js`) — chaque colonne garde desormais sa hauteur naturelle.
+- Verification navigateur (offline, 5 cours factices reproduisant la capture) : plus de vide en idle, etat "running" (Blocus Blocks) inchange, colonne laterale garde son propre scroll. `npm run lint` clean, `npm run build` OK (26/26).
+
 ## 2026-07-06 - Chrono : "Blocus Blocks" remplacent l'onde (nouvelle signature)
 
 Remplacement de l'onde facon Spotify (trop "audio", pas d'identite propre) par les **Blocus Blocks** : l'utilisateur ne remplit pas une barre, il CONSTRUIT sa session bloc par bloc (1 bloc = 15 min). `pages/dashboard.js` + `styles/globals.css` + i18n.
