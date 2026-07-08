@@ -13,7 +13,7 @@ import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } f
 import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser } from "../lib/onesignal";
-import { safeStoragePath, uploadErrorMessage, validateUploadFile } from "../lib/security";
+import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
 
 // ── Thème ────────────────────────────────────────────────────
 // bt_theme = "light" | "dark" | "system" (bt_dark est la clé héritée,
@@ -739,7 +739,7 @@ export default function Profile() {
     if (!precheck.ok) { setAvatarMsg(uploadErrorMessage(t, precheck)); return; }
     setBusy(true); setAvatarMsg("");
 
-    // Compresse l'avatar (≤ 400×400 px, WebP si possible) avant l'upload.
+    // Compresse l'avatar (≤ 320×320 px, WebP si possible) avant l'upload.
     // Chute silencieuse : on utilise le fichier original si la compression échoue.
     let uploadFile = rawFile;
     try {
@@ -747,6 +747,8 @@ export default function Profile() {
       uploadFile = optimized.file || rawFile;
     } catch (_) {}
 
+    const finalCheck = validateFinalUploadFile(uploadFile, "avatar");
+    if (!finalCheck.ok) { setBusy(false); setAvatarMsg(uploadErrorMessage(t, finalCheck)); return; }
     const pathInfo = safeStoragePath(user.id, uploadFile, ["avatars"], "avatar");
     if (!pathInfo.ok) { setBusy(false); setAvatarMsg(uploadErrorMessage(t, pathInfo)); return; }
     const { error: upErr } = await supabase.storage

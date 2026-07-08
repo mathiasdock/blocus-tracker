@@ -15,6 +15,7 @@ import {
   safeStoragePath,
   trimmedText,
   uploadErrorMessage,
+  validateFinalUploadFile,
   validateUploadFile,
 } from "../lib/security";
 import LevelPill from "../components/LevelPill";
@@ -77,6 +78,7 @@ export default function Feed() {
   const [editingPostId, setEditingPostId] = useState(null);
   const [editCaption,   setEditCaption]   = useState("");
   const [reactorsPanel, setReactorsPanel] = useState(null);
+  const [revealedPhotos, setRevealedPhotos] = useState({});
 
   function openProfile(userId) {
     if (userId === user.id) return;
@@ -184,6 +186,8 @@ export default function Feed() {
       } catch (err) {
         console.warn("Image compression failed, uploading original:", err);
       }
+      const finalCheck = validateFinalUploadFile(uploadFile, "postImage");
+      if (!finalCheck.ok) { setBusy(false); alert(uploadErrorMessage(t, finalCheck)); return; }
       const pathInfo = safeStoragePath(user.id, uploadFile, [], "postImage");
       if (!pathInfo.ok) { setBusy(false); alert(uploadErrorMessage(t, pathInfo)); return; }
       const { error: upErr } = await supabase.storage
@@ -432,6 +436,7 @@ export default function Feed() {
             }, {});
             const sortedEmojis = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([e]) => e);
             const otherEmojis = sortedEmojis.filter((emoji) => emoji !== DEFAULT_REACTION_EMOJI);
+            const photoLoaded = revealedPhotos[post.id] === true;
             return (
               <article key={post.id} className="card overflow-hidden">
                 <div className="flex items-center gap-3 p-4">
@@ -516,14 +521,32 @@ export default function Feed() {
                   </div>
                 )}
 
-                {!isTextOnlyActivity(post) ? (
+                {!isTextOnlyActivity(post) ? photoLoaded ? (
                   <>
+                    <div className="px-4 pb-2">
+                      <p className="text-[11px] font-semibold" style={{ color: "var(--bt-text-3)" }}>
+                        {t("feed.photoLoaded")}
+                      </p>
+                    </div>
                     {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
                     <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={post.image_url} alt="session" loading="lazy" className="w-full h-full object-cover" />
                     </div>
                   </>
+                ) : (
+                  <div className="px-4 pb-1">
+                    <div className="rounded-2xl px-4 py-5 text-center"
+                      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                      <button
+                        type="button"
+                        onClick={() => setRevealedPhotos((current) => ({ ...current, [post.id]: true }))}
+                        className="btn-ghost mx-auto"
+                        style={{ backgroundColor: "var(--bt-surface)" }}>
+                        {t("feed.viewPhoto")}
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="px-4 pb-1">
                     <div className="rounded-2xl px-4 py-4"
