@@ -41,6 +41,42 @@ function IconPaperclip({ size = 15 }) {
   );
 }
 
+function AttachmentImageGate({ src, alt, mine, loaded, onLoad, t }) {
+  if (loaded && src) {
+    return (
+      <>
+        <p className="mt-2 text-[10px] font-semibold"
+          style={{ color: mine ? "rgba(255,255,255,0.75)" : "#A8A09A" }}>
+          {t("attachment.imageLoaded")}
+        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt || "image"} loading="lazy"
+          className="mt-2 rounded-xl max-h-60 object-cover" />
+      </>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-xl px-3 py-2 text-xs"
+      style={{
+        backgroundColor: mine ? "rgba(255,255,255,0.14)" : "#FFFDFB",
+        border: mine ? "1px solid rgba(255,255,255,0.22)" : "1px solid #E8E2DC",
+        color: mine ? "rgba(255,255,255,0.86)" : "#5F5650",
+      }}>
+      <p className="mb-2">{t("attachment.available")}</p>
+      <button type="button" onClick={onLoad}
+        className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold"
+        style={{
+          backgroundColor: mine ? "#fff" : "#EAFBF4",
+          border: mine ? "none" : "1px solid #CFF3E3",
+          color: mine ? "#0E8F68" : "#0E8F68",
+        }}>
+        {t("attachment.viewImage")}
+      </button>
+    </div>
+  );
+}
+
 const COMMUNITY_SPACES = [
   { id: "salon", labelKey: "comm.spaceSalon", prefix: "" },
   { id: "questions", labelKey: "comm.spaceQuestions", prefix: "[Question]" },
@@ -143,6 +179,7 @@ export default function Communautes() {
   const [sending, setSending] = useState(false);
   const [viewUserId, setViewUserId] = useState(null);
   const [communitySpace, setCommunitySpace] = useState("salon");
+  const [revealedImages, setRevealedImages] = useState({});
   const bottomRef = useRef(null);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -171,7 +208,7 @@ export default function Communautes() {
       .select("*")
       .eq("community", active)
       .order("created_at", { ascending: true })
-      .limit(200);
+      .limit(100);
     const rows = data || [];
     const nextLastId = rows[rows.length - 1]?.id || null;
     const prevLastId = lastMessageIdRef.current;
@@ -223,6 +260,10 @@ export default function Communautes() {
   function selectCommunity(id, countryCode) {
     setActive(id);
     setOpenCountries(prev => ({ ...prev, [countryCode]: true }));
+  }
+
+  function revealImage(key) {
+    setRevealedImages((prev) => ({ ...prev, [key]: true }));
   }
 
   async function send(e) {
@@ -404,6 +445,7 @@ export default function Communautes() {
                 const mine = m.user_id === user.id;
                 const parsed = parseCommunityContent(m.content);
                 const space = spaceForId(parsed.space);
+                const imageKey = `community:${m.id}:${m.attachment_url || ""}`;
                 return (
                   <div key={m.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                     <button onClick={() => setViewUserId(m.user_id)} className="shrink-0">
@@ -425,9 +467,14 @@ export default function Communautes() {
                         )}
                         {parsed.text && <p className="whitespace-pre-wrap">{parsed.text}</p>}
                         {m.attachment_url && m.attachment_type === "image" && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.attachment_url} alt={m.attachment_name || "image"}
-                            className="mt-2 rounded-xl max-h-60 object-cover" />
+                          <AttachmentImageGate
+                            src={m.attachment_url}
+                            alt={m.attachment_name || "image"}
+                            mine={mine}
+                            loaded={revealedImages[imageKey]}
+                            onLoad={() => revealImage(imageKey)}
+                            t={t}
+                          />
                         )}
                         {m.attachment_url && m.attachment_type === "file" && (
                           <a href={m.attachment_url} target="_blank" rel="noreferrer"

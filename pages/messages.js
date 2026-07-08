@@ -42,6 +42,41 @@ function IconPaperclip({ size = 15 }) {
   );
 }
 
+function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2 rounded-xl max-h-60 object-cover", t }) {
+  if (loaded && src) {
+    return (
+      <>
+        <p className="mt-2 text-[10px] font-semibold"
+          style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--bt-text-3)" }}>
+          {t("attachment.imageLoaded")}
+        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt || "image"} loading="lazy" className={className} />
+      </>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-xl px-3 py-2 text-xs"
+      style={{
+        backgroundColor: mine ? "rgba(255,255,255,0.14)" : "var(--bt-surface)",
+        border: mine ? "1px solid rgba(255,255,255,0.22)" : "1px solid var(--bt-border)",
+        color: mine ? "rgba(255,255,255,0.86)" : "var(--bt-text-2)",
+      }}>
+      <p className="mb-2">{t("attachment.available")}</p>
+      <button type="button" onClick={onLoad}
+        className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold"
+        style={{
+          backgroundColor: mine ? "#fff" : "var(--bt-accent-bg)",
+          border: mine ? "none" : "1px solid var(--bt-accent-border)",
+          color: mine ? "#0E8F68" : "var(--bt-accent-dark)",
+        }}>
+        {t("attachment.viewImage")}
+      </button>
+    </div>
+  );
+}
+
 // ── Calcule le temps écoulé d'un chrono de groupe ─────────────
 function computeChronoElapsed(session) {
   if (!session?.started_at) return 0;
@@ -136,10 +171,15 @@ export default function Messages() {
   const [activeType, setActiveType] = useState("dm");
   const [mobileView, setMobileView] = useState("list");
   const [viewUserId, setViewUserId] = useState(null);
+  const [revealedImages, setRevealedImages] = useState({});
 
   function openProfile(userId) {
     if (userId === user?.id) return;
     setViewUserId(userId);
+  }
+
+  function revealImage(key) {
+    setRevealedImages((prev) => ({ ...prev, [key]: true }));
   }
 
   function pickFile(setter, input) {
@@ -177,7 +217,7 @@ export default function Messages() {
       supabase.from("private_messages").select("sender_id").eq("receiver_id", user.id).eq("read", false),
       supabase.from("private_messages").select("*")
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-        .order("created_at", { ascending: false }).limit(300),
+        .order("created_at", { ascending: false }).limit(100),
     ]);
 
     const unreadBy = {};
@@ -312,7 +352,7 @@ export default function Messages() {
     if (!dmActiveId || !user) return;
     const { data } = await supabase.from("private_messages").select("*")
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${dmActiveId}),and(sender_id.eq.${dmActiveId},receiver_id.eq.${user.id})`)
-      .order("created_at", { ascending: true }).limit(200);
+      .order("created_at", { ascending: true }).limit(50);
     setMessages(data || []);
     await supabase.from("private_messages")
       .update({ read: true })
@@ -337,7 +377,7 @@ export default function Messages() {
   const loadGroupMessages = useCallback(async () => {
     if (!grpActiveId) return;
     const { data } = await supabase.from("group_messages").select("*")
-      .eq("group_id", grpActiveId).order("created_at", { ascending: true }).limit(200);
+      .eq("group_id", grpActiveId).order("created_at", { ascending: true }).limit(100);
     setGroupMessages(data || []);
     const ids = [...new Set((data || []).map(m => m.user_id))];
     if (ids.length) {
@@ -1248,6 +1288,7 @@ export default function Messages() {
                 {messages.map(m => {
                   const mine = m.sender_id === user.id;
                   const attachmentUrl = m.attachment_url ? signedDmUrl(m.attachment_url) : "";
+                  const imageKey = `dm:${m.id}:${m.attachment_url || ""}`;
                   return (
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className="max-w-[75%] px-3.5 py-2.5 text-sm"
@@ -1256,8 +1297,15 @@ export default function Messages() {
                           : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                         {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                         {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={attachmentUrl} alt={m.attachment_name || "image"} className="mt-2 rounded-lg max-h-64 object-cover" />
+                          <AttachmentImageGate
+                            src={attachmentUrl}
+                            alt={m.attachment_name || "image"}
+                            mine={mine}
+                            loaded={revealedImages[imageKey]}
+                            onLoad={() => revealImage(imageKey)}
+                            className="mt-2 rounded-lg max-h-64 object-cover"
+                            t={t}
+                          />
                         )}
                         {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
                           <a href={attachmentUrl} target="_blank" rel="noreferrer"
@@ -1501,6 +1549,7 @@ export default function Messages() {
                 {groupMessages.map(m => {
                   const author = grpWho(m.user_id);
                   const mine = m.user_id === user.id;
+                  const imageKey = `group:${m.id}:${m.attachment_url || ""}`;
                   return (
                     <div key={m.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                       <button onClick={() => openProfile(m.user_id)} className="shrink-0">
@@ -1516,8 +1565,14 @@ export default function Messages() {
                             : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                           {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                           {m.attachment_url && m.attachment_type === "image" && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={m.attachment_url} alt={m.attachment_name || "image"} className="mt-2 rounded-xl max-h-60 object-cover" />
+                            <AttachmentImageGate
+                              src={m.attachment_url}
+                              alt={m.attachment_name || "image"}
+                              mine={mine}
+                              loaded={revealedImages[imageKey]}
+                              onLoad={() => revealImage(imageKey)}
+                              t={t}
+                            />
                           )}
                           {m.attachment_url && m.attachment_type === "file" && (
                             <a href={m.attachment_url} target="_blank" rel="noreferrer"
