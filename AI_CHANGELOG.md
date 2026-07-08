@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-06 - Chrono : "Blocus Blocks" remplacent l'onde (nouvelle signature)
+
+Remplacement de l'onde facon Spotify (trop "audio", pas d'identite propre) par les **Blocus Blocks** : l'utilisateur ne remplit pas une barre, il CONSTRUIT sa session bloc par bloc (1 bloc = 15 min). `pages/dashboard.js` + `styles/globals.css` + i18n.
+
+- **Composant `BlocusBlocks`** (remplace `SessionWave`, supprimee) : rangee de blocs — vide (discret) · valide (vert plein) · en cours (se remplit + pulse doux) · pause (bordeaux doux qui pulse) · bonus (vert degrade, valorise mais sobre). Utilise sur la page normale ET en focus plein ecran.
+  - **Mode libre** : blocs qui s'accumulent, pas de "fin". Session longue → collapse "[10 valides] +N [bloc en cours]".
+  - **Mode objectif / pomodoro** : progression vers un total (ex. 2h = 8 blocs), puis blocs bonus une fois depasse.
+- **Texte intelligent** sous les blocs, UNE phrase selon le mode : libre "3 blocs valides · prochain bloc dans 13 min" · objectif "3/8 blocs · encore 1h12 pour ton objectif" · depasse "Objectif depasse de 38 min" · pause "Pause depuis mm:ss · reprends pour valider ton bloc". (Remplace la rotation `liveMessage`/`msgIdx`, supprimee ; les "moments" celebration restent en priorite 8 s.)
+- **Pause beaucoup plus visible mais elegante** : suivi `pausedAt` + tick chaque seconde → "Pause depuis mm:ss" ; pastille "EN PAUSE" bordeaux qui pulse (`bt-pause-pulse`) ; chiffres + bloc en cours en bordeaux (`#CB5A4E`) ; carte teintee ; bouton Reprendre proeminent (pulse `bt-pause-cta`). En focus : fond bordeaux + maree bordeaux pulsee (`bt-pause-tide`) a la place de la verte.
+- CSS : keyframes `bt-block-active` / `bt-block-paused` / `bt-pause-pulse` / `bt-pause-tide` / `bt-pause-cta` (+ reduced-motion). Suppression des keyframes `bt-wave-bob` / `bt-wave-wake`. La maree verte du focus monte vers l'objectif (`focusTidePct`), reste basse en libre (aucune fin suggeree).
+- i18n : 9 cles `dash.blk*` / `dash.resumeBig` FR+EN.
+- Verification navigateur (build prod offline, cohorte demo) : libre (3 blocs), objectif 2h (3/8), objectif depasse (2 blocs + 2 bonus + "depasse de 38 min"), focus plein ecran, pause normale + focus, barre espace pause/reprise, session longue (+6), pomodoro (0/2 blocs), responsive etroit. `npm run lint` clean, `npm run build` OK (26/26).
+
 ## 2026-07-06 - SEO contenu phase 2 : 6 landing pages publiques
 
 Creation d'une vraie presence SEO publique pour Blocus Tracker, orientee requetes etudiantes FR/BE/CH et comprehension par moteurs IA.

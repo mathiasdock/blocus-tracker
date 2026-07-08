@@ -20,59 +20,122 @@ function daysUntilExam(dateStr) {
   return Math.floor((exam - today) / 86400000);
 }
 
-// ── L'onde de session ─────────────────────────────────────────
-// Signature visuelle du chrono : une rangée de fines barres (enveloppe
-// symétrique, hauteurs déterministes — même rendu à chaque visite) qui se
-// remplissent de vert au fil de la progression : objectif de session,
-// phase pomodoro, ou les 2h du jour. Remplace l'ancien anneau circulaire.
-const WAVE_N = 56;
-// Profil de l'onde : enveloppe symétrique × pseudo-aléa stable, puis deux
-// passes de lissage voisin-à-voisin → une "colline sonore" organique plutôt
-// qu'un peigne dentelé. Calculé une seule fois au chargement du module.
-const WAVE_HEIGHTS = (() => {
-  let hs = Array.from({ length: WAVE_N }, (_, i) => {
-    const env = Math.sin((Math.PI * i) / (WAVE_N - 1));            // taper doux aux extrémités
-    const rnd = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;  // pseudo-aléa stable
-    return env * (0.32 + 0.68 * rnd);
-  });
-  for (let p = 0; p < 2; p++) {
-    hs = hs.map((v, i) => ((hs[i - 1] ?? v) * 0.28) + v * 0.44 + ((hs[i + 1] ?? v) * 0.28));
-  }
-  return hs.map(v => 0.26 + v * 0.74);
-})();
+// ── Blocus Blocks — la signature visuelle du chrono ───────────
+// L'utilisateur ne "remplit pas une barre" : il CONSTRUIT sa session bloc
+// par bloc. Un bloc = 15 min de concentration.
+//  • Mode libre : les blocs validés s'accumulent (pas de fin imposée).
+//  • Mode objectif / pomodoro : progression vers un total de blocs, puis
+//    blocs bonus une fois l'objectif dépassé.
+// États d'un bloc : vide (discret) · validé (vert plein) · en cours (se
+// remplit + pulse doux) · pause (bordeaux doux qui pulse) · bonus (sobre
+// mais valorisé).
+const BLOCK_SECS = 900;          // 15 minutes par bloc
+const PAUSE_ACCENT = "#CB5A4E";  // rouge/bordeaux doux, jamais agressif
 
-// L'onde de session — micro-interactions :
-//  • `wake`  : sweep de réveil au démarrage (chaque barre s'allume en cascade)
-//  • running : les 4 barres au bord de la progression "respirent" (scaleY
-//    désynchronisé) + glow sur la barre de tête
-//  • traînée : le remplissage ancien est légèrement estompé, le récent plein
-//  • paused  : le vert se met en veille (opacité réduite)
-function SessionWave({ pct, running, paused, wake, color = "#14B885", trackColor = "var(--bt-border)", height = 44 }) {
-  const clamped = Math.min(1, Math.max(0, pct || 0));
-  const lastFilled = Math.ceil(clamped * WAVE_N) - 1;
+// Construit la liste des blocs à afficher selon le mode.
+function buildBlockLayout({ elapsed, goalSecs, running, paused, max }) {
+  const validated = Math.floor(elapsed / BLOCK_SECS);
+  const fraction  = (elapsed % BLOCK_SECS) / BLOCK_SECS;
+  const curState  = paused ? "paused" : running ? "active" : "next";
+
+  if (goalSecs) {
+    const goalBlocks = Math.max(1, Math.ceil(goalSecs / BLOCK_SECS));
+    const reached = elapsed >= goalSecs;
+    const shown = Math.min(goalBlocks, max);
+    const head = [];
+    for (let i = 0; i < shown; i++) {
+      head.push(reached || i < validated ? "done" : i === validated ? curState : "empty");
+    }
+    return {
+      head,
+      overflow: goalBlocks > max ? goalBlocks - max : 0,
+      tail: null,
+      bonus: reached ? Math.min(4, Math.max(0, validated - goalBlocks)) : 0,
+      fraction,
+    };
+  }
+
+  // ── Mode libre — pas de fin, les blocs poussent ──
+  const need = validated + 1;
+  if (need <= max) {
+    const baseline = Math.max(need, 6);       // toujours au moins 6 emplacements
+    const head = [];
+    for (let i = 0; i < Math.min(baseline, max); i++) {
+      head.push(i < validated ? "done" : i === validated ? curState : "empty");
+    }
+    return { head, overflow: 0, tail: null, bonus: 0, fraction };
+  }
+  // Session longue : [quelques validés] +N [bloc en cours]
+  const headDone = max - 2;
+  return {
+    head: Array.from({ length: headDone }, () => "done"),
+    overflow: validated - headDone,
+    tail: curState,
+    bonus: 0,
+    fraction,
+  };
+}
+
+// Un bloc individuel. `fraction` remplit le bloc en cours (0→1).
+function Block({ state, fraction = 0, focus }) {
+  const GREEN = "#14B885";
+  const base = {
+    flex: 1,
+    minWidth: focus ? 8 : 5,
+    maxWidth: focus ? 46 : 30,
+    height: focus ? 22 : 14,
+    borderRadius: focus ? 6 : 4,
+    position: "relative",
+    overflow: "hidden",
+    transition: "background-color 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease",
+  };
+  if (state === "done") {
+    return <span style={{ ...base, backgroundColor: GREEN, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }} />;
+  }
+  if (state === "bonus") {
+    return <span style={{ ...base, backgroundImage: "linear-gradient(155deg,#2BD9A4,#14B885)", boxShadow: "0 0 10px rgba(43,217,164,0.45)" }} />;
+  }
+  if (state === "active") {
+    return (
+      <span className="bt-block-active" style={{ ...base, backgroundColor: focus ? "rgba(20,184,133,0.16)" : "var(--bt-accent-bg)" }}>
+        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: GREEN, transition: "width 0.9s linear" }} />
+      </span>
+    );
+  }
+  if (state === "paused") {
+    return (
+      <span className="bt-block-paused" style={{ ...base, backgroundColor: focus ? "rgba(203,90,78,0.16)" : "rgba(203,90,78,0.10)" }}>
+        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: PAUSE_ACCENT, opacity: 0.85 }} />
+      </span>
+    );
+  }
+  if (state === "next") {
+    return <span style={{ ...base, backgroundColor: "transparent", boxShadow: `inset 0 0 0 1.5px ${focus ? "rgba(255,255,255,0.24)" : "var(--bt-border)"}` }} />;
+  }
+  // empty
+  return <span style={{ ...base, backgroundColor: focus ? "rgba(255,255,255,0.07)" : "var(--bt-subtle)", boxShadow: focus ? "none" : "inset 0 0 0 1px var(--bt-border)" }} />;
+}
+
+function BlocusBlocks({ elapsed, running, paused, goalSecs, focus = false }) {
+  const max = focus ? 16 : 12;
+  const { head, overflow, tail, bonus, fraction } = buildBlockLayout({ elapsed, goalSecs, running, paused, max });
   return (
-    <div className="flex items-center justify-center gap-[3px] w-full" style={{ height }} aria-hidden="true">
-      {WAVE_HEIGHTS.map((h, i) => {
-        const filled = i <= lastFilled;
-        const edgeDist = lastFilled - i;
-        const bobbing = !wake && running && !paused && filled && edgeDist <= 3;
-        const depth = filled && lastFilled > 0 ? i / lastFilled : 1;
-        return (
-          <span key={i}
-            className={`flex-1 rounded-full ${wake ? "bt-wave-wake" : bobbing ? "bt-wave-bob" : ""}`}
-            style={{
-              maxWidth: 4,
-              minWidth: 1.5,
-              height: `${h * 100}%`,
-              backgroundColor: filled ? color : trackColor,
-              opacity: filled ? (paused ? 0.4 : 0.62 + 0.38 * depth) : 1,
-              boxShadow: running && !paused && filled && edgeDist === 0 ? `0 0 12px ${color}` : "none",
-              transition: "background-color 0.5s ease, opacity 0.5s ease",
-              animationDelay: wake ? `${i * 12}ms` : bobbing ? `${-(edgeDist * 0.35)}s` : undefined,
-              animationDuration: bobbing ? `${1.4 + (i % 3) * 0.25}s` : undefined,
-            }} />
-        );
-      })}
+    <div className="flex items-center justify-center gap-[5px] w-full" style={{ minHeight: focus ? 22 : 14 }} aria-hidden="true">
+      {head.map((s, i) => (
+        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} />
+      ))}
+      {overflow > 0 && (
+        <span className="font-num tabular-nums shrink-0 px-1" style={{ fontSize: focus ? 13 : 11, fontWeight: 700, color: focus ? "rgba(255,255,255,0.6)" : "var(--bt-text-3)" }}>
+          +{overflow}
+        </span>
+      )}
+      {tail && <Block state={tail} fraction={fraction} focus={focus} />}
+      {bonus > 0 && (
+        <>
+          <span className="shrink-0" style={{ width: 4 }} />
+          {Array.from({ length: bonus }, (_, i) => <Block key={`b${i}`} state="bonus" focus={focus} />)}
+        </>
+      )}
     </div>
   );
 }
@@ -215,7 +278,6 @@ export default function Dashboard() {
   // Objectif de session — l'intention posée avant de démarrer. Persisté
   // (localStorage) pour que l'habitude survive aux rechargements.
   const [sessionGoalMin, setSessionGoalMin] = useState(null);
-  const [msgIdx, setMsgIdx] = useState(0); // rotation des messages vivants
 
   // Pomodoro
   const [pomodoro, setPomodoro]     = useState(false);
@@ -355,25 +417,22 @@ export default function Dashboard() {
     } catch {}
   }
 
-  // Message vivant : tourne toutes les 12 s pendant la session.
+  // ── Suivi de la pause ──────────────────────────────────────────
+  // En pause on rend le chrono TRÈS visible : "Pause depuis mm:ss" +
+  // bordeaux doux qui pulse. On mémorise l'instant de mise en pause et on
+  // tick chaque seconde (le TimerContext ne re-rend plus quand il est figé).
+  const isPaused = !running && elapsed > 0;
+  const [pausedAt, setPausedAt] = useState(null);
+  const [, setPauseTick] = useState(0);
   useEffect(() => {
-    if (!running) { setMsgIdx(0); return; }
-    const id = setInterval(() => setMsgIdx(i => i + 1), 12000);
+    if (!isPaused) { setPausedAt(null); return; }
+    setPausedAt(prev => prev ?? Date.now());
+    const id = setInterval(() => setPauseTick(x => x + 1), 1000);
     return () => clearInterval(id);
-  }, [running]);
-
-  // Sweep de réveil de l'onde au passage idle → running.
-  const [waveWake, setWaveWake] = useState(false);
-  const prevRunningRef = useRef(false);
-  useEffect(() => {
-    const was = prevRunningRef.current;
-    prevRunningRef.current = running;
-    if (running && !was) {
-      setWaveWake(true);
-      const id = setTimeout(() => setWaveWake(false), 1500);
-      return () => clearTimeout(id);
-    }
-  }, [running]);
+  }, [isPaused]);
+  const pauseSince = pausedAt
+    ? formatDuration(Math.max(0, Math.floor((Date.now() - pausedAt) / 1000))).replace(/^00:/, "")
+    : "00:00";
 
   // Contrôles du mode focus : s'estompent après 4,5 s d'inactivité (pattern
   // lecteur vidéo) — tout mouvement / toucher / touche les fait réapparaître.
@@ -680,23 +739,17 @@ export default function Dashboard() {
     if (courseId === id) setCourseId("");
   }
 
-  // La carte du chrono devient rouge quand le chrono est en pause (démarré mais arrêté)
-  const isPaused = !running && elapsed > 0;
-
   const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
   const goalPct = Math.min(100, Math.round((totalToday / DAILY_GOAL_SECS) * 100));
 
-  // Onde de session : en pomodoro, progression de la phase en cours ; avec
-  // un objectif de session, progression vers cet objectif ; sinon,
-  // progression réelle vers les 2h du jour (enregistré + en cours).
+  // Objectif effectif des Blocus Blocks : phase pomodoro > objectif de
+  // session > mode libre (null → les blocs poussent sans fin).
   const pomoTargetSecs = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
   const sessionGoalSecs = !pomodoro && sessionGoalMin ? sessionGoalMin * 60 : null;
-  const wavePct = pomodoro
-    ? (pomoTargetSecs > 0 ? elapsed / pomoTargetSecs : 0)
-    : sessionGoalSecs
-      ? elapsed / sessionGoalSecs
-      : (totalToday + elapsed) / DAILY_GOAL_SECS;
-  const waveColor = pomodoro && pomoPhase === "break" ? "#0ea5e9" : "#14B885";
+  const blockGoalSecs = pomodoro ? pomoTargetSecs : sessionGoalSecs;
+  // Marée du mode focus : monte vers l'objectif ; en libre, ambiance basse
+  // et constante (aucune "fin" à suggérer).
+  const focusTidePct = blockGoalSecs ? Math.min(1, elapsed / blockGoalSecs) : 0.22;
 
   // ── Records (fenêtre 90 jours) ────────────────────────────────
   const dayTotals = {};
@@ -711,32 +764,33 @@ export default function Dashboard() {
   const weekStartISO = weekStart.toISOString().slice(0, 10);
   const weekSecs = Object.entries(dayTotals).reduce((a, [d, v]) => (d >= weekStartISO ? a + v : a), 0);
 
-  // ── Messages vivants — uniquement des faits réels, jamais du remplissage ──
-  function buildLiveMessages() {
-    const msgs = [];
-    const sessionXP = Math.floor(elapsed / 60);
-    if (sessionGoalSecs) {
-      const rem = Math.ceil((sessionGoalSecs - elapsed) / 60);
-      msgs.push(rem > 0
-        ? t("dash.msgSessionRemaining").replace("{m}", String(rem))
-        : t("dash.msgSessionReached"));
+  // ── Texte intelligent sous les blocs — UNE phrase, selon le mode ──
+  const blkValidated = Math.floor(elapsed / BLOCK_SECS);
+  const blkGoalCount = blockGoalSecs ? Math.max(1, Math.ceil(blockGoalSecs / BLOCK_SECS)) : null;
+  const blkReached = blockGoalSecs ? elapsed >= blockGoalSecs : false;
+  const nextBlockMin = Math.max(1, Math.ceil((BLOCK_SECS - (elapsed % BLOCK_SECS)) / 60));
+  function blockLine() {
+    if (isPaused) return t("dash.blkPause").replace("{t}", pauseSince);
+    if (pomodoro) {
+      if (pomoPhase === "break") return t("dash.nextAutoStart");
+      const rem = formatMinutesShort(Math.max(0, blockGoalSecs - elapsed));
+      return t("dash.blkPomo")
+        .replace("{done}", String(Math.min(blkValidated, blkGoalCount)))
+        .replace("{total}", String(blkGoalCount))
+        .replace("{t}", rem);
     }
-    const dailyRem = Math.ceil((DAILY_GOAL_SECS - (totalToday + elapsed)) / 60);
-    msgs.push(dailyRem > 0
-      ? t("dash.msgDailyRemaining").replace("{m}", String(dailyRem))
-      : t("dash.msgDailyReached"));
-    if (sessionXP >= 2) msgs.push(t("dash.msgXP").replace("{xp}", String(sessionXP)));
-    if (streak > 0) msgs.push(t("dash.msgStreak").replace("{n}", String(streak)));
-    if (bestDaySecs > 0) {
-      msgs.push(totalToday + elapsed > bestDaySecs
-        ? t("dash.msgBestDayLive")
-        : t("dash.msgBestDay").replace("{d}", formatMinutesShort(bestDaySecs)));
+    if (blockGoalSecs) {
+      if (blkReached) return t("dash.blkGoalOver").replace("{m}", String(Math.max(0, Math.floor((elapsed - blockGoalSecs) / 60))));
+      const rem = formatMinutesShort(Math.max(0, blockGoalSecs - elapsed));
+      return t("dash.blkGoal").replace("{done}", String(blkValidated)).replace("{total}", String(blkGoalCount)).replace("{t}", rem);
     }
-    if (longestSessionSecs > 0 && elapsed > longestSessionSecs) msgs.push(t("dash.msgLongestLive"));
-    return msgs;
+    // Mode libre : rien tant qu'on n'a pas démarré (les chips objectif sont là).
+    if (!running && elapsed === 0) return null;
+    if (blkValidated === 0) return t("dash.blkFreeNext").replace("{m}", String(nextBlockMin));
+    return (blkValidated === 1 ? t("dash.blkFreeOne") : t("dash.blkFreeMany").replace("{n}", String(blkValidated)))
+      .replace("{m}", String(nextBlockMin));
   }
-  const liveMessages = running && !(pomodoro && pomoPhase === "break") ? buildLiveMessages() : [];
-  const liveMessage = liveMessages.length ? liveMessages[msgIdx % liveMessages.length] : null;
+  const liveMessage = blockLine();
 
   // ── Moments — le bon message au bon moment ────────────────────
   // Détectés au franchissement d'un seuil (une seule fois par session),
@@ -844,7 +898,7 @@ export default function Dashboard() {
             style={{
               height: "58%",
               background: "radial-gradient(ellipse at 50% 100%, rgba(20,184,133,0.10), transparent 70%)",
-              opacity: (running || elapsed > 0) && !isPaused ? 0.35 + Math.min(1, wavePct) * 0.65 : 0,
+              opacity: (running || elapsed > 0) && !isPaused ? 0.35 + focusTidePct * 0.65 : 0,
               transition: "opacity 1.5s ease",
             }} />
 
@@ -1005,32 +1059,35 @@ export default function Dashboard() {
               </div>
             )}
             {isPaused && !pomodoro && (
-              <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-5" style={{ color: "#ef4444" }}>
-                {t("dash.pausedStatus")}
+              <div className="mb-5 flex justify-center">
+                <span className="bt-pause-pulse inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1.5 rounded-full"
+                  style={{ color: PAUSE_ACCENT, backgroundColor: "rgba(203,90,78,0.10)", border: "1px solid rgba(203,90,78,0.30)" }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                  {t("dash.pausedStatus")}
+                </span>
               </div>
             )}
 
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={isPaused && !pomodoro ? "#ef4444" : "var(--bt-text-1)"} />
+              color={isPaused && !pomodoro ? PAUSE_ACCENT : "var(--bt-text-1)"} />
 
-            <div className="mt-8 mx-auto w-full max-w-[420px]">
-              <SessionWave pct={wavePct} running={running} paused={isPaused && !pomodoro} wake={waveWake} color={waveColor} />
+            <div className="mt-8 mx-auto w-full max-w-[440px]">
+              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} />
             </div>
 
-            {/* Ligne vivante — hauteur fixe : aucun saut de layout.
-                Un moment (seuil franchi) prime sur la rotation ambiante. */}
+            {/* Ligne intelligente — hauteur fixe : aucun saut de layout.
+                Un moment (seuil franchi) prime sur le statut des blocs. */}
             <div className="h-5 mt-5">
               {moment ? (
                 <p key={moment.id} className="bt-msg-pop text-sm font-semibold" style={{ color: "#14B885" }}>
                   {moment.text}
                 </p>
               ) : liveMessage ? (
-                <p key={liveMessage} className="bt-msg-swap text-sm" style={{ color: "var(--bt-text-3)" }}>
+                <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
+                  style={{ color: isPaused ? PAUSE_ACCENT : "var(--bt-text-3)" }}>
                   {liveMessage}
                 </p>
-              ) : pomodoro && pomoPhase === "break" ? (
-                <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("dash.nextAutoStart")}</p>
               ) : null}
             </div>
           </div>
@@ -1384,23 +1441,29 @@ export default function Dashboard() {
       {focusMode && (
         <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-500 overflow-hidden bt-grain"
           style={{
-            background: (isPaused && !pomodoro) ? "#220000" : "var(--bt-ink)",
+            background: (isPaused && !pomodoro) ? "#1E0F0D" : "var(--bt-ink)",
             zIndex: 100,
           }}>
-          {/* Dégradé ink vivant — dérive lentement, coupé sur l'état "pausé" rouge */}
+          {/* Dégradé ink vivant — dérive lentement, coupé sur l'état pausé */}
           {!(isPaused && !pomodoro) && <div className="bt-ink-drift" />}
 
-          {/* Marée de progression — une lueur verte monte lentement du bas de
-              l'écran au fil de la session (transform GPU, aucun re-layout) */}
+          {/* Marée de progression — lueur verte qui monte vers l'objectif
+              (transform GPU). En mode libre elle reste basse (aucune fin). */}
           <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none"
             style={{
               height: "80%",
               background: "linear-gradient(to top, rgba(20,184,133,0.20), rgba(20,184,133,0.06) 55%, transparent)",
-              transform: `scaleY(${(0.18 + Math.min(1, wavePct) * 0.82).toFixed(3)})`,
+              transform: `scaleY(${(0.18 + focusTidePct * 0.82).toFixed(3)})`,
               transformOrigin: "bottom",
               opacity: (isPaused && !pomodoro) ? 0 : 1,
               transition: "transform 2.5s ease, opacity 0.6s ease",
             }} />
+
+          {/* Marée bordeaux — remplace la verte en pause et pulse doucement */}
+          {isPaused && !pomodoro && (
+            <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none bt-pause-tide"
+              style={{ height: "55%", background: "linear-gradient(to top, rgba(203,90,78,0.26), rgba(203,90,78,0.05) 60%, transparent)" }} />
+          )}
 
           <p className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}
@@ -1424,31 +1487,30 @@ export default function Dashboard() {
               color={(isPaused && !pomodoro) ? "#ef4444" : "var(--bt-ink-text)"}
               size="clamp(4.5rem, 16vw, 8.5rem)" />
 
-            <div className="mt-10 mx-auto w-full max-w-[560px]">
-              <SessionWave pct={wavePct} running={running} paused={isPaused && !pomodoro} wake={waveWake} color={waveColor}
-                trackColor="rgba(255,255,255,0.13)" height={56} />
+            <div className="mt-10 mx-auto w-full max-w-[600px]">
+              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} focus />
             </div>
 
-            {/* Ligne vivante — hauteur fixe : aucun saut de layout.
-                Un moment (seuil franchi) prime sur la rotation ambiante. */}
+            {/* Ligne intelligente — hauteur fixe : aucun saut de layout.
+                Un moment (seuil franchi) prime sur le statut des blocs. */}
             <div className="h-5 mt-6">
               {moment ? (
                 <p key={moment.id} className="bt-msg-pop text-sm font-semibold" style={{ color: "#2BD9A4" }}>
                   {moment.text}
                 </p>
               ) : liveMessage ? (
-                <p key={liveMessage} className="bt-msg-swap text-sm" style={{ color: "var(--bt-ink-muted)" }}>
+                <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
+                  style={{ color: isPaused ? "#E88A80" : "var(--bt-ink-muted)" }}>
                   {liveMessage}
                 </p>
-              ) : pomodoro && pomoPhase === "break" ? (
-                <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.nextAutoStart")}</p>
               ) : null}
             </div>
 
-            {/* Indicateur EN PAUSE en mode focus */}
+            {/* Indicateur EN PAUSE — pastille bordeaux qui pulse */}
             {isPaused && !pomodoro && (
-              <div className="inline-block mt-4 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
-                style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.15)", letterSpacing: "0.12em" }}>
+              <div className="bt-pause-pulse inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
+                style={{ color: "#E88A80", backgroundColor: "rgba(203,90,78,0.18)", letterSpacing: "0.12em" }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
                 {t("dash.pausedStatus")}
               </div>
             )}
@@ -1469,7 +1531,7 @@ export default function Dashboard() {
               <>
                 {!running ? (
                   <button onClick={start} disabled={!courseId && !pomodoro}
-                    className="btn-primary px-10 py-3 text-base bt-press">
+                    className={`btn-primary px-10 py-3 text-base bt-press ${isPaused ? "bt-pause-cta" : ""}`}>
                     {elapsed > 0 ? t("dash.resume") : t("dash.start")}
                   </button>
                 ) : (

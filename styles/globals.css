@@ -362,20 +362,40 @@ html {
 }
 .bt-digit-roll { display: inline-block; animation: bt-digit-roll 0.34s cubic-bezier(0.22, 1, 0.36, 1); }
 
-/* Session wave — gentle breathing of the bars near the progression edge */
-@keyframes bt-wave-bob {
-  0%, 100% { transform: scaleY(1); }
-  50%      { transform: scaleY(1.38); }
+/* Blocus Blocks — bloc en cours : glow vert qui respire doucement */
+@keyframes bt-block-active {
+  0%, 100% { box-shadow: 0 0 0 1.5px #14B885; }
+  50%      { box-shadow: 0 0 11px 1.5px rgba(20, 184, 133, 0.55); }
 }
-.bt-wave-bob { animation: bt-wave-bob 1.6s ease-in-out infinite; transform-origin: center; }
+.bt-block-active { animation: bt-block-active 2s ease-in-out infinite; }
 
-/* Session wave — wake sweep when the timer starts (staggered per bar) */
-@keyframes bt-wave-wake {
-  0%   { opacity: 0.2; transform: scaleY(0.35); }
-  60%  { opacity: 1;   transform: scaleY(1.18); }
-  100% { transform: scaleY(1); }
+/* Blocus Blocks — bloc en pause : bordeaux doux qui pulse (jamais agressif) */
+@keyframes bt-block-paused {
+  0%, 100% { box-shadow: 0 0 0 1.5px rgba(203, 90, 78, 0.7); }
+  50%      { box-shadow: 0 0 12px 1.5px rgba(203, 90, 78, 0.5); }
 }
-.bt-wave-wake { animation: bt-wave-wake 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards; transform-origin: center; }
+.bt-block-paused { animation: bt-block-paused 2.6s ease-in-out infinite; }
+
+/* Pause — halo bordeaux doux autour de la pastille "EN PAUSE" */
+@keyframes bt-pause-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(203, 90, 78, 0); }
+  50%      { box-shadow: 0 0 0 5px rgba(203, 90, 78, 0.14); }
+}
+.bt-pause-pulse { animation: bt-pause-pulse 2.4s ease-in-out infinite; }
+
+/* Pause — marée bordeaux du mode focus, respiration lente */
+@keyframes bt-pause-tide {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 0.85; }
+}
+.bt-pause-tide { animation: bt-pause-tide 2.6s ease-in-out infinite; }
+
+/* Pause — bouton Reprendre : léger appel visuel */
+@keyframes bt-pause-cta {
+  0%, 100% { box-shadow: 0 4px 16px rgba(20, 184, 133, 0.30); }
+  50%      { box-shadow: 0 4px 22px rgba(20, 184, 133, 0.55); }
+}
+.bt-pause-cta { animation: bt-pause-cta 2.2s ease-in-out infinite; }
 
 /* XP float — number rises and fades out */
 @keyframes bt-xp-float {
@@ -461,8 +481,11 @@ html {
   .bt-msg-swap,
   .bt-msg-pop,
   .bt-digit-roll,
-  .bt-wave-bob,
-  .bt-wave-wake,
+  .bt-block-active,
+  .bt-block-paused,
+  .bt-pause-pulse,
+  .bt-pause-tide,
+  .bt-pause-cta,
   .bt-xp-float,
   .badge-shine,
   .bt-card-glow,
