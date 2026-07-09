@@ -35,6 +35,7 @@ html {
   --bt-accent-bg:     #EAFBF4;
   --bt-accent-border: #C6EED9;
   --bt-shadow:        rgba(31,26,23,0.055);
+  --bt-shimmer:       rgba(255,255,255,0.62);
   --bt-mobile-bg:     rgba(255,253,251,0.95);
   --bt-mobile-nav-bg: rgba(255,253,251,0.97);
   /* Surface "ink" — vert profond de la famille accent, réservé aux moments
@@ -65,6 +66,7 @@ html {
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
   --bt-shadow:        rgba(0,0,0,0.18);
+  --bt-shimmer:       rgba(255,255,255,0.06);
   --bt-mobile-bg:     rgba(26,23,21,0.95);
   --bt-mobile-nav-bg: rgba(26,23,21,0.97);
   --bt-ink:           #0A2A20;
@@ -476,6 +478,49 @@ html {
 }
 .bt-confetti { animation: bt-confetti-fall 1.4s ease-in forwards; }
 
+/* ── Toasts — feedback d'action sobre, entrée montante puis sortie ──── */
+@keyframes bt-toast-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bt-toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+.bt-toast-in  { animation: bt-toast-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.bt-toast-out { animation: bt-toast-out 0.26s ease both; }
+
+/* ── Skeletons — balayage doux (theme-neutre via CSS vars) ──────────── */
+.bt-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bt-subtle);
+  border-radius: 10px;
+}
+.bt-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--bt-shimmer) 50%,
+    transparent 100%
+  );
+  animation: bt-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes bt-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* ── Transition de contenu d'onglet — léger fade+rise au changement ─── */
+@keyframes bt-tab-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bt-tab-fade { animation: bt-tab-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
   .bt-msg-swap,
@@ -496,7 +541,11 @@ html {
   .bt-confetti,
   .bt-rise,
   .bt-stagger > *,
-  .bt-ink-drift {
+  .bt-ink-drift,
+  .bt-toast-in,
+  .bt-toast-out,
+  .bt-tab-fade,
+  .bt-skeleton::after {
     animation: none !important;
   }
   .bt-press { transition: none !important; }

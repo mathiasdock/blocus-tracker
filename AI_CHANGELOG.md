@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Micro-interactions premium : systeme de toasts global + skeletons + transitions
+
+Passe globale de micro-interactions sobres sur toute l'app. **Constat de depart** : l'infra d'animations etait deja tres riche (`styles/globals.css` : ~25 keyframes `bt-*`, blocs Chrono anime, `bt-stagger`/`bt-rise` d'entree de page, `prefers-reduced-motion` couvert). Le vrai manque etait le **feedback d'action** (uniquement un toast "nouveau message" ; les succes passaient par `alert()` ou du texte inline) et les **skeletons**. Travail centre sur la coherence, pas sur l'ajout d'effets partout.
+
+- **Systeme de toasts global** (nouveau `contexts/ToastContext.js`, monte dans `_app.js`) : `useToast().toast(message, type)` avec `success|error|info`, file plafonnee a 3, auto-dismiss 3s, entree montante + sortie douce (`bt-toast-in`/`bt-toast-out`). Sobre : carte surface + pastille coloree (check vert / croix rouge douce / info neutre), bottom-right desktop, pleine largeur au-dessus de la nav sur mobile. 100% CSS vars (dark mode gratuit), respecte `prefers-reduced-motion`.
+- **Toasts cables** sur les actions explicitement demandees : ami (demande envoyee / acceptee), objectif ajoute, examen ajoute, calendrier exporte, profil enregistre, question publiee, ressource partagee, "ajoute a mon planning", + erreurs. Les `alert()` de succes/erreur proches ont ete convertis en toasts. **Choix delibere** : PAS de toast a chaque message envoye (l'apparition du message EST le feedback — un toast par message serait spammy, pas premium).
+- **Skeletons** (nouveau `components/Skeleton.js` : `SkeletonBar/Circle/Row/List`, utilitaire `.bt-skeleton` a balayage doux, theme-neutre via nouvelle var `--bt-shimmer`) : remplacent le texte "Chargement…" du classement public (Stats) et des recherches/suggestions (Social).
+- **Transitions** : `bt-tab-fade` (nouveau) sur le changement d'onglet Communautes et le changement de vue mois/semaine/jour du Planning ; `bt-rise` d'entree ajoute a Messages et Communautes (les 2 pages qui n'en avaient pas).
+- **Boutons/cartes** : l'infra existante (`.btn:active` scale, hover, `.card-lift`) etait deja bonne — pas touchee. Le gain cote boutons vient du feedback de succes (toasts).
+- **Reduced-motion** : les 4 nouvelles animations (`bt-toast-in/out`, `bt-tab-fade`, `bt-skeleton::after`) ajoutees au bloc `@media (prefers-reduced-motion: reduce)`.
+
+Verification : `npm run lint` clean, `npm run build` propre (26/26). Verifie en navigateur (build prod offline) : toast a l'export calendrier (desktop bottom-right + mobile pleine largeur au-dessus de la nav, pile de 3), fade d'onglet Communautes, changement de vue Planning mois->semaine (JSX restructure — grille semaine intacte), aucune erreur console.
+
 ## 2026-07-09 - Communautes : refonte en vrai "hub etudiant" ouvert a tous (`pages/communautes.js`)
 
 Demande explicite en 11 points, precedee d'une investigation en 5 agents paralleles puis d'une revue adversariale en 4 axes (RLS/securite, egress, i18n, non-regression) avant finalisation.

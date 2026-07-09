@@ -6,6 +6,7 @@ import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
@@ -568,6 +569,7 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
 export default function Profile() {
   const { user, profile, refreshProfile, signOut, updateEmail } = useAuth();
   const { t, lang, setLang } = useI18n();
+  const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const avatarInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -789,8 +791,8 @@ export default function Profile() {
       study_year: actualYear || null, bio: form.bio.trim() || null,
     }).eq("id", user.id);
     setBusy(false);
-    if (error) setMsg("Erreur : " + error.message);
-    else { setMsg(t("profile.updated")); refreshProfile(); }
+    if (error) { setMsg("Erreur : " + error.message); toast(t("toast.genericError"), "error"); }
+    else { setMsg(t("profile.updated")); refreshProfile(); toast(t("toast.saved")); }
   }
 
   // ── Computed values ──────────────────────────────────────

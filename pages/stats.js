@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import StudyHeatmap from "../components/StudyHeatmap";
+import { SkeletonList } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -1051,9 +1052,7 @@ export default function Stats() {
           <div className="[&::-webkit-scrollbar]:hidden"
             style={{ maxHeight: "480px", overflowY: "auto", scrollbarWidth: "none" }}>
             {loadingPublic ? (
-              <p className="py-6 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
-                {t("common.loading")}
-              </p>
+              <div className="py-1"><SkeletonList rows={6} avatar={32} lines={1} /></div>
             ) : (
               <ul className="space-y-1.5">
                 {publicLeader.map((row, i) => {

@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import { useToast } from "../contexts/ToastContext";
 import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
 import { todayISO, formatMinutesShort } from "../lib/format";
@@ -1392,6 +1393,7 @@ function TimeGrid({ days }) {
 export default function Planning() {
   const { user, profile, refreshProfile } = useAuth();
   const { t, lang } = useI18n();
+  const { toast } = useToast();
   const router = useRouter();
   const {
     courseId: timerCourseId, setCourseId: setTimerCourseId,
@@ -1464,7 +1466,7 @@ export default function Planning() {
         target_minutes: Number(minutes) || 0, scheduled_date: selectedDate,
         scheduled_time: newTime || null, ...recurrenceFields(recurrenceWeekdays, recurrenceUntil) })
       .select().single();
-    if (data) setObjectives(p => [...p, data]);
+    if (data) { setObjectives(p => [...p, data]); toast(t("toast.objectiveAdded")); }
     setTitle(""); setMinutes(""); setNewTime(""); setRecurrenceWeekdays([]); setRecurrenceUntil("");
   }
 
@@ -1528,6 +1530,7 @@ export default function Planning() {
     if (data) {
       setExams(p => [...p, data]);
       notifyXPChanged();
+      toast(t("toast.examAdded"));
     }
   }
 
@@ -1591,7 +1594,7 @@ export default function Planning() {
     setTogglingShare(true);
     const next = !profile?.planning_public;
     const { error } = await supabase.from("profiles").update({ planning_public: next }).eq("id", user.id);
-    if (error) alert(t("plan.shareError"));
+    if (error) toast(t("plan.shareError"), "error");
     else await refreshProfile();
     togglingShareRef.current = false;
     setTogglingShare(false);
@@ -1602,9 +1605,10 @@ export default function Planning() {
 
   // Export .ics : examens + objectifs (non terminés) vers un agenda externe.
   function exportCalendar() {
-    if (countExportable({ objectives, exams }) === 0) { alert(t("plan.exportEmpty")); return; }
+    if (countExportable({ objectives, exams }) === 0) { toast(t("plan.exportEmpty"), "info"); return; }
     const ics = buildIcs({ objectives, exams, courseName, t, calName: t("plan.calendarName") });
     downloadIcs(`blocus-tracker-${todayISO()}.ics`, ics);
+    toast(t("toast.planningExported"));
   }
 
   const byDate = objectives.reduce((acc, o) => {
@@ -1706,6 +1710,8 @@ export default function Planning() {
         <TodayCard />
         <WeekAheadCard />
 
+        {/* Keyed on the view so switching mois/semaine/jour plays a soft fade. */}
+        <div key={view} className="bt-tab-fade">
         {view === "month" && (
           <div className="grid gap-5 lg:grid-cols-3">
             <MonthView />
@@ -1724,6 +1730,7 @@ export default function Planning() {
             <div><ObjectivesToggle /></div>
           </div>
         )}
+        </div>
 
         <RevisionChecklists />
       </Layout>

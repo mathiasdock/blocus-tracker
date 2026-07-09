@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
+import { ToastProvider } from "../contexts/ToastContext";
 import { I18nProvider } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
@@ -265,6 +266,7 @@ export default function App({ Component, pageProps }) {
       <I18nProvider>
       <TimerProvider>
       <NotificationProvider>
+      <ToastProvider>
         <Head>
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
           <meta name="application-name" content="Blocus Tracker" />
@@ -281,6 +283,7 @@ export default function App({ Component, pageProps }) {
         <ReferralCapture />
         <PushInit />
         <InstallBanner />
+      </ToastProvider>
       </NotificationProvider>
       </TimerProvider>
       </I18nProvider>

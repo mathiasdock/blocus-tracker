@@ -2,8 +2,10 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
+import { SkeletonList } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
+import { useToast } from "../contexts/ToastContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo, formatDuration } from "../lib/format";
@@ -102,6 +104,7 @@ export default function Messages() {
   const router = useRouter();
   const { user, profile } = useAuth();
   const { markSeen, groupCount, markGroupSeen } = useNotifications();
+  const { toast } = useToast();
   const { t, lang }       = useI18n();
   const isAdmin = profile?.is_admin === true;
 
@@ -392,8 +395,10 @@ export default function Messages() {
       .insert({ requester: user.id, addressee: id, status: "pending" });
     if (error) {
       setSocialMsg(t("friends.requestError"));
+      toast(t("friends.requestError"), "error");
     } else {
       setSocialMsg(t("friends.requestSent"));
+      toast(t("toast.friendRequestSent"));
       notifyXPChanged();
     }
     setSuggestions((prev) => prev.filter((p) => p.id !== id));
@@ -402,7 +407,7 @@ export default function Messages() {
 
   async function acceptFriend(linkId) {
     const { error } = await supabase.from("friendships").update({ status: "accepted" }).eq("id", linkId);
-    if (!error) notifyXPChanged();
+    if (!error) { notifyXPChanged(); toast(t("toast.friendAdded")); }
     await loadFriendLinks();
     await loadFriends();
   }
@@ -1048,7 +1053,7 @@ export default function Messages() {
       <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("social.title")}</h1>
       <p className="text-sm mb-4" style={{ color: "var(--bt-text-2)" }}>{t("social.subtitle")}</p>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3 bt-rise">
 
         {/* ── Sidebar — recherche + demandes + liste unifiée + suggestions ── */}
         <aside className={`${mobileView === "chat" ? "hidden lg:block" : ""} lg:col-span-1`}>
@@ -1079,7 +1084,7 @@ export default function Messages() {
                 <div className="absolute left-3 right-3 mt-1.5 rounded-2xl z-30 overflow-hidden max-h-[65vh] overflow-y-auto"
                   style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
                   {searchingSocial ? (
-                    <p className="px-4 py-4 text-sm" style={{ color: "var(--bt-text-3)" }}>{t("common.loading")}</p>
+                    <div className="px-2 py-2"><SkeletonList rows={3} avatar={30} lines={2} /></div>
                   ) : matchingConversations.length === 0 && socialResults.people.length === 0 ? (
                     <p className="px-4 py-4 text-sm" style={{ color: "var(--bt-text-3)" }}>
                       {t("social.searchNoResults").replace("{q}", socialResults.query)}
@@ -1299,7 +1304,7 @@ export default function Messages() {
                     <button onClick={() => setShowSuggestions(false)} className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("common.close")}</button>
                   </div>
                   {loadingSuggestions ? (
-                    <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("common.loading")}</p>
+                    <SkeletonList rows={3} avatar={28} lines={1} />
                   ) : suggestions.length === 0 ? (
                     <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("social.suggestionsEmpty")}</p>
                   ) : (

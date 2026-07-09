@@ -3,6 +3,7 @@ import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
+import { useToast } from "../contexts/ToastContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
@@ -228,6 +229,7 @@ export default function Communautes() {
   const { user, profile, loading: authLoading } = useAuth();
   const isAdmin = profile?.is_admin === true;
   const { communityCount, markSeen } = useNotifications();
+  const { toast } = useToast();
   const { t, lang } = useI18n();
 
   // The community the current user belongs to (resolved from profile.university).
@@ -442,7 +444,7 @@ export default function Communautes() {
       attachment_url, attachment_type, attachment_name,
     });
     setBusy(false);
-    if (error) { alert(t("comm.postFailed")); return false; }
+    if (error) { toast(t("comm.postFailed"), "error"); return false; }
     notifyXPChanged();
     load({ forceScroll: true });
     return true;
@@ -460,7 +462,7 @@ export default function Communautes() {
   async function submitQuestion(e) {
     e.preventDefault();
     const ok = await postMessage({ rawText: questionTitle, uploadFile: null, prefix: "[Question]", setBusy: setSendingForm });
-    if (ok) { setQuestionTitle(""); setShowQuestionForm(false); }
+    if (ok) { setQuestionTitle(""); setShowQuestionForm(false); toast(t("toast.questionPosted")); }
   }
 
   async function submitReply(e) {
@@ -475,13 +477,14 @@ export default function Communautes() {
     if (ok) {
       setResourceDesc(""); setResourceFile(null); setShowResourceForm(false);
       if (resourceFileInputRef.current) resourceFileInputRef.current.value = "";
+      toast(t("toast.resourceShared"));
     }
   }
 
   async function submitExam(e) {
     e.preventDefault();
     const ok = await postMessage({ rawText: examName, uploadFile: null, prefix: "[Examen]", examDateValue: examDate || null, setBusy: setSendingForm });
-    if (ok) { setExamName(""); setExamDate(""); setShowExamForm(false); }
+    if (ok) { setExamName(""); setExamDate(""); setShowExamForm(false); toast(t("toast.examAdded")); }
   }
 
   async function addExamToPlanning(m) {
@@ -498,8 +501,9 @@ export default function Communautes() {
     if (!error) {
       notifyXPChanged();
       setPlanningAdded((prev) => ({ ...prev, [m.id]: true }));
+      toast(t("comm.addedToPlanning"));
     } else {
-      alert(t("comm.postFailed"));
+      toast(t("comm.postFailed"), "error");
     }
   }
 
@@ -603,7 +607,7 @@ export default function Communautes() {
       <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("comm.title")}</h1>
       <p className="text-sm mb-4" style={{ color: "var(--bt-text-2)" }}>{t("comm.subtitle")}</p>
 
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-4 bt-rise">
         {/* ── Sidebar — recherche + Ton école + annuaire par pays ── */}
         <aside className={`${listVisible} lg:col-span-1 card flex-col overflow-hidden`} style={panelStyle}>
           <div className="p-3 shrink-0 relative" style={{ borderBottom: "1px solid var(--bt-border)" }}>
@@ -740,8 +744,10 @@ export default function Communautes() {
                 ))}
               </div>
 
-              {/* Body — differs per tab, this is where the real work happens */}
+              {/* Body — differs per tab, this is where the real work happens.
+                  Inner wrapper keyed on the tab so a soft fade plays on switch. */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto min-w-0">
+                <div key={communitySpace} className="bt-tab-fade">
                 {communitySpace === "salon" && (
                   salonMessages.length === 0 ? (
                     <TabEmptyState title={t("comm.emptySalonTitle")} subtitle={t("comm.emptySalonSubtitle")} logo={activeMeta.logo} />
@@ -971,6 +977,7 @@ export default function Communautes() {
                     )}
                   </div>
                 )}
+                </div>
               </div>
 
               {/* Composer — Salon only; other tabs use their own inline forms.
