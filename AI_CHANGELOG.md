@@ -2,6 +2,24 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - "Messages" devient "Social" : refonte complete (`pages/messages.js`)
+
+Demande explicite en 10 points : fusionner amis / messages prives / groupes dans une seule interface fluide, au lieu de 3 grandes cartes separees. Design garde (minimal, vert, sobre), aucune migration Supabase (scoring et recherche 100% client).
+
+- **Renommage** : `nav.messages` → "Social" (sidebar), titre/description SEO de `/messages` mis a jour (`lib/seo.js`), nouveau H1 + sous-titre "Amis, messages et groupes d'etude." en tete de page.
+- **Liste unifiee** : les cartes "Messages prives" et "Groupes" fusionnees en une seule liste type Discord/Messenger (`conversations`, triee non-lus puis recence), chaque item indiquant son type ("Privé" / "Groupe · N membres"). Filtres Tout / Prives / Groupes.
+- **Recherche sociale centrale** : barre "Rechercher un ami, un groupe ou un pseudo…" en tete de colonne gauche. Recherche unifiee (`searchSocial`, debounce 280ms) melant conversations existantes et nouvelles personnes, avec classement (`searchTier` + `scoreCandidate`) : pseudo exact > nom > amis en commun > meme universite > activite recente.
+- **Suggestions ameliorees** : `loadSuggestions` ne trie plus seulement par universite — score reel combinant amis en commun (poids fort), meme universite, activite des 7 derniers jours (`fetchSocialSignals`, requetes batch sans N+1).
+- **Demandes d'amis discretes** : plus de grosse carte — ligne compacte "Demandes d'amis · N", cliquable, avec onglets Recues/Envoyees.
+- **Etat vide repense** : plus de grand vide a droite — "Bienvenue dans Social" + 2 CTA (Rechercher un ami / Creer un groupe) + apercu de 3 suggestions.
+- **En-tetes de conversation enrichis** : DM avec pastille "en ligne" (`studying_since`, deja utilisee ailleurs dans l'app) + boutons Voir profil / Lancer un chrono ; Groupe avec "N membres · Groupe d'etude" + boutons Infos / Lancer un chrono explicites.
+- **Mobile** : reutilise l'infra `mobileView` deja existante (liste ⇄ conversation plein ecran ⇄ retour), aucune regression.
+- Redirection historique `/friends → /messages?tab=relations` conservee (`openRelations` ouvre desormais le tiroir "Demandes d'amis" au lieu de l'ancien panneau plein ecran).
+
+i18n : namespace `social.*` ajoute en FR+EN (~30 cles : recherche, filtres, demandes, etat vide, en-tetes).
+
+Verification : `npm run lint` clean, `npm run build` propre OK (26/26). Verifie en navigateur (build prod offline, compte demo avec 1 groupe + 1 demande recue) : recherche avec statut de relation correct ("en attente"), demandes d'amis Accepter/Refuser, en-tete de groupe (Infos/Lancer un chrono), suggestions avec raisons ("Active cette semaine"), responsive mobile (liste → groupe plein ecran → bouton retour testes), aucune erreur console.
+
 ## 2026-07-08 - Chrono : "Sessions du jour" deplacee dans la colonne gauche, alignee sur "Mes cours"
 
 Suite du fix de grille etiree (`lg:items-start`) : ce fix avait bien supprime le vide DANS la carte Chrono, mais en creait un NOUVEAU entre les deux blocs de grille — "Sessions du jour" vivait dans une grille separee, plus bas dans le fichier, qui ne demarrait qu'apres la fin de toute la sidebar (tres haute avec plusieurs cours). Signale par l'utilisateur avec capture d'ecran.

@@ -7,6 +7,12 @@
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "blocus-offline",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 4321
     }
   ]
 }
