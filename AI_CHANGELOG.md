@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Image OG : correction du logo (le vrai chrono+livre au lieu du mauvais)
+
+L'utilisateur a signale que l'image de partage montrait le MAUVAIS logo. Le premier jet utilisait `public/icon.svg` (une marque simplifiee livre+horloge en trait), alors que le vrai logo de l'app est `public/logo-source.png` (chrono + livre ouvert, celui des icones PWA). En prime, `logo-source.png` avait ete supprime du working tree (jamais commite), d'ou le fallback.
+
+- `scripts/generate-og.js` recadre desormais l'icone du VRAI logo (`logo-source.png`, sans le texte "blocus/tracker" du bas), la recentre sur une tuile verte de marque (#10AD84) aux coins arrondis, et la composite en haut a gauche de l'image (via `sharp.composite`, apres rendu) au lieu d'inliner `icon.svg`.
+- `public/logo-source.png` restaure dans le working tree (asset suivi, source des icones PWA — ne devrait jamais etre supprime).
+- `public/seo-preview.png` regeneree avec le bon logo.
+- Note : `manifest.json` reference encore `icon.svg` (l'ancienne marque livre+horloge) comme icone SVG PWA, a cote des PNG `icon-192/512` generes depuis le vrai logo — petite incoherence a aligner un jour (hors scope de ce fix OG).
+
 ## 2026-07-09 - Image de partage (Open Graph) refaite : `public/seo-preview.png` + `scripts/generate-og.js`
 
 Signale par l'utilisateur : l'apercu affiche au partage du lien (WhatsApp, etc.) etait "moche / effort IA" (photo de bureau delavee + fausses barres de progression + boutons "Étudier/Progresser" bizarres) et ne montrait pas le logo de l'app.

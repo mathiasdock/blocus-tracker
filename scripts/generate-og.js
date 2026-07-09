@@ -54,11 +54,20 @@ async function ensureFonts() {
   }
 }
 
-// Le vrai logo de l'app (public/icon.svg), inséré tel quel dans un carré arrondi.
-function logoInner() {
-  const raw = fs.readFileSync(path.join(__dirname, "..", "public", "icon.svg"), "utf8");
-  // On garde juste l'intérieur du <svg> (viewBox 0 0 100 100).
-  return raw.replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
+// Tuile du VRAI logo de l'app (public/logo-source.png : chrono + livre ouvert).
+// On recadre l'icône (sans le texte "blocus/tracker" du bas), on la recentre
+// sur un carré vert de marque, puis on arrondit les coins → tuile app-icon.
+const LOGO_GREEN = { r: 16, g: 173, b: 132, alpha: 1 }; // #10AD84, échantillonné
+async function makeLogoTile(size) {
+  const src = path.join(__dirname, "..", "public", "logo-source.png");
+  const icon = await sharp(src).extract({ left: 150, top: 120, width: 960, height: 760 }).toBuffer();
+  const squared = await sharp({ create: { width: 960, height: 960, channels: 4, background: LOGO_GREEN } })
+    .composite([{ input: icon, gravity: "center" }])
+    .png().toBuffer();
+  const rounded = Buffer.from(
+    `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${Math.round(size * 0.2)}" fill="#fff"/></svg>`
+  );
+  return sharp(squared).resize(size, size).composite([{ input: rounded, blend: "dest-in" }]).png().toBuffer();
 }
 
 // Les Blocus Blocks — motif de marque (barres d'étude). done = plein, active =
@@ -101,8 +110,6 @@ async function main() {
       <stop offset="0.55" stop-color="#14B885" stop-opacity="0"/>
     </radialGradient>
 
-    <clipPath id="logoClip"><rect x="72" y="54" width="80" height="80" rx="19"/></clipPath>
-
     <filter id="grain">
       <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
       <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/>
@@ -130,10 +137,7 @@ async function main() {
     <circle cx="1066" cy="132" r="9" fill="#8FD4B8" stroke="none"/>
   </g>
 
-  <!-- Logo réel + wordmark -->
-  <g clip-path="url(#logoClip)">
-    <g transform="translate(72,54) scale(0.8)">${logoInner()}</g>
-  </g>
+  <!-- Wordmark (la tuile du vrai logo est compositée par-dessus après rendu) -->
   <text x="172" y="108" class="word" font-size="38" fill="#F2FBF7">blocus<tspan fill="#14B885">·</tspan>tracker</text>
 
   <!-- Titre -->
@@ -152,8 +156,10 @@ async function main() {
 </svg>`;
 
   const out = path.join(__dirname, "..", "public", "seo-preview.png");
-  await sharp(Buffer.from(svg))
-    .resize(W, H)              // downscale du rendu 2x → anti-aliasing net
+  const base = await sharp(Buffer.from(svg)).resize(W, H).png().toBuffer(); // 2x → net
+  const tile = await makeLogoTile(80);
+  await sharp(base)
+    .composite([{ input: tile, left: 72, top: 54 }])
     .png({ compressionLevel: 9 })
     .toFile(out);
   const kb = Math.round(fs.statSync(out).size / 1024);
