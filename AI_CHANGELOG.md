@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Image de partage (Open Graph) refaite : `public/seo-preview.png` + `scripts/generate-og.js`
+
+Signale par l'utilisateur : l'apercu affiche au partage du lien (WhatsApp, etc.) etait "moche / effort IA" (photo de bureau delavee + fausses barres de progression + boutons "Étudier/Progresser" bizarres) et ne montrait pas le logo de l'app.
+
+- **Nouvelle image** (1200×630) rendue 100% vectoriel via `sharp`/librsvg, dans l'identite reelle de l'app : surface "ink" vert profond (comme la landing), le **vrai logo** (`public/icon.svg`) en carre arrondi, wordmark "blocus·tracker", titre en Bricolage Grotesque gras ("Le chrono qui rend ton blocus **plus clair.**"), sous-titre, les **Blocus Blocks** + timer `1:47:12` (signature du produit), anneau d'horloge ghoste, et `blocus-tracker.com`. Aucune photo stock, aucune fausse UI.
+- **Script reproductible** `scripts/generate-og.js` (comme `generate-icons.js`) : telecharge les polices de marque (Bricolage Grotesque + Space Grotesk) si absentes, les embarque en base64 dans le SVG (librsvg les honore — verifie ; fontconfig est vide dans cet environnement), inline le logo, rend en 2x puis redimensionne pour un anti-aliasing net. Rejouable : `node scripts/generate-og.js`.
+- **Aucun changement de code cote references** : le fichier garde le meme nom (`/seo-preview.png`), donc la balise OG (`lib/seo.js`) ET l'usage inline sur les pages SEO (`components/SeoLandingPage.js`) prennent la nouvelle image automatiquement.
+- **Cache des reseaux sociaux** : WhatsApp/Facebook mettent l'apercu en cache par URL de page. Pour forcer le rafraichissement immediat : re-scraper via le Facebook Sharing Debugger (bouton "Scrape Again") ; sinon WhatsApp se rafraichit tout seul en quelques jours.
+
+Verification : `npm run lint` clean, `npm run build` propre (26/26), image relue visuellement (rendu correct, net, on-brand) et verifiee en contexte inline sur une page SEO (`/pomodoro`, 1200×630 charge OK).
+
 ## 2026-07-09 - Fix : toggle "Rendre mon planning visible par mes amis" se bloquait (`pages/planning.js`)
 
 Signale par l'utilisateur : le bouton d'activation du partage de planning ne repondait plus.
