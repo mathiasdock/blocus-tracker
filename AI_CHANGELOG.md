@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Fix : toggle "Rendre mon planning visible par mes amis" se bloquait (`pages/planning.js`)
+
+Signale par l'utilisateur : le bouton d'activation du partage de planning ne repondait plus.
+
+- **Cause** : `togglePlanningPublic()` n'avait ni `try` ni `finally` autour de l'appel Supabase + `refreshProfile()`. Le verrou anti-double-clic (`togglingShareRef`, deja en place depuis un fix precedent) passe a `true` en debut de fonction et n'etait remis a `false` qu'a la toute fin du chemin "heureux" — si l'appel echouait pour une raison quelconque (reseau, erreur transitoire), aucune ligne ne remettait jamais le verrou a `false`. Le bouton restait alors bloque en silence a **chaque clic suivant**, meme apres un rechargement de page tant que le composant restait monte, donnant l'impression que "l'activation" ne marche plus du tout.
+- **Fix** : corps de la fonction enveloppe dans `try { ... } catch { toast(erreur) } finally { deverrouille toujours }` — le verrou est desormais garanti de se relacher quoi qu'il arrive.
+- Aucune restriction RLS/colonne trouvee sur `profiles.planning_public` (colonne simple, `boolean default false`, sans policy dediee) — la cause etait bien cote client, pas base de donnees.
+
+Verification : `npm run lint` clean, `npm run build` propre (26/26). Verifie en navigateur (build prod offline) : ON→OFF puis OFF→ON confirmes (aria-checked + rendu visuel), triple-clic rapide absorbe par le verrou anti-course sans rester bloque ensuite, aucune erreur console.
+
 ## 2026-07-09 - Landing page (`/`) : refonte premium + fix bug safe-area header (`pages/index.js`)
 
 La page d'accueil publique (celle que voient les visiteurs sans compte, route `/`) etait "moche" et surtout **cassee sur mobile** : le header (logo + bouton "Se connecter") passait SOUS la status bar iOS et etait intappable. Signale par l'utilisateur avec capture (PWA plein ecran, `viewport-fit=cover` + status bar translucide -> le contenu demarre a y=0).

@@ -1592,12 +1592,21 @@ export default function Planning() {
     if (togglingShareRef.current) return;
     togglingShareRef.current = true;
     setTogglingShare(true);
-    const next = !profile?.planning_public;
-    const { error } = await supabase.from("profiles").update({ planning_public: next }).eq("id", user.id);
-    if (error) toast(t("plan.shareError"), "error");
-    else await refreshProfile();
-    togglingShareRef.current = false;
-    setTogglingShare(false);
+    try {
+      const next = !profile?.planning_public;
+      const { error } = await supabase.from("profiles").update({ planning_public: next }).eq("id", user.id);
+      if (error) toast(t("plan.shareError"), "error");
+      else await refreshProfile();
+    } catch {
+      // Réseau, exception inattendue... — sans ce filet, une seule erreur ici
+      // laissait togglingShareRef bloqué à `true` pour toujours (rien après
+      // ce point ne le remettait à `false`), rendant le bouton figé et
+      // silencieusement inactif à chaque clic suivant.
+      toast(t("plan.shareError"), "error");
+    } finally {
+      togglingShareRef.current = false;
+      setTogglingShare(false);
+    }
   }
 
   const courseColor = id => courses.find(c => c.id === id)?.color || "#94a3b8";
