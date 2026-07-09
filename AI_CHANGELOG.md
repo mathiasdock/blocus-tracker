@@ -2,6 +2,27 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Communautes : refonte en vrai "hub etudiant" ouvert a tous (`pages/communautes.js`)
+
+Demande explicite en 11 points, precedee d'une investigation en 5 agents paralleles puis d'une revue adversariale en 4 axes (RLS/securite, egress, i18n, non-regression) avant finalisation.
+
+**Changement le plus important : visibilite ouverte a tous.**
+- Nouvelle migration `supabase/migration_v25_community_public_read.sql` (a executer manuellement) : relache `cmsg_read` de "sa propre universite uniquement" (`can_access_community()`, v18) vers `USING (true)` — n'importe quel utilisateur authentifie peut desormais LIRE n'importe quelle communaute. `cmsg_insert`/`cmsg_delete` restent INCHANGES (ecriture toujours restreinte a sa propre communaute, ou admin) — decision deliberee : "voir et ouvrir" a ete interprete comme lecture ouverte, pas ecriture ouverte.
+- Ajoute aussi 2 colonnes nullables purement additives : `parent_id` (fil de reponses sous une Question, `ON DELETE CASCADE` pour eviter des reponses orphelines qui reapparaitraient comme messages Salon hors contexte si l'auteur de la question supprime son compte) et `exam_date` (date structuree, necessaire pour un vrai badge J-5/J-12 et le bouton "Ajouter a mon planning").
+- **A savoir avant d'executer la migration** : elle rend aussi visible retroactivement tout l'historique existant (messages/pieces jointes postes sous l'ancien modele restreint) a tous les utilisateurs d'un coup, et elle reactive un chemin de code jusqu'ici dormant dans `NotificationContext.js` (badges nom-lus deja calcules pour toutes les universites, juste invisibles sous l'ancienne RLS) — desormais chaque ecole de l'annuaire affichera un vrai badge, pas seulement la sienne.
+
+**Refonte de la page** :
+- Mobile : plus de cartes qui debordent (cause racine : grille sans `grid-cols-1` explicite + bulles de message sans `min-w-0`/`break-words`, cf. investigation). Nouveau pattern liste/plein-ecran/retour identique a `pages/messages.js`.
+- Colonne gauche : recherche ("Rechercher une ecole, universite ou pays..."), section epinglee "Ton ecole", puis "Toutes les communautes" en accordeons par pays (celui de l'utilisateur ouvert par defaut, sinon Belgique).
+- En-tete communaute enrichi avec de vrais compteurs (pas invente) : nombre d'etudiants (`count` sur `profiles.university`) et actifs cette semaine (reutilise `get_public_leaderboard`, RPC deja utilisee sur Stats).
+- 4 onglets vraiment distincts : Salon (chat), Questions (mini-forum avec fil de reponses via `parent_id`), Ressources (partage de fichiers, gate click-to-load reutilise, aucune nouvelle requete), Examens (badge J-X + "Ajouter a mon planning" qui insere dans la table `exams` de l'utilisateur).
+- Etats vides dedies par onglet avec logo en filigrane subtil.
+- Lecture seule automatique (nouvelle notice, pas de formulaire) quand l'utilisateur navigue une communaute qui n'est pas la sienne et n'est pas admin — evite un rejet RLS silencieux a l'envoi.
+
+**Corrections suite a la revue adversariale** : bouton supprimer manquant sur les questions elles-memes (seules les reponses l'avaient) ajoute ; `ON DELETE SET NULL` change en `ON DELETE CASCADE` sur `parent_id` ; 2 chaines codees en dur ("Document", "Examen") remplacees par des cles i18n existantes ; fonction morte `spaceForId` supprimee.
+
+Verification : `npm run lint` clean, `npm run build` propre (26/26). Verifie en navigateur (build prod offline) : toutes les communautes du monde visibles (pas seulement la sienne), recherche fonctionnelle, question posee + reponse + suppression testees de bout en bout, ressource partagee, examen ajoute avec badge J-5 puis ajoute au planning, notice lecture seule confirmee en simulant un compte non-admin sur une communaute etrangere, responsive mobile (liste -> plein ecran -> retour) sans aucun debordement.
+
 ## 2026-07-09 - "Messages" devient "Social" : refonte complete (`pages/messages.js`)
 
 Demande explicite en 10 points : fusionner amis / messages prives / groupes dans une seule interface fluide, au lieu de 3 grandes cartes separees. Design garde (minimal, vert, sobre), aucune migration Supabase (scoring et recherche 100% client).

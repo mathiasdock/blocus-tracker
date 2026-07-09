@@ -14,7 +14,7 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `posts` | feed posts (user_id, image_url, caption, visibility ∈ {'public','friends'}) |
 | `likes` | emoji reactions on posts (post_id, user_id, emoji) |
 | `comments` | comments on posts (post_id, user_id, content) |
-| `community_messages` | university chat messages (community, user_id, content, attachment_url) |
+| `community_messages` | university chat messages (community, user_id, content, attachment_url, **parent_id** question-reply thread, **exam_date** v25+) |
 | `private_messages` | DMs (sender_id, receiver_id, content, read) |
 | `study_groups` | revision groups (name, description, created_by) |
 | `group_members` | group memberships (group_id, user_id, role ∈ {'admin','member'}) |
@@ -30,7 +30,7 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `friendships` | requester or addressee | INSERT forced to `'pending'`; only `addressee` can accept (v8); cannot self-friend |
 | `posts` | all authenticated users (filtered client-side by visibility) | owner only |
 | `likes` / `comments` | all authenticated | owner only |
-| `community_messages` | all authenticated of that community | owner |
+| `community_messages` | all authenticated, any community (v25+) | own community only (or admin), owner for delete |
 | `private_messages` | sender or receiver | INSERT only between accepted friends |
 | `study_groups` / `group_members` / `group_messages` | members only | admin/owner roles |
 | `deleted_accounts` | admins only | trigger on self-delete |
@@ -80,6 +80,8 @@ All in `supabase/`. **Run manually** in Supabase Dashboard → SQL Editor when n
 | `migration_v12_uni_leaderboard.sql` | Add `p_university` param to leaderboard |
 | `migration_v12_group_chrono.sql` | Group pomodoro feature |
 | `migration_v13_leaderboard_levels.sql` | Add `alltime_seconds` to leaderboard so levels render correctly when period = "day" |
+| `migration_v18_community_access.sql` | `university_communities` table + `can_access_community()` — restricted community read to own university (superseded by v25) |
+| `migration_v25_community_public_read.sql` | Communautés page redesign — opens community_messages READ to all authenticated users (any school), keeps INSERT restricted to own community; adds `parent_id` (question replies) and `exam_date` (structured exam dates for J-X badges) columns |
 
 > ⚠️ The project has **three v12 files** — confusing but intentional (parallel features). When numbering a new one, jump to **v14** or higher. See `.claude/skills/new-migration.md`.
 
