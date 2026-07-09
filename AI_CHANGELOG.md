@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Landing page (`/`) : refonte premium + fix bug safe-area header (`pages/index.js`)
+
+La page d'accueil publique (celle que voient les visiteurs sans compte, route `/`) etait "moche" et surtout **cassee sur mobile** : le header (logo + bouton "Se connecter") passait SOUS la status bar iOS et etait intappable. Signale par l'utilisateur avec capture (PWA plein ecran, `viewport-fit=cover` + status bar translucide -> le contenu demarre a y=0).
+
+**Bug corrige (critique)** : header passe en `sticky top-0` avec `paddingTop: env(safe-area-inset-top)` + fond translucide flou (`var(--bt-mobile-nav-bg)` + `backdrop-filter: blur`). Le fond remplit derriere la status bar, le contenu est pousse dessous. Boutons a `minHeight: 44` (cible tactile HIG). Verifie : "Se connecter" est bien l'element top-most a son centre (non recouvert) et navigue vers `/login`.
+
+**Refonte (skills `/frontend-design` + `/ui-ux-pro-max`)** : parti pris = la landing est la porte d'entree de l'app, donc elle doit RESSEMBLER a l'app (identite reutilisee, aucune nouvelle couleur/police). 
+- Suppression de la photo de fond stock (`auth-bg`) delavee sous un voile 62% (cause du rendu "moche/template") -> fond `--bt-bg` propre + un halo radial accent tres subtil.
+- **Signature** : le hero montre le PRODUIT au lieu de le decrire — une vraie carte Chrono sur la surface de marque `card-ink` (vert profond + grain), avec le timer `1:47:12` (chiffres tabulaires Space Grotesk), un cours, et les **Blocus Blocks** (5/8, le bloc actif qui pulse via `bt-block-active` existant, reduced-motion-safe).
+- Hero 2 colonnes (texte + carte) centre verticalement sur desktop, empile sur mobile (thesis d'abord). H1 avec "plus clair." en accent vert. Ligne de confiance honnete ("Gratuit, sans carte...") a la place des 4 cartes "Inclus" vides.
+- Sections features (icones ligne dans pastilles accent), guides (fleche au hover), FAQ conservees et polies ; nouvelle section CTA finale sur `card-ink` + footer avec safe-area-bottom.
+- 100% tokens `--bt-*` -> dark mode correct (verifie), une seule animation ambiante (bloc actif).
+
+Verification : `npm run lint` clean, `npm run build` propre (26/26). Verifie en navigateur (build prod offline, en invite via suppression de la session offline) : mobile 375px (header propre, hero premium, carte chrono avec blocs), desktop 1440px (hero 2 colonnes centre), dark mode, "Se connecter" tappable -> `/login`, aucune erreur console.
+
 ## 2026-07-09 - Micro-interactions premium : systeme de toasts global + skeletons + transitions
 
 Passe globale de micro-interactions sobres sur toute l'app. **Constat de depart** : l'infra d'animations etait deja tres riche (`styles/globals.css` : ~25 keyframes `bt-*`, blocs Chrono anime, `bt-stagger`/`bt-rise` d'entree de page, `prefers-reduced-motion` couvert). Le vrai manque etait le **feedback d'action** (uniquement un toast "nouveau message" ; les succes passaient par `alert()` ou du texte inline) et les **skeletons**. Travail centre sur la coherence, pas sur l'ajout d'effets partout.
