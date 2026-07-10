@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Fiabilite : banniere de recuperation de compte pour les emails legacy
+
+Un des problemes ouverts du CLAUDE.md : ~60 utilisateurs "legacy" ont un faux email `<pseudo>@blocus.local` et ne peuvent pas reinitialiser leur mot de passe tant qu'ils n'ajoutent pas une vraie adresse dans `/profile` — mais rien ne les en informe.
+
+- Nouveau `components/LegacyEmailBanner.js` : banniere ambre discrete affichee en haut du contenu (dans `Layout`, `<main>`) UNIQUEMENT si `profile.email` est vide ou finit par `@blocus.local`. CTA "Ajouter mon email" → `/profile` (le formulaire `updateEmail` y met deja a jour l'email `profiles` ET l'email Supabase Auth, ce qui debloque la recuperation). Bouton "Plus tard" = snooze 3 jours (localStorage), pour ne pas harceler.
+- Ne s'affiche jamais pour les comptes avec un vrai email (les nouveaux inscrits), ni en etat guest-locked.
+- 4 cles i18n `banner.email*` (FR+EN).
+
+Verifie : `npm run lint` clean, `npm run build` OK (26/26). En navigateur (build offline, email force a `@blocus.local`) : banniere affichee, CTA pointe `/profile`, "Plus tard" masque + stocke le snooze ; confirme qu'elle NE s'affiche PAS avec un email normal.
+
 ## 2026-07-09 - Logo : tuile OG affinee + icone PWA alignee sur le vrai logo
 
 Suite du fix precedent. L'utilisateur trouvait le rendu encore "pas bon" et voulait aussi aligner l'icone PWA sur `logo-source.png`.

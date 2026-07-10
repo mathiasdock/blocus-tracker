@@ -7,6 +7,7 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { formatDuration, displayName } from "../lib/format";
 import PwaInstallBanner from "./PwaInstallBanner";
+import LegacyEmailBanner from "./LegacyEmailBanner";
 
 // ── SVG Icons ─────────────────────────────────────────────────
 
@@ -754,6 +755,7 @@ export default function Layout({ children }) {
         )}
 
         <main className="w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip">
+          {!guestLocked && <LegacyEmailBanner />}
           {guestLocked ? <GuestLockedPanel /> : children}
         </main>
         <footer className="hidden lg:flex items-center justify-center gap-3 text-xs py-6"
