@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Logo : tuile OG affinee + icone PWA alignee sur le vrai logo
+
+Suite du fix precedent. L'utilisateur trouvait le rendu encore "pas bon" et voulait aussi aligner l'icone PWA sur `logo-source.png`.
+
+- **Tuile OG affinee** (`scripts/generate-og.js`) : l'icone du vrai logo est maintenant auto-recadree via `sharp.trim()` (retire le vert uniforme autour → recentrage parfait, plus robuste que des coords en dur), posee avec une marge respirante (~62% de remplissage) sur une tuile verte arrondie, un peu plus grande (90px). Plus de rendu serre/coupe.
+- **Icone PWA alignee** : le `manifest.json` referencait encore `/icon.svg` (l'ancienne marque livre+horloge, differente du vrai logo) EN PREMIER, donc un installeur pouvait la choisir. Entree `icon.svg` retiree du manifest, fichier `public/icon.svg` supprime. Le manifest ne garde que `icon-192/512` (regeneres depuis `logo-source.png` — deja identiques, confirmant qu'ils etaient deja bons). Ajout d'un `<link rel="icon">` dans `pages/_app.js` pour que l'onglet du navigateur montre aussi le vrai logo.
+- Verifie : `npm run lint` clean, `npm run build` OK (26/26), en navigateur les endpoints icones/manifest repondent 200, le `sw.js` regenere ne precache plus `icon.svg` (pas d'erreur d'install SW), `icon.svg` n'est plus reference nulle part.
+
 ## 2026-07-09 - Image OG : correction du logo (le vrai chrono+livre au lieu du mauvais)
 
 L'utilisateur a signale que l'image de partage montrait le MAUVAIS logo. Le premier jet utilisait `public/icon.svg` (une marque simplifiee livre+horloge en trait), alors que le vrai logo de l'app est `public/logo-source.png` (chrono + livre ouvert, celui des icones PWA). En prime, `logo-source.png` avait ete supprime du working tree (jamais commite), d'ou le fallback.

@@ -60,14 +60,20 @@ async function ensureFonts() {
 const LOGO_GREEN = { r: 16, g: 173, b: 132, alpha: 1 }; // #10AD84, échantillonné
 async function makeLogoTile(size) {
   const src = path.join(__dirname, "..", "public", "logo-source.png");
-  const icon = await sharp(src).extract({ left: 150, top: 120, width: 960, height: 760 }).toBuffer();
-  const squared = await sharp({ create: { width: 960, height: 960, channels: 4, background: LOGO_GREEN } })
+  // Region généreuse contenant l'icone chrono+livre, SANS le texte du bas.
+  const region = await sharp(src).extract({ left: 120, top: 80, width: 1010, height: 760 }).png().toBuffer();
+  // Auto-recadrage sur le contenu : retire le vert uniforme tout autour de
+  // l'icone (plus robuste que des coords en dur, recentre parfaitement).
+  const icon = await sharp(region).trim().toBuffer();
+  const meta = await sharp(icon).metadata();
+  const side = Math.round(Math.max(meta.width, meta.height) / 0.62); // ~62% → marge respirante
+  const tile = await sharp({ create: { width: side, height: side, channels: 4, background: LOGO_GREEN } })
     .composite([{ input: icon, gravity: "center" }])
     .png().toBuffer();
   const rounded = Buffer.from(
-    `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${Math.round(size * 0.2)}" fill="#fff"/></svg>`
+    `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${Math.round(size * 0.22)}" fill="#fff"/></svg>`
   );
-  return sharp(squared).resize(size, size).composite([{ input: rounded, blend: "dest-in" }]).png().toBuffer();
+  return sharp(tile).resize(size, size).composite([{ input: rounded, blend: "dest-in" }]).png().toBuffer();
 }
 
 // Les Blocus Blocks — motif de marque (barres d'étude). done = plein, active =
@@ -138,7 +144,7 @@ async function main() {
   </g>
 
   <!-- Wordmark (la tuile du vrai logo est compositée par-dessus après rendu) -->
-  <text x="172" y="108" class="word" font-size="38" fill="#F2FBF7">blocus<tspan fill="#14B885">·</tspan>tracker</text>
+  <text x="182" y="107" class="word" font-size="38" fill="#F2FBF7">blocus<tspan fill="#14B885">·</tspan>tracker</text>
 
   <!-- Titre -->
   <text x="72" y="292" class="head" font-size="70" fill="#F2FBF7" letter-spacing="-2">Le chrono qui rend</text>
@@ -157,9 +163,9 @@ async function main() {
 
   const out = path.join(__dirname, "..", "public", "seo-preview.png");
   const base = await sharp(Buffer.from(svg)).resize(W, H).png().toBuffer(); // 2x → net
-  const tile = await makeLogoTile(80);
+  const tile = await makeLogoTile(90);
   await sharp(base)
-    .composite([{ input: tile, left: 72, top: 54 }])
+    .composite([{ input: tile, left: 72, top: 48 }])
     .png({ compressionLevel: 9 })
     .toFile(out);
   const kb = Math.round(fs.statSync(out).size / 1024);
