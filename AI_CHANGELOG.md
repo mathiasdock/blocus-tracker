@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-09 - Notifications push : rappels quotidiens + annonce ponctuelle
+
+Demande utilisateur : une annonce "l'app remarche" a tous, + des rappels quotidiens (serie en danger, examen demain, pense a etudier / a faire ton planning). L'infra d'ENVOI existait deja (`lib/pushServer.js` + OneSignal) mais uniquement evenementielle (webhooks Supabase). Ajout de la partie temporelle.
+
+- **`lib/pushServer.js`** : refactor. `sendPushToUser` conserve, + `sendPushToUsers` (batch, chunke a 2000 external_id/appel) et `sendBroadcast` (segment "Subscribed Users"). OneSignal ne delivre qu'aux abonnes reels → aucun envoi a un non-abonne.
+- **`pages/api/push/daily.js`** (nouveau) : rappels quotidiens, UN seul par user/jour par priorite : (1) examen demain, (2) serie en danger = a etudie hier mais pas aujourd'hui, (3) nudge etude/planning = a etudie il y a 2-3j mais pas aujourd'hui (>3j sans etudier = pas relance, anti-harcelement). Dates en Europe/Bruxelles. Le nudge alterne etude/planning selon le jour. Requetes `exams`/`sessions` paginees (PostgREST plafonne a 1000).
+- **`pages/api/push/announce.js`** (nouveau) : diffusion ponctuelle a tous les abonnes (`{ title, body, url }`), pour l'annonce "l'app remarche" et les futures.
+- **`vercel.json`** (nouveau) : cron `0 18 * * *` (18:00 UTC ≈ 19-20h Bruxelles) → `/api/push/daily`.
+- **Securite / safe-by-default** : les deux routes exigent `CRON_SECRET` (Vercel injecte `Authorization: Bearer` sur les crons ; on accepte aussi `x-cron-secret` / `?secret=` pour declenchement manuel). TANT QUE `CRON_SECRET` n'est PAS defini dans Vercel, tout retourne 401 → RIEN n'est envoye. Deployer ce commit n'envoie donc aucune notification tant que l'utilisateur n'a pas active le secret. Mode `?dry=1` = calcule et renvoie qui serait notifie sans envoyer.
+
+**A faire cote utilisateur (Vercel) :**
+1. Ajouter l'env var `CRON_SECRET` (chaine aleatoire) — active le cron ET les endpoints.
+2. Verifier a blanc : `GET /api/push/daily?secret=<CRON_SECRET>&dry=1`.
+3. Envoyer l'annonce "l'app remarche" (une fois) : `POST /api/push/announce` avec header `x-cron-secret: <CRON_SECRET>` et corps `{ "title": {"fr":"...","en":"..."}, "body": {...}, "url": "/dashboard" }` — OU directement depuis le dashboard OneSignal (New Message → Subscribed Users).
+
+Verifie : `npm run lint` clean, `npm run build` OK (routes `/api/push/daily` + `/api/push/announce` enregistrees), garde-fous d'auth testes en local (401 sans secret, 405 mauvaise methode, 401 mauvais secret ; `/api/push/notify` non regresse). L'ENVOI reel (OneSignal) et la logique dry-run se valident en prod (secret + creds requis) — a tester avec `?dry=1` d'abord.
+
 ## 2026-07-09 - Fiabilite : banniere de recuperation de compte pour les emails legacy
 
 Un des problemes ouverts du CLAUDE.md : ~60 utilisateurs "legacy" ont un faux email `<pseudo>@blocus.local` et ne peuvent pas reinitialiser leur mot de passe tant qu'ils n'ajoutent pas une vraie adresse dans `/profile` — mais rien ne les en informe.

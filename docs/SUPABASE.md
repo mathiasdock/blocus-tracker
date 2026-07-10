@@ -93,7 +93,18 @@ NEXT_PUBLIC_SUPABASE_URL       = https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY  = <anon public key>
 NEXT_PUBLIC_SITE_URL           = https://blocus-tracker.com
 SUPABASE_SERVICE_ROLE_KEY      = <service_role>     ← server-only, used by /api/login
+NEXT_PUBLIC_ONESIGNAL_APP_ID   = <onesignal app id> ← push
+ONESIGNAL_REST_API_KEY         = <onesignal rest>   ← server-only, push
+ONESIGNAL_WEBHOOK_SECRET       = <shared secret>    ← server-only, /api/push/notify
+CRON_SECRET                    = <random secret>    ← server-only, gates /api/push/daily + /api/push/announce
 ```
+
+> **Rappels push** : `/api/push/daily` (rappels quotidiens série/examen/étude) est
+> déclenché par un Vercel Cron (`vercel.json`, 18:00 UTC). Il ne s'active QUE si
+> `CRON_SECRET` est défini (sinon 401 → rien n'est envoyé). Test à blanc :
+> `GET /api/push/daily?secret=<CRON_SECRET>&dry=1` → renvoie qui serait notifié
+> sans rien envoyer. Annonce ponctuelle à tous : `POST /api/push/announce` avec
+> le header `x-cron-secret` et un corps `{ title, body, url? }`.
 
 ## Supabase Dashboard configuration
 
