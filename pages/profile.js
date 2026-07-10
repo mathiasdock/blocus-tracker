@@ -378,6 +378,7 @@ function PushRow({ t, user }) {
     try {
       const res = await enablePush();
       if (res?.reason === "unconfigured") { setError(t("push.unconfigured")); return; }
+      if (res?.reason === "blocked") { setError(t("push.blocked")); return; }
       const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
       setPermission(perm);
       if (perm === "granted") {

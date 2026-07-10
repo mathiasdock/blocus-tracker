@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-10 - Fix : bouton "Activer les notifications" restait bloque en chargement infini
+
+Signale par l'utilisateur : sur `/profile`, le bouton "Activer les notifications" tournait indefiniment, sans jamais confirmer l'activation ni afficher d'erreur.
+
+- **Cause** (`lib/onesignal.js`) : `initOneSignal()` n'avait AUCUN timeout. Le SDK OneSignal est une cible frequente des bloqueurs de pub/trackers (uBlock, Brave Shields, protection anti-tracking Safari...) — beaucoup repondent au script par un 200 vide plutot que de bloquer franchement, donc `script.onerror` ne se declenche jamais, ET `window.OneSignalDeferred` n'est jamais traite. Sans filet, la Promise attendait pour toujours → `enablePush()` ne se terminait jamais → le `finally` de `PushRow.enable()` (qui remet `busy` a `false`) n'etait jamais atteint → bouton bloque en boucle, silencieusement.
+- **Fix** : `initOneSignal()` fait desormais la course (`Promise.race`) entre le chargement reel et un timeout de 8s ; en cas d'echec, `initPromise` est reinitialise a `null` pour qu'un nouveau clic relance une vraie tentative (au lieu de rejouer l'echec en cache indefiniment). `enablePush()` distingue ce cas (`reason: "blocked"`) d'une erreur generique, et `pages/profile.js` affiche un message specifique et actionnable ("un bloqueur de pub ou de trackers empeche peut-etre..." + reessaie possible) au lieu de laisser le bouton tourner. `loginUser()` durci en passant (deja appele avec un try/catch existant en amont dans `_app.js`, mais desormais protege aussi en direct).
+- Nouvelle cle i18n `push.blocked` (FR+EN).
+
+Verifie : `npm run lint` clean, `npm run build` OK (26/26). Le mecanisme de timeout + reset a ete valide directement dans un vrai moteur JS navigateur en simulant un SDK qui ne rappelle jamais (scenario bloqueur) : rejette proprement au lieu de bloquer, et un 2e appel relance une vraie nouvelle tentative. `/profile` verifie sans erreur console (en local, `NEXT_PUBLIC_ONESIGNAL_APP_ID` n'est pas configure donc c'est l'etat "non configure" qui s'affiche, comportement inchange et correct). Le scenario reel (bloqueur sur le vrai SDK OneSignal en prod) se confirmera au prochain test utilisateur sur le site en ligne.
+
 ## 2026-07-09 - Notifications push : rappels quotidiens + annonce ponctuelle
 
 Demande utilisateur : une annonce "l'app remarche" a tous, + des rappels quotidiens (serie en danger, examen demain, pense a etudier / a faire ton planning). L'infra d'ENVOI existait deja (`lib/pushServer.js` + OneSignal) mais uniquement evenementielle (webhooks Supabase). Ajout de la partie temporelle.
