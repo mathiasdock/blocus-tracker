@@ -69,6 +69,10 @@ const supabaseStorageCache = {
 
 module.exports = withPWA({
   dest: "public",
+  // Screenshots marketing de la landing : servis à la demande (et cachés par la
+  // règle image runtime), mais JAMAIS précachés par le service worker — sinon
+  // chaque installation de la PWA téléchargerait tout le dossier d'un coup.
+  publicExcludes: ["!site-web/**/*"],
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,

@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-11 - Landing (`/`) : refonte complete "app-first" avec vrais screenshots (style Aave)
+
+Demande utilisateur : refaire le site public de zero, en s'inspirant du style d'aave.com (fintech soft-premium), avec les screenshots reels desktop+mobile qu'il a deposes dans `public/site-web/`, ses couleurs, et ses vrais chiffres (200 utilisateurs, pas plus).
+
+- **Assets** : 11 screenshots choisis parmi les 16 fournis, optimises en WebP dans `public/site-web/opt/` (276 KB au TOTAL pour toute la page, verifie au runtime). Les originaux (5.8 MB) restent en local, NON commites. **Piege PWA desamorce** : `publicExcludes: ["!site-web/**/*"]` dans `next.config.js` — sans ca, le service worker aurait precache tout le dossier a chaque installation (verifie : 0 occurrence de site-web dans `public/sw.js` genere).
+- **Structure (adaptation Aave → Blocus Tracker)** : header sticky flou (safe-area conservee) avec ancres Fonctionnalites/Guides/FAQ ; hero centre gros type avec le VRAI produit dessous (screenshot desktop en cadre navigateur + mobile flottant en cadre telephone) ; bande de chiffres reels (200+ etudiants / 40 communautes / 5 pays / 100% gratuit — 40 = compte exact de lib/universities) ; section Mode focus pleine largeur sur surface ink ; splits Planning et Stats (screenshot classement superpose incline) ; grand conteneur teinte Social/Communautes avec **marquee des vrais logos d'ecoles** (derives dynamiquement de `lib/universities.js`, donc toujours synchro) ; rangee de 3 telephones "Dans ta poche" ; Guides (liens SEO conserves) ; FAQ en accordeon natif `<details>` (memes 3 Q&A que le JSON-LD de lib/seo.js) ; CTA final ink ; footer 3 colonnes.
+- **Motion** (sobre, tout couvert par prefers-reduced-motion) : revelation au scroll via IntersectionObserver + `[data-reveal]` (nouvelles regles globals.css), un seul marquee (pause au hover), un seul flottement ambiant (le telephone du hero), hovers card-lift existants. Aucun listener scroll.
+- **Discipline anti-slop** (skills frontend-design + ui-ux-pro-max + design-taste-frontend) : zero em-dash, un seul intent par CTA ("Creer mon espace" unifie partout, nav comprise), chiffres 100% reels, pas de faux temoignages, pas de fausse UI en divs (que des screenshots reels), max 2 splits zigzag consecutifs, ≥4 familles de layout, logos = logos (pas de labels categorie).
+- SEO conserve : meme H1 keyword ("Le chrono qui rend ton blocus plus clair."), memes liens guides, meme FAQ, redirect utilisateur connecte → /dashboard inchange.
+
+Verifie : `npm run lint` clean, `npm run build` OK. En navigateur (build offline, invite) : hero desktop 1440px + mobile 375px (aucun debordement horizontal, docW=375), les 24 cibles data-reveal se revelent au scroll, marquee anime, accordeon FAQ fonctionne, dark mode complet (tokens), 0 erreur console, 276 KB d'images charges.
+
 ## 2026-07-10 - Fix : bouton "Activer les notifications" restait bloque en chargement infini
 
 Signale par l'utilisateur : sur `/profile`, le bouton "Activer les notifications" tournait indefiniment, sans jamais confirmer l'activation ni afficher d'erreur.

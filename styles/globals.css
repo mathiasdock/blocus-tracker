@@ -521,6 +521,35 @@ html {
 }
 .bt-tab-fade { animation: bt-tab-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+/* ── Landing : révélation au scroll (IntersectionObserver ajoute .is-in) ── */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--rv-delay, 0s);
+}
+[data-reveal].is-in { opacity: 1; transform: none; }
+
+/* ── Landing : marquee de logos (piste dupliquée, translation continue) ── */
+@keyframes bt-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.bt-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: bt-marquee 42s linear infinite;
+}
+.bt-marquee:hover .bt-marquee-track { animation-play-state: paused; }
+
+/* ── Landing : flottement ambiant très lent (1 élément max par vue) ── */
+@keyframes bt-float {
+  0%, 100% { transform: translateY(0) rotate(var(--float-rot, 0deg)); }
+  50%      { transform: translateY(-10px) rotate(var(--float-rot, 0deg)); }
+}
+.bt-float { animation: bt-float 7s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
   .bt-msg-swap,
@@ -545,8 +574,15 @@ html {
   .bt-toast-in,
   .bt-toast-out,
   .bt-tab-fade,
-  .bt-skeleton::after {
+  .bt-skeleton::after,
+  .bt-marquee-track,
+  .bt-float {
     animation: none !important;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
   .bt-press { transition: none !important; }
   .btn:active:not(:disabled) { transform: none !important; }
