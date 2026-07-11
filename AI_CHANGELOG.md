@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-11 - 40 nouvelles ecoles (FR/NL/ES/CH) dans `lib/universities.js`
+
+Demande utilisateur : ajouter 10 ecoles par pays (France, Pays-Bas, Espagne, Suisse) fournies dans le message, plus verifier la recherche intelligente et le tri alphabetique du selecteur d'universite.
+
+- **`lib/universities.js`** : 40 entrees ajoutees (id/name/full/color/logo:null — pas de logo fourni, fallback initiales colorees via `CommunityLogo` deja en place). Total : 40 → **80 universites**, 5 pays inchanges. IDs verifies uniques par script (aucune collision avec les 40 existants).
+- **`supabase/migration_v26_new_universities.sql`** (nouvelle, a executer manuellement) : enregistre les 40 (id, full_name) dans `university_communities` — necessaire pour que `can_access_community()` (v18) autorise l'ECRITURE des etudiants de ces ecoles dans leur propre communaute (la LECTURE etait deja ouverte a tous depuis v25, independante de cette table). Chaque paire id/full_name verifiee programmatiquement identique entre le fichier lib et la migration SQL (script de cross-check, 40/40 OK).
+- **Recherche intelligente + tri alphabetique** : deja implementes (`components/UniPicker.js` a l'inscription, `pages/communautes.js` pour l'annuaire) — filtrage par sous-chaine sur nom/nom complet/pays + `localeCompare("fr")` par groupe de pays. Aucun changement de code necessaire, verifie en navigateur que ca fonctionne correctement avec les 80 ecoles (recherche "Universidad" → 7 resultats pertinents et tries ; recherche "Universi" → tous pays groupes et tries, y compris Suisse).
+
+Verifie : `npm run lint` clean, `npm run build` OK. En navigateur (build offline) : selecteur d'inscription (recherche + tri + groupement par pays), page Communautes (recherche "sciences po", ouverture de la communaute, en-tete/onglets/etat vide fonctionnels), aucune erreur console.
+
+**A faire cote utilisateur** : executer `supabase/migration_v26_new_universities.sql` dans le SQL Editor Supabase pour que les etudiants des 40 nouvelles ecoles puissent ECRIRE dans leur communaute (ils peuvent deja toutes les VOIR sans cette migration, grace a v25).
+
 ## 2026-07-11 - Landing (`/`) : refonte complete "app-first" avec vrais screenshots (style Aave)
 
 Demande utilisateur : refaire le site public de zero, en s'inspirant du style d'aave.com (fintech soft-premium), avec les screenshots reels desktop+mobile qu'il a deposes dans `public/site-web/`, ses couleurs, et ses vrais chiffres (200 utilisateurs, pas plus).

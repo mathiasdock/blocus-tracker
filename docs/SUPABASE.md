@@ -82,6 +82,7 @@ All in `supabase/`. **Run manually** in Supabase Dashboard → SQL Editor when n
 | `migration_v13_leaderboard_levels.sql` | Add `alltime_seconds` to leaderboard so levels render correctly when period = "day" |
 | `migration_v18_community_access.sql` | `university_communities` table + `can_access_community()` — restricted community read to own university (superseded by v25) |
 | `migration_v25_community_public_read.sql` | Communautés page redesign — opens community_messages READ to all authenticated users (any school), keeps INSERT restricted to own community; adds `parent_id` (question replies) and `exam_date` (structured exam dates for J-X badges) columns |
+| `migration_v26_new_universities.sql` | Registers 40 new schools (FR/NL/ES/CH) in `university_communities` so their students can post in their own community — must stay in sync with `lib/universities.js` |
 
 > ⚠️ The project has **three v12 files** — confusing but intentional (parallel features). When numbering a new one, jump to **v14** or higher. See `.claude/skills/new-migration.md`.
 
