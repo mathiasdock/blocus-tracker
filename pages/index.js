@@ -9,10 +9,14 @@ import { COUNTRIES } from "../lib/universities";
 // Landing publique — refonte "app-first" : de vrais screenshots du produit
 // (public/site-web/opt/*.webp), la marque verte/crème de l'app, et une couche
 // de motion sobre (révélation au scroll, un marquee, un flottement ambiant).
-// Aucun chiffre inventé : 200+ étudiants, 40 communautés, 5 pays sont réels.
+// Aucun chiffre inventé : 200+ étudiants sont réels ; le nombre de communautés
+// et de pays est calculé depuis lib/universities.js pour ne jamais devenir faux.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SHOT = (name) => `/site-web/opt/${name}.webp`;
+
+const UNIVERSITY_COUNT = COUNTRIES.reduce((n, c) => n + c.universities.length, 0);
+const COUNTRY_COUNT = COUNTRIES.length;
 
 const GUIDES = [
   { href: "/pomodoro", title: "Méthode Pomodoro", text: "Découpe tes révisions en blocs de concentration plus faciles à tenir." },
@@ -31,8 +35,8 @@ const FAQ = [
 
 const STATS = [
   { value: "200+", label: "étudiants inscrits" },
-  { value: "40", label: "communautés d'écoles" },
-  { value: "5", label: "pays représentés" },
+  { value: `${UNIVERSITY_COUNT}`, label: "communautés d'écoles" },
+  { value: `${COUNTRY_COUNT}`, label: "pays représentés" },
   { value: "100%", label: "gratuit, sans carte" },
 ];
 
@@ -338,7 +342,7 @@ export default function Home() {
             {/* Marquee des vraies écoles (même source que l'app) */}
             <div className="pb-8">
               <p className="mb-5 text-center text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
-                40 communautés, 5 pays
+                {UNIVERSITY_COUNT} communautés, {COUNTRY_COUNT} pays
               </p>
               <div className="bt-marquee overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)" }}>
                 <div className="bt-marquee-track gap-3 pr-3">

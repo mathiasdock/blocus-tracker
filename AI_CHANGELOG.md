@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-12 - Logos des communautes : 19 nouveaux + optimisation complete
+
+Demande utilisateur : l'utilisateur a depose les images de logo manquantes dans `public/logos-commu/` (les 10 nouvelles ecoles francaises + 9 ecoles belges qui utilisaient encore le fallback initiales) et a demande qu'elles soient associees aux bonnes communautes, sans alourdir le chargement du site.
+
+- **19 nouveaux logos identifies et assignes** dans `lib/universities.js` (verifie visuellement un par un via une planche contact) : FR — Sciences Po, Dauphine, Sorbonne, Paris-Saclay, INSEAD, SKEMA, NEOMA, Audencia, TSE, GEM (les 10 nouvelles ecoles francaises, plus aucune n'utilise le fallback initiales) ; BE — CAD, HE2B, HELHa, HE Vinci, Haute Ecole Galilee, ISFSC, La Cambre, UMONS, Francisco Ferrer (les 9 dernieres ecoles belges sans logo — **toutes les 22 ecoles belges ont desormais un vrai logo**).
+- **`scripts/optimize-logos.js`** (nouveau) : script d'optimisation reutilisable — redimensionne chaque logo (existant + nouveau, 48 au total) a 320px max et convertit en WebP qualite 82, renomme chaque fichier en `<id-ecole>.webp` (ex. `sciencespo.webp`) pour eliminer les espaces/accents/parentheses des noms de fichiers d'origine. Poids total du dossier : **2.3 Mo → 311 Ko** (−87%), le plus gros fichier individuel passe de 312 Ko a 14 Ko. Supprime aussi le doublon `images.png` (logo ESSEC en double, ESSEC avait deja son logo).
+- **`pages/index.js`** : la landing page affichait encore "40 communautés" (chiffre fige au moment de la premiere redaction). Remplace par `UNIVERSITY_COUNT`/`COUNTRY_COUNT` calcules depuis `lib/universities.js` (meme pattern que `SCHOOL_LOGOS` deja en place) — affiche desormais "80 communautés, 5 pays" et ne redeviendra plus jamais faux quand de nouvelles ecoles seront ajoutees.
+
+Verifie : `npm run lint` + `npm run build` clean. En navigateur : 0 logo casse sur 45+ affiches (sidebar Communautes + filigrane d'etat vide), 0 requete 404 sur `/logos-commu/*` (toutes en 200 OK, verifie via le panel reseau sur Communautes ET la landing page marquee), page d'accueil deconnectee affiche bien "80 communautés, 5 pays" et le marquee tourne avec les nouveaux logos (ESCP, EDHEC, EM Lyon, KEDGE, Sciences Po, Dauphine... visibles).
+
 ## 2026-07-11 - 40 nouvelles ecoles (FR/NL/ES/CH) dans `lib/universities.js`
 
 Demande utilisateur : ajouter 10 ecoles par pays (France, Pays-Bas, Espagne, Suisse) fournies dans le message, plus verifier la recherche intelligente et le tri alphabetique du selecteur d'universite.
