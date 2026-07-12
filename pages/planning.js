@@ -137,12 +137,10 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
 }
 
 // ── ObjectiveForm ─────────────────────────────────────────────
-// Formulaire unique de creation/edition d'objectif, controle. Remplace les
-// 4 blocs de champs quasi-identiques qui existaient (DayPanel add,
-// ObjectiveRow edit, DayDetailModal add + edit). Chaque appelant fournit
-// `value` (title/courseId/minutes/time/weekdays/until) + `onChange(patch)`
-// + `onSubmit`. `onCancel` optionnel : s'il est absent, un seul bouton
-// pleine largeur (cas DayPanel) ; sinon submit + annuler cote a cote.
+// Formulaire unique de creation/edition d'objectif, controle. Utilisé aux
+// deux endroits du DayDetailModal (ajout + edition inline). Chaque appelant
+// fournit `value` (title/courseId/minutes/time/weekdays/until) +
+// `onChange(patch)` + `onSubmit`, et `onCancel` optionnel.
 const EMPTY_OBJECTIVE_FORM = { title: "", courseId: "", minutes: "", time: "", weekdays: [], until: "" };
 function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLabel, autoFocus, className = "space-y-2.5", style }) {
   const { courses, t } = usePlan();
@@ -179,142 +177,13 @@ function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLab
   );
 }
 
-// ── ObjectiveRow ──────────────────────────────────────────────
+// ── Recurrence badge label ────────────────────────────────────
 function recurrenceBadgeLabel(o, t) {
   const days = weekdaysFromObjective(o);
   if (!days.length) return null;
   if (days.length === 7) return t("plan.recurDaily");
   if (days.length === 1) return t("plan.recurWeekly");
   return days.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(d => WEEKDAYS_SHORT[(d + 6) % 7]).join(" ");
-}
-
-function ObjectiveRow({ o }) {
-  const { editingId, editForm, setEditForm, startEdit, saveEdit, setEditingId,
-          toggle, remove, courseColor, courseName, postpone, sessions, dragId, setDragId,
-          launchTimer, t } = usePlan();
-  const [showPostpone, setShowPostpone] = useState(false);
-  const [customDate, setCustomDate]     = useState("");
-
-  const tomorrow = tomorrowISO();
-  const isToday  = o.scheduled_date === todayISO();
-  const realSecs = o.course_id
-    ? sessions
-        .filter(s => s.course_id === o.course_id && s.started_at.slice(0, 10) === o.scheduled_date)
-        .reduce((a, s) => a + s.duration_seconds, 0)
-    : 0;
-  const realMin = Math.round(realSecs / 60);
-
-  if (editingId === o.id) {
-    return (
-      <li className="rounded-xl border border-accent/40 px-3 py-2">
-        <ObjectiveForm
-          value={editForm}
-          onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
-          onSubmit={e => { e.preventDefault(); saveEdit(o.id); }}
-          onCancel={() => setEditingId(null)}
-          minDate={o.scheduled_date}
-          submitLabel={t("common.save")} />
-      </li>
-    );
-  }
-
-  const recurLabel = recurrenceBadgeLabel(o, t);
-
-  return (
-    <li className="rounded-xl border border-stone-100 px-3 py-2"
-      draggable={!o.done}
-      onDragStart={e => { e.dataTransfer.effectAllowed = "move"; setDragId(o.id); }}
-      onDragEnd={() => setDragId(null)}
-      style={{ cursor: o.done ? "default" : "grab", opacity: dragId === o.id ? 0.45 : 1 }}>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
-          className="w-4 h-4 accent-emerald-600 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm ${o.done ? "line-through text-stone-400" : "text-stone-800"}`}>
-            {o.title || courseName(o.course_id) || "—"}
-          </p>
-          <p className="text-xs text-stone-400 flex items-center gap-1 flex-wrap">
-            {o.course_id && (
-              <><span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />
-              {courseName(o.course_id)}</>
-            )}
-            {o.target_minutes > 0 && <span>{o.course_id ? " · " : ""}{o.target_minutes} min</span>}
-            {o.scheduled_time && <span className="font-medium text-stone-500"> · {o.scheduled_time}</span>}
-            {recurLabel && (
-              <span className="font-semibold" style={{ color: "#A8A09A" }}>
-                {" "}· ↻ {recurLabel}
-              </span>
-            )}
-          </p>
-        </div>
-        {!o.done && isToday && o.course_id && (
-          <button onClick={() => launchTimer(o.course_id)} title={t("plan.launchTimer")}
-            className="text-stone-300 hover:text-accent shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"/>
-            </svg>
-          </button>
-        )}
-        <button onClick={() => startEdit(o)} className="text-stone-300 hover:text-accent text-xs shrink-0" title={t("plan.dayEdit")}>✎</button>
-        {!o.done && (
-          <div className="relative shrink-0">
-            <button onClick={() => setShowPostpone(p => !p)}
-              title={t("plan.postponeTooltip")} className="text-stone-300 hover:text-amber-500">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-                <polyline points="8 14 8.01 14"/><polyline points="12 14 12.01 14"/>
-                <path d="M16 14l2 2 4-4"/>
-              </svg>
-            </button>
-            {showPostpone && (
-              <div className="absolute right-0 bottom-full mb-1 rounded-xl shadow-lg z-20 min-w-[170px] overflow-hidden"
-                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
-                <button
-                  onClick={() => { postpone(o.id, tomorrow); setShowPostpone(false); }}
-                  className="w-full text-left px-3 py-2 text-xs font-medium transition-colors"
-                  style={{ color: "var(--bt-text-1)", borderBottom: "1px solid var(--bt-border)" }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                  {t("plan.dayPostpone")}
-                </button>
-                <div className="px-3 py-2">
-                  <p className="text-[10px] mb-1" style={{ color: "var(--bt-text-3)" }}>{t("plan.postponeOtherDate")}</p>
-                  <input type="date" className="input text-xs py-1" min={tomorrow}
-                    value={customDate}
-                    onChange={e => setCustomDate(e.target.value)}
-                    onBlur={e => {
-                      if (e.target.value && e.target.value >= tomorrow) {
-                        postpone(o.id, e.target.value);
-                        setShowPostpone(false);
-                        setCustomDate("");
-                      }
-                    }} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <button onClick={() => remove(o.id)} className="text-stone-300 hover:text-red-600 text-xs shrink-0">✕</button>
-      </div>
-      {o.target_minutes > 0 && (
-        <div className="flex items-center gap-2 mt-1 pl-6 flex-wrap">
-          <span className="text-[10px]" style={{ color: "#A8A09A" }}>
-            Prévu {o.target_minutes} min · Réel {realSecs > 0 ? `${realMin} min` : "—"}
-          </span>
-          {realSecs >= o.target_minutes * 60 ? (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-              style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>Objectif atteint</span>
-          ) : realSecs > 0 ? (
-            <span className="text-[10px]" style={{ color: "#7C746E" }}>
-              — reste {o.target_minutes - realMin} min
-            </span>
-          ) : null}
-        </div>
-      )}
-    </li>
-  );
 }
 
 // ── ExamBadge ─────────────────────────────────────────────────
@@ -334,147 +203,6 @@ function ExamBadge({ days }) {
       style={{ backgroundColor: bg, color }}>
       {label}
     </span>
-  );
-}
-
-// ── DayPanel ──────────────────────────────────────────────────
-function DayPanel() {
-  const { selectedDate, courses, dayObjectives, title, setTitle, courseId, setCourseId,
-          minutes, setMinutes, newTime, setNewTime,
-          recurrenceWeekdays, setRecurrenceWeekdays, recurrenceUntil, setRecurrenceUntil,
-          addObjective, addExam, removeExam, examsByDate, t } = usePlan();
-  const [showExamForm, setShowExamForm] = useState(false);
-  const [examForm, setExamForm] = useState({ name: "", courseId: "", time: "", location: "" });
-
-  const d        = dateFromYmd(selectedDate);
-  const dayExams = examsByDate[selectedDate] || [];
-
-  async function handleAddExam(e) {
-    e.preventDefault();
-    if (!examForm.name.trim()) return;
-    await addExam({
-      name:      examForm.name.trim(),
-      course_id: examForm.courseId || null,
-      exam_date: selectedDate,
-      exam_time: examForm.time     || null,
-      location:  examForm.location || null,
-    });
-    setExamForm({ name: "", courseId: "", time: "", location: "" });
-    setShowExamForm(false);
-  }
-
-  return (
-    <section className="card p-4">
-      <h2 className="text-base mb-1 font-display capitalize">
-        {d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-      </h2>
-      <p className="text-xs text-stone-400 mb-3">
-        {dayObjectives.length} objectif{dayObjectives.length > 1 ? "s" : ""}
-        {dayExams.length > 0 && ` · ${dayExams.length} examen${dayExams.length > 1 ? "s" : ""}`}
-      </p>
-
-      {dayExams.length > 0 && (
-        <div className="mb-3 space-y-1.5">
-          {dayExams.map(e => {
-            const days = daysUntil(e.exam_date);
-            return (
-              <div key={e.id} className="flex items-center gap-2 rounded-xl px-3 py-2"
-                style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
-                  style={{ backgroundColor: "#DC2626", color: "#fff" }}>{t("plan.examTag")}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: "#1F1A17" }}>{e.name}</p>
-                  {(e.location || e.exam_time) && (
-                    <p className="text-xs" style={{ color: "#7C746E" }}>
-                      {[e.exam_time, e.location].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                </div>
-                <ExamBadge days={days} />
-                <button onClick={() => removeExam(e.id)} className="shrink-0 text-stone-300 hover:text-red-400">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <ul className="space-y-2 mb-3">
-        {dayObjectives.length === 0 && dayExams.length === 0 && (
-          <li className="text-sm text-stone-400">{t("plan.nothing")}</li>
-        )}
-        {dayObjectives.map(o => <ObjectiveRow key={o.id} o={o} />)}
-      </ul>
-
-      {/* ── Ajouter un objectif — section propre, distincte de l'examen ── */}
-      <div className="pt-3" style={{ borderTop: "1px solid var(--bt-border)" }}>
-        <p className="text-[11px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5"
-          style={{ color: "var(--bt-text-4)" }}>
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "#14B885" }} />
-          {t("plan.dayAddObj")}
-        </p>
-        <ObjectiveForm
-          value={{ title, courseId, minutes, time: newTime, weekdays: recurrenceWeekdays, until: recurrenceUntil }}
-          onChange={patch => {
-            if ("title" in patch)    setTitle(patch.title);
-            if ("courseId" in patch) setCourseId(patch.courseId);
-            if ("minutes" in patch)  setMinutes(patch.minutes);
-            if ("time" in patch)     setNewTime(patch.time);
-            if ("weekdays" in patch) setRecurrenceWeekdays(patch.weekdays);
-            if ("until" in patch)    setRecurrenceUntil(patch.until);
-          }}
-          onSubmit={addObjective}
-          minDate={selectedDate}
-          submitLabel={t("common.add")} />
-      </div>
-
-      {/* ── Ajouter un examen — section propre, distincte de l'objectif ── */}
-      <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
-        <p className="text-[11px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5"
-          style={{ color: "var(--bt-text-4)" }}>
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "#DC2626" }} />
-          {t("plan.dayAddExam")}
-        </p>
-        {!showExamForm ? (
-          <button onClick={() => setShowExamForm(true)}
-            className="w-full text-sm font-medium py-2.5 rounded-xl transition-colors flex items-center justify-center gap-1.5"
-            style={{ color: "#DC2626", border: "1px dashed #FECACA" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            {t("plan.dayAddExam")}
-          </button>
-        ) : (
-          <form onSubmit={handleAddExam} className="space-y-2">
-            <input className="input text-sm" value={examForm.name} required autoFocus
-              onChange={e => setExamForm(f => ({ ...f, name: e.target.value }))}
-              placeholder={t("plan.examNamePlaceholder")} />
-            <div className="flex gap-2">
-              <select className="input text-sm flex-1" value={examForm.courseId}
-                onChange={e => setExamForm(f => ({ ...f, courseId: e.target.value }))}>
-                <option value="">{t("plan.courseSelect")}</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <input className="input w-24 text-sm" type="time" value={examForm.time}
-                onChange={e => setExamForm(f => ({ ...f, time: e.target.value }))} />
-            </div>
-            <input className="input text-sm" value={examForm.location}
-              onChange={e => setExamForm(f => ({ ...f, location: e.target.value }))}
-              placeholder={t("plan.examLocationPlaceholder")} />
-            <div className="flex gap-2">
-              <button type="submit" className="flex-1 py-1.5 rounded-xl text-xs font-semibold"
-                style={{ backgroundColor: "#DC2626", color: "#fff" }}>
-                {t("plan.examSubmit")}
-              </button>
-              <button type="button" onClick={() => setShowExamForm(false)} className="btn-ghost text-xs flex-1">{t("common.cancel")}</button>
-            </div>
-          </form>
-        )}
-      </div>
-    </section>
   );
 }
 
@@ -559,12 +287,26 @@ function RevisionChecklists() {
 // calendrier, quelle que soit la date actuellement sélectionnée/naviguée.
 // Surface ink (même langage que le hero chrono du dashboard et la carte
 // percentile des stats) : c'est le "moment de marque" du planning.
+// Intègre la bande "À préparer cette semaine" (strictement demain → J+6,
+// jamais aujourd'hui : le haut de la carte couvre déjà le jour même —
+// l'ancienne carte séparée répétait les objectifs du jour deux fois).
 function TodayCard() {
-  const { byDate, examsByDate, exams, toggle, courseColor, courseName, launchTimer, setModalDate, lang, t } = usePlan();
+  const { byDate, examsByDate, exams, objectives, toggle, courseColor, courseName, launchTimer, openDay, lang, t } = usePlan();
   const today = todayISO();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
   const doneCount       = todayObjectives.filter(o => o.done).length;
+
+  const weekEnd = addDays(today, 6);
+  const weekAhead = [
+    ...exams
+      .filter(e => e.exam_date > today && e.exam_date <= weekEnd)
+      .map(e => ({ kind: "exam", id: `ex-${e.id}`, date: e.exam_date, name: e.name, courseId: e.course_id })),
+    ...objectives
+      .filter(o => !o.done && o.scheduled_date > today && o.scheduled_date <= weekEnd)
+      .map(o => ({ kind: "obj", id: `ob-${o.id}`, date: o.scheduled_date, name: o.title || courseName(o.course_id) || "—", courseId: o.course_id })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+  const WEEK_AHEAD_MAX = 6;
 
   const nextExam = exams
     .filter(e => e.exam_date >= today)
@@ -575,7 +317,7 @@ function TodayCard() {
   const dateLabel = dateFromYmd(today).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="card-ink px-5 py-4 mb-5 cursor-pointer" onClick={() => setModalDate(today)}>
+    <div className="card-ink px-5 py-4 mb-5 cursor-pointer" onClick={() => openDay(today)}>
       <div className="flex items-center justify-between mb-3.5">
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
           {t("plan.todayCardEyebrow")}
@@ -637,143 +379,56 @@ function TodayCard() {
       ) : (
         <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.nothing")}</p>
       )}
-    </div>
-  );
-}
 
-// ── WeekAheadCard ─────────────────────────────────────────────
-// "À préparer cette semaine" — remplace/étend l'ancien UpcomingExamsStrip.
-// Fenêtre fixe de 7 jours (aujourd'hui inclus) : examens ET objectifs non
-// terminés confondus, pour éviter un doublon avec un widget "examens à
-// venir" non borné juste au-dessus des mêmes données. Calcul 100% client
-// (exams/objectives déjà chargés en intégralité par load(), donc aucun
-// nouvel appel Supabase).
-function WeekAheadCard() {
-  const { exams, objectives, courseColor, courseName, t } = usePlan();
-  const today   = todayISO();
-  const weekEnd = addDays(today, 6);
-
-  const upcomingExams = exams
-    .filter(e => e.exam_date >= today && e.exam_date <= weekEnd)
-    .sort((a, b) => a.exam_date.localeCompare(b.exam_date));
-
-  const upcomingObjectives = objectives
-    .filter(o => !o.done && o.scheduled_date >= today && o.scheduled_date <= weekEnd)
-    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
-
-  if (!upcomingExams.length && !upcomingObjectives.length) return null;
-
-  return (
-    <div className="card px-4 py-3 mb-5">
-      <h3 className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--bt-text-3)" }}>
-        {t("plan.weekAheadTitle")}
-      </h3>
-      <div className="flex flex-wrap gap-2">
-        {upcomingExams.map(e => {
-          const days = daysUntil(e.exam_date);
-          return (
-            <div key={`ex-${e.id}`} className="flex items-center gap-2 px-3 py-2 rounded-2xl"
-              style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
-              {e.course_id && (
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: courseColor(e.course_id) }} />
-              )}
-              <span className="font-medium text-sm" style={{ color: "#DC2626" }}>{e.name}</span>
-              <ExamBadge days={days} />
-            </div>
-          );
-        })}
-        {upcomingObjectives.map(o => {
-          const days = daysUntil(o.scheduled_date);
-          const dayLabel = days === 0 ? t("common.today")
-            : days === 1 ? t("plan.tomorrow")
-            : WEEKDAYS_SHORT[(dateFromYmd(o.scheduled_date).getDay() + 6) % 7];
-          return (
-            <div key={`ob-${o.id}`} className="flex items-center gap-2 px-3 py-2 rounded-2xl"
-              style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              {o.course_id && (
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />
-              )}
-              <span className="font-medium text-sm truncate max-w-[160px]" style={{ color: "var(--bt-text-1)" }}>
-                {o.title || courseName(o.course_id) || "—"}
+      {weekAhead.length > 0 && (
+        <div className="mt-3.5 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }} onClick={e => e.stopPropagation()}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--bt-ink-muted)" }}>
+            {t("plan.weekAheadTitle")}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {weekAhead.slice(0, WEEK_AHEAD_MAX).map(item => {
+              const days = daysUntil(item.date);
+              const dayLabel = days === 1 ? t("plan.tomorrow")
+                : WEEKDAYS_SHORT[(dateFromYmd(item.date).getDay() + 6) % 7];
+              const isExam = item.kind === "exam";
+              return (
+                <button key={item.id} onClick={() => openDay(item.date)}
+                  className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full text-xs transition-colors"
+                  style={isExam
+                    ? { backgroundColor: "rgba(252,165,165,0.12)", border: "1px solid rgba(252,165,165,0.30)" }
+                    : { backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)" }}>
+                  {item.courseId && (
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: courseColor(item.courseId) }} />
+                  )}
+                  <span className="font-medium truncate max-w-[140px]"
+                    style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-text)" }}>
+                    {isExam ? `${t("plan.examTag")} · ${item.name}` : item.name}
+                  </span>
+                  <span className="font-bold shrink-0" style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-muted)" }}>
+                    {isExam ? `J-${days}` : dayLabel}
+                  </span>
+                </button>
+              );
+            })}
+            {weekAhead.length > WEEK_AHEAD_MAX && (
+              <span className="flex items-center px-2 py-1.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>
+                +{weekAhead.length - WEEK_AHEAD_MAX}
               </span>
-              <span className="text-xs font-bold shrink-0" style={{ color: "var(--bt-text-3)" }}>{dayLabel}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── ObjectivesToggle ──────────────────────────────────────────
-function ObjectivesToggle() {
-  const { showObjectives, setShowObjectives, dayObjectives, examsByDate, selectedDate, t } = usePlan();
-  const examCount = (examsByDate[selectedDate] || []).length;
-  const total = dayObjectives.length + examCount;
-
-  if (!showObjectives) {
-    return (
-      <button
-        onClick={() => setShowObjectives(true)}
-        className="card w-full p-5 text-left transition-all"
-        style={{ display: "block" }}
-        onMouseEnter={e => e.currentTarget.style.borderColor = "#14B885"}
-        onMouseLeave={e => e.currentTarget.style.borderColor = "var(--bt-border)"}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-            </span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                {t("plan.addGoals")}
-              </p>
-              {total > 0 && (
-                <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>
-                  {dayObjectives.length > 0 && `${dayObjectives.length} objectif${dayObjectives.length > 1 ? "s" : ""}`}
-                  {dayObjectives.length > 0 && examCount > 0 && " · "}
-                  {examCount > 0 && `${examCount} examen${examCount > 1 ? "s" : ""}`}
-                </p>
-              )}
-            </div>
+            )}
           </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ color: "var(--bt-text-4)", flexShrink: 0 }}>
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
         </div>
-      </button>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <button
-        onClick={() => setShowObjectives(false)}
-        className="flex items-center gap-1.5 text-xs font-medium transition-colors px-1"
-        style={{ color: "var(--bt-text-3)" }}
-        onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
-        onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        {t("plan.collapse")}
-      </button>
-      <DayPanel />
+      )}
     </div>
   );
 }
 
 // ── DayDetailModal ────────────────────────────────────────────
+// Surface UNIQUE de gestion d'un jour : consulter, ajouter, modifier,
+// reporter, supprimer objectifs et examens, lancer le chrono. (Avant, un
+// panneau latéral dupliquait tout ça avec d'autres formulaires — supprimé.)
 function DayDetailModal() {
-  const { modalDate, setModalDate, byDate, examsByDate, sessions, courses,
-          courseColor, courseName, toggle, remove,
+  const { modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions, courses,
+          courseColor, courseName, toggle, remove, postpone, launchTimer,
           addObjectiveForDate, saveObjEdit, addExam, removeExam, lang, t } = usePlan();
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -784,6 +439,20 @@ function DayDetailModal() {
   // Inline edit state
   const [editingObjId, setEditingObjId] = useState(null);
   const [editForm, setEditForm]         = useState({});
+  const [postponingId, setPostponingId] = useState(null);
+
+  // À chaque ouverture / changement de jour : repartir d'un état propre.
+  // Si on arrive depuis un créneau horaire de la grille (modalPrefillTime),
+  // ouvrir directement le formulaire d'ajout pré-rempli sur cette heure.
+  useEffect(() => {
+    if (!modalDate) return;
+    setShowAddForm(!!modalPrefillTime);
+    setAddForm({ ...EMPTY_OBJECTIVE_FORM, time: modalPrefillTime || "" });
+    setShowAddExamForm(false);
+    setExamForm({ name: "", courseId: "", time: "", location: "" });
+    setEditingObjId(null);
+    setPostponingId(null);
+  }, [modalDate, modalPrefillTime]);
 
   function startInlineEdit(o) {
     setEditingObjId(o.id);
@@ -1020,6 +689,7 @@ function DayDetailModal() {
                     ? sessions.filter(s => s.course_id === o.course_id && s.started_at.slice(0, 10) === o.scheduled_date)
                         .reduce((a, s) => a + s.duration_seconds, 0)
                     : 0;
+                  const recurLabel  = recurrenceBadgeLabel(o, t);
                   const statusLabel = o.done ? t("plan.dayDone") : isPast ? t("plan.dayOverdue") : t("plan.dayTodo");
                   const statusColor = o.done ? "#0E8F68" : isPast ? "#DC2626" : "var(--bt-text-3)";
                   const statusBg    = o.done ? "#EAFBF4"  : isPast ? "#FEF2F2"  : "var(--bt-subtle)";
@@ -1031,6 +701,7 @@ function DayDetailModal() {
 
                       {/* ── View mode ── */}
                       {!isEditing && (
+                        <>
                         <div className="flex items-start gap-3 px-4 py-3"
                           style={{ backgroundColor: "var(--bt-subtle)" }}>
                           <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
@@ -1051,6 +722,7 @@ function DayDetailModal() {
                               {o.course_id && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{courseName(o.course_id)}</span>}
                               {o.scheduled_time && <span className="text-xs font-medium" style={{ color: "var(--bt-text-3)" }}>· {o.scheduled_time}</span>}
                               {o.target_minutes > 0 && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>· {o.target_minutes} min</span>}
+                              {recurLabel && <span className="text-xs font-semibold" style={{ color: "var(--bt-text-4)" }}>· ↻ {recurLabel}</span>}
                               {realSecs > 0 && <span className="text-xs font-semibold" style={{ color: "#0E8F68" }}>· {formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
                             </div>
                             {o.target_minutes > 0 && realSecs > 0 && (
@@ -1064,6 +736,32 @@ function DayDetailModal() {
                           </div>
                           {/* Actions */}
                           <div className="flex items-center gap-0.5 shrink-0">
+                            {!o.done && isToday && o.course_id && (
+                              <button onClick={() => launchTimer(o.course_id)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg"
+                                style={{ color: "var(--bt-text-4)" }} title={t("plan.launchTimer")}
+                                onMouseEnter={e => e.currentTarget.style.color = "#14B885"}
+                                onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                  <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                              </button>
+                            )}
+                            {!o.done && (
+                              <button onClick={() => setPostponingId(p => p === o.id ? null : o.id)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg"
+                                style={{ color: postponingId === o.id ? "#D97706" : "var(--bt-text-4)" }}
+                                title={t("plan.postponeTooltip")}
+                                onMouseEnter={e => e.currentTarget.style.color = "#D97706"}
+                                onMouseLeave={e => e.currentTarget.style.color = postponingId === o.id ? "#D97706" : "var(--bt-text-4)"}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                                  <line x1="3" y1="10" x2="21" y2="10"/>
+                                  <path d="M16 14l2 2 4-4"/>
+                                </svg>
+                              </button>
+                            )}
                             <button onClick={() => startInlineEdit(o)}
                               className="w-7 h-7 flex items-center justify-center rounded-lg"
                               style={{ color: "var(--bt-text-4)" }} title={t("plan.dayEdit")}
@@ -1085,6 +783,26 @@ function DayDetailModal() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Report : demain en un clic, ou une autre date */}
+                        {postponingId === o.id && !o.done && (
+                          <div className="flex items-center gap-2 px-4 pb-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                            <button onClick={() => { postpone(o.id, tomorrow); setPostponingId(null); }}
+                              className="text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0"
+                              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-1)" }}>
+                              {t("plan.dayPostpone")}
+                            </button>
+                            <input type="date" className="input text-xs py-1.5 flex-1" min={tomorrow}
+                              aria-label={t("plan.postponeOtherDate")}
+                              onChange={e => {
+                                if (e.target.value && e.target.value >= tomorrow) {
+                                  postpone(o.id, e.target.value);
+                                  setPostponingId(null);
+                                }
+                              }} />
+                          </div>
+                        )}
+                        </>
                       )}
 
                       {/* ── Inline edit mode ── */}
@@ -1142,7 +860,7 @@ function DayDetailModal() {
 
 // ── MonthView ─────────────────────────────────────────────────
 function MonthView() {
-  const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, setModalDate, courseColor, dragId, setDragId, postpone } = usePlan();
+  const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
   const today = todayISO();
 
@@ -1150,7 +868,7 @@ function MonthView() {
   const weeks = Array.from({ length: 6 }, (_, i) => grid.slice(i * 7, i * 7 + 7));
 
   return (
-    <section className="card overflow-hidden lg:col-span-2">
+    <section className="card overflow-hidden">
       {/* Day-of-week header */}
       <div className="grid grid-cols-7 border-b" style={{ borderColor: "var(--bt-border)" }}>
         {WEEKDAYS_SHORT.map((d, i) => (
@@ -1190,10 +908,7 @@ function MonthView() {
               }
 
               return (
-                <button key={key} onClick={() => { setSelectedDate(key); if (inMonth) setModalDate(key); }}
-                  onDragOver={e => { if (dragId) { e.preventDefault(); e.currentTarget.style.outline = "2px dashed #14B885"; e.currentTarget.style.outlineOffset = "-2px"; } }}
-                  onDragLeave={e => { e.currentTarget.style.outline = ""; }}
-                  onDrop={e => { e.preventDefault(); e.currentTarget.style.outline = ""; if (dragId) { postpone(dragId, key); setDragId(null); setSelectedDate(key); } }}
+                <button key={key} onClick={() => { if (inMonth) openDay(key); else setSelectedDate(key); }}
                   className="min-h-[82px] p-2 text-left transition-colors relative"
                   style={{
                     ...bgStyle,
@@ -1276,13 +991,14 @@ function MonthView() {
 
 // ── TimeGrid ──────────────────────────────────────────────────
 function TimeGrid({ days }) {
-  const { byDate, examsByDate, selectedDate, setSelectedDate, courseColor, setNewTime, startEdit, t } = usePlan();
+  const { byDate, examsByDate, selectedDate, courseColor, openDay, t } = usePlan();
   const today = todayISO();
   const TODAY_TINT = "rgba(20,184,133,0.06)"; // voile accent — lisible sur light ET dark
 
+  // Clic sur un créneau : ouvre la fiche du jour, formulaire d'ajout
+  // pré-rempli sur l'heure cliquée (une seule surface d'ajout : le modal).
   function handleSlotClick(key, h) {
-    setSelectedDate(key);
-    if (h !== null) setNewTime(String(h).padStart(2,"0") + ":00");
+    openDay(key, h !== null ? String(h).padStart(2, "0") + ":00" : null);
   }
 
   return (
@@ -1296,7 +1012,7 @@ function TimeGrid({ days }) {
           const isToday = key === today;
           const isSel   = key === selectedDate;
           return (
-            <button key={key} onClick={() => setSelectedDate(key)}
+            <button key={key} onClick={() => openDay(key)}
               className="py-2 text-center transition-colors"
               style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isSel ? "var(--bt-accent-bg)" : "transparent" }}
               onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
@@ -1333,7 +1049,7 @@ function TimeGrid({ days }) {
                 <div key={o.id} className="text-[11px] rounded px-1.5 py-0.5 truncate text-white font-medium"
                   style={{ backgroundColor: courseColor(o.course_id) }}
                   title={o.title}
-                  onClick={e => { e.stopPropagation(); setSelectedDate(key); startEdit(o); }}>
+                  onClick={e => { e.stopPropagation(); openDay(key); }}>
                   {o.title}
                 </div>
               ))}
@@ -1341,7 +1057,7 @@ function TimeGrid({ days }) {
                 <div key={e.id} className="text-[11px] rounded px-1.5 py-0.5 truncate font-bold"
                   style={{ backgroundColor: "#DC2626", color: "#fff" }}
                   title={e.name}
-                  onClick={ev => { ev.stopPropagation(); setSelectedDate(key); }}>
+                  onClick={ev => { ev.stopPropagation(); openDay(key); }}>
                   {t("plan.examTag")} : {e.name}
                 </div>
               ))}
@@ -1374,7 +1090,7 @@ function TimeGrid({ days }) {
                       className="text-[11px] rounded px-1.5 py-1 mb-0.5 text-white font-medium cursor-pointer hover:brightness-90 truncate"
                       style={{ backgroundColor: courseColor(o.course_id) }}
                       title={o.title}
-                      onClick={e => { e.stopPropagation(); setSelectedDate(key); startEdit(o); }}>
+                      onClick={e => { e.stopPropagation(); openDay(key); }}>
                       <span className="block truncate">{o.title}</span>
                       <span className="opacity-80 text-[10px] font-num tabular-nums">{o.target_minutes} min</span>
                     </div>
@@ -1408,20 +1124,10 @@ export default function Planning() {
     const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() };
   });
   const [selectedDate, setSelectedDate] = useState(todayISO());
-  const [title, setTitle]         = useState("");
-  const [courseId, setCourseId]   = useState("");
-  const [minutes, setMinutes]     = useState("");
-  const [newTime, setNewTime]     = useState("");
-  const [recurrenceWeekdays, setRecurrenceWeekdays] = useState([]);
-  const [recurrenceUntil, setRecurrenceUntil]       = useState("");
-  const [dragId, setDragId]       = useState(null);
-  const [editingId, setEditingId]   = useState(null);
-  const [editForm, setEditForm]     = useState({});
-  const [showObjectives, setShowObjectives] = useState(false);
   const [modalDate, setModalDate] = useState(null);
+  const [modalPrefillTime, setModalPrefillTime] = useState(null); // heure pré-remplie quand on ouvre depuis un créneau de la grille
   const [togglingShare, setTogglingShare] = useState(false); // pilote l'UI (disabled/opacité)
   const togglingShareRef = useRef(false); // verrou synchrone anti double-clic (cf. togglePlanningPublic)
-  const prevSelectedDate = useRef(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -1450,24 +1156,13 @@ export default function Planning() {
     }
   }, [view]); // eslint-disable-line
 
-  // Auto-open panel when navigating to a date that has content
-  useEffect(() => {
-    if (selectedDate === prevSelectedDate.current) return;
-    prevSelectedDate.current = selectedDate;
-    const hasContent = (byDate[selectedDate] || []).length > 0 || (examsByDate[selectedDate] || []).length > 0;
-    setShowObjectives(hasContent);
-  }, [selectedDate]); // eslint-disable-line
-
-  async function addObjective(e) {
-    e.preventDefault();
-    if (!title.trim() && !courseId) return;
-    const { data } = await supabase.from("objectives")
-      .insert({ user_id: user.id, title: title.trim(), course_id: courseId || null,
-        target_minutes: Number(minutes) || 0, scheduled_date: selectedDate,
-        scheduled_time: newTime || null, ...recurrenceFields(recurrenceWeekdays, recurrenceUntil) })
-      .select().single();
-    if (data) { setObjectives(p => [...p, data]); toast(t("toast.objectiveAdded")); }
-    setTitle(""); setMinutes(""); setNewTime(""); setRecurrenceWeekdays([]); setRecurrenceUntil("");
+  // Point d'entrée unique vers la fiche d'un jour (le modal). Synchronise
+  // aussi la sélection du calendrier, et transporte l'éventuelle heure
+  // cliquée dans la grille horaire pour pré-remplir le formulaire d'ajout.
+  function openDay(date, prefillTime = null) {
+    setSelectedDate(date);
+    setModalPrefillTime(prefillTime);
+    setModalDate(date);
   }
 
   async function toggle(o) {
@@ -1546,26 +1241,8 @@ export default function Planning() {
         target_minutes: Number(fm) || 0, scheduled_date: date,
         scheduled_time: fti || null, ...recurrenceFields(fw, fu) })
       .select().single();
-    if (data) setObjectives(p => [...p, data]);
+    if (data) { setObjectives(p => [...p, data]); toast(t("toast.objectiveAdded")); }
     return data;
-  }
-
-  function startEdit(o) {
-    setEditingId(o.id);
-    setEditForm({
-      title: o.title, courseId: o.course_id || "", minutes: o.target_minutes, time: o.scheduled_time || "",
-      weekdays: weekdaysFromObjective(o), until: o.recurrence_until || "",
-    });
-  }
-
-  async function saveEdit(id) {
-    const { data } = await supabase.from("objectives")
-      .update({ title: editForm.title.trim(), course_id: editForm.courseId || null,
-        target_minutes: Number(editForm.minutes) || 0, scheduled_time: editForm.time || null,
-        ...recurrenceFields(editForm.weekdays, editForm.until) })
-      .eq("id", id).select().single();
-    if (data) setObjectives(p => p.map(x => x.id === id ? data : x));
-    setEditingId(null);
   }
 
   async function saveObjEdit(id, form) {
@@ -1628,8 +1305,6 @@ export default function Planning() {
     (acc[e.exam_date] = acc[e.exam_date] || []).push(e); return acc;
   }, {});
 
-  const dayObjectives = byDate[selectedDate] || [];
-
   function shiftDays(n) { const d = dateFromYmd(selectedDate); d.setDate(d.getDate() + n); setSelectedDate(ymd(d)); }
   function shiftMonth(delta) { setCursor(c => { const d = new Date(c.year, c.month + delta, 1); return { year: d.getFullYear(), month: d.getMonth() }; }); }
   function goToday() { const t = todayISO(); setSelectedDate(t); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
@@ -1649,13 +1324,8 @@ export default function Planning() {
 
   const ctxValue = {
     view, courses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
-    title, setTitle, courseId, setCourseId, minutes, setMinutes, newTime, setNewTime,
-    recurrenceWeekdays, setRecurrenceWeekdays, recurrenceUntil, setRecurrenceUntil, dragId, setDragId,
-    editingId, setEditingId, editForm, setEditForm,
-    dayObjectives, addObjective, toggle, remove, startEdit, saveEdit,
-    courseColor, courseName, exams, sessions, postpone, addExam, removeExam,
-    showObjectives, setShowObjectives,
-    modalDate, setModalDate, addObjectiveForDate, saveObjEdit,
+    toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam,
+    modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
     launchTimer,
     lang, t,
   };
@@ -1664,25 +1334,15 @@ export default function Planning() {
     <Ctx.Provider value={ctxValue}>
       <style>{`@media print { aside, nav, header, footer, .no-print { display: none !important; } body { background: white !important; } .card { box-shadow: none !important; } }`}</style>
       <Layout>
-        <div className="flex flex-wrap items-center gap-3 mb-5">
-          <button onClick={goToday} className="btn-ghost text-xs px-3 py-1.5">{t("common.today")}</button>
-          <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
-            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-              <path d="M12 14v4"/>
-              <path d="m10 16 2 2 2-2"/>
-            </svg>
-            {t("plan.exportCalendar")}
-          </button>
+        {/* Barre d'outils unique : navigation + période à gauche, vue et
+            actions secondaires (partage, export) à droite. */}
+        <div className="flex flex-wrap items-center gap-2 mb-5">
           <div className="flex items-center gap-1">
             <button onClick={handlePrev} className="btn-ghost px-2.5 py-1.5 text-lg leading-none">‹</button>
             <button onClick={handleNext} className="btn-ghost px-2.5 py-1.5 text-lg leading-none">›</button>
           </div>
-          <h2 className="font-display text-lg capitalize flex-1" style={{ color: "var(--bt-text-1)" }}>{periodLabel()}</h2>
+          <button onClick={goToday} className="btn-ghost text-xs px-3 py-1.5">{t("common.today")}</button>
+          <h2 className="font-display text-lg capitalize flex-1 min-w-[150px]" style={{ color: "var(--bt-text-1)" }}>{periodLabel()}</h2>
           <div className="flex rounded-xl p-0.5 gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
             {[["day",t("plan.day")],["week",t("plan.week")],["month",t("plan.month")]].map(([v, label]) => (
               <button key={v} onClick={() => setView(v)}
@@ -1694,51 +1354,41 @@ export default function Planning() {
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 mb-5">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-            style={{ color: "var(--bt-text-3)", flexShrink: 0 }}>
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-          <span className="text-sm flex-1" style={{ color: "var(--bt-text-2)" }}>{t("plan.public")}</span>
           <button onClick={togglePlanningPublic} disabled={togglingShare}
-            role="switch" aria-checked={!!profile?.planning_public} aria-label={t("plan.public")}
-            className="relative w-10 h-6 rounded-full transition-colors shrink-0"
-            style={{
-              backgroundColor: profile?.planning_public ? "#14B885" : "var(--bt-border)",
-              opacity: togglingShare ? 0.6 : 1,
-              cursor: togglingShare ? "wait" : "pointer",
-            }}>
-            <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-              style={{ transform: profile?.planning_public ? "translateX(18px)" : "translateX(2px)" }} />
+            role="switch" aria-checked={!!profile?.planning_public} title={t("plan.public")}
+            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print"
+            style={{ opacity: togglingShare ? 0.6 : 1, cursor: togglingShare ? "wait" : "pointer" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            {profile?.planning_public ? t("plan.shareShared") : t("plan.sharePrivate")}
+            <span className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: profile?.planning_public ? "#14B885" : "var(--bt-text-4)" }} />
+          </button>
+          <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
+            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+              <path d="M12 14v4"/>
+              <path d="m10 16 2 2 2-2"/>
+            </svg>
+            <span className="hidden sm:inline">{t("plan.exportCalendar")}</span>
           </button>
         </div>
 
         <TodayCard />
-        <WeekAheadCard />
 
-        {/* Keyed on the view so switching mois/semaine/jour plays a soft fade. */}
+        {/* Keyed on the view so switching mois/semaine/jour plays a soft fade.
+            Calendrier pleine largeur : le détail d'un jour vit dans le modal,
+            plus de panneau latéral en doublon. */}
         <div key={view} className="bt-tab-fade">
-        {view === "month" && (
-          <div className="grid gap-5 lg:grid-cols-3">
-            <MonthView />
-            <div><ObjectivesToggle /></div>
-          </div>
-        )}
-        {view === "week" && (
-          <div className="grid gap-5 lg:grid-cols-4">
-            <div className="lg:col-span-3"><TimeGrid days={getWeekDays(selectedDate)} /></div>
-            <div><ObjectivesToggle /></div>
-          </div>
-        )}
-        {view === "day" && (
-          <div className="grid gap-5 lg:grid-cols-3">
-            <div className="lg:col-span-2"><TimeGrid days={[dateFromYmd(selectedDate)]} /></div>
-            <div><ObjectivesToggle /></div>
-          </div>
-        )}
+          {view === "month" && <MonthView />}
+          {view === "week"  && <TimeGrid days={getWeekDays(selectedDate)} />}
+          {view === "day"   && <TimeGrid days={[dateFromYmd(selectedDate)]} />}
         </div>
 
         <RevisionChecklists />

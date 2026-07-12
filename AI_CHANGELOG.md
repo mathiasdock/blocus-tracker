@@ -2,6 +2,24 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-12 - Planning : reharmonisation complete de la page
+
+Demande utilisateur : "le planning manque de coherence, les fonctionnalites vont un peu dans tous les sens, reharmonise tout pour que ce soit plus simple et coherent".
+
+Problemes identifies (verifies en navigateur avant modification) :
+- Les memes objectifs apparaissaient DEUX fois a l'ecran (carte "Aujourd'hui" + carte "A preparer cette semaine" juste en dessous, qui incluait aussi le jour meme).
+- DEUX surfaces concurrentes pour gerer un jour : le panneau lateral "Ajouter tes objectifs" (formulaire toujours deplie, son propre bouton examen) ET le modal de detail du jour (formulaires replies, autre presentation) — deux UX differentes pour exactement les memes actions.
+- Barre d'outils eclatee sur 3 lignes (boutons, puis switch de partage en pleine largeur avec sa longue phrase).
+
+Reharmonisation (pages/planning.js, ~1750 → ~1200 lignes, -22% de code) :
+- **Une seule surface jour** : le modal de detail (bottom sheet mobile / centre desktop). Tout clic sur un jour (case du mois, en-tete ou creneau de la grille semaine/jour, carte Aujourd'hui, puce de la bande semaine) ouvre CE modal. Le panneau lateral, son toggle "Ajouter tes objectifs" et le drag-&-drop (dont la source etait ce panneau) sont supprimes.
+- **Parite de fonctions dans le modal** : ajout des actions qui n'existaient que dans le panneau supprime — reporter a demain / a une date (bande inline sous la ligne), lancer le chrono (aujourd'hui + cours), badge de recurrence (`↻ quotidien` etc.) dans les metadonnees. Le formulaire d'ajout se pre-remplit sur l'heure cliquee dans la grille horaire (nouvel etat modalPrefillTime + reset propre a chaque ouverture), et l'ajout affiche desormais le meme toast que l'ancien panneau.
+- **Une seule carte resume** : la bande "A preparer cette semaine" est integree en bas de la carte Aujourd'hui et ne montre QUE demain → J+6 (plus jamais le jour meme, donc plus de doublon). Puces cliquables → modal du jour concerne. Max 6 puces + compteur.
+- **Une seule barre d'outils** : ‹ › + Aujourd'hui + periode + selecteur Jour/Semaine/Mois + pastille de partage compacte ("Prive"/"Partage" + point de statut, phrase complete en title/aria) + export .ics (texte masque sur mobile). Nouvelles cles i18n plan.sharePrivate / plan.shareShared (fr + en).
+- **Calendrier pleine largeur** dans les 3 vues (le detail vivant dans le modal, la colonne laterale n'existe plus).
+
+Verifie en navigateur (build offline, mobile + desktop 1440px, clair + sombre) : plus de doublon dans le hero ; clic case du mois → modal ; report vers date custom puis retour (l'objectif bouge bien dans le calendrier et la bande semaine se met a jour en direct) ; clic creneau 09h vue semaine → modal avec formulaire pre-ouvert et 09:00 pre-rempli ; creation + suppression d'un objectif OK ; zero erreur console. `npm run lint` + `npm run build` OK.
+
 ## 2026-07-12 - Logos des communautes : 19 nouveaux + optimisation complete
 
 Demande utilisateur : l'utilisateur a depose les images de logo manquantes dans `public/logos-commu/` (les 10 nouvelles ecoles francaises + 9 ecoles belges qui utilisaient encore le fallback initiales) et a demande qu'elles soient associees aux bonnes communautes, sans alourdir le chargement du site.
