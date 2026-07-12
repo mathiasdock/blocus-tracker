@@ -46,7 +46,8 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `get_my_email()` | Helper to fetch own email without scanning the table |
 | `is_friend_or_self(target uuid)` | RLS helper |
 | `is_group_member(gid uuid)` | RLS helper |
-| `get_public_leaderboard(p_period text, p_university text)` | Top 50 by `total_seconds` for the period. v13+: also returns `alltime_seconds` for level computation. |
+| `get_public_leaderboard(p_period text, p_university text)` | Top 50 by `total_seconds` for the period. v13+: also returns `alltime_seconds` for level computation. Kept as fallback for `get_leaderboard_v2`. |
+| `get_leaderboard_v2(p_period, p_metric, p_scope, p_university, p_study_field, p_study_year)` | v27+ — leaderboard with metrics (time / streak / regularity), friends scope resolved server-side via `auth.uid()`, profile filters. Top 50, `authenticated` only. |
 | `get_my_study_rank(p_period text)` | Returns user's percentile vs all active users |
 | `get_user_profile_stats(p_user_id uuid)` | v12+: restricted to self/friend/admin |
 
@@ -83,6 +84,7 @@ All in `supabase/`. **Run manually** in Supabase Dashboard → SQL Editor when n
 | `migration_v18_community_access.sql` | `university_communities` table + `can_access_community()` — restricted community read to own university (superseded by v25) |
 | `migration_v25_community_public_read.sql` | Communautés page redesign — opens community_messages READ to all authenticated users (any school), keeps INSERT restricted to own community; adds `parent_id` (question replies) and `exam_date` (structured exam dates for J-X badges) columns |
 | `migration_v26_new_universities.sql` | Registers 40 new schools (FR/NL/ES/CH) in `university_communities` so their students can post in their own community — must stay in sync with `lib/universities.js` |
+| `migration_v27_leaderboard_v2.sql` | `get_leaderboard_v2()` — leaderboard with metrics (time / streak / regularity), scope (all / friends via `auth.uid()`) and profile filters (university / study_field / study_year). UI falls back to `get_public_leaderboard` until this is executed |
 
 > ⚠️ The project has **three v12 files** — confusing but intentional (parallel features). When numbering a new one, jump to **v14** or higher. See `.claude/skills/new-migration.md`.
 

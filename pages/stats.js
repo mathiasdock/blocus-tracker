@@ -1,17 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import Layout, { Avatar } from "../components/Layout";
+import Layout from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import StudyHeatmap from "../components/StudyHeatmap";
-import { SkeletonList } from "../components/Skeleton";
+import Leaderboard, { RankBadge } from "../components/Leaderboard";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatMinutesShort, lastNDates, getWeekDates, displayName, todayISO, computeStreak, computeBestStreak } from "../lib/format";
+import { formatMinutesShort, lastNDates, getWeekDates, todayISO, computeStreak, computeBestStreak } from "../lib/format";
 import { computeInsights } from "../lib/statsInsights";
-import { loadUserLevelMap } from "../lib/userLevels";
-import LevelPill from "../components/LevelPill";
 
 const Charts = dynamic(() => import("../components/StatsCharts"), { ssr: false });
 
@@ -124,33 +122,6 @@ function weekLabel(dates, lang) {
   return `${start.toLocaleDateString(locale, opts)} – ${end.toLocaleDateString(locale, opts)}`;
 }
 
-// Pastille de rang — podium or / argent / bronze pour bien démarquer le 1er.
-// Réservé et intentionnel (comme le rouge pour le destructif) ; le reste en
-// numéro discret. Chiffres en Space Grotesk. Dark-safe (couleurs pleines).
-function RankBadge({ rank }) {
-  const medal = rank === 1
-    ? { backgroundColor: "#F59E0B", color: "#fff", boxShadow: "0 2px 10px rgba(245,158,11,0.5)" }   // or
-    : rank === 2
-    ? { backgroundColor: "#9AA4B2", color: "#fff", boxShadow: "0 1px 5px rgba(154,164,178,0.45)" }  // argent
-    : rank === 3
-    ? { backgroundColor: "#C2703D", color: "#fff", boxShadow: "0 1px 5px rgba(194,112,61,0.45)" }   // bronze
-    : null;
-  if (!medal) {
-    return (
-      <span className="shrink-0 w-6 h-6 flex items-center justify-center font-num font-bold text-xs tabular-nums"
-        style={{ color: "var(--bt-text-3)" }}>
-        {rank}
-      </span>
-    );
-  }
-  return (
-    <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-num font-bold text-xs tabular-nums"
-      style={medal}>
-      {rank}
-    </span>
-  );
-}
-
 // Chip de tendance — flèche ▲/▼ + pourcentage. Vert en hausse, rouge en baisse,
 // neutre si stable. Direction portée par la flèche (pct affiché en absolu).
 function TrendChip({ dir, pct }) {
@@ -238,21 +209,11 @@ export default function Stats() {
   // ── Chart week navigation ──────────────────────────────────────
   const [weekOffset, setWeekOffset] = useState(0); // 0=current week, -1=last week…
 
-  // ── Leaderboard state ──────────────────────────────────────────
-  const [leaderPeriod, setLeaderPeriod] = useState("day");
-  const [leaderMode,   setLeaderMode]   = useState("public");
-  const [myWeekSecs,   setMyWeekSecs]   = useState(0);
-  const [myDaySecs,    setMyDaySecs]    = useState(0);
-  const [friendData,   setFriendData]   = useState({});
-  const [acceptedIds,  setAcceptedIds]  = useState([]);
-  const [viewUserId,   setViewUserId]   = useState(null);
+  // ── Leaderboard (extrait dans components/Leaderboard.js) ──────
+  const [viewUserId, setViewUserId] = useState(null);
 
-  // ── Public leaderboard + percentile ───────────────────────────
-  const [publicLeader,  setPublicLeader]  = useState([]);
-  const [leaderLevels,  setLeaderLevels]  = useState({});
-  const [loadingPublic, setLoadingPublic] = useState(false);
-  const [myRank,        setMyRank]        = useState(null);
-  const [maFacActive,   setMaFacActive]   = useState(false);
+  // ── Percentile ─────────────────────────────────────────────────
+  const [myRank, setMyRank] = useState(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -284,50 +245,6 @@ export default function Stats() {
     })();
   }, [user]);
 
-  // ── Friends leaderboard data ───────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data: links } = await supabase
-        .from("friendships")
-        .select("requester, addressee")
-        .or(`requester.eq.${user.id},addressee.eq.${user.id}`)
-        .eq("status", "accepted");
-      const ids = (links || []).map(l =>
-        l.requester === user.id ? l.addressee : l.requester
-      );
-      setAcceptedIds(ids);
-      if (!ids.length) { setFriendData({}); return; }
-
-      const since7 = lastNDates(7)[0];
-      const [{ data: profs }, { data: fSessions }] = await Promise.all([
-        supabase.from("profiles")
-          .select("id, pseudo, first_name, last_name, avatar_url, university")
-          .in("id", ids),
-        supabase.from("sessions")
-          .select("user_id, duration_seconds, started_at")
-          .in("user_id", ids)
-          .gte("started_at", since7),
-      ]);
-      const map = {};
-      (profs || []).forEach(p => { map[p.id] = { profile: p, sessions: [] }; });
-      (fSessions || []).forEach(s => { if (map[s.user_id]) map[s.user_id].sessions.push(s); });
-      setFriendData(map);
-
-      const { data: myW } = await supabase.from("sessions")
-        .select("duration_seconds")
-        .eq("user_id", user.id)
-        .gte("started_at", since7);
-      setMyWeekSecs((myW || []).reduce((a, s) => a + s.duration_seconds, 0));
-
-      const { data: myD } = await supabase.from("sessions")
-        .select("duration_seconds")
-        .eq("user_id", user.id)
-        .gte("started_at", todayISO());
-      setMyDaySecs((myD || []).reduce((a, s) => a + s.duration_seconds, 0));
-    })();
-  }, [user]);
-
   // ── Percentile ────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
@@ -347,33 +264,6 @@ export default function Stats() {
       setComparison(error ? null : (data || null));
     })();
   }, [user]);
-
-  // ── Public leaderboard ────────────────────────────────────────
-  useEffect(() => {
-    if (!user) return;
-    setLoadingPublic(true);
-    (async () => {
-      const { data } = await supabase.rpc("get_public_leaderboard", {
-        p_period: leaderPeriod,
-        p_university: maFacActive ? (profile?.university || null) : null,
-      });
-      const rows = data || [];
-      setPublicLeader(rows);
-      if (rows.length) {
-        const fallbackTotalSecondsByUser = Object.fromEntries(
-          rows.map((row) => [row.user_id, Number(row.alltime_seconds ?? row.total_seconds ?? 0)])
-        );
-        const levelMap = await loadUserLevelMap(supabase, rows.map((row) => row.user_id), {
-          selfUserId: user.id,
-          fallbackTotalSecondsByUser,
-        });
-        setLeaderLevels(levelMap);
-      } else {
-        setLeaderLevels({});
-      }
-      setLoadingPublic(false);
-    })();
-  }, [user, leaderPeriod, leaderMode, maFacActive, profile?.university]);
 
   // ── Stats computation ──────────────────────────────────────────
   // Chart: 7 days of the selected week
@@ -482,25 +372,6 @@ export default function Stats() {
 
   // ── #7 Course podium — top 3 over 30 days ──────────────────────
   const podium = [...byCourse30].sort((a, b) => b.minutes - a.minutes).slice(0, 3);
-
-  // ── Friends leaderboard computation ───────────────────────────
-  const mySecs = leaderPeriod === "day" ? myDaySecs : myWeekSecs;
-  const leaderboard = [
-    { id: user?.id, name: displayName(profile), avatar: profile?.avatar_url, secs: mySecs, me: true },
-    ...acceptedIds
-      .filter(fid => friendData[fid])
-      .filter(fid => !maFacActive || !profile?.university || friendData[fid].profile?.university === profile.university)
-      .map(fid => {
-        const fd = friendData[fid];
-        const secs = leaderPeriod === "day"
-          ? fd.sessions.filter(s => s.started_at.slice(0, 10) === todayISO())
-              .reduce((a, s) => a + s.duration_seconds, 0)
-          : fd.sessions.reduce((a, s) => a + s.duration_seconds, 0);
-        return { id: fid, name: displayName(fd.profile), avatar: fd.profile?.avatar_url, secs, me: false };
-      }),
-  ].sort((a, b) => b.secs - a.secs);
-
-  const hasFriends = acceptedIds.length > 0;
 
   // ── Percentile ────────────────────────────────────────────────
   const pct = myRank?.total_active > 0 && Number(myRank?.my_secs) > 0
@@ -939,157 +810,8 @@ export default function Stats() {
         </div>
       )}
 
-      {/* ── Leaderboard ─────────────────────────────────────────── */}
-      <section className="card p-5 mt-6">
-        {/* Title */}
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
-              {leaderMode === "friends" ? t("stats.leaderTitle") : t("stats.publicLeaderTitle")}
-            </h2>
-            <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>
-              {leaderMode === "public"
-                ? (maFacActive && profile?.university
-                    ? `Top 50 — ${profile.university}`
-                    : (leaderPeriod === "day" ? t("stats.publicLeaderSubDay") : t("stats.publicLeaderSub")))
-                : (leaderPeriod === "day" ? t("common.today") : t("stats.last7days"))
-              }
-            </p>
-          </div>
-          <div className="flex sm:hidden" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0 }}>
-            {[
-              { val: "day",  label: t("stats.day")  },
-              { val: "week", label: t("stats.week") },
-            ].map(opt => {
-              const active = leaderPeriod === opt.val;
-              return (
-                <button key={opt.val} onClick={() => setLeaderPeriod(opt.val)}
-                  style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: active ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: active ? "#14B885" : "transparent", color: active ? "#fff" : "var(--bt-text-3)", boxShadow: active ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── Single compact filter bar ─────────────────────────── */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-
-          {/* Left: Public / Amis */}
-          <div style={{ display: "inline-flex", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0 }}>
-            <button onClick={() => setLeaderMode("public")}
-              style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: leaderMode === "public" ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: leaderMode === "public" ? "#14B885" : "transparent", color: leaderMode === "public" ? "#fff" : "var(--bt-text-3)", boxShadow: leaderMode === "public" ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
-              {t("stats.filterPublic")}
-            </button>
-            {hasFriends && (
-              <button onClick={() => setLeaderMode("friends")}
-                style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: leaderMode === "friends" ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: leaderMode === "friends" ? "#14B885" : "transparent", color: leaderMode === "friends" ? "#fff" : "var(--bt-text-3)", boxShadow: leaderMode === "friends" ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
-                {t("stats.filterFriends")}
-              </button>
-            )}
-          </div>
-
-          {/* Center: Ma fac toggle — visible only if user has a university */}
-          {profile?.university && (
-            <button onClick={() => setMaFacActive(f => !f)}
-              className="flex items-center gap-1.5"
-              style={{ borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: maFacActive ? 600 : 400, border: "1px solid", cursor: "pointer", transition: "all 0.15s", backgroundColor: maFacActive ? "#EAFBF4" : "transparent", color: maFacActive ? "#0E8F68" : "var(--bt-text-3)", borderColor: maFacActive ? "#C6EED9" : "var(--bt-border)", flexShrink: 0 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-              </svg>
-              {t("stats.filterMyUni")}
-            </button>
-          )}
-
-          {/* Right: Jour / Semaine — desktop only (mobile: in title row) */}
-          <div className="hidden sm:inline-flex" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0, marginLeft: "auto" }}>
-            {[
-              { val: "day",  label: t("stats.day")  },
-              { val: "week", label: t("stats.week") },
-            ].map(opt => {
-              const active = leaderPeriod === opt.val;
-              return (
-                <button key={opt.val} onClick={() => setLeaderPeriod(opt.val)}
-                  style={{ borderRadius: 20, padding: "5px 14px", fontSize: 12, fontWeight: active ? 600 : 400, border: "none", cursor: "pointer", transition: "all 0.15s", backgroundColor: active ? "#14B885" : "transparent", color: active ? "#fff" : "var(--bt-text-3)", boxShadow: active ? "0 1px 4px rgba(20,184,133,0.30)" : "none" }}>
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-
-        </div>
-
-        {/* Friends leaderboard */}
-        {leaderMode === "friends" && (
-          <div className="[&::-webkit-scrollbar]:hidden"
-            style={{ maxHeight: "480px", overflowY: "auto", scrollbarWidth: "none" }}>
-            <ul className="space-y-1.5">
-              {leaderboard.map((row, i) => (
-                <li key={row.id}
-                  className="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors"
-                  style={row.me ? { backgroundColor: "#EAFBF4" } : { cursor: "pointer" }}
-                  onClick={() => { if (!row.me) setViewUserId(row.id); }}
-                  onMouseEnter={e => { if (!row.me) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-                  onMouseLeave={e => { if (!row.me) e.currentTarget.style.backgroundColor = ""; }}>
-                  <RankBadge rank={i + 1} />
-                  <Avatar url={row.avatar} pseudo={row.name} size={32} />
-                  <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>
-                    {row.name}
-                    {row.me && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}
-                  </span>
-                  <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
-                    {formatMinutesShort(row.secs)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Public leaderboard */}
-        {leaderMode === "public" && (
-          <div className="[&::-webkit-scrollbar]:hidden"
-            style={{ maxHeight: "480px", overflowY: "auto", scrollbarWidth: "none" }}>
-            {loadingPublic ? (
-              <div className="py-1"><SkeletonList rows={6} avatar={32} lines={1} /></div>
-            ) : (
-              <ul className="space-y-1.5">
-                {publicLeader.map((row, i) => {
-                  const isMe = row.user_id === user?.id;
-                  const name = [row.first_name, row.last_name].filter(Boolean).join(" ") || row.pseudo;
-                  return (
-                    <li key={row.user_id}
-                      className="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors"
-                      style={isMe ? { backgroundColor: "#EAFBF4" } : { cursor: "pointer" }}
-                      onClick={() => { if (!isMe) setViewUserId(row.user_id); }}
-                      onMouseEnter={e => { if (!isMe) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-                      onMouseLeave={e => { if (!isMe) e.currentTarget.style.backgroundColor = ""; }}>
-                      <RankBadge rank={i + 1} />
-                      <Avatar url={row.avatar_url} pseudo={name} size={32} />
-                      <span className="flex-1 min-w-0 text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
-                        <span className="inline-flex items-center gap-1.5 max-w-full">
-                          <span className="truncate">{name}</span>
-                          {Number(leaderLevels[row.user_id]?.totalXP) > 0 && (
-                            <LevelPill level={leaderLevels[row.user_id].current.level} />
-                          )}
-                        </span>
-                        {isMe && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}
-                      </span>
-                      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
-                        {formatMinutesShort(Number(row.total_seconds))}
-                      </span>
-                    </li>
-                  );
-                })}
-                {publicLeader.length === 0 && (
-                  <li className="py-6 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>—</li>
-                )}
-              </ul>
-            )}
-          </div>
-        )}
-      </section>
+      {/* ── Classement (métriques + filtres) — components/Leaderboard.js ── */}
+      <Leaderboard user={user} profile={profile} onViewUser={setViewUserId} />
 
       {/* ══ NIVEAU 2 — Analyse avancée (repliable) ══════════════ */}
       {sessionCount > 0 && (

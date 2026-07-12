@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-13 - Classement Stats v2 : metriques (temps/serie/regularite) + filtres (ecole/filiere/annee)
+
+Demande utilisateur : le classement ne montrait que les heures d'etude — le rendre plus intelligent avec des filtres pertinents.
+
+- **`supabase/migration_v27_leaderboard_v2.sql`** (nouvelle, a executer manuellement) : RPC `get_leaderboard_v2(p_period, p_metric, p_scope, p_university, p_study_field, p_study_year)`. Metriques : `time` (secondes sur la periode), `streak` (serie de jours consecutifs, meme definition que `computeStreak()` client, gaps-and-islands SQL), `regularity` (jours actifs sur la periode). Periodes : jour / semaine / **mois (nouveau)**. Portee : `all` (top 50 des actifs) ou `friends` (amis acceptes via `auth.uid()` cote serveur, **moi toujours inclus meme a 0**). Filtres profil : universite, filiere, annee (egalite exacte). SECURITY DEFINER + search_path, EXECUTE reserve a `authenticated`. L'ancienne `get_public_leaderboard` (v11-v13) est conservee.
+- **`components/Leaderboard.js`** (nouveau, 365 l.) : le classement extrait de `pages/stats.js` (1225 → 947 lignes, refactor incremental conforme a CLAUDE.md). Deux rangees de controles coherentes avec le reste des Stats : [Public|Amis] + [Jour|Semaine|Mois] puis [Temps|Serie|Regularite] + chips [Ma fac][Ma filiere][Mon annee] (chips visibles seulement si le champ existe dans le profil, cumulables). La metrique contraint la periode : Serie masque le selecteur (independant de la periode), Regularite retire "Jour". Affichage par metrique : temps vert, serie flamme ambre "N j", regularite "N/7 j" ou "N/30 j". Sous-titre dynamique ("Top 50 · Serie", "Regularite · Mois"...). Suppression au passage du doublon de toggle periode mobile/desktop. `RankBadge` deplace ici et re-exporte (le podium des cours de stats.js l'importe).
+- **Repli automatique** : tant que la migration v27 n'est pas executee en prod, le composant detecte l'absence de la RPC et retombe sur l'ancien comportement complet (ancienne RPC publique + calcul amis cote client, anciens controles uniquement) — meme pattern que `get_study_comparison`/v24. Rien ne casse au deploy.
+- **`lib/offlineSupabaseClient.js`** : mock `get_leaderboard_v2` (replique JS fidele de la RPC : metriques, portee, filtres, periodes) + escape hatch `localStorage.bt_force_legacy_leaderboard=1` pour tester le repli legacy en preview.
+- **i18n** : 5 nouvelles cles fr+en (`stats.metricTime/metricStreak/metricRegularity`, `stats.filterMyField/filterMyYear`).
+
+Verifie : lint + build clean. En navigateur (build offline) : v2 public temps/jour, Serie (re-classement, flammes, periode masquee), Regularite+Mois ("14/30 j", "Jour" retire), filtre Ma filiere (14 → 1 ligne, moi conserve), mode Amis v2 (moi + 3 amis injectes, zeros inclus), **repli legacy complet** (controles degrades, sous-titre ancien, mode Amis calcule client) via l'escape hatch. Zero erreur console.
+
+**A faire cote utilisateur** : executer `supabase/migration_v27_leaderboard_v2.sql` dans le SQL Editor Supabase pour activer les nouvelles metriques et les filtres (sans elle, l'app garde silencieusement l'ancien classement).
+
 ## 2026-07-12 - Planning : reharmonisation complete de la page
 
 Demande utilisateur : "le planning manque de coherence, les fonctionnalites vont un peu dans tous les sens, reharmonise tout pour que ce soit plus simple et coherent".
