@@ -550,6 +550,64 @@ html {
 }
 .bt-float { animation: bt-float 7s ease-in-out infinite; }
 
+/* ── Mascotte : micro-animations façon Duolingo ──────────────────────
+   Activées uniquement sous .bt-m-anim (prop animated du composant).
+   transform-box: fill-box → les origines (%) se réfèrent à la bbox de la
+   partie animée, pas au viewBox entier. */
+.bt-m, .bt-m * { transform-box: fill-box; }
+.bt-m-anim .bt-m-all { transform-origin: 50% 100%; animation: bt-m-breath 3.4s ease-in-out infinite; }
+.bt-m-anim.bt-m--asleep .bt-m-all { animation-duration: 5s; }
+.bt-m-anim.bt-m--excited .bt-m-all { animation: bt-m-bounce 2.4s ease-in-out infinite; }
+.bt-m-anim .bt-m-tail { transform-origin: 8% 92%; }
+.bt-m-anim.bt-m--calm .bt-m-tail { animation: bt-m-wag-slow 3.6s ease-in-out infinite; }
+.bt-m-anim.bt-m--excited .bt-m-tail { animation: bt-m-wag 0.45s ease-in-out infinite alternate; }
+.bt-m-anim .bt-m-eyes { transform-origin: 50% 50%; animation: bt-m-blink 4.6s linear infinite; }
+.bt-m-anim .bt-m-z { animation: bt-m-zzz 2.6s ease-in-out infinite; }
+.bt-m-anim .bt-m-z2 { animation-delay: 0.55s; }
+.bt-m-anim .bt-m-z3 { animation-delay: 1.1s; }
+.bt-m-anim .bt-m-flame { transform-origin: 50% 100%; animation: bt-m-flick 0.9s ease-in-out infinite; }
+.bt-m-anim .bt-m-spark { transform-origin: 50% 50%; animation: bt-m-spark 2.1s ease-in-out infinite; }
+
+@keyframes bt-m-breath {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.018, 0.982); }
+}
+@keyframes bt-m-bounce {
+  0%, 58%, 100% { transform: translateY(0) scale(1); }
+  66%           { transform: translateY(-7%) scale(0.99, 1.02); }
+  74%           { transform: translateY(0) scale(1.03, 0.96); }
+  82%           { transform: translateY(-3%) scale(1); }
+  90%           { transform: translateY(0) scale(1.012, 0.988); }
+}
+@keyframes bt-m-wag {
+  from { transform: rotate(-7deg); }
+  to   { transform: rotate(11deg); }
+}
+@keyframes bt-m-wag-slow {
+  0%, 62%, 100% { transform: rotate(0deg); }
+  70%           { transform: rotate(10deg); }
+  78%           { transform: rotate(-4deg); }
+  86%           { transform: rotate(7deg); }
+}
+@keyframes bt-m-blink {
+  0%, 90.5%, 94.5%, 100% { transform: scaleY(1); }
+  92.5%                  { transform: scaleY(0.06); }
+}
+@keyframes bt-m-zzz {
+  0%   { opacity: 0; transform: translateY(3px); }
+  25%  { opacity: 0.55; }
+  60%  { opacity: 0.35; }
+  100% { opacity: 0; transform: translateY(-9px); }
+}
+@keyframes bt-m-flick {
+  0%, 100% { transform: scale(1) rotate(-2deg); }
+  50%      { transform: scale(1.14, 1.08) rotate(3deg); }
+}
+@keyframes bt-m-spark {
+  0%, 50%, 100% { opacity: 0.25; transform: scale(0.7); }
+  72%           { opacity: 1; transform: scale(1.15); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
   .bt-msg-swap,
@@ -576,7 +634,13 @@ html {
   .bt-tab-fade,
   .bt-skeleton::after,
   .bt-marquee-track,
-  .bt-float {
+  .bt-float,
+  .bt-m-anim .bt-m-all,
+  .bt-m-anim .bt-m-tail,
+  .bt-m-anim .bt-m-eyes,
+  .bt-m-anim .bt-m-z,
+  .bt-m-anim .bt-m-flame,
+  .bt-m-anim .bt-m-spark {
     animation: none !important;
   }
   [data-reveal] {

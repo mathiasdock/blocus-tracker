@@ -9,6 +9,7 @@
 
 import { useEffect } from "react";
 import { useI18n } from "../contexts/I18nContext";
+import Mascot from "./Mascot";
 
 const CONFETTI_COLORS = ["#14B885", "#22E4A4", "#0E8F68", "#C6EED9"];
 const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
@@ -20,15 +21,6 @@ const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
 
 // Sous-titre par palier de série.
 const STREAK_SUBTITLE_KEY = { 7: "streak.celebSub7", 30: "streak.celebSub30", 100: "streak.celebSub100" };
-
-// Flamme — glyphe de la série (même tracé que le badge série des Stats).
-function Flame({ size = 34 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-    </svg>
-  );
-}
 
 export default function Celebration({ data, onClose }) {
   const { t } = useI18n();
@@ -94,35 +86,30 @@ export default function Celebration({ data, onClose }) {
           ✕
         </button>
 
-        {/* Médaillon — même surface verte de marque + lueur (effet unique) */}
-        <div
-          className="bt-pulse-green mx-auto flex flex-col items-center justify-center"
-          style={{
-            width: 88,
-            height: 88,
-            borderRadius: 28,
-            background: "linear-gradient(135deg, #0E8F68 0%, #14B885 55%, #22E4A4 100%)",
-            boxShadow: "0 8px 32px rgba(20,184,133,0.55)",
-          }}
-        >
-          {isStreak ? (
-            <>
-              <Flame size={30} />
-              <span className="font-num tabular-nums" style={{ fontSize: 30, fontWeight: 800, color: "#fff", lineHeight: 1 }}>
-                {data.days}
-              </span>
-            </>
-          ) : (
-            <>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", lineHeight: 1 }}>
-                {t("xp.level")}
-              </span>
-              <span className="font-num tabular-nums" style={{ fontSize: 40, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
-                {data.level}
-              </span>
-            </>
-          )}
-        </div>
+        {/* Héros — la mascotte fête la série ; le médaillon vert pour le niveau */}
+        {isStreak ? (
+          <div className="mx-auto flex items-center justify-center" style={{ width: 116, height: 116 }}>
+            <Mascot streak={data.days} size={116} ariaLabel={title} />
+          </div>
+        ) : (
+          <div
+            className="bt-pulse-green mx-auto flex flex-col items-center justify-center"
+            style={{
+              width: 88,
+              height: 88,
+              borderRadius: 28,
+              background: "linear-gradient(135deg, #0E8F68 0%, #14B885 55%, #22E4A4 100%)",
+              boxShadow: "0 8px 32px rgba(20,184,133,0.55)",
+            }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", lineHeight: 1 }}>
+              {t("xp.level")}
+            </span>
+            <span className="font-num tabular-nums" style={{ fontSize: 40, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
+              {data.level}
+            </span>
+          </div>
+        )}
 
         {/* Accent */}
         <div style={{ fontSize: 22, marginTop: 10 }}>{isStreak ? "🔥" : "⭐"}</div>

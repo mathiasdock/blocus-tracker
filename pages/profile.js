@@ -4,6 +4,7 @@ import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
+import Mascot, { mascotState, MASCOT_CAPTION_KEY } from "../components/Mascot";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
@@ -850,7 +851,12 @@ export default function Profile() {
 
         {/* ══ HERO — identité (pleine largeur, horizontal en desktop) ══ */}
         <div className="card overflow-hidden">
-          <div className="h-20 sm:h-24" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }} />
+          <div className="h-20 sm:h-24 relative overflow-hidden" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }}>
+            {/* Mascotte — reflète la série de l'utilisateur */}
+            <div className="absolute" style={{ top: 4, right: 12 }} title={t(MASCOT_CAPTION_KEY[mascotState(streak)])}>
+              <Mascot streak={streak} size={68} ariaLabel={t(MASCOT_CAPTION_KEY[mascotState(streak)])} />
+            </div>
+          </div>
           <div className="px-5 sm:px-7 pb-5 sm:pb-6">
             <div className="flex flex-col items-center text-center sm:flex-row sm:items-end sm:text-left gap-3 sm:gap-5 pt-2">
               {/* Avatar + caméra — seul l'avatar chevauche le cover, le texte

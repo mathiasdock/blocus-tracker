@@ -12,6 +12,7 @@ import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../l
 import { useWakeLock } from "../lib/useWakeLock";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
+import Mascot, { mascotState, MASCOT_CAPTION_KEY } from "../components/Mascot";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -1422,14 +1423,17 @@ export default function Dashboard() {
           {/* ── Aujourd'hui — surface ink signature ── */}
           <section className="card-ink bt-grain p-5 min-w-0 relative">
           <div className="relative z-10">
-            {/* Streak badge */}
+            {/* Mascotte + série — le chien reflète la série en cours */}
             {streak > 0 && (
-              <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#FBBF24" stroke="none">
-                  <path d="M12 2c.5 2.5 2 4.2 3.5 5.8C17 9.4 18 11 18 13a6 6 0 0 1-12 0c0-1.2.4-2.2 1-3 .3 1.2 1.2 2 2.3 2 .6-2.3-.3-4.3 2.7-10z"/>
-                </svg>
-                <span className="text-xs font-bold font-num tabular-nums" style={{ color: "#fff" }}>{streak} {t("dash.streak")}</span>
+              <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
+                <Mascot streak={streak} size={42} ariaLabel={t(MASCOT_CAPTION_KEY[mascotState(streak)])} />
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#FBBF24" stroke="none">
+                    <path d="M12 2c.5 2.5 2 4.2 3.5 5.8C17 9.4 18 11 18 13a6 6 0 0 1-12 0c0-1.2.4-2.2 1-3 .3 1.2 1.2 2 2.3 2 .6-2.3-.3-4.3 2.7-10z"/>
+                  </svg>
+                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>{streak} {t("dash.streak")}</span>
+                </span>
               </div>
             )}
             <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-accent)" }}>

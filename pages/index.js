@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
 import { COUNTRIES } from "../lib/universities";
+import Mascot from "../components/Mascot";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Landing publique — refonte "app-first" : de vrais screenshots du produit
@@ -206,6 +207,11 @@ export default function Home() {
             {/* Vrai produit : desktop encadré + mobile flottant */}
             <div className="relative mx-auto mt-14 max-w-4xl sm:mt-16" data-reveal>
               <BrowserFrame src={SHOT("chrono-desktop")} alt="Le chrono Blocus Tracker sur ordinateur : session prête à démarrer, objectifs du jour et cours" width={1920} height={1088} priority />
+              {/* Mascotte perchée sur le cadre — elle respire, cligne et remue
+                  la queue (état heureux). Décorative pour les lecteurs d'écran. */}
+              <div aria-hidden="true" className="absolute left-[7%] -top-[50px] h-14 w-14 sm:-top-[71px] sm:h-20 sm:w-20">
+                <Mascot streak={12} size={80} className="h-full w-full" />
+              </div>
               <div className="bt-float absolute -right-3 bottom-[-9%] w-[136px] sm:-right-8 sm:w-[190px]" style={{ "--float-rot": "2deg" }}>
                 <PhoneFrame src={SHOT("chrono-mobile")} alt="Le chrono Blocus Tracker sur téléphone" width={359} height={780} />
               </div>
@@ -445,6 +451,10 @@ export default function Home() {
         <section className="px-5 pb-16 sm:pb-20">
           <div className="card-ink bt-grain mx-auto max-w-6xl overflow-hidden rounded-[28px] px-6 py-14 text-center sm:rounded-[36px] sm:px-10 sm:py-20" data-reveal>
             <div className="relative z-10 mx-auto max-w-xl">
+              {/* Mascotte en feu — rebond + flamme qui vacille, l'énergie du CTA */}
+              <div aria-hidden="true" className="mb-5 flex justify-center">
+                <Mascot streak={30} size={92} />
+              </div>
               <h2 className="text-3xl sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
                 Lance ta première session maintenant.
               </h2>

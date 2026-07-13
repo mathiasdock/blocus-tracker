@@ -2,6 +2,27 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-13 - Mascotte v2 : micro-animations facon Duolingo + presence sur le site public
+
+Demande utilisateur : "il faut que le chien soit plus anime comme la mascotte Duolingo et il faut aussi qu'il apparaisse sur le site, anime".
+
+- **`components/Mascot.js`** : le SVG est restructure en groupes animables (`.bt-m-all`, `.bt-m-tail`, `.bt-m-eyes`, `.bt-m-z1/2/3`, `.bt-m-flame`, `.bt-m-spark`) + prop `animated` (defaut true, classe racine `.bt-m-anim`). **Piege SVG documente dans le fichier** : une animation CSS `transform` ECRASE l'attribut `transform` de l'element — la flamme (qui a un placement statique `translate(83,6) scale(0.8)`) est donc imbriquee dans un double groupe (transform statique sur le parent, animation sur l'enfant).
+- **`styles/globals.css`** : 8 nouveaux keyframes `bt-m-*` + classes pilotees par l'humeur. Par etat : endormi = respiration lente 5s + "zzz" qui flottent en boucle (stagger 0.55s/1.1s, opacite geree par l'animation) ; calme (serie 1-6) = respiration 3.4s + clignement des yeux toutes les ~4.6s + coup de queue occasionnel ; excite (7+) = rebond periodique (translateY % de la bbox, `transform-box: fill-box`) + queue qui remue vite (0.45s alternate) + clignement ; en feu (30+) = idem + flamme qui vacille (0.9s) + etincelle qui scintille. Toutes les classes ajoutees au bloc `prefers-reduced-motion` (animation: none).
+- **`pages/index.js`** (site public) : 2 apparitions. Hero — le chien "heureux" est perche sur l'arete superieure du cadre navigateur du screenshot (a gauche, en contrepoids du telephone flottant a droite ; tailles responsive h-14/sm:h-20, offsets -50px/-71px calcules pour que les pattes se posent sur l'arete). CTA final — le chien "en feu" au-dessus de "Lance ta premiere session maintenant." sur la surface ink. Les deux en `aria-hidden` (decoratifs).
+- Aucune nouvelle cle i18n, aucune migration.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK. En navigateur (build offline) : landing en visiteur deconnecte (session offline retiree) → 2 mascottes, animations LIVE prouvees par echantillonnage des matrices de transform a 300ms d'intervalle (queue : -5,7° → +10,2°) et par `animationName` calcule (hero : bounce+blink+wag ; CTA : + flamme `bt-m-flick` + etincelle `bt-m-spark` + queue 0.45s) ; dashboard reconnecte (session offline forgee — NB : le formulaire de login ne peut pas etre rempli par l'eval du preview, monde isole → ecrire directement `bt_offline_session_v1`, forme `{user: {id: "offline-user-mathias", ...}, access_token: "offline-token"}`) → chien calme qui respire + cligne ; celebration 100 j → excite, flamme + etincelle animees. Zero erreur console partout. Captures hero + CTA prises.
+
+## 2026-07-13 - Mascotte : un chien qui reagit a la serie (identite de marque)
+
+Demande utilisateur (proposition design F) : une mascotte facon Duolingo/Forest, liee au systeme de serie (contente en serie haute, endormie a 0). Apres exploration visuelle (6 animaux proposes : renard/chat/ours/tortue en vert, puis chien/aigle en couleurs reelles), l'utilisateur a choisi le **chien en couleurs reelles**.
+
+- **`components/Mascot.js`** (nouveau) : petit chien type shiba, SVG dessine a la main dans un viewBox 0 0 120 120. C'est le SEUL endroit de l'app qui sort du vert monochrome (exception de marque assumee) : pelage fauve/creme naturel, mais **collier vert #14B885** comme ancre. Export `mascotState(streak)` + `MASCOT_CAPTION_KEY`. 4 etats selon la serie : `0` endormi (oreilles tombantes, yeux fermes, "zzz"), `1-6` content (assis, sourire calme), `7-29` heureux (langue sortie, queue haute), `30+` en feu (heureux + petite flamme ambre, comme la serie). Rendu net a toutes les tailles (42 → 116 px).
+- **Cablage (3 emplacements)** : `pages/dashboard.js` (le badge serie de la carte "Aujourd'hui" devient chien + compteur — le chien reflete la serie du jour) ; `pages/profile.js` (le chien depasse du cover du hero, reflete la serie du profil) ; `components/Celebration.js` (la variante serie affiche desormais la mascotte a la place du medaillon flamme → ton chien fete le palier avec toi ; le medaillon vert reste pour le level-up). Suppression au passage du composant `Flame` devenu mort dans Celebration.
+- **i18n** : 4 cles `mascot.*` (legendes d'etat, utilisees en aria-label), FR + EN.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK, puis `npm run build` normal OK. En navigateur (build offline, compte a serie 3) : chien "content" dans le badge du dashboard et sur le cover du profil ; via la trappe QA des celebrations, chien "en feu" a 30 jours (flamme + etincelle) et "heureux" a 7 jours (langue, sans flamme). Clair ET sombre (le chien fauve/creme reste lisible sur les surfaces ink et sur `--bt-surface`). Zero erreur console.
+
 ## 2026-07-13 - Etats vides : petit set d'illustrations "trait unique" (vert de marque)
 
 Demande utilisateur (proposition design D) : remplacer les etats vides generiques (icone + texte, ou juste un tiret) par un petit set d'illustrations au trait, dans le vert de marque, coherentes avec le reste — pas une nouvelle direction artistique.
