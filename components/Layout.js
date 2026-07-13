@@ -8,6 +8,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { formatDuration, displayName } from "../lib/format";
 import PwaInstallBanner from "./PwaInstallBanner";
 import LegacyEmailBanner from "./LegacyEmailBanner";
+import Mascot from "./Mascot";
 
 // ── SVG Icons ─────────────────────────────────────────────────
 
@@ -386,40 +387,98 @@ const MOBILE_5 = [
 ];
 
 const GUEST_PUBLIC_PATHS = ["/dashboard", "/legal"];
-const GUEST_NAV_MAIN = [
-  { href: "/dashboard", key: "nav.chrono" },
-  { href: "/stats",     key: "nav.stats" },
-];
-const GUEST_MOBILE = [
-  { href: "/dashboard", key: "nav.chrono",  iconKey: "/dashboard" },
-  { href: "/stats",     key: "nav.stats",   iconKey: "/stats" },
-  { href: "/profile",   key: "nav.profile", iconKey: "/profile" },
-];
+const GUEST_PAGE_PREVIEWS = {
+  "/planning": {
+    eyebrow: "Planning",
+    title: "Organise tes objectifs et tes examens",
+    text: "Prépare chaque journée, garde les échéances visibles et lance le chrono depuis ce que tu avais prévu.",
+    features: ["Objectifs quotidiens", "Examens avec compte à rebours", "Export calendrier"],
+  },
+  "/stats": {
+    eyebrow: "Statistiques",
+    title: "Comprends ton vrai rythme d'étude",
+    text: "Retrouve ton temps par matière, ta régularité, tes records et les habitudes qui t'aident réellement à avancer.",
+    features: ["Temps et régularité", "Séries et records", "Classements personnalisés"],
+  },
+  "/historique": {
+    eyebrow: "Historique",
+    title: "Retrouve chaque session passée",
+    text: "Ton historique garde le détail de tes sessions pour comparer le prévu au réel et corriger une erreur si nécessaire.",
+    features: ["Sessions par date", "Cours et durées", "Vue détaillée"],
+  },
+  "/feed": {
+    eyebrow: "Fil d'activité",
+    title: "Avance avec tes amis, sans bruit inutile",
+    text: "Le feed transforme les objectifs, séries et sessions en activité légère pour garder le groupe motivé.",
+    features: ["Activité d'étude", "Réactions et commentaires", "Photos chargées à la demande"],
+  },
+  "/messages": {
+    eyebrow: "Social",
+    title: "Amis, messages et groupes au même endroit",
+    text: "Retrouve tes demandes d'amis, tes conversations privées et tes groupes d'étude dans un seul espace.",
+    features: ["Ajout d'amis", "Messages privés", "Groupes d'étude"],
+  },
+  "/communautes": {
+    eyebrow: "Communautés",
+    title: "Retrouve les étudiants de ton école",
+    text: "Chaque communauté rassemble un salon, des questions, des ressources et les examens utiles aux étudiants.",
+    features: ["Discussions", "Questions et ressources", "Examens de l'école"],
+  },
+  "/profile": {
+    eyebrow: "Profil et progression",
+    title: "Garde la trace de ce que tu construis",
+    text: "Ton profil réunit ton niveau, ta série, tes badges, tes préférences et les réglages de ton compte.",
+    features: ["XP et niveaux", "Série et badges", "Préférences du compte"],
+  },
+};
 
-function GuestLockedPanel() {
+function GuestLockedPanel({ pathname }) {
+  const page = GUEST_PAGE_PREVIEWS[pathname] || {
+    eyebrow: "Mode découverte",
+    title: "Crée un compte pour garder ta progression",
+    text: "Le chrono est disponible sans compte. Cet espace a besoin d'un profil pour enregistrer et synchroniser tes données.",
+    features: ["Données synchronisées", "Progression conservée", "Accès sur tous tes appareils"],
+  };
+
   return (
-    <div className="max-w-xl mx-auto">
-      <section className="card p-6 sm:p-8 text-center">
-        <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-          style={{ backgroundColor: "var(--bt-accent-bg)", color: "#14B885", border: "1px solid var(--bt-accent-border)" }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="4" y="11" width="16" height="9" rx="2" />
-            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-          </svg>
-        </div>
-        <h1 className="text-xl sm:text-2xl mb-2" style={{ color: "var(--bt-text-1)" }}>
-          Crée un compte pour garder ta progression
-        </h1>
-        <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--bt-text-2)" }}>
-          Le chrono est disponible en mode découverte. Les statistiques, le profil, le planning et les fonctions sociales ont besoin d'un compte pour enregistrer tes données.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-2 justify-center">
-          <Link href="/signup" className="btn-primary px-5 py-3 text-sm">
-            Créer un compte
-          </Link>
-          <Link href="/login" className="btn-ghost px-5 py-3 text-sm">
-            Se connecter
-          </Link>
+    <div className="mx-auto max-w-3xl bt-rise">
+      <section className="card overflow-hidden p-0">
+        <div className="grid items-stretch md:grid-cols-[0.78fr_1.22fr]">
+          <div className="relative flex min-h-[230px] items-end justify-center overflow-hidden px-6 pt-8"
+            style={{ backgroundColor: "var(--bt-accent-bg)", borderRight: "1px solid var(--bt-accent-border)" }}>
+            <div aria-hidden="true" className="absolute inset-x-0 top-0 h-28"
+              style={{ background: "radial-gradient(circle at 50% 0%, rgba(20,184,133,0.2), transparent 70%)" }} />
+            <div className="relative flex items-end gap-2">
+              <Mascot streak={12} size={132} className="h-32 w-32" />
+              <div className="relative mb-16 max-w-[170px] rounded-2xl px-3.5 py-3 text-xs leading-relaxed"
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)", boxShadow: "0 12px 28px var(--bt-shadow)" }}>
+                <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
+                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
+                <span className="relative">Je te montre à quoi sert cette page. Crée ton espace seulement quand tu veux garder tes données.</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>{page.eyebrow}</p>
+            <h1 className="mt-3 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{page.title}</h1>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{page.text}</p>
+            <ul className="mt-5 grid gap-2 sm:grid-cols-3">
+              {page.features.map((feature) => (
+                <li key={feature} className="rounded-xl px-3 py-2.5 text-xs font-semibold"
+                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+              <Link href="/signup" className="btn-primary px-5 py-3 text-sm">Créer un compte</Link>
+              <Link href="/dashboard" className="btn-ghost px-5 py-3 text-sm">Retour au chrono</Link>
+            </div>
+            <p className="mt-4 text-xs" style={{ color: "var(--bt-text-3)" }}>
+              Tu peux continuer à parcourir les autres pages depuis la navigation.
+            </p>
+          </div>
         </div>
       </section>
     </div>
@@ -454,8 +513,8 @@ export default function Layout({ children }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const isGuest = !user;
   const guestLocked = isGuest && !GUEST_PUBLIC_PATHS.includes(router.pathname);
-  const mainNav = isGuest ? GUEST_NAV_MAIN : NAV_MAIN;
-  const mobileNav = isGuest ? GUEST_MOBILE : MOBILE_5;
+  const mainNav = NAV_MAIN;
+  const mobileNav = MOBILE_5;
 
   useEffect(() => {
     if (profile?.lang && (profile.lang === "fr" || profile.lang === "en") && profile.lang !== lang) {
@@ -578,17 +637,13 @@ export default function Layout({ children }) {
           </div>
 
           {/* Social section */}
-          {!isGuest && (
-            <>
-              <div className="pt-4 pb-1.5 px-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{ color: "var(--bt-text-4)" }}>Social</p>
-              </div>
-              <div className="space-y-0.5">
-                {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
-              </div>
-            </>
-          )}
+          <div className="pt-4 pb-1.5 px-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider"
+              style={{ color: "var(--bt-text-4)" }}>Social</p>
+          </div>
+          <div className="space-y-0.5">
+            {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
+          </div>
 
           {/* Admin section */}
           {isAdmin && (
@@ -685,7 +740,7 @@ export default function Layout({ children }) {
             {isGuest ? (
               <Link href="/login" className="text-xs font-semibold px-3 py-2 rounded-full"
                 style={{ color: "#0E8F68", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-                Login
+                Se connecter
               </Link>
             ) : (
               <>
@@ -756,7 +811,7 @@ export default function Layout({ children }) {
 
         <main className="w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip">
           {!guestLocked && <LegacyEmailBanner />}
-          {guestLocked ? <GuestLockedPanel /> : children}
+          {guestLocked ? <GuestLockedPanel pathname={router.pathname} /> : children}
         </main>
         <footer className="hidden lg:flex items-center justify-center gap-3 text-xs py-6"
           style={{ color: "var(--bt-text-3)" }}>
@@ -779,7 +834,7 @@ export default function Layout({ children }) {
           const active = n.isSocial
             ? SOCIAL_PATHS.includes(router.pathname)
             : router.pathname === n.href;
-          const badge = n.isSocial ? socialBadge : badgeFor(n.href);
+          const badge = isGuest ? 0 : n.isSocial ? socialBadge : badgeFor(n.href);
           return (
             <Link key={n.href} href={n.href}
               className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"

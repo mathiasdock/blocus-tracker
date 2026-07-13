@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-13 - Accueil public et mode decouverte : vraie visite produit guidee par la mascotte
+
+Demande utilisateur : l'accueil SEO representait mal l'app (section Guides trop generique, FAQ pauvre, mauvaise impression typographique) et le mode invite ne montrait pas assez les espaces disponibles. Ajout egalement de compteurs animes sur la bande de chiffres.
+
+- **`pages/index.js`** : toute la landing utilise maintenant explicitement la police de marque **Bricolage Grotesque** (`font-display`), avec Space Grotesk conservee pour les chiffres. La bande 200+ / 80 / 5 / 100% s'anime une seule fois de 0 a la valeur finale quand elle entre dans le viewport (980 ms, ease-out, `prefers-reduced-motion` respecte, valeur finale conservee dans le HTML SSR pour le SEO).
+- **Visite produit interactive** : l'ancienne section mobile generique est remplacee par 6 espaces selectionnables — Chrono, Planning, Stats + historique, Progression + profil, Feed/Social, Communautes. Chaque selection change le vrai screenshot, les capacites expliquees et la bulle de la mascotte. CTA central "Creer un compte pour garder ma progression" ; le chrono reste testable sans compte. Les onglets sont scrollables sans barre visible sur mobile.
+- **Section Guides refaite** : elle devient "La methode Blocus Tracker", une boucle en 4 etapes fidele au produit (decider, se concentrer, progresser, mesurer/ajuster). Les 6 pages SEO restent toutes maillees, mais dans un contexte utile : planning, Pomodoro, objectifs, stats, choix d'une application et reussite du blocus.
+- **FAQ enrichie et synchronisee SEO** : 9 questions/reponses concretes (fonctionnement de l'app, gratuite, mode invite, difference avec un simple Pomodoro, planning, social, mobile/PWA, blocus, confidentialite). `HOME_FAQ` vit desormais dans `lib/seo.js` et alimente a la fois l'UI et le JSON-LD `FAQPage`, donc aucun decalage possible entre contenu visible et donnees structurees.
+- **Mode decouverte de l'app** (`components/Layout.js`, `pages/dashboard.js`) : la navigation invite montre desormais Chrono, Planning, Stats, Activite, Social, Communautes et Profil sur desktop, avec les 5 entrees principales sur mobile. Le dashboard invite accueille le visiteur avec la mascotte en bulle + raccourcis vers les espaces. Chaque page protegee affiche une preview dediee (vraie promesse + 3 capacites), guidee par la mascotte, puis les CTA compte/retour chrono. Les donnees et fonctions restent verrouillees tant que l'utilisateur n'a pas de compte.
+- Aucun changement Supabase, aucune migration, aucune donnee modifiee.
+
+Verifie : `npm run lint` clean, `npm run build` OK (26/26). Navigateur en build de production : accueil desktop 1440 px + mobile 390 px, police calculee Bricolage Grotesque, aucun overflow (`scrollWidth == viewport`), compteur observe de 0 a 200/80/5/100, changement d'onglet Chrono -> Planning (texte + image + mascotte), FAQ 9 entrees, dashboard invite mobile, page Planning verrouillee mobile et page Social verrouillee desktop. Zero erreur console en build de production.
+
 ## 2026-07-13 - Mascotte v2 : micro-animations facon Duolingo + presence sur le site public
 
 Demande utilisateur : "il faut que le chien soit plus anime comme la mascotte Duolingo et il faut aussi qu'il apparaisse sur le site, anime".

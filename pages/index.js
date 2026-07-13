@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
 import { COUNTRIES } from "../lib/universities";
+import { HOME_FAQ } from "../lib/seo";
 import Mascot from "../components/Mascot";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,26 +20,135 @@ const SHOT = (name) => `/site-web/opt/${name}.webp`;
 const UNIVERSITY_COUNT = COUNTRIES.reduce((n, c) => n + c.universities.length, 0);
 const COUNTRY_COUNT = COUNTRIES.length;
 
-const GUIDES = [
-  { href: "/pomodoro", title: "Méthode Pomodoro", text: "Découpe tes révisions en blocs de concentration plus faciles à tenir." },
-  { href: "/planning-revision", title: "Planning de révision", text: "Construis une semaine réaliste autour de tes examens et priorités." },
-  { href: "/stats-etude", title: "Statistiques d'étude", text: "Comprends ton rythme réel, tes séries et ta progression." },
-  { href: "/objectifs-etude", title: "Objectifs d'étude", text: "Transforme tes intentions en actions concrètes et mesurables." },
-  { href: "/application-etudiant", title: "Application pour étudier", text: "Vois comment choisir un outil utile sans ajouter de friction." },
-  { href: "/blocus-belgique", title: "Blocus Belgique", text: "Prépare une période de blocus avec planning, chrono et pauses." },
-];
-
-const FAQ = [
-  { q: "Blocus Tracker est-il gratuit ?", a: "Oui. Tu peux tester le chrono gratuitement en mode découverte. Un compte permet surtout de sauvegarder tes données et ta progression." },
-  { q: "Faut-il un compte pour utiliser le chrono ?", a: "Non pour essayer le chrono. Oui pour conserver tes statistiques, ton planning, tes amis, tes badges et ton profil." },
-  { q: "À qui s'adresse Blocus Tracker ?", a: "Aux étudiants qui veulent structurer leurs révisions, mesurer leur temps d'étude et rester réguliers pendant les périodes de blocus ou d'examens." },
-];
-
 const STATS = [
-  { value: "200+", label: "étudiants inscrits" },
-  { value: `${UNIVERSITY_COUNT}`, label: "communautés d'écoles" },
-  { value: `${COUNTRY_COUNT}`, label: "pays représentés" },
-  { value: "100%", label: "gratuit, sans carte" },
+  { target: 200, suffix: "+", label: "étudiants inscrits" },
+  { target: UNIVERSITY_COUNT, suffix: "", label: "communautés d'écoles" },
+  { target: COUNTRY_COUNT, suffix: "", label: "pays représentés" },
+  { target: 100, suffix: "%", label: "gratuit, sans carte" },
+];
+
+const APP_AREAS = [
+  {
+    id: "chrono",
+    label: "Chrono",
+    title: "Chrono et mode Focus",
+    description: "Lance une session libre ou Pomodoro, choisis ta matière et construis ta concentration bloc après bloc sans quitter l'écran des yeux.",
+    mascot: "Commence ici : choisis un cours, lance le chrono et je construis chaque bloc avec toi.",
+    shot: "chrono-desktop",
+    alt: "Le chrono et les Blocus Blocks de Blocus Tracker",
+    width: 1920,
+    height: 1088,
+    features: ["Session libre ou Pomodoro", "Mode Focus plein écran", "Pause, objectif et temps réel"],
+  },
+  {
+    id: "planning",
+    label: "Planning",
+    title: "Planning et examens",
+    description: "Pose tes objectifs sur les bons jours, garde tes examens visibles et lance directement une session depuis ce que tu avais prévu.",
+    mascot: "Ici, on transforme le stress en prochaines actions : aujourd'hui, cette semaine, puis l'examen.",
+    shot: "planning-desktop",
+    alt: "Le planning de révision, les objectifs et les examens",
+    width: 1400,
+    height: 793,
+    features: ["Objectifs quotidiens", "Examens avec compte à rebours", "Export calendrier"],
+  },
+  {
+    id: "stats",
+    label: "Stats",
+    title: "Statistiques et historique",
+    description: "Retrouve le temps étudié, ta régularité, tes meilleurs créneaux et chaque session passée pour ajuster la suite sur des faits.",
+    mascot: "Pas besoin d'étudier au hasard : je t'aide à voir quand tu avances vraiment et où ajuster.",
+    shot: "stats-desktop",
+    alt: "Les statistiques et l'historique d'étude",
+    width: 1355,
+    height: 768,
+    features: ["Temps par matière", "Séries, records et régularité", "Historique des sessions"],
+  },
+  {
+    id: "progression",
+    label: "Progression",
+    title: "Profil, XP et badges",
+    description: "Chaque session nourrit une progression lisible : niveau, série, missions du jour et badges donnent un rythme sans transformer l'étude en jeu bruyant.",
+    mascot: "Je réagis à ta série, et ton profil garde la trace de tout ce que tu as construit.",
+    shot: "progression-mobile",
+    alt: "Le profil, les missions, l'XP et les badges",
+    width: 359,
+    height: 780,
+    frame: "phone",
+    features: ["Niveaux et XP", "Série de jours étudiés", "Missions et badges"],
+  },
+  {
+    id: "social",
+    label: "Social",
+    title: "Feed, amis et groupes",
+    description: "Suis les efforts de tes amis, retrouve tes conversations privées et organise un groupe d'étude sans mélanger toute ta vie sociale.",
+    mascot: "Un bon groupe ne remplace pas le travail : il rend juste plus facile le fait de revenir demain.",
+    shot: "social-desktop",
+    alt: "Le feed, les amis, les messages privés et les groupes d'étude",
+    width: 1400,
+    height: 793,
+    features: ["Fil d'activité léger", "Amis et messages privés", "Groupes d'étude"],
+  },
+  {
+    id: "communautes",
+    label: "Communautés",
+    title: "Communautés d'écoles",
+    description: "Retrouve les étudiants de ton école dans un espace structuré pour les discussions, questions, ressources et examens.",
+    mascot: "Choisis ton école : les questions, ressources et dates utiles restent au même endroit.",
+    shot: "communautes-desktop",
+    alt: "Les discussions, questions, ressources et examens d'une communauté d'école",
+    width: 1400,
+    height: 793,
+    features: ["Salon étudiant", "Questions et ressources", "Examens de la communauté"],
+  },
+];
+
+const STUDY_FLOW = [
+  {
+    number: "01",
+    title: "Décide quoi réviser",
+    text: "Place tes examens, découpe la matière en objectifs réalistes et garde seulement ce qui compte aujourd'hui.",
+    app: "Planning · Objectifs · Examens",
+    href: "/planning-revision",
+    link: "Construire un planning réaliste",
+  },
+  {
+    number: "02",
+    title: "Protège un vrai bloc",
+    text: "Choisis une session libre ou Pomodoro, coupe les distractions et avance bloc après bloc sur une seule matière.",
+    app: "Chrono · Pomodoro · Mode Focus",
+    href: "/pomodoro",
+    link: "Utiliser Pomodoro efficacement",
+  },
+  {
+    number: "03",
+    title: "Transforme l'effort en progression",
+    text: "Valide tes objectifs, maintiens ta série et laisse l'XP rendre visible la régularité que tu construis.",
+    app: "Missions · Série · XP · Badges",
+    href: "/objectifs-etude",
+    link: "Fixer de meilleurs objectifs",
+  },
+  {
+    number: "04",
+    title: "Regarde, ajuste, recommence",
+    text: "Compare le prévu au réel, repère tes meilleures habitudes et adapte la semaine suivante sans culpabiliser.",
+    app: "Stats · Historique · Classements",
+    href: "/stats-etude",
+    link: "Comprendre ses statistiques",
+  },
+];
+
+const EXTRA_GUIDES = [
+  {
+    href: "/application-etudiant",
+    title: "Quelle application pour étudier ?",
+    text: "Les critères utiles pour choisir un système que tu ouvriras vraiment chaque jour.",
+  },
+  {
+    href: "/blocus-belgique",
+    title: "Comment réussir son blocus ?",
+    text: "Une méthode concrète pour organiser le travail, les pauses et les examens.",
+  },
 ];
 
 // Logos d'écoles réels, dérivés de la même source que l'app (toujours à jour).
@@ -100,9 +210,63 @@ function PhoneFrame({ src, alt, width, height, className = "", style = {} }) {
   );
 }
 
+// Le nombre final reste dans le HTML rendu pour le SEO. Une fois hydrate, il
+// repart de zero uniquement quand la bande entre dans le viewport.
+function AnimatedCounter({ target, suffix = "" }) {
+  const valueRef = useRef(null);
+
+  useEffect(() => {
+    const node = valueRef.current;
+    if (!node) return undefined;
+
+    const finalValue = `${target.toLocaleString("fr-FR")}${suffix}`;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) {
+      node.textContent = finalValue;
+      return undefined;
+    }
+
+    node.textContent = `0${suffix}`;
+    let frame = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        observer.disconnect();
+        const startedAt = performance.now();
+        const duration = 980;
+
+        const tick = (now) => {
+          const progress = Math.min(1, (now - startedAt) / duration);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = Math.round(target * eased);
+          node.textContent = `${current.toLocaleString("fr-FR")}${suffix}`;
+          if (progress < 1) frame = window.requestAnimationFrame(tick);
+        };
+
+        frame = window.requestAnimationFrame(tick);
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [suffix, target]);
+
+  return (
+    <span ref={valueRef} aria-hidden="true">
+      {target.toLocaleString("fr-FR")}{suffix}
+    </span>
+  );
+}
+
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [activeAreaId, setActiveAreaId] = useState(APP_AREAS[0].id);
+  const activeArea = APP_AREAS.find((area) => area.id === activeAreaId) || APP_AREAS[0];
 
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");
@@ -137,7 +301,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-dvh" style={{ backgroundColor: "var(--bt-bg)", color: "var(--bt-text-1)" }}>
+    <div className="min-h-dvh font-display" style={{ backgroundColor: "var(--bt-bg)", color: "var(--bt-text-1)" }}>
       {/* ── Header — sticky, flouté, safe-area ─────────────────────────── */}
       <header className="sticky top-0 z-50"
         style={{
@@ -152,7 +316,7 @@ export default function Home() {
             blocus<span style={{ color: "#14B885" }}>·</span>tracker
           </Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label="Sections de la page">
-            {[["fonctionnalites", "Fonctionnalités"], ["guides", "Guides"], ["faq", "FAQ"]].map(([id, label]) => (
+            {[["fonctionnalites", "Fonctionnalités"], ["decouverte", "Découvrir l'app"], ["faq", "FAQ"]].map(([id, label]) => (
               <a key={id} href={`#${id}`} onClick={(e) => scrollToId(e, id)}
                 className="rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
                 style={{ color: "var(--bt-text-2)" }}
@@ -225,7 +389,11 @@ export default function Home() {
             {STATS.map((s, i) => (
               <div key={s.label} className="px-4 text-center sm:text-left"
                 style={i > 0 ? { borderLeft: "1px solid var(--bt-border)" } : {}}>
-                <dd className="font-num text-3xl font-bold sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>{s.value}</dd>
+                <dd className="font-num text-3xl font-bold tabular-nums sm:text-4xl"
+                  aria-label={`${s.target.toLocaleString("fr-FR")}${s.suffix} ${s.label}`}
+                  style={{ color: "var(--bt-text-1)" }}>
+                  <AnimatedCounter target={s.target} suffix={s.suffix} />
+                </dd>
                 <dt className="mt-1 text-xs sm:text-sm" style={{ color: "var(--bt-text-3)" }}>{s.label}</dt>
               </div>
             ))}
@@ -366,55 +534,150 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Mobile — trois téléphones, vraie PWA ───────────────────────── */}
-        <section className="overflow-hidden px-5 py-14 sm:py-20">
+        {/* ── Visite interactive — toutes les grandes pages de l'app ─────── */}
+        <section id="decouverte" className="scroll-mt-24 overflow-hidden px-5 py-14 sm:py-20">
           <div className="mx-auto max-w-6xl">
-            <div className="mx-auto max-w-2xl text-center" data-reveal>
-              <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
-                Dans ta poche, comme une vraie app.
-              </h2>
-              <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
-                Blocus Tracker s'installe sur ton écran d'accueil, sans App Store. Chrono, missions du jour et stats te suivent partout.
-              </p>
+            <div className="grid items-end gap-7 lg:grid-cols-[1fr_auto]" data-reveal>
+              <div className="max-w-2xl">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
+                  Visite guidée
+                </p>
+                <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
+                  Toutes tes révisions, dans un seul espace.
+                </h2>
+                <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
+                  Chaque page a un rôle précis. Explore-les ici, puis teste le chrono sans compte. Ton compte sert à garder tout ce que tu construis.
+                </p>
+              </div>
+              <Link href="/signup" className="btn-primary justify-center px-6 py-3 text-sm">
+                Créer un compte pour garder ma progression
+              </Link>
             </div>
-            <div className="mt-12 flex items-start justify-center gap-4 sm:gap-8">
-              {[
-                { shot: "stats-mobile", alt: "Les statistiques sur mobile", w: 640, h: 1391, cls: "mt-10 hidden sm:block" },
-                { shot: "focus-mobile", alt: "Le mode focus sur mobile", w: 359, h: 780, cls: "" },
-                { shot: "progression-mobile", alt: "Niveau, missions du jour et badges sur mobile", w: 359, h: 780, cls: "mt-14" },
-              ].map((p, i) => (
-                <div key={p.shot} className={`w-[200px] sm:w-[230px] ${p.cls}`} data-reveal style={{ "--rv-delay": `${i * 0.09}s` }}>
-                  <PhoneFrame src={SHOT(p.shot)} alt={p.alt} width={p.w} height={p.h} />
+
+            <div className="mt-9 flex gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
+              style={{ scrollbarWidth: "none" }} role="tablist" aria-label="Espaces de Blocus Tracker" data-reveal>
+              {APP_AREAS.map((area) => {
+                const active = area.id === activeArea.id;
+                return (
+                  <button key={area.id} type="button" role="tab" aria-selected={active}
+                    aria-controls="product-tour-panel" onClick={() => setActiveAreaId(area.id)}
+                    className="shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
+                    style={{
+                      color: active ? "#fff" : "var(--bt-text-2)",
+                      backgroundColor: active ? "var(--bt-accent)" : "var(--bt-surface)",
+                      border: `1px solid ${active ? "var(--bt-accent)" : "var(--bt-border)"}`,
+                    }}>
+                    {area.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div id="product-tour-panel" role="tabpanel" className="mt-5 grid overflow-hidden rounded-[28px] lg:grid-cols-[0.72fr_1.28fr]"
+              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 20px 60px var(--bt-shadow)" }}>
+              <div className="flex min-w-0 flex-col p-6 sm:p-9 lg:p-10" aria-live="polite">
+                <div className="flex items-end gap-3">
+                  <Mascot streak={activeArea.id === "progression" ? 30 : 12} size={92} className="h-20 w-20 shrink-0" />
+                  <div className="relative mb-3 min-w-0 rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                    style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-text-2)" }}>
+                    <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
+                      style={{ backgroundColor: "var(--bt-accent-bg)", borderBottom: "1px solid var(--bt-accent-border)", borderLeft: "1px solid var(--bt-accent-border)" }} />
+                    <span className="relative">{activeArea.mascot}</span>
+                  </div>
                 </div>
-              ))}
+
+                <div key={activeArea.id} className="bt-tab-fade mt-6">
+                  <p className="font-num text-xs font-bold tabular-nums" style={{ color: "var(--bt-text-3)" }}>
+                    {String(APP_AREAS.indexOf(activeArea) + 1).padStart(2, "0")} / {String(APP_AREAS.length).padStart(2, "0")}
+                  </p>
+                  <h3 className="mt-2 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{activeArea.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{activeArea.description}</p>
+                  <ul className="mt-6 space-y-3">
+                    {activeArea.features.map((feature) => (
+                      <li key={feature} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--bt-text-1)" }}>
+                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                          style={{ color: "var(--bt-accent-dark)", backgroundColor: "var(--bt-accent-bg)" }}>
+                          <IconCheck size={11} />
+                        </span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-auto flex flex-wrap gap-3 pt-8">
+                  <Link href="/dashboard" className="btn-ghost px-4 py-2.5 text-sm">Tester le chrono</Link>
+                  <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+                    Tout débloquer <IconArrow size={14} />
+                  </Link>
+                </div>
+              </div>
+
+              <div className="flex min-h-[360px] items-center justify-center overflow-hidden p-5 sm:min-h-[520px] sm:p-8"
+                style={{ backgroundColor: "var(--bt-subtle)", borderLeft: "1px solid var(--bt-border)" }}>
+                <div key={`shot-${activeArea.id}`} className="bt-tab-fade w-full">
+                  {activeArea.frame === "phone" ? (
+                    <div className="mx-auto w-[210px] sm:w-[250px]">
+                      <PhoneFrame src={SHOT(activeArea.shot)} alt={activeArea.alt} width={activeArea.width} height={activeArea.height} />
+                    </div>
+                  ) : (
+                    <BrowserFrame src={SHOT(activeArea.shot)} alt={activeArea.alt} width={activeArea.width} height={activeArea.height} />
+                  )}
+                </div>
+              </div>
             </div>
+
+            <p className="mt-7 text-center text-sm" style={{ color: "var(--bt-text-3)" }} data-reveal>
+              Disponible sur ordinateur et mobile. Installable sur l'écran d'accueil, sans App Store.
+            </p>
           </div>
         </section>
 
-        {/* ── Guides (SEO) ────────────────────────────────────────────────── */}
-        <section id="guides" className="scroll-mt-24 px-5 py-14 sm:py-20" style={{ backgroundColor: "var(--bt-surface)", borderTop: "1px solid var(--bt-border)", borderBottom: "1px solid var(--bt-border)" }}>
+        {/* ── Méthode — les guides SEO replacés dans le vrai parcours ────── */}
+        <section id="guides" className="scroll-mt-24 px-5 py-14 sm:py-20"
+          style={{ backgroundColor: "var(--bt-surface)", borderTop: "1px solid var(--bt-border)", borderBottom: "1px solid var(--bt-border)" }}>
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl" data-reveal>
-              <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>Guides pour mieux réviser</h2>
-              <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                Des pages courtes et actionnables pour choisir une méthode, organiser ton blocus et suivre tes progrès.
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
+                La méthode Blocus Tracker
+              </p>
+              <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
+                Réviser mieux, c'est une boucle simple.
+              </h2>
+              <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
+                L'app ne te demande pas d'être motivé en permanence. Elle t'aide à décider, te concentrer, mesurer, puis ajuster la suite.
               </p>
             </div>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {GUIDES.map((g, i) => (
-                // data-reveal sur un wrapper : sa transition ne doit pas écraser
-                // celle du hover .card-lift sur la carte elle-même.
-                <div key={g.href} data-reveal style={{ "--rv-delay": `${(i % 3) * 0.07}s` }}>
-                  <Link href={g.href} className="card card-lift group flex h-full items-start justify-between gap-3 p-5">
-                    <span>
-                      <h3 className="text-base" style={{ color: "var(--bt-text-1)" }}>{g.title}</h3>
-                      <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{g.text}</p>
-                    </span>
-                    <span className="mt-1 shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: "var(--bt-text-3)" }}>
-                      <IconArrow />
-                    </span>
-                  </Link>
-                </div>
+
+            <ol className="mt-10 grid gap-x-8 gap-y-0 md:grid-cols-2">
+              {STUDY_FLOW.map((step, i) => (
+                <li key={step.number} className="grid grid-cols-[auto_1fr] gap-4 py-7"
+                  style={{ borderTop: "1px solid var(--bt-border)", "--rv-delay": `${(i % 2) * 0.07}s` }} data-reveal>
+                  <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{step.number}</span>
+                  <div>
+                    <h3 className="text-xl" style={{ color: "var(--bt-text-1)" }}>{step.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{step.text}</p>
+                    <p className="mt-4 text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{step.app}</p>
+                    <Link href={step.href} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+                      {step.link} <IconArrow size={14} />
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-2" data-reveal>
+              {EXTRA_GUIDES.map((guide) => (
+                <Link key={guide.href} href={guide.href} className="group flex items-center justify-between gap-5 rounded-2xl p-5 transition-colors"
+                  style={{ backgroundColor: "var(--bt-bg)", border: "1px solid var(--bt-border)" }}>
+                  <span>
+                    <span className="block text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>{guide.title}</span>
+                    <span className="mt-1 block text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{guide.text}</span>
+                  </span>
+                  <span className="shrink-0 transition-transform group-hover:translate-x-0.5" style={{ color: "var(--bt-text-3)" }}>
+                    <IconArrow />
+                  </span>
+                </Link>
               ))}
             </div>
           </div>
@@ -426,11 +689,18 @@ export default function Home() {
             <div data-reveal>
               <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>Questions fréquentes</h2>
               <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                Les réponses courtes que les étudiants cherchent avant de créer un compte.
+                Ce que tu peux tester sans compte, ce qui est enregistré et la manière dont chaque espace t'aide à étudier.
               </p>
+              <div className="mt-7 rounded-2xl p-5" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+                <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>Le plus simple pour te faire une idée ?</p>
+                <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>Lance une session découverte. Aucun compte n'est demandé avant de démarrer le chrono.</p>
+                <Link href="/dashboard" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+                  Essayer maintenant <IconArrow size={14} />
+                </Link>
+              </div>
             </div>
             <div className="space-y-3" data-reveal style={{ "--rv-delay": "0.08s" }}>
-              {FAQ.map((item) => (
+              {HOME_FAQ.map((item) => (
                 <details key={item.q} className="group rounded-2xl px-5"
                   style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-semibold [&::-webkit-details-marker]:hidden"

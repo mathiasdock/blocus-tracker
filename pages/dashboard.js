@@ -871,17 +871,29 @@ export default function Dashboard() {
       )}
 
       {isGuest && (
-        <section className="mb-5 rounded-2xl px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        <section className="mb-5 overflow-hidden rounded-2xl px-4 py-4 sm:px-5"
           style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: "#0E8F68" }}>Mode découverte</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-2)" }}>
-              Tu peux tester le chrono ici. Pour synchroniser tes sessions, tes stats et ton profil, crée un compte.
-            </p>
+          <div className="flex items-end gap-3 sm:items-center">
+            <Mascot streak={12} size={76} className="h-[70px] w-[70px] shrink-0" ariaLabel="Mascotte de Blocus Tracker" />
+            <div className="relative min-w-0 flex-1 rounded-2xl px-4 py-3"
+              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
+              <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
+                style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
+              <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>Bienvenue en mode découverte</p>
+              <p className="relative mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                Lance le chrono ici, puis ouvre Planning, Stats ou Social : je t'explique chaque espace avant que tu crées un compte.
+              </p>
+            </div>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Link href="/signup" className="btn-primary text-xs px-3 py-2">Créer un compte</Link>
-            <Link href="/login" className="btn-ghost text-xs px-3 py-2">Login</Link>
+          <div className="mt-3 flex flex-wrap items-center gap-2 sm:ml-[82px]">
+            <Link href="/planning" className="btn-ghost px-3 py-2 text-xs">Voir le planning</Link>
+            <Link href="/stats" className="btn-ghost px-3 py-2 text-xs">Voir les stats</Link>
+            <Link href="/feed" className="btn-ghost px-3 py-2 text-xs">Découvrir le social</Link>
+            <span className="hidden flex-1 sm:block" />
+            <Link href="/signup" className="btn-primary px-3 py-2 text-xs">Garder ma progression</Link>
+            <Link href="/login" className="px-2 py-2 text-xs font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+              Se connecter
+            </Link>
           </div>
         </section>
       )}
