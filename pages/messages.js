@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import { SkeletonList } from "../components/Skeleton";
+import { emptyIllustrations } from "../components/EmptyState";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useToast } from "../contexts/ToastContext";
@@ -1339,12 +1340,8 @@ export default function Messages() {
         {/* ── Chat area ──────────────────────────────────────────── */}
         {activeType === null ? (
           <div className={`${chatVisible} lg:col-span-2 card flex-col items-center justify-center text-center p-8`} style={panelStyle}>
-            <span className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
-              style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
+            <span className="mb-3" style={{ width: 92, height: 92, color: "var(--bt-accent)" }}>
+              {emptyIllustrations.friends}
             </span>
             <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>{t("social.emptyTitle")}</h2>
             <p className="text-sm mb-5 max-w-xs" style={{ color: "var(--bt-text-3)" }}>{t("social.emptySubtitle")}</p>

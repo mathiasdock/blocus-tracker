@@ -6,30 +6,66 @@ import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { ToastProvider } from "../contexts/ToastContext";
 import { I18nProvider } from "../contexts/I18nContext";
-import { supabase } from "../lib/supabaseClient";
+import { supabase, isOfflineDev } from "../lib/supabaseClient";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
-import LevelUpModal from "../components/LevelUpModal";
+import Celebration from "../components/Celebration";
 import { initOneSignal, loginUser } from "../lib/onesignal";
 import SeoHead from "../components/SeoHead";
 
-async function loadCurrentLevel(userId) {
+// Paliers de série célébrés (jours consécutifs). Volontairement rares pour que
+// le moment reste marquant — on ne fête PAS chaque badge série (3/14).
+const STREAK_MILESTONES = [7, 30, 100];
+function highestStreakMilestone(streak) {
+  return STREAK_MILESTONES.filter((m) => streak >= m).pop() || 0;
+}
+
+async function loadCurrentStatus(userId) {
   const levels = await loadUserLevelMap(supabase, [userId], {
     selfUserId: userId,
     includeSelfReferralStats: true,
   });
-  const current = levels[userId]?.current;
-  if (!current) throw new Error("Unable to compute current level");
-  return current;
+  const info = levels[userId];
+  if (!info?.current) throw new Error("Unable to compute current level");
+  return { ...info.current, streak: info.streak || 0 };
 }
 
 function GlobalLevelUpWatcher() {
   const { user } = useAuth();
-  const [levelUp, setLevelUp] = useState(null);
+  // Une seule célébration à l'écran à la fois ; les suivantes (ex. level-up ET
+  // palier de série au même check) attendent dans la file.
+  const [celebration, setCelebration] = useState(null);
+  const queueRef = useRef([]);
   const previousLevelRef = useRef(null);
+  const streakBaselineRef = useRef(null);
   const activeUserRef = useRef(null);
   const loadingRef = useRef(false);
   const pendingRef = useRef(null);
   const rerunRef = useRef(false);
+
+  const enqueueCelebration = useCallback((item) => {
+    setCelebration((cur) => {
+      if (cur) { queueRef.current.push(item); return cur; }
+      return item;
+    });
+  }, []);
+
+  const closeCelebration = useCallback(() => {
+    setCelebration(queueRef.current.shift() || null);
+  }, []);
+
+  // Trappe de QA — build offline UNIQUEMENT (isOfflineDev est false en prod, donc
+  // ce bloc est éliminé du bundle Vercel). Permet de prévisualiser une célébration
+  // sans devoir franchir un vrai palier : ?bt_celebrate=streak:7 ou =level:5.
+  useEffect(() => {
+    if (!isOfflineDev || typeof window === "undefined") return;
+    window.__btCelebrate = enqueueCelebration; // trigger direct pour la QA
+    const raw = new URLSearchParams(window.location.search).get("bt_celebrate");
+    if (raw) {
+      const [kind, val] = raw.split(":");
+      if (kind === "streak") enqueueCelebration({ kind: "streak", days: Number(val) || 7 });
+      else if (kind === "level") enqueueCelebration({ kind: "level", level: Number(val) || 5, titleKey: `xp.level${Number(val) || 5}` });
+    }
+  }, [enqueueCelebration]);
 
   const checkLevel = useCallback(async () => {
     if (!user || typeof window === "undefined") return;
@@ -39,10 +75,15 @@ function GlobalLevelUpWatcher() {
     }
     loadingRef.current = true;
     try {
-      const current = await loadCurrentLevel(user.id);
+      const current = await loadCurrentStatus(user.id);
       const currentLevel = current.level;
+      const streak = current.streak || 0;
+      const reachedMilestone = highestStreakMilestone(streak);
+
       const storageKey = `blocus:last-announced-level:${user.id}`;
       const storedLevel = Number(localStorage.getItem(storageKey) || 0);
+      const streakKey = `blocus:last-streak-milestone:${user.id}`;
+      const storedStreak = Number(localStorage.getItem(streakKey) || 0);
 
       localStorage.setItem("bt_level", String(currentLevel));
       window.dispatchEvent(new CustomEvent("bt-level-updated", { detail: { level: currentLevel } }));
@@ -50,21 +91,35 @@ function GlobalLevelUpWatcher() {
       if (activeUserRef.current !== user.id) {
         activeUserRef.current = user.id;
         previousLevelRef.current = null;
+        streakBaselineRef.current = null;
       }
 
+      // Premier passage pour cet utilisateur : on fixe les repères sans rien
+      // fêter (sinon un compte déjà au niveau 8 / série 30 serait spammé au load).
       if (previousLevelRef.current === null) {
-        const baseline = Math.max(storedLevel, currentLevel);
-        previousLevelRef.current = baseline;
-        if (storedLevel < baseline) localStorage.setItem(storageKey, String(baseline));
+        const levelBaseline = Math.max(storedLevel, currentLevel);
+        previousLevelRef.current = levelBaseline;
+        if (storedLevel < levelBaseline) localStorage.setItem(storageKey, String(levelBaseline));
+
+        const streakBaseline = Math.max(storedStreak, reachedMilestone);
+        streakBaselineRef.current = streakBaseline;
+        if (storedStreak < streakBaseline) localStorage.setItem(streakKey, String(streakBaseline));
         return;
       }
 
+      // Level-up ?
       if (currentLevel > previousLevelRef.current && currentLevel > storedLevel) {
-        setLevelUp({ level: currentLevel, titleKey: current.titleKey });
+        enqueueCelebration({ kind: "level", level: currentLevel, titleKey: current.titleKey });
         localStorage.setItem(storageKey, String(currentLevel));
       }
-
       previousLevelRef.current = Math.max(previousLevelRef.current, currentLevel);
+
+      // Nouveau palier de série ? (jamais un palier plus bas qu'un déjà fêté)
+      if (reachedMilestone > (streakBaselineRef.current || 0) && reachedMilestone > storedStreak) {
+        enqueueCelebration({ kind: "streak", days: reachedMilestone });
+        localStorage.setItem(streakKey, String(reachedMilestone));
+      }
+      streakBaselineRef.current = Math.max(streakBaselineRef.current || 0, reachedMilestone);
     } catch (error) {
       console.error("Level watcher error:", error);
     } finally {
@@ -74,7 +129,7 @@ function GlobalLevelUpWatcher() {
         setTimeout(checkLevel, 0);
       }
     }
-  }, [user]);
+  }, [user, enqueueCelebration]);
 
   const scheduleCheck = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -88,7 +143,9 @@ function GlobalLevelUpWatcher() {
     if (!user) {
       activeUserRef.current = null;
       previousLevelRef.current = null;
-      setLevelUp(null);
+      streakBaselineRef.current = null;
+      queueRef.current = [];
+      setCelebration(null);
       return;
     }
 
@@ -162,12 +219,8 @@ function GlobalLevelUpWatcher() {
     };
   }, [checkLevel, scheduleCheck, user]);
 
-  return levelUp ? (
-    <LevelUpModal
-      level={levelUp.level}
-      titleKey={levelUp.titleKey}
-      onClose={() => setLevelUp(null)}
-    />
+  return celebration ? (
+    <Celebration data={celebration} onClose={closeCelebration} />
   ) : null;
 }
 

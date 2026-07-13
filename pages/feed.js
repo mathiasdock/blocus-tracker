@@ -19,6 +19,7 @@ import {
   validateUploadFile,
 } from "../lib/security";
 import LevelPill from "../components/LevelPill";
+import EmptyState from "../components/EmptyState";
 
 const DEFAULT_REACTION_EMOJI = "👍";
 const LEGACY_FALLBACK_EMOJI = "♥";
@@ -422,8 +423,8 @@ export default function Feed() {
 
         <div className="space-y-5">
           {posts.length === 0 && (
-            <div className="card p-10 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
-              {t("feed.emptyRecent")}
+            <div className="card">
+              <EmptyState illustration="feed" title={t("feed.emptyTitle")} subtitle={t("feed.emptyRecent")} />
             </div>
           )}
           {posts.map((post) => {

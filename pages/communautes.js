@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
+import EmptyState from "../components/EmptyState";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useToast } from "../contexts/ToastContext";
@@ -185,19 +186,10 @@ function CommunityLogo({ university, size = 36, rounded = 12, className = "" }) 
   );
 }
 
-function TabEmptyState({ title, subtitle, logo }) {
+function TabEmptyState({ title, subtitle, illustration = "generic" }) {
   return (
-    <div className="relative flex flex-col items-center justify-center text-center py-14 px-6 min-h-[220px]">
-      {logo && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt="" aria-hidden="true"
-          style={{ position: "absolute", width: 150, maxWidth: "40%", opacity: 0.07, objectFit: "contain", zIndex: 0, pointerEvents: "none" }}
-          onError={(e) => { e.currentTarget.style.display = "none"; }} />
-      )}
-      <div className="relative z-10">
-        <p className="text-sm font-semibold mb-1" style={{ color: "var(--bt-text-2)" }}>{title}</p>
-        <p className="text-xs max-w-xs mx-auto" style={{ color: "var(--bt-text-3)" }}>{subtitle}</p>
-      </div>
+    <div className="min-h-[220px] flex items-center justify-center">
+      <EmptyState illustration={illustration} title={title} subtitle={subtitle} />
     </div>
   );
 }
@@ -750,7 +742,7 @@ export default function Communautes() {
                 <div key={communitySpace} className="bt-tab-fade">
                 {communitySpace === "salon" && (
                   salonMessages.length === 0 ? (
-                    <TabEmptyState title={t("comm.emptySalonTitle")} subtitle={t("comm.emptySalonSubtitle")} logo={activeMeta.logo} />
+                    <TabEmptyState title={t("comm.emptySalonTitle")} subtitle={t("comm.emptySalonSubtitle")} illustration="messages" />
                   ) : (
                     <div className="px-4 py-4 space-y-3">
                       {salonMessages.map((m) => renderBubble(m))}
@@ -810,7 +802,7 @@ export default function Communautes() {
                         </button>
                       )}
                       {questionMessages.length === 0 ? (
-                        <TabEmptyState title={t("comm.emptyQuestionsTitle")} subtitle={t("comm.emptyQuestionsSubtitle")} logo={activeMeta.logo} />
+                        <TabEmptyState title={t("comm.emptyQuestionsTitle")} subtitle={t("comm.emptyQuestionsSubtitle")} illustration="questions" />
                       ) : (
                         <ul className="space-y-2">
                           {[...questionMessages].reverse().map((qm) => {
@@ -886,7 +878,7 @@ export default function Communautes() {
                       </button>
                     )}
                     {resourceMessages.length === 0 ? (
-                      <TabEmptyState title={t("comm.emptyResourcesTitle")} subtitle={t("comm.emptyResourcesSubtitle")} logo={activeMeta.logo} />
+                      <TabEmptyState title={t("comm.emptyResourcesTitle")} subtitle={t("comm.emptyResourcesSubtitle")} illustration="resources" />
                     ) : (
                       <ul className="space-y-2">
                         {[...resourceMessages].reverse().map((rm) => {
@@ -945,7 +937,7 @@ export default function Communautes() {
                       </button>
                     )}
                     {sortedExamMessages.length === 0 ? (
-                      <TabEmptyState title={t("comm.emptyExamsTitle")} subtitle={t("comm.emptyExamsSubtitle")} logo={activeMeta.logo} />
+                      <TabEmptyState title={t("comm.emptyExamsTitle")} subtitle={t("comm.emptyExamsSubtitle")} illustration="exams" />
                     ) : (
                       <ul className="space-y-2">
                         {sortedExamMessages.map((em) => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Avatar } from "./Layout";
 import LevelPill from "./LevelPill";
 import { SkeletonList } from "./Skeleton";
+import EmptyState from "./EmptyState";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, displayName, lastNDates, todayISO } from "../lib/format";
@@ -355,7 +356,9 @@ export default function Leaderboard({ user, profile, onViewUser }) {
               );
             })}
             {rows.length === 0 && (
-              <li className="py-6 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>—</li>
+              <li>
+                <EmptyState illustration="leaderboard" title={t("stats.leaderboardEmptyTitle")} subtitle={t("stats.leaderboardEmptySubtitle")} />
+              </li>
             )}
           </ul>
         )}

@@ -9,6 +9,7 @@ import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBes
 import { notifyXPChanged } from "../lib/xpEvents";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
+import { useWakeLock } from "../lib/useWakeLock";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 
@@ -258,6 +259,10 @@ export default function Dashboard() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
+  // Garde l'écran allumé tant qu'une session tourne (inline ou mode focus) :
+  // sans ça l'iPhone se verrouille après ~30 s et la respiration du mode focus
+  // s'éteint. Relâché automatiquement en pause / à l'arrêt. Voir lib/useWakeLock.
+  useWakeLock(running);
   const [todayObjectives, setTodayObjectives] = useState([]);
   const [newCourse, setNewCourse] = useState("");
   const [newColor, setNewColor] = useState(COLORS[0]);
