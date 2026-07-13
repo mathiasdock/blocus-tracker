@@ -375,7 +375,6 @@ const NAV_SOCIAL = [
 ];
 
 const NAV_ADMIN = { href: "/admin", key: "nav.admin" };
-const NAV_ADMIN_FEEDBACK = { href: "/feedback", key: "nav.suggestionInbox" };
 
 // 5-tab mobile bottom nav
 const MOBILE_5 = [
@@ -654,7 +653,6 @@ export default function Layout({ children }) {
               </div>
               <div className="space-y-0.5">
                 {renderDesktopNavItem(NAV_ADMIN)}
-                {renderDesktopNavItem(NAV_ADMIN_FEEDBACK)}
               </div>
             </>
           )}

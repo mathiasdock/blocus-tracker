@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Retrait du lien "Boite a suggestions" de la sidebar admin (redondant)
+
+Demande utilisateur (capture d'ecran a l'appui) : le lien "Boite a suggestions" sous "Admin" dans la sidebar menait a `/feedback`, qui affiche (pour un admin) la meme liste que Admin -> Contenu -> Suggestions dans `pages/admin.js`. Raccourci redondant, source de confusion.
+
+- **`components/Layout.js`** : `NAV_ADMIN_FEEDBACK` (definition + appel `renderDesktopNavItem`) retire de la section Admin de la sidebar desktop. Seul point d'usage dans tout le repo (verifie par grep) — aucune duplication mobile a nettoyer.
+- **`lib/i18n.js`** : cle `nav.suggestionInbox` (FR+EN) supprimee, devenue orpheline.
+- **`pages/feedback.js` INCHANGE** : cette page fait double usage — un formulaire d'envoi ouvert a tous les utilisateurs (lie depuis les parametres du profil, `pages/profile.js`) ET, en plus, une section admin en bas de page qui duplique la meme liste. Seul le RACCOURCI de nav est retire ; la page et son formulaire restent pleinement fonctionnels et atteignables depuis le profil.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK. En navigateur (build offline, compte admin) : lecture DOM de la sidebar confirme que la section Admin ne contient plus que "Admin" (plus de "Boite a suggestions") ; `/feedback` reste accessible directement et son formulaire s'affiche normalement. Zero erreur console. (La sidebar desktop `lg:` n'est pas visible dans cet environnement de preview, plafonne a 382px de large — verification faite par lecture directe du DOM du `<nav>` plutot que par capture.)
+
 ## 2026-07-13 - Palette de couleurs des cours : 16 -> 20, plus de teintes qui se confondent
 
 Demande utilisateur : "il y a trop de couleurs qui se ressemblent [...] par exemple, il y a trois types de violets". La palette avait effectivement indigo `#6366f1`, violet `#8b5cf6`, purple `#7c3aed` a quelques degres d'ecart de teinte, tout en n'ayant aucun marron, gris-bleu ou vert-prairie.
