@@ -12,7 +12,8 @@ import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../l
 import { useWakeLock } from "../lib/useWakeLock";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
-import Mascot, { mascotState, MASCOT_CAPTION_KEY } from "../components/Mascot";
+import Mascot from "../components/Mascot";
+import MascotCoach from "../components/MascotCoach";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -439,6 +440,7 @@ export default function Dashboard() {
   const pauseSince = pausedAt
     ? formatDuration(Math.max(0, Math.floor((Date.now() - pausedAt) / 1000))).replace(/^00:/, "")
     : "00:00";
+  const pauseSeconds = pausedAt ? Math.max(0, Math.floor((Date.now() - pausedAt) / 1000)) : 0;
 
   // Contrôles du mode focus : s'estompent après 4,5 s d'inactivité (pattern
   // lecteur vidéo) — tout mouvement / toucher / touche les fait réapparaître.
@@ -827,6 +829,8 @@ export default function Dashboard() {
     }
     // Du plus banal au plus précieux : si plusieurs seuils tombent dans le
     // même tick, le dernier setMoment gagne → le plus rare l'emporte.
+    const blocks = Math.floor(elapsed / BLOCK_SECS);
+    if (blocks >= 1) fire(`block${blocks}`, t("coach.timer.block"));
     const hours = Math.floor(elapsed / 3600);
     if (hours >= 1) fire(`hour${hours}`, t("dash.momentHour").replace("{h}", String(hours)));
     if (sessionGoalSecs && elapsed >= sessionGoalSecs) fire("sessionGoal", t("dash.momentSessionGoal"));
@@ -835,6 +839,20 @@ export default function Dashboard() {
     if (bestDaySecs > 0 && totalToday < bestDaySecs && totalToday + elapsed > bestDaySecs) fire("bestDay", t("dash.momentBestDay"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, running, pomodoro, pomoPhase]);
+
+  const timerCoach = moment
+    ? { id: `timer-${moment.id}`, message: moment.text, persistence: false, live: true }
+    : isPaused
+      ? {
+          id: pauseSeconds >= 10 * 60 ? "timer-long-pause" : "timer-pause",
+          message: t(pauseSeconds >= 10 * 60 ? "coach.timer.longPause" : "coach.timer.pause"),
+          persistence: "session",
+          live: false,
+        }
+      : (!running && elapsed === 0)
+        ? { id: "timer-ready", message: t("coach.timer.ready"), persistence: "day", live: false }
+        : null;
+  const showGuestIntro = isGuest && !running && elapsed === 0;
 
   const perCourse = courses.map((c) => ({
     ...c,
@@ -870,7 +888,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-10" onClick={() => setShowCourseMenu(false)} />
       )}
 
-      {isGuest && (
+      {showGuestIntro && (
         <section className="mb-5 overflow-hidden rounded-2xl px-4 py-4 sm:px-5"
           style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
           <div className="flex items-end gap-3 sm:items-center">
@@ -1100,14 +1118,21 @@ export default function Dashboard() {
               <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} />
             </div>
 
-            {/* Ligne intelligente — hauteur fixe : aucun saut de layout.
-                Un moment (seuil franchi) prime sur le statut des blocs. */}
-            <div className="h-5 mt-5">
-              {moment ? (
-                <p key={moment.id} className="bt-msg-pop text-sm font-semibold" style={{ color: "#14B885" }}>
-                  {moment.text}
-                </p>
-              ) : liveMessage ? (
+            {/* Coach visible uniquement avant, en pause ou lors d'un vrai
+                accomplissement. Pendant le travail normal, la ligne reste
+                textuelle pour ne pas distraire. */}
+            <div className={`${showGuestIntro ? "h-5 mt-5" : "min-h-[76px] mt-4"} flex items-center justify-center`}>
+              {timerCoach && !focusMode && !showGuestIntro ? (
+                <MascotCoach
+                  id={timerCoach.id}
+                  message={timerCoach.message}
+                  streak={streak}
+                  persistence={timerCoach.persistence}
+                  live={timerCoach.live}
+                  className="w-full max-w-md"
+                  size={56}
+                />
+              ) : !timerCoach && liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? PAUSE_ACCENT : "var(--bt-text-3)" }}>
                   {liveMessage}
@@ -1435,10 +1460,10 @@ export default function Dashboard() {
           {/* ── Aujourd'hui — surface ink signature ── */}
           <section className="card-ink bt-grain p-5 min-w-0 relative">
           <div className="relative z-10">
-            {/* Mascotte + série — le chien reflète la série en cours */}
+            {/* La mascotte vit désormais autour du chrono. Ici, la série reste
+                lisible comme une donnée, sans deuxième personnage concurrent. */}
             {streak > 0 && (
-              <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
-                <Mascot streak={streak} size={42} ariaLabel={t(MASCOT_CAPTION_KEY[mascotState(streak)])} />
+              <div className="absolute top-2 right-3 flex items-center sm:right-4">
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full"
                   style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="#FBBF24" stroke="none">
@@ -1720,13 +1745,18 @@ export default function Dashboard() {
               <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} focus />
             </div>
 
-            {/* Ligne intelligente — hauteur fixe : aucun saut de layout.
-                Un moment (seuil franchi) prime sur le statut des blocs. */}
-            <div className="h-5 mt-6">
-              {moment ? (
-                <p key={moment.id} className="bt-msg-pop text-sm font-semibold" style={{ color: "#2BD9A4" }}>
-                  {moment.text}
-                </p>
+            <div className="min-h-[82px] mt-5 flex items-center justify-center">
+              {timerCoach ? (
+                <MascotCoach
+                  id={timerCoach.id}
+                  message={timerCoach.message}
+                  streak={streak}
+                  persistence={timerCoach.persistence}
+                  live={timerCoach.live}
+                  surface="ink"
+                  className="w-full max-w-md"
+                  size={58}
+                />
               ) : liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? "#E88A80" : "var(--bt-ink-muted)" }}>
@@ -1820,56 +1850,71 @@ export default function Dashboard() {
           opacity: toastVisible ? 1 : 0,
           transform: toastVisible ? "translateY(0)" : "translateY(20px)",
           transition: "opacity 0.3s ease-out, transform 0.3s ease-out",
-          pointerEvents: "none",
+          pointerEvents: "auto",
         }}>
           <div
             className="min-w-[220px] max-w-[280px] lg:min-w-[340px] lg:max-w-[400px]"
             style={{
+              position: "relative",
               backgroundColor: "#0E8F68",
               color: "#fff",
               borderRadius: 18,
               boxShadow: "0 8px 32px rgba(14,143,104,0.35)",
             }}>
-            <div className="p-4 lg:p-6">
-              <div className="flex items-center gap-2 mb-2 lg:mb-3">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                <span className="font-semibold text-sm lg:text-base">{t("dash.doneTitle")}</span>
-              </div>
-              <div className="text-xs lg:text-sm mb-2" style={{ opacity: 0.9 }}>
-                {t("dash.doneDuration")} : <strong>{formatMinutesShort(completionToast.durationSecs)}</strong>
-              </div>
-              {completionToast.xpGained > 0 && (
-                <div className="relative mb-2" style={{ minHeight: 24 }}>
-                  <div className="text-xs lg:text-sm font-bold" style={{ opacity: 0.95, color: "#A7F3D0" }}>
-                    +{completionToast.xpGained} {t("dash.doneXP")}
-                  </div>
-                  {/* Floating XP ghost — animates upward */}
-                  <div
-                    key={completionToast.durationSecs}
-                    className="bt-xp-float absolute left-0 top-0 text-base lg:text-lg font-extrabold pointer-events-none"
-                    style={{ color: "#FBBF24", textShadow: "0 0 12px rgba(251,191,36,0.6)" }}>
-                    +{completionToast.xpGained} XP
-                  </div>
+            <button
+              type="button"
+              onClick={() => setCompletionToast(null)}
+              aria-label={t("coach.close")}
+              title={t("coach.close")}
+              className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-lg"
+              style={{ color: "rgba(255,255,255,0.75)" }}
+            >
+              ×
+            </button>
+            <div className="p-4 pr-10 lg:p-6 lg:pr-12 flex items-start gap-3">
+              <Mascot streak={streak} size={58} className="shrink-0" ariaLabel={t("coach.timer.done")} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1.5 lg:mb-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  <span className="font-semibold text-sm lg:text-base">{t("dash.doneTitle")}</span>
                 </div>
-              )}
-              {completionToast.goalPct > 0 && (
-                <>
-                  <div className="text-xs lg:text-sm mb-1.5" style={{ opacity: 0.85 }}>
-                    {completionToast.goalPct}% {t("dash.doneGoalPct")}
+                <p className="text-xs lg:text-sm mb-2" style={{ opacity: 0.9 }}>{t("coach.timer.done")}</p>
+                <div className="text-xs lg:text-sm mb-2" style={{ opacity: 0.9 }}>
+                  {t("dash.doneDuration")} : <strong>{formatMinutesShort(completionToast.durationSecs)}</strong>
+                </div>
+                {completionToast.xpGained > 0 && (
+                  <div className="relative mb-2" style={{ minHeight: 24 }}>
+                    <div className="text-xs lg:text-sm font-bold" style={{ opacity: 0.95, color: "#A7F3D0" }}>
+                      +{completionToast.xpGained} {t("dash.doneXP")}
+                    </div>
+                    {/* Floating XP ghost — animates upward */}
+                    <div
+                      key={completionToast.durationSecs}
+                      className="bt-xp-float absolute left-0 top-0 text-base lg:text-lg font-extrabold pointer-events-none"
+                      style={{ color: "#FBBF24", textShadow: "0 0 12px rgba(251,191,36,0.6)" }}>
+                      +{completionToast.xpGained} XP
+                    </div>
                   </div>
-                  <div style={{ width: "100%", height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.25)" }}>
-                    <div style={{
-                      height: "100%",
-                      borderRadius: 4,
-                      backgroundColor: "#fff",
-                      width: `${completionToast.goalPct}%`,
-                      transition: "width 1s ease-out",
-                    }} />
-                  </div>
-                </>
-              )}
+                )}
+                {completionToast.goalPct > 0 && (
+                  <>
+                    <div className="text-xs lg:text-sm mb-1.5" style={{ opacity: 0.85 }}>
+                      {completionToast.goalPct}% {t("dash.doneGoalPct")}
+                    </div>
+                    <div style={{ width: "100%", height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.25)" }}>
+                      <div style={{
+                        height: "100%",
+                        borderRadius: 4,
+                        backgroundColor: "#fff",
+                        width: `${completionToast.goalPct}%`,
+                        transition: "width 1s ease-out",
+                      }} />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

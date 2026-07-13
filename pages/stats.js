@@ -5,6 +5,7 @@ import Layout from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import StudyHeatmap from "../components/StudyHeatmap";
 import Leaderboard, { RankBadge } from "../components/Leaderboard";
+import MascotCoach from "../components/MascotCoach";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -415,6 +416,18 @@ export default function Stats() {
   }
   if (todaySecs > 0) aiLines.push({ text: t("stats.aiKeepGoing"), color: "#0E8F68" });
   const aiLinesShown = aiLines.slice(0, 4);
+  const previousBestDaySecs = Object.entries(dayTotals)
+    .filter(([date]) => date !== todayISO())
+    .reduce((best, [, seconds]) => Math.max(best, seconds), 0);
+  const statsCoachMessage = todaySecs === 0
+    ? t("coach.stats.noToday")
+    : previousBestDaySecs > 0 && todaySecs > previousBestDaySecs
+      ? t("coach.stats.record")
+      : todayGoalPct >= 75 && todayGoalPct < 100
+        ? t("coach.stats.nearGoal")
+        : insights.activeDaysLastWeek > 0 && insights.moreRegular
+          ? t("coach.stats.regular")
+          : t("coach.stats.steady");
 
   // ── Badges statistiques (icône SVG teintée accent) ────────────
   const iconOf = {
@@ -595,6 +608,14 @@ export default function Stats() {
           </span>
           <h2 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-2)" }}>{t("stats.aiTitle")}</h2>
         </div>
+        <MascotCoach
+          id={`stats-summary-${todayISO()}`}
+          message={statsCoachMessage}
+          streak={streak}
+          variant="embedded"
+          persistence="day"
+          className="pl-1 mb-3"
+        />
         <div className="pl-1 space-y-1">
           {aiLinesShown.map((l, i) => (
             <p key={i} className={l.strong ? "text-lg font-semibold leading-snug" : "text-sm leading-snug"}

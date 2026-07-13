@@ -186,10 +186,16 @@ function CommunityLogo({ university, size = 36, rounded = 12, className = "" }) 
   );
 }
 
-function TabEmptyState({ title, subtitle, illustration = "generic" }) {
+function TabEmptyState({ title, subtitle, illustration = "generic", coachMessage, coachId }) {
   return (
     <div className="min-h-[220px] flex items-center justify-center">
-      <EmptyState illustration={illustration} title={title} subtitle={subtitle} />
+      <EmptyState
+        illustration={illustration}
+        title={title}
+        subtitle={subtitle}
+        coachMessage={coachMessage}
+        coachId={coachId}
+      />
     </div>
   );
 }
@@ -742,7 +748,13 @@ export default function Communautes() {
                 <div key={communitySpace} className="bt-tab-fade">
                 {communitySpace === "salon" && (
                   salonMessages.length === 0 ? (
-                    <TabEmptyState title={t("comm.emptySalonTitle")} subtitle={t("comm.emptySalonSubtitle")} illustration="messages" />
+                    <TabEmptyState
+                      title={t("comm.emptySalonTitle")}
+                      subtitle={t("comm.emptySalonSubtitle")}
+                      illustration="messages"
+                      coachMessage={t("coach.empty.community")}
+                      coachId="community-empty"
+                    />
                   ) : (
                     <div className="px-4 py-4 space-y-3">
                       {salonMessages.map((m) => renderBubble(m))}

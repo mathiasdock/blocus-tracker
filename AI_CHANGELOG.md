@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-13 - Mascotte coach : progression utile, discrete et non intrusive
+
+Demande utilisateur : faire de la mascotte un petit coach signature dans les moments utiles (chrono, progression, interpretation des stats, planning et etats vides), sans popups repetitives ni distraction pendant l'etude.
+
+- **`components/MascotCoach.js`** (nouveau) : composant reutilisable avec formats bulle, integre et mascotte seule. Il gere la fermeture, la non-repetition par session ou par jour via le stockage local, un seul message a la fois et 6 paliers semantiques de serie (0, 1-2, 3-6, 7-13, 14-29, 30+). Aucune requete reseau et aucune donnee Supabase ajoutee.
+- **Chrono** (`pages/dashboard.js`) : coach visible avant le depart, en pause et pendant 8 secondes lors d'un bloc, objectif ou record valide. Il disparait pendant le travail normal. Le message passe en rappel doux apres 10 minutes de pause. La fin de session utilise la notification existante, maintenant accompagnee de la mascotte et fermable. La mascotte decorative de la carte Aujourd'hui est retiree pour eviter le doublon ; la serie reste affichee comme badge.
+- **Profil** (`pages/profile.js`) : la mascotte quitte le cover decoratif et rejoint la carte Ma progression. Elle annonce en priorite un nouveau badge, une serie maintenue aujourd'hui ou les XP restants avant le niveau suivant. Elle ne figure jamais dans les reglages.
+- **Stats et Planning** (`pages/stats.js`, `pages/planning.js`) : une seule intervention dans le resume Stats (journee a relancer, objectif proche, record, regularite) et un seul conseil sous la carte Aujourd'hui du planning (examen a J-7 sans preparation, journee chargee, planning vide ou pret).
+- **Etats vides** (`components/EmptyState.js`, `pages/feed.js`, `pages/messages.js`, `pages/communautes.js`) : la mascotte remplace l'illustration seulement dans les etats vides utiles d'Activite, Social et du salon Communaute. Elle n'apparait jamais dans une conversation DM ou groupe active.
+- **i18n** (`lib/i18n.js`) : textes complets FR/EN, ton court et non culpabilisant. Les animations restent celles de `Mascot.js`, deja couvertes par `prefers-reduced-motion`; le coach n'ajoute aucune animation de conteneur.
+
+Verifie : `npm run lint` clean, `npm run build` OK (26/26), `git diff --check` clean. Navigateur en build de production local : Chrono desktop + mobile 390 px, Profil mobile, Stats mobile, Planning mobile et Social desktop. Une seule mascotte visible par page, zero mascotte dans un groupe actif, aucun overflow horizontal et zero erreur console.
+
 ## 2026-07-13 - Accueil public et mode decouverte : vraie visite produit guidee par la mascotte
 
 Demande utilisateur : l'accueil SEO representait mal l'app (section Guides trop generique, FAQ pauvre, mauvaise impression typographique) et le mode invite ne montrait pas assez les espaces disponibles. Ajout egalement de compteurs animes sur la bande de chiffres.

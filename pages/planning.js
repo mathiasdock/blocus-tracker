@@ -2,12 +2,13 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import CourseChecklistModal from "../components/CourseChecklistModal";
+import MascotCoach from "../components/MascotCoach";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
-import { todayISO, formatMinutesShort } from "../lib/format";
+import { todayISO, formatMinutesShort, computeStreak } from "../lib/format";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { notifyXPChanged } from "../lib/xpEvents";
 
@@ -1305,6 +1306,32 @@ export default function Planning() {
     (acc[e.exam_date] = acc[e.exam_date] || []).push(e); return acc;
   }, {});
 
+  const today = todayISO();
+  const todayObjectives = byDate[today] || [];
+  const nextExam = exams
+    .filter(e => e.exam_date >= today)
+    .sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0] || null;
+  const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
+  const hasPreparationForNextExam = nextExam
+    ? objectives.some(o => !o.done
+        && o.scheduled_date >= today
+        && o.scheduled_date < nextExam.exam_date
+        && (!nextExam.course_id || o.course_id === nextExam.course_id))
+    : false;
+  const todayMinutes = todayObjectives.reduce((sum, o) => sum + (Number(o.target_minutes) || 0), 0);
+  const missingExamPreparation = nextExam && nextExamDays > 0 && nextExamDays <= 7 && !hasPreparationForNextExam;
+  const planningCoachKind = missingExamPreparation
+    ? "exam"
+    : (todayObjectives.length >= 5 || todayMinutes >= 240)
+      ? "heavy"
+      : (objectives.length === 0 && exams.length === 0) ? "empty" : "ready";
+  const planningCoachMessage = planningCoachKind === "exam"
+    ? t("coach.planning.exam").replace("{days}", String(nextExamDays))
+    : t(`coach.planning.${planningCoachKind}`);
+  const planningCoachId = planningCoachKind === "exam"
+    ? `planning-exam-${nextExam.id}`
+    : `planning-${planningCoachKind}`;
+
   function shiftDays(n) { const d = dateFromYmd(selectedDate); d.setDate(d.getDate() + n); setSelectedDate(ymd(d)); }
   function shiftMonth(delta) { setCursor(c => { const d = new Date(c.year, c.month + delta, 1); return { year: d.getFullYear(), month: d.getMonth() }; }); }
   function goToday() { const t = todayISO(); setSelectedDate(t); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
@@ -1381,6 +1408,14 @@ export default function Planning() {
         </div>
 
         <TodayCard />
+
+        <MascotCoach
+          id={planningCoachId}
+          message={planningCoachMessage}
+          streak={computeStreak(sessions)}
+          persistence="day"
+          className="mb-5 max-w-2xl"
+        />
 
         {/* Keyed on the view so switching mois/semaine/jour plays a soft fade.
             Calendrier pleine largeur : le détail d'un jour vit dans le modal,

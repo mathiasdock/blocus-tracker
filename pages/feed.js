@@ -424,7 +424,13 @@ export default function Feed() {
         <div className="space-y-5">
           {posts.length === 0 && (
             <div className="card">
-              <EmptyState illustration="feed" title={t("feed.emptyTitle")} subtitle={t("feed.emptyRecent")} />
+              <EmptyState
+                illustration="feed"
+                title={t("feed.emptyTitle")}
+                subtitle={t("feed.emptyRecent")}
+                coachMessage={t("coach.empty.feed")}
+                coachId="feed-empty"
+              />
             </div>
           )}
           {posts.map((post) => {

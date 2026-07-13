@@ -4,7 +4,7 @@ import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
-import Mascot, { mascotState, MASCOT_CAPTION_KEY } from "../components/Mascot";
+import MascotCoach from "../components/MascotCoach";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
@@ -185,7 +185,7 @@ function StatTile({ label, value, sub }) {
 }
 
 // ── Progression (XP) — surface ink signature ─────────────────
-function XPCard({ levelInfo, missions, t }) {
+function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
   const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
   return (
     <div id="xp-card" className="card-ink bt-grain">
@@ -217,6 +217,16 @@ function XPCard({ levelInfo, missions, t }) {
             <div style={{ height: "100%", borderRadius: 99, width: `${progressPct}%`, background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)", boxShadow: "0 0 10px rgba(20,184,133,0.70)", transition: "width 0.6s ease" }} />
           </div>
         </div>
+
+        <MascotCoach
+          id={coachId}
+          message={coachMessage}
+          streak={streak}
+          variant="embedded"
+          surface="ink"
+          persistence="day"
+          className="mb-4"
+        />
 
         {/* Daily missions */}
         <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14 }}>
@@ -594,6 +604,7 @@ export default function Profile() {
   const [friendAcceptToday, setFriendAcceptToday] = useState(false);
   const [referredToday, setReferredToday] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState(null);
+  const [newBadgeId, setNewBadgeId] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [msg, setMsg] = useState("");
@@ -673,6 +684,7 @@ export default function Profile() {
       if (newIds.length) {
         await supabase.from("user_badges")
           .upsert(newIds.map(badge_id => ({ user_id: user.id, badge_id })), { onConflict: "user_id,badge_id", ignoreDuplicates: true });
+        setNewBadgeId(newIds[0]);
       }
       setEarnedBadgeIds([...new Set([...existing, ...earned])]);
       setSessionCount(sessions.length);
@@ -822,6 +834,15 @@ export default function Profile() {
     bonusXP: profile?.bonus_xp || 0,
   });
   const levelInfo = getLevelInfo(totalXP);
+  const newBadge = newBadgeId ? BADGES.find(b => b.id === newBadgeId) : null;
+  const xpRemaining = levelInfo.next ? Math.max(0, levelInfo.rangeXP - levelInfo.progressXP) : 0;
+  const profileCoachMessage = newBadge
+    ? t("coach.profile.badge").replace("{badge}", t(newBadge.labelKey))
+    : (todaySecs > 0 && streak > 0)
+      ? t("coach.profile.streak")
+      : levelInfo.next
+        ? t("coach.profile.nextLevel").replace("{xp}", String(xpRemaining))
+        : t("coach.profile.maxLevel");
 
   const missionDefs = getDailyMissionDefs(todayStr, user?.id);
   const missions = evaluateMissions(missionDefs, {
@@ -851,12 +872,7 @@ export default function Profile() {
 
         {/* ══ HERO — identité (pleine largeur, horizontal en desktop) ══ */}
         <div className="card overflow-hidden">
-          <div className="h-20 sm:h-24 relative overflow-hidden" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }}>
-            {/* Mascotte — reflète la série de l'utilisateur */}
-            <div className="absolute" style={{ top: 4, right: 12 }} title={t(MASCOT_CAPTION_KEY[mascotState(streak)])}>
-              <Mascot streak={streak} size={68} ariaLabel={t(MASCOT_CAPTION_KEY[mascotState(streak)])} />
-            </div>
-          </div>
+          <div className="h-20 sm:h-24 relative overflow-hidden" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }} />
           <div className="px-5 sm:px-7 pb-5 sm:pb-6">
             <div className="flex flex-col items-center text-center sm:flex-row sm:items-end sm:text-left gap-3 sm:gap-5 pt-2">
               {/* Avatar + caméra — seul l'avatar chevauche le cover, le texte
@@ -932,7 +948,14 @@ export default function Profile() {
 
           {/* ── Colonne PROGRESSION (droite en desktop, 1ère en mobile) ── */}
           <div className="space-y-4 lg:order-2">
-            <XPCard levelInfo={levelInfo} missions={missions} t={t} />
+            <XPCard
+              levelInfo={levelInfo}
+              missions={missions}
+              streak={streak}
+              coachMessage={profileCoachMessage}
+              coachId={newBadge ? `profile-badge-${newBadge.id}` : "profile-progress"}
+              t={t}
+            />
             <BadgesCard earnedBadgeIds={earnedBadgeIds} onBadgeClick={setSelectedBadge} t={t} />
             <ReferralCard t={t} />
           </div>
