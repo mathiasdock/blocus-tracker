@@ -26,6 +26,7 @@ Next.js 14 (pages router, JS) · Tailwind 3 · Supabase (DB + Auth + Storage + R
 4. **CSS variables only for colors.** Use `var(--bt-*)` and the accent green `#14B885` family. No new colors. Dark mode works automatically. → `docs/UI.md`
 5. **Don't run migrations.** SQL files in `supabase/` are written by Claude but **executed manually** by the user in Supabase SQL Editor. Never `psql` or `supabase db push`.
 6. **Don't push if `npm run build` fails.** Vercel auto-deploys on push to `main`.
+7. **Commit and push automatically once a change is verified.** Standing authorization from Mathias — don't ask for confirmation first. Still gated on rule 6 (passing `npm run build`) and on actually verifying the change (offline preview for anything user-facing) before committing.
 
 ---
 
