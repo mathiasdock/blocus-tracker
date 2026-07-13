@@ -1121,7 +1121,7 @@ export default function Dashboard() {
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
                 accomplissement. Pendant le travail normal, la ligne reste
                 textuelle pour ne pas distraire. */}
-            <div className={`${showGuestIntro ? "h-5 mt-5" : "min-h-[76px] mt-4"} flex items-center justify-center`}>
+            <div className={`${showGuestIntro ? "h-5 mt-5" : "min-h-[92px] mt-4"} flex items-center justify-center`}>
               {timerCoach && !focusMode && !showGuestIntro ? (
                 <MascotCoach
                   id={timerCoach.id}
@@ -1130,7 +1130,7 @@ export default function Dashboard() {
                   persistence={timerCoach.persistence}
                   live={timerCoach.live}
                   className="w-full max-w-md"
-                  size={56}
+                  size={72}
                 />
               ) : !timerCoach && liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
@@ -1545,8 +1545,21 @@ export default function Dashboard() {
               {/* Palette horizontale scrollable */}
               <div className="relative">
                 <div
-                  className="[&::-webkit-scrollbar]:hidden flex gap-2 pb-0.5"
-                  style={{ overflowX: "auto", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+                  className="[&::-webkit-scrollbar]:hidden flex gap-2"
+                  style={{
+                    overflowX: "auto",
+                    scrollbarWidth: "none",
+                    WebkitOverflowScrolling: "touch",
+                    // `overflow-x: auto` fait implicitement passer overflow-y à
+                    // "auto" aussi (règle CSS : un seul axe ne peut pas rester
+                    // "visible"). Sans marge, ce conteneur ne fait QUE 26px de haut
+                    // → l'anneau de sélection (qui déborde du cercle) se faisait
+                    // rogner en haut, et à gauche pour la 1ère pastille (pas de
+                    // marge gauche). Le padding donne la place au débordement de
+                    // respirer sans être coupé.
+                    padding: 8,
+                    margin: -8,
+                  }}>
                   {COLORS.map((col) => (
                     <button type="button" key={col} onClick={() => setNewColor(col)}
                       className="transition-all"
@@ -1555,10 +1568,15 @@ export default function Dashboard() {
                         height: 26,
                         borderRadius: "50%",
                         backgroundColor: col,
-                        border: newColor === col ? `3px solid var(--bt-text-1)` : "3px solid transparent",
-                        outline: newColor === col ? `2px solid ${col}40` : "none",
-                        outlineOffset: 1,
-                        transform: newColor === col ? "scale(1.18)" : "scale(1)",
+                        // box-shadow au lieu de border/outline : le cercle garde sa
+                        // couleur pleine (border-box grignotait le rond avec la
+                        // bordure) et l'anneau suit parfaitement le rayon partout.
+                        boxShadow: newColor === col
+                          ? `0 0 0 2px var(--bt-surface), 0 0 0 4px var(--bt-text-1)`
+                          : "none",
+                        transform: newColor === col ? "scale(1.08)" : "scale(1)",
+                        position: "relative",
+                        zIndex: newColor === col ? 1 : 0,
                         flexShrink: 0,
                         cursor: "pointer",
                       }}
