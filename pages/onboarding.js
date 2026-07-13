@@ -2,13 +2,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import { COURSE_COLORS } from "../lib/courseColors";
 
-const COLORS = [
-  "#10b981", "#84cc16", "#14b8a6", "#0ea5e9",
-  "#06b6d4", "#2563eb", "#6366f1", "#8b5cf6",
-  "#7c3aed", "#d946ef", "#ec4899", "#f43f5e",
-  "#ef4444", "#be123c", "#f97316", "#f59e0b",
-];
+const COLORS = COURSE_COLORS;
 
 const YEARS = [
   "BAC 1", "BAC 2", "BAC 3",

@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-13 - Palette de couleurs des cours : 16 -> 20, plus de teintes qui se confondent
+
+Demande utilisateur : "il y a trop de couleurs qui se ressemblent [...] par exemple, il y a trois types de violets". La palette avait effectivement indigo `#6366f1`, violet `#8b5cf6`, purple `#7c3aed` a quelques degres d'ecart de teinte, tout en n'ayant aucun marron, gris-bleu ou vert-prairie.
+
+- **`lib/courseColors.js`** (nouveau) : `COURSE_COLORS`, 20 teintes espacees d'au moins ~15 degres sur le cercle chromatique. Le trio violet est reduit a 2 teintes bien separees (indigo, violet — l'ancien "purple" du milieu est retire). 3 couleurs "hors camaieu vif" ajoutees (marron, ardoise, bordeaux) pour de vraies options supplementaires sans recreer un cluster proche d'une couleur deja utilisee.
+- **`pages/dashboard.js`** et **`pages/onboarding.js`** avaient CHACUN leur propre tableau `COLORS` code en dur (copie identique) — remplaces par un import de `COURSE_COLORS`, pour eviter que les deux ecrans se desynchronisent a l'avenir.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK. En navigateur (build offline) : 20 pastilles confirmees par lecture DOM sur le dashboard (defilement horizontal, capture rouge->emeraude, capture teal->rose avec la zone violette reduite a 2, capture marron/ardoise/bordeaux en fin de liste) et sur l'onboarding (grille complete 7x3 visible d'un coup, capture clair + sombre). Zero erreur console.
+
 ## 2026-07-13 - Mascotte coach : progression utile, discrete et non intrusive
 
 Demande utilisateur : faire de la mascotte un petit coach signature dans les moments utiles (chrono, progression, interpretation des stats, planning et etats vides), sans popups repetitives ni distraction pendant l'etude.

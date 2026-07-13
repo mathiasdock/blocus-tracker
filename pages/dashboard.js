@@ -10,6 +10,7 @@ import { notifyXPChanged } from "../lib/xpEvents";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
 import { useWakeLock } from "../lib/useWakeLock";
+import { COURSE_COLORS } from "../lib/courseColors";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import Mascot from "../components/Mascot";
@@ -185,12 +186,7 @@ const DAILY_GOAL_SECS = 7200; // 2 hours
 const POMO_WORK_OPTIONS  = [15, 20, 25, 30, 45, 50, 60];
 const POMO_BREAK_OPTIONS = [3, 5, 10, 15];
 
-const COLORS = [
-  "#10b981", "#84cc16", "#14b8a6", "#0ea5e9",
-  "#06b6d4", "#2563eb", "#6366f1", "#8b5cf6",
-  "#7c3aed", "#d946ef", "#ec4899", "#f43f5e",
-  "#ef4444", "#be123c", "#f97316", "#f59e0b",
-];
+const COLORS = COURSE_COLORS;
 
 const GUEST_USER_ID = "guest-local";
 const GUEST_DASHBOARD_KEY = "bt_guest_dashboard_v1";
