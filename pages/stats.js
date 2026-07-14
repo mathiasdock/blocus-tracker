@@ -6,6 +6,7 @@ import UserProfileModal from "../components/UserProfileModal";
 import StudyHeatmap from "../components/StudyHeatmap";
 import Leaderboard, { RankBadge } from "../components/Leaderboard";
 import MascotCoach from "../components/MascotCoach";
+import StudyRecap from "../components/StudyRecap";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -625,6 +626,16 @@ export default function Stats() {
           ))}
         </div>
       </div>
+
+      <StudyRecap
+        sessions={sessions}
+        courses={courses}
+        streak={streak}
+        profile={profile}
+        userId={user?.id}
+        lang={lang}
+        t={t}
+      />
 
       {/* ── Objectifs — proéminents ────────────────────────────── */}
       <div className="card p-5 mb-4">

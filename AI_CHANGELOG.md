@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Recap d'etude partageable en Story (semaine / mois)
+
+Demande utilisateur : creer une mecanique de partage organique type "Wrapped", mais avec une direction artistique propre a Blocus Tracker et aucun visuel genere par IA.
+
+- **`components/StudyRecap.js`** (nouveau) : module de la page Stats avec apercu compact puis modal de creation. Choix Semaine (7 jours glissants) / Mois (30 jours glissants), temps etudie, serie, rang, jours actifs, meilleur bloc, matiere dominante et rythme quotidien.
+- **Direction artistique** : Story 9:16 dessinee integralement en Canvas avec les couleurs officielles (`#14B885`, surface ink, creme, accent ambre), Bricolage Grotesque + Space Grotesk, grille editoriale et wordmark Blocus Tracker. Aucun asset IA, aucune photo, aucun template externe.
+- **Export exact** : le Canvas est fixe a **1080 x 1920** et l'apercu montre exactement l'image exportee. Telechargement PNG sur desktop ; Web Share API avec fichier PNG sur mobile pour envoyer l'image vers Instagram, Messages, etc. Repli automatique vers le telechargement si le partage de fichiers n'est pas disponible.
+- **Anti-egress** : les totaux, jours, meilleur bloc et matiere sont calcules depuis les sessions/cours deja charges par Stats. Une seule RPC `get_leaderboard_v2` est lancee quand le modal s'ouvre ou quand la periode change, jamais au chargement de la page. Aucun upload Storage et aucune image Supabase.
+- **`pages/stats.js`** : carte "Mon recap d'etude" ajoutee apres le resume intelligent et avant les objectifs.
+- **i18n** : interface et contenu du visuel complets en FR/EN.
+- **Supabase** : aucune migration. `get_leaderboard_v2` live verifiee presente et executable par `authenticated`.
+
+Verifie : `npm run lint` clean, `npm run build` OK. Navigateur en build de production local : carte Stats, modal desktop, semaine/mois, FR/EN, mobile 390 x 844 sans overflow, PNG reel 1080 x 1920 genere et lisible, zero erreur console.
+
 ## 2026-07-14 - Panneau de notifications redesigne (skill frontend-design)
 
 Demande utilisateur (capture) : le panneau de notifications faisait "trop basique / IA generated". Refonte via le skill frontend-design, en restant fidele a l'identite calme/verte de l'app (tokens CSS, couleurs de statut deja sanctionnees, aucune nouvelle couleur).
