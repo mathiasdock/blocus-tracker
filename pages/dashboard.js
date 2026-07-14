@@ -15,6 +15,7 @@ import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import Mascot from "../components/Mascot";
 import MascotCoach from "../components/MascotCoach";
+import AmbientSoundControl from "../components/AmbientSoundControl";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -1735,6 +1736,9 @@ export default function Dashboard() {
             <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none bt-pause-tide"
               style={{ height: "55%", background: "linear-gradient(to top, rgba(203,90,78,0.26), rgba(203,90,78,0.05) 60%, transparent)" }} />
           )}
+
+          {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
+          <AmbientSoundControl active={focusMode} visible={focusCtlVisible || !running} />
 
           <p className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}

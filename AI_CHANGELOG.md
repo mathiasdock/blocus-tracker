@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Mode focus : ambiances sonores SYNTHETISEES (opt-in, 0 fichier / 0 egress)
+
+Demande utilisateur : des ambiances sonores en mode focus, mais NON activees par defaut (l'utilisateur choisit), et surtout SANS peser sur le stockage/egress Supabase (garder le plan gratuit). Solution retenue apres discussion : 100 % synthetise via la Web Audio API — aucun fichier audio n'existe.
+
+- **`lib/ambientSound.js`** (nouveau) : moteur audio imperatif. Genere du bruit (blanc / brun / rose via filtre de Paul Kellet) sur l'appareil, filtre pour "pluie" (highpass + bandpass) et "vagues" (lowpass + LFO lent qui fait respirer le volume). Un seul AudioContext cree paresseusement au 1er son (geste utilisateur requis par l'autoplay policy). `startAmbient(preset, volume)` / `stopAmbient()` (fondu anti-clic) / `setAmbientVolume()`. **AUCUN fetch, AUCUN Supabase, AUCUN .mp3/.wav** → 0 stockage, 0 egress, marche hors-ligne, 0 licence.
+- **`components/AmbientSoundControl.js`** (nouveau) : bouton haut-gauche du mode focus + panneau (Aucun + 5 presets + slider volume). OPT-IN strict : rien ne joue tant que l'utilisateur n'a pas choisi un son ; on repart TOUJOURS "eteint" a chaque session (on ne persiste QUE le preset + volume dans localStorage `bt_ambient_v1`, jamais l'etat on/off). Le son se coupe quand le mode focus se ferme. Style blanc-translucide sur la surface ink, i18n.
+- **`pages/dashboard.js`** : `<AmbientSoundControl active={focusMode} visible={focusCtlVisible || !running} />` dans l'overlay focus.
+- **i18n** : 8 cles `sound.*` (label, off, white/brown/pink/rain/waves, volume) FR + EN.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK. En navigateur (build offline) : grep confirme 0 reseau/supabase dans le code audio (seul localStorage pour la preference). En mode focus, panneau ouvert (Aucun/Blanc/Brun/Rose/Pluie/Vagues + volume — capture) ; clic "Brun" → **AudioContext cree et state "running"**, `audioFileRequests: 0`, `anyNetworkAtAll: 0` (instrumentation fetch + AudioContext) ; changement de preset et volume → reutilise LE MEME contexte (jamais >1) ; "Aucun" coupe (gain 0) ; quitter le focus coupe le son sans contexte residuel ; preference `{preset,volume}` bien memorisee ; demarre eteint. Zero erreur console.
+
 ## 2026-07-14 - Correctif affichage du code de parrainage
 
 - `lib/offlineSupabaseClient.js` renvoie desormais le meme contrat que la RPC live `get_my_referral_stats` (`ok`, `code`, `count`, `list`). L'ancien contrat local (`referral_code`, `referrals_count`) laissait la carte bloquee sur `...`.
