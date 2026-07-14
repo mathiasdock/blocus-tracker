@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - 6 pages SEO traduites (visible EN, meta/JSON-LD toujours FR)
+
+Suite au choix utilisateur ("les traduire aussi") : les 6 pages SEO mots-cles suivent maintenant la langue de l'appareil pour le CONTENU VISIBLE, tout en gardant leur SEO francais.
+
+- **`lib/seoLandingPagesEn.js`** (nouveau) : traductions anglaises des champs VISIBLES des 6 pages (eyebrow, h1, lead, shortAnswer, ctaLabel, secondaryCtaLabel, proofPoints, sections{title,body,bullets}, featurePanel, related, faq), clees par path. PAS de title/description (ils restent FR).
+- **`components/SeoLandingPage.js`** : lit `lang` (I18nContext). Si anglais → fusionne les champs visibles EN par-dessus la page FR (`{ ...page, ...en }`) + un dico `UI` bilingue pour les chaines fixes de la coquille (header, "Reponse courte"/"Short answer", "Inclus"/"Included", "Continuer intelligemment"/"Keep going, smartly", FAQ, CTA final). `secondaryCtaHref` et les hrefs restent structurels.
+- **SEO preserve** : `components/SeoHead.js` continue de lire `lib/seoLandingPages.js` (FR) pour `<title>`, `<meta description>` et le JSON-LD FAQPage → c'est le FRANCAIS qui est indexe pour les mots-cles FR ciblés. Le SSG rend le francais ; l'anglais s'affiche cote client apres hydratation. Aucune modification de seoLandingPages.js (FR inchange).
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK ; script de couverture confirme que les 6 paths ont leur traduction EN. En navigateur (build offline, navigateur en-GB) `/pomodoro` : contenu visible ANGLAIS (H1 "The Pomodoro method: revise without burning out", "FOCUS METHOD", "Short answer", "Included", "Try the Pomodoro timer" — capture) MAIS `document.title` reste "Methode Pomodoro pour reviser | Timer etudiant gratuit" (FR, meta SEO intacte). Preference FR forcee + reload → francais d'origine ("Methode Pomodoro : reviser sans s'epuiser"), zero fuite EN, zero texte accentue residuel. Zero erreur console.
+
 ## 2026-07-14 - Landing publique traduite (suit la langue de l'appareil)
 
 Suite du device-language : la landing `pages/index.js` etait en francais code en dur (0 i18n) et ne suivait pas l'appareil. Traduite pour suivre `lang` comme le reste de l'app.
