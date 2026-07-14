@@ -507,7 +507,7 @@ export default function Layout({ children }) {
     openFeedNotification,
     dismissAnnouncement,
   } = useNotifications();
-  const { t, lang, setLang } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const isGuest = !user;
@@ -515,12 +515,9 @@ export default function Layout({ children }) {
   const mainNav = NAV_MAIN;
   const mobileNav = MOBILE_5;
 
-  useEffect(() => {
-    if (profile?.lang && (profile.lang === "fr" || profile.lang === "en") && profile.lang !== lang) {
-      setLang(profile.lang);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.lang]);
+  // La langue de l'app suit l'appareil (ou le choix manuel local) — voir
+  // I18nContext. On ne force plus `profile.lang` ici : sinon le défaut "fr" de
+  // la colonne écraserait systématiquement la détection pour les connectés.
 
   const [userLevel, setUserLevel] = useState(null);
   useEffect(() => {

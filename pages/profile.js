@@ -6,7 +6,7 @@ import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import MascotCoach from "../components/MascotCoach";
 import { useAuth } from "../contexts/AuthContext";
-import { useI18n } from "../contexts/I18nContext";
+import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
@@ -580,7 +580,7 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
 // ── Main page ────────────────────────────────────────────────
 export default function Profile() {
   const { user, profile, refreshProfile, signOut, updateEmail } = useAuth();
-  const { t, lang, setLang } = useI18n();
+  const { t, langPref, setLangPref } = useI18n();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const avatarInputRef = useRef(null);
@@ -742,10 +742,16 @@ export default function Profile() {
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
-  async function changeLang(l) {
-    setLang(l);
-    await supabase.from("profiles").update({ lang: l }).eq("id", user.id);
-    refreshProfile();
+  async function changeLang(pref) {
+    setLangPref(pref);
+    // profile.lang (NOT NULL) garde une valeur concrète = la langue effective.
+    // Elle ne pilote plus l'affichage (l'app suit l'appareil / le choix local),
+    // mais on la maintient à jour pour les données admin.
+    const effective = pref === "auto" ? detectDeviceLang() : pref;
+    if (user) {
+      await supabase.from("profiles").update({ lang: effective }).eq("id", user.id);
+      refreshProfile();
+    }
   }
 
   async function uploadAvatar(e) {
@@ -987,8 +993,8 @@ export default function Profile() {
             <div className="card overflow-hidden">
               <CardHead icon={<IconSliders />} label={t("profile.preferencesSection")} />
               <SettingsRow icon={<IconGlobe />} label={t("profile.language")} right={
-                <Segmented value={lang} onChange={changeLang}
-                  options={[{ value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
+                <Segmented value={langPref} onChange={changeLang}
+                  options={[{ value: "auto", label: t("profile.languageAuto") }, { value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
               } />
               {sep}
               <SettingsRow icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} right={

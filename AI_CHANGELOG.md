@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Langue de l'app selon l'appareil (fr/en auto) + selecteur Auto/FR/EN
+
+Demande utilisateur : "blocus tracker doit etre en anglais ou en francais en fonction de l'appareil" (telephone en anglais → app en anglais, et inversement).
+
+Constat prealable (important) : `profiles.lang` est `text NOT NULL default 'fr'` (migration_v3) — impossible de distinguer "choix explicite" du "defaut fr" cote base. Et `components/Layout.js` FORCAIT `setLang(profile.lang)` au chargement pour les connectes → c'est ce qui aurait ecrase toute detection appareil. Verifie aussi que les push suivent DEJA l'appareil : `lib/pushServer.js` envoie l'objet `{fr,en}` complet a OneSignal, et `lib/onesignal.js` ne force jamais la langue → OneSignal sert la bonne langue par appareil tout seul. Donc `profile.lang` ne pilotait QUE l'affichage in-app.
+
+- **`contexts/I18nContext.js`** : nouvelle logique. Langue effective = preference manuelle locale si presente, sinon **langue de l'appareil** (`detectDeviceLang()` : `navigator.languages` → "en" si un code commence par en, "fr" si fr, sinon fr — public francophone). Nouveau state `langPref` ("auto"|"fr"|"en") + `setLangPref`. Cle de stockage `bt_lang_pref` (presente UNIQUEMENT si choix manuel). **Migration douce** : un ancien `bt_lang === "en"` (l'ancienne cle, polluee en "fr" pour tout le monde par l'ancien sync, mais "en" ne pouvait venir que d'un choix explicite car le defaut etait "fr") est promu en `bt_lang_pref="en"` → les rares utilisateurs ayant explicitement choisi l'anglais le gardent ; tous les autres suivent desormais leur appareil. `setLang` conserve en alias de compat.
+- **`components/Layout.js`** : suppression du `useEffect` qui forcait `profile.lang` → l'app ne re-ecrase plus la detection appareil pour les connectes.
+- **`pages/profile.js`** : le selecteur de langue passe de [FR|EN] a **[Auto|FR|EN]** (`langPref`/`setLangPref`). "Auto" = suivre l'appareil (efface `bt_lang_pref`). `changeLang` met encore a jour `profile.lang` (NOT NULL) avec la langue effective pour les donnees admin, mais ca ne pilote plus l'affichage. Garde `if (user)` autour de l'update DB (les invites peuvent changer la langue localement).
+- **i18n** : cle `profile.languageAuto` = "Auto" (FR + EN).
+
+**Limite connue a signaler** : la landing publique `pages/index.js` (et les pages SEO) sont en francais CODE EN DUR (0 usage i18n) — elles ne suivent PAS l'appareil. Seule l'app (toutes les pages basees sur `t()`) suit la langue. Traduire la landing = chantier separe.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK. En navigateur (build offline, navigateur en `en-GB`) : compte `mathias` (profile.lang="fr") connecte → dashboard/profil en ANGLAIS (nav "Timer/Activity/Communities", "Choose a goal", "Start") malgre profile.lang="fr" — l'ancien forcage est bien neutralise. Selecteur [Auto|FR|EN] avec "Auto" actif ; clic FR → app francaise + `bt_lang_pref="fr"` ; rechargement → reste francais (segment FR vert) ; clic Auto → efface la pref + revient a l'anglais (appareil). Logique `detectDeviceLang` verifiee (fr-FR/fr-BE→fr, en-US→en, nl-BE/es-ES→fr, mixte→1er match). Migration douce verifiee (`bt_lang="en"` sans pref → promu `bt_lang_pref="en"` au reload). Zero erreur console.
+
 ## 2026-07-14 - Retrait du lien "Boite a suggestions" de la sidebar admin (redondant)
 
 Demande utilisateur (capture d'ecran a l'appui) : le lien "Boite a suggestions" sous "Admin" dans la sidebar menait a `/feedback`, qui affiche (pour un admin) la meme liste que Admin -> Contenu -> Suggestions dans `pages/admin.js`. Raccourci redondant, source de confusion.
