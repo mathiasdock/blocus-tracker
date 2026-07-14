@@ -290,7 +290,7 @@ function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
 }
 
 // ── Parrainage — version compacte (lien + compteur, sans pavé) ──
-function ReferralCard({ t }) {
+function ReferralCard({ t, fallbackCode = "" }) {
   const [stats, setStats] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showList, setShowList] = useState(false);
@@ -305,7 +305,7 @@ function ReferralCard({ t }) {
     return () => { mounted = false; };
   }, []);
 
-  const code = stats?.code || "";
+  const code = stats?.code || fallbackCode || "";
   const shareLink = code ? `https://www.blocus-tracker.com/signup?ref=${code}` : "";
   const count = stats?.count || 0;
   const list = stats?.list || [];
@@ -989,7 +989,7 @@ export default function Profile() {
               t={t}
             />
             <BadgesCard earnedBadgeIds={earnedBadgeIds} onBadgeClick={setSelectedBadge} t={t} />
-            <ReferralCard t={t} />
+            <ReferralCard t={t} fallbackCode={profile?.referral_code} />
           </div>
 
           {/* ── Colonne CONTENU (gauche en desktop) ── */}

@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Correctif affichage du code de parrainage
+
+- `lib/offlineSupabaseClient.js` renvoie desormais le meme contrat que la RPC live `get_my_referral_stats` (`ok`, `code`, `count`, `list`). L'ancien contrat local (`referral_code`, `referrals_count`) laissait la carte bloquee sur `...`.
+- `pages/profile.js` utilise aussi `profile.referral_code` comme repli si la RPC de statistiques est temporairement indisponible. Le lien reste donc visible sans masquer une erreur reseau ponctuelle.
+- Verification Supabase live : 234 profils, aucun `referral_code` vide, RPC `get_my_referral_stats()` presente, `SECURITY DEFINER` et executable par `authenticated`. Aucune donnee de parrainage n'a ete modifiee.
+
 ## 2026-07-14 - Gamification v28 : progression coherente et autoritaire cote serveur
 
 Application des 8 recommandations issues de l'audit gamification, sans supprimer de progression historique.
