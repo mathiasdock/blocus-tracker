@@ -12,6 +12,7 @@ import { useAuth } from "./AuthContext";
 
 const TimerContext = createContext(null);
 const KEY = "bt_timer_v1";
+const MAX_SESSION_SECONDS = 12 * 60 * 60;
 
 export function TimerProvider({ children }) {
   const { user } = useAuth();
@@ -42,7 +43,7 @@ export function TimerProvider({ children }) {
         setNote(s.note || "");
         let nextRunning = !!s.running;
         let nextStartMs = s.startMs || 0;
-        const nextBase = s.baseSeconds || 0;
+        const nextBase = Math.min(s.baseSeconds || 0, MAX_SESSION_SECONDS);
         const MAX_GAP_MS = 12 * 60 * 60 * 1000; // 12h
         if (nextRunning && nextStartMs && Date.now() - nextStartMs > MAX_GAP_MS) {
           nextRunning = false;
@@ -70,12 +71,23 @@ export function TimerProvider({ children }) {
     } catch {}
   }, [hydrated, courseId, note, running, startMs, baseSeconds]);
 
-  // Re-render every 500ms while running
+  // Re-render every 500ms while running and pause at the same 12-hour cap
+  // enforced by the database. This also prevents a sleeping device from
+  // silently producing a 20-hour session while the page stays mounted.
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(forceRender, 500);
+    const id = setInterval(() => {
+      const current = baseSeconds + (startMs ? (Date.now() - startMs) / 1000 : 0);
+      if (current >= MAX_SESSION_SECONDS) {
+        setBaseSeconds(MAX_SESSION_SECONDS);
+        setStartMs(0);
+        setRunning(false);
+        return;
+      }
+      forceRender();
+    }, 500);
     return () => clearInterval(id);
-  }, [running]);
+  }, [running, baseSeconds, startMs]);
 
   // ── Live presence: update studying_since on start/stop ──────
   useEffect(() => {
@@ -100,9 +112,9 @@ export function TimerProvider({ children }) {
     return () => clearInterval(id);
   }, [running, user]);
 
-  const elapsed = Math.floor(
+  const elapsed = Math.min(MAX_SESSION_SECONDS, Math.floor(
     baseSeconds + (running && startMs ? (Date.now() - startMs) / 1000 : 0)
-  );
+  ));
 
   const start = useCallback(() => {
     setStartMs(Date.now());

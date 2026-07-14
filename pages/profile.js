@@ -12,6 +12,7 @@ import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
+import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser } from "../lib/onesignal";
@@ -598,13 +599,12 @@ export default function Profile() {
   const [examCount, setExamCount] = useState(0);
   const [completedObjCount, setCompletedObjCount] = useState(0);
   const [todayDoneObj, setTodayDoneObj] = useState(0);
-  const [postedToday, setPostedToday] = useState(false);
   const [tomorrowObjCount, setTomorrowObjCount] = useState(0);
-  const [friendSentToday, setFriendSentToday] = useState(false);
-  const [friendAcceptToday, setFriendAcceptToday] = useState(false);
   const [referredToday, setReferredToday] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState(null);
   const [newBadgeId, setNewBadgeId] = useState(null);
+  const [serverMissions, setServerMissions] = useState(null);
+  const [canonicalLevelInfo, setCanonicalLevelInfo] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [msg, setMsg] = useState("");
@@ -628,10 +628,10 @@ export default function Profile() {
       const [
         sessionsRes, examRes, objRes, friendRes, postRes, existingRes,
         doneObjRes, todayDoneRes, likesRes, commentsRes, groupRes,
-        commMsgRes, todayPostRes, tomorrowObjRes,
-        friendSentRes, friendAcceptRes, referralStatsRes,
+        commMsgRes, tomorrowObjRes, referralStatsRes, syncedBadgesRes,
+        missionsRes,
       ] = await Promise.all([
-        supabase.from("sessions").select("started_at, duration_seconds").eq("user_id", user.id),
+        supabase.from("sessions").select("started_at, duration_seconds, course_id, note").eq("user_id", user.id),
         supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("friendships").select("id", { count: "exact", head: true })
@@ -644,11 +644,10 @@ export default function Profile() {
         supabase.from("comments").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("group_members").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("community_messages").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("posts").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today + "T00:00:00").lt("created_at", tomorrowStr + "T00:00:00"),
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("scheduled_date", tomorrowStr),
-        supabase.from("friendships").select("id", { count: "exact", head: true }).eq("requester", user.id).gte("created_at", today + "T00:00:00").lt("created_at", tomorrowStr + "T00:00:00"),
-        supabase.from("friendships").select("id", { count: "exact", head: true }).eq("addressee", user.id).eq("status", "accepted").gte("created_at", today + "T00:00:00").lt("created_at", tomorrowStr + "T00:00:00"),
         supabase.rpc("get_my_referral_stats"),
+        supabase.rpc("sync_my_badges"),
+        supabase.rpc("get_my_daily_missions"),
       ]);
 
       const sessions = sessionsRes.data || [];
@@ -679,25 +678,49 @@ export default function Profile() {
         referralCount: referralStatsRes.data?.ok ? (referralStatsRes.data.count || 0) : 0,
       });
 
+      const synced = Array.isArray(syncedBadgesRes.data) ? syncedBadgesRes.data : [];
       const existing = (existingRes.data || []).map(b => b.badge_id);
-      const newIds = earned.filter(id => !existing.includes(id));
-      if (newIds.length) {
-        await supabase.from("user_badges")
-          .upsert(newIds.map(badge_id => ({ user_id: user.id, badge_id })), { onConflict: "user_id,badge_id", ignoreDuplicates: true });
-        setNewBadgeId(newIds[0]);
+      const allBadges = [...new Set([...synced, ...existing, ...earned])];
+
+      // Badge rows are now awarded by the database. Keep the celebration local
+      // and show it only when a badge appears after the first observed baseline.
+      try {
+        const seenKey = `blocus:seen-badges:${user.id}`;
+        const rawSeen = localStorage.getItem(seenKey);
+        const seen = rawSeen ? JSON.parse(rawSeen) : null;
+        if (Array.isArray(seen)) {
+          const newlySeen = allBadges.filter(id => !seen.includes(id));
+          if (newlySeen.length) setNewBadgeId(newlySeen[0]);
+        }
+        localStorage.setItem(seenKey, JSON.stringify(allBadges));
+      } catch (_) {
+        // Progress remains correct if storage is unavailable.
       }
-      setEarnedBadgeIds([...new Set([...existing, ...earned])]);
+      setEarnedBadgeIds(allBadges);
+
+      if (Array.isArray(missionsRes.data) && missionsRes.data.length) {
+        setServerMissions(missionsRes.data.map(m => ({
+          id: m.mission_id,
+          key: m.label_key,
+          xp: Number(m.xp || 0),
+          done: Boolean(m.done),
+        })));
+      }
       setSessionCount(sessions.length);
       setExamCount(examRes.count || 0);
       setCompletedObjCount(completedObj);
       setTodayDoneObj(todayDoneRes.count || 0);
-      setPostedToday((todayPostRes.count || 0) > 0);
       setTomorrowObjCount(tomorrowObjRes.count || 0);
-      setFriendSentToday((friendSentRes.count || 0) > 0);
-      setFriendAcceptToday((friendAcceptRes.count || 0) > 0);
 
       const refList = referralStatsRes.data?.ok ? (referralStatsRes.data.list || []) : [];
       setReferredToday(refList.some(r => (r.created_at || "").slice(0, 10) === today));
+
+      clearUserLevelCache();
+      const levelMap = await loadUserLevelMap(supabase, [user.id], {
+        selfUserId: user.id,
+        includeSelfReferralStats: true,
+      });
+      setCanonicalLevelInfo(levelMap[user.id] || null);
     }
     loadBadges();
   }, [user]);
@@ -709,7 +732,7 @@ export default function Profile() {
     since370.setDate(since370.getDate() - 370);
     (async () => {
       const [{ data: heatSessions }, { data: allSessions }] = await Promise.all([
-        supabase.from("sessions").select("started_at, duration_seconds, course_id").eq("user_id", user.id).gte("started_at", since370.toISOString()),
+        supabase.from("sessions").select("started_at, duration_seconds, course_id, note").eq("user_id", user.id).gte("started_at", since370.toISOString()),
         supabase.from("sessions").select("duration_seconds").eq("user_id", user.id),
       ]);
       setProfileSessions(heatSessions || []);
@@ -829,17 +852,18 @@ export default function Profile() {
   const todaySecs = todaySessions.reduce((a, s) => a + s.duration_seconds, 0);
   const todayMaxSessionSecs = todaySessions.length ? Math.max(...todaySessions.map(s => s.duration_seconds)) : 0;
   const studiedBeforeNoon = todaySessions.some(s => new Date(s.started_at).getHours() < 12);
-  const studiedAfter20 = todaySessions.some(s => new Date(s.started_at).getHours() >= 20);
   const todayCoursesSet = new Set(todaySessions.map(s => s.course_id).filter(Boolean));
   const todayCoursesCount = todayCoursesSet.size;
+  const todaySessionCount = todaySessions.length;
+  const hasStudyNote = todaySessions.some(s => Boolean((s.note || "").trim()));
 
-  const totalXP = computeTotalXP({
+  const fallbackTotalXP = computeTotalXP({
     totalMinutes: profileTotalSecs / 60,
     completedObjectives: completedObjCount,
     streak, examCount, badgeCount: earnedBadgeIds.length,
     bonusXP: profile?.bonus_xp || 0,
   });
-  const levelInfo = getLevelInfo(totalXP);
+  const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);
   const newBadge = newBadgeId ? BADGES.find(b => b.id === newBadgeId) : null;
   const xpRemaining = levelInfo.next ? Math.max(0, levelInfo.rangeXP - levelInfo.progressXP) : 0;
   const profileCoachMessage = newBadge
@@ -851,11 +875,13 @@ export default function Profile() {
         : t("coach.profile.maxLevel");
 
   const missionDefs = getDailyMissionDefs(todayStr, user?.id);
-  const missions = evaluateMissions(missionDefs, {
+  const fallbackMissions = evaluateMissions(missionDefs, {
     todaySecs, todayMaxSessionSecs, todayDoneObj, streak,
-    studiedBeforeNoon, studiedAfter20, postedToday, tomorrowObjCount, todayCoursesCount,
-    friendSentToday, friendAcceptToday, referredToday,
+    studiedBeforeNoon, tomorrowObjCount, todayCoursesCount,
+    todaySessionCount, hasStudyNote,
+    referredToday,
   });
+  const missions = serverMissions || fallbackMissions;
 
   // Classement : #N parmi les actifs de la semaine (RPC leaderboard).
   const rankValue = myRank

@@ -683,12 +683,15 @@ export default function Dashboard() {
       setEditingSessionId(null);
       return;
     }
+    const endedAt = session.ended_at ? new Date(session.ended_at) : new Date();
+    const adjustedStartedAt = new Date(endedAt.getTime() - newSecs * 1000).toISOString();
     await supabase.from("sessions").update({
       duration_seconds: newSecs,
       course_id: editCourseId || null,
+      started_at: adjustedStartedAt,
     }).eq("id", session.id);
     setSessions(prev => prev.map(s => s.id === session.id
-      ? { ...s, duration_seconds: newSecs, course_id: editCourseId || null }
+      ? { ...s, duration_seconds: newSecs, course_id: editCourseId || null, started_at: adjustedStartedAt }
       : s
     ));
     setEditingSessionId(null);

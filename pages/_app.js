@@ -177,6 +177,7 @@ function GlobalLevelUpWatcher() {
       ["community_messages", "user_id"],
       ["profiles", "id"],
       ["referrals", "referrer_id"],
+      ["xp_ledger", "user_id"],
     ];
     const channels = watchedTables.map(([table, column]) =>
       supabase.channel(`level-watch-${table}-${user.id}`)

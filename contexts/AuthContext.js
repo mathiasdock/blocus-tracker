@@ -3,6 +3,11 @@ import { supabase, pseudoToEmail, isOfflineDev } from "../lib/supabaseClient";
 
 const AuthContext = createContext(null);
 
+function detectTimezone() {
+  if (typeof Intl === "undefined") return "Europe/Paris";
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris";
+}
+
 const PROFILE_COLUMNS = [
   "id",
   "pseudo",
@@ -22,6 +27,7 @@ const PROFILE_COLUMNS = [
   "bonus_xp",
   "lang",
   "planning_public",
+  "timezone",
 ].join(",");
 
 export function AuthProvider({ children }) {
@@ -52,6 +58,15 @@ export function AuthProvider({ children }) {
     if (!email) {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user?.id === uid) email = userData.user.email || null;
+    }
+
+    const deviceTimezone = detectTimezone();
+    if (deviceTimezone && data.timezone !== deviceTimezone) {
+      const { error: timezoneError } = await supabase
+        .from("profiles")
+        .update({ timezone: deviceTimezone })
+        .eq("id", uid);
+      if (!timezoneError) data.timezone = deviceTimezone;
     }
 
     setProfile({ ...data, email });
@@ -147,7 +162,10 @@ export function AuthProvider({ children }) {
     if (uid) {
       const { error: pErr } = await supabase
         .from("profiles")
-        .insert({ id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln, university: uni });
+        .insert({
+          id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln,
+          university: uni, timezone: detectTimezone(),
+        });
       if (pErr) return { error: "Compte créé mais profil non enregistré : " + pErr.message };
 
       // Parrainage : si un code valide a été stocké à l'arrivée, on l'applique

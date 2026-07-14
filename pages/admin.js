@@ -11,7 +11,7 @@ import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort } from "../lib/format";
 import { COMMUNITY_BY_ID, COUNTRIES } from "../lib/universities";
 import { BADGES } from "../lib/badges";
-import { computeTotalXP, getLevelInfo } from "../lib/xp";
+import { loadUserLevelMap } from "../lib/userLevels";
 import {
   buildTimeSeries, activeUserKpis, retention,
   usersByUniversity, topActiveUniversities, activationBreakdown,
@@ -680,6 +680,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
   const [badgeIds, setBadgeIds] = useState([]);
   const [friendCount, setFriendCount] = useState(null);
   const [referrals, setReferrals] = useState([]);
+  const [levelInfo, setLevelInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locking, setLocking] = useState(false);
   const isOnline = !!user.studying_since;
@@ -688,12 +689,13 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
     let on = true;
     async function load() {
       const yearAgo = new Date(Date.now() - 370 * 864e5).toISOString();
-      const [recent, heat, badges, friends, refs] = await Promise.all([
+      const [recent, heat, badges, friends, refs, levelMap] = await Promise.all([
         supabase.from("sessions").select("duration_seconds, started_at, courses(name)").eq("user_id", user.id).order("started_at", { ascending: false }).limit(8),
         supabase.from("sessions").select("started_at, duration_seconds").eq("user_id", user.id).gte("started_at", yearAgo),
         supabase.from("user_badges").select("badge_id").eq("user_id", user.id),
         supabase.from("friendships").select("id", { count: "exact", head: true }).or(`requester.eq.${user.id},addressee.eq.${user.id}`).eq("status", "accepted"),
         supabase.rpc("admin_get_referrals", { p_user_id: user.id }),
+        loadUserLevelMap(supabase, [user.id], { selfUserId: user.id }),
       ]);
       if (!on) return;
       setSessions(recent.data || []);
@@ -701,6 +703,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
       setBadgeIds((badges.data || []).map(b => b.badge_id));
       setFriendCount(friends.count ?? 0);
       setReferrals(refs.data?.ok ? (refs.data.list || []) : []);
+      setLevelInfo(levelMap[user.id] || null);
       setLoading(false);
     }
     load();
@@ -708,11 +711,6 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
   }, [user.id]);
 
   const lastActivity = userStat?.lastAt;
-  const levelInfo = getLevelInfo(computeTotalXP({
-    totalMinutes: (userStat?.totalSecs || 0) / 60, completedObjectives: 0,
-    streak: 0, examCount: 0, badgeCount: badgeIds.length, bonusXP: user.bonus_xp || 0,
-  }));
-
   async function toggleLock() {
     setLocking(true);
     await onToggleLock(user);
@@ -729,7 +727,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-bold text-lg" style={{ color: "var(--bt-text-1)" }}>@{user.pseudo}</span>
-                <LevelPill level={levelInfo.current.level} size="sm" solid />
+                {levelInfo && <LevelPill level={levelInfo.current.level} size="sm" solid />}
                 {user.is_admin && <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>Admin</span>}
                 {user.locked && <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>Suspendu</span>}
                 {isOnline && <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />En ligne</span>}
@@ -899,7 +897,7 @@ export default function Admin() {
       supabase.from("sessions").select("user_id, duration_seconds, started_at").order("started_at", { ascending: false }).limit(8000),
       supabase.from("posts").select("id, user_id, created_at").order("created_at", { ascending: false }).limit(2000),
       supabase.from("private_messages").select("id, sender_id, created_at").order("created_at", { ascending: false }).limit(2000),
-      supabase.from("user_badges").select("user_id, badge_id, created_at").order("created_at", { ascending: false }).limit(2000),
+      supabase.from("user_badges").select("user_id, badge_id, earned_at").order("earned_at", { ascending: false }).limit(2000),
       supabase.from("app_feedback").select("id, user_id, type, message, status, created_at").order("created_at", { ascending: false }),
       supabase.rpc("admin_get_referral_counts"),
       supabase.from("app_announcements").select("*").order("created_at", { ascending: false }),
@@ -939,7 +937,7 @@ export default function Admin() {
     sessions.slice(0, 40).forEach((s, i) => evs.push({ id: `se-${s.user_id}-${i}`, kind: "session", at: s.started_at, pseudo: pseudoOf(s.user_id), text: "a étudié", value: formatMinutesShort(s.duration_seconds) }));
     posts.slice(0, 20).forEach(p => evs.push({ id: `po-${p.id}`, kind: "post", at: p.created_at, pseudo: pseudoOf(p.user_id), text: "a publié dans le feed" }));
     messages.slice(0, 20).forEach(m => evs.push({ id: `me-${m.id}`, kind: "message", at: m.created_at, pseudo: pseudoOf(m.sender_id), text: "a envoyé un message" }));
-    badges.slice(0, 20).forEach((b, i) => evs.push({ id: `ba-${b.user_id}-${i}`, kind: "badge", at: b.created_at, pseudo: pseudoOf(b.user_id), text: "a débloqué un badge" }));
+    badges.slice(0, 20).forEach((b, i) => evs.push({ id: `ba-${b.user_id}-${i}`, kind: "badge", at: b.earned_at, pseudo: pseudoOf(b.user_id), text: "a débloqué un badge" }));
     feedback.slice(0, 10).forEach(f => evs.push({ id: `fb-${f.id}`, kind: "feedback", at: f.created_at, pseudo: pseudoOf(f.user_id), text: "a envoyé une suggestion" }));
     evs.sort((a, b) => new Date(b.at) - new Date(a.at));
     setActivity(evs.slice(0, 60));
@@ -958,7 +956,7 @@ export default function Admin() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "sessions" }, p => push({ id: `se-${p.new.id || Date.now()}`, kind: "session", at: p.new.started_at || new Date().toISOString(), pseudo: pseudoOf(p.new.user_id), text: "a étudié", value: p.new.duration_seconds ? formatMinutesShort(p.new.duration_seconds) : null }))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, p => push({ id: `po-${p.new.id || Date.now()}`, kind: "post", at: p.new.created_at || new Date().toISOString(), pseudo: pseudoOf(p.new.user_id), text: "a publié dans le feed" }))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "private_messages" }, p => push({ id: `me-${p.new.id || Date.now()}`, kind: "message", at: p.new.created_at || new Date().toISOString(), pseudo: pseudoOf(p.new.sender_id), text: "a envoyé un message" }))
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_badges" }, p => push({ id: `ba-${p.new.id || Date.now()}`, kind: "badge", at: p.new.created_at || new Date().toISOString(), pseudo: pseudoOf(p.new.user_id), text: "a débloqué un badge" }))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_badges" }, p => push({ id: `ba-${p.new.id || Date.now()}`, kind: "badge", at: p.new.earned_at || new Date().toISOString(), pseudo: pseudoOf(p.new.user_id), text: "a débloqué un badge" }))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "app_feedback" }, p => push({ id: `fb-${p.new.id || Date.now()}`, kind: "feedback", at: p.new.created_at || new Date().toISOString(), pseudo: pseudoOf(p.new.user_id), text: "a envoyé une suggestion" }))
       .subscribe(status => {
         if (status === "SUBSCRIBED") { subscribed = true; setLiveStatus("live"); }

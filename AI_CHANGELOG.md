@@ -2,6 +2,26 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Gamification v28 : progression coherente et autoritaire cote serveur
+
+Application des 8 recommandations issues de l'audit gamification, sans supprimer de progression historique.
+
+1. **XP canonique** : ajout de `get_gamification_levels(uuid[])`. Profil, classements et admin utilisent desormais le meme calcul serveur (temps, objectifs, serie, examens, badges et bonus) avec fallback compatible offline.
+2. **XP protege et tracable** : `profiles.bonus_xp`, `referred_by` et `referral_code` ne sont plus modifiables directement par un utilisateur. La nouvelle table `xp_ledger` rend les recompenses de missions idempotentes et auditables.
+3. **Badges fiables** : attribution centralisee cote Postgres, lecture seulement pour l'utilisateur/admin, ecritures client bloquees et backfill des badges merites manquants. `user_badges.earned_at` remplace les usages errones de `created_at`.
+4. **Missions quotidiennes serveur** : quatre missions deterministes par jour et par utilisateur, une par categorie, avec objectifs de duree/focus adaptes aux 14 derniers jours. Les recompenses sont creditees une seule fois. Le mode offline conserve un evaluateur local coherent.
+5. **Courbe de niveaux lissee** : 20 seuils progressifs de 0 a 100 000 XP, sans faire redescendre les utilisateurs existants. Les titres FR/EN ont ete simplifies et rendus plus calmes.
+6. **Temps local coherent** : ajout de `profiles.timezone` (defaut `Europe/Paris`) et detection du fuseau de l'appareil. Series, journees et missions utilisent cette timezone plutot qu'un decoupage UTC implicite.
+7. **Sessions anti-abus** : nouvelle session limitee a 12 h, timestamps coherents avec la duree, pas de futur lointain et maximum 16 h creditees par jour. Le chrono local se met en pause automatiquement a 12 h. Les anciennes sessions restent intactes.
+8. **Equilibrage et corrections** : missions photo/ami/6 h retirees, textes de badges sociaux rendus generiques, parrainage fixe a 600 XP total les jours concernes et actions admin alignees sur le calcul canonique.
+
+Migrations Supabase appliquees sur le projet live :
+
+- `supabase/migration_v28_gamification_integrity.sql` ;
+- `supabase/migration_v28_1_gamification_advisor_fixes.sql`.
+
+Verification live : 97 badges merites manquants ont ete ajoutes (aucun badge retire), aucune timezone vide, droits d'ecriture client bloques sur XP/badges, garde sessions active et RPC canoniques disponibles. Les deux avertissements Security Advisor restants concernent volontairement les deux RPC `SECURITY DEFINER`, exposees uniquement aux utilisateurs authentifies et limitees aux donnees de progression autorisees.
+
 ## 2026-07-14 - 6 pages SEO traduites (visible EN, meta/JSON-LD toujours FR)
 
 Suite au choix utilisateur ("les traduire aussi") : les 6 pages SEO mots-cles suivent maintenant la langue de l'appareil pour le CONTENU VISIBLE, tout en gardant leur SEO francais.
