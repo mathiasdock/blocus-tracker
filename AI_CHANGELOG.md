@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Refonte premium des récaps Story Blocus Tracker
+
+Demande utilisateur : rendre le récap semaine/mois réellement partageable sur Instagram, moins générique et immédiatement identifiable comme Blocus Tracker.
+
+- **`components/StudyRecap.js`** : Story 1080 x 1920 entièrement redessinée autour des **Blocus Blocks**. Le visuel raconte maintenant la période, le temps concentré, les blocs de 15 minutes validés, le rythme par jour/groupe de jours, la série, les jours actifs, le meilleur jour, le meilleur bloc, la matière phare et la progression vers les objectifs Stats existants (10 h semaine / 40 h mois).
+- **Mascotte intégrée au PNG** : version vectorielle dessinée directement dans le Canvas, avec humeur adaptée au niveau de performance. Aucun asset réseau, aucun upload Storage et aucun visuel généré par IA.
+- **Variantes automatiques** : nouveau départ (0 donnée), semaine légère, rythme lancé, grosse semaine et record. La variante record utilise l'accent ambre, une mascotte en feu et quelques éclats géométriques sobres ; les autres gardent le vert Blocus.
+- **Rang plus honnête** : rang de la fac si l'université est renseignée, sinon rang entre amis. Il est masqué lorsqu'il n'y a pas au moins deux étudiants actifs dans la cohorte ; plus de rang global ambigu.
+- **Aperçu Stats** : miniature revue avec mascotte et grille de blocs ; résumé de la modale = temps, blocs, série. Export PNG et Web Share mobile conservés sans nouvelle dépendance.
+- **i18n FR/EN** : nouveaux libellés Story, Blocus Blocks, objectifs et messages de performance.
+
+Vérifié : scénarios sans données / léger / moyen / grosse semaine / record, semaine et mois, desktop et mobile 390 x 844, PNG réel 1080 x 1920, aucune erreur console. `npm run lint` clean et `npm run build` OK.
+
 ## 2026-07-14 - Recap d'etude partageable en Story (semaine / mois)
 
 Demande utilisateur : creer une mecanique de partage organique type "Wrapped", mais avec une direction artistique propre a Blocus Tracker et aucun visuel genere par IA.

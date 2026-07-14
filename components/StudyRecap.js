@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import Mascot from "./Mascot";
 
 const STORY_WIDTH = 1080;
 const STORY_HEIGHT = 1920;
@@ -8,8 +9,18 @@ const INK_SOFT = "#123D31";
 const CREAM = "#F7F3ED";
 const MUTED = "#9FD7C1";
 const GREEN = "#14B885";
+const GREEN_LIGHT = "#2BD9A4";
 const AMBER = "#F3B64A";
+const BLUE = "#8CB9FF";
 const TEXT = "#1F1A17";
+const BLOCK_SECONDS = 15 * 60;
+
+const MASCOT = {
+  fur: "#E0A458",
+  cream: "#F8EACB",
+  dark: "#2E2018",
+  pink: "#EC9AAB",
+};
 
 function dateKey(date) {
   const y = date.getFullYear();
@@ -100,34 +111,287 @@ function drawBrandMark(ctx, x, y) {
   ctx.restore();
 }
 
-function drawMetric(ctx, x, y, width, label, value, accent) {
-  fillRoundedRect(ctx, x, y, width, 224, 8, "rgba(255,255,255,0.045)");
-  strokeRoundedRect(ctx, x, y, width, 224, 8, "rgba(255,255,255,0.12)", 2);
-  ctx.fillStyle = accent;
-  ctx.fillRect(x + 26, y + 28, 42, 7);
-  ctx.fillStyle = MUTED;
-  setFont(ctx, 700, 25);
-  ctx.fillText(label, x + 26, y + 76);
-  ctx.fillStyle = CREAM;
-  fittedFont(ctx, value, width - 52, 78, 50, 700, "Space Grotesk");
-  ctx.fillText(value, x + 26, y + 170);
+function fillPath(ctx, path, color) {
+  ctx.fillStyle = color;
+  ctx.fill(new Path2D(path));
 }
 
-function drawStory(canvas, recap, copy, lang) {
+function drawMascot(ctx, x, y, size, mood) {
+  const scale = size / 120;
+  const awake = mood !== "asleep";
+  const excited = mood === "happy" || mood === "fired";
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+
+  // Pastille claire : la mascotte reste identifiable sans devenir dominante.
+  ctx.fillStyle = "rgba(247,243,237,0.94)";
+  ctx.beginPath();
+  ctx.arc(60, 60, 58, 0, Math.PI * 2);
+  ctx.fill();
+
+  const tail = excited
+    ? "M86 80 Q108 74 104 50 Q98 70 82 74 Z"
+    : mood === "asleep"
+      ? "M84 98 Q102 98 98 82 Q94 94 80 94 Z"
+      : "M86 88 Q104 82 99 62 Q96 78 81 82 Z";
+  fillPath(ctx, tail, MASCOT.fur);
+  fillPath(ctx, "M34 80 Q26 110 46 115 Q60 119 74 115 Q94 110 86 80 Q76 66 60 66 Q44 66 34 80 Z", MASCOT.fur);
+
+  ctx.fillStyle = MASCOT.cream;
+  ctx.beginPath(); ctx.ellipse(50, 113, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(70, 113, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.strokeStyle = GREEN;
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(42, 72); ctx.quadraticCurveTo(60, 84, 78, 72); ctx.stroke();
+  ctx.fillStyle = GREEN;
+  ctx.beginPath(); ctx.arc(60, 82, 4.5, 0, Math.PI * 2); ctx.fill();
+
+  if (awake) {
+    fillPath(ctx, "M37 32 L53 10 L62 34 Z", MASCOT.fur);
+    fillPath(ctx, "M43 30 L53 16 L58 32 Z", MASCOT.cream);
+    fillPath(ctx, "M83 32 L67 10 L58 34 Z", MASCOT.fur);
+    fillPath(ctx, "M77 30 L67 16 L62 32 Z", MASCOT.cream);
+  } else {
+    fillPath(ctx, "M38 40 Q26 46 30 64 Q40 56 44 46 Z", MASCOT.fur);
+    fillPath(ctx, "M82 40 Q94 46 90 64 Q80 56 76 46 Z", MASCOT.fur);
+  }
+
+  ctx.fillStyle = MASCOT.fur;
+  ctx.beginPath(); ctx.arc(60, 50, 27, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = MASCOT.cream;
+  ctx.beginPath(); ctx.ellipse(48, 39, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(72, 39, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(60, 58, 16, 13, 0, 0, Math.PI * 2); ctx.fill();
+
+  if (awake) {
+    ctx.fillStyle = MASCOT.dark;
+    ctx.beginPath(); ctx.arc(49, 48, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(71, 48, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(47.8, 46.5, 1.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(69.8, 46.5, 1.3, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.strokeStyle = MASCOT.dark;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(45, 49); ctx.quadraticCurveTo(49, 52, 53, 49); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(67, 49); ctx.quadraticCurveTo(71, 52, 75, 49); ctx.stroke();
+  }
+  ctx.fillStyle = MASCOT.dark;
+  ctx.beginPath(); ctx.ellipse(60, 53, 4.5, 3.4, 0, 0, Math.PI * 2); ctx.fill();
+
+  if (excited) {
+    fillPath(ctx, "M53 61 Q60 73 67 61 Z", MASCOT.dark);
+    fillPath(ctx, "M57 65 Q60 74 63 65 Z", MASCOT.pink);
+  } else if (awake) {
+    ctx.strokeStyle = MASCOT.dark;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(54, 62); ctx.quadraticCurveTo(60, 67, 66, 62); ctx.stroke();
+  }
+
+  if (mood === "fired") {
+    fillPath(ctx, "M94 29 C87 22 92 15 101 8 C99 17 110 20 108 31 C107 39 98 42 92 36 C89 33 90 30 94 29 Z", AMBER);
+    fillPath(ctx, "M99 31 C96 27 99 23 102 20 C102 26 106 27 105 32 C104 36 100 36 98 34 Z", "#F97316");
+  }
+  ctx.restore();
+}
+
+function drawSpeechBubble(ctx, text, variant) {
+  const accent = variant === "record" ? AMBER : GREEN;
+  fillRoundedRect(ctx, 760, 378, 248, 62, 31, "rgba(247,243,237,0.96)");
+  ctx.beginPath();
+  ctx.moveTo(880, 438); ctx.lineTo(907, 438); ctx.lineTo(896, 458); ctx.closePath();
+  ctx.fillStyle = "rgba(247,243,237,0.96)";
+  ctx.fill();
+  ctx.fillStyle = accent;
+  ctx.beginPath(); ctx.arc(792, 409, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = TEXT;
+  fittedFont(ctx, text, 180, 21, 16, 800);
+  ctx.fillText(text, 812, 416);
+}
+
+function drawBlockCell(ctx, x, y, width, height, state, accent, fraction = 0) {
+  if (state === "filled") {
+    ctx.save();
+    ctx.shadowColor = "rgba(20,184,133,0.22)";
+    ctx.shadowBlur = 9;
+    fillRoundedRect(ctx, x, y, width, height, 5, accent);
+    ctx.restore();
+    ctx.fillStyle = "rgba(255,255,255,0.14)";
+    ctx.fillRect(x + 5, y + 4, Math.max(4, width - 10), 2);
+    return;
+  }
+  fillRoundedRect(ctx, x, y, width, height, 5, "rgba(255,255,255,0.035)");
+  strokeRoundedRect(ctx, x, y, width, height, 5, "rgba(159,215,193,0.20)", 2);
+  if (state === "partial" && fraction > 0) {
+    roundedRect(ctx, x, y, width * fraction, height, 5);
+    ctx.fillStyle = "rgba(20,184,133,0.72)";
+    ctx.fill();
+  }
+}
+
+function drawBlockRhythm(ctx, recap, copy) {
+  const groups = recap.blockGroups;
+  const groupGap = recap.period === "month" ? 18 : 12;
+  const groupWidth = (936 - groupGap * (groups.length - 1)) / groups.length;
+  const blockGap = 7;
+  const cellWidth = (groupWidth - 14 - blockGap) / 2;
+  const cellHeight = 27;
+
+  ctx.fillStyle = MUTED;
+  setFont(ctx, 700, 24);
+  ctx.fillText(copy.storyBlocksRhythm, 72, 790);
+  ctx.fillStyle = CREAM;
+  setFont(ctx, 700, 24, "Space Grotesk");
+  ctx.textAlign = "right";
+  ctx.fillText(`${recap.blockCount} ${recap.blockCount === 1 ? copy.blockSingular : copy.blockPlural}`, 1008, 790);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(255,255,255,0.12)";
+  ctx.fillRect(72, 816, 936, 2);
+
+  groups.forEach((group, groupIndex) => {
+    const x = 72 + groupIndex * (groupWidth + groupGap);
+    const isBest = groupIndex === recap.bestGroupIndex && group.seconds > 0;
+    ctx.fillStyle = isBest ? AMBER : MUTED;
+    setFont(ctx, 700, recap.period === "month" ? 18 : 21, "Space Grotesk");
+    ctx.textAlign = "center";
+    ctx.fillText(group.label, x + groupWidth / 2, 858);
+
+    const shown = Math.min(8, group.blocks);
+    for (let index = 0; index < 8; index += 1) {
+      const col = index % 2;
+      const row = 3 - Math.floor(index / 2);
+      const cellX = x + 7 + col * (cellWidth + blockGap);
+      const cellY = 880 + row * (cellHeight + 8);
+      const state = index < shown ? "filled" : index === shown && group.partial > 0 ? "partial" : "empty";
+      const color = isBest && index === Math.max(0, shown - 1) ? AMBER : (groupIndex % 2 ? GREEN_LIGHT : GREEN);
+      drawBlockCell(ctx, cellX, cellY, cellWidth, cellHeight, state, color, group.partial);
+    }
+    if (group.blocks > 8) {
+      fillRoundedRect(ctx, x + groupWidth / 2 - 28, 1024, 56, 30, 15, "rgba(243,182,74,0.16)");
+      ctx.fillStyle = AMBER;
+      setFont(ctx, 700, 17, "Space Grotesk");
+      ctx.fillText(`+${group.blocks - 8}`, x + groupWidth / 2, 1045);
+    } else {
+      ctx.fillStyle = "rgba(159,215,193,0.72)";
+      setFont(ctx, 600, 17, "Space Grotesk");
+      ctx.fillText(formatStoryDuration(group.seconds), x + groupWidth / 2, 1045);
+    }
+  });
+  ctx.textAlign = "left";
+}
+
+function drawMetricStrip(ctx, recap, copy) {
+  const metrics = [
+    { label: copy.storyStreak, value: `${recap.streak} ${copy.dayShort}`, accent: AMBER },
+    { label: copy.storyActiveDays, value: `${recap.activeDays}/${recap.dayCount}`, accent: BLUE },
+  ];
+  if (recap.rankPending || recap.rank != null) {
+    metrics.push({
+      label: recap.rankScope === "university" ? copy.storyRankUniversity : copy.storyRankFriends,
+      value: recap.rankPending ? "…" : `#${recap.rank}`,
+      accent: GREEN,
+    });
+  }
+  const width = 936 / metrics.length;
+  ctx.fillStyle = "rgba(255,255,255,0.14)";
+  ctx.fillRect(72, 1128, 936, 2);
+  ctx.fillRect(72, 1290, 936, 2);
+  metrics.forEach((metric, index) => {
+    const x = 72 + index * width;
+    if (index > 0) ctx.fillRect(x, 1156, 2, 108);
+    ctx.fillStyle = metric.accent;
+    ctx.fillRect(x + 24, 1160, 38, 6);
+    ctx.fillStyle = MUTED;
+    setFont(ctx, 700, 21);
+    ctx.fillText(metric.label, x + 24, 1202);
+    ctx.fillStyle = CREAM;
+    fittedFont(ctx, metric.value, width - 48, 58, 42, 700, "Space Grotesk");
+    ctx.fillText(metric.value, x + 24, 1262);
+  });
+}
+
+function drawHighlightStrip(ctx, recap, copy) {
+  const highlights = [];
+  if (recap.bestDayLabel) highlights.push({ label: copy.storyBestDay, value: recap.bestDayLabel });
+  if (recap.longestSeconds > 0) highlights.push({ label: copy.storyBestBlock, value: recap.longestLabel });
+  if (recap.topCourse) highlights.push({ label: copy.storyTopCourse, value: recap.topCourse });
+  if (!highlights.length) return;
+  const width = 936 / highlights.length;
+  highlights.forEach((item, index) => {
+    const x = 72 + index * width;
+    ctx.fillStyle = MUTED;
+    setFont(ctx, 700, 20);
+    ctx.fillText(item.label, x, 1355);
+    ctx.fillStyle = CREAM;
+    fittedFont(ctx, item.value, width - 38, 39, 26, 700, index === 1 ? "Space Grotesk" : undefined);
+    ctx.fillText(item.value, x, 1408);
+  });
+}
+
+function drawProgress(ctx, recap, copy) {
+  ctx.fillStyle = MUTED;
+  setFont(ctx, 700, 21);
+  ctx.fillText(copy.storyProgress, 72, 1494);
+  ctx.textAlign = "right";
+  ctx.fillText(recap.period === "month" ? copy.storyMonthGoal : copy.storyWeekGoal, 1008, 1494);
+  ctx.textAlign = "left";
+
+  const segments = 20;
+  const gap = 8;
+  const width = (936 - gap * (segments - 1)) / segments;
+  const filled = Math.round(recap.goalProgress * segments);
+  for (let index = 0; index < segments; index += 1) {
+    const x = 72 + index * (width + gap);
+    drawBlockCell(ctx, x, 1526, width, 24, index < filled ? "filled" : "empty", recap.record && index === filled - 1 ? AMBER : GREEN);
+  }
+  ctx.fillStyle = CREAM;
+  setFont(ctx, 700, 29, "Space Grotesk");
+  ctx.fillText(`${Math.round(recap.goalProgress * 100)}%`, 72, 1602);
+  ctx.fillStyle = recap.goalReached ? AMBER : MUTED;
+  setFont(ctx, 700, 22);
+  ctx.fillText(recap.goalReached ? copy.storyGoalReached : copy.storyProgressLine, 158, 1600);
+}
+
+function drawStory(canvas, recap, copy) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   canvas.width = STORY_WIDTH;
   canvas.height = STORY_HEIGHT;
 
-  ctx.fillStyle = INK;
+  const background = ctx.createLinearGradient(0, 0, STORY_WIDTH, STORY_HEIGHT);
+  background.addColorStop(0, recap.variant === "strong" || recap.variant === "record" ? "#061F18" : INK);
+  background.addColorStop(0.62, recap.variant === "fresh" ? "#12352D" : "#0A3327");
+  background.addColorStop(1, "#071D17");
+  ctx.fillStyle = background;
   ctx.fillRect(0, 0, STORY_WIDTH, STORY_HEIGHT);
 
+  const glow = ctx.createRadialGradient(930, 290, 20, 930, 290, 470);
+  glow.addColorStop(0, recap.variant === "record" ? "rgba(243,182,74,0.18)" : "rgba(43,217,164,0.13)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(470, 0, 610, 760);
+
   // Texture très légère et déterministe : de la matière, jamais un asset réseau.
-  ctx.fillStyle = "rgba(255,255,255,0.025)";
-  for (let i = 0; i < 150; i += 1) {
+  ctx.fillStyle = "rgba(255,255,255,0.022)";
+  for (let i = 0; i < 180; i += 1) {
     const x = (i * 137 + 47) % STORY_WIDTH;
-    const y = (i * 233 + 91) % 1620;
+    const y = (i * 233 + 91) % 1720;
     ctx.fillRect(x, y, 2 + (i % 3), 2 + (i % 3));
+  }
+
+  // Quelques éclats géométriques seulement sur la variante record.
+  if (recap.variant === "record") {
+    ctx.strokeStyle = "rgba(243,182,74,0.65)";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    for (let i = 0; i < 12; i += 1) {
+      const x = 700 + ((i * 73) % 310);
+      const y = 72 + ((i * 97) % 420);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 10 + (i % 3) * 5, y + 18); ctx.stroke();
+    }
   }
 
   drawBrandMark(ctx, 72, 72);
@@ -135,126 +399,158 @@ function drawStory(canvas, recap, copy, lang) {
   setFont(ctx, 700, 43);
   ctx.fillText("blocus·tracker", 144, 116);
 
-  fillRoundedRect(ctx, 774, 73, 234, 58, 29, GREEN);
-  ctx.fillStyle = INK;
-  setFont(ctx, 800, 23);
+  fillRoundedRect(ctx, 801, 76, 207, 52, 26, recap.variant === "record" ? AMBER : GREEN);
+  ctx.fillStyle = TEXT;
+  setFont(ctx, 800, 21);
   ctx.textAlign = "center";
-  ctx.fillText(copy.storyLabel, 891, 110);
+  ctx.fillText(copy.storyLabel, 904, 109);
   ctx.textAlign = "left";
-
-  ctx.fillStyle = MUTED;
-  setFont(ctx, 700, 28);
-  ctx.fillText(recap.periodLabel.toUpperCase(), 72, 228);
-  ctx.fillStyle = GREEN;
-  ctx.fillRect(72, 270, 74, 8);
-
-  ctx.fillStyle = CREAM;
-  setFont(ctx, 700, 35);
-  ctx.fillText(recap.period === "month" ? copy.storyMonth : copy.storyWeek, 72, 356);
-  ctx.fillStyle = MUTED;
-  setFont(ctx, 700, 25);
-  ctx.fillText(copy.storyStudied, 74, 421);
-
-  ctx.fillStyle = CREAM;
-  fittedFont(ctx, recap.totalLabel, 936, 182, 106, 700, "Space Grotesk");
-  ctx.fillText(recap.totalLabel, 68, 610);
-
-  const sentence = recap.totalSeconds <= 0
-    ? copy.storyFreshStart
-    : recap.activeDays >= Math.ceil(recap.dayCount / 2)
-      ? copy.storyConsistency
-      : copy.storyEveryBlock;
-  ctx.fillStyle = recap.totalSeconds > 0 ? GREEN : MUTED;
-  setFont(ctx, 700, 29);
-  ctx.fillText(sentence, 74, 688);
-
-  // Rythme d'étude : le graphique reste lisible en semaine comme sur 30 jours.
-  fillRoundedRect(ctx, 72, 760, 936, 330, 8, INK_SOFT);
-  ctx.fillStyle = MUTED;
-  setFont(ctx, 700, 25);
-  ctx.fillText(copy.storyRhythm, 104, 812);
-  const values = recap.series.map((item) => item.seconds);
-  const max = Math.max(...values, 1);
-  const chartX = 104;
-  const chartY = 860;
-  const chartW = 872;
-  const chartH = 158;
-  const gap = recap.period === "month" ? 7 : 20;
-  const barW = (chartW - gap * (values.length - 1)) / values.length;
-  recap.series.forEach((item, index) => {
-    const height = item.seconds > 0 ? Math.max(12, (item.seconds / max) * chartH) : 5;
-    const x = chartX + index * (barW + gap);
-    const y = chartY + chartH - height;
-    fillRoundedRect(ctx, x, y, barW, height, Math.min(4, barW / 2), item.seconds === max && item.seconds > 0 ? AMBER : GREEN);
-    if (recap.period === "week" || index === 0 || index === 9 || index === 19 || index === 29) {
-      ctx.fillStyle = MUTED;
-      setFont(ctx, 600, recap.period === "month" ? 17 : 21, "Space Grotesk");
-      ctx.textAlign = "center";
-      ctx.fillText(item.label, x + barW / 2, 1058);
-    }
-  });
-  ctx.textAlign = "left";
-
-  const metricWidth = 290;
-  drawMetric(ctx, 72, 1142, metricWidth, copy.storyStreak, `${recap.streak} ${copy.dayShort}`, AMBER);
-  drawMetric(ctx, 395, 1142, metricWidth, copy.storyRank, recap.rankLabel, GREEN);
-  drawMetric(ctx, 718, 1142, metricWidth, copy.storyActiveDays, `${recap.activeDays}/${recap.dayCount}`, "#7DB7FF");
 
   ctx.fillStyle = MUTED;
   setFont(ctx, 700, 24);
-  ctx.fillText(copy.storyBestBlock, 74, 1455);
-  ctx.fillStyle = CREAM;
-  setFont(ctx, 700, 48, "Space Grotesk");
-  ctx.fillText(recap.longestLabel, 74, 1518);
+  ctx.fillText(recap.periodLabel.toUpperCase(), 72, 214);
 
-  if (recap.topCourse) {
-    ctx.fillStyle = MUTED;
-    setFont(ctx, 700, 24);
-    ctx.fillText(copy.storyTopCourse, 530, 1455);
-    ctx.fillStyle = CREAM;
-    fittedFont(ctx, recap.topCourse, 476, 45, 28, 700);
-    ctx.fillText(recap.topCourse, 530, 1518);
-  }
-
-  // Bande signature claire : contraste avec le vert et lecture immédiate en story.
   ctx.fillStyle = CREAM;
-  ctx.fillRect(0, 1620, STORY_WIDTH, 300);
+  setFont(ctx, 700, 52);
+  ctx.fillText(recap.period === "month" ? copy.storyMonthTitle : copy.storyWeekTitle, 72, 294);
+  ctx.fillStyle = recap.variant === "record" ? AMBER : GREEN;
+  ctx.fillRect(72, 326, 92, 8);
+
+  drawMascot(ctx, 824, 188, 168, recap.mascotMood);
+  drawSpeechBubble(ctx, recap.statusText, recap.variant);
+
+  ctx.fillStyle = MUTED;
+  setFont(ctx, 700, 23);
+  ctx.fillText(copy.storyFocusTime, 74, 432);
+
+  ctx.fillStyle = CREAM;
+  fittedFont(ctx, recap.totalLabel, 650, 155, 98, 700, "Space Grotesk");
+  ctx.fillText(recap.totalLabel, 68, 607);
+
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.fillRect(728, 472, 2, 156);
+  ctx.fillStyle = recap.variant === "record" ? AMBER : GREEN_LIGHT;
+  setFont(ctx, 700, 74, "Space Grotesk");
+  ctx.fillText(String(recap.blockCount), 770, 565);
+  ctx.fillStyle = MUTED;
+  setFont(ctx, 700, 21);
+  ctx.fillText(recap.blockCount === 1 ? copy.storyBlockValidated : copy.storyBlocksValidated, 772, 608);
+
+  drawBlockRhythm(ctx, recap, copy);
+  drawMetricStrip(ctx, recap, copy);
+  drawHighlightStrip(ctx, recap, copy);
+  drawProgress(ctx, recap, copy);
+
+  // Footer diagonal, plus léger et plus distinctif qu'un pavé rectangulaire.
+  ctx.fillStyle = CREAM;
+  ctx.beginPath();
+  ctx.moveTo(0, 1705); ctx.lineTo(STORY_WIDTH, 1655); ctx.lineTo(STORY_WIDTH, STORY_HEIGHT); ctx.lineTo(0, STORY_HEIGHT); ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = recap.variant === "record" ? AMBER : GREEN;
+  ctx.beginPath();
+  ctx.moveTo(0, 1689); ctx.lineTo(STORY_WIDTH, 1639); ctx.lineTo(STORY_WIDTH, 1659); ctx.lineTo(0, 1709); ctx.closePath();
+  ctx.fill();
+
   ctx.fillStyle = TEXT;
-  setFont(ctx, 700, 38);
-  ctx.fillText(`@${recap.pseudo || "student"}`, 72, 1710);
+  setFont(ctx, 700, 39);
+  ctx.fillText(`@${recap.pseudo || "student"}`, 72, 1791);
   ctx.fillStyle = "#5F5751";
-  setFont(ctx, 600, 27);
-  ctx.fillText(copy.footerLine, 72, 1765);
+  setFont(ctx, 600, 25);
+  ctx.fillText(copy.footerLine, 72, 1841);
 
   ctx.fillStyle = TEXT;
-  setFont(ctx, 700, 31);
-  ctx.fillText("blocus-tracker.com", 72, 1850);
-  ctx.fillStyle = GREEN;
-  ctx.fillRect(762, 1817, 246, 8);
+  setFont(ctx, 700, 29);
+  ctx.fillText("blocus-tracker.com", 72, 1892);
+
+  const footerBlocks = [GREEN, GREEN_LIGHT, recap.variant === "record" ? AMBER : GREEN];
+  footerBlocks.forEach((color, index) => fillRoundedRect(ctx, 798 + index * 70, 1828 - index * 18, 54, 34, 5, color));
   ctx.fillStyle = TEXT;
-  setFont(ctx, 700, 25);
+  setFont(ctx, 700, 21);
   ctx.textAlign = "right";
-  ctx.fillText(copy.footerTag, 1008, 1850);
+  ctx.fillText(copy.footerTag, 1008, 1892);
   ctx.textAlign = "left";
 }
 
-function buildRecap({ period, sessions, courses, streak, pseudo, rank, lang }) {
+function buildRecap({ period, sessions, courses, streak, pseudo, rankData, lang, copy }) {
   const dates = periodDates(period);
   const dateSet = new Set(dates.map(dateKey));
   const selected = sessions.filter((session) => dateSet.has((session.started_at || "").slice(0, 10)));
+  const previousDateSet = new Set(dates.map((date) => {
+    const previous = new Date(date);
+    previous.setDate(previous.getDate() - dates.length);
+    return dateKey(previous);
+  }));
+  const previousTotal = sessions
+    .filter((session) => previousDateSet.has((session.started_at || "").slice(0, 10)))
+    .reduce((sum, session) => sum + Number(session.duration_seconds || 0), 0);
   const totalSeconds = selected.reduce((sum, session) => sum + Number(session.duration_seconds || 0), 0);
   const totalsByDate = {};
+  const detailsByDate = {};
   const totalsByCourse = {};
   selected.forEach((session) => {
     const day = (session.started_at || "").slice(0, 10);
-    totalsByDate[day] = (totalsByDate[day] || 0) + Number(session.duration_seconds || 0);
+    const seconds = Math.max(0, Number(session.duration_seconds || 0));
+    totalsByDate[day] = (totalsByDate[day] || 0) + seconds;
+    const detail = detailsByDate[day] || { seconds: 0, blocks: 0, partial: 0 };
+    detail.seconds += seconds;
+    detail.blocks += Math.floor(seconds / BLOCK_SECONDS);
+    detail.partial = Math.max(detail.partial, (seconds % BLOCK_SECONDS) / BLOCK_SECONDS);
+    detailsByDate[day] = detail;
     if (session.course_id) {
-      totalsByCourse[session.course_id] = (totalsByCourse[session.course_id] || 0) + Number(session.duration_seconds || 0);
+      totalsByCourse[session.course_id] = (totalsByCourse[session.course_id] || 0) + seconds;
     }
   });
   const courseMap = Object.fromEntries(courses.map((course) => [course.id, course.name]));
   const topCourseId = Object.entries(totalsByCourse).sort((a, b) => b[1] - a[1])[0]?.[0];
   const locale = lang === "en" ? "en-GB" : "fr-FR";
+  const dayRows = dates.map((date) => {
+    const key = dateKey(date);
+    const detail = detailsByDate[key] || { seconds: 0, blocks: 0, partial: 0 };
+    return {
+      ...detail,
+      key,
+      label: date.toLocaleDateString(locale, { weekday: "short" }).replace(".", "").slice(0, 2).toUpperCase(),
+      date,
+    };
+  });
+  const blockGroups = period === "week"
+    ? dayRows
+    : Array.from({ length: 6 }, (_, index) => {
+      const group = dayRows.slice(index * 5, index * 5 + 5);
+      return {
+        label: `${group[0].date.getDate()}–${group[group.length - 1].date.getDate()}`,
+        seconds: group.reduce((sum, day) => sum + day.seconds, 0),
+        blocks: group.reduce((sum, day) => sum + day.blocks, 0),
+        partial: Math.max(0, ...group.map((day) => day.partial)),
+      };
+    });
+  const bestGroupIndex = blockGroups.reduce((best, group, index, all) => group.seconds > all[best].seconds ? index : best, 0);
+  const blockCount = dayRows.reduce((sum, day) => sum + day.blocks, 0);
+  const bestDay = dayRows.reduce((best, day) => day.seconds > best.seconds ? day : best, dayRows[0]);
+  const longestSeconds = Math.max(0, ...selected.map((session) => Number(session.duration_seconds || 0)));
+  const goalSeconds = period === "month" ? 40 * 3600 : 10 * 3600;
+  const goalProgress = Math.min(1, totalSeconds / goalSeconds);
+  const goalReached = totalSeconds >= goalSeconds;
+  const record = previousTotal > 0 && totalSeconds > previousTotal;
+
+  let variant = "light";
+  if (totalSeconds === 0) variant = "fresh";
+  else if (record) variant = "record";
+  else if (goalReached || goalProgress >= 0.8 || blockCount >= (period === "month" ? 128 : 32)) variant = "strong";
+  else if (dayRows.filter((day) => day.seconds > 0).length >= (period === "month" ? 12 : 4)
+    || totalSeconds >= (period === "month" ? 12 : 3) * 3600) variant = "steady";
+
+  const statusText = record
+    ? copy.statusRecord
+    : goalReached
+      ? copy.statusGoal
+      : variant === "strong"
+        ? copy.statusStrong
+        : variant === "steady"
+          ? copy.statusSteady
+          : variant === "fresh"
+            ? copy.statusFresh
+            : copy.statusLight;
 
   return {
     period,
@@ -265,15 +561,24 @@ function buildRecap({ period, sessions, courses, streak, pseudo, rank, lang }) {
     dayCount: dates.length,
     activeDays: Object.keys(totalsByDate).length,
     streak: Number(streak || 0),
-    rankLabel: rank === undefined ? "…" : rank == null ? "—" : typeof rank === "number" ? `#${rank}` : String(rank),
-    longestLabel: formatStoryDuration(Math.max(0, ...selected.map((session) => Number(session.duration_seconds || 0)))),
+    blockCount,
+    blockGroups,
+    bestGroupIndex,
+    rankPending: rankData === undefined,
+    rank: rankData?.rank ?? null,
+    rankScope: rankData?.scope || "friends",
+    longestSeconds,
+    longestLabel: formatStoryDuration(longestSeconds),
+    bestDayLabel: bestDay?.seconds > 0
+      ? bestDay.date.toLocaleDateString(locale, { weekday: "short", day: "numeric" }).replace(".", "")
+      : null,
     topCourse: topCourseId ? courseMap[topCourseId] || null : null,
-    series: dates.map((date) => ({
-      seconds: totalsByDate[dateKey(date)] || 0,
-      label: period === "week"
-        ? date.toLocaleDateString(locale, { weekday: "short" }).replace(".", "").slice(0, 2).toUpperCase()
-        : String(date.getDate()).padStart(2, "0"),
-    })),
+    goalProgress,
+    goalReached,
+    record,
+    variant,
+    mascotMood: variant === "fresh" ? "asleep" : variant === "light" ? "content" : variant === "record" ? "fired" : "happy",
+    statusText,
   };
 }
 
@@ -313,58 +618,78 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
 
   const copy = useMemo(() => ({
     storyLabel: t("stats.recapStoryLabel"),
-    storyWeek: t("stats.recapStoryWeek"),
-    storyMonth: t("stats.recapStoryMonth"),
-    storyStudied: t("stats.recapStoryStudied"),
-    storyRhythm: t("stats.recapStoryRhythm"),
+    storyWeekTitle: t("stats.recapStoryWeekTitle"),
+    storyMonthTitle: t("stats.recapStoryMonthTitle"),
+    storyFocusTime: t("stats.recapStoryFocusTime"),
+    storyBlockValidated: t("stats.recapStoryBlockValidated"),
+    storyBlocksValidated: t("stats.recapStoryBlocksValidated"),
+    storyBlocksRhythm: t("stats.recapStoryBlocksRhythm"),
     storyStreak: t("stats.recapStoryStreak"),
-    storyRank: t("stats.recapStoryRank"),
+    storyRankUniversity: t("stats.recapStoryRankUniversity"),
+    storyRankFriends: t("stats.recapStoryRankFriends"),
     storyActiveDays: t("stats.recapStoryActiveDays"),
+    storyBestDay: t("stats.recapStoryBestDay"),
     storyBestBlock: t("stats.recapStoryBestBlock"),
     storyTopCourse: t("stats.recapStoryTopCourse"),
-    storyConsistency: t("stats.recapStoryConsistency"),
-    storyEveryBlock: t("stats.recapStoryEveryBlock"),
-    storyFreshStart: t("stats.recapStoryFreshStart"),
+    storyProgress: t("stats.recapStoryProgress"),
+    storyWeekGoal: t("stats.recapStoryWeekGoal"),
+    storyMonthGoal: t("stats.recapStoryMonthGoal"),
+    storyGoalReached: t("stats.recapStoryGoalReached"),
+    storyProgressLine: t("stats.recapStoryProgressLine"),
+    blockSingular: t("stats.recapBlockSingular"),
+    blockPlural: t("stats.recapBlockPlural"),
+    statusFresh: t("stats.recapStatusFresh"),
+    statusLight: t("stats.recapStatusLight"),
+    statusSteady: t("stats.recapStatusSteady"),
+    statusStrong: t("stats.recapStatusStrong"),
+    statusRecord: t("stats.recapStatusRecord"),
+    statusGoal: t("stats.recapStatusGoal"),
     dayShort: t("stats.recapDayShort"),
     footerLine: t("stats.recapFooterLine"),
     footerTag: t("stats.recapFooterTag"),
   }), [t]);
 
-  const rank = Object.prototype.hasOwnProperty.call(rankByPeriod, period) ? rankByPeriod[period] : undefined;
+  const rankScope = profile?.university ? "university" : "friends";
+  const rankKey = `${period}:${rankScope}:${profile?.university || ""}`;
+  const rankData = Object.prototype.hasOwnProperty.call(rankByPeriod, rankKey) ? rankByPeriod[rankKey] : undefined;
   const recap = useMemo(() => buildRecap({
     period,
     sessions,
     courses,
     streak,
     pseudo: profile?.pseudo,
-    rank,
+    rankData,
     lang,
-  }), [period, sessions, courses, streak, profile?.pseudo, rank, lang]);
+    copy,
+  }), [period, sessions, courses, streak, profile?.pseudo, rankData, lang, copy]);
 
   useEffect(() => {
-    if (!open || !userId || Object.prototype.hasOwnProperty.call(rankByPeriod, period)) return;
+    if (!open || !userId || Object.prototype.hasOwnProperty.call(rankByPeriod, rankKey)) return;
     let active = true;
     setRankLoading(true);
     (async () => {
       const { data, error } = await supabase.rpc("get_leaderboard_v2", {
         p_period: period,
         p_metric: "time",
-        p_scope: "all",
-        p_university: null,
+        p_scope: rankScope === "university" ? "all" : "friends",
+        p_university: rankScope === "university" ? profile.university : null,
         p_study_field: null,
         p_study_year: null,
       });
       if (!active) return;
-      let nextRank = null;
+      let nextRankData = null;
       if (!error && Array.isArray(data)) {
-        const index = data.findIndex((row) => row.user_id === userId);
-        nextRank = index >= 0 ? index + 1 : (recap.totalSeconds > 0 ? "50+" : null);
+        const activeRows = data.filter((row) => Number(row.total_value || row.total_seconds || 0) > 0);
+        const index = activeRows.findIndex((row) => row.user_id === userId);
+        if (activeRows.length > 1 && index >= 0) {
+          nextRankData = { rank: index + 1, scope: rankScope, cohort: activeRows.length };
+        }
       }
-      setRankByPeriod((current) => ({ ...current, [period]: nextRank }));
+      setRankByPeriod((current) => ({ ...current, [rankKey]: nextRankData }));
       setRankLoading(false);
     })();
     return () => { active = false; };
-  }, [open, userId, period, rankByPeriod, recap.totalSeconds]);
+  }, [open, userId, period, rankByPeriod, rankKey, rankScope, profile?.university]);
 
   useEffect(() => {
     if (!open || !canvasRef.current) return;
@@ -375,10 +700,10 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
         await document.fonts?.load('700 80px "Bricolage Grotesque"');
         await document.fonts?.load('700 80px "Space Grotesk"');
       } catch (_) {}
-      if (active) drawStory(canvasRef.current, recap, copy, lang);
+      if (active) drawStory(canvasRef.current, recap, copy);
     })();
     return () => { active = false; };
-  }, [open, recap, copy, lang]);
+  }, [open, recap, copy]);
 
   useEffect(() => {
     if (!open) return;
@@ -394,7 +719,7 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
 
   async function prepareBlob() {
     if (!canvasRef.current) throw new Error("missing_canvas");
-    drawStory(canvasRef.current, recap, copy, lang);
+    drawStory(canvasRef.current, recap, copy);
     return canvasBlob(canvasRef.current);
   }
 
@@ -469,12 +794,20 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
             <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: GREEN }} />
             <div className="w-[78px] sm:w-[104px] aspect-[9/16] border flex flex-col justify-between p-2.5 sm:p-3" style={{ backgroundColor: INK_SOFT, borderColor: "rgba(255,255,255,0.12)", borderRadius: 6 }}>
               <div>
-                <span className="block h-1 w-5" style={{ backgroundColor: GREEN }} />
-                <span className="block text-[5px] sm:text-[7px] font-bold tracking-wider mt-2" style={{ color: MUTED }}>{t("stats.recapStoryStudied")}</span>
+                <div className="flex items-start justify-between gap-1">
+                  <span className="block h-1 w-5 mt-1" style={{ backgroundColor: recap.variant === "record" ? AMBER : GREEN }} />
+                  <Mascot streak={streak} size={30} animated={false} />
+                </div>
+                <span className="block text-[5px] sm:text-[7px] font-bold tracking-wider mt-1" style={{ color: MUTED }}>{t("stats.recapStoryFocusTime")}</span>
                 <span className="block text-[13px] sm:text-[19px] font-num font-bold mt-0.5" style={{ color: CREAM }}>{totalLabel}</span>
               </div>
-              <div className="grid grid-cols-3 items-end gap-1 h-9 sm:h-12">
-                {[38, 72, 52].map((height, index) => <span key={index} style={{ height: `${height}%`, backgroundColor: index === 1 ? AMBER : GREEN, borderRadius: 2 }} />)}
+              <div>
+                <div className="grid grid-cols-4 gap-1">
+                  {Array.from({ length: 8 }, (_, index) => (
+                    <span key={index} className="h-2 sm:h-2.5" style={{ backgroundColor: index < Math.min(recap.blockCount, 8) ? (index === 7 && recap.variant === "record" ? AMBER : GREEN) : "rgba(255,255,255,0.1)", borderRadius: 2 }} />
+                  ))}
+                </div>
+                <span className="block text-[5px] sm:text-[7px] font-bold mt-1.5" style={{ color: MUTED }}>{recap.blockCount} {recap.blockCount === 1 ? copy.blockSingular : copy.blockPlural}</span>
               </div>
               <div className="h-4 -mx-2.5 -mb-2.5 sm:-mx-3 sm:-mb-3 px-2 flex items-center text-[5px] sm:text-[6px] font-bold" style={{ backgroundColor: CREAM, color: TEXT }}>@{profile?.pseudo || "student"}</div>
             </div>
@@ -505,8 +838,8 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
                   <div className="grid grid-cols-3 gap-2 mt-5">
                     {[
                       [t("stats.recapTime"), recap.totalLabel],
+                      [t("stats.recapBlocks"), String(recap.blockCount)],
                       [t("stats.recapStreak"), `${recap.streak} ${t("stats.recapDayShort")}`],
-                      [t("stats.recapRank"), rankLoading ? "…" : recap.rankLabel],
                     ].map(([label, value]) => (
                       <div key={label} className="py-3 text-center border-y" style={{ borderColor: "var(--bt-border)" }}>
                         <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{label}</p>
