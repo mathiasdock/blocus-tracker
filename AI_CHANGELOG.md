@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Panneau de notifications redesigne (skill frontend-design)
+
+Demande utilisateur (capture) : le panneau de notifications faisait "trop basique / IA generated". Refonte via le skill frontend-design, en restant fidele a l'identite calme/verte de l'app (tokens CSS, couleurs de statut deja sanctionnees, aucune nouvelle couleur).
+
+Constat de conception : l'ancien panneau etait une liste plate ou CHAQUE ligne avait la meme cloche generique, un chip de categorie redondant avec le titre ("NOUVEAUTE" au-dessus de "Nouveaute"), aucun horodatage, aucune identite par type.
+
+- **`components/Layout.js`** (`NotificationPanel`) : chaque type de notif a desormais son identite visuelle.
+  - Notifs "de personne" (ami / commentaire / reaction) → avatar 40px + petite **pastille d'activite** coloree dans le coin (glyphe ami vert / bulle bleue / coeur rouge), facon Instagram/Facebook — on triage d'un coup d'oeil sans lire.
+  - Notifs systeme (annonces) → **jeton colore par type** avec une vraie icone (etincelles pour nouveaute, i pour info, triangle pour alerte) au lieu de la cloche partout ; chip redondant supprime.
+  - **Horodatage relatif** (`timeAgo`) sur chaque item qui a un `created_at`.
+  - En-tete : cloche en jeton accent + titre + **pastille compteur verte**. Etat vide accueillant (cloche + "Tu es a jour" + indice) au lieu d'un texte nu. Entree en fondu (`bt-rise`, reduced-motion couvert). Rayons/ombres/espacements affines, alignement `items-start` (sinon la pastille de l'avatar descendait sur la ligne "demande d'ami" plus haute).
+- **i18n** : `notif.empty` reformule + nouveau `notif.emptyHint` (FR + EN).
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK. En navigateur (build offline, compte demo avec 2 annonces + 1 demande d'ami) : jetons etincelles (vert) / info (bleu), pastille ami verte bien calee dans le coin de l'avatar apres le fix `items-start`, horodatage "11 juil.", pastille compteur "3", en-tete refondu (captures clair + sombre). Zero erreur console.
+
 ## 2026-07-14 - Mode focus : ambiances sonores SYNTHETISEES (opt-in, 0 fichier / 0 egress)
 
 Demande utilisateur : des ambiances sonores en mode focus, mais NON activees par defaut (l'utilisateur choisit), et surtout SANS peser sur le stockage/egress Supabase (garder le plan gratuit). Solution retenue apres discussion : 100 % synthetise via la Web Audio API — aucun fichier audio n'existe.

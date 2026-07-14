@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
-import { formatDuration, displayName } from "../lib/format";
+import { formatDuration, displayName, timeAgo } from "../lib/format";
 import PwaInstallBanner from "./PwaInstallBanner";
 import LegacyEmailBanner from "./LegacyEmailBanner";
 import Mascot from "./Mascot";
@@ -216,6 +216,55 @@ function Badge({ count, small = false }) {
   );
 }
 
+// Glyphes d'activité (remplis) posés en pastille sur l'avatar : chaque type de
+// notif "de personne" se reconnaît d'un coup d'œil sans lire le texte.
+function NotifBadgeGlyph({ name, size = 11 }) {
+  const paths = {
+    friend: <><circle cx="9" cy="8.5" r="3.4" /><path d="M3 20a6 6 0 0 1 12 0z" /><path d="M18.5 8.5v6M21.5 11.5h-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></>,
+    chat: <path d="M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V5a1 1 0 0 1 1-1z" />,
+    heart: <path d="M12 21 3.6 12.6a5.4 5.4 0 1 1 7.6-7.6l.8.8.8-.8a5.4 5.4 0 1 1 7.6 7.6z" />,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+}
+
+// Jetons d'annonce (contour, dans la couleur du type) : nouveauté / info / alerte.
+function AnnGlyph({ name, size = 17 }) {
+  const paths = {
+    sparkles: <path d="M12 3l1.9 4.9L19 9.8l-5.1 1.9L12 17l-1.9-5.3L5 9.8l5.1-1.9zM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8z" />,
+    info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-4.5M12 8h.02" /></>,
+    alert: <><path d="M10.3 4 2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z" /><path d="M12 9.5v4M12 17.5h.02" /></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+}
+
+// Avatar + pastille d'activité colorée dans le coin.
+function NotifAvatar({ item, name }) {
+  const badge = {
+    friend_request: { bg: "var(--bt-accent)", glyph: "friend" },
+    comment:        { bg: "#0369a1", glyph: "chat" },
+    reaction:       { bg: "#DC2626", glyph: "heart" },
+  }[item.type];
+  return (
+    <span className="relative shrink-0">
+      <Avatar url={item.actor?.avatar_url} pseudo={name} size={40} />
+      {badge && (
+        <span className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full"
+          style={{ width: 18, height: 18, backgroundColor: badge.bg, color: "#fff", border: "2px solid var(--bt-surface)" }}>
+          <NotifBadgeGlyph name={badge.glyph} />
+        </span>
+      )}
+    </span>
+  );
+}
+
 function NotificationPanel({
   items,
   t,
@@ -225,22 +274,38 @@ function NotificationPanel({
   onOpenFeed,
   onDismissAnnouncement,
 }) {
+  const { lang } = useI18n();
   const nameOf = (profile) => displayName(profile) || t("notif.someone");
+  const when = (item) => (item.created_at ? timeAgo(item.created_at, lang) : null);
+
+  const rowHover = {
+    onMouseEnter: (e) => (e.currentTarget.style.backgroundColor = "var(--bt-subtle)"),
+    onMouseLeave: (e) => (e.currentTarget.style.backgroundColor = ""),
+  };
 
   return (
     <div
-      className="fixed z-50 left-3 right-3 lg:left-[244px] lg:right-auto lg:w-[390px] rounded-2xl overflow-hidden"
+      className="bt-rise fixed z-50 left-3 right-3 lg:left-[244px] lg:right-auto lg:w-[400px] rounded-3xl overflow-hidden"
       style={{
         top: "calc(58px + env(safe-area-inset-top))",
         backgroundColor: "var(--bt-surface)",
         border: "1px solid var(--bt-border)",
-        boxShadow: "0 18px 48px var(--bt-shadow)",
+        boxShadow: "0 24px 60px var(--bt-shadow)",
       }}>
-      <div className="flex items-center justify-between px-4 py-3"
+      <div className="flex items-center justify-between px-4 py-3.5"
         style={{ borderBottom: "1px solid var(--bt-border)" }}>
-        <div className="flex items-center gap-2" style={{ color: "var(--bt-text-1)" }}>
-          <IconBell size={18} />
-          <p className="text-sm font-semibold">{t("notif.title")}</p>
+        <div className="flex items-center gap-2.5">
+          <span className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+            <IconBell size={16} />
+          </span>
+          <p className="text-[15px] font-bold" style={{ color: "var(--bt-text-1)" }}>{t("notif.title")}</p>
+          {items.length > 0 && (
+            <span className="text-[11px] font-bold font-num tabular-nums px-1.5 py-0.5 rounded-full"
+              style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
+              {items.length}
+            </span>
+          )}
         </div>
         <button type="button" onClick={onClose}
           className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
@@ -254,71 +319,72 @@ function NotificationPanel({
 
       <div className="overflow-y-auto" style={{ maxHeight: "min(70vh, 520px)" }}>
         {items.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
-            {t("notif.empty")}
-          </p>
+          <div className="px-6 py-12 text-center">
+            <span className="mx-auto mb-3.5 flex w-14 h-14 items-center justify-center rounded-full"
+              style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-4)" }}>
+              <IconBell size={24} />
+            </span>
+            <p className="text-sm font-semibold" style={{ color: "var(--bt-text-2)" }}>{t("notif.empty")}</p>
+            <p className="mt-1 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("notif.emptyHint")}</p>
+          </div>
         ) : (
           <ul>
             {items.map((item, idx) => {
               const bordered = idx > 0 ? { borderTop: "1px solid var(--bt-border)" } : {};
+              const ts = when(item);
 
               if (item.type === "announcement") {
-                // Hardcoded announcements carry i18n keys; DB ones carry literal text.
+                // Annonces figées : clés i18n. Annonces BDD : texte littéral.
                 const annTitle = item.titleKey ? t(item.titleKey) : item.title;
                 const annBody  = item.bodyKey  ? t(item.bodyKey)  : item.body;
-                const annStyle = {
-                  new:       { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: t("ann.typeNew") },
-                  info:      { bg: "rgba(3,105,161,0.14)",  color: "#0369a1", label: t("ann.typeInfo") },
-                  important: { bg: "rgba(220,38,38,0.14)",  color: "#DC2626", label: t("ann.typeImportant") },
-                }[item.annType || "info"] || { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: t("ann.typeInfo") };
+                const s = {
+                  new:       { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", glyph: "sparkles" },
+                  info:      { bg: "rgba(3,105,161,0.14)", color: "#0369a1", glyph: "info" },
+                  important: { bg: "rgba(220,38,38,0.12)", color: "#DC2626", glyph: "alert" },
+                }[item.annType || "info"] || { bg: "rgba(3,105,161,0.14)", color: "#0369a1", glyph: "info" };
                 return (
                   <li key={item.key} style={bordered}>
-                    <button
-                      type="button"
+                    <button type="button"
                       onClick={() => { onDismissAnnouncement(item.id, item.href); onClose(); }}
-                      className="w-full text-left flex gap-3 px-4 py-3 transition-colors"
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                      <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: annStyle.bg, color: annStyle.color }}>
-                        <IconBell size={17} />
+                      className="w-full text-left flex items-start gap-3 px-4 py-3.5 transition-colors" {...rowHover}>
+                      <span className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: s.bg, color: s.color }}>
+                        <AnnGlyph name={s.glyph} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full mb-1"
-                          style={{ backgroundColor: annStyle.bg, color: annStyle.color }}>
-                          {annStyle.label}
+                        <span className="flex items-start justify-between gap-2">
+                          <span className="text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{annTitle}</span>
+                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
                         </span>
-                        <span className="block text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                          {annTitle}
-                        </span>
-                        <span className="block text-xs mt-0.5 leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                          {annBody}
-                        </span>
+                        <span className="block text-xs mt-1 leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{annBody}</span>
                       </span>
                     </button>
                   </li>
                 );
               }
 
+              const name = nameOf(item.actor);
+
               if (item.type === "friend_request") {
                 return (
-                  <li key={item.key} className="px-4 py-3" style={bordered}>
-                    <div className="flex gap-3">
-                      <Avatar url={item.actor?.avatar_url} pseudo={nameOf(item.actor)} size={36} />
+                  <li key={item.key} className="px-4 py-3.5" style={bordered}>
+                    <div className="flex gap-3 items-start">
+                      <NotifAvatar item={item} name={name} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
-                          <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                            {nameOf(item.actor)}
-                          </span>{" "}
-                          {t("notif.friendRequest")}
-                        </p>
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
+                            <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>{name}</span>{" "}
+                            {t("notif.friendRequest")}
+                          </p>
+                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
+                        </div>
+                        <div className="flex gap-2 mt-2.5">
                           <button type="button" onClick={() => onAcceptFriend(item.id).catch(console.error)}
-                            className="btn-primary text-xs px-3 py-1.5">
+                            className="btn-primary text-xs px-4 py-1.5">
                             {t("friends.accept")}
                           </button>
                           <button type="button" onClick={() => onRefuseFriend(item.id).catch(console.error)}
-                            className="btn-ghost text-xs px-3 py-1.5">
+                            className="btn-ghost text-xs px-4 py-1.5">
                             {t("friends.refuse")}
                           </button>
                         </div>
@@ -331,21 +397,17 @@ function NotificationPanel({
               const textKey = item.type === "comment" ? "notif.commentedPost" : "notif.reactedPost";
               return (
                 <li key={item.key} style={bordered}>
-                  <button
-                    type="button"
+                  <button type="button"
                     onClick={() => { onOpenFeed(); onClose(); }}
-                    className="w-full text-left flex gap-3 px-4 py-3 transition-colors"
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                    <Avatar url={item.actor?.avatar_url} pseudo={nameOf(item.actor)} size={36} />
-                    <span className="min-w-0 flex-1 text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
-                      <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                        {nameOf(item.actor)}
-                      </span>{" "}
-                      {t(textKey)}
-                      {item.type === "reaction" && item.emoji && (
-                        <span className="ml-1 text-base">{item.emoji}</span>
-                      )}
+                    className="w-full text-left flex gap-3 px-4 py-3.5 transition-colors" {...rowHover}>
+                    <NotifAvatar item={item} name={name} />
+                    <span className="min-w-0 flex-1 flex items-start justify-between gap-2">
+                      <span className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
+                        <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>{name}</span>{" "}
+                        {t(textKey)}
+                        {item.type === "reaction" && item.emoji && <span className="ml-1 text-base align-middle">{item.emoji}</span>}
+                      </span>
+                      {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
                     </span>
                   </button>
                 </li>
