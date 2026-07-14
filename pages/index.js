@@ -3,8 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
+import { useI18n } from "../contexts/I18nContext";
 import { COUNTRIES } from "../lib/universities";
-import { HOME_FAQ } from "../lib/seo";
+import { HOME_FAQ, HOME_FAQ_EN } from "../lib/seo";
+import { getLandingContent } from "../lib/landingContent";
 import Mascot from "../components/Mascot";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -20,135 +22,34 @@ const SHOT = (name) => `/site-web/opt/${name}.webp`;
 const UNIVERSITY_COUNT = COUNTRIES.reduce((n, c) => n + c.universities.length, 0);
 const COUNTRY_COUNT = COUNTRIES.length;
 
-const STATS = [
-  { target: 200, suffix: "+", label: "étudiants inscrits" },
-  { target: UNIVERSITY_COUNT, suffix: "", label: "communautés d'écoles" },
-  { target: COUNTRY_COUNT, suffix: "", label: "pays représentés" },
-  { target: 100, suffix: "%", label: "gratuit, sans carte" },
+// Champs STRUCTURELS uniquement (dimensions, screenshots, liens, ids). Le TEXTE
+// vient de lib/landingContent.js, fusionné par langue dans le composant.
+const STATS_META = [
+  { target: 200, suffix: "+" },
+  { target: UNIVERSITY_COUNT, suffix: "" },
+  { target: COUNTRY_COUNT, suffix: "" },
+  { target: 100, suffix: "%" },
 ];
 
 const APP_AREAS = [
-  {
-    id: "chrono",
-    label: "Chrono",
-    title: "Chrono et mode Focus",
-    description: "Lance une session libre ou Pomodoro, choisis ta matière et construis ta concentration bloc après bloc sans quitter l'écran des yeux.",
-    mascot: "Commence ici : choisis un cours, lance le chrono et je construis chaque bloc avec toi.",
-    shot: "chrono-desktop",
-    alt: "Le chrono et les Blocus Blocks de Blocus Tracker",
-    width: 1920,
-    height: 1088,
-    features: ["Session libre ou Pomodoro", "Mode Focus plein écran", "Pause, objectif et temps réel"],
-  },
-  {
-    id: "planning",
-    label: "Planning",
-    title: "Planning et examens",
-    description: "Pose tes objectifs sur les bons jours, garde tes examens visibles et lance directement une session depuis ce que tu avais prévu.",
-    mascot: "Ici, on transforme le stress en prochaines actions : aujourd'hui, cette semaine, puis l'examen.",
-    shot: "planning-desktop",
-    alt: "Le planning de révision, les objectifs et les examens",
-    width: 1400,
-    height: 793,
-    features: ["Objectifs quotidiens", "Examens avec compte à rebours", "Export calendrier"],
-  },
-  {
-    id: "stats",
-    label: "Stats",
-    title: "Statistiques et historique",
-    description: "Retrouve le temps étudié, ta régularité, tes meilleurs créneaux et chaque session passée pour ajuster la suite sur des faits.",
-    mascot: "Pas besoin d'étudier au hasard : je t'aide à voir quand tu avances vraiment et où ajuster.",
-    shot: "stats-desktop",
-    alt: "Les statistiques et l'historique d'étude",
-    width: 1355,
-    height: 768,
-    features: ["Temps par matière", "Séries, records et régularité", "Historique des sessions"],
-  },
-  {
-    id: "progression",
-    label: "Progression",
-    title: "Profil, XP et badges",
-    description: "Chaque session nourrit une progression lisible : niveau, série, missions du jour et badges donnent un rythme sans transformer l'étude en jeu bruyant.",
-    mascot: "Je réagis à ta série, et ton profil garde la trace de tout ce que tu as construit.",
-    shot: "progression-mobile",
-    alt: "Le profil, les missions, l'XP et les badges",
-    width: 359,
-    height: 780,
-    frame: "phone",
-    features: ["Niveaux et XP", "Série de jours étudiés", "Missions et badges"],
-  },
-  {
-    id: "social",
-    label: "Social",
-    title: "Feed, amis et groupes",
-    description: "Suis les efforts de tes amis, retrouve tes conversations privées et organise un groupe d'étude sans mélanger toute ta vie sociale.",
-    mascot: "Un bon groupe ne remplace pas le travail : il rend juste plus facile le fait de revenir demain.",
-    shot: "social-desktop",
-    alt: "Le feed, les amis, les messages privés et les groupes d'étude",
-    width: 1400,
-    height: 793,
-    features: ["Fil d'activité léger", "Amis et messages privés", "Groupes d'étude"],
-  },
-  {
-    id: "communautes",
-    label: "Communautés",
-    title: "Communautés d'écoles",
-    description: "Retrouve les étudiants de ton école dans un espace structuré pour les discussions, questions, ressources et examens.",
-    mascot: "Choisis ton école : les questions, ressources et dates utiles restent au même endroit.",
-    shot: "communautes-desktop",
-    alt: "Les discussions, questions, ressources et examens d'une communauté d'école",
-    width: 1400,
-    height: 793,
-    features: ["Salon étudiant", "Questions et ressources", "Examens de la communauté"],
-  },
+  { id: "chrono", shot: "chrono-desktop", width: 1920, height: 1088 },
+  { id: "planning", shot: "planning-desktop", width: 1400, height: 793 },
+  { id: "stats", shot: "stats-desktop", width: 1355, height: 768 },
+  { id: "progression", shot: "progression-mobile", width: 359, height: 780, frame: "phone" },
+  { id: "social", shot: "social-desktop", width: 1400, height: 793 },
+  { id: "communautes", shot: "communautes-desktop", width: 1400, height: 793 },
 ];
 
-const STUDY_FLOW = [
-  {
-    number: "01",
-    title: "Décide quoi réviser",
-    text: "Place tes examens, découpe la matière en objectifs réalistes et garde seulement ce qui compte aujourd'hui.",
-    app: "Planning · Objectifs · Examens",
-    href: "/planning-revision",
-    link: "Construire un planning réaliste",
-  },
-  {
-    number: "02",
-    title: "Protège un vrai bloc",
-    text: "Choisis une session libre ou Pomodoro, coupe les distractions et avance bloc après bloc sur une seule matière.",
-    app: "Chrono · Pomodoro · Mode Focus",
-    href: "/pomodoro",
-    link: "Utiliser Pomodoro efficacement",
-  },
-  {
-    number: "03",
-    title: "Transforme l'effort en progression",
-    text: "Valide tes objectifs, maintiens ta série et laisse l'XP rendre visible la régularité que tu construis.",
-    app: "Missions · Série · XP · Badges",
-    href: "/objectifs-etude",
-    link: "Fixer de meilleurs objectifs",
-  },
-  {
-    number: "04",
-    title: "Regarde, ajuste, recommence",
-    text: "Compare le prévu au réel, repère tes meilleures habitudes et adapte la semaine suivante sans culpabiliser.",
-    app: "Stats · Historique · Classements",
-    href: "/stats-etude",
-    link: "Comprendre ses statistiques",
-  },
+const STUDY_FLOW_META = [
+  { number: "01", href: "/planning-revision" },
+  { number: "02", href: "/pomodoro" },
+  { number: "03", href: "/objectifs-etude" },
+  { number: "04", href: "/stats-etude" },
 ];
 
-const EXTRA_GUIDES = [
-  {
-    href: "/application-etudiant",
-    title: "Quelle application pour étudier ?",
-    text: "Les critères utiles pour choisir un système que tu ouvriras vraiment chaque jour.",
-  },
-  {
-    href: "/blocus-belgique",
-    title: "Comment réussir son blocus ?",
-    text: "Une méthode concrète pour organiser le travail, les pauses et les examens.",
-  },
+const EXTRA_GUIDES_META = [
+  { href: "/application-etudiant" },
+  { href: "/blocus-belgique" },
 ];
 
 // Logos d'écoles réels, dérivés de la même source que l'app (toujours à jour).
@@ -264,9 +165,20 @@ function AnimatedCounter({ target, suffix = "" }) {
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const { lang } = useI18n();
   const router = useRouter();
+
+  // Contenu de la langue courante (suit l'appareil) fusionné avec les champs
+  // structurels. Le SSG rend le français ; l'anglais s'affiche après hydratation.
+  const c = getLandingContent(lang);
+  const stats = STATS_META.map((s, i) => ({ ...s, label: c.statLabels[i] }));
+  const appAreas = APP_AREAS.map((a) => ({ ...a, ...c.areas[a.id] }));
+  const studyFlow = STUDY_FLOW_META.map((s, i) => ({ ...s, ...c.studyFlow[i] }));
+  const extraGuides = EXTRA_GUIDES_META.map((g, i) => ({ ...g, ...c.extraGuides[i] }));
+  const faq = lang === "en" ? HOME_FAQ_EN : HOME_FAQ;
+
   const [activeAreaId, setActiveAreaId] = useState(APP_AREAS[0].id);
-  const activeArea = APP_AREAS.find((area) => area.id === activeAreaId) || APP_AREAS[0];
+  const activeArea = appAreas.find((area) => area.id === activeAreaId) || appAreas[0];
 
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");
@@ -315,8 +227,8 @@ export default function Home() {
           <Link href="/" className="font-display text-xl font-bold tracking-tight" style={{ color: "var(--bt-text-1)" }}>
             blocus<span style={{ color: "#14B885" }}>·</span>tracker
           </Link>
-          <nav className="hidden items-center gap-1 md:flex" aria-label="Sections de la page">
-            {[["fonctionnalites", "Fonctionnalités"], ["decouverte", "Découvrir l'app"], ["faq", "FAQ"]].map(([id, label]) => (
+          <nav className="hidden items-center gap-1 md:flex" aria-label={c.navSectionsAria}>
+            {[["fonctionnalites", c.nav.features], ["decouverte", c.nav.discover], ["faq", c.nav.faq]].map(([id, label]) => (
               <a key={id} href={`#${id}`} onClick={(e) => scrollToId(e, id)}
                 className="rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
                 style={{ color: "var(--bt-text-2)" }}
@@ -326,14 +238,14 @@ export default function Home() {
               </a>
             ))}
           </nav>
-          <nav className="flex items-center gap-2" aria-label="Navigation principale">
+          <nav className="flex items-center gap-2" aria-label={c.navMainAria}>
             <Link href="/login" className="inline-flex items-center rounded-full px-4 text-sm font-semibold transition-colors"
               style={{ minHeight: 44, color: "var(--bt-text-1)", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              Se connecter
+              {c.nav.login}
             </Link>
             <Link href="/signup" className="hidden items-center rounded-full px-4 text-sm font-semibold text-white sm:inline-flex"
               style={{ minHeight: 44, backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 6px 18px rgba(20,184,133,0.28)" }}>
-              Créer mon espace
+              {c.nav.signup}
             </Link>
           </nav>
         </div>
@@ -350,34 +262,34 @@ export default function Home() {
             <div className="bt-stagger mx-auto max-w-3xl">
               <p className="mx-auto inline-flex rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wide"
                 style={{ color: "var(--bt-accent-dark)", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-                Application d'étude pour étudiants
+                {c.hero.badge}
               </p>
               <h1 className="mt-6 text-[2.7rem] leading-[1.03] sm:text-6xl lg:text-7xl" style={{ color: "var(--bt-text-1)", letterSpacing: "-0.03em" }}>
-                Le chrono qui rend ton blocus <span style={{ color: "#0E8F68" }}>plus clair.</span>
+                {c.hero.titleBefore}<span style={{ color: "#0E8F68" }}>{c.hero.titleAccent}</span>
               </h1>
               <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
-                Chronomètre tes sessions, planifie tes examens, suis ta progression. Seul ou avec tes amis, gratuitement.
+                {c.hero.subtitle}
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link href="/dashboard" className="btn-primary justify-center px-7 py-3.5 text-sm">
-                  Essayer le chrono
+                  {c.hero.tryTimer}
                 </Link>
                 <Link href="/signup" className="btn-ghost justify-center px-7 py-3.5 text-sm" style={{ backgroundColor: "var(--bt-surface)" }}>
-                  Créer mon espace
+                  {c.hero.createSpace}
                 </Link>
               </div>
             </div>
 
             {/* Vrai produit : desktop encadré + mobile flottant */}
             <div className="relative mx-auto mt-14 max-w-4xl sm:mt-16" data-reveal>
-              <BrowserFrame src={SHOT("chrono-desktop")} alt="Le chrono Blocus Tracker sur ordinateur : session prête à démarrer, objectifs du jour et cours" width={1920} height={1088} priority />
+              <BrowserFrame src={SHOT("chrono-desktop")} alt={c.hero.desktopAlt} width={1920} height={1088} priority />
               {/* Mascotte perchée sur le cadre — elle respire, cligne et remue
                   la queue (état heureux). Décorative pour les lecteurs d'écran. */}
               <div aria-hidden="true" className="absolute left-[7%] -top-[50px] h-14 w-14 sm:-top-[71px] sm:h-20 sm:w-20">
                 <Mascot streak={12} size={80} className="h-full w-full" />
               </div>
               <div className="bt-float absolute -right-3 bottom-[-9%] w-[136px] sm:-right-8 sm:w-[190px]" style={{ "--float-rot": "2deg" }}>
-                <PhoneFrame src={SHOT("chrono-mobile")} alt="Le chrono Blocus Tracker sur téléphone" width={359} height={780} />
+                <PhoneFrame src={SHOT("chrono-mobile")} alt={c.hero.mobileAlt} width={359} height={780} />
               </div>
             </div>
           </div>
@@ -386,7 +298,7 @@ export default function Home() {
         {/* ── Chiffres réels — bande fine, pas de cartes ─────────────────── */}
         <section className="px-5 pb-4 pt-14 sm:pt-20">
           <dl className="mx-auto grid max-w-4xl grid-cols-2 gap-y-8 sm:grid-cols-4" data-reveal>
-            {STATS.map((s, i) => (
+            {stats.map((s, i) => (
               <div key={s.label} className="px-4 text-center sm:text-left"
                 style={i > 0 ? { borderLeft: "1px solid var(--bt-border)" } : {}}>
                 <dd className="font-num text-3xl font-bold tabular-nums sm:text-4xl"
@@ -406,13 +318,13 @@ export default function Home() {
             <div className="relative z-10 grid items-center gap-10 p-7 sm:p-12 lg:grid-cols-2 lg:gap-14">
               <div>
                 <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
-                  Un mode focus qui coupe tout le reste.
+                  {c.focus.title}
                 </h2>
                 <p className="mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-ink-muted)" }}>
-                  Plein écran, une matière, et des blocs de concentration qui se remplissent au fil de la session. Le chrono continue même si tu changes d'onglet.
+                  {c.focus.text}
                 </p>
                 <ul className="mt-6 space-y-3">
-                  {["Blocs de 25 minutes ou session libre", "Pause visible, reprise en un geste", "Ta session s'enregistre dans tes stats"].map((li) => (
+                  {c.focus.list.map((li) => (
                     <li key={li} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--bt-ink-text)" }}>
                       <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(20,184,133,0.22)", color: "#34D399" }}>
                         <IconCheck size={11} />
@@ -423,7 +335,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-ink-border)", boxShadow: "0 24px 60px rgba(4,20,15,0.5)" }}>
-                <Image src={SHOT("focus-desktop")} alt="Le mode focus de Blocus Tracker en plein écran" width={1600} height={908}
+                <Image src={SHOT("focus-desktop")} alt={c.focus.alt} width={1600} height={908}
                   sizes="(min-width: 1024px) 520px, 100vw" className="h-auto w-full" />
               </div>
             </div>
@@ -434,17 +346,17 @@ export default function Home() {
         <section className="px-5 py-14 sm:py-20">
           <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div data-reveal className="order-2 lg:order-1">
-              <BrowserFrame src={SHOT("planning-desktop")} alt="Le planning de révision Blocus Tracker : vue mois, objectifs du jour et examens à venir" width={1400} height={793} />
+              <BrowserFrame src={SHOT("planning-desktop")} alt={c.planning.alt} width={1400} height={793} />
             </div>
             <div data-reveal className="order-1 lg:order-2" style={{ "--rv-delay": "0.08s" }}>
               <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
-                Sache exactement quoi réviser aujourd'hui.
+                {c.planning.title}
               </h2>
               <p className="mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
-                Des objectifs par jour, tes examens avec compte à rebours, et une carte "à préparer cette semaine" qui pense à ta place.
+                {c.planning.text}
               </p>
               <ul className="mt-6 space-y-3">
-                {["Objectifs quotidiens, cochés en un tap", "Examens avec badge J-7, J-3, demain", "Export vers Apple ou Google Calendar"].map((li) => (
+                {c.planning.list.map((li) => (
                   <li key={li} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--bt-text-1)" }}>
                     <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
                       <IconCheck size={11} />
@@ -462,21 +374,21 @@ export default function Home() {
           <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div data-reveal>
               <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
-                Ta progression, noir sur blanc.
+                {c.statsSection.title}
               </h2>
               <p className="mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
-                Temps d'étude, séries, records et classement entre amis. De quoi rester motivé sans te raconter d'histoires.
+                {c.statsSection.text}
               </p>
               <Link href="/dashboard" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold transition-colors"
                 style={{ color: "var(--bt-accent-dark)" }}>
-                Voir le chrono en action <IconArrow size={15} />
+                {c.statsSection.link} <IconArrow size={15} />
               </Link>
             </div>
             <div className="relative" data-reveal style={{ "--rv-delay": "0.08s" }}>
-              <BrowserFrame src={SHOT("stats-desktop")} alt="Les statistiques d'étude Blocus Tracker : temps, séries et progression" width={1355} height={768} />
+              <BrowserFrame src={SHOT("stats-desktop")} alt={c.statsSection.alt} width={1355} height={768} />
               <div className="absolute -bottom-8 -left-3 w-[46%] overflow-hidden rounded-xl sm:-left-8"
                 style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 44px var(--bt-shadow)", transform: "rotate(-2deg)" }}>
-                <Image src={SHOT("classement-desktop")} alt="Le classement entre amis" width={1100} height={623}
+                <Image src={SHOT("classement-desktop")} alt={c.statsSection.overlayAlt} width={1100} height={623}
                   sizes="(min-width: 1024px) 260px, 45vw" className="h-auto w-full" />
               </div>
             </div>
@@ -490,24 +402,24 @@ export default function Home() {
             <div className="p-7 sm:p-12">
               <div className="mx-auto max-w-2xl text-center">
                 <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
-                  Le blocus, c'est mieux à plusieurs.
+                  {c.social.title}
                 </h2>
                 <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
-                  Messages privés, groupes d'étude et une communauté pour ton école. Compare ta semaine avec tes amis et restez réguliers ensemble.
+                  {c.social.text}
                 </p>
               </div>
 
               <div className="mt-10 grid gap-6 lg:grid-cols-2">
                 {[
-                  { shot: "social-desktop", alt: "L'espace Social de Blocus Tracker : amis, messages et groupes", caption: "Amis, messages et groupes d'étude" },
-                  { shot: "communautes-desktop", alt: "Les communautés d'écoles de Blocus Tracker", caption: "Salon, questions et examens par école" },
-                ].map((c, i) => (
-                  <figure key={c.shot} data-reveal style={{ "--rv-delay": `${i * 0.08}s` }}>
+                  { shot: "social-desktop", alt: c.social.socialAlt, caption: c.social.captions[0] },
+                  { shot: "communautes-desktop", alt: c.social.communautesAlt, caption: c.social.captions[1] },
+                ].map((fig, i) => (
+                  <figure key={fig.shot} data-reveal style={{ "--rv-delay": `${i * 0.08}s` }}>
                     <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 50px var(--bt-shadow)" }}>
-                      <Image src={SHOT(c.shot)} alt={c.alt} width={1400} height={793}
+                      <Image src={SHOT(fig.shot)} alt={fig.alt} width={1400} height={793}
                         sizes="(min-width: 1024px) 520px, 100vw" className="h-auto w-full" />
                     </div>
-                    <figcaption className="mt-3 text-center text-xs font-medium" style={{ color: "var(--bt-text-3)" }}>{c.caption}</figcaption>
+                    <figcaption className="mt-3 text-center text-xs font-medium" style={{ color: "var(--bt-text-3)" }}>{fig.caption}</figcaption>
                   </figure>
                 ))}
               </div>
@@ -516,7 +428,7 @@ export default function Home() {
             {/* Marquee des vraies écoles (même source que l'app) */}
             <div className="pb-8">
               <p className="mb-5 text-center text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
-                {UNIVERSITY_COUNT} communautés, {COUNTRY_COUNT} pays
+                {c.social.marquee(UNIVERSITY_COUNT, COUNTRY_COUNT)}
               </p>
               <div className="bt-marquee overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)" }}>
                 <div className="bt-marquee-track gap-3 pr-3">
@@ -540,23 +452,23 @@ export default function Home() {
             <div className="grid items-end gap-7 lg:grid-cols-[1fr_auto]" data-reveal>
               <div className="max-w-2xl">
                 <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
-                  Visite guidée
+                  {c.tour.eyebrow}
                 </p>
                 <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
-                  Toutes tes révisions, dans un seul espace.
+                  {c.tour.title}
                 </h2>
                 <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
-                  Chaque page a un rôle précis. Explore-les ici, puis teste le chrono sans compte. Ton compte sert à garder tout ce que tu construis.
+                  {c.tour.text}
                 </p>
               </div>
               <Link href="/signup" className="btn-primary justify-center px-6 py-3 text-sm">
-                Créer un compte pour garder ma progression
+                {c.tour.cta}
               </Link>
             </div>
 
             <div className="mt-9 flex gap-2 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
-              style={{ scrollbarWidth: "none" }} role="tablist" aria-label="Espaces de Blocus Tracker" data-reveal>
-              {APP_AREAS.map((area) => {
+              style={{ scrollbarWidth: "none" }} role="tablist" aria-label={c.tour.tablistAria} data-reveal>
+              {appAreas.map((area) => {
                 const active = area.id === activeArea.id;
                 return (
                   <button key={area.id} type="button" role="tab" aria-selected={active}
@@ -588,7 +500,7 @@ export default function Home() {
 
                 <div key={activeArea.id} className="bt-tab-fade mt-6">
                   <p className="font-num text-xs font-bold tabular-nums" style={{ color: "var(--bt-text-3)" }}>
-                    {String(APP_AREAS.indexOf(activeArea) + 1).padStart(2, "0")} / {String(APP_AREAS.length).padStart(2, "0")}
+                    {String(appAreas.indexOf(activeArea) + 1).padStart(2, "0")} / {String(appAreas.length).padStart(2, "0")}
                   </p>
                   <h3 className="mt-2 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{activeArea.title}</h3>
                   <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{activeArea.description}</p>
@@ -606,9 +518,9 @@ export default function Home() {
                 </div>
 
                 <div className="mt-auto flex flex-wrap gap-3 pt-8">
-                  <Link href="/dashboard" className="btn-ghost px-4 py-2.5 text-sm">Tester le chrono</Link>
+                  <Link href="/dashboard" className="btn-ghost px-4 py-2.5 text-sm">{c.tour.tryTimer}</Link>
                   <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
-                    Tout débloquer <IconArrow size={14} />
+                    {c.tour.unlockAll} <IconArrow size={14} />
                   </Link>
                 </div>
               </div>
@@ -628,7 +540,7 @@ export default function Home() {
             </div>
 
             <p className="mt-7 text-center text-sm" style={{ color: "var(--bt-text-3)" }} data-reveal>
-              Disponible sur ordinateur et mobile. Installable sur l'écran d'accueil, sans App Store.
+              {c.tour.footnote}
             </p>
           </div>
         </section>
@@ -639,18 +551,18 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl" data-reveal>
               <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
-                La méthode Blocus Tracker
+                {c.method.eyebrow}
               </p>
               <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
-                Réviser mieux, c'est une boucle simple.
+                {c.method.title}
               </h2>
               <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
-                L'app ne te demande pas d'être motivé en permanence. Elle t'aide à décider, te concentrer, mesurer, puis ajuster la suite.
+                {c.method.text}
               </p>
             </div>
 
             <ol className="mt-10 grid gap-x-8 gap-y-0 md:grid-cols-2">
-              {STUDY_FLOW.map((step, i) => (
+              {studyFlow.map((step, i) => (
                 <li key={step.number} className="grid grid-cols-[auto_1fr] gap-4 py-7"
                   style={{ borderTop: "1px solid var(--bt-border)", "--rv-delay": `${(i % 2) * 0.07}s` }} data-reveal>
                   <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{step.number}</span>
@@ -667,7 +579,7 @@ export default function Home() {
             </ol>
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2" data-reveal>
-              {EXTRA_GUIDES.map((guide) => (
+              {extraGuides.map((guide) => (
                 <Link key={guide.href} href={guide.href} className="group flex items-center justify-between gap-5 rounded-2xl p-5 transition-colors"
                   style={{ backgroundColor: "var(--bt-bg)", border: "1px solid var(--bt-border)" }}>
                   <span>
@@ -687,20 +599,20 @@ export default function Home() {
         <section id="faq" className="scroll-mt-24 px-5 py-14 sm:py-20">
           <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
             <div data-reveal>
-              <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>Questions fréquentes</h2>
+              <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>{c.faqSection.title}</h2>
               <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                Ce que tu peux tester sans compte, ce qui est enregistré et la manière dont chaque espace t'aide à étudier.
+                {c.faqSection.text}
               </p>
               <div className="mt-7 rounded-2xl p-5" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-                <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>Le plus simple pour te faire une idée ?</p>
-                <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>Lance une session découverte. Aucun compte n'est demandé avant de démarrer le chrono.</p>
+                <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{c.faqSection.boxTitle}</p>
+                <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{c.faqSection.boxText}</p>
                 <Link href="/dashboard" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
-                  Essayer maintenant <IconArrow size={14} />
+                  {c.faqSection.boxLink} <IconArrow size={14} />
                 </Link>
               </div>
             </div>
             <div className="space-y-3" data-reveal style={{ "--rv-delay": "0.08s" }}>
-              {HOME_FAQ.map((item) => (
+              {faq.map((item) => (
                 <details key={item.q} className="group rounded-2xl px-5"
                   style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-semibold [&::-webkit-details-marker]:hidden"
@@ -726,19 +638,19 @@ export default function Home() {
                 <Mascot streak={30} size={92} />
               </div>
               <h2 className="text-3xl sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
-                Lance ta première session maintenant.
+                {c.cta.title}
               </h2>
               <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-ink-muted)" }}>
-                Aucune inscription pour essayer. Ton espace se crée quand tu veux garder tes stats et ta progression.
+                {c.cta.text}
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link href="/dashboard" className="inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"
                   style={{ backgroundColor: "#fff", color: "#0E8F68", minHeight: 44 }}>
-                  Essayer le chrono
+                  {c.cta.tryTimer}
                 </Link>
                 <Link href="/signup" className="inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"
                   style={{ minHeight: 44, color: "var(--bt-ink-text)", border: "1px solid var(--bt-ink-border)", backgroundColor: "rgba(255,255,255,0.06)" }}>
-                  Créer mon espace
+                  {c.cta.createSpace}
                 </Link>
               </div>
             </div>
@@ -755,21 +667,21 @@ export default function Home() {
                 blocus<span style={{ color: "#14B885" }}>·</span>tracker
               </Link>
               <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
-                Reste calme, étudie régulièrement. L'app d'étude gratuite pour les périodes de blocus et d'examens.
+                {c.footer.tagline}
               </p>
             </div>
-            <nav aria-label="Produit">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>Produit</p>
+            <nav aria-label={c.footer.productAria}>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{c.footer.productHead}</p>
               <ul className="mt-3 space-y-2 text-sm">
-                {[["/dashboard", "Essayer le chrono"], ["/signup", "Créer mon espace"], ["/login", "Se connecter"]].map(([href, label]) => (
+                {c.footer.productLinks.map(([href, label]) => (
                   <li key={href}><Link href={href} className="transition-colors hover:underline" style={{ color: "var(--bt-text-2)" }}>{label}</Link></li>
                 ))}
               </ul>
             </nav>
-            <nav aria-label="Ressources">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>Ressources</p>
+            <nav aria-label={c.footer.resourcesAria}>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{c.footer.resourcesHead}</p>
               <ul className="mt-3 space-y-2 text-sm">
-                {[["/pomodoro", "Méthode Pomodoro"], ["/blocus-belgique", "Blocus Belgique"], ["/legal", "Confidentialité"]].map(([href, label]) => (
+                {c.footer.resourceLinks.map(([href, label]) => (
                   <li key={href}><Link href={href} className="transition-colors hover:underline" style={{ color: "var(--bt-text-2)" }}>{label}</Link></li>
                 ))}
               </ul>
@@ -777,7 +689,7 @@ export default function Home() {
           </div>
           <div className="mx-auto mt-10 flex max-w-6xl items-center justify-between gap-3 pt-6 text-xs" style={{ borderTop: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}>
             <span>© {new Date().getFullYear()} Blocus Tracker</span>
-            <span>Créé par Mathias Dock</span>
+            <span>{c.footer.credit}</span>
           </div>
       </footer>
     </div>

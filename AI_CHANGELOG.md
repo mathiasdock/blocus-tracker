@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Landing publique traduite (suit la langue de l'appareil)
+
+Suite du device-language : la landing `pages/index.js` etait en francais code en dur (0 i18n) et ne suivait pas l'appareil. Traduite pour suivre `lang` comme le reste de l'app.
+
+- **`lib/landingContent.js`** (nouveau) : objet de contenu bilingue `getLandingContent(lang)` — TOUT le texte de la landing en fr + en (hero, stats, focus, planning, stats, social, visite guidee des 6 espaces, methode + parcours, guides, FAQ, CTA, footer, alts d'images, aria-labels). Meme pattern que `lib/seoLandingPages.js`. Le francais reproduit l'original a l'identique (aucune regression pour les francophones).
+- **`pages/index.js`** : les 4 tableaux de contenu (STATS/APP_AREAS/STUDY_FLOW/EXTRA_GUIDES) reduits a leurs champs STRUCTURELS (dimensions, screenshots, liens, ids) ; le texte est fusionne par langue dans le composant (`const c = getLandingContent(lang)`). Toutes les chaines JSX passees en `c.*`. (Piege corrige : la section Social faisait `.map((c, i) => …)` qui masquait l'objet contenu `c` → variable de map renommee `fig`.)
+- **`lib/seo.js`** : ajout de `HOME_FAQ_EN` (traduction anglaise de la FAQ d'accueil). Le JSON-LD SEO continue d'utiliser `HOME_FAQ` (francais) — c'est ce qui est indexe pour les recherches francophones ; la FAQ VISIBLE suit l'appareil.
+- **SEO-safe** : le HTML genere au build (SSG) reste francais → Google indexe le francais ; l'anglais s'affiche cote client apres hydratation pour les appareils anglophones. Les balises meta/JSON-LD (lib/seo.js) restent francaises.
+
+**Pas encore fait** : les 6 pages SEO mots-cles (`/pomodoro`, `/planning-revision`, `/stats-etude`, `/objectifs-etude`, `/blocus-belgique`, `/application-etudiant`, via `lib/seoLandingPages.js` + `components/SeoLandingPage.js`) restent en francais. Elles ciblent des mots-cles de recherche FRANCAIS : un anglophone n'y arrive pas via ces requetes, donc le gain d'une traduction est marginal (a discuter avec l'utilisateur avant de traduire ~490 lignes de contenu).
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK (page `/` 11.9 kB). En navigateur (build offline, navigateur en-GB, visiteur deconnecte) : landing entierement en ANGLAIS (H1 "The timer that makes your exam prep clearer.", nav "Features/Explore the app/FAQ/Sign in/Create my space", onglets "Timer/Planning/Stats/Progress/Social/Communities", methode, FAQ, CTA, footer — capture hero + capture visite guidee). Preference FR forcee + reload → francais a l'identique de l'original, zero fuite EN. Seuls textes accentues restants = noms d'ecoles reels (ULiege, HEC Liege, Galilee), a ne pas traduire. Zero erreur console.
+
 ## 2026-07-14 - Langue de l'app selon l'appareil (fr/en auto) + selecteur Auto/FR/EN
 
 Demande utilisateur : "blocus tracker doit etre en anglais ou en francais en fonction de l'appareil" (telephone en anglais → app en anglais, et inversement).
