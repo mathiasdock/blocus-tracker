@@ -867,35 +867,23 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
 
       {open && (
         <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="recap-dialog-title" style={{ backgroundColor: "rgba(8,23,18,0.78)", backdropFilter: "blur(5px)" }} onClick={() => setOpen(false)}>
-          <div className="min-h-full flex items-start sm:items-center justify-center p-3 sm:p-6">
-            <div className="card w-full max-w-4xl overflow-hidden relative" onClick={(event) => event.stopPropagation()}>
-              <button onClick={() => setOpen(false)} aria-label={t("stats.recapClose")} className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center text-xl" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>×</button>
-              <div className="grid md:grid-cols-[minmax(280px,390px)_1fr]">
-                <div className="p-4 sm:p-6 flex items-center justify-center" style={{ backgroundColor: "#E8E2DC" }}>
-                  <canvas ref={canvasRef} width={STORY_WIDTH} height={STORY_HEIGHT} className="block w-full max-w-[320px] aspect-[9/16] shadow-2xl" style={{ borderRadius: 6 }} aria-label={t("stats.recapCanvasLabel")} />
+          <div className="min-h-full flex justify-center sm:items-center sm:p-6">
+            <div className="card w-full sm:max-w-4xl overflow-hidden relative flex flex-col min-h-[100dvh] sm:min-h-0 rounded-none sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
+              {/* Croix décalée sous la barre d'état iOS (safe-area) pour rester cliquable */}
+              <button onClick={() => setOpen(false)} aria-label={t("stats.recapClose")} className="absolute right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center text-xl" style={{ top: "calc(0.75rem + env(safe-area-inset-top))", backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>×</button>
+              <div className="flex flex-col flex-1 md:grid md:grid-cols-[minmax(280px,390px)_1fr]">
+                <div className="flex-1 md:flex-none flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: "#E8E2DC", paddingTop: "calc(1rem + env(safe-area-inset-top))" }}>
+                  <canvas ref={canvasRef} width={STORY_WIDTH} height={STORY_HEIGHT} className="block max-w-full max-h-[62vh] sm:max-h-none sm:w-full sm:max-w-[320px] shadow-2xl" style={{ borderRadius: 6 }} aria-label={t("stats.recapCanvasLabel")} />
                 </div>
 
-                <div className="p-5 sm:p-7 flex flex-col justify-center">
+                <div className="p-5 sm:p-7 flex flex-col justify-center" style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}>
                   <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--bt-accent-dark)" }}>{t("stats.recapEyebrow")}</p>
                   <h2 id="recap-dialog-title" className="text-xl sm:text-2xl font-semibold pr-8" style={{ color: "var(--bt-text-1)" }}>{t("stats.recapDialogTitle")}</h2>
                   <p className="text-sm mt-1.5" style={{ color: "var(--bt-text-2)" }}>{t("stats.recapDialogSubtitle")}</p>
 
-                  <div className="inline-flex items-center gap-1 mt-6 self-start p-1 rounded-lg border" role="group" aria-label={t("stats.recapPeriodLabel")} style={{ backgroundColor: "var(--bt-subtle)", borderColor: "var(--bt-border)" }}>
+                  <div className="inline-flex items-center gap-1 mt-5 self-start p-1 rounded-lg border" role="group" aria-label={t("stats.recapPeriodLabel")} style={{ backgroundColor: "var(--bt-subtle)", borderColor: "var(--bt-border)" }}>
                     <button className="px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ backgroundColor: period === "week" ? "var(--bt-surface)" : "transparent", color: period === "week" ? "var(--bt-text-1)" : "var(--bt-text-3)", boxShadow: period === "week" ? "0 1px 4px var(--bt-shadow)" : "none" }} onClick={() => { setPeriod("week"); setStatus(""); }}>{t("stats.recapWeek")}</button>
                     <button className="px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors" style={{ backgroundColor: period === "month" ? "var(--bt-surface)" : "transparent", color: period === "month" ? "var(--bt-text-1)" : "var(--bt-text-3)", boxShadow: period === "month" ? "0 1px 4px var(--bt-shadow)" : "none" }} onClick={() => { setPeriod("month"); setStatus(""); }}>{t("stats.recapMonth")}</button>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 mt-5">
-                    {[
-                      [t("stats.recapTime"), recap.totalLabel],
-                      [t("stats.recapBlocks"), String(recap.blockCount)],
-                      [t("stats.recapStreak"), `${recap.streak} ${t("stats.recapDayShort")}`],
-                    ].map(([label, value]) => (
-                      <div key={label} className="py-3 text-center border-y" style={{ borderColor: "var(--bt-border)" }}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{label}</p>
-                        <p className="text-sm sm:text-base font-num font-bold mt-1" style={{ color: "var(--bt-text-1)" }}>{value}</p>
-                      </div>
-                    ))}
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-2 mt-6">

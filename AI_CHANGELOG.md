@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-14 - Recap partageable (StudyRecap) : 4 correctifs UX mobile (feature faite par Codex)
+
+Le recap "story 9:16" partageable a ete construit par Codex ; l'utilisateur a signale 4 problemes sur mobile, corriges ici.
+
+- **Plein ecran + barre blanche en bas** (`components/StudyRecap.js`) : le modal ne remplissait pas l'ecran et laissait une bande blanche. La carte passe en `min-h-[100dvh] sm:min-h-0` (l'ancien `min-h-full` en % ne se resolvait pas faute de hauteur d'ancetre definie), edge-to-edge sur mobile (`w-full rounded-none sm:max-w-4xl sm:rounded-2xl`, padding exterieur retire sur mobile). Layout en `flex flex-col` : zone canvas `flex-1` (canvas centre, borne `max-h-[62vh]` pour laisser la place), feuille de partage collee en bas. Verifie : ecart dernier texte → bas de carte = 21px (juste le padding), plus de blanc.
+- **Croix inaccessible sous la barre d'etat iOS** : la croix passe a `top: calc(0.75rem + env(safe-area-inset-top))` → descend sous le status bar (batterie/wifi) sur iPhone. Feuille de partage : `paddingBottom` avec `env(safe-area-inset-bottom)` pour le home indicator.
+- **Stats redondantes dans la feuille** : la grille TEMPS / BLOCS / SERIE affichee sous l'apercu faisait doublon avec l'image (ces infos y figurent deja) → supprimee pour gagner de la place.
+- **Libelle de l'image** : `stats.recapStoryFocusTime` "TEMPS CONCENTRE" → "TEMPS ETUDIE" (FR) / "FOCUSED TIME" → "STUDY TIME" (EN). Met a jour a la fois le canvas exporte et le mini-apercu.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK puis `npm run build` normal OK. En navigateur (build offline mobile 375px, FR + EN) : carte plein ecran sans bande blanche (mesure DOM : cardBottom=viewport, gap 21px), croix a top incluant le safe-area (z-index 10), grille redondante absente, libelle "TEMPS ETUDIE" / "STUDY TIME" sur l'apercu. Zero erreur console.
+
 ## Logo officiel Blocus Tracker
 
 - **Source canonique** : `public/logo-transparent.png` (livre ouvert + chrono, fond transparent).
