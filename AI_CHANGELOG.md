@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## Logo officiel Blocus Tracker
+
+- **Source canonique** : `public/logo-transparent.png` (livre ouvert + chrono, fond transparent).
+- Toujours reutiliser cet asset lorsqu'un logo Blocus Tracker est necessaire. Ne pas le remplacer par un pictogramme redessine ou une approximation.
+
+## 2026-07-15 - Logo officiel dans les recaps partageables
+
+- **`components/StudyRecap.js`** : le pictogramme de chrono dessine a la main dans la Story a ete remplace par le logo officiel `public/logo-transparent.png`.
+- Le logo est charge uniquement a l'ouverture du recap, recadre sur sa zone visible et teinte avec le vert Blocus (`#14B885`) pour conserver le contraste du visuel.
+- L'export et le partage restent bloques pendant les quelques millisecondes de chargement du logo afin de ne jamais produire une Story sans marque.
+
 ## 2026-07-14 - Refonte premium des récaps Story Blocus Tracker
 
 Demande utilisateur : rendre le récap semaine/mois réellement partageable sur Instagram, moins générique et immédiatement identifiable comme Blocus Tracker.

@@ -14,6 +14,10 @@ const AMBER = "#F3B64A";
 const BLUE = "#8CB9FF";
 const TEXT = "#1F1A17";
 const BLOCK_SECONDS = 15 * 60;
+const BRAND_LOGO_SRC = "/logo-transparent.png";
+const BRAND_LOGO_CROP = { x: 170, y: 108, width: 684, height: 558 };
+
+let brandLogoPromise;
 
 const MASCOT = {
   fur: "#E0A458",
@@ -94,21 +98,46 @@ function fittedFont(ctx, text, maxWidth, startSize, minSize, weight = 700, famil
   return size;
 }
 
-function drawBrandMark(ctx, x, y) {
-  ctx.save();
-  ctx.strokeStyle = GREEN;
-  ctx.fillStyle = GREEN;
-  ctx.lineWidth = 8;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.arc(x + 29, y + 29, 22, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x + 29, y + 29);
-  ctx.lineTo(x + 42, y + 16);
-  ctx.stroke();
-  ctx.fillRect(x + 23, y, 12, 8);
-  ctx.restore();
+function loadBrandLogo() {
+  if (typeof Image === "undefined") return Promise.resolve(null);
+  if (!brandLogoPromise) {
+    brandLogoPromise = new Promise((resolve, reject) => {
+      const image = new Image();
+      image.decoding = "async";
+      image.onload = () => resolve(image);
+      image.onerror = () => {
+        brandLogoPromise = null;
+        reject(new Error("brand_logo_load_failed"));
+      };
+      image.src = BRAND_LOGO_SRC;
+    });
+  }
+  return brandLogoPromise;
+}
+
+function drawBrandMark(ctx, image, x, y) {
+  if (!image) return;
+  const width = 66;
+  const height = Math.round((width * BRAND_LOGO_CROP.height) / BRAND_LOGO_CROP.width);
+  const mask = ctx.canvas.ownerDocument.createElement("canvas");
+  mask.width = width;
+  mask.height = height;
+  const maskContext = mask.getContext("2d");
+  maskContext.drawImage(
+    image,
+    BRAND_LOGO_CROP.x,
+    BRAND_LOGO_CROP.y,
+    BRAND_LOGO_CROP.width,
+    BRAND_LOGO_CROP.height,
+    0,
+    0,
+    width,
+    height,
+  );
+  maskContext.globalCompositeOperation = "source-in";
+  maskContext.fillStyle = GREEN;
+  maskContext.fillRect(0, 0, width, height);
+  ctx.drawImage(mask, x, y, width, height);
 }
 
 function fillPath(ctx, path, color) {
@@ -355,7 +384,7 @@ function drawProgress(ctx, recap, copy) {
   ctx.fillText(recap.goalReached ? copy.storyGoalReached : copy.storyProgressLine, 158, 1600);
 }
 
-function drawStory(canvas, recap, copy) {
+function drawStory(canvas, recap, copy, brandLogo) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   canvas.width = STORY_WIDTH;
@@ -394,10 +423,10 @@ function drawStory(canvas, recap, copy) {
     }
   }
 
-  drawBrandMark(ctx, 72, 72);
+  drawBrandMark(ctx, brandLogo, 72, 74);
   ctx.fillStyle = CREAM;
   setFont(ctx, 700, 43);
-  ctx.fillText("blocus·tracker", 144, 116);
+  ctx.fillText("blocus·tracker", 150, 116);
 
   fillRoundedRect(ctx, 801, 76, 207, 52, 26, recap.variant === "record" ? AMBER : GREEN);
   ctx.fillStyle = TEXT;
@@ -612,6 +641,8 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
   const [period, setPeriod] = useState("week");
   const [rankByPeriod, setRankByPeriod] = useState({});
   const [rankLoading, setRankLoading] = useState(false);
+  const [brandLogo, setBrandLogo] = useState(null);
+  const [brandLogoLoading, setBrandLogoLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [status, setStatus] = useState("");
   const canvasRef = useRef(null);
@@ -692,6 +723,23 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
   }, [open, userId, period, rankByPeriod, rankKey, rankScope, profile?.university]);
 
   useEffect(() => {
+    if (!open || brandLogo) return;
+    let active = true;
+    setBrandLogoLoading(true);
+    loadBrandLogo()
+      .then((image) => {
+        if (active) setBrandLogo(image);
+      })
+      .catch(() => {
+        if (active) setStatus(t("stats.recapError"));
+      })
+      .finally(() => {
+        if (active) setBrandLogoLoading(false);
+      });
+    return () => { active = false; };
+  }, [open, brandLogo, t]);
+
+  useEffect(() => {
     if (!open || !canvasRef.current) return;
     let active = true;
     (async () => {
@@ -700,10 +748,10 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
         await document.fonts?.load('700 80px "Bricolage Grotesque"');
         await document.fonts?.load('700 80px "Space Grotesk"');
       } catch (_) {}
-      if (active) drawStory(canvasRef.current, recap, copy);
+      if (active) drawStory(canvasRef.current, recap, copy, brandLogo);
     })();
     return () => { active = false; };
-  }, [open, recap, copy]);
+  }, [open, recap, copy, brandLogo]);
 
   useEffect(() => {
     if (!open) return;
@@ -719,7 +767,9 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
 
   async function prepareBlob() {
     if (!canvasRef.current) throw new Error("missing_canvas");
-    drawStory(canvasRef.current, recap, copy);
+    const logo = brandLogo || await loadBrandLogo();
+    if (!logo) throw new Error("missing_brand_logo");
+    drawStory(canvasRef.current, recap, copy, logo);
     return canvasBlob(canvasRef.current);
   }
 
@@ -849,8 +899,8 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-2 mt-6">
-                    <button onClick={share} disabled={exporting || rankLoading} className="btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60"><ShareIcon />{exporting ? t("stats.recapExporting") : t("stats.recapShare")}</button>
-                    <button onClick={download} disabled={exporting || rankLoading} className="btn-ghost inline-flex items-center justify-center gap-2 disabled:opacity-60"><DownloadIcon />{t("stats.recapDownload")}</button>
+                    <button onClick={share} disabled={exporting || rankLoading || brandLogoLoading || !brandLogo} className="btn-primary inline-flex items-center justify-center gap-2 disabled:opacity-60"><ShareIcon />{exporting ? t("stats.recapExporting") : t("stats.recapShare")}</button>
+                    <button onClick={download} disabled={exporting || rankLoading || brandLogoLoading || !brandLogo} className="btn-ghost inline-flex items-center justify-center gap-2 disabled:opacity-60"><DownloadIcon />{t("stats.recapDownload")}</button>
                   </div>
                   <p className="text-[11px] mt-3" style={{ color: "var(--bt-text-3)" }}>{t("stats.recapShareHint")}</p>
                   {status && <p role="status" className="text-xs font-medium mt-3" style={{ color: status === t("stats.recapError") ? "#DC2626" : "var(--bt-accent-dark)" }}>{status}</p>}
