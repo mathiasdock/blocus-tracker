@@ -92,8 +92,13 @@ function recurrenceFields(weekdays, until) {
 function nextRecurrenceDate(o) {
   const weekdays = weekdaysFromObjective(o);
   if (!weekdays.length) return null;
+  // Ancre plancher = aujourd'hui. Cocher un objectif récurrent EN RETARD (dont
+  // la date prévue est déjà passée) ne doit pas créer l'occurrence suivante
+  // DANS LE PASSÉ, mais la prochaine occurrence réellement à venir.
+  const today = todayISO();
+  const base = o.scheduled_date > today ? o.scheduled_date : today;
   for (let i = 1; i <= 7; i++) {
-    const candidate = addDays(o.scheduled_date, i);
+    const candidate = addDays(base, i);
     if (weekdays.includes(dateFromYmd(candidate).getDay())) {
       if (o.recurrence_until && candidate > o.recurrence_until) return null;
       return candidate;

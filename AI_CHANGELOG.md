@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Fix : objectif recurrent complete en retard creait une occurrence dans le PASSE
+
+Chasse aux bugs (audit securite + integrite). La recurrence des objectifs fonctionne en "roll-forward" : cocher un objectif recurrent (`toggle`, planning.js:1174) cree la prochaine occurrence via `nextRecurrenceDate(o)`, calculee depuis `o.scheduled_date`. Bug : si on coche un objectif recurrent EN RETARD (sa date prevue est deja passee de 2+ jours), la "prochaine" occurrence etait creee DANS LE PASSE (ex. prevu il y a 4 jours → occurrence creee il y a 3 jours), encombrant les jours passes et pouvant se rechainer.
+
+- **`pages/planning.js` `nextRecurrenceDate`** : ancre plancher = aujourd'hui (`base = scheduled_date > today ? scheduled_date : today`). Cocher en retard cree desormais la prochaine occurrence REELLEMENT a venir. Cas corrects inchanges (a temps → demain ; prevu dans le futur → identique). Seul usage : le spawn de `toggle`.
+
+Verifie : logique prouvee en `node` (retard de 4j : ANCIEN → date passee ❌, NOUVEAU → futur ✅ ; a temps et en avance → aucun changement). `npm run lint` clean, `npm run build` normal + offline OK, page planning sans erreur console.
+
+Audit securite de cette passe — zones VERIFIEES saines (non modifiees) : service_role jamais reference cote client (juste un commentaire) ; XSS JSON-LD (`safeJsonLd` echappe `<`→`<` + donnees statiques) ; `/api/storage/sign` bien autorise (token verifie, anti-traversee `..`/`/`, et surtout l'utilisateur doit etre expediteur/destinataire du message referencant la piece jointe DM) ; `safeStoragePath` (segments filtres `[a-zA-Z0-9_-]`, extension validee, UUID → pas de traversee) ; XP/badges serveur-autoritaires (le client ne fait que LIRE bonus_xp/total_xp, aucune ecriture → pas de triche).
+
+Finding NON corrige (a decider) : les pieces jointes des messages de GROUPE (groupes prives) et des communautes utilisent le bucket **public** `community` via `getPublicUrl` — accessibles par URL sans controle d'acces, contrairement aux DM (bucket `dm` prive + URL signee via /api/storage/sign). Fuite de confidentialite moyenne (URL non enumerable mais non protegee) pour les fichiers partages en groupe prive. Fix = bucket prive + extension de la route de signature aux pieces jointes de groupe (infra, plus lourd).
+
 ## 2026-07-16 - Groupe ingerable : succession d'admin garantie cote base (trigger)
 
 Demande : corriger le "groupe ingerable" (un groupe sans admin apres le depart du proprietaire → plus personne ne peut inviter/exclure/supprimer).
