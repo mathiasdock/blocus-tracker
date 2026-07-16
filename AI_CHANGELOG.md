@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Groupe ingerable : succession d'admin garantie cote base (trigger)
+
+Demande : corriger le "groupe ingerable" (un groupe sans admin apres le depart du proprietaire → plus personne ne peut inviter/exclure/supprimer).
+
+Verification d'abord : le scenario est en fait quasi INATTEIGNABLE via l'UI actuelle. `study_groups.created_by` = proprietaire (seul a voir les controles via `amCreator`, seul a pouvoir supprimer via RLS). Le role 'admin' n'est jamais promu (aucune feature, aucune policy UPDATE sur group_members). Le proprietaire ne voit que "Supprimer" (jamais "Quitter") ; le retrait de membre exclut sa propre ligne (`amCreator && m.user_id !== user.id`). NB : `isAdmin` (messages.js:111) = super-admin du SITE (`profiles.is_admin`), pas admin de groupe → le seul chemin residuel est Mathias se retirant d'un groupe qu'il a cree.
+
+Mais l'invariant doit tenir quel que soit le chemin (feature future "promouvoir/quitter", acces API/SQL direct, reparation de donnees). Corrige donc cote BASE plutot que par un patch UI fragile.
+
+- **`supabase/migration_v31_group_admin_succession.sql`** (nouvelle, a executer manuellement) : trigger `AFTER DELETE ON group_members` (SECURITY DEFINER, contourne la RLS ; coexiste avec le trigger AFTER INSERT de la v28, evenement different). A chaque depart, si le groupe existe encore : (1) plus aucun membre → suppression du groupe (messages + chrono suivent via ON DELETE CASCADE) ; (2) plus aucun admin → le membre le plus ancien (joined_at) devient `role='admin'` ET nouveau `study_groups.created_by`. Le transfert de created_by fait que l'heritier recupere AUTOMATIQUEMENT tous les controles cote client (`amCreator`) et le droit de suppression (RLS) → **zero changement d'UI**. Garde `IF NOT EXISTS study_groups` contre la recursion pendant une suppression en cascade.
+
+Verifie : logique du trigger simulee en `node` sur 4 scenarios (succession → plus ancien promu + created_by transfere ; dernier membre → groupe supprime ; membre normal part, admin reste → no-op ; cascade → no-op sans recursion) — tous OK. Impossible d'executer le SQL reel (pas de Postgres local, comme v30) : ecrit sur le modele des fonctions existantes, a tester avec un groupe jetable. `npm run build` OK (aucun changement JS). Aucun changement client.
+
+**A faire cote utilisateur** : executer `supabase/migration_v31_group_admin_succession.sql`. Purement defensif : sans elle, rien ne change pour les utilisateurs normaux (le scenario n'est deja pas atteignable via l'UI).
+
 ## 2026-07-16 - Fix : perte silencieuse du message tape quand l'envoi echoue
 
 Suite de la chasse aux bugs. Trois envois inseraient en base SANS verifier l'erreur, puis effacaient la saisie inconditionnellement → sur echec (reseau/RLS), le message tape DISPARAISSAIT sans trace ni feedback, et ne s'affichait pas dans la conversation. L'utilisateur croit avoir envoye, ou doit tout retaper.
