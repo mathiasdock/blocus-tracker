@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { COUNTRIES } from "../lib/universities";
+import { useI18n } from "../contexts/I18nContext";
 
 export default function UniPicker({ value, onChange, disabled, placeholder }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -79,7 +81,7 @@ export default function UniPicker({ value, onChange, disabled, placeholder }) {
       {open && !disabled && (
         <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-xl border border-stone-200 bg-white shadow-lg">
           {filtered.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-stone-400">Aucun résultat</p>
+            <p className="px-4 py-3 text-sm text-stone-400">{t("common.noResults")}</p>
           ) : (
             filtered.map(country => (
               <div key={country.code}>

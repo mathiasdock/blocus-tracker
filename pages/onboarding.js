@@ -1,23 +1,39 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
+import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { COURSE_COLORS } from "../lib/courseColors";
 
 const COLORS = COURSE_COLORS;
 
+// La VALEUR est canonique (stockée telle quelle dans profiles.study_year, donc
+// stable quelle que soit la langue) ; le libellé affiché est traduit.
 const YEARS = [
-  "BAC 1", "BAC 2", "BAC 3",
-  "Année préparatoire", "Année passerelle",
-  "Master 1", "Master 2",
-  "Année de spécialisation", "Certificat / formation courte",
-  "Doctorat", "Formation continue", "Autre",
+  { value: "BAC 1", key: "onboarding.year.bac1" },
+  { value: "BAC 2", key: "onboarding.year.bac2" },
+  { value: "BAC 3", key: "onboarding.year.bac3" },
+  { value: "Année préparatoire", key: "onboarding.year.prep" },
+  { value: "Année passerelle", key: "onboarding.year.bridge" },
+  { value: "Master 1", key: "onboarding.year.master1" },
+  { value: "Master 2", key: "onboarding.year.master2" },
+  { value: "Année de spécialisation", key: "onboarding.year.spec" },
+  { value: "Certificat / formation courte", key: "onboarding.year.cert" },
+  { value: "Doctorat", key: "onboarding.year.phd" },
+  { value: "Formation continue", key: "onboarding.year.continuing" },
+  { value: "Autre", key: "onboarding.year.other" },
 ];
 
-const STEPS = ["Bienvenue", "Tes matières", "Ta filière", "C'est parti !"];
+const STEP_KEYS = [
+  "onboarding.step.welcome",
+  "onboarding.step.courses",
+  "onboarding.step.field",
+  "onboarding.step.ready",
+];
 
 export default function Onboarding() {
   const { user, profile, loading } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [step, setStep] = useState(0);
 
@@ -89,7 +105,7 @@ export default function Onboarding() {
 
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          {STEPS.map((s, i) => (
+          {STEP_KEYS.map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                 i < step ? "bg-accent text-white" :
@@ -98,7 +114,7 @@ export default function Onboarding() {
               }`}>
                 {i < step ? "✓" : i + 1}
               </div>
-              {i < STEPS.length - 1 && (
+              {i < STEP_KEYS.length - 1 && (
                 <div className={`w-8 h-0.5 rounded ${i < step ? "bg-accent" : "bg-stone-200 dark:bg-stone-700"}`} />
               )}
             </div>
@@ -109,27 +125,21 @@ export default function Onboarding() {
         {step === 0 && (
           <div className="card p-8 text-center space-y-5">
             <div className="text-5xl">👋</div>
-            <h2 className="text-2xl">Bienvenue{profile?.first_name ? `, ${profile.first_name}` : ""} !</h2>
-            <p className="text-stone-500 text-sm leading-relaxed">
-              blocus·tracker t&apos;aide à suivre tes heures d&apos;étude,
-              organiser ton planning et rester motivé avec tes amis.
+            <h2 className="text-2xl">{t("onboarding.welcome.hello")}{profile?.first_name ? `, ${profile.first_name}` : ""} !</h2>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
+              {t("onboarding.welcome.subtitle")}
             </p>
-            <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs text-stone-600">
-              <div className="bg-stone-50 rounded-xl p-3">
-                <div className="text-2xl mb-1">⏱</div>
-                Chronomètre par matière
-              </div>
-              <div className="bg-stone-50 rounded-xl p-3">
-                <div className="text-2xl mb-1">📊</div>
-                Stats & progression
-              </div>
-              <div className="bg-stone-50 rounded-xl p-3">
-                <div className="text-2xl mb-1">👥</div>
-                Réseau d&apos;amis
-              </div>
+            <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
+              {["⏱", "📊", "👥"].map((emoji, i) => (
+                <div key={emoji} className="rounded-xl p-3"
+                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
+                  <div className="text-2xl mb-1">{emoji}</div>
+                  {t(`onboarding.welcome.feat${i + 1}`)}
+                </div>
+              ))}
             </div>
             <button className="btn-primary w-full text-base py-3" onClick={() => setStep(1)}>
-              Commencer →
+              {t("onboarding.welcome.start")} →
             </button>
           </div>
         )}
@@ -138,16 +148,16 @@ export default function Onboarding() {
         {step === 1 && (
           <div className="card p-8 space-y-5">
             <div>
-              <h2 className="text-2xl mb-1">Tes matières</h2>
-              <p className="text-stone-500 text-sm">
-                Ajoute au moins une matière pour commencer à tracker tes sessions.
+              <h2 className="text-2xl mb-1">{t("onboarding.courses.title")}</h2>
+              <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>
+                {t("onboarding.courses.subtitle")}
               </p>
             </div>
 
             <form onSubmit={addCourse} className="space-y-3">
               <input
                 className="input"
-                placeholder="Ex : Droit civil, Maths, Marketing…"
+                placeholder={t("onboarding.courses.placeholder")}
                 value={newCourse}
                 onChange={e => setNewCourse(e.target.value)}
               />
@@ -160,7 +170,7 @@ export default function Onboarding() {
                 ))}
               </div>
               <button className="btn-primary w-full" type="submit" disabled={adding || !newCourse.trim()}>
-                {adding ? "Ajout…" : "+ Ajouter la matière"}
+                {adding ? t("onboarding.courses.adding") : t("onboarding.courses.add")}
               </button>
             </form>
 
@@ -176,16 +186,16 @@ export default function Onboarding() {
             )}
 
             <div className="flex gap-2 pt-1">
-              <button className="btn-ghost flex-1" onClick={() => setStep(0)}>← Retour</button>
+              <button className="btn-ghost flex-1" onClick={() => setStep(0)}>← {t("comm.back")}</button>
               <button
                 className="btn-primary flex-1"
                 onClick={() => setStep(2)}
                 disabled={courses.length === 0}>
-                Continuer →
+                {t("onboarding.continue")} →
               </button>
             </div>
             {courses.length === 0 && (
-              <p className="text-center text-xs text-stone-400">Ajoute au moins une matière pour continuer.</p>
+              <p className="text-center text-xs" style={{ color: "var(--bt-text-3)" }}>{t("onboarding.courses.needOne")}</p>
             )}
           </div>
         )}
@@ -194,41 +204,41 @@ export default function Onboarding() {
         {step === 2 && (
           <div className="card p-8 space-y-5">
             <div>
-              <h2 className="text-2xl mb-1">Ta filière</h2>
-              <p className="text-stone-500 text-sm">
-                Ces infos apparaîtront sur ton profil. Tu pourras les modifier plus tard.
+              <h2 className="text-2xl mb-1">{t("onboarding.field.title")}</h2>
+              <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>
+                {t("onboarding.field.subtitle")}
               </p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="label">Filière / domaine d&apos;études</label>
+                <label className="label">{t("onboarding.field.label")}</label>
                 <input
                   className="input"
-                  placeholder="Ex : Sciences éco, Droit, Médecine…"
+                  placeholder={t("onboarding.field.placeholder")}
                   value={studyField}
                   onChange={e => setStudyField(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="label">Année d&apos;études</label>
+                <label className="label">{t("onboarding.year.label")}</label>
                 <select
                   className="input"
                   value={studyYear}
                   onChange={e => { setStudyYear(e.target.value); setStudyYearCustom(""); }}
                 >
-                  <option value="">— Choisir —</option>
-                  {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                  <option value="">{t("onboarding.year.choose")}</option>
+                  {YEARS.map(y => <option key={y.value} value={y.value}>{t(y.key)}</option>)}
                 </select>
               </div>
 
               {studyYear === "Autre" && (
                 <div>
-                  <label className="label">Précise ton année d&apos;étude</label>
+                  <label className="label">{t("onboarding.year.customLabel")}</label>
                   <input
                     className="input"
-                    placeholder="Ex : 3e année ingénieur…"
+                    placeholder={t("onboarding.year.customPlaceholder")}
                     value={studyYearCustom}
                     onChange={e => setStudyYearCustom(e.target.value)}
                     autoFocus
@@ -238,16 +248,16 @@ export default function Onboarding() {
             </div>
 
             <div className="flex gap-2 pt-1">
-              <button className="btn-ghost flex-1" onClick={() => setStep(1)}>← Retour</button>
+              <button className="btn-ghost flex-1" onClick={() => setStep(1)}>← {t("comm.back")}</button>
               <button
                 className="btn-primary flex-1"
                 onClick={saveFieldYear}
                 disabled={savingInfo}>
-                {savingInfo ? "Enregistrement…" : "Continuer →"}
+                {savingInfo ? t("onboarding.saving") : `${t("onboarding.continue")} →`}
               </button>
             </div>
-            <p className="text-center text-xs text-stone-400">
-              Ces champs sont optionnels, tu peux passer cette étape.
+            <p className="text-center text-xs" style={{ color: "var(--bt-text-3)" }}>
+              {t("onboarding.field.optional")}
             </p>
           </div>
         )}
@@ -256,19 +266,19 @@ export default function Onboarding() {
         {step === 3 && (
           <div className="card p-8 text-center space-y-5">
             <div className="text-5xl">🎉</div>
-            <h2 className="text-2xl">Tout est prêt !</h2>
-            <p className="text-stone-500 text-sm leading-relaxed">
-              Lance ton chronomètre, suis tes sessions et invite tes amis à te rejoindre.
-              Bonne étude !
+            <h2 className="text-2xl">{t("onboarding.done.title")}</h2>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
+              {t("onboarding.done.subtitle")}
             </p>
-            <div className="text-left bg-accent/10 rounded-xl p-4 space-y-2 text-sm text-stone-700">
-              <p className="font-medium text-accent-dark">Pour démarrer :</p>
-              <p>1. Sélectionne une matière sur le dashboard</p>
-              <p>2. Lance le chrono et étudie</p>
-              <p>3. Clique sur &quot;Terminer&quot; pour sauvegarder ta session</p>
+            <div className="text-left rounded-xl p-4 space-y-2 text-sm"
+              style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-text-2)" }}>
+              <p className="font-medium" style={{ color: "var(--bt-accent-dark)" }}>{t("onboarding.done.howTitle")}</p>
+              <p>{t("onboarding.done.how1")}</p>
+              <p>{t("onboarding.done.how2")}</p>
+              <p>{t("onboarding.done.how3")}</p>
             </div>
             <button className="btn-primary w-full text-base py-3" onClick={finish}>
-              Accéder au dashboard →
+              {t("onboarding.done.cta")} →
             </button>
           </div>
         )}

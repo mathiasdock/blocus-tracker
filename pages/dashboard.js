@@ -943,20 +943,20 @@ export default function Dashboard() {
               style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
               <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
                 style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
-              <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>Bienvenue en mode découverte</p>
+              <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.discoveryTitle")}</p>
               <p className="relative mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                Lance le chrono ici, puis ouvre Planning, Stats ou Social : je t'explique chaque espace avant que tu crées un compte.
+                {t("guest.discoveryText")}
               </p>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 sm:ml-[82px]">
-            <Link href="/planning" className="btn-ghost px-3 py-2 text-xs">Voir le planning</Link>
-            <Link href="/stats" className="btn-ghost px-3 py-2 text-xs">Voir les stats</Link>
-            <Link href="/feed" className="btn-ghost px-3 py-2 text-xs">Découvrir le social</Link>
+            <Link href="/planning" className="btn-ghost px-3 py-2 text-xs">{t("guest.viewPlanning")}</Link>
+            <Link href="/stats" className="btn-ghost px-3 py-2 text-xs">{t("guest.viewStats")}</Link>
+            <Link href="/feed" className="btn-ghost px-3 py-2 text-xs">{t("guest.discoverSocial")}</Link>
             <span className="hidden flex-1 sm:block" />
-            <Link href="/signup" className="btn-primary px-3 py-2 text-xs">Garder ma progression</Link>
+            <Link href="/signup" className="btn-primary px-3 py-2 text-xs">{t("guest.keepProgress")}</Link>
             <Link href="/login" className="px-2 py-2 text-xs font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
-              Se connecter
+              {t("guest.signIn")}
             </Link>
           </div>
         </section>

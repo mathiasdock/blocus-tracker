@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Experience anglophone reparee (onboarding + mode invite 100 % FR en dur)
+
+Chasse aux bugs "cote utilisateur" demandee par Mathias. Constat : l'app suit la langue du navigateur (`detectDeviceLang`), donc un etudiant anglophone recevait du FRANCAIS partout dans sa premiere experience.
+
+- **`pages/onboarding.js`** : etait a **0 appel `t()`** — tout le parcours d'inscription (4 etapes, ~35 chaines) en francais dur. Recable avec `useI18n`. Les annees d'etudes : la VALEUR reste canonique FR (stockee telle quelle dans `profiles.study_year`, stable quelle que soit la langue) mais le libelle affiche est traduit. Corrige aussi des couleurs `bg-stone-50`/`text-stone-*` sans variante dark (illisibles en sombre) → tokens `var(--bt-*)`.
+- **`components/Layout.js`** : tout le mode decouverte/invite. `GUEST_PAGE_PREVIEWS` (7 pages × eyebrow/titre/texte/3 features) converti en CLES i18n resolues au rendu ; `GuestLockedPanel` cable `useI18n` ; tooltip mascotte, "Creer un compte", "Retour au chrono", indice de navigation, et les liens "Se connecter" du nav invite (mobile + desktop) → i18n.
+- **`pages/dashboard.js`** : banniere invite du dashboard (titre, texte, "Voir le planning/stats", "Decouvrir le social", "Garder ma progression", "Se connecter") → i18n.
+- **`components/UniPicker.js`** : "Aucun resultat" (selecteur d'universite, vu a l'inscription) → `common.noResults` + `useI18n`.
+- **`lib/i18n.js`** : +106 cles × 2 langues (`onboarding.*`, `guest.*`, `common.noResults`). Reutilise `comm.back` et pas de doublon.
+
+`SeoLandingPage` verifie : deja bilingue (dict fr/en interne) → aucun changement.
+
+Verifie (build offline, mobile 375px) : onboarding EN complet (etapes 0→3, dropdown annees = labels EN + valeurs stockees FR canoniques, dark mode lisible sur l'ecran final) ; mode invite EN sur /planning + banniere /dashboard ("Sign in", "Welcome to discovery mode", etc.) ; non-regression FR OK (aucune fuite EN) ; `npm run lint` clean, `npm run build` normal OK, zero erreur console. Aucune migration.
+
 ## 2026-07-16 - Fix presence "en ligne" fantome + statut chrono coherent partout
 
 Bug remonte : l'admin affichait ~19 personnes "en ligne" alors que non. Cause : la presence = colonne `profiles.studying_since` (posee au demarrage du chrono, rafraichie par un heartbeat toutes les 5 min, remise a null a l'arret). Mais si l'utilisateur ferme l'app/onglet EN PLEIN chrono, le TimerProvider est demonte → `studying_since` n'est jamais remis a null et se fige. Tester sa simple presence (`!!studying_since`) compte donc ces sessions fantomes indefiniment.

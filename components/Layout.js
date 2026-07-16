@@ -450,58 +450,25 @@ const MOBILE_5 = [
 ];
 
 const GUEST_PUBLIC_PATHS = ["/dashboard", "/legal"];
+// Chaque valeur est une CLÉ i18n, résolue au rendu via t() (FR + EN).
 const GUEST_PAGE_PREVIEWS = {
-  "/planning": {
-    eyebrow: "Planning",
-    title: "Organise tes objectifs et tes examens",
-    text: "Prépare chaque journée, garde les échéances visibles et lance le chrono depuis ce que tu avais prévu.",
-    features: ["Objectifs quotidiens", "Examens avec compte à rebours", "Export calendrier"],
-  },
-  "/stats": {
-    eyebrow: "Statistiques",
-    title: "Comprends ton vrai rythme d'étude",
-    text: "Retrouve ton temps par matière, ta régularité, tes records et les habitudes qui t'aident réellement à avancer.",
-    features: ["Temps et régularité", "Séries et records", "Classements personnalisés"],
-  },
-  "/historique": {
-    eyebrow: "Historique",
-    title: "Retrouve chaque session passée",
-    text: "Ton historique garde le détail de tes sessions pour comparer le prévu au réel et corriger une erreur si nécessaire.",
-    features: ["Sessions par date", "Cours et durées", "Vue détaillée"],
-  },
-  "/feed": {
-    eyebrow: "Fil d'activité",
-    title: "Avance avec tes amis, sans bruit inutile",
-    text: "Le feed transforme les objectifs, séries et sessions en activité légère pour garder le groupe motivé.",
-    features: ["Activité d'étude", "Réactions et commentaires", "Photos chargées à la demande"],
-  },
-  "/messages": {
-    eyebrow: "Social",
-    title: "Amis, messages et groupes au même endroit",
-    text: "Retrouve tes demandes d'amis, tes conversations privées et tes groupes d'étude dans un seul espace.",
-    features: ["Ajout d'amis", "Messages privés", "Groupes d'étude"],
-  },
-  "/communautes": {
-    eyebrow: "Communautés",
-    title: "Retrouve les étudiants de ton école",
-    text: "Chaque communauté rassemble un salon, des questions, des ressources et les examens utiles aux étudiants.",
-    features: ["Discussions", "Questions et ressources", "Examens de l'école"],
-  },
-  "/profile": {
-    eyebrow: "Profil et progression",
-    title: "Garde la trace de ce que tu construis",
-    text: "Ton profil réunit ton niveau, ta série, tes badges, tes préférences et les réglages de ton compte.",
-    features: ["XP et niveaux", "Série et badges", "Préférences du compte"],
-  },
+  "/planning":     { eyebrow: "guest.planning.eyebrow",     title: "guest.planning.title",     text: "guest.planning.text",     features: ["guest.planning.f1", "guest.planning.f2", "guest.planning.f3"] },
+  "/stats":        { eyebrow: "guest.stats.eyebrow",        title: "guest.stats.title",        text: "guest.stats.text",        features: ["guest.stats.f1", "guest.stats.f2", "guest.stats.f3"] },
+  "/historique":   { eyebrow: "guest.historique.eyebrow",   title: "guest.historique.title",   text: "guest.historique.text",   features: ["guest.historique.f1", "guest.historique.f2", "guest.historique.f3"] },
+  "/feed":         { eyebrow: "guest.feed.eyebrow",         title: "guest.feed.title",         text: "guest.feed.text",         features: ["guest.feed.f1", "guest.feed.f2", "guest.feed.f3"] },
+  "/messages":     { eyebrow: "guest.messages.eyebrow",     title: "guest.messages.title",     text: "guest.messages.text",     features: ["guest.messages.f1", "guest.messages.f2", "guest.messages.f3"] },
+  "/communautes":  { eyebrow: "guest.communautes.eyebrow",  title: "guest.communautes.title",  text: "guest.communautes.text",  features: ["guest.communautes.f1", "guest.communautes.f2", "guest.communautes.f3"] },
+  "/profile":      { eyebrow: "guest.profile.eyebrow",      title: "guest.profile.title",      text: "guest.profile.text",      features: ["guest.profile.f1", "guest.profile.f2", "guest.profile.f3"] },
+};
+
+const GUEST_DEFAULT_PREVIEW = {
+  eyebrow: "guest.default.eyebrow", title: "guest.default.title", text: "guest.default.text",
+  features: ["guest.default.f1", "guest.default.f2", "guest.default.f3"],
 };
 
 function GuestLockedPanel({ pathname }) {
-  const page = GUEST_PAGE_PREVIEWS[pathname] || {
-    eyebrow: "Mode découverte",
-    title: "Crée un compte pour garder ta progression",
-    text: "Le chrono est disponible sans compte. Cet espace a besoin d'un profil pour enregistrer et synchroniser tes données.",
-    features: ["Données synchronisées", "Progression conservée", "Accès sur tous tes appareils"],
-  };
+  const { t } = useI18n();
+  const page = GUEST_PAGE_PREVIEWS[pathname] || GUEST_DEFAULT_PREVIEW;
 
   return (
     <div className="mx-auto max-w-3xl bt-rise">
@@ -517,29 +484,29 @@ function GuestLockedPanel({ pathname }) {
                 style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)", boxShadow: "0 12px 28px var(--bt-shadow)" }}>
                 <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
                   style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
-                <span className="relative">Je te montre à quoi sert cette page. Crée ton espace seulement quand tu veux garder tes données.</span>
+                <span className="relative">{t("guest.tooltip")}</span>
               </div>
             </div>
           </div>
 
           <div className="p-6 sm:p-8">
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>{page.eyebrow}</p>
-            <h1 className="mt-3 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{page.title}</h1>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{page.text}</p>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>{t(page.eyebrow)}</p>
+            <h1 className="mt-3 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{t(page.title)}</h1>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t(page.text)}</p>
             <ul className="mt-5 grid gap-2 sm:grid-cols-3">
               {page.features.map((feature) => (
                 <li key={feature} className="rounded-xl px-3 py-2.5 text-xs font-semibold"
                   style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
-                  {feature}
+                  {t(feature)}
                 </li>
               ))}
             </ul>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              <Link href="/signup" className="btn-primary px-5 py-3 text-sm">Créer un compte</Link>
-              <Link href="/dashboard" className="btn-ghost px-5 py-3 text-sm">Retour au chrono</Link>
+              <Link href="/signup" className="btn-primary px-5 py-3 text-sm">{t("guest.createAccount")}</Link>
+              <Link href="/dashboard" className="btn-ghost px-5 py-3 text-sm">{t("guest.backToTimer")}</Link>
             </div>
             <p className="mt-4 text-xs" style={{ color: "var(--bt-text-3)" }}>
-              Tu peux continuer à parcourir les autres pages depuis la navigation.
+              {t("guest.browseHint")}
             </p>
           </div>
         </div>
@@ -724,10 +691,10 @@ export default function Layout({ children }) {
           {isGuest ? (
             <div className="space-y-2">
               <Link href="/signup" className="btn-primary w-full text-sm py-2.5">
-                Créer un compte
+                {t("guest.createAccount")}
               </Link>
               <Link href="/login" className="btn-ghost w-full text-sm py-2.5">
-                Se connecter
+                {t("guest.signIn")}
               </Link>
             </div>
           ) : (
@@ -799,7 +766,7 @@ export default function Layout({ children }) {
             {isGuest ? (
               <Link href="/login" className="text-xs font-semibold px-3 py-2 rounded-full"
                 style={{ color: "#0E8F68", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-                Se connecter
+                {t("guest.signIn")}
               </Link>
             ) : (
               <>
