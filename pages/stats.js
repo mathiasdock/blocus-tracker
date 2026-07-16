@@ -7,6 +7,7 @@ import StudyHeatmap from "../components/StudyHeatmap";
 import Leaderboard, { RankBadge } from "../components/Leaderboard";
 import MascotCoach from "../components/MascotCoach";
 import StudyRecap from "../components/StudyRecap";
+import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -191,6 +192,7 @@ export default function Stats() {
   const { t, lang } = useI18n();
   const [courses, setCourses]   = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
   const [allTimeSecs, setAllTimeSecs] = useState(0);
   const [comparison, setComparison] = useState(undefined); // undefined=loading, null=indispo
 
@@ -234,6 +236,16 @@ export default function Stats() {
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── Gel de série : mêmes jours gelés que le dashboard (mémoïsé/jour) ──
+  useEffect(() => {
+    if (!user || !sessions.length) return;
+    let alive = true;
+    runStreakFreezeUpkeep(supabase, user.id, sessions).then((res) => {
+      if (alive && res.supported) setFrozenDays(res.frozenDays);
+    });
+    return () => { alive = false; };
+  }, [user, sessions]);
 
   // ── All-time total (cheap: single column, own rows only) ───────
   useEffect(() => {
@@ -347,8 +359,8 @@ export default function Stats() {
   const sessionCount = sessions.length;
 
   // ── Overview stats (#1 streak, #2 all-time, #3 best day, #4 week evo) ──
-  const streak     = computeStreak(sessions);
-  const bestStreak = computeBestStreak(sessions);
+  const streak     = computeStreak(sessions, frozenDays);
+  const bestStreak = computeBestStreak(sessions, frozenDays);
 
   // Best day: max total over a single calendar day (within loaded window)
   const dayTotals = {};

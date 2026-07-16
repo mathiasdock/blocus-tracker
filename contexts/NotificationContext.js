@@ -515,6 +515,18 @@ export function NotificationProvider({ children }) {
   const announcementCount = notificationItems.filter((item) => item.type === "announcement").length;
   const notificationUnreadCount = friendCount + commentCount + reactionCount + announcementCount;
 
+  // ── Badge sur l'icône de l'app installée (Badging API, PWA) ──────────────
+  // Cloche + messages privés non lus. No-op silencieux si l'API n'existe pas
+  // (feature-detect) ; effacé à zéro et à la déconnexion. 100 % client.
+  const appBadgeTotal = user ? notificationUnreadCount + messageCount : 0;
+  useEffect(() => {
+    if (typeof navigator === "undefined" || typeof navigator.setAppBadge !== "function") return;
+    try {
+      if (appBadgeTotal > 0) navigator.setAppBadge(appBadgeTotal).catch(() => {});
+      else navigator.clearAppBadge().catch(() => {});
+    } catch {}
+  }, [appBadgeTotal]);
+
   return (
     <NotificationContext.Provider
       value={{

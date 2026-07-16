@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
@@ -11,6 +12,8 @@ import { clearClientCache, getClientCache, setClientCache } from "../lib/clientC
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
 import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
+import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
+import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import Mascot from "../components/Mascot";
@@ -242,6 +245,7 @@ function writeGuestDashboardData(data) {
 export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const { toast } = useToast();
   const {
     courseId,
     setCourseId,
@@ -262,6 +266,27 @@ export default function Dashboard() {
   // sans ça l'iPhone se verrouille après ~30 s et la respiration du mode focus
   // s'éteint. Relâché automatiquement en pause / à l'arrêt. Voir lib/useWakeLock.
   useWakeLock(running);
+
+  // ── Raccourci PWA "Démarrer le chrono" (?quickstart=1, manifest.json) ──
+  // Tient la promesse du raccourci : démarre la session (dernier cours utilisé,
+  // persisté par TimerContext) et entre en mode focus. Si une session tourne
+  // déjà, on entre juste en focus. Une seule fois, puis URL nettoyée.
+  const router = useRouter();
+  const quickstartDone = useRef(false);
+  useEffect(() => {
+    if (!router.isReady || router.query.quickstart !== "1" || quickstartDone.current) return;
+    if (running) {
+      quickstartDone.current = true;
+      setFocusMode(true);
+    } else if (courseId) {
+      quickstartDone.current = true;
+      start();
+      setFocusMode(true);
+    } else {
+      return; // courseId pas encore hydraté / aucun cours — on retentera au prochain render
+    }
+    router.replace("/dashboard", undefined, { shallow: true });
+  }, [router, router.isReady, router.query.quickstart, running, courseId, start]);
   const [todayObjectives, setTodayObjectives] = useState([]);
   const [newCourse, setNewCourse] = useState("");
   const [newColor, setNewColor] = useState(COLORS[0]);
@@ -279,6 +304,7 @@ export default function Dashboard() {
   const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
   const [checklistCourse, setChecklistCourse] = useState(null);
   const [recentSessions, setRecentSessions] = useState([]); // 90 jours — records & semaine
+  const [freezeInfo, setFreezeInfo] = useState(null); // gel de série { frozenDays, stock, supported }
   // Objectif de session — l'intention posée avant de démarrer. Persisté
   // (localStorage) pour que l'habitude survive aux rechargements.
   const [sessionGoalMin, setSessionGoalMin] = useState(null);
@@ -310,6 +336,26 @@ export default function Dashboard() {
   const clearDashboardCache = useCallback(() => {
     if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
   }, [dashboardCachePrefix]);
+
+  // ── Gel de série : recharge mensuelle + consommation si jours manqués ──
+  // Mémoïsé par jour dans lib/streakFreezes (plusieurs pages peuvent appeler).
+  // Avant migration v29 : supported=false → comportement d'avant, silencieux.
+  const freezeToastShown = useRef(false);
+  useEffect(() => {
+    if (!user || !recentSessions.length) return;
+    let alive = true;
+    runStreakFreezeUpkeep(supabase, user.id, recentSessions).then((res) => {
+      if (!alive || !res.supported) return;
+      setFreezeInfo(res);
+      setStreak(computeStreak(recentSessions, res.frozenDays));
+      setBestStreak(computeBestStreak(recentSessions, res.frozenDays));
+      if (res.usedNow > 0 && !freezeToastShown.current) {
+        freezeToastShown.current = true;
+        toast(t("streak.freezeUsed"), "info");
+      }
+    });
+    return () => { alive = false; };
+  }, [user, recentSessions, t, toast]);
 
   const loadChecklistCounts = useCallback(async () => {
     if (!user) {
@@ -1463,7 +1509,18 @@ export default function Dashboard() {
             {/* La mascotte vit désormais autour du chrono. Ici, la série reste
                 lisible comme une donnée, sans deuxième personnage concurrent. */}
             {streak > 0 && (
-              <div className="absolute top-2 right-3 flex items-center sm:right-4">
+              <div className="absolute top-2 right-3 flex items-center gap-1.5 sm:right-4">
+                {/* Gels de série restants — filet anti-perte de série (v29) */}
+                {freezeInfo?.supported && freezeInfo.stock > 0 && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                    title={t("streak.freezeStock")} aria-label={t("streak.freezeStock")}
+                    style={{ backgroundColor: "rgba(14,165,233,0.16)", border: "1px solid rgba(14,165,233,0.30)" }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7DD3FC" strokeWidth="2" strokeLinecap="round">
+                      <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
+                    </svg>
+                    <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#BAE6FD" }}>{freezeInfo.stock}</span>
+                  </span>
+                )}
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full"
                   style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="#FBBF24" stroke="none">

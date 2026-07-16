@@ -2,6 +2,25 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Gel de serie (streak freeze) + raccourcis PWA reels + Badging API
+
+Demande utilisateur : le gel de serie (retention, facon Duolingo) et les raccourcis PWA. Zero cout Supabase notable : ~2 colonnes profil + quelques lignes date/mois par utilisateur.
+
+**Gel de serie** — stock max 2, recharge a 2 au premier passage de chaque mois (paresseuse, pas de cron). Au retour apres N jour(s) manque(s) depuis la derniere activite : si N <= stock, les jours manques sont geles (1 ligne/jour dans `streak_freeze_days`), stock decremente, la serie CONTINUE. Un jour gele compte pour la continuite, PAS comme jour actif (regularite inchangee). On ne gele que si tout le trou est couvert (sinon serie perdue, gels preserves).
+
+- **`supabase/migration_v29_streak_freeze.sql`** (nouvelle, a executer manuellement) : `profiles.streak_freezes` (default 2) + `profiles.streak_freeze_month`, table `streak_freeze_days` (PK user_id+used_on, RLS : select authenticated — necessaire au calcul client des niveaux des autres, insert own only), et MISE A JOUR DES DEUX RPC de serie : `gamification_current_streak` (v28 Codex, source canonique niveaux/XP — "OR jour gele" dans la marche jour par jour) et `get_leaderboard_v2` (v27 — UNION des jours geles dans la CTE daily). ⚠️ Numerotee v29 car Codex a deja pris v28 (gamification integrity) — collision evitee.
+- **`lib/streakFreezes.js`** (nouveau) : `runStreakFreezeUpkeep()` (recharge + consommation, memoise par user+jour — dashboard/stats/profil/planning peuvent tous appeler sans dupliquer) et `fetchFrozenDays()`. Degradation propre avant migration : colonnes/table absentes → `{supported:false}`, comportement d'avant, zero erreur visible.
+- **`lib/format.js`** : `computeStreak(sessions, frozenDays?)` + `computeBestStreak(sessions, frozenDays?)` — param optionnel retro-compatible.
+- **Cablage** : `pages/dashboard.js` (upkeep au load, pastille flocon "❄ n" bleu ciel a cote de la pastille serie, toast "Un gel a sauve ta serie" a la consommation — ref anti double-toast), `pages/stats.js`, `pages/profile.js` (affichage + calcul badges/XP), `pages/planning.js` (humeur mascotte), `lib/userLevels.js` (repli client : requete silencieuse — pas de console.warn avant migration — + jours geles par user dans computeStreak). StudyRecap herite via la prop streak de stats.
+- **`lib/offlineSupabaseClient.js`** : champs de gel sur les profils seedes, table `streak_freeze_days`, union des jours geles dans le mock `get_leaderboard_v2`.
+- **i18n** : `streak.freezeStock`, `streak.freezeUsed` (FR+EN).
+
+**PWA** — `public/manifest.json` : le raccourci "Demarrer le chrono" pointe desormais `/dashboard?quickstart=1` (il DEMARRE vraiment : effet dans dashboard.js — session lancee avec le dernier cours + mode focus, une seule fois, URL nettoyee via router.replace shallow ; si une session tourne deja → focus mode seulement) + nouveau raccourci "Statistiques". `contexts/NotificationContext.js` : **Badging API** — pastille sur l'icone d'app installee = cloche + messages prives non lus, feature-detect + try/catch, effacee a zero et a la deconnexion, 100 % client. NB : les raccourcis manifest n'apparaissent qu'apres reinstallation/maj de la PWA par l'OS.
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK, `npm run lint` clean, `npm run build` normal OK. En navigateur (build offline, scenario reel par mutation de la DB locale) : recharge mensuelle ecrite (stock 2, mois 2026-07) + pastille "❄ 2" ; trou d'1 jour cree → ligne gelee inseree pour hier, stock 2→1, serie PRESERVEE a "2 jours de suite" (aurait ete 0), toast detecte dans le DOM (auto-ferme a 3 s) ; Stats affiche la meme serie 2 (coherence inter-pages) ; quickstart → chrono demarre + mode focus + URL nettoyee (mesure) ; manifest servi avec les 3 raccourcis ; `navigator.setAppBadge` present. Zero erreur console.
+
+**A faire cote utilisateur** : executer `supabase/migration_v29_streak_freeze.sql` dans le SQL Editor Supabase. Sans elle, l'app garde silencieusement le comportement d'avant (pas de gels) ; les raccourcis PWA et le badge d'icone marchent, eux, des le deploiement.
+
 ## 2026-07-14 - Recap partageable (StudyRecap) : 4 correctifs UX mobile (feature faite par Codex)
 
 Le recap "story 9:16" partageable a ete construit par Codex ; l'utilisateur a signale 4 problemes sur mobile, corriges ici.

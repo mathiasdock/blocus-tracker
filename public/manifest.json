@@ -27,13 +27,19 @@
     {
       "name": "Démarrer le chrono",
       "short_name": "Chrono",
-      "url": "/dashboard",
+      "url": "/dashboard?quickstart=1",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     },
     {
       "name": "Planning",
       "short_name": "Planning",
       "url": "/planning",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Statistiques",
+      "short_name": "Stats",
+      "url": "/stats",
       "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]

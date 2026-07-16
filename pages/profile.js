@@ -5,6 +5,7 @@ import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import MascotCoach from "../components/MascotCoach";
+import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
@@ -589,6 +590,7 @@ export default function Profile() {
   const [avatarMsg, setAvatarMsg] = useState("");
   const [earnedBadgeIds, setEarnedBadgeIds] = useState([]);
   const [profileSessions, setProfileSessions] = useState([]);
+  const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
   const [myRank, setMyRank] = useState(null);
@@ -651,7 +653,9 @@ export default function Profile() {
       ]);
 
       const sessions = sessionsRes.data || [];
-      const streak = computeStreak(sessions);
+      // Jours gelés inclus : badges streak_x et XP cohérents avec l'affichage.
+      const freezeRes = await runStreakFreezeUpkeep(supabase, user.id, sessions);
+      const streak = computeStreak(sessions, freezeRes.supported ? freezeRes.frozenDays : []);
       const totalHours = sessions.reduce((a, s) => a + s.duration_seconds, 0) / 3600;
 
       // Compute maxDailyHours for marathon_day badge
@@ -737,6 +741,9 @@ export default function Profile() {
       ]);
       setProfileSessions(heatSessions || []);
       setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
+      // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
+      const freeze = await runStreakFreezeUpkeep(supabase, user.id, heatSessions || []);
+      if (freeze.supported) setFrozenDays(freeze.frozenDays);
     })();
   }, [user]);
 
@@ -842,8 +849,8 @@ export default function Profile() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const secs30d = profileSessions.filter(s => new Date(s.started_at) >= thirtyDaysAgo).reduce((a, s) => a + s.duration_seconds, 0);
-  const streak = computeStreak(profileSessions);
-  const best = computeBestStreak(profileSessions);
+  const streak = computeStreak(profileSessions, frozenDays);
+  const best = computeBestStreak(profileSessions, frozenDays);
   const activeDays = new Set(profileSessions.map(s => (s.started_at || "").slice(0, 10))).size;
   const avgDaySecs30 = Math.round(secs30d / 30);
 

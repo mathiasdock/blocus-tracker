@@ -9,6 +9,7 @@ import { useToast } from "../contexts/ToastContext";
 import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
 import { todayISO, formatMinutesShort, computeStreak } from "../lib/format";
+import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { notifyXPChanged } from "../lib/xpEvents";
 
@@ -1121,6 +1122,7 @@ export default function Planning() {
   const [objectives, setObjectives] = useState([]);
   const [exams, setExams]           = useState([]);
   const [sessions, setSessions]     = useState([]);
+  const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
   const [cursor, setCursor]         = useState(() => {
     const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() };
   });
@@ -1146,6 +1148,9 @@ export default function Planning() {
     setObjectives(o || []);
     setExams(examRes.data || []);
     setSessions(s || []);
+    // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
+    const freeze = await runStreakFreezeUpkeep(supabase, user.id, s || []);
+    if (freeze.supported) setFrozenDays(freeze.frozenDays);
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
@@ -1412,7 +1417,7 @@ export default function Planning() {
         <MascotCoach
           id={planningCoachId}
           message={planningCoachMessage}
-          streak={computeStreak(sessions)}
+          streak={computeStreak(sessions, frozenDays)}
           persistence="day"
           className="mb-5 max-w-2xl"
         />
