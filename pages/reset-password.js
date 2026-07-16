@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import { useI18n } from "../contexts/I18nContext";
+import LoadingScreen from "../components/LoadingScreen";
 import AuthBackground from "../components/AuthBackground";
 
 function EyeIcon({ open }) {
@@ -112,7 +113,7 @@ export default function ResetPassword() {
   if (!ready) {
     return (
       <AuthBackground className="min-h-screen flex items-center justify-center">
-        <p className="text-stone-600 text-sm">{t("common.loading")}</p>
+        <LoadingScreen compact />
       </AuthBackground>
     );
   }

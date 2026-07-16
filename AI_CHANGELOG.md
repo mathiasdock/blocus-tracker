@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Ecran de chargement de marque (remplace les "Chargement…" nus)
+
+Demande utilisateur : remplacer l'ecran de chargement global (page blanche + "Chargement…") par un vrai moment de marque, calme et leger, partout ou l'app affichait ce texte.
+
+- **`components/LoadingScreen.js`** (nouveau) : wordmark "blocus·tracker" (font-display, point vert statique) + une rangee de 5 **Blocus Blocks** qui se remplissent en vague (la signature du chrono) + phrase courte. 3 variantes : `fullScreen` (gate auth global, min-h-100dvh sur `--bt-bg`), defaut (bloc de page, ex. cockpit admin), `compact` (cartes/modales/pagination : blocs reduits + texte). 100 % tokens → dark mode gratuit. `role="status" aria-live="polite"`. Entree en fondu via `bt-rise` existant. Zero dependance.
+- **`styles/globals.css`** : keyframes `bt-load-fill` (remplissage en vague, delais echelonnes en inline). **prefers-reduced-motion : rendu statique** — animation coupee ET les 2 premiers blocs restent remplis (`nth-child`) pour garder la lecture "en cours".
+- **Remplacements (7)** : `components/Layout.js` (LE gate global auth — l'ecran de la capture utilisateur) ; `pages/admin.js` (gate cockpit → defaut ; detail utilisateur + 2 cartes → compact) ; `pages/historique.js` (chargement/pagination → compact) ; `pages/feedback.js` (inbox → compact) ; `components/UserProfileModal.js` (compact) ; `pages/reset-password.js` (attente session recovery, dans AuthBackground → compact).
+- **Trappe de QA build offline UNIQUEMENT** : `?bt_loader=1` (derriere `isOfflineDev`, elimine du bundle prod) force l'affichage du gate pour verification visuelle deterministe — meme pattern que `bt_celebrate`.
+- **i18n** : `loading.preparing` = "Préparation de ton espace…" / "Setting up your space…" (FR+EN).
+
+Verifie : `NEXT_PUBLIC_OFFLINE_DEV=true npm run build` OK, `npm run lint` clean, `npm run build` normal OK. En navigateur (build offline, mobile 375px) : loader via la trappe — 5 blocs animes (`bt-load-fill` calcule), wordmark, phrase, **mesures DOM exactes** (conteneur 375×812 a (0,0), document = 812 pile → aucune bande, contenu centre x=188 = centre exact — la capture pleine page paraissait decalee, artefact de capture) ; clair + sombre ; refresh dur + navigation sur chrono/planning/stats/social/profil/historique → tout charge, **aucun loader bloque**, aucun 500. Zero erreur console.
+
+**Piege d'environnement re-rencontre (deja en memoire)** : le build offline lance pendant qu'un vieux `npm start` tenait `.next` a produit un `.next` incomplet → 500 "MissingStaticPage" sur /stats et /profile en preview. Rien a voir avec le code : `pkill next start` + rebuild propre + restart preview a tout retabli.
+
 ## 2026-07-16 - Gel de serie (streak freeze) + raccourcis PWA reels + Badging API
 
 Demande utilisateur : le gel de serie (retention, facon Duolingo) et les raccourcis PWA. Zero cout Supabase notable : ~2 colonnes profil + quelques lignes date/mois par utilisateur.

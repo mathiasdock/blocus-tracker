@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import LoadingScreen from "../components/LoadingScreen";
 import Layout from "../components/Layout";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -118,9 +119,7 @@ export default function Historique() {
           )}
         </div>
 
-        {loading && (
-          <p className="text-center mt-4 text-sm" style={{ color: "#A8A09A" }}>Chargement…</p>
-        )}
+        {loading && <LoadingScreen compact />}
         {hasMore && !loading && (
           <div className="text-center mt-4">
             <button onClick={loadMore} className="btn-ghost text-sm px-6">{t("hist.loadMore")}</button>

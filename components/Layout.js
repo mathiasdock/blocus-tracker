@@ -9,6 +9,8 @@ import { formatDuration, displayName, timeAgo } from "../lib/format";
 import PwaInstallBanner from "./PwaInstallBanner";
 import LegacyEmailBanner from "./LegacyEmailBanner";
 import Mascot from "./Mascot";
+import LoadingScreen from "./LoadingScreen";
+import { isOfflineDev } from "../lib/supabaseClient";
 
 // ── SVG Icons ─────────────────────────────────────────────────
 
@@ -612,12 +614,12 @@ export default function Layout({ children }) {
     setNotificationsOpen(false);
   }, [router.pathname]);
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center"
-      style={{ backgroundColor: "var(--bt-bg)", color: "var(--bt-text-3)" }}>
-      {t("common.loading")}
-    </div>
-  );
+  // Gate global (auth en cours). `?bt_loader=1` : trappe de QA build offline
+  // UNIQUEMENT (isOfflineDev est false en prod → bloc éliminé du bundle) pour
+  // prévisualiser l'écran de chargement sans dépendre du timing de l'auth.
+  if (loading || (isOfflineDev && router.query.bt_loader === "1")) {
+    return <LoadingScreen fullScreen />;
+  }
 
   function renderDesktopNavItem(n) {
     const active = router.pathname === n.href;

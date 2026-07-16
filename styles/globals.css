@@ -550,6 +550,24 @@ html {
 }
 .bt-float { animation: bt-float 7s ease-in-out infinite; }
 
+/* ── Écran de chargement : Blocus Blocks qui se remplissent en vague ──
+   (components/LoadingScreen.js). Sous prefers-reduced-motion : statique,
+   les deux premiers blocs restent remplis pour garder la lecture "en cours". */
+.bt-load-block {
+  background-color: var(--bt-subtle);
+  box-shadow: inset 0 0 0 1px var(--bt-border);
+  animation: bt-load-fill 1.6s ease-in-out infinite;
+}
+@keyframes bt-load-fill {
+  0%, 12%   { background-color: var(--bt-subtle); box-shadow: inset 0 0 0 1px var(--bt-border); }
+  35%, 60%  { background-color: var(--bt-accent); box-shadow: none; }
+  88%, 100% { background-color: var(--bt-subtle); box-shadow: inset 0 0 0 1px var(--bt-border); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-load-block { animation: none !important; }
+  .bt-load-block:nth-child(-n+2) { background-color: var(--bt-accent); box-shadow: none; }
+}
+
 /* ── Mascotte : micro-animations façon Duolingo ──────────────────────
    Activées uniquement sous .bt-m-anim (prop animated du composant).
    transform-box: fill-box → les origines (%) se réfèrent à la bbox de la

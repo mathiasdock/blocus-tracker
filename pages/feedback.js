@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import LoadingScreen from "../components/LoadingScreen";
 import Layout, { Avatar } from "../components/Layout";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -214,9 +215,7 @@ export default function FeedbackPage() {
             </div>
 
             {loadingInbox ? (
-              <p className="px-5 py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
-                {t("common.loading")}
-              </p>
+              <LoadingScreen compact />
             ) : feedbackRows.length === 0 ? (
               <p className="px-5 py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>
                 {t("feedback.noItems")}

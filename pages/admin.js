@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/router";
+import LoadingScreen from "../components/LoadingScreen";
 import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
@@ -214,7 +215,7 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
       )}
 
       {!data && loading ? (
-        <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("common.loading")}</p>
+        <LoadingScreen compact />
       ) : data ? (
         <div className="space-y-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -768,7 +769,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
           {/* Heatmap */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--bt-text-3)" }}>Assiduité (1 an)</p>
-            {loading ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Chargement…</p> : <StudyHeatmap sessions={heatSessions} />}
+            {loading ? <LoadingScreen compact /> : <StudyHeatmap sessions={heatSessions} />}
           </div>
 
           {/* Badges */}
@@ -789,7 +790,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
           {/* Recent sessions */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--bt-text-3)" }}>Sessions récentes</p>
-            {loading ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Chargement…</p>
+            {loading ? <LoadingScreen compact />
               : sessions.length === 0 ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Aucune session.</p>
               : (
                 <div className="space-y-1">
@@ -1241,7 +1242,7 @@ export default function Admin() {
         </div>
 
         {busy ? (
-          <p style={{ color: "var(--bt-text-3)" }}>Chargement…</p>
+          <LoadingScreen />
         ) : (
           <>
             {/* ═══════════ OVERVIEW ═══════════ */}

@@ -5,6 +5,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, todayISO } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
+import LoadingScreen from "./LoadingScreen";
 import LevelPill from "./LevelPill";
 
 export default function UserProfileModal({ userId, onClose }) {
@@ -113,7 +114,7 @@ export default function UserProfileModal({ userId, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
-          <p className="text-center py-8" style={{ color: "#A8A09A" }}>{t("common.loading")}</p>
+          <LoadingScreen compact />
         ) : (
           <>
             {/* Header */}
