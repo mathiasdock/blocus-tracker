@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort } from "../lib/format";
+import { isStudyingLive } from "../lib/presence";
 import { COMMUNITY_BY_ID, COUNTRIES } from "../lib/universities";
 import { BADGES } from "../lib/badges";
 import { loadUserLevelMap } from "../lib/userLevels";
@@ -684,7 +685,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
   const [levelInfo, setLevelInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locking, setLocking] = useState(false);
-  const isOnline = !!user.studying_since;
+  const isOnline = isStudyingLive(user.studying_since);
 
   useEffect(() => {
     let on = true;
@@ -1170,7 +1171,7 @@ export default function Admin() {
   const prevWeekCount = users.filter(u => u.created_at.slice(0, 10) >= prevWeek && u.created_at.slice(0, 10) < weekAgo).length;
   const monthCount = users.filter(u => u.created_at.slice(0, 10) >= monthAgo).length;
   const weekSignupDelta = prevWeekCount > 0 ? Math.round((weekCount - prevWeekCount) / prevWeekCount * 100) : null;
-  const onlineNow = users.filter(u => u.studying_since).length;
+  const onlineNow = users.filter(u => isStudyingLive(u.studying_since)).length;
 
   const kpis = useMemo(() => activeUserKpis(sessions, now), [sessions, now]);
   const series = useMemo(() => buildTimeSeries({ users, sessions, posts, messages }, period, now), [users, sessions, posts, messages, period, now]);
@@ -1531,7 +1532,7 @@ export default function Admin() {
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <span className="font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>@{u.pseudo}</span>
-                                    {u.studying_since && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: "#22c55e" }} />}
+                                    {isStudyingLive(u.studying_since) && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: "#22c55e" }} />}
                                     {u.is_admin && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>A</span>}
                                     {u.locked && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>⏸</span>}
                                   </div>

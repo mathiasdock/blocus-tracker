@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, todayISO } from "../lib/format";
+import { isStudyingLive } from "../lib/presence";
 import { loadUserLevelMap } from "../lib/userLevels";
 import LoadingScreen from "./LoadingScreen";
 import LevelPill from "./LevelPill";
@@ -123,8 +124,7 @@ export default function UserProfileModal({ userId, onClose }) {
               <h2 className="text-xl mt-3" style={{ color: "var(--bt-text-1)" }}>{displayName(profile)}</h2>
               <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>@{profile.pseudo}</p>
               {(() => {
-                const isStudying = profile.studying_since &&
-                  (Date.now() - new Date(profile.studying_since).getTime()) < 10 * 60 * 1000;
+                const isStudying = isStudyingLive(profile.studying_since);
                 return isStudying ? (
                   <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full"
                     style={{ backgroundColor: "#EAFBF4", border: "1px solid #C6EED9" }}>

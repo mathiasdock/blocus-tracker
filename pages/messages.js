@@ -10,6 +10,7 @@ import { useToast } from "../contexts/ToastContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo, formatDuration } from "../lib/format";
+import { isStudyingLive } from "../lib/presence";
 import { notifyXPChanged } from "../lib/xpEvents";
 import {
   TEXT_LIMITS,
@@ -335,7 +336,7 @@ export default function Messages() {
     let mutual = 0;
     theirFriends.forEach((id) => { if (myFriendIds.has(id)) mutual += 1; });
     const sameUni = !!(myUni && (p.university || "").trim().toLowerCase() === myUni);
-    const activeRecently = activeSet.has(p.id) || !!p.studying_since;
+    const activeRecently = activeSet.has(p.id) || isStudyingLive(p.studying_since);
     return { mutual, sameUni, activeRecently, score: mutual * 15 + (sameUni ? 8 : 0) + (activeRecently ? 5 : 0) };
   }
 
@@ -1382,7 +1383,7 @@ export default function Messages() {
                   <>
                     <button onClick={() => openProfile(activeFriend.profile.id)} className="shrink-0 relative">
                       <Avatar url={activeFriend.profile.avatar_url} pseudo={displayName(activeFriend.profile)} size={36} />
-                      {activeFriend.profile.studying_since && (
+                      {isStudyingLive(activeFriend.profile.studying_since) && (
                         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full"
                           style={{ backgroundColor: "#22c55e", border: "2px solid var(--bt-surface)" }} />
                       )}
@@ -1391,7 +1392,7 @@ export default function Messages() {
                       <p className="font-medium text-sm truncate" style={{ color: "var(--bt-text-1)" }}>{displayName(activeFriend.profile)}</p>
                       <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
                         @{activeFriend.profile.pseudo}
-                        {activeFriend.profile.studying_since && <span style={{ color: "#0E8F68" }}> · {t("social.onlineNow")}</span>}
+                        {isStudyingLive(activeFriend.profile.studying_since) && <span style={{ color: "#0E8F68" }}> · {t("social.onlineNow")}</span>}
                       </p>
                     </button>
                     <div className="flex items-center gap-1.5 shrink-0">

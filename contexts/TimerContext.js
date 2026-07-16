@@ -112,6 +112,24 @@ export function TimerProvider({ children }) {
     return () => clearInterval(id);
   }, [running, user]);
 
+  // Les navigateurs (surtout mobile/PWA) gèlent les intervals en arrière-plan :
+  // le heartbeat prend du retard et la présence expire (fenêtre 10 min, cf.
+  // lib/presence.js) alors que le chrono tourne toujours. On rafraîchit
+  // studying_since dès le retour au premier plan pour "ressusciter" la présence.
+  useEffect(() => {
+    if (!running || !user) return;
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      supabase
+        .from("profiles")
+        .update({ studying_since: new Date().toISOString() })
+        .eq("id", user.id)
+        .then();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [running, user]);
+
   const elapsed = Math.min(MAX_SESSION_SECONDS, Math.floor(
     baseSeconds + (running && startMs ? (Date.now() - startMs) / 1000 : 0)
   ));

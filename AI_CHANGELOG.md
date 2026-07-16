@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Fix presence "en ligne" fantome + statut chrono coherent partout
+
+Bug remonte : l'admin affichait ~19 personnes "en ligne" alors que non. Cause : la presence = colonne `profiles.studying_since` (posee au demarrage du chrono, rafraichie par un heartbeat toutes les 5 min, remise a null a l'arret). Mais si l'utilisateur ferme l'app/onglet EN PLEIN chrono, le TimerProvider est demonte → `studying_since` n'est jamais remis a null et se fige. Tester sa simple presence (`!!studying_since`) compte donc ces sessions fantomes indefiniment.
+
+Incoherence trouvee : `UserProfileModal` appliquait deja un seuil de fraicheur de 10 min (correct), mais `admin.js` (compteur + pastilles) et `messages.js` (indicateur "en ligne") testaient la valeur brute → faux positifs.
+
+- **`lib/presence.js`** (nouveau) : source unique de verite `isStudyingLive(studying_since)` + `STUDY_LIVE_WINDOW_MS` (10 min — tolere un heartbeat manque de 5 min + marge, purge les sessions mortes). Une session n'est "live" que si `studying_since` a ete rafraichi dans la fenetre.
+- **Cable partout** : `pages/admin.js` (StatCard "En ligne", pastille detail utilisateur, point vert liste membres), `pages/messages.js` (score de suggestion, point vert + "en ligne" de l'en-tete de conversation), `components/UserProfileModal.js` (remplace le check inline 10 min par le helper — comportement identique, code unifie).
+- **`contexts/TimerContext.js`** : les navigateurs (mobile/PWA) gelent les intervals en arriere-plan → le heartbeat prend du retard et la presence expire alors que le chrono tourne toujours. Ajout d'un handler `visibilitychange` qui rafraichit `studying_since` au retour au premier plan → "ressuscite" la presence instantanement.
+- **`lib/offlineSupabaseClient.js`** : le seed posait `studying_since` jusqu'a 40 min dans le passe (donc tout perime sous la fenetre 10 min) → ramene a < 8 min pour que la demo montre vraiment des amis en chrono.
+
+Demande #2 (voir sur le profil d'un ami quand il est en chrono) : **existait deja** dans `UserProfileModal` (pastille verte pulsee "En train d'etudier") — desormais coherente avec le reste via le meme helper.
+
+Verifie (build offline, scenario reel par mutation de la DB locale) : DB heritee = 4 sessions `studying_since` non nulles mais TOUTES perimees (>10 min, cas "abandon") → admin "En ligne" = **0** (l'ancien code aurait affiche 4) ; injection de 2 sessions fraiches (<10 min) → admin passe a **2** ; modal profil ami (lina) frais → pastille "En train d'etudier" + point vert (capture), lina perimee (30 min) → pastille absente ET en-tete sans "en ligne". `npm run lint` clean, `npm run build` normal OK, zero erreur console. Aucune migration (fix 100 % lecture cote client, aucune colonne ajoutee).
+
 ## 2026-07-16 - Ecran de chargement de marque (remplace les "Chargement…" nus)
 
 Demande utilisateur : remplacer l'ecran de chargement global (page blanche + "Chargement…") par un vrai moment de marque, calme et leger, partout ou l'app affichait ce texte.
