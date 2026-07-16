@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - CRITIQUE : posts "amis seulement" lisibles par tous (trou RLS)
+
+Audit securite des zones critiques. Trou de confidentialite reel et exploitable : `posts.visibility` ('public'|'friends') existe (contrainte v24) mais la policy `posts_read` etait restee `USING (true)` du schema initial — la visibilite 'friends' n'apparaissait dans AUCUNE policy. Un post "amis seulement" (photo + legende) etait donc lisible par N'IMPORTE QUEL utilisateur connecte via `supabase.from('posts').select('*')` en console. Le filtrage n'existait QUE cote client (feed.js). Idem `likes_read`/`comments_read` (`USING true`) → likes et COMMENTAIRES (texte) des posts prives fuitaient pareil.
+
+- **`supabase/migration_v32_feed_visibility_rls.sql`** (nouvelle, a executer manuellement) : la RLS applique la visibilite. `posts_read` = public/NULL (ancien post = public, pour ne pas cacher l'historique) OU `is_friend_or_self(user_id)` (helper deja utilise pour sessions/courses/objectives, executable par authenticated depuis v24). `comments_read`/`likes_read` = lisibles seulement si le post parent l'est (EXISTS). Policies `_admin` conservees par coherence (le panel admin passe de toute facon par la service_role).
+
+Aucun changement applicatif : le filtre cote client reste (defense en profondeur), et pour un usage normal le feed affiche exactement la meme chose (public + les siens + ceux des amis) — seul le trou de requete directe se ferme.
+
+Verifie : predicat simule en `node` sur 6 cas (public→visible inconnu ; friends→INVISIBLE inconnu [le fix] ; friends→visible ami ; friends→visible auteur ; NULL legacy→public ; friends→visible admin) — tous OK. Impossible d'executer la vraie RLS (pas de Postgres local) : ecrit sur le modele des policies existantes (sessions_read), a tester avec 2 comptes non amis. `npm run build` OK (aucun changement JS).
+
+Autres zones CRITIQUES auditees et jugees SAINES cette passe : RLS sessions/courses/objectives = `is_friend_or_self` (v8, correct ; leaderboards via RPC SECURITY DEFINER) ; email = `REVOKE SELECT (email)` au niveau colonne (v24) — protege si v24 est bien appliquee ; buckets storage `public=true` est un choix ASSUME (v24, avec limites taille/mime) ; XP/badges serveur-autoritaires. Rappel : les pieces jointes de groupe restent dans un bucket public (finding precedent, a decider).
+
+**A faire cote utilisateur** : executer `supabase/migration_v32_feed_visibility_rls.sql` (prioritaire — c'est une fuite de vie privee active). Verifier au passage que `migration_v24` a bien ete appliquee (protection des emails).
+
 ## 2026-07-16 - Fix : objectif recurrent complete en retard creait une occurrence dans le PASSE
 
 Chasse aux bugs (audit securite + integrite). La recurrence des objectifs fonctionne en "roll-forward" : cocher un objectif recurrent (`toggle`, planning.js:1174) cree la prochaine occurrence via `nextRecurrenceDate(o)`, calculee depuis `o.scheduled_date`. Bug : si on coche un objectif recurrent EN RETARD (sa date prevue est deja passee de 2+ jours), la "prochaine" occurrence etait creee DANS LE PASSE (ex. prevu il y a 4 jours → occurrence creee il y a 3 jours), encombrant les jours passes et pouvant se rechainer.
