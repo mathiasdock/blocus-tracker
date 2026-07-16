@@ -2,6 +2,24 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Serie : frontiere du jour dans le FUSEAU de l'utilisateur (fini l'UTC)
+
+Suite de la chasse aux bugs cote utilisateur. La frontiere du "jour" pour la SERIE etait en UTC cote client → pour un etudiant belge (UTC+2 l'ete) la journee basculait a 02h du matin. Une session etudiee a 00h30 etait attribuee a la VEILLE et pouvait casser une serie pourtant meritee (frequent en blocus, ou on revise tard).
+
+Etat des 3 sources de calcul de serie :
+- `gamification_current_streak` (canonique niveaux/XP) : deja timezone-aware depuis la v28 (helper `gamification_timezone`).
+- **client `computeStreak`** : etait en UTC (`started_at.slice(0,10)`) → CORRIGE (passe en date locale). C'est la serie affichee sur dashboard/stats/profil/planning.
+- **`get_leaderboard_v2`** (serie + regularite du classement) : etait en UTC → migration v30.
+
+- **`lib/format.js`** : nouveau helper `localISO(dateOuTs)` (date LOCALE de l'appareil, YYYY-MM-DD). `computeStreak` + `computeBestStreak` bucketisent desormais par date locale et comparent a un "aujourd'hui" local. `todayISO()` (objectif du jour, stats "aujourd'hui", etc.) reste en UTC volontairement : scope limite a la SERIE pour borner le risque, le reste de l'app reste coherent en UTC.
+- **`lib/streakFreezes.js`** : `dayISO` + le bucketing des sessions passent en `localISO` (le "hier" du gel doit matcher le "hier" de la serie).
+- **`supabase/migration_v30_leaderboard_timezone.sql`** (nouvelle, a executer manuellement) : `get_leaderboard_v2` bucketise serie + regularite via `(started_at AT TIME ZONE public.gamification_timezone(user))::date` (CTE `utz` restreinte au pool), ancre "aujourd'hui/hier" locale. Fenetre de periode (jour/semaine/mois) laissee en UTC (filtre grossier). Meme modele que la v28.
+- **`lib/offlineSupabaseClient.js`** : mock du classement aligne en date locale (coherence de la demo, l'env tourne en Europe/Paris).
+
+Verifie : logique pure prouvee en `node` avec `TZ` controle — meme scenario (5 jours consecutifs, aujourd'hui etudie a 00h30 locale) : **ANCIEN (UTC) = 4, NOUVEAU (local) = 5** sous Europe/Brussels. End-to-end navigateur (preview en Europe/Paris UTC+2) : session injectee a 00h30 locale (= 22h30 UTC la veille) → dashboard affiche "5 jours de suite" + "Meilleure serie 5 j" (aurait ete 4). `npm run lint` clean, `npm run build` normal OK, zero erreur console.
+
+**A faire cote utilisateur** : executer `supabase/migration_v30_leaderboard_timezone.sql`. Sans elle, seule la serie/regularite du CLASSEMENT reste en UTC ; la serie personnelle (client) + niveaux/XP sont deja corrects des le deploiement.
+
 ## 2026-07-16 - Experience anglophone reparee (onboarding + mode invite 100 % FR en dur)
 
 Chasse aux bugs "cote utilisateur" demandee par Mathias. Constat : l'app suit la langue du navigateur (`detectDeviceLang`), donc un etudiant anglophone recevait du FRANCAIS partout dans sa premiere experience.
