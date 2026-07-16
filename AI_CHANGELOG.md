@@ -2,6 +2,22 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-16 - Fix : perte silencieuse du message tape quand l'envoi echoue
+
+Suite de la chasse aux bugs. Trois envois inseraient en base SANS verifier l'erreur, puis effacaient la saisie inconditionnellement → sur echec (reseau/RLS), le message tape DISPARAISSAIT sans trace ni feedback, et ne s'affichait pas dans la conversation. L'utilisateur croit avoir envoye, ou doit tout retaper.
+
+- **`pages/messages.js` `sendDM`** : DM prive. En prime, si un fichier etait deja uploade, il restait orphelin dans le storage. Desormais : erreur verifiee → on GARDE la saisie + le fichier, toast `toast.genericError`, pas de reset.
+- **`pages/messages.js` `sendGroup`** : message de groupe, meme correctif.
+- **`pages/feed.js` `addComment`** : commentaire du feed, meme classe (brouillon efface meme sur echec) → garde le brouillon + alert sur erreur.
+
+Aucune cle i18n ajoutee : reutilise `toast.genericError` (deja FR+EN). `toast` deja en scope dans messages.js, `alert` deja utilise dans feed.js.
+
+Verifie : `npm run lint` clean (aurait attrape un `toast`/`t` hors scope), `npm run build` normal + offline OK, page messages sans erreur console. La branche d'erreur n'est pas declenchable en offline (le mock renvoie toujours error:null) → le happy-path reste strictement identique a avant.
+
+Zones auditees et jugees SAINES cette passe (verifie, non modifie) : requetes profiles (aucune fuite email), demandes d'amis reciproques (l'UI bloque via relationOf deux-sens + suggestions excluant les connectes ; seule une course simultanee pourrait creer un doublon), compte a rebours examens `daysUntil` (midnights locaux + Math.round → robuste au DST), `.single()` (tous en insert/update-then-read, garde presente), `react()` du feed (`likes(*)` toujours un tableau).
+
+Cas-limites NON corriges (rares, decision produit) : (1) `leaveGroup` — si le dernier admin quitte un groupe ou restent des membres, le groupe devient ingerable (personne ne peut inviter/supprimer) ; si le dernier membre part, la ligne study_groups reste orpheline. (2) demande d'ami reciproque simultanee (course, pas de contrainte DB en sens inverse).
+
 ## 2026-07-16 - Serie : frontiere du jour dans le FUSEAU de l'utilisateur (fini l'UTC)
 
 Suite de la chasse aux bugs cote utilisateur. La frontiere du "jour" pour la SERIE etait en UTC cote client → pour un etudiant belge (UTC+2 l'ete) la journee basculait a 02h du matin. Une session etudiee a 00h30 etait attribuee a la VEILLE et pouvait casser une serie pourtant meritee (frequent en blocus, ou on revise tard).

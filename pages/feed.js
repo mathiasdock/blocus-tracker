@@ -252,7 +252,12 @@ export default function Feed() {
     const action = clientRateLimit(`feed:comment:${user.id}`, 12, 60_000);
     if (!action.ok) { alert(t("security.rateLimited")); return; }
     const { error } = await supabase.from("comments").insert({ post_id: post.id, user_id: user.id, content: text });
-    if (!error) notifyXPChanged();
+    if (error) {
+      // Échec : on GARDE le brouillon pour réessayer, au lieu de l'effacer.
+      alert(t("toast.genericError"));
+      return;
+    }
+    notifyXPChanged();
     setCommentDraft((d) => ({ ...d, [post.id]: "" }));
     load();
   }

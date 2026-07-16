@@ -689,11 +689,18 @@ export default function Messages() {
       attachment_type = attachmentKind(file);
       attachment_name = sanitizeFileName(file.name);
     }
-    await supabase.from("private_messages").insert({
+    const { error: sendErr } = await supabase.from("private_messages").insert({
       sender_id: user.id, receiver_id: dmActiveId,
       content: cleanText || null,
       attachment_url, attachment_type, attachment_name,
     });
+    if (sendErr) {
+      // Échec : on GARDE la saisie (et le fichier) pour réessayer, au lieu de
+      // l'effacer en silence — sinon le message tapé disparaît sans trace.
+      setSending(false);
+      toast(t("toast.genericError"), "error");
+      return;
+    }
     setText(""); setFile(null);
     if (dmFileRef.current) dmFileRef.current.value = "";
     setSending(false);
@@ -732,11 +739,17 @@ export default function Messages() {
       attachment_type = attachmentKind(grpFile);
       attachment_name = sanitizeFileName(grpFile.name);
     }
-    await supabase.from("group_messages").insert({
+    const { error: sendErr } = await supabase.from("group_messages").insert({
       group_id: grpActiveId, user_id: user.id,
       content: cleanText || null,
       attachment_url, attachment_type, attachment_name,
     });
+    if (sendErr) {
+      // Échec : on GARDE la saisie pour réessayer plutôt que de l'effacer.
+      setGrpSending(false);
+      toast(t("toast.genericError"), "error");
+      return;
+    }
     setGrpText(""); setGrpFile(null);
     if (grpFileRef.current) grpFileRef.current.value = "";
     setGrpSending(false);
