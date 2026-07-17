@@ -8,14 +8,22 @@ import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
-import { todayISO, formatMinutesShort, computeStreak } from "../lib/format";
+import { formatMinutesShort, computeStreak } from "../lib/format";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { notifyXPChanged } from "../lib/xpEvents";
 
 // ── Constants ─────────────────────────────────────────────────
-const WEEKDAYS_SHORT = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+// Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
+// ces tableaux étaient en français en dur → un utilisateur EN voyait un
+// calendrier à moitié en français. On sélectionne par langue via les helpers.
+const WEEKDAYS_SHORT_FR = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+const WEEKDAYS_SHORT_EN = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const MONTHS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const weekdaysShortFor = (lang) => (lang === "en" ? WEEKDAYS_SHORT_EN : WEEKDAYS_SHORT_FR);
+const monthsFor        = (lang) => (lang === "en" ? MONTHS_EN : MONTHS_FR);
+const localeFor        = (lang) => (lang === "en" ? "en-GB" : "fr-FR");
 const HOURS  = Array.from({ length: 16 }, (_, i) => i + 7);
 
 // ── Context ────────────────────────────────────────────────────
@@ -38,6 +46,13 @@ function daysUntil(dateStr) {
 function addDays(dateStr, n) {
   const d = new Date(dateStr + "T12:00:00"); d.setDate(d.getDate() + n); return ymd(d);
 }
+// "Aujourd'hui" en date LOCALE (fuseau de l'appareil), cohérent avec ymd(),
+// daysUntil(), getWeekDays() et buildMonthGrid() qui sont tous locaux. Le
+// localToday() global est en UTC : à la frontière (00h→02h heure belge l'été) il
+// surlignait le mauvais jour du calendrier et désaccordait daysUntil(). Tout le
+// planning raisonne désormais en jour local — un jour de planning EST un jour
+// de calendrier local.
+function localToday() { return ymd(new Date()); }
 function buildMonthGrid(year, month) {
   const first  = new Date(year, month, 1);
   const offset = (first.getDay() + 6) % 7;
@@ -95,7 +110,7 @@ function nextRecurrenceDate(o) {
   // Ancre plancher = aujourd'hui. Cocher un objectif récurrent EN RETARD (dont
   // la date prévue est déjà passée) ne doit pas créer l'occurrence suivante
   // DANS LE PASSÉ, mais la prochaine occurrence réellement à venir.
-  const today = todayISO();
+  const today = localToday();
   const base = o.scheduled_date > today ? o.scheduled_date : today;
   for (let i = 1; i <= 7; i++) {
     const candidate = addDays(base, i);
@@ -113,7 +128,8 @@ function nextRecurrenceDate(o) {
 // all 7 days = "daily", a single day = "weekly" — no separate mode
 // toggle needed, the picker itself expresses both plus anything between.
 function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate }) {
-  const { t } = usePlan();
+  const { t, lang } = usePlan();
+  const wd = weekdaysShortFor(lang);
   return (
     <div className="space-y-2">
       <div className="flex gap-1">
@@ -122,12 +138,12 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
           return (
             <button key={dow} type="button" onClick={() => onToggle(dow)}
               aria-pressed={active}
-              title={WEEKDAYS_SHORT[(dow + 6) % 7]}
+              title={wd[(dow + 6) % 7]}
               className="w-8 h-8 rounded-full text-[11px] font-bold transition-all shrink-0"
               style={active
                 ? { backgroundColor: "#14B885", color: "#fff" }
                 : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
-              {WEEKDAYS_SHORT[(dow + 6) % 7].slice(0, 1)}
+              {wd[(dow + 6) % 7].slice(0, 1)}
             </button>
           );
         })}
@@ -185,12 +201,13 @@ function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLab
 }
 
 // ── Recurrence badge label ────────────────────────────────────
-function recurrenceBadgeLabel(o, t) {
+function recurrenceBadgeLabel(o, t, lang) {
   const days = weekdaysFromObjective(o);
   if (!days.length) return null;
   if (days.length === 7) return t("plan.recurDaily");
   if (days.length === 1) return t("plan.recurWeekly");
-  return days.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(d => WEEKDAYS_SHORT[(d + 6) % 7]).join(" ");
+  const wd = weekdaysShortFor(lang);
+  return days.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(d => wd[(d + 6) % 7]).join(" ");
 }
 
 // ── ExamBadge ─────────────────────────────────────────────────
@@ -299,7 +316,7 @@ function RevisionChecklists() {
 // l'ancienne carte séparée répétait les objectifs du jour deux fois).
 function TodayCard() {
   const { byDate, examsByDate, exams, objectives, toggle, courseColor, courseName, launchTimer, openDay, lang, t } = usePlan();
-  const today = todayISO();
+  const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
   const doneCount       = todayObjectives.filter(o => o.done).length;
@@ -396,7 +413,7 @@ function TodayCard() {
             {weekAhead.slice(0, WEEK_AHEAD_MAX).map(item => {
               const days = daysUntil(item.date);
               const dayLabel = days === 1 ? t("plan.tomorrow")
-                : WEEKDAYS_SHORT[(dateFromYmd(item.date).getDay() + 6) % 7];
+                : weekdaysShortFor(lang)[(dateFromYmd(item.date).getDay() + 6) % 7];
               const isExam = item.kind === "exam";
               return (
                 <button key={item.id} onClick={() => openDay(item.date)}
@@ -436,7 +453,7 @@ function TodayCard() {
 function DayDetailModal() {
   const { modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions, courses,
           courseColor, courseName, toggle, remove, postpone, launchTimer,
-          addObjectiveForDate, saveObjEdit, addExam, removeExam, lang, t } = usePlan();
+          addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, lang, t } = usePlan();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm]         = useState(EMPTY_OBJECTIVE_FORM);
@@ -447,6 +464,8 @@ function DayDetailModal() {
   const [editingObjId, setEditingObjId] = useState(null);
   const [editForm, setEditForm]         = useState({});
   const [postponingId, setPostponingId] = useState(null);
+  const [editingExamId, setEditingExamId] = useState(null);
+  const [examEditForm, setExamEditForm]   = useState({ name: "", courseId: "", time: "", location: "" });
 
   // À chaque ouverture / changement de jour : repartir d'un état propre.
   // Si on arrive depuis un créneau horaire de la grille (modalPrefillTime),
@@ -459,6 +478,7 @@ function DayDetailModal() {
     setExamForm({ name: "", courseId: "", time: "", location: "" });
     setEditingObjId(null);
     setPostponingId(null);
+    setEditingExamId(null);
   }, [modalDate, modalPrefillTime]);
 
   function startInlineEdit(o) {
@@ -475,11 +495,28 @@ function DayDetailModal() {
     setEditingObjId(null);
   }
 
+  function startExamEdit(ex) {
+    setEditingExamId(ex.id);
+    setExamEditForm({ name: ex.name || "", courseId: ex.course_id || "", time: ex.exam_time || "", location: ex.location || "" });
+  }
+
+  async function handleExamEditSave(e) {
+    e.preventDefault();
+    if (!examEditForm.name.trim()) return;
+    await saveExamEdit(editingExamId, {
+      name:      examEditForm.name.trim(),
+      course_id: examEditForm.courseId || null,
+      exam_time: examEditForm.time     || null,
+      location:  examEditForm.location || null,
+    });
+    setEditingExamId(null);
+  }
+
   if (!modalDate) return null;
 
   const locale     = lang === "en" ? "en-GB" : "fr-FR";
   const d          = dateFromYmd(modalDate);
-  const today      = todayISO();
+  const today      = localToday();
   const tomorrow   = tomorrowISO();
   const isPast     = modalDate < today;
   const isToday    = modalDate === today;
@@ -616,6 +653,35 @@ function DayDetailModal() {
                   <div className="space-y-2 mb-2">
                     {exams.map(ex => {
                       const days = daysUntil(ex.exam_date);
+                      if (editingExamId === ex.id) {
+                        return (
+                          <form key={ex.id} onSubmit={handleExamEditSave} className="space-y-2 p-3 rounded-2xl"
+                            style={{ backgroundColor: "#FEF2F2", border: "1px solid #DC2626" }}>
+                            <input className="input text-sm" value={examEditForm.name} required autoFocus
+                              onChange={e => setExamEditForm(f => ({ ...f, name: e.target.value }))}
+                              placeholder={t("plan.examNamePlaceholder")} />
+                            <div className="flex gap-2">
+                              <select className="input text-sm flex-1" value={examEditForm.courseId}
+                                onChange={e => setExamEditForm(f => ({ ...f, courseId: e.target.value }))}>
+                                <option value="">{t("plan.courseSelect")}</option>
+                                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              </select>
+                              <input className="input w-24 text-sm" type="time" value={examEditForm.time}
+                                onChange={e => setExamEditForm(f => ({ ...f, time: e.target.value }))} />
+                            </div>
+                            <input className="input text-sm" value={examEditForm.location}
+                              onChange={e => setExamEditForm(f => ({ ...f, location: e.target.value }))}
+                              placeholder={t("plan.examLocationPlaceholder")} />
+                            <div className="flex gap-2">
+                              <button type="submit" className="flex-1 py-1.5 rounded-xl text-xs font-semibold"
+                                style={{ backgroundColor: "#DC2626", color: "#fff" }}>
+                                {t("common.save")}
+                              </button>
+                              <button type="button" onClick={() => setEditingExamId(null)} className="btn-ghost text-xs flex-1">{t("common.cancel")}</button>
+                            </div>
+                          </form>
+                        );
+                      }
                       return (
                         <div key={ex.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl"
                           style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
@@ -627,13 +693,25 @@ function DayDetailModal() {
                             )}
                           </div>
                           <ExamBadge days={days} />
-                          <button onClick={() => removeExam(ex.id)} className="shrink-0" style={{ color: "#FECACA" }}
-                            onMouseEnter={ev => ev.currentTarget.style.color = "#DC2626"}
-                            onMouseLeave={ev => ev.currentTarget.style.color = "#FECACA"}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                          </button>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <button onClick={() => startExamEdit(ex)} title={t("plan.dayEdit")} style={{ color: "#FCA5A5" }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg"
+                              onMouseEnter={ev => ev.currentTarget.style.color = "#DC2626"}
+                              onMouseLeave={ev => ev.currentTarget.style.color = "#FCA5A5"}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                            <button onClick={() => removeExam(ex.id)} title={t("common.delete")} style={{ color: "#FCA5A5" }}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg"
+                              onMouseEnter={ev => ev.currentTarget.style.color = "#DC2626"}
+                              onMouseLeave={ev => ev.currentTarget.style.color = "#FCA5A5"}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -696,7 +774,7 @@ function DayDetailModal() {
                     ? sessions.filter(s => s.course_id === o.course_id && s.started_at.slice(0, 10) === o.scheduled_date)
                         .reduce((a, s) => a + s.duration_seconds, 0)
                     : 0;
-                  const recurLabel  = recurrenceBadgeLabel(o, t);
+                  const recurLabel  = recurrenceBadgeLabel(o, t, lang);
                   const statusLabel = o.done ? t("plan.dayDone") : isPast ? t("plan.dayOverdue") : t("plan.dayTodo");
                   const statusColor = o.done ? "#0E8F68" : isPast ? "#DC2626" : "var(--bt-text-3)";
                   const statusBg    = o.done ? "#EAFBF4"  : isPast ? "#FEF2F2"  : "var(--bt-subtle)";
@@ -867,9 +945,9 @@ function DayDetailModal() {
 
 // ── MonthView ─────────────────────────────────────────────────
 function MonthView() {
-  const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor } = usePlan();
+  const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, lang } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
-  const today = todayISO();
+  const today = localToday();
 
   // Split into 6 rows of 7
   const weeks = Array.from({ length: 6 }, (_, i) => grid.slice(i * 7, i * 7 + 7));
@@ -878,7 +956,7 @@ function MonthView() {
     <section className="card overflow-hidden">
       {/* Day-of-week header */}
       <div className="grid grid-cols-7 border-b" style={{ borderColor: "var(--bt-border)" }}>
-        {WEEKDAYS_SHORT.map((d, i) => (
+        {weekdaysShortFor(lang).map((d, i) => (
           <div key={d}
             className="py-3 text-center text-xs font-semibold uppercase tracking-wider"
             style={{
@@ -998,8 +1076,8 @@ function MonthView() {
 
 // ── TimeGrid ──────────────────────────────────────────────────
 function TimeGrid({ days }) {
-  const { byDate, examsByDate, selectedDate, courseColor, openDay, t } = usePlan();
-  const today = todayISO();
+  const { byDate, examsByDate, selectedDate, courseColor, openDay, t, lang } = usePlan();
+  const today = localToday();
   const TODAY_TINT = "rgba(20,184,133,0.06)"; // voile accent — lisible sur light ET dark
 
   // Clic sur un créneau : ouvre la fiche du jour, formulaire d'ajout
@@ -1024,7 +1102,7 @@ function TimeGrid({ days }) {
               style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isSel ? "var(--bt-accent-bg)" : "transparent" }}
               onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = "transparent"; }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{WEEKDAYS_SHORT[(d.getDay() + 6) % 7]}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}</p>
               <span className="mt-0.5 inline-flex w-7 h-7 items-center justify-center rounded-full text-sm font-num font-bold tabular-nums"
                 style={isToday ? { backgroundColor: "#14B885", color: "#fff" }
                   : isSel ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }
@@ -1131,7 +1209,7 @@ export default function Planning() {
   const [cursor, setCursor]         = useState(() => {
     const n = new Date(); return { year: n.getFullYear(), month: n.getMonth() };
   });
-  const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [selectedDate, setSelectedDate] = useState(localToday());
   const [modalDate, setModalDate] = useState(null);
   const [modalPrefillTime, setModalPrefillTime] = useState(null); // heure pré-remplie quand on ouvre depuis un créneau de la grille
   const [togglingShare, setTogglingShare] = useState(false); // pilote l'UI (disabled/opacité)
@@ -1245,6 +1323,12 @@ export default function Planning() {
     setExams(p => p.filter(x => x.id !== id));
   }
 
+  async function saveExamEdit(id, examData) {
+    const { data } = await supabase.from("exams")
+      .update(examData).eq("id", id).select().single();
+    if (data) setExams(p => p.map(x => x.id === id ? data : x));
+  }
+
   async function addObjectiveForDate(date, { title: ft, courseId: fc, minutes: fm, time: fti, weekdays: fw, until: fu }) {
     if (!ft.trim() && !fc) return null;
     const { data } = await supabase.from("objectives")
@@ -1304,7 +1388,7 @@ export default function Planning() {
   function exportCalendar() {
     if (countExportable({ objectives, exams }) === 0) { toast(t("plan.exportEmpty"), "info"); return; }
     const ics = buildIcs({ objectives, exams, courseName, t, calName: t("plan.calendarName") });
-    downloadIcs(`blocus-tracker-${todayISO()}.ics`, ics);
+    downloadIcs(`blocus-tracker-${localToday()}.ics`, ics);
     toast(t("toast.planningExported"));
   }
 
@@ -1316,7 +1400,7 @@ export default function Planning() {
     (acc[e.exam_date] = acc[e.exam_date] || []).push(e); return acc;
   }, {});
 
-  const today = todayISO();
+  const today = localToday();
   const todayObjectives = byDate[today] || [];
   const nextExam = exams
     .filter(e => e.exam_date >= today)
@@ -1344,24 +1428,25 @@ export default function Planning() {
 
   function shiftDays(n) { const d = dateFromYmd(selectedDate); d.setDate(d.getDate() + n); setSelectedDate(ymd(d)); }
   function shiftMonth(delta) { setCursor(c => { const d = new Date(c.year, c.month + delta, 1); return { year: d.getFullYear(), month: d.getMonth() }; }); }
-  function goToday() { const t = todayISO(); setSelectedDate(t); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
+  function goToday() { const t = localToday(); setSelectedDate(t); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
   function handlePrev() { if (view==="day") shiftDays(-1); else if (view==="week") shiftDays(-7); else shiftMonth(-1); }
   function handleNext() { if (view==="day") shiftDays(1);  else if (view==="week") shiftDays(7);  else shiftMonth(1); }
 
   function periodLabel() {
-    if (view === "day") return dateFromYmd(selectedDate).toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    const months = monthsFor(lang);
+    if (view === "day") return dateFromYmd(selectedDate).toLocaleDateString(localeFor(lang), { weekday:"long", day:"numeric", month:"long", year:"numeric" });
     if (view === "week") {
       const days = getWeekDays(selectedDate), f = days[0], l = days[6];
       return f.getMonth() === l.getMonth()
-        ? `${f.getDate()} – ${l.getDate()} ${MONTHS[f.getMonth()]} ${f.getFullYear()}`
-        : `${f.getDate()} ${MONTHS[f.getMonth()]} – ${l.getDate()} ${MONTHS[l.getMonth()]} ${l.getFullYear()}`;
+        ? `${f.getDate()} – ${l.getDate()} ${months[f.getMonth()]} ${f.getFullYear()}`
+        : `${f.getDate()} ${months[f.getMonth()]} – ${l.getDate()} ${months[l.getMonth()]} ${l.getFullYear()}`;
     }
-    return `${MONTHS[cursor.month]} ${cursor.year}`;
+    return `${months[cursor.month]} ${cursor.year}`;
   }
 
   const ctxValue = {
     view, courses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
-    toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam,
+    toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
     launchTimer,
     lang, t,

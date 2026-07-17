@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-17 - Audit page planning : 3 incoherences corrigees
+
+Audit complet de pages/planning.js (1446 lignes). Architecture jugee saine (surface unique = le modal, vues mois/semaine/jour, objectifs recurrents/times/cibles, examens, checklists, export ICS, partage public, pont chrono). 3 incoherences trouvees et corrigees.
+
+- **i18n : le calendrier etait a moitie en francais pour les anglophones.** `WEEKDAYS_SHORT`/`MONTHS` etaient des tableaux FR en dur, et `periodLabel` codait `"fr-FR"` — alors que d'autres endroits respectaient deja `lang`. Un utilisateur EN voyait "Lun Mar Mer", "Juillet 2026" et les badges de recurrence en francais. Corrige : tableaux FR+EN + helpers `weekdaysShortFor(lang)`/`monthsFor(lang)`/`localeFor(lang)`, `lang` cable dans RecurrencePicker, recurrenceBadgeLabel, TodayCard, MonthView, TimeGrid, periodLabel. Aucune nouvelle cle i18n (tableaux locaux au fichier).
+- **Fuseau horaire mixte.** `todayISO()` (global, UTC) etait compare aux cellules de calendrier generees par `ymd()` (local) → a la frontiere (00h-02h heure belge l'ete) le jour "aujourd'hui" surligne pouvait etre le mauvais et `daysUntil()` desaccordait. Ajout d'un helper LOCAL `localToday()` et remplacement des 10 usages de `todayISO()` dans la page. Le planning raisonne desormais 100 % en jour local. NB : le dashboard garde `todayISO()` UTC pour sa requete "objectifs du jour" — meme edge systemique deja connu, hors scope.
+- **Examens non editables (asymetrie UX).** Les objectifs avaient une edition inline complete, les examens seulement ajout/suppression. Ajout de `saveExamEdit` + bouton crayon + formulaire inline sur chaque examen (miroir de l'edition d'objectif). Reutilise des cles i18n existantes.
+
+Laisse volontairement (mineur) : decocher un objectif recurrent laisse l'occurrence suivante deja generee en orphelin.
+
+Verifie (build offline, env Europe/Paris UTC+2) : calendrier EN (MON TUE WED, "July 2026") ; fuseau OK ("Friday 17 July" = jour local) ; edition d'examen bout-en-bout (form pre-rempli → modifie → sauve) ; non-regression FR (LUN MAR MER, "Juillet 2026") ; zero erreur console. `npm run lint` clean, `npm run build` normal + offline OK.
+
+Idees de features planning proposees (non implementees) : (1) FLAGSHIP "Genere mon planning de revision" — repartir des blocs d'etude a partir des examens+cours, zero cout API/stockage ; (2) materialiser les objectifs recurrents sur les jours futurs ; (3) glisser-deposer pour reprogrammer ; (4) bilan hebdo planifie-vs-etudie.
+
 ## 2026-07-17 - Correctifs securite critiques (DB live + medias prives prepares)
 
 Audit puis correction des frontieres d'autorisation critiques, sans suppression de donnees et sans test offensif sur la production.
