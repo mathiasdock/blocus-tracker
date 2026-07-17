@@ -4,7 +4,7 @@ import UserProfileModal from "../components/UserProfileModal";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
-import { supabase } from "../lib/supabaseClient";
+import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
 import { notifyXPChanged } from "../lib/xpEvents";
@@ -17,6 +17,7 @@ import {
   uploadErrorMessage,
   validateFinalUploadFile,
   validateUploadFile,
+  storagePathFromReference,
 } from "../lib/security";
 import LevelPill from "../components/LevelPill";
 import EmptyState from "../components/EmptyState";
@@ -80,6 +81,8 @@ export default function Feed() {
   const [editCaption,   setEditCaption]   = useState("");
   const [reactorsPanel, setReactorsPanel] = useState(null);
   const [revealedPhotos, setRevealedPhotos] = useState({});
+  const [signedPostUrls, setSignedPostUrls] = useState({});
+  const [signingPhotos, setSigningPhotos] = useState({});
 
   function openProfile(userId) {
     if (userId === user.id) return;
@@ -195,8 +198,7 @@ export default function Feed() {
         .from("posts")
         .upload(pathInfo.path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: pathInfo.contentType });
       if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
-      const { data: pub } = supabase.storage.from("posts").getPublicUrl(pathInfo.path);
-      imageUrl = pub.publicUrl;
+      imageUrl = `posts:${pathInfo.path}`;
     }
     const { error } = await supabase.from("posts").insert({
       user_id: user.id,
@@ -287,6 +289,49 @@ export default function Feed() {
     if (pressTimerRef.current) {
       clearTimeout(pressTimerRef.current);
       pressTimerRef.current = null;
+    }
+  }
+
+  async function revealPostPhoto(post) {
+    const path = storagePathFromReference(post.image_url, "posts");
+    if (!path) {
+      alert(t("toast.genericError"));
+      return;
+    }
+
+    if (isOfflineDev) {
+      setSignedPostUrls((current) => ({
+        ...current,
+        [post.id]: `/offline-upload/posts/${path}`,
+      }));
+      setRevealedPhotos((current) => ({ ...current, [post.id]: true }));
+      return;
+    }
+
+    setSigningPhotos((current) => ({ ...current, [post.id]: true }));
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Missing session");
+
+      const response = await fetch("/api/storage/sign", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bucket: "posts", ref: post.image_url }),
+      });
+      if (!response.ok) throw new Error("Could not sign post image");
+      const body = await response.json();
+      if (!body?.signedUrl) throw new Error("Missing signed URL");
+
+      setSignedPostUrls((current) => ({ ...current, [post.id]: body.signedUrl }));
+      setRevealedPhotos((current) => ({ ...current, [post.id]: true }));
+    } catch {
+      alert(t("toast.genericError"));
+    } finally {
+      setSigningPhotos((current) => ({ ...current, [post.id]: false }));
     }
   }
 
@@ -449,6 +494,7 @@ export default function Feed() {
             const sortedEmojis = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([e]) => e);
             const otherEmojis = sortedEmojis.filter((emoji) => emoji !== DEFAULT_REACTION_EMOJI);
             const photoLoaded = revealedPhotos[post.id] === true;
+            const postImageUrl = signedPostUrls[post.id] || "";
             return (
               <article key={post.id} className="card overflow-hidden">
                 <div className="flex items-center gap-3 p-4">
@@ -533,7 +579,7 @@ export default function Feed() {
                   </div>
                 )}
 
-                {!isTextOnlyActivity(post) ? photoLoaded ? (
+                {!isTextOnlyActivity(post) ? photoLoaded && postImageUrl ? (
                   <>
                     <div className="px-4 pb-2">
                       <p className="text-[11px] font-semibold" style={{ color: "var(--bt-text-3)" }}>
@@ -543,7 +589,7 @@ export default function Feed() {
                     {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
                     <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={post.image_url} alt="session" loading="lazy" className="w-full h-full object-cover" />
+                      <img src={postImageUrl} alt="session" loading="lazy" className="w-full h-full object-cover" />
                     </div>
                   </>
                 ) : (
@@ -552,10 +598,11 @@ export default function Feed() {
                       style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
                       <button
                         type="button"
-                        onClick={() => setRevealedPhotos((current) => ({ ...current, [post.id]: true }))}
+                        onClick={() => revealPostPhoto(post)}
+                        disabled={signingPhotos[post.id]}
                         className="btn-ghost mx-auto"
                         style={{ backgroundColor: "var(--bt-surface)" }}>
-                        {t("feed.viewPhoto")}
+                        {signingPhotos[post.id] ? t("security.signingAttachment") : t("feed.viewPhoto")}
                       </button>
                     </div>
                   </div>

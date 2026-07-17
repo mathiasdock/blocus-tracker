@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-17 - Correctifs securite critiques (DB live + medias prives prepares)
+
+Audit puis correction des frontieres d'autorisation critiques, sans suppression de donnees et sans test offensif sur la production.
+
+- **`supabase/migration_v33_critical_security_boundaries.sql` - APPLIQUEE sur Supabase live** : un profil cree depuis le navigateur est force sur `auth.uid()`, `is_admin=false`, `locked=false` et les champs serveur par defaut. La lecture globale de `profiles.email` est reellement retiree (le vieux `REVOKE` colonne etait annule par le grant table). L'anon garde uniquement `id,pseudo` pour verifier un pseudo au signup. Les utilisateurs authentifies n'ont plus `TRUNCATE`/grants table larges sur `profiles`.
+- La v33 rend `friendships.requester/addressee` immuables pendant l'acceptation, bloque les references DM qui ne sont pas dans le dossier de l'expediteur, interdit les modifications d'un profil verrouille par son proprietaire, rend les gels de serie atomiques via `redeem_streak_freezes`, refuse les fins de session futures, serialise la limite quotidienne de 16 h et verrouille `finish_group_chrono` pour empecher les sessions dupliquees en concurrence.
+- **`supabase/migration_v34_private_social_media.sql` - APPLIQUEE sur Supabase live** : bucket prive `group` cree avec limites MIME/taille et policies dossier proprietaire. Aucun ancien upload n'est modifie ; l'ancien frontend continue de fonctionner.
+- **`supabase/migration_v36_revoke_anonymous_privileged_rpcs.sql` - APPLIQUEE sur Supabase live** : `get_leaderboard_v2`, `get_study_comparison` et `self_delete_user` ne sont plus executables par `anon`, seulement par les roles attendus.
+- **`supabase/migration_v35_activate_private_social_media.sql` - NE PAS APPLIQUER AVANT LE DEPLOIEMENT FRONTEND** : rend le bucket `posts` prive et active la contrainte des references de groupe. Sequence obligatoire : push/deploiement Vercel Ready, puis appliquer v35, puis tester feed/messages.
+- **Storage signe** : `/api/storage/sign` accepte maintenant `dm`, `posts` et `group`, verifie le JWT, la ligne qui reference le fichier, le proprietaire du path et l'autorisation metier (participant DM, visibilite public/amis du post, membre actuel du groupe). Les 8 DM et 26 images de posts live ont ete controles : 0 path proprietaire incoherent, 0 format inconnu.
+- **Frontend** : les nouveaux posts stockent `posts:<path>`, les nouveaux fichiers de groupe `group:<path>`. Le feed ne demande l'URL signee qu'au clic ; DM/groupes n'affichent que les URLs signees. Le mode offline implemente le nouvel RPC de gel et les paths prives.
+- **PWA** : `/api/*` et les URLs Storage `sign/authenticated` passent en `NetworkOnly`, avant les strategies next-pwa. Cela empeche le rejeu d'une reponse admin/authentifiee mise en cache apres changement de compte.
+- **Egress Guard** : le bucket `group` prive apparait dans le monitoring admin sans charger ses fichiers.
+- **Dependances** : overrides patchant `serialize-javascript`, Babel et PostCSS. `npm audit --omit=dev` passe de 8 paquets signales a 1 alerte agregee sur Next 14. La derniere alerte exige Next 16/React 19 ; migration majeure volontairement reportee (Pages Router, optimiseur d'images desactive, aucun middleware/rewrites dans ce projet).
+
+Preuves : test anon live `profiles(id,pseudo)` OK et `profiles(email)` bloque `42501`; SQL v33/v34/v35/v36 valide sur le vrai schema en transaction; advisors Supabase relances; `npm run lint` OK; `npm run build` normal OK; build offline OK. `posts` reste volontairement `public=true` jusqu'a v35. Le bucket `group` est deja `public=false`. Aucune donnee ni objet Storage supprime.
+
 ## 2026-07-16 - CRITIQUE : posts "amis seulement" lisibles par tous (trou RLS)
 
 Audit securite des zones critiques. Trou de confidentialite reel et exploitable : `posts.visibility` ('public'|'friends') existe (contrainte v24) mais la policy `posts_read` etait restee `USING (true)` du schema initial — la visibilite 'friends' n'apparaissait dans AUCUNE policy. Un post "amis seulement" (photo + legende) etait donc lisible par N'IMPORTE QUEL utilisateur connecte via `supabase.from('posts').select('*')` en console. Le filtrage n'existait QUE cote client (feed.js). Idem `likes_read`/`comments_read` (`USING true`) → likes et COMMENTAIRES (texte) des posts prives fuitaient pareil.

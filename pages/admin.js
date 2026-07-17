@@ -184,6 +184,7 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
     ["avatars", "avatars"],
     ["dm", "dm"],
     ["community", "community"],
+    ["group", "group"],
   ];
   const alerts = buildEgressAlerts(data, t);
   const alertStyles = {

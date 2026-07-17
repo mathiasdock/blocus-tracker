@@ -67,6 +67,17 @@ const supabaseStorageCache = {
   },
 };
 
+// Authenticated API responses and signed private media must never be replayed
+// from a service-worker cache after another user signs in on the same device.
+const privateNetworkOnly = {
+  urlPattern: ({ url, sameOrigin }) => (
+    (sameOrigin && url.pathname.startsWith("/api/"))
+    || url.pathname.includes("/storage/v1/object/sign/")
+    || url.pathname.includes("/storage/v1/object/authenticated/")
+  ),
+  handler: "NetworkOnly",
+};
+
 module.exports = withPWA({
   dest: "public",
   // Screenshots marketing de la landing : servis à la demande (et cachés par la
@@ -79,6 +90,6 @@ module.exports = withPWA({
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
-    runtimeCaching: [supabaseStorageCache, ...defaultRuntimeCaching],
+    runtimeCaching: [privateNetworkOnly, supabaseStorageCache, ...defaultRuntimeCaching],
   },
 })(nextConfig);

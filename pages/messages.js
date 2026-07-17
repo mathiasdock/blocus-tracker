@@ -38,6 +38,10 @@ const CHAT_ACCEPT = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ].join(",");
 
+function attachmentCacheKey(bucket, ref) {
+  return `${bucket}|${ref}`;
+}
+
 function IconPaperclip({ size = 15 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -114,7 +118,7 @@ export default function Messages() {
   const [friends, setFriends]       = useState([]);
   const [dmActiveId, setDmActiveId] = useState(null);
   const [messages, setMessages]     = useState([]);
-  const [signedDmUrls, setSignedDmUrls] = useState({});
+  const [signedAttachmentUrls, setSignedAttachmentUrls] = useState({});
   const [text, setText]             = useState("");
   const [file, setFile]             = useState(null);
   const [sending, setSending]       = useState(false);
@@ -218,11 +222,11 @@ export default function Messages() {
     setter(f);
   }
 
-  function signedDmUrl(ref) {
-    const path = storagePathFromReference(ref, "dm");
+  function signedAttachmentUrl(ref, bucket) {
+    const path = storagePathFromReference(ref, bucket);
     if (!path) return ref;
-    if (isOfflineDev) return `/offline-upload/dm/${path}`;
-    return signedDmUrls[ref] || "";
+    if (isOfflineDev) return `/offline-upload/${bucket}/${path}`;
+    return signedAttachmentUrls[attachmentCacheKey(bucket, ref)] || "";
   }
 
   // ── DM loading ─────────────────────────────────────────────────
@@ -547,11 +551,16 @@ export default function Messages() {
   useEffect(() => { loadMessages(); }, [loadMessages]);
   useEffect(() => {
     let cancelled = false;
-    const refs = [...new Set(
-      messages
-        .map((m) => m.attachment_url)
-        .filter((ref) => ref && storagePathFromReference(ref, "dm") && !signedDmUrls[ref])
-    )];
+    const refsByKey = new Map();
+    for (const [bucket, rows] of [["dm", messages], ["group", groupMessages]]) {
+      for (const message of rows) {
+        const ref = message.attachment_url;
+        if (!ref || !storagePathFromReference(ref, bucket)) continue;
+        const key = attachmentCacheKey(bucket, ref);
+        if (!signedAttachmentUrls[key]) refsByKey.set(key, { bucket, ref });
+      }
+    }
+    const refs = [...refsByKey.entries()];
     if (isOfflineDev) return () => { cancelled = true; };
     if (!refs.length) return () => { cancelled = true; };
 
@@ -560,7 +569,7 @@ export default function Messages() {
       const token = sessionData?.session?.access_token;
       if (!token) return;
 
-      const entries = await Promise.all(refs.map(async (ref) => {
+      const entries = await Promise.all(refs.map(async ([key, { bucket, ref }]) => {
         try {
           const res = await fetch("/api/storage/sign", {
             method: "POST",
@@ -568,22 +577,22 @@ export default function Messages() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ bucket: "dm", ref }),
+            body: JSON.stringify({ bucket, ref }),
           });
           if (!res.ok) return null;
           const data = await res.json();
-          return data?.signedUrl ? [ref, data.signedUrl] : null;
+          return data?.signedUrl ? [key, data.signedUrl] : null;
         } catch {
           return null;
         }
       }));
       if (cancelled) return;
       const next = Object.fromEntries(entries.filter(Boolean));
-      if (Object.keys(next).length) setSignedDmUrls((prev) => ({ ...prev, ...next }));
+      if (Object.keys(next).length) setSignedAttachmentUrls((prev) => ({ ...prev, ...next }));
     })();
 
     return () => { cancelled = true; };
-  }, [messages, signedDmUrls]);
+  }, [messages, groupMessages, signedAttachmentUrls]);
   useEffect(() => { loadGroups(); }, [loadGroups]);
   useEffect(() => {
     if (!grpActiveId) {
@@ -729,13 +738,12 @@ export default function Messages() {
     if (grpFile) {
       const pathInfo = safeStoragePath(user.id, grpFile, [grpActiveId], "chatAttachment");
       if (!pathInfo.ok) { setGrpSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
-      const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, grpFile, {
+      const { error: upErr } = await supabase.storage.from("group").upload(pathInfo.path, grpFile, {
         cacheControl: "31536000",
         contentType: pathInfo.contentType,
       });
       if (upErr) { setGrpSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
-      const { data: pub } = supabase.storage.from("community").getPublicUrl(pathInfo.path);
-      attachment_url = pub.publicUrl;
+      attachment_url = `group:${pathInfo.path}`;
       attachment_type = attachmentKind(grpFile);
       attachment_name = sanitizeFileName(grpFile.name);
     }
@@ -1426,7 +1434,7 @@ export default function Messages() {
                 )}
                 {messages.map(m => {
                   const mine = m.sender_id === user.id;
-                  const attachmentUrl = m.attachment_url ? signedDmUrl(m.attachment_url) : "";
+                  const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url, "dm") : "";
                   const imageKey = `dm:${m.id}:${m.attachment_url || ""}`;
                   return (
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -1689,6 +1697,7 @@ export default function Messages() {
                   const author = grpWho(m.user_id);
                   const mine = m.user_id === user.id;
                   const imageKey = `group:${m.id}:${m.attachment_url || ""}`;
+                  const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url, "group") : "";
                   return (
                     <div key={m.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                       <button onClick={() => openProfile(m.user_id)} className="shrink-0">
@@ -1703,9 +1712,9 @@ export default function Messages() {
                             ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
                             : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                           {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
-                          {m.attachment_url && m.attachment_type === "image" && (
+                          {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
                             <AttachmentImageGate
-                              src={m.attachment_url}
+                              src={attachmentUrl}
                               alt={m.attachment_name || "image"}
                               mine={mine}
                               loaded={revealedImages[imageKey]}
@@ -1713,12 +1722,17 @@ export default function Messages() {
                               t={t}
                             />
                           )}
-                          {m.attachment_url && m.attachment_type === "file" && (
-                            <a href={m.attachment_url} target="_blank" rel="noreferrer"
+                          {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
+                            <a href={attachmentUrl} target="_blank" rel="noreferrer"
                               className="mt-2 inline-flex items-center gap-2 underline"
                               style={{ color: mine ? "#fff" : "#0E8F68" }}>
                               <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                             </a>
+                          )}
+                          {m.attachment_url && !attachmentUrl && (
+                            <p className="mt-2 text-xs" style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--bt-text-3)" }}>
+                              {t("security.signingAttachment")}
+                            </p>
                           )}
                         </div>
                         {(mine || isAdmin) && (

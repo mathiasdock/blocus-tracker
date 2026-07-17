@@ -12,7 +12,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const BUCKETS = ["posts", "avatars", "dm", "community"];
+const BUCKETS = ["posts", "avatars", "dm", "community", "group"];
 const ROW_LIMIT = 10000;
 const STORAGE_PAGE_SIZE = 1000;
 const MAX_FILES_PER_BUCKET = 2500;
@@ -253,6 +253,7 @@ export default async function handler(req, res) {
       ...groupMessages.map((message) => storagePathFromValue(message.attachment_url, "community")),
       ...communityMessages.map((message) => storagePathFromValue(message.attachment_url, "community")),
     ].filter(Boolean)),
+    group: new Set(groupMessages.map((message) => storagePathFromValue(message.attachment_url, "group")).filter(Boolean)),
   };
 
   const referenceScanComplete = {
@@ -260,6 +261,7 @@ export default async function handler(req, res) {
     avatars: profiles.length < ROW_LIMIT,
     dm: dmMessages.length < ROW_LIMIT,
     community: groupMessages.length < ROW_LIMIT && communityMessages.length < ROW_LIMIT,
+    group: groupMessages.length < ROW_LIMIT,
   };
 
   const bucketFiles = {};
