@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-17 - Planning : ajout rapide en langage naturel + dupliquer jour/semaine
+
+Deux features pour rendre le planning plus rapide/collant (demandees par Mathias). Zero API, zero cout stockage notable.
+
+- **Ajout rapide en langage naturel** — `lib/planningQuickAdd.js` (nouveau, pur, testable) : `parseQuickObjective("Bio 2h demain 14h")` → { title, courseId, minutes, time, dateISO }. Reconnait FR ET EN quelle que soit la langue de l'app : duree (2h, 1h30, 90min, 45m), heure (a 14h, 14:30, 14h30, 2pm), date (aujourd'hui/today, demain/tomorrow, apres-demain, jour de semaine → prochaine occurrence, "dans 3 jours"/"in 3 days"), cours (match par prefixe/inclusion + ≥4 lettres communes pour attraper "maths"→"Mathematiques"), le reste = titre. Desambiguisation duree-vs-heure : marqueur explicite (a/at/@/:/hMM/pm/≥13h) → heure, sinon 1er token "Xh" = duree et un 2e = heure ("2h … 14h"). Barre `QuickAddBar` en haut du planning avec APERCU LIVE (chips cours/date/duree/heure) — le parsing est faillible donc l'utilisateur voit/corrige avant de valider. Cree via `addObjectiveForDate` existant.
+- **Dupliquer un jour** — bouton "Dupliquer ce jour" dans le DayDetailModal (visible meme sur un jour passe → recopier une bonne journee vers le futur) + selecteur de date cible. Copie tous les objectifs du jour (recurrence RETIREE sur les copies : un doublon est ponctuel, sinon on recreerait des series). Insert groupe = 1 requete.
+- **Dupliquer la semaine** — bouton dans la barre d'outils : copie la semaine affichee vers la suivante (+7 j par objectif), avec confirm (action en masse).
+- **i18n** : +11 cles × 2 langues (`plan.quickAdd*`, `plan.duplicate*`, `toast.dayDuplicated`/`weekDuplicated` avec {n}).
+
+Verifie : parseur prouve en `node` sur ~11 entrees FR/EN (dont "Bio 2h demain 14h" → bio/120min/demain/14:00, "maths 1h30 lundi" → Mathematiques/90min/lundi, "Bio tomorrow 2pm" → 14:00). En navigateur (build offline) : ajout rapide FR ("Biologie 2h demain 14h" → apercu chips → objectif cree le 2026-07-18 120min 14:00, input vide) et EN ("Biologie 90min tomorrow 3pm" → 90min/15:00) ; dupliquer jour (1 objectif → copie vers date cible) ; dupliquer semaine (3 objectifs → +3 la semaine suivante) ; zero erreur console. `npm run lint` clean, `npm run build` normal + offline OK.
+
 ## 2026-07-17 - Audit page planning : 3 incoherences corrigees
 
 Audit complet de pages/planning.js (1446 lignes). Architecture jugee saine (surface unique = le modal, vues mois/semaine/jour, objectifs recurrents/times/cibles, examens, checklists, export ICS, partage public, pont chrono). 3 incoherences trouvees et corrigees.

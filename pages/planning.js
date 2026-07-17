@@ -11,6 +11,7 @@ import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, computeStreak } from "../lib/format";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
+import { parseQuickObjective } from "../lib/planningQuickAdd";
 import { notifyXPChanged } from "../lib/xpEvents";
 
 // ── Constants ─────────────────────────────────────────────────
@@ -53,6 +54,13 @@ function addDays(dateStr, n) {
 // planning raisonne désormais en jour local — un jour de planning EST un jour
 // de calendrier local.
 function localToday() { return ymd(new Date()); }
+// Label court et humain d'une date pour l'aperçu de l'ajout rapide.
+function quickDateLabel(iso, lang, t) {
+  const today = localToday();
+  if (iso === today) return t("common.today");
+  if (iso === addDays(today, 1)) return t("plan.tomorrow");
+  return dateFromYmd(iso).toLocaleDateString(localeFor(lang), { weekday: "short", day: "numeric", month: "short" });
+}
 function buildMonthGrid(year, month) {
   const first  = new Date(year, month, 1);
   const offset = (first.getDay() + 6) % 7;
@@ -453,12 +461,13 @@ function TodayCard() {
 function DayDetailModal() {
   const { modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions, courses,
           courseColor, courseName, toggle, remove, postpone, launchTimer,
-          addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, lang, t } = usePlan();
+          addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, duplicateDay, lang, t } = usePlan();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm]         = useState(EMPTY_OBJECTIVE_FORM);
   const [showAddExamForm, setShowAddExamForm] = useState(false);
   const [examForm, setExamForm]               = useState({ name: "", courseId: "", time: "", location: "" });
+  const [dupOpen, setDupOpen]                 = useState(false);
 
   // Inline edit state
   const [editingObjId, setEditingObjId] = useState(null);
@@ -479,6 +488,7 @@ function DayDetailModal() {
     setEditingObjId(null);
     setPostponingId(null);
     setEditingExamId(null);
+    setDupOpen(false);
   }, [modalDate, modalPrefillTime]);
 
   function startInlineEdit(o) {
@@ -936,6 +946,40 @@ function DayDetailModal() {
                   autoFocus />
               )
             )}
+
+            {/* ── Dupliquer ce jour : recopie tous ses objectifs vers une autre
+                 date (structure de révision réutilisable) ── */}
+            {objectives.length > 0 && (
+              <div className="mt-3">
+                {!dupOpen ? (
+                  <button onClick={() => setDupOpen(true)}
+                    className="w-full py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                    style={{ color: "var(--bt-text-3)" }}
+                    onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
+                    onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    {t("plan.duplicateDay")}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl"
+                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                    <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("plan.duplicateDayTo")}</span>
+                    <input type="date" className="input text-xs py-1.5 flex-1" min={today}
+                      aria-label={t("plan.duplicateDayTo")}
+                      onChange={async e => {
+                        if (e.target.value && e.target.value !== modalDate) {
+                          await duplicateDay(modalDate, e.target.value);
+                          setDupOpen(false);
+                        }
+                      }} />
+                    <button type="button" onClick={() => setDupOpen(false)} className="btn-ghost text-xs px-2 py-1">{t("common.cancel")}</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1190,6 +1234,75 @@ function TimeGrid({ days }) {
   );
 }
 
+// ── QuickAddBar ───────────────────────────────────────────────
+// Barre d'ajout rapide en langage naturel : « Bio 2h demain 14h » → objectif.
+// Aperçu live de ce qui sera créé (le parsing est faillible → l'utilisateur
+// voit et corrige avant de valider). 100 % client (lib/planningQuickAdd).
+function QuickAddChip({ children, accent }) {
+  return (
+    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+      style={accent
+        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
+        : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+      {children}
+    </span>
+  );
+}
+function QuickAddBar() {
+  const { courses, addObjectiveForDate, courseName, lang, t } = usePlan();
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const trimmed = text.trim();
+  const parsed = trimmed ? parseQuickObjective(text, { courses, baseDateISO: localToday() }) : null;
+  const canAdd = !!parsed && (parsed.title.trim() !== "" || parsed.courseId !== "");
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!canAdd || busy) return;
+    setBusy(true);
+    const data = await addObjectiveForDate(parsed.dateISO, {
+      title: parsed.title, courseId: parsed.courseId,
+      minutes: parsed.minutes || "", time: parsed.time || "",
+      weekdays: [], until: "",
+    });
+    setBusy(false);
+    if (data) setText("");
+  }
+
+  return (
+    <form onSubmit={submit} className="mb-4 no-print">
+      <div className="flex items-center gap-2 rounded-2xl px-3 py-2"
+        style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14B885" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+          <path d="M5 3v4M3 5h4M6 17v4M4 19h4" /><path d="M13 3l3.5 7.5L24 14l-7.5 3.5L13 25l-3.5-7.5L2 14l7.5-3.5z" transform="scale(0.62) translate(4 2)" />
+        </svg>
+        <input value={text} onChange={e => setText(e.target.value)}
+          placeholder={t("plan.quickAddPlaceholder")} aria-label={t("plan.quickAddPlaceholder")}
+          className="flex-1 bg-transparent text-sm outline-none min-w-0" style={{ color: "var(--bt-text-1)" }} />
+        <button type="submit" disabled={!canAdd || busy}
+          className="btn-primary text-xs px-3 py-1.5 shrink-0"
+          style={{ opacity: canAdd && !busy ? 1 : 0.45, cursor: canAdd && !busy ? "pointer" : "default" }}>
+          {t("common.add")}
+        </button>
+      </div>
+      {trimmed && parsed && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
+          <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddPreview")}</span>
+          {parsed.courseId
+            ? <QuickAddChip accent>{courseName(parsed.courseId)}</QuickAddChip>
+            : parsed.title
+              ? <QuickAddChip accent>{parsed.title}</QuickAddChip>
+              : <span className="text-xs" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddNothing")}</span>}
+          {parsed.courseId && parsed.title && <QuickAddChip>{parsed.title}</QuickAddChip>}
+          {(parsed.courseId || parsed.title) && <QuickAddChip>{quickDateLabel(parsed.dateISO, lang, t)}</QuickAddChip>}
+          {parsed.minutes > 0 && <QuickAddChip>{parsed.minutes} min</QuickAddChip>}
+          {parsed.time && <QuickAddChip>{parsed.time}</QuickAddChip>}
+        </div>
+      )}
+    </form>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────
 export default function Planning() {
   const { user, profile, refreshProfile } = useAuth();
@@ -1349,6 +1462,45 @@ export default function Planning() {
     if (data) setObjectives(p => p.map(x => x.id === id ? data : x));
   }
 
+  // Copie tous les objectifs d'un jour vers un autre. La récurrence est retirée
+  // sur les copies : un doublon est ponctuel (sinon on recréerait des séries
+  // récurrentes qui re-spawneraient à l'infini). Insert groupé = 1 requête.
+  async function duplicateDay(sourceDate, targetDate) {
+    const src = objectives.filter(o => o.scheduled_date === sourceDate);
+    if (!src.length || !targetDate || targetDate === sourceDate) return 0;
+    const rows = src.map(o => ({
+      user_id: user.id, title: o.title, course_id: o.course_id,
+      target_minutes: o.target_minutes || 0, scheduled_date: targetDate,
+      scheduled_time: o.scheduled_time || null, done: false,
+    }));
+    const { data } = await supabase.from("objectives").insert(rows).select();
+    if (data && data.length) {
+      setObjectives(p => [...p, ...data]);
+      toast(t("toast.dayDuplicated").replace("{n}", String(data.length)));
+      return data.length;
+    }
+    return 0;
+  }
+
+  // Copie la semaine affichée vers la suivante (+7 j par objectif).
+  async function duplicateWeek() {
+    const weekISO = getWeekDays(selectedDate).map(ymd);
+    const rows = objectives
+      .filter(o => weekISO.includes(o.scheduled_date))
+      .map(o => ({
+        user_id: user.id, title: o.title, course_id: o.course_id,
+        target_minutes: o.target_minutes || 0, scheduled_date: addDays(o.scheduled_date, 7),
+        scheduled_time: o.scheduled_time || null, done: false,
+      }));
+    if (!rows.length) { toast(t("plan.duplicateEmpty"), "info"); return; }
+    if (!window.confirm(t("plan.duplicateWeekConfirm").replace("{n}", String(rows.length)))) return;
+    const { data } = await supabase.from("objectives").insert(rows).select();
+    if (data && data.length) {
+      setObjectives(p => [...p, ...data]);
+      toast(t("toast.weekDuplicated").replace("{n}", String(data.length)));
+    }
+  }
+
   // Bug corrigé : sans garde ni await, un double-clic rapide relisait le
   // même `profile.planning_public` périmé (stale closure) et recalculait
   // la même valeur `next` au lieu de l'inverser — le toggle semblait figé.
@@ -1448,7 +1600,7 @@ export default function Planning() {
     view, courses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
-    launchTimer,
+    launchTimer, duplicateDay, duplicateWeek,
     lang, t,
   };
 
@@ -1488,6 +1640,14 @@ export default function Planning() {
             <span className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ backgroundColor: profile?.planning_public ? "#14B885" : "var(--bt-text-4)" }} />
           </button>
+          <button onClick={duplicateWeek} title={t("plan.duplicateWeekHint")}
+            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span className="hidden sm:inline">{t("plan.duplicateWeek")}</span>
+          </button>
           <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
             className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1501,6 +1661,8 @@ export default function Planning() {
             <span className="hidden sm:inline">{t("plan.exportCalendar")}</span>
           </button>
         </div>
+
+        <QuickAddBar />
 
         <TodayCard />
 
