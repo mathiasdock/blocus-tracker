@@ -9,6 +9,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
 import { COUNTRIES, COMMUNITY_BY_ID, communityIdForUniversity } from "../lib/universities";
+import { optimizeFeedImage } from "../lib/imageCompression";
 import { notifyXPChanged } from "../lib/xpEvents";
 import {
   TEXT_LIMITS,
@@ -290,6 +291,8 @@ export default function Communautes() {
   const fileInputRef = useRef(null);
   const resourceFileInputRef = useRef(null);
   const lastMessageIdRef = useRef(null);
+  const lastCreatedAtRef = useRef(null);   // egress : poll incrémental (created_at >)
+  const knownProfilesRef = useRef(new Set()); // auteurs déjà chargés (évite de refetch les profils)
   const shouldScrollRef = useRef(false);
   const statsCache = useRef({});
 
@@ -308,49 +311,94 @@ export default function Communautes() {
     setter(f);
   }
 
+  // Colonnes explicites (plus de select("*")) : on ne transfère que l'utile.
+  const MSG_COLS = "id, community, user_id, content, attachment_url, attachment_type, attachment_name, created_at";
+
+  // Charge les profils manquants et mémorise ceux déjà connus (anti-refetch).
+  const ensureProfiles = useCallback(async (rows) => {
+    const missing = [...new Set(rows.map((m) => m.user_id))].filter((id) => id && !knownProfilesRef.current.has(id));
+    if (!missing.length) return;
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, pseudo, first_name, last_name, avatar_url")
+      .in("id", missing);
+    if (profs?.length) {
+      setProfiles((prev) => {
+        const next = { ...prev };
+        profs.forEach((p) => { next[p.id] = p; knownProfilesRef.current.add(p.id); });
+        return next;
+      });
+    }
+  }, []);
+
+  // Chargement COMPLET (ouverture d'un salon / forceScroll).
   const load = useCallback(async ({ forceScroll = false } = {}) => {
     if (!active) return;
     const { data } = await supabase
       .from("community_messages")
-      .select("*")
+      .select(MSG_COLS)
       .eq("community", active)
       .order("created_at", { ascending: true })
       .limit(100);
     const rows = data || [];
-    const nextLastId = rows[rows.length - 1]?.id || null;
+    const last = rows[rows.length - 1];
     const prevLastId = lastMessageIdRef.current;
     shouldScrollRef.current =
       forceScroll ||
       !prevLastId ||
-      (nextLastId && nextLastId !== prevLastId && isNearBottom(scrollRef.current));
-    lastMessageIdRef.current = nextLastId;
-
+      (last?.id && last.id !== prevLastId && isNearBottom(scrollRef.current));
+    lastMessageIdRef.current = last?.id || null;
+    lastCreatedAtRef.current = last?.created_at || null;
     setMessages(rows);
-    const ids = [...new Set(rows.map((m) => m.user_id))];
-    if (ids.length) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("id, pseudo, first_name, last_name, avatar_url")
-        .in("id", ids);
-      const map = {};
-      (profs || []).forEach((p) => (map[p.id] = p));
-      setProfiles(map);
-    }
-  }, [active]);
+    await ensureProfiles(rows);
+  }, [active, ensureProfiles]);
+
+  // Poll INCRÉMENTAL (egress) : ne récupère que les messages postés depuis le
+  // dernier connu, et les ajoute. Pas de refetch complet ; rien si l'onglet est
+  // caché. Un envoi/suppression par l'utilisateur passe toujours par load().
+  const pollNew = useCallback(async () => {
+    if (!active || (typeof document !== "undefined" && document.hidden)) return;
+    const since = lastCreatedAtRef.current;
+    if (!since) return; // le premier chargement complet n'a pas encore eu lieu
+    const { data } = await supabase
+      .from("community_messages")
+      .select(MSG_COLS)
+      .eq("community", active)
+      .gt("created_at", since)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    const rows = data || [];
+    if (!rows.length) return;
+    const nearBottom = isNearBottom(scrollRef.current);
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      return [...prev, ...rows.filter((r) => !seen.has(r.id))];
+    });
+    const last = rows[rows.length - 1];
+    lastMessageIdRef.current = last.id;
+    lastCreatedAtRef.current = last.created_at;
+    shouldScrollRef.current = nearBottom;
+    await ensureProfiles(rows);
+  }, [active, ensureProfiles]);
 
   useEffect(() => {
     if (!active) return;
     setMessages([]);
     lastMessageIdRef.current = null;
+    lastCreatedAtRef.current = null;
+    knownProfilesRef.current = new Set();
     shouldScrollRef.current = true;
     load({ forceScroll: true });
     markSeen(active);
   }, [load, active, markSeen]);
 
   useEffect(() => {
-    const id = setInterval(load, 5000);
-    return () => clearInterval(id);
-  }, [load]);
+    const id = setInterval(pollNew, 5000);
+    // Rattrapage immédiat au retour au premier plan (l'onglet caché ne pollait pas).
+    const onVisible = () => { if (!document.hidden) pollNew(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
+  }, [pollNew]);
 
   useEffect(() => {
     if (!shouldScrollRef.current) return;
@@ -422,16 +470,19 @@ export default function Communautes() {
     let attachment_name = null;
 
     if (uploadFile) {
-      const pathInfo = safeStoragePath(user.id, uploadFile, [active], "chatAttachment");
+      // Compression image (egress/stockage) : passe-plat pour les non-images.
+      const opt = await optimizeFeedImage(uploadFile).catch(() => null);
+      const finalFile = opt?.file || uploadFile;
+      const pathInfo = safeStoragePath(user.id, finalFile, [active], "chatAttachment");
       if (!pathInfo.ok) { setBusy(false); alert(uploadErrorMessage(t, pathInfo)); return false; }
-      const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, uploadFile, {
+      const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, finalFile, {
         cacheControl: "31536000",
         contentType: pathInfo.contentType,
       });
       if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return false; }
       const { data: pub } = supabase.storage.from("community").getPublicUrl(pathInfo.path);
       attachment_url = pub.publicUrl;
-      attachment_type = attachmentKind(uploadFile);
+      attachment_type = attachmentKind(finalFile);
       attachment_name = sanitizeFileName(uploadFile.name);
     }
 

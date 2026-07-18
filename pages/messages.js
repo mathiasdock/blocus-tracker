@@ -11,6 +11,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo, formatDuration } from "../lib/format";
 import { isStudyingLive } from "../lib/presence";
+import { optimizeFeedImage } from "../lib/imageCompression";
 import { notifyXPChanged } from "../lib/xpEvents";
 import {
   TEXT_LIMITS,
@@ -140,6 +141,8 @@ export default function Messages() {
   const [inviting, setInviting]           = useState(null);
   const grpFileRef   = useRef(null);
   const grpBottomRef = useRef(null);
+  const grpLastCreatedRef  = useRef(null);      // egress : poll groupe incrémental
+  const grpKnownProfilesRef = useRef(new Set()); // auteurs déjà chargés
 
   // ── Group info modal ───────────────────────────────────────────
   const [showGroupInfo, setShowGroupInfo] = useState(false);
@@ -451,7 +454,8 @@ export default function Messages() {
 
   const loadMessages = useCallback(async () => {
     if (!dmActiveId || !user) return;
-    const { data } = await supabase.from("private_messages").select("*")
+    const { data } = await supabase.from("private_messages")
+      .select("id, sender_id, receiver_id, content, attachment_url, attachment_type, attachment_name, read, created_at")
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${dmActiveId}),and(sender_id.eq.${dmActiveId},receiver_id.eq.${user.id})`)
       .order("created_at", { ascending: true }).limit(50);
     setMessages(data || []);
@@ -491,20 +495,53 @@ export default function Messages() {
     })));
   }, [user]);
 
+  const GRP_MSG_COLS = "id, group_id, user_id, content, attachment_url, attachment_type, attachment_name, created_at";
+
+  // Profils manquants seulement (anti-refetch en boucle).
+  const ensureGrpProfiles = useCallback(async (rows) => {
+    const missing = [...new Set(rows.map(m => m.user_id))].filter(id => id && !grpKnownProfilesRef.current.has(id));
+    if (!missing.length) return;
+    const { data: profs } = await supabase.from("profiles")
+      .select("id, pseudo, first_name, last_name, avatar_url").in("id", missing);
+    if (profs?.length) {
+      setMsgProfiles(prev => {
+        const next = { ...prev };
+        profs.forEach(p => { next[p.id] = p; grpKnownProfilesRef.current.add(p.id); });
+        return next;
+      });
+    }
+  }, []);
+
+  // Chargement COMPLET (ouverture du groupe / envoi / suppression).
   const loadGroupMessages = useCallback(async () => {
     if (!grpActiveId) return;
-    const { data } = await supabase.from("group_messages").select("*")
+    const { data } = await supabase.from("group_messages").select(GRP_MSG_COLS)
       .eq("group_id", grpActiveId).order("created_at", { ascending: true }).limit(100);
-    setGroupMessages(data || []);
-    const ids = [...new Set((data || []).map(m => m.user_id))];
-    if (ids.length) {
-      const { data: profs } = await supabase.from("profiles")
-        .select("id, pseudo, first_name, last_name, avatar_url").in("id", ids);
-      const map = {};
-      (profs || []).forEach(p => (map[p.id] = p));
-      setMsgProfiles(map);
-    }
-  }, [grpActiveId]);
+    const rows = data || [];
+    setGroupMessages(rows);
+    grpLastCreatedRef.current = rows[rows.length - 1]?.created_at || null;
+    await ensureGrpProfiles(rows);
+  }, [grpActiveId, ensureGrpProfiles]);
+
+  // Poll INCRÉMENTAL (egress) : les groupes n'ont pas de realtime → au lieu de
+  // refetch 100 messages toutes les 5s, on ne prend que les nouveaux depuis le
+  // dernier connu. Rien si l'onglet est caché.
+  const pollGroupMessages = useCallback(async () => {
+    if (!grpActiveId || (typeof document !== "undefined" && document.hidden)) return;
+    const since = grpLastCreatedRef.current;
+    if (!since) return;
+    const { data } = await supabase.from("group_messages").select(GRP_MSG_COLS)
+      .eq("group_id", grpActiveId).gt("created_at", since)
+      .order("created_at", { ascending: true }).limit(100);
+    const rows = data || [];
+    if (!rows.length) return;
+    setGroupMessages(prev => {
+      const seen = new Set(prev.map(m => m.id));
+      return [...prev, ...rows.filter(r => !seen.has(r.id))];
+    });
+    grpLastCreatedRef.current = rows[rows.length - 1].created_at;
+    await ensureGrpProfiles(rows);
+  }, [grpActiveId, ensureGrpProfiles]);
 
   const loadGroupMembers = useCallback(async () => {
     if (!grpActiveId) return;
@@ -605,22 +642,29 @@ export default function Messages() {
       setShowInvite(false);
       return;
     }
+    grpLastCreatedRef.current = null;
+    grpKnownProfilesRef.current = new Set();
     loadGroupMessages();
     loadGroupMembers();
     loadGroupChrono();
   }, [grpActiveId]); // eslint-disable-line
 
-  // Polling messages
+  // Polling messages de groupe : INCRÉMENTAL + garde de visibilité (egress).
   useEffect(() => {
-    const id = setInterval(loadGroupMessages, 5000);
-    return () => clearInterval(id);
-  }, [loadGroupMessages]);
+    const id = setInterval(pollGroupMessages, 5000);
+    const onVisible = () => { if (!document.hidden) pollGroupMessages(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
+  }, [pollGroupMessages]);
 
-  // Polling chrono (toutes les 3s quand un chrono est actif)
+  // Polling chrono : garde de visibilité (rien si onglet caché) + 5s (petit
+  // payload, mais 3s était inutilement fréquent). Egress.
   useEffect(() => {
     if (!grpActiveId) return;
-    const id = setInterval(loadGroupChrono, 3000);
-    return () => clearInterval(id);
+    const id = setInterval(() => { if (!document.hidden) loadGroupChrono(); }, 5000);
+    const onVisible = () => { if (!document.hidden) loadGroupChrono(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
   }, [loadGroupChrono, grpActiveId]);
 
   // Compteur live du chrono
@@ -656,9 +700,12 @@ export default function Messages() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+  // Filet de sécurité UNIQUEMENT : les DM passent par le realtime ci-dessus.
+  // Poll lent (60s) + garde de visibilité pour rattraper une éventuelle coupure
+  // du canal realtime, sans re-télécharger toutes les 15s pour rien. Egress.
   useEffect(() => {
     if (!dmActiveId) return;
-    const id = setInterval(loadMessages, 15000);
+    const id = setInterval(() => { if (!document.hidden) loadMessages(); }, 60000);
     return () => clearInterval(id);
   }, [loadMessages, dmActiveId]);
 
@@ -687,15 +734,18 @@ export default function Messages() {
     setSending(true);
     let attachment_url = null, attachment_type = null, attachment_name = null;
     if (file) {
-      const pathInfo = safeStoragePath(user.id, file, [], "chatAttachment");
+      // Compression image (egress/stockage) : passe-plat pour les non-images.
+      const opt = await optimizeFeedImage(file).catch(() => null);
+      const uploadFile = opt?.file || file;
+      const pathInfo = safeStoragePath(user.id, uploadFile, [], "chatAttachment");
       if (!pathInfo.ok) { setSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
-      const { error: upErr } = await supabase.storage.from("dm").upload(pathInfo.path, file, {
+      const { error: upErr } = await supabase.storage.from("dm").upload(pathInfo.path, uploadFile, {
         cacheControl: "31536000",
         contentType: pathInfo.contentType,
       });
       if (upErr) { setSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
       attachment_url = `dm:${pathInfo.path}`;
-      attachment_type = attachmentKind(file);
+      attachment_type = attachmentKind(uploadFile);
       attachment_name = sanitizeFileName(file.name);
     }
     const { error: sendErr } = await supabase.from("private_messages").insert({
@@ -736,15 +786,17 @@ export default function Messages() {
     setGrpSending(true);
     let attachment_url = null, attachment_type = null, attachment_name = null;
     if (grpFile) {
-      const pathInfo = safeStoragePath(user.id, grpFile, [grpActiveId], "chatAttachment");
+      const opt = await optimizeFeedImage(grpFile).catch(() => null);
+      const uploadFile = opt?.file || grpFile;
+      const pathInfo = safeStoragePath(user.id, uploadFile, [grpActiveId], "chatAttachment");
       if (!pathInfo.ok) { setGrpSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
-      const { error: upErr } = await supabase.storage.from("group").upload(pathInfo.path, grpFile, {
+      const { error: upErr } = await supabase.storage.from("group").upload(pathInfo.path, uploadFile, {
         cacheControl: "31536000",
         contentType: pathInfo.contentType,
       });
       if (upErr) { setGrpSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
       attachment_url = `group:${pathInfo.path}`;
-      attachment_type = attachmentKind(grpFile);
+      attachment_type = attachmentKind(uploadFile);
       attachment_name = sanitizeFileName(grpFile.name);
     }
     const { error: sendErr } = await supabase.from("group_messages").insert({
@@ -809,9 +861,11 @@ export default function Messages() {
   // ── Group photo ────────────────────────────────────────────────
   async function uploadGroupPhoto(file) {
     if (!file || !grpActiveId) return;
-    const pathInfo = safeStoragePath(user.id, file, ["groups", grpActiveId], "groupPhoto");
+    const opt = await optimizeFeedImage(file).catch(() => null);
+    const uploadFile = opt?.file || file;
+    const pathInfo = safeStoragePath(user.id, uploadFile, ["groups", grpActiveId], "groupPhoto");
     if (!pathInfo.ok) { alert(uploadErrorMessage(t, pathInfo)); return; }
-    const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, file, {
+    const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, uploadFile, {
       upsert: true,
       cacheControl: "31536000",
       contentType: pathInfo.contentType,

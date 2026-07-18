@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-17 - Reduction egress/stockage : quick wins (polling incremental, feed optimiste, compression chat)
+
+Audit egress → le poste dominant etait le POLLING chat/communautes (refetch complet sur timer fixe). Deja bien fait avant : compression images (800px/320px) + cacheControl 1 an, poll notifications global (2-5 min, visibility-aware). Corrige les points chauds :
+
+- **Communautes** (`pages/communautes.js`) : le poll refetchait `community_messages.select("*").limit(100)` toutes les 5s. → poll INCREMENTAL (`created_at > dernier connu`, on ajoute au lieu de tout retelecharger) + garde de visibilite (rien si onglet cache, rattrapage au retour) + colonnes explicites (fini `select("*")`) + profils charges une seule fois (ref `knownProfiles`). L'envoi/suppression garde un load() complet.
+- **Messages de groupe** (`pages/messages.js`) : idem, poll de groupe rendu incremental + visibility (les groupes n'ont pas de realtime). DM : le poll 15s etait REDONDANT avec le realtime deja present → ralenti a 60s (filet de securite) + visibility. Chrono de groupe : 3s → 5s + visibility. `select("*")` DM → colonnes explicites.
+- **Feed** (`pages/feed.js`) : `load()` complet (select *,likes,comments + profils + niveaux) etait rappele apres CHAQUE action. → mises a jour OPTIMISTES locales (react/commentaire/suppression/edition) avec rollback par load() en cas d'erreur. `who()` retombe sur le profil courant (useAuth) pour que le commentaire optimiste s'affiche avec le bon nom. `likes.insert`/`comments.insert` passent en `.select().single()` pour recuperer l'id reel.
+- **Compression des pieces jointes chat** (stockage + egress) : DM, groupe, communaute et photo de groupe passaient le fichier BRUT (jusqu'a 8 Mo). → `optimizeFeedImage` applique avant l'upload (passe-plat pour les non-images/PDF, compresse avant le calcul du chemin comme le feed). posts/avatars etaient deja compresses.
+
+Verifie (build offline, env UTC+2) : feed — reaction (persistee en DB, affichee, zero crash) + commentaire (persiste + affiche en optimiste) ; communautes + messages stables sur plusieurs cycles de poll, zero erreur console. `npm run lint` clean, `npm run build` normal + offline OK. NB : la limite du mock offline (ne peuple pas les relations integrees likes(*)/comments(*)) fait crasher le feed offline UNIQUEMENT si on injecte un post a la main sans ces tableaux — artefact de test, jamais en prod (Supabase renvoie toujours les relations).
+
+Reste possible (plus gros, non fait) : realtime a la place du polling pour les messages de groupe/communaute (egress quasi nul au repos).
+
 ## 2026-07-17 - Planning : ajout rapide en langage naturel + dupliquer jour/semaine
 
 Deux features pour rendre le planning plus rapide/collant (demandees par Mathias). Zero API, zero cout stockage notable.

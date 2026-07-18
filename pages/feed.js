@@ -215,6 +215,12 @@ export default function Feed() {
     load();
   }
 
+  // Mise à jour OPTIMISTE (egress) : au lieu de recharger tout le feed après
+  // chaque action, on patche l'état local ; en cas d'erreur, on retombe sur un
+  // load() complet (rollback fiable).
+  const patchPostLikes = (postId, fn) =>
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: fn(p.likes || []) } : p));
+
   async function react(post, emoji) {
     const action = clientRateLimit(`feed:react:${user.id}`, 40, 60_000);
     if (!action.ok) return;
@@ -223,9 +229,9 @@ export default function Feed() {
 
     if (!normalizedEmoji) {
       if (mine && mine.emoji === emoji) {
+        patchPostLikes(post.id, likes => likes.filter(l => l.id !== mine.id));
         const { error } = await supabase.from("likes").delete().eq("id", mine.id);
-        if (error) console.error("Failed to remove legacy reaction:", error);
-        load();
+        if (error) { console.error("Failed to remove legacy reaction:", error); load(); }
         return;
       }
       setReactionError((errors) => ({ ...errors, [post.id]: t("feed.emojiOnly") }));
@@ -233,19 +239,22 @@ export default function Feed() {
     }
 
     setReactionError((errors) => ({ ...errors, [post.id]: "" }));
-    if (mine && mine.emoji === normalizedEmoji) {
-      const { error } = await supabase.from("likes").delete().eq("id", mine.id);
-      if (error) console.error("Failed to remove reaction:", error);
-    } else if (mine) {
-      const { error } = await supabase.from("likes").update({ emoji: normalizedEmoji }).eq("id", mine.id);
-      if (error) console.error("Failed to update reaction:", error);
-    } else {
-      const { error } = await supabase.from("likes").insert({ post_id: post.id, user_id: user.id, emoji: normalizedEmoji });
-      if (error) console.error("Failed to add reaction:", error);
-      else notifyXPChanged();
-    }
     setEmojiInputOpen(s => ({ ...s, [post.id]: false }));
-    load();
+    if (mine && mine.emoji === normalizedEmoji) {
+      patchPostLikes(post.id, likes => likes.filter(l => l.id !== mine.id));
+      const { error } = await supabase.from("likes").delete().eq("id", mine.id);
+      if (error) { console.error("Failed to remove reaction:", error); load(); }
+    } else if (mine) {
+      patchPostLikes(post.id, likes => likes.map(l => l.id === mine.id ? { ...l, emoji: normalizedEmoji } : l));
+      const { error } = await supabase.from("likes").update({ emoji: normalizedEmoji }).eq("id", mine.id);
+      if (error) { console.error("Failed to update reaction:", error); load(); }
+    } else {
+      const { data, error } = await supabase.from("likes")
+        .insert({ post_id: post.id, user_id: user.id, emoji: normalizedEmoji }).select().single();
+      if (error) { console.error("Failed to add reaction:", error); load(); return; }
+      patchPostLikes(post.id, likes => [...likes.filter(l => l.user_id !== user.id), data]);
+      notifyXPChanged();
+    }
   }
 
   async function addComment(post) {
@@ -253,7 +262,8 @@ export default function Feed() {
     if (!text) return;
     const action = clientRateLimit(`feed:comment:${user.id}`, 12, 60_000);
     if (!action.ok) { alert(t("security.rateLimited")); return; }
-    const { error } = await supabase.from("comments").insert({ post_id: post.id, user_id: user.id, content: text });
+    const { data, error } = await supabase.from("comments")
+      .insert({ post_id: post.id, user_id: user.id, content: text }).select().single();
     if (error) {
       // Échec : on GARDE le brouillon pour réessayer, au lieu de l'effacer.
       alert(t("toast.genericError"));
@@ -261,24 +271,29 @@ export default function Feed() {
     }
     notifyXPChanged();
     setCommentDraft((d) => ({ ...d, [post.id]: "" }));
-    load();
+    if (data) setPosts(prev => prev.map(p => p.id === post.id ? { ...p, comments: [...(p.comments || []), data] } : p));
   }
 
   async function deletePost(id) {
-    await supabase.from("posts").delete().eq("id", id);
-    load();
+    const prev = posts;
+    setPosts(p => p.filter(x => x.id !== id));
+    const { error } = await supabase.from("posts").delete().eq("id", id);
+    if (error) setPosts(prev); // rollback
   }
 
   async function deleteComment(commentId) {
-    await supabase.from("comments").delete().eq("id", commentId);
-    load();
+    setPosts(prev => prev.map(p => ({ ...p, comments: (p.comments || []).filter(c => c.id !== commentId) })));
+    const { error } = await supabase.from("comments").delete().eq("id", commentId);
+    if (error) load();
   }
 
   async function updatePost(postId, newCaption) {
-    await supabase.from("posts").update({ caption: newCaption.trim() || null }).eq("id", postId);
+    const caption = newCaption.trim() || null;
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, caption } : p));
     setEditingPostId(null);
     setEditCaption("");
-    load();
+    const { error } = await supabase.from("posts").update({ caption }).eq("id", postId);
+    if (error) load();
   }
 
   function handlePressStart(postId) {
@@ -335,7 +350,9 @@ export default function Feed() {
     }
   }
 
-  const who = (id) => profiles[id] || { pseudo: "?", avatar_url: null };
+  // Repli sur son propre profil (useAuth) : un commentaire/réaction ajouté en
+  // optimiste s'affiche avec son nom/avatar même si `profiles` ne l'a pas encore.
+  const who = (id) => profiles[id] || (id === user?.id && profile ? profile : null) || { pseudo: "?", avatar_url: null };
 
   return (
     <Layout>
