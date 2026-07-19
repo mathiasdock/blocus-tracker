@@ -669,6 +669,58 @@ details.bt-acc[open]::details-content { block-size: auto; }
 /* ── Landing : variante de révélation avec zoom léger (screenshots) ── */
 [data-reveal="zoom"] { transform: translateY(26px) scale(0.96); }
 
+/* ── Landing : faisceau lumineux qui parcourt la bordure du CTA final.
+   Adaptation CSS PURE du "Border Beam" de magicui (récupéré via le MCP
+   21st.dev) : double masque (padding-box ∩ border-box) → seul l'anneau
+   de bordure est peint ; un carré dégradé vert suit offset-path: rect().
+   Progressif : navigateurs sans rect() → rien, zéro régression. ── */
+@supports (offset-path: rect(0px 0px auto auto)) {
+  .bt-beam {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1.5px solid transparent;
+    -webkit-mask: linear-gradient(transparent, transparent), linear-gradient(#fff, #fff);
+    -webkit-mask-clip: padding-box, border-box;
+    -webkit-mask-composite: source-in;
+    mask: linear-gradient(transparent, transparent), linear-gradient(#fff, #fff);
+    mask-clip: padding-box, border-box;
+    mask-composite: intersect;
+  }
+  .bt-beam::after {
+    content: "";
+    position: absolute;
+    aspect-ratio: 1;
+    width: 220px;
+    background: linear-gradient(to left, #14B885, #22E4A4, transparent);
+    offset-anchor: 90% 50%;
+    offset-path: rect(0 auto auto 0 round 220px);
+    animation: bt-beam 14s linear infinite;
+  }
+}
+@keyframes bt-beam { to { offset-distance: 100%; } }
+
+/* ── Landing : reflet qui balaie le mot accent du hero (pattern
+   "animated shiny text" magicui/21st) : dégradé clippé au texte,
+   surbrillance qui traverse puis longue pause. Fallback : couleur pleine. */
+.bt-shimmer-accent { color: #0E8F68; }
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .bt-shimmer-accent {
+    color: transparent;
+    background-image: linear-gradient(110deg, #0E8F68 42%, #22E4A4 50%, #0E8F68 58%);
+    background-size: 220% 100%;
+    background-position: 120% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: bt-shimmer-accent 5.5s ease-in-out infinite;
+  }
+}
+@keyframes bt-shimmer-accent {
+  0%       { background-position: 120% 0; }
+  38%, 100%{ background-position: -100% 0; }
+}
+
 /* ── Écran de chargement : Blocus Blocks qui se remplissent en vague ──
    (components/LoadingScreen.js). Sous prefers-reduced-motion : statique,
    les deux premiers blocs restent remplis pour garder la lecture "en cours". */
@@ -788,6 +840,10 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-xp-loop { opacity: 1 !important; transform: none !important; }
   .bt-tilt { transform: none !important; transition: none !important; }
   details.bt-acc::details-content { transition: none !important; }
+  /* Faisceau : sans animation il stagnerait dans un coin → on le retire.
+     Shimmer : animation coupée = dégradé statique, lisible. */
+  .bt-beam { display: none !important; }
+  .bt-shimmer-accent { animation: none !important; }
   [data-reveal] {
     opacity: 1 !important;
     transform: none !important;

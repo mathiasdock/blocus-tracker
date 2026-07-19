@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-19 - Landing : Border Beam + shimmer du titre (via MCP 21st.dev, adapte en CSS pur)
+
+Premier usage du MCP 21st.dev (nouvellement connecte par Mathias). Methode : `search` (gratuit/illimite) pour reperer les patterns canoniques, puis UNE seule recuperation payante (`get_component`, tier gratuit = 2/jour, il en reste 1) sur le Border Beam officiel de magicui pour la mecanique exacte — le reste adapte de tete. AUCUNE dependance ajoutee : les deux patterns sont portes en CSS pur dans le vocabulaire bt-*, verts de la famille existante uniquement (#14B885 / #22E4A4 deja utilise par la barre de progression du profil / #0E8F68).
+
+- **`.bt-beam` — faisceau lumineux qui parcourt la bordure du CTA final** (adaptation du "Border Beam" magicui, id 1268 sur 21st) : double masque (`padding-box` ∩ `border-box`) → seul l'anneau de bordure est peint ; un carre degrade vert suit `offset-path: rect(...)` en 14 s. Progressif : tout est derriere `@supports (offset-path: rect(...))` → navigateurs sans support = rien, zero regression. Reduced-motion : `display:none` (sinon le carre stagnerait dans un coin).
+- **`.bt-shimmer-accent` — reflet qui balaie le mot accent du hero** ("plus clair.") : pattern "animated shiny text", degrade clippe au texte (`background-clip: text`) + balayage par background-position avec longue pause (cycle 5,5 s). Fallback sans background-clip : couleur pleine #0E8F68 (le texte ne peut jamais disparaitre). Reduced-motion : animation coupee, degrade statique lisible.
+
+Verifie (build offline, visiteur deconnecte) : beam present, `offset-path: rect()` supporte, offset-distance MESUREE en mouvement (92,3 % → 98,8 % en 900 ms) et liseré visible sur la carte ink en capture ; shimmer clippe au texte (`background-clip: text` calcule), animation active, capture prise en plein balayage (lumiere traversant "plus clair."), texte intact ; chrono du hero toujours vivant (25:35) ; zero erreur console ; `npm run lint` clean, `npm run build` normal + offline OK.
+
 ## 2026-07-19 - Landing vivante : le produit se demontre tout seul (facon Apple/Duolingo)
 
 Demande : la landing etait bien mais trop statique pour un SaaS. Montee de MOTION 4→7 en redesign-preserve : structure, contenu, IA et SEO inchanges, zero nouvelle dependance (pas de framer-motion : vocabulaire CSS bt-* etendu + 2 petits hooks sans re-render). NB : MCP 21st.dev mentionne par Mathias mais non connecte a la session (verifie via ToolSearch).

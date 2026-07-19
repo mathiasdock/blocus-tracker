@@ -353,7 +353,7 @@ export default function Home() {
                 {c.hero.badge}
               </p>
               <h1 className="mt-6 text-[2.7rem] leading-[1.03] sm:text-6xl lg:text-7xl" style={{ color: "var(--bt-text-1)", letterSpacing: "-0.03em" }}>
-                {c.hero.titleBefore}<span style={{ color: "#0E8F68" }}>{c.hero.titleAccent}</span>
+                {c.hero.titleBefore}<span className="bt-shimmer-accent">{c.hero.titleAccent}</span>
               </h1>
               <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
                 {c.hero.subtitle}
@@ -757,6 +757,8 @@ export default function Home() {
         {/* ── CTA final — surface ink ────────────────────────────────────── */}
         <section className="px-5 pb-16 sm:pb-20">
           <div className="card-ink bt-grain mx-auto max-w-6xl overflow-hidden rounded-[28px] px-6 py-14 text-center sm:rounded-[36px] sm:px-10 sm:py-20" data-reveal>
+            {/* Faisceau vert qui parcourt la bordure (Border Beam via MCP 21st) */}
+            <div className="bt-beam z-[5]" aria-hidden="true" />
             <div className="relative z-10 mx-auto max-w-xl">
               {/* Mascotte en feu — rebond + flamme qui vacille, l'énergie du CTA */}
               <div aria-hidden="true" className="mb-5 flex justify-center">
