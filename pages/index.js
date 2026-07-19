@@ -163,6 +163,38 @@ function AnimatedCounter({ target, suffix = "" }) {
   );
 }
 
+// Chrono vivant du hero : la promesse du produit qui tourne sous les yeux.
+// Le texte est écrit directement sur le nœud (aucun state → aucun re-render),
+// l'intervalle s'arrête onglet caché et ne démarre pas en reduced-motion.
+function LiveChrono({ label }) {
+  const timeRef = useRef(null);
+
+  useEffect(() => {
+    const node = timeRef.current;
+    if (!node) return undefined;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return undefined; // reste sur la valeur rendue
+
+    let secs = 24 * 60 + 31;
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      secs += 1;
+      const m = String(Math.floor(secs / 60)).padStart(2, "0");
+      const s = String(secs % 60).padStart(2, "0");
+      node.textContent = `${m}:${s}`;
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <span className="bt-demo-chip">
+      <span className="bt-live-dot" />
+      <span className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>{label}</span>
+      <span ref={timeRef} className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>24:31</span>
+    </span>
+  );
+}
+
 export default function Home() {
   const { user, loading } = useAuth();
   const { lang } = useI18n();
@@ -183,6 +215,60 @@ export default function Home() {
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");
   }, [loading, router, user]);
+
+  // Tilt 3D du cadre hero : on écrit --tilt-x/--tilt-y directement sur le nœud
+  // (aucun state, aucun re-render). Souris fine uniquement, jamais en
+  // reduced-motion ; retour à plat en sortie (la transition CSS amortit).
+  const tiltRef = useRef(null);
+  useEffect(() => {
+    const el = tiltRef.current;
+    if (!el) return undefined;
+    const fine = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (!fine || reduce) return undefined;
+    const MAX = 3.2; // degrés — assez pour la profondeur, jamais gadget
+    const onMove = (e) => {
+      const r = el.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      el.style.setProperty("--tilt-x", `${(-py * MAX).toFixed(2)}deg`);
+      el.style.setProperty("--tilt-y", `${(px * MAX).toFixed(2)}deg`);
+    };
+    const onLeave = () => {
+      el.style.setProperty("--tilt-x", "0deg");
+      el.style.setProperty("--tilt-y", "0deg");
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+    };
+  }, []);
+
+  // La visite guidée se joue toute seule (façon Apple) : onglet suivant toutes
+  // les 6,5 s, uniquement quand la section est à l'écran et l'onglet visible.
+  // Le premier clic de l'utilisateur reprend la main définitivement.
+  const [autoTour, setAutoTour] = useState(true);
+  const tourRef = useRef(null);
+  useEffect(() => {
+    if (!autoTour) return undefined;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) { setAutoTour(false); return undefined; }
+    const section = tourRef.current;
+    if (!section) return undefined;
+    let visible = false;
+    const io = new IntersectionObserver(([entry]) => { visible = !!entry?.isIntersecting; }, { threshold: 0.25 });
+    io.observe(section);
+    const id = setInterval(() => {
+      if (!visible || document.hidden) return;
+      setActiveAreaId((prev) => {
+        const idx = APP_AREAS.findIndex((a) => a.id === prev);
+        return APP_AREAS[(idx + 1) % APP_AREAS.length].id;
+      });
+    }, 6500);
+    return () => { clearInterval(id); io.disconnect(); };
+  }, [autoTour]);
 
   // Révélation au scroll : ajoute .is-in à chaque [data-reveal] qui entre
   // dans le viewport (une seule fois). Sans IO, tout est visible d'office.
@@ -254,8 +340,10 @@ export default function Home() {
       <main>
         {/* ── Hero — centré, gros type, vrai produit dessous ─────────────── */}
         <section className="relative overflow-hidden">
+          {/* Fond vivant : halo statique (base) + aurora de marque qui dérive */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-            <div style={{ position: "absolute", top: -220, left: "50%", transform: "translateX(-50%)", width: 900, height: 620, background: "radial-gradient(closest-side, rgba(20,184,133,0.16), transparent 72%)" }} />
+            <div style={{ position: "absolute", top: -220, left: "50%", transform: "translateX(-50%)", width: 900, height: 620, background: "radial-gradient(closest-side, rgba(20,184,133,0.13), transparent 72%)" }} />
+            <div className="bt-aurora"><i /><i /><i /></div>
           </div>
 
           <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-14 text-center sm:pt-20">
@@ -271,7 +359,7 @@ export default function Home() {
                 {c.hero.subtitle}
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link href="/dashboard" className="btn-primary justify-center px-7 py-3.5 text-sm">
+                <Link href="/dashboard" className="btn-primary btn-shine justify-center px-7 py-3.5 text-sm">
                   {c.hero.tryTimer}
                 </Link>
                 <Link href="/signup" className="btn-ghost justify-center px-7 py-3.5 text-sm" style={{ backgroundColor: "var(--bt-surface)" }}>
@@ -280,16 +368,40 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Vrai produit : desktop encadré + mobile flottant */}
-            <div className="relative mx-auto mt-14 max-w-4xl sm:mt-16" data-reveal>
-              <BrowserFrame src={SHOT("chrono-desktop")} alt={c.hero.desktopAlt} width={1920} height={1088} priority />
+            {/* Vrai produit : desktop encadré (tilt 3D au survol) + mobile
+                flottant + fragments d'UI vivants — le produit se démontre
+                tout seul : chrono qui tourne, XP qui tombe, série qui tient. */}
+            <div className="relative mx-auto mt-14 max-w-4xl sm:mt-16" data-reveal="zoom">
+              <div ref={tiltRef} className="bt-tilt">
+                <BrowserFrame src={SHOT("chrono-desktop")} alt={c.hero.desktopAlt} width={1920} height={1088} priority />
+              </div>
               {/* Mascotte perchée sur le cadre — elle respire, cligne et remue
                   la queue (état heureux). Décorative pour les lecteurs d'écran. */}
               <div aria-hidden="true" className="absolute left-[7%] -top-[50px] h-14 w-14 sm:-top-[71px] sm:h-20 sm:w-20">
                 <Mascot streak={12} size={80} className="h-full w-full" />
               </div>
-              <div className="bt-float absolute -right-3 bottom-[-9%] w-[136px] sm:-right-8 sm:w-[190px]" style={{ "--float-rot": "2deg" }}>
-                <PhoneFrame src={SHOT("chrono-mobile")} alt={c.hero.mobileAlt} width={359} height={780} />
+              {/* Série vivante, posée à côté de la mascotte (desktop) */}
+              <div aria-hidden="true" className="bt-plx absolute left-[19%] -top-[38px] hidden sm:block" style={{ "--plx": "16px" }}>
+                <span className="bt-demo-chip">
+                  <span className="text-sm leading-none">🔥</span>
+                  <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>12</span>
+                </span>
+              </div>
+              {/* Chrono qui tourne vraiment — coin haut droit du cadre */}
+              <div aria-hidden="true" className="bt-plx absolute -top-4 right-[3%] sm:-top-5" style={{ "--plx": "26px" }}>
+                <LiveChrono label={c.hero.chipChrono} />
+              </div>
+              {/* +XP qui tombe en boucle — bord gauche du cadre */}
+              <div aria-hidden="true" className="bt-plx absolute -left-2 top-[42%] sm:-left-9" style={{ "--plx": "-18px" }}>
+                <span className="bt-demo-chip bt-xp-loop">
+                  <span className="text-sm font-bold" style={{ color: "var(--bt-accent-dark)" }}>+45 XP</span>
+                </span>
+              </div>
+              {/* Téléphone : parallax (extérieur) + flottement (intérieur) */}
+              <div className="bt-plx absolute -right-3 bottom-[-9%] w-[136px] sm:-right-8 sm:w-[190px]" style={{ "--plx": "-34px" }}>
+                <div className="bt-float" style={{ "--float-rot": "2deg" }}>
+                  <PhoneFrame src={SHOT("chrono-mobile")} alt={c.hero.mobileAlt} width={359} height={780} />
+                </div>
               </div>
             </div>
           </div>
@@ -314,7 +426,7 @@ export default function Home() {
 
         {/* ── Mode focus — pleine largeur, surface ink ───────────────────── */}
         <section id="fonctionnalites" className="scroll-mt-24 px-5 py-14 sm:py-20">
-          <div className="card-ink bt-grain mx-auto max-w-6xl overflow-hidden rounded-[28px] sm:rounded-[36px]" data-reveal>
+          <div className="card-ink bt-grain mx-auto max-w-6xl overflow-hidden rounded-[28px] sm:rounded-[36px]" data-reveal="zoom">
             <div className="relative z-10 grid items-center gap-10 p-7 sm:p-12 lg:grid-cols-2 lg:gap-14">
               <div>
                 <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
@@ -345,8 +457,10 @@ export default function Home() {
         {/* ── Planning — split image / texte ─────────────────────────────── */}
         <section className="px-5 py-14 sm:py-20">
           <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
-            <div data-reveal className="order-2 lg:order-1">
-              <BrowserFrame src={SHOT("planning-desktop")} alt={c.planning.alt} width={1400} height={793} />
+            <div data-reveal="zoom" className="order-2 lg:order-1">
+              <div className="bt-plx" style={{ "--plx": "14px" }}>
+                <BrowserFrame src={SHOT("planning-desktop")} alt={c.planning.alt} width={1400} height={793} />
+              </div>
             </div>
             <div data-reveal className="order-1 lg:order-2" style={{ "--rv-delay": "0.08s" }}>
               <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
@@ -384,12 +498,17 @@ export default function Home() {
                 {c.statsSection.link} <IconArrow size={15} />
               </Link>
             </div>
-            <div className="relative" data-reveal style={{ "--rv-delay": "0.08s" }}>
-              <BrowserFrame src={SHOT("stats-desktop")} alt={c.statsSection.alt} width={1355} height={768} />
-              <div className="absolute -bottom-8 -left-3 w-[46%] overflow-hidden rounded-xl sm:-left-8"
-                style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 44px var(--bt-shadow)", transform: "rotate(-2deg)" }}>
-                <Image src={SHOT("classement-desktop")} alt={c.statsSection.overlayAlt} width={1100} height={623}
-                  sizes="(min-width: 1024px) 260px, 45vw" className="h-auto w-full" />
+            <div className="relative" data-reveal="zoom" style={{ "--rv-delay": "0.08s" }}>
+              <div className="bt-plx" style={{ "--plx": "14px" }}>
+                <BrowserFrame src={SHOT("stats-desktop")} alt={c.statsSection.alt} width={1355} height={768} />
+              </div>
+              {/* L'encart classement dérive à contre-sens du grand cadre → profondeur */}
+              <div className="bt-plx absolute -bottom-8 -left-3 w-[46%] sm:-left-8" style={{ "--plx": "-12px" }}>
+                <div className="overflow-hidden rounded-xl"
+                  style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 44px var(--bt-shadow)", transform: "rotate(-2deg)" }}>
+                  <Image src={SHOT("classement-desktop")} alt={c.statsSection.overlayAlt} width={1100} height={623}
+                    sizes="(min-width: 1024px) 260px, 45vw" className="h-auto w-full" />
+                </div>
               </div>
             </div>
           </div>
@@ -414,10 +533,12 @@ export default function Home() {
                   { shot: "social-desktop", alt: c.social.socialAlt, caption: c.social.captions[0] },
                   { shot: "communautes-desktop", alt: c.social.communautesAlt, caption: c.social.captions[1] },
                 ].map((fig, i) => (
-                  <figure key={fig.shot} data-reveal style={{ "--rv-delay": `${i * 0.08}s` }}>
-                    <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 50px var(--bt-shadow)" }}>
-                      <Image src={SHOT(fig.shot)} alt={fig.alt} width={1400} height={793}
-                        sizes="(min-width: 1024px) 520px, 100vw" className="h-auto w-full" />
+                  <figure key={fig.shot} data-reveal="zoom" style={{ "--rv-delay": `${i * 0.08}s` }}>
+                    <div className="bt-plx" style={{ "--plx": `${i === 0 ? 12 : -12}px` }}>
+                      <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 50px var(--bt-shadow)" }}>
+                        <Image src={SHOT(fig.shot)} alt={fig.alt} width={1400} height={793}
+                          sizes="(min-width: 1024px) 520px, 100vw" className="h-auto w-full" />
+                      </div>
                     </div>
                     <figcaption className="mt-3 text-center text-xs font-medium" style={{ color: "var(--bt-text-3)" }}>{fig.caption}</figcaption>
                   </figure>
@@ -447,7 +568,7 @@ export default function Home() {
         </section>
 
         {/* ── Visite interactive — toutes les grandes pages de l'app ─────── */}
-        <section id="decouverte" className="scroll-mt-24 overflow-hidden px-5 py-14 sm:py-20">
+        <section id="decouverte" ref={tourRef} className="scroll-mt-24 overflow-hidden px-5 py-14 sm:py-20">
           <div className="mx-auto max-w-6xl">
             <div className="grid items-end gap-7 lg:grid-cols-[1fr_auto]" data-reveal>
               <div className="max-w-2xl">
@@ -472,14 +593,18 @@ export default function Home() {
                 const active = area.id === activeArea.id;
                 return (
                   <button key={area.id} type="button" role="tab" aria-selected={active}
-                    aria-controls="product-tour-panel" onClick={() => setActiveAreaId(area.id)}
-                    className="shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
+                    aria-controls="product-tour-panel"
+                    onClick={() => { setAutoTour(false); setActiveAreaId(area.id); }}
+                    className="relative shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
                     style={{
                       color: active ? "#fff" : "var(--bt-text-2)",
                       backgroundColor: active ? "var(--bt-accent)" : "var(--bt-surface)",
                       border: `1px solid ${active ? "var(--bt-accent)" : "var(--bt-border)"}`,
                     }}>
                     {area.label}
+                    {/* Barre de lecture : la visite avance toute seule jusqu'au
+                        premier clic (key = relance l'animation à chaque étape) */}
+                    {active && autoTour && <span className="bt-tab-bar" key={activeArea.id} aria-hidden="true" />}
                   </button>
                 );
               })}
@@ -613,7 +738,7 @@ export default function Home() {
             </div>
             <div className="space-y-3" data-reveal style={{ "--rv-delay": "0.08s" }}>
               {faq.map((item) => (
-                <details key={item.q} className="group rounded-2xl px-5"
+                <details key={item.q} className="group bt-acc rounded-2xl px-5"
                   style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-semibold [&::-webkit-details-marker]:hidden"
                     style={{ color: "var(--bt-text-1)" }}>
@@ -644,7 +769,7 @@ export default function Home() {
                 {c.cta.text}
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link href="/dashboard" className="inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"
+                <Link href="/dashboard" className="btn-shine inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"
                   style={{ backgroundColor: "#fff", color: "#0E8F68", minHeight: 44 }}>
                   {c.cta.tryTimer}
                 </Link>

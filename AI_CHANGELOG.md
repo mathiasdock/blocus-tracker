@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-19 - Landing vivante : le produit se demontre tout seul (facon Apple/Duolingo)
+
+Demande : la landing etait bien mais trop statique pour un SaaS. Montee de MOTION 4→7 en redesign-preserve : structure, contenu, IA et SEO inchanges, zero nouvelle dependance (pas de framer-motion : vocabulaire CSS bt-* etendu + 2 petits hooks sans re-render). NB : MCP 21st.dev mentionne par Mathias mais non connecte a la session (verifie via ToolSearch).
+
+- **Fond aurora de marque** (`.bt-aurora`) : 3 blobs verts (#14B885 alphas faibles → aucune nouvelle couleur, lisible clair ET sombre) qui derivent tres lentement (26-42 s, transform uniquement, blur, pointer-events none). Halo statique conserve en base.
+- **Le hero se demontre tout seul** : autour du vrai screenshot, des fragments d'UI VIVANTS du produit — chip "Session en cours" avec point vert pulsant et **chrono qui tourne vraiment** (setInterval 1 s ecrivant direct sur le noeud, 0 re-render, stoppe onglet cache, jamais en reduced-motion ; string i18n `hero.chipChrono` FR/EN dans landingContent), chip "+45 XP" qui tombe en boucle (CSS pur, cycle 7 s), chip serie "🔥 12" pres de la mascotte (desktop). Tous aria-hidden (decoratifs).
+- **Tilt 3D du cadre hero** (`.bt-tilt`) : pointermove ecrit --tilt-x/--tilt-y (±3,2°) directement sur l'element, la transition CSS fait l'amorti. Souris fine uniquement (matchMedia hover+pointer), jamais en reduced-motion, cleanup complet.
+- **Profondeur au scroll** (`.bt-plx`) : parallax CSS scroll-driven (`animation-timeline: view()`) PROGRESSIVE — Chrome/Edge ont la profondeur (hero: chips/phone a des vitesses differentes ; sections: screenshots +14px, encart classement a contre-sens -12px, figures sociales opposees), Safari/Firefox restent statiques sans regression, et jamais sur un element qui anime deja transform (imbrication systematique, ex. phone = plx exterieur + float interieur).
+- **La visite guidee se joue toute seule** : onglet suivant toutes les 6,5 s avec barre de lecture blanche sur l'onglet actif (`.bt-tab-bar`, key= relance l'anim). Garde-fous : uniquement quand la section est visible (IO 0.25) ET onglet non cache ; le premier clic utilisateur coupe l'autoplay definitivement ; jamais en reduced-motion.
+- **Micro-delices** : reflet qui balaie les CTA primaires au survol (`.btn-shine`, teinte verte sur le bouton blanc du CTA ink), revelation "zoom" des grands screenshots (`[data-reveal="zoom"]` : translateY+scale 0.96), ouverture fluide des <details> FAQ (`interpolate-size`, progressif Chrome 131+).
+- **Reduced-motion** : toutes les nouveautes ajoutees au bloc kill global (aurora, live-dot, xp-loop, tab-bar, shine, tilt, details) ; plx deja garde par media query dans le @supports.
+
+Verifie (build offline, visiteur deconnecte) : 3 blobs aurora presents ; chrono passe de 24:31 → tick reel (7 ticks en 7,5 s mesures) ; tilt applique 0.96°/1.12° au pointermove et revient a plat ; visite auto Chrono→Planning quand la section est a l'ecran, PAS avant (garde IO verifiee), barre de lecture visible, clic manuel stoppe l'autoplay (verifie) ; chip serie correctement masque <640px (responsive voulu) ; clair + sombre (l'aurora glow sur fond ink) ; marquee/FAQ/reveals intacts ; zero erreur console. `npm run lint` clean, `npm run build` normal + offline OK.
+
 ## 2026-07-17 - Reduction egress/stockage : quick wins (polling incremental, feed optimiste, compression chat)
 
 Audit egress → le poste dominant etait le POLLING chat/communautes (refetch complet sur timer fixe). Deja bien fait avant : compression images (800px/320px) + cacheControl 1 an, poll notifications global (2-5 min, visibility-aware). Corrige les points chauds :

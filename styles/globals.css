@@ -550,6 +550,125 @@ html {
 }
 .bt-float { animation: bt-float 7s ease-in-out infinite; }
 
+/* ── Landing : aurora de marque (blobs verts qui dérivent, très lent) ──
+   Décoratif (aria-hidden), transform uniquement, alphas faibles du vert
+   #14B885 → lisible sur fond clair ET sombre sans nouvelle couleur. */
+.bt-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.bt-aurora > i {
+  position: absolute; display: block; border-radius: 9999px;
+  filter: blur(64px); will-change: transform;
+  background: radial-gradient(closest-side, rgba(20, 184, 133, 0.20), transparent 70%);
+}
+.bt-aurora > i:nth-child(1) { width: 560px; height: 560px; top: -180px; left: 6%; animation: bt-aurora-a 26s ease-in-out infinite; }
+.bt-aurora > i:nth-child(2) { width: 480px; height: 480px; top: -60px; right: 2%; opacity: 0.75; animation: bt-aurora-b 34s ease-in-out infinite; }
+.bt-aurora > i:nth-child(3) { width: 430px; height: 430px; bottom: -230px; left: 32%; opacity: 0.55; animation: bt-aurora-a 42s ease-in-out infinite reverse; }
+@keyframes bt-aurora-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%      { transform: translate3d(70px, 42px, 0) scale(1.12); }
+  66%      { transform: translate3d(-52px, 16px, 0) scale(0.94); }
+}
+@keyframes bt-aurora-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  40%      { transform: translate3d(-80px, 52px, 0) scale(1.08); }
+  70%      { transform: translate3d(44px, -30px, 0) scale(0.96); }
+}
+
+/* ── Landing : profondeur au scroll (CSS scroll-driven, progressif) ──
+   Chrome/Edge : chaque .bt-plx glisse de +--plx à -–plx pendant sa
+   traversée du viewport. Sans support (Safari/Firefox) ou en
+   reduced-motion : statique, zéro régression. Ne JAMAIS poser .bt-plx
+   sur un élément qui anime déjà transform (imbriquer à la place). */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .bt-plx {
+      animation: bt-plx linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+  }
+}
+@keyframes bt-plx {
+  from { transform: translateY(var(--plx, 18px)); }
+  to   { transform: translateY(calc(var(--plx, 18px) * -1)); }
+}
+
+/* ── Landing : fragments d'UI vivants autour du hero (vrai produit) ── */
+.bt-demo-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  border-radius: 9999px; padding: 8px 14px;
+  background-color: var(--bt-surface);
+  border: 1px solid var(--bt-border);
+  box-shadow: 0 10px 30px var(--bt-shadow);
+}
+.bt-live-dot {
+  width: 8px; height: 8px; border-radius: 9999px; flex-shrink: 0;
+  background-color: #14B885;
+  animation: bt-live-dot 1.8s ease-in-out infinite;
+}
+@keyframes bt-live-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(20, 184, 133, 0.45); }
+  55%      { box-shadow: 0 0 0 6px rgba(20, 184, 133, 0); }
+}
+.bt-xp-loop { animation: bt-xp-loop 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+@keyframes bt-xp-loop {
+  0%        { opacity: 0; transform: translateY(14px) scale(0.9); }
+  7%, 72%   { opacity: 1; transform: translateY(0) scale(1); }
+  86%, 100% { opacity: 0; transform: translateY(-16px) scale(0.96); }
+}
+
+/* ── Landing : tilt 3D du cadre hero (JS écrit --tilt-x/--tilt-y sur le
+   nœud, aucun re-render ; la transition fait l'amorti "à l'Apple") ── */
+.bt-tilt {
+  transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+/* ── Landing : reflet qui balaie les CTA primaires au survol ── */
+.btn-shine { position: relative; overflow: hidden; }
+.btn-shine::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -45%; width: 45%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  transform: skewX(-18deg) translateX(0); opacity: 0; pointer-events: none;
+}
+.btn-shine:hover::after { animation: bt-shine 0.7s ease-out; }
+/* Sur le bouton BLANC du CTA final (fond ink), le reflet devient vert */
+.card-ink .btn-shine::after {
+  background: linear-gradient(105deg, transparent, rgba(20, 184, 133, 0.20), transparent);
+}
+@keyframes bt-shine {
+  0%   { transform: skewX(-18deg) translateX(-40%); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: skewX(-18deg) translateX(430%); opacity: 0; }
+}
+
+/* ── Landing : la visite guidée se joue toute seule (barre = temps restant
+   avant l'onglet suivant ; s'arrête au premier clic de l'utilisateur) ── */
+.bt-tab-bar {
+  position: absolute; left: 14px; right: 14px; bottom: 5px; height: 2px;
+  border-radius: 2px; overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.28);
+}
+.bt-tab-bar::after {
+  content: ""; display: block; height: 100%; width: 100%;
+  background-color: #fff;
+  transform: translateX(-100%);
+  animation: bt-tab-bar 6.5s linear forwards;
+}
+@keyframes bt-tab-bar { to { transform: translateX(0); } }
+
+/* ── Landing : ouverture fluide des <details> de la FAQ (progressif,
+   interpolate-size : Chrome 131+ ; ailleurs, ouverture instantanée) ── */
+details.bt-acc { interpolate-size: allow-keywords; }
+details.bt-acc::details-content {
+  block-size: 0; overflow: clip;
+  transition: block-size 0.32s cubic-bezier(0.16, 1, 0.3, 1), content-visibility 0.32s allow-discrete;
+}
+details.bt-acc[open]::details-content { block-size: auto; }
+
+/* ── Landing : variante de révélation avec zoom léger (screenshots) ── */
+[data-reveal="zoom"] { transform: translateY(26px) scale(0.96); }
+
 /* ── Écran de chargement : Blocus Blocks qui se remplissent en vague ──
    (components/LoadingScreen.js). Sous prefers-reduced-motion : statique,
    les deux premiers blocs restent remplis pour garder la lecture "en cours". */
@@ -653,6 +772,11 @@ html {
   .bt-skeleton::after,
   .bt-marquee-track,
   .bt-float,
+  .bt-aurora > i,
+  .bt-live-dot,
+  .bt-xp-loop,
+  .bt-tab-bar::after,
+  .btn-shine:hover::after,
   .bt-m-anim .bt-m-all,
   .bt-m-anim .bt-m-tail,
   .bt-m-anim .bt-m-eyes,
@@ -661,6 +785,9 @@ html {
   .bt-m-anim .bt-m-spark {
     animation: none !important;
   }
+  .bt-xp-loop { opacity: 1 !important; transform: none !important; }
+  .bt-tilt { transform: none !important; transition: none !important; }
+  details.bt-acc::details-content { transition: none !important; }
   [data-reveal] {
     opacity: 1 !important;
     transform: none !important;
