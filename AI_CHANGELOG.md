@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-19 - Landing : projecteur vert au survol (Spotlight reactbits via MCP 21st) — credits du jour epuises
+
+Mathias a demande d'utiliser tous ses credits 21st.dev du jour. Bilan honnete : le DERNIER `get_component` (2/2) a ete depense sur le "Spotlight Card" de reactbits (id 2271) — mecanique exacte recuperee (--mouse-x/--mouse-y poses par JS + ::before radial-gradient au survol). `generate` etait DEJA a quota (`generation_limit_reached`) avant meme mon premier appel — probablement consomme a l'installation du plugin ; la maquette IA de la section Methode attendra demain. Retrievals restants : 0/2, generations : 0.
+
+- **`.bt-spot`** (globals.css) : adaptation CSS pure du pattern — halo vert `radial-gradient(340px circle at var(--sx) var(--sy), rgba(20,184,133,0.12), transparent)` en ::before (`border-radius: inherit`, `pointer-events: none`, z-0, enfants releves z-1), visible uniquement au survol et uniquement souris fine (`@media (hover:hover) and (pointer:fine)`). Reduced-motion : opacity 0 force.
+- **Hook partage** (index.js) : un seul effet pose `--sx/--sy` directement sur l'element survole via pointermove — aucun state, aucun re-render, cleanup complet.
+- **Applique a 7 surfaces ou le survol a du SENS** (interactives/exploratoires) : le panneau de la visite guidee (#product-tour-panel), les 4 etapes de la section Methode, les 2 cartes guides. Pas sur les surfaces passives (restraint).
+
+Verifie (build offline) : 7 surfaces detectees, pointermove simule → --sx/--sy ecrits au pixel (40px/20px), ::before porte bien le degrade vert (rgba 20,184,133 dans computed), opacity 0 au repos ; non-regression : chrono du hero tick toujours, beam/shimmer/aurora presents ; zero erreur console ; `npm run lint` clean, `npm run build` normal + offline OK.
+
 ## 2026-07-19 - Landing : Border Beam + shimmer du titre (via MCP 21st.dev, adapte en CSS pur)
 
 Premier usage du MCP 21st.dev (nouvellement connecte par Mathias). Methode : `search` (gratuit/illimite) pour reperer les patterns canoniques, puis UNE seule recuperation payante (`get_component`, tier gratuit = 2/jour, il en reste 1) sur le Border Beam officiel de magicui pour la mecanique exacte — le reste adapte de tete. AUCUNE dependance ajoutee : les deux patterns sont portes en CSS pur dans le vocabulaire bt-*, verts de la famille existante uniquement (#14B885 / #22E4A4 deja utilise par la barre de progression du profil / #0E8F68).

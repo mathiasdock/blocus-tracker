@@ -721,6 +721,27 @@ details.bt-acc[open]::details-content { block-size: auto; }
   38%, 100%{ background-position: -100% 0; }
 }
 
+/* ── Landing : projecteur vert qui suit la souris (adaptation du
+   "Spotlight Card" de reactbits, récupéré via le MCP 21st.dev). Le JS
+   pose --sx/--sy directement sur l'élément (zéro re-render) ; le halo
+   n'apparaît qu'au survol, souris fine uniquement. ── */
+.bt-spot { position: relative; }
+.bt-spot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(340px circle at var(--sx, 50%) var(--sy, 50%), rgba(20, 184, 133, 0.12), transparent 75%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.bt-spot > * { position: relative; z-index: 1; }
+@media (hover: hover) and (pointer: fine) {
+  .bt-spot:hover::before { opacity: 1; }
+}
+
 /* ── Écran de chargement : Blocus Blocks qui se remplissent en vague ──
    (components/LoadingScreen.js). Sous prefers-reduced-motion : statique,
    les deux premiers blocs restent remplis pour garder la lecture "en cours". */
@@ -841,9 +862,11 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-tilt { transform: none !important; transition: none !important; }
   details.bt-acc::details-content { transition: none !important; }
   /* Faisceau : sans animation il stagnerait dans un coin → on le retire.
-     Shimmer : animation coupée = dégradé statique, lisible. */
+     Shimmer : animation coupée = dégradé statique, lisible.
+     Projecteur : suit la souris → retiré (les hovers existants suffisent). */
   .bt-beam { display: none !important; }
   .bt-shimmer-accent { animation: none !important; }
+  .bt-spot::before { opacity: 0 !important; transition: none !important; }
   [data-reveal] {
     opacity: 1 !important;
     transform: none !important;

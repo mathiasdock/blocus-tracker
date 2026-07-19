@@ -246,6 +246,24 @@ export default function Home() {
     };
   }, []);
 
+  // Projecteur vert qui suit la souris sur les surfaces .bt-spot (adaptation
+  // du "Spotlight Card" reactbits via le MCP 21st). --sx/--sy sont écrits
+  // directement sur l'élément survolé : aucun state, aucun re-render.
+  useEffect(() => {
+    const fine = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+    if (!fine) return undefined;
+    const els = Array.from(document.querySelectorAll(".bt-spot"));
+    if (!els.length) return undefined;
+    const onMove = (e) => {
+      const el = e.currentTarget;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--sx", `${e.clientX - r.left}px`);
+      el.style.setProperty("--sy", `${e.clientY - r.top}px`);
+    };
+    els.forEach((el) => el.addEventListener("pointermove", onMove));
+    return () => els.forEach((el) => el.removeEventListener("pointermove", onMove));
+  }, []);
+
   // La visite guidée se joue toute seule (façon Apple) : onglet suivant toutes
   // les 6,5 s, uniquement quand la section est à l'écran et l'onglet visible.
   // Le premier clic de l'utilisateur reprend la main définitivement.
@@ -610,7 +628,7 @@ export default function Home() {
               })}
             </div>
 
-            <div id="product-tour-panel" role="tabpanel" className="mt-5 grid overflow-hidden rounded-[28px] lg:grid-cols-[0.72fr_1.28fr]"
+            <div id="product-tour-panel" role="tabpanel" className="bt-spot mt-5 grid overflow-hidden rounded-[28px] lg:grid-cols-[0.72fr_1.28fr]"
               style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 20px 60px var(--bt-shadow)" }}>
               <div className="flex min-w-0 flex-col p-6 sm:p-9 lg:p-10" aria-live="polite">
                 <div className="flex items-end gap-3">
@@ -688,7 +706,7 @@ export default function Home() {
 
             <ol className="mt-10 grid gap-x-8 gap-y-0 md:grid-cols-2">
               {studyFlow.map((step, i) => (
-                <li key={step.number} className="grid grid-cols-[auto_1fr] gap-4 py-7"
+                <li key={step.number} className="bt-spot grid grid-cols-[auto_1fr] gap-4 py-7"
                   style={{ borderTop: "1px solid var(--bt-border)", "--rv-delay": `${(i % 2) * 0.07}s` }} data-reveal>
                   <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{step.number}</span>
                   <div>
@@ -705,7 +723,7 @@ export default function Home() {
 
             <div className="mt-7 grid gap-3 sm:grid-cols-2" data-reveal>
               {extraGuides.map((guide) => (
-                <Link key={guide.href} href={guide.href} className="group flex items-center justify-between gap-5 rounded-2xl p-5 transition-colors"
+                <Link key={guide.href} href={guide.href} className="group bt-spot flex items-center justify-between gap-5 rounded-2xl p-5 transition-colors"
                   style={{ backgroundColor: "var(--bt-bg)", border: "1px solid var(--bt-border)" }}>
                   <span>
                     <span className="block text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>{guide.title}</span>
