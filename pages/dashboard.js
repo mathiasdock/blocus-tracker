@@ -20,6 +20,7 @@ import Mascot from "../components/Mascot";
 import MascotCoach from "../components/MascotCoach";
 import AmbientSoundControl from "../components/AmbientSoundControl";
 import FocusShaderBackground from "../components/FocusShaderBackground";
+import AnimatedNumber from "../components/AnimatedNumber";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -1531,7 +1532,9 @@ export default function Dashboard() {
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="#FBBF24" stroke="none">
                     <path d="M12 2c.5 2.5 2 4.2 3.5 5.8C17 9.4 18 11 18 13a6 6 0 0 1-12 0c0-1.2.4-2.2 1-3 .3 1.2 1.2 2 2.3 2 .6-2.3-.3-4.3 2.7-10z"/>
                   </svg>
-                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>{streak} {t("dash.streak")}</span>
+                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>
+                    <AnimatedNumber value={streak} suffix={` ${t("dash.streak")}`} />
+                  </span>
                 </span>
               </div>
             )}
@@ -1540,15 +1543,15 @@ export default function Dashboard() {
             </p>
             <div className="font-num font-bold tabular-nums mb-3"
               style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "var(--bt-ink-text)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
-              {formatMinutesShort(totalToday)}
+              <AnimatedNumber value={totalToday} format={formatMinutesShort} />
             </div>
             <div className="mb-4">
               <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "var(--bt-ink-muted)" }}>
                 <span>{t("dash.goal")}</span>
-                <span className="font-bold tabular-nums">{goalPct}%</span>
+                <span className="font-bold tabular-nums"><AnimatedNumber value={goalPct} suffix="%" /></span>
               </div>
               <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
-                <div className="h-full rounded-full transition-all duration-700"
+                <div className="h-full rounded-full transition-all duration-300"
                   style={{ width: `${goalPct}%`, backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
               </div>
             </div>
@@ -1559,7 +1562,9 @@ export default function Dashboard() {
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                     <span className="truncate min-w-0" style={{ color: "var(--bt-ink-muted)" }}>{c.name}</span>
                   </span>
-                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-ink-text)" }}>{formatMinutesShort(c.secs)}</span>
+                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-ink-text)" }}>
+                    <AnimatedNumber value={c.secs} format={formatMinutesShort} />
+                  </span>
                 </li>
               ))}
               {totalToday === 0 && (
@@ -1572,15 +1577,17 @@ export default function Dashboard() {
               <div className="mt-4 pt-4 grid grid-cols-2 gap-x-4 gap-y-3"
                 style={{ borderTop: "1px solid var(--bt-ink-border)" }}>
                 {[
-                  [t("dash.recBestDay"), formatMinutesShort(bestDaySecs)],
-                  [t("dash.recLongest"), formatMinutesShort(longestSessionSecs)],
-                  [t("dash.recWeek"), formatMinutesShort(weekSecs)],
-                  [t("dash.recBestStreak"), `${bestStreak} ${t("dash.daysShort")}`],
-                ].map(([label, value]) => (
+                  { label: t("dash.recBestDay"), value: bestDaySecs, format: formatMinutesShort },
+                  { label: t("dash.recLongest"), value: longestSessionSecs, format: formatMinutesShort },
+                  { label: t("dash.recWeek"), value: weekSecs, format: formatMinutesShort },
+                  { label: t("dash.recBestStreak"), value: bestStreak, suffix: ` ${t("dash.daysShort")}` },
+                ].map(({ label, value, format, suffix }) => (
                   <div key={label}>
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
                       style={{ color: "var(--bt-ink-muted)", opacity: 0.8 }}>{label}</p>
-                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-ink-text)" }}>{value}</p>
+                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-ink-text)" }}>
+                      <AnimatedNumber value={value} format={format} suffix={suffix} />
+                    </p>
                   </div>
                 ))}
               </div>
@@ -1773,7 +1780,7 @@ export default function Dashboard() {
 
       {/* Focus mode overlay */}
       {focusMode && (
-        <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-500 overflow-hidden bt-grain"
+        <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
           style={{
             background: (isPaused && !pomodoro) ? "#1E0F0D" : "var(--bt-ink)",
             zIndex: 100,
@@ -1851,7 +1858,7 @@ export default function Dashboard() {
             style={{
               opacity: (focusCtlVisible || !running) ? 1 : 0,
               pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
-              transition: "opacity 0.8s ease",
+              transition: "opacity 0.25s ease-out",
             }}>
             {pomoPhase === "break" && pomodoro ? (
               <button className="btn-ghost w-full border-white/20 px-6 py-3 text-white sm:w-auto sm:px-8"
@@ -1889,7 +1896,7 @@ export default function Dashboard() {
               color: "rgba(255,255,255,0.45)",
               opacity: (focusCtlVisible || !running) ? 1 : 0,
               pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
-              transition: "opacity 0.8s ease, color 0.2s ease",
+              transition: "opacity 0.25s ease-out, color 0.2s ease-out",
             }}
             onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.8)"}
             onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}>
@@ -1904,7 +1911,7 @@ export default function Dashboard() {
             style={{
               color: "rgba(255,255,255,0.25)",
               opacity: (focusCtlVisible || !running) ? 1 : 0,
-              transition: "opacity 0.8s ease",
+              transition: "opacity 0.25s ease-out",
             }}>
             {t("dash.spaceHint")}
           </p>

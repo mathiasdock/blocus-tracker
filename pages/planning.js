@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import MascotCoach from "../components/MascotCoach";
 import SegmentedGlide from "../components/SegmentedGlide";
+import AnimatedNumber from "../components/AnimatedNumber";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
@@ -293,7 +294,7 @@ function RevisionChecklists() {
                     </span>
                   </div>
                   <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                    <div className="h-full rounded-full transition-all duration-500"
+                    <div className="h-full rounded-full transition-all duration-300"
                       style={{ width: `${pct}%`, backgroundColor: c.color }} />
                   </div>
                 </div>
@@ -350,7 +351,7 @@ function TodayCard() {
   const dateLabel = dateFromYmd(today).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="card-ink px-5 py-4 mb-5 cursor-pointer" onClick={() => openDay(today)}>
+    <div className="card-ink card-lift px-5 py-4 mb-5 cursor-pointer" onClick={() => openDay(today)}>
       <div className="flex items-center justify-between mb-3.5">
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
           {t("plan.todayCardEyebrow")}
@@ -361,21 +362,21 @@ function TodayCard() {
       <div className="flex items-center gap-6 flex-wrap mb-3.5">
         <div>
           <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
-            {doneCount}/{todayObjectives.length}
+            <AnimatedNumber value={doneCount} />/<AnimatedNumber value={todayObjectives.length} />
           </p>
           <p className="text-xs mt-1" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardObjectives")}</p>
         </div>
         {todayExams.length > 0 ? (
           <div>
             <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "#FCA5A5", letterSpacing: "-0.02em" }}>
-              {todayExams.length}
+              <AnimatedNumber value={todayExams.length} />
             </p>
             <p className="text-xs mt-1" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardExamsToday")}</p>
           </div>
         ) : nextExam ? (
           <div className="min-w-0">
             <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
-              J-{nextExamDays}
+              <AnimatedNumber value={nextExamDays} prefix="J-" />
             </p>
             <p className="text-xs mt-1 truncate max-w-[160px]" style={{ color: "var(--bt-ink-muted)" }}>{nextExam.name}</p>
           </div>
@@ -825,7 +826,7 @@ function DayDetailModal() {
                               <div className="mt-1.5 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
                                 <div className="h-full rounded-full" style={{
                                   width: `${Math.min(100, Math.round(realSecs / 60 / o.target_minutes * 100))}%`,
-                                  backgroundColor: "#14B885", transition: "width 0.5s",
+                                  backgroundColor: "#14B885", transition: "width 0.3s ease-out",
                                 }} />
                               </div>
                             )}
@@ -1609,6 +1610,7 @@ export default function Planning() {
     <Ctx.Provider value={ctxValue}>
       <style>{`@media print { aside, nav, header, footer, .no-print { display: none !important; } body { background: white !important; } .card { box-shadow: none !important; } }`}</style>
       <Layout>
+        <div className="bt-stagger">
         {/* Barre d'outils unique : navigation + période à gauche, vue et
             actions secondaires (partage, export) à droite. */}
         <div className="flex flex-wrap items-center gap-2 mb-5">
@@ -1684,6 +1686,7 @@ export default function Planning() {
         </div>
 
         <RevisionChecklists />
+        </div>
       </Layout>
 
       {/* Day detail modal — mounted outside Layout to avoid stacking context issues */}

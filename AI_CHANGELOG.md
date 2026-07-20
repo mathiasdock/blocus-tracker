@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-20 - Polish applicatif : transitions, nombres, interactions et skeletons
+
+Passe de finition transverse sans nouvelle fonctionnalite ni dependance :
+
+- **Transitions de pages** : `components/PageTransition.js` ecoute le Pages Router une seule fois. Le shell (sidebar, header, nav mobile) reste fixe ; seul `main[data-bt-route-content]` sort en 130 ms (-4 px) puis entre en 210 ms (+10 px), avec un court plancher de sortie de 70 ms sur les navigations instantanees. Toutes les classes sont retirees apres la transition et en cas d'erreur.
+- **Nombres animes** : `components/AnimatedNumber.js` fournit un compteur partage de 400 ms, `requestAnimationFrame` + ease-out cubique. Il part de la valeur affichee vers la nouvelle valeur, ne depend pas du scroll, transmet uniquement la valeur finale aux lecteurs d'ecran et saute directement au resultat sous `prefers-reduced-motion`. Cable sur les chiffres importants du Dashboard, Planning, Stats, Profil/XP/badges/parrainage et sur le top 10 du classement (limite volontaire pour ne pas lancer 50 animations en parallele).
+- **Skeletons par page** : `components/PageSkeleton.js` remplace le loader global generique pendant le gate d'auth. Cinq geometries responsive : chrono/dashboard, planning/calendrier, stats/graphiques, profil/badges et social/conversations. Zero image, zero requete, tokens clair/sombre, `role=status`, et trappe offline `?bt_loader=1` conservee.
+- **Micro-interactions** : tous les boutons/liens de `.bt-app-shell` repondent en 160 ms avec compression a 97 %. Les `.btn` montent de 1 px au survol, les cartes explicitement interactives `.card-lift` montent de 2 px avec ombre renforcee et feedback au clic. La TodayCard du planning est marquee interactive. Les entrees `.bt-rise`/`.bt-stagger` passent de 500 ms et 14 px a 240 ms et 10 px, avec stagger borne a 120 ms.
+- **Timings nettoyes** : barres de progression Stats/Planning/Dashboard et transitions Focus interactives ramenees a 250-300 ms. Les animations continues qui representent un vrai temps (Blocus Blocks, shader Focus) gardent leur rythme fonctionnel.
+- **Reduced motion** : transitions de route, press, lift, skeleton shimmer et animations d'entree sont toutes neutralisees proprement ; le contenu reste visible et sans transform.
+
+Verification : `npm run lint` clean ; build production reel avec `NEXT_PUBLIC_OFFLINE_DEV=false` OK ; build preview avec `NEXT_PUBLIC_OFFLINE_DEV=true` OK. QA navigateur production locale sur desktop 1280x720 et mobile 390x844 : Dashboard + skeletons Dashboard/Planning/Stats/Profil/Messages, aucun overflow, aucune erreur console applicative, 36 a 72 blocs skeleton selon la page, shell responsive correct. Preview locale : `http://localhost:3002/dashboard`.
+
 ## 2026-07-20 - Mode Focus : fond WebGL Waves aux couleurs Blocus Tracker
 
 Le fond vert du mode Focus a ete remplace par un vrai shader WebGL1 anime, adapte du shader "Waves" fourni depuis 21st.dev, sans librairie ni asset externe.

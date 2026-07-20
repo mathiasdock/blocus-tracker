@@ -127,8 +127,11 @@ html {
     }
     .card-lift:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 32px var(--bt-shadow);
+      box-shadow: 0 12px 34px var(--bt-shadow);
     }
+  }
+  .card-lift:active {
+    transform: translateY(0) scale(0.985);
   }
 
   /* Surface "ink" — moment de marque (hero chrono, records).
@@ -185,6 +188,13 @@ html {
   /* Feedback tactile intégré : tous les boutons répondent au press */
   .btn:active:not(:disabled) {
     transform: scale(0.97);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px var(--bt-shadow);
+    }
   }
 
   .btn-primary {
@@ -332,7 +342,7 @@ html {
   background:
     radial-gradient(90% 70% at 82% 12%, rgba(143,212,184,0.34), transparent 68%),
     linear-gradient(155deg, #071C15, #0E8F68 58%, #F2FBF7 140%);
-  transition: opacity 0.7s ease, filter 0.7s ease;
+  transition: opacity 0.3s ease-out, filter 0.3s ease-out;
 }
 .bt-focus-shader canvas {
   position: absolute;
@@ -341,7 +351,7 @@ html {
   height: 100%;
   display: block;
   opacity: 0;
-  transition: opacity 0.45s ease;
+  transition: opacity 0.3s ease-out;
 }
 .bt-focus-shader.is-paused {
   opacity: 0.48;
@@ -472,21 +482,50 @@ html {
 
 /* Entrée de page — fade-up doux, appliqué carte par carte */
 @keyframes bt-rise {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.bt-rise { animation: bt-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.bt-rise { animation: bt-rise 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 
 /* Conteneur stagger : chaque enfant direct entre avec un léger décalage */
-.bt-stagger > * { animation: bt-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
-.bt-stagger > *:nth-child(1)  { animation-delay: 0.02s; }
-.bt-stagger > *:nth-child(2)  { animation-delay: 0.07s; }
-.bt-stagger > *:nth-child(3)  { animation-delay: 0.12s; }
-.bt-stagger > *:nth-child(4)  { animation-delay: 0.17s; }
-.bt-stagger > *:nth-child(5)  { animation-delay: 0.22s; }
-.bt-stagger > *:nth-child(6)  { animation-delay: 0.27s; }
-.bt-stagger > *:nth-child(7)  { animation-delay: 0.32s; }
-.bt-stagger > *:nth-child(n+8){ animation-delay: 0.36s; }
+.bt-stagger > * { animation: bt-rise 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.bt-stagger > *:nth-child(1)  { animation-delay: 0.01s; }
+.bt-stagger > *:nth-child(2)  { animation-delay: 0.03s; }
+.bt-stagger > *:nth-child(3)  { animation-delay: 0.05s; }
+.bt-stagger > *:nth-child(4)  { animation-delay: 0.07s; }
+.bt-stagger > *:nth-child(5)  { animation-delay: 0.09s; }
+.bt-stagger > *:nth-child(6)  { animation-delay: 0.11s; }
+.bt-stagger > *:nth-child(n+7){ animation-delay: 0.12s; }
+
+/* Navigation interne : le shell reste fixe, seul le contenu de page bouge. */
+.bt-route-leaving [data-bt-route-content] {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.13s ease-out, transform 0.13s ease-out;
+}
+.bt-route-entering [data-bt-route-content] {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: none;
+}
+.bt-route-entered [data-bt-route-content] {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.21s ease-out, transform 0.21s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Feedback immédiat pour les contrôles de l'app, y compris ceux qui n'utilisent
+   pas les classes btn. Les cartes passives ne bougent jamais. */
+.bt-app-shell :where(button:not(:disabled), a[href]) {
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: center;
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 0.16s;
+  transition-timing-function: ease-out;
+}
+.bt-app-shell :where(button:not(:disabled), a[href]):active {
+  transform: scale(0.97);
+}
 
 @keyframes bt-confetti-fall {
   0%   { transform: translateY(-12px) rotate(0deg);   opacity: 0; }
@@ -927,6 +966,9 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-toast-in,
   .bt-toast-out,
   .bt-tab-fade,
+  .bt-route-leaving [data-bt-route-content],
+  .bt-route-entering [data-bt-route-content],
+  .bt-route-entered [data-bt-route-content],
   .bt-skeleton::after,
   .bt-marquee-track,
   .bt-float,
@@ -964,5 +1006,13 @@ details.bt-acc[open]::details-content { block-size: auto; }
   }
   .bt-press { transition: none !important; }
   .btn:active:not(:disabled) { transform: none !important; }
+  .bt-app-shell :where(button:not(:disabled), a[href]):active { transform: none !important; }
+  .bt-route-leaving [data-bt-route-content],
+  .bt-route-entering [data-bt-route-content],
+  .bt-route-entered [data-bt-route-content] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
   .card-lift, .card-lift:hover { transform: none !important; transition: none !important; }
 }

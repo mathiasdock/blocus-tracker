@@ -9,7 +9,7 @@ import { formatDuration, displayName, timeAgo } from "../lib/format";
 import PwaInstallBanner from "./PwaInstallBanner";
 import LegacyEmailBanner from "./LegacyEmailBanner";
 import Mascot from "./Mascot";
-import LoadingScreen from "./LoadingScreen";
+import PageSkeleton from "./PageSkeleton";
 import { isOfflineDev } from "../lib/supabaseClient";
 
 // ── SVG Icons ─────────────────────────────────────────────────
@@ -585,7 +585,7 @@ export default function Layout({ children }) {
   // UNIQUEMENT (isOfflineDev est false en prod → bloc éliminé du bundle) pour
   // prévisualiser l'écran de chargement sans dépendre du timing de l'auth.
   if (loading || (isOfflineDev && router.query.bt_loader === "1")) {
-    return <LoadingScreen fullScreen />;
+    return <PageSkeleton pathname={router.pathname} />;
   }
 
   function renderDesktopNavItem(n) {
@@ -638,7 +638,7 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen transition-colors duration-200"
+    <div className="bt-app-shell min-h-screen transition-colors duration-200"
       style={{ backgroundColor: "var(--bt-bg)" }}>
 
       {/* ══ Sidebar desktop ══════════════════════════════════════ */}
@@ -835,7 +835,7 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        <main className="w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip">
+        <main data-bt-route-content className="w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip">
           {!guestLocked && <LegacyEmailBanner />}
           {guestLocked ? <GuestLockedPanel pathname={router.pathname} /> : children}
         </main>

@@ -7,6 +7,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, displayName, lastNDates, todayISO } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
+import AnimatedNumber from "./AnimatedNumber";
 
 // ── RankBadge ────────────────────────────────────────────────
 // Pastille de rang — podium or / argent / bronze pour bien démarquer le 1er.
@@ -220,27 +221,32 @@ export default function Leaderboard({ user, profile, onViewUser }) {
         : (period === "day" ? t("common.today") : t("stats.last7days")));
 
   // Valeur affichée à droite de chaque ligne, selon la métrique active.
-  function ValueCell({ row }) {
+  function ValueCell({ row, rank }) {
+    const animate = rank <= 10;
     if (v2Available && metric === "streak") {
       return (
         <span className="inline-flex items-center gap-1 text-sm font-num font-semibold tabular-nums" style={{ color: "#D97706" }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
           </svg>
-          {row.streak_days} {t("stats.dayUnit")}
+          {animate
+            ? <AnimatedNumber value={row.streak_days} suffix={` ${t("stats.dayUnit")}`} />
+            : <>{row.streak_days} {t("stats.dayUnit")}</>}
         </span>
       );
     }
     if (v2Available && metric === "regularity") {
       return (
         <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
-          {row.active_days}/{periodDays} {t("stats.dayUnit")}
+          {animate ? <AnimatedNumber value={row.active_days} /> : row.active_days}/{periodDays} {t("stats.dayUnit")}
         </span>
       );
     }
     return (
       <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
-        {formatMinutesShort(row.total_seconds)}
+        {animate
+          ? <AnimatedNumber value={row.total_seconds} format={formatMinutesShort} />
+          : formatMinutesShort(row.total_seconds)}
       </span>
     );
   }
@@ -351,7 +357,7 @@ export default function Leaderboard({ user, profile, onViewUser }) {
                     </span>
                     {isMe && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}
                   </span>
-                  <ValueCell row={row} />
+                  <ValueCell row={row} rank={i + 1} />
                 </li>
               );
             })}

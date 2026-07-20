@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Layout from "../components/Layout";
@@ -7,6 +7,7 @@ import StudyHeatmap from "../components/StudyHeatmap";
 import Leaderboard, { RankBadge } from "../components/Leaderboard";
 import MascotCoach from "../components/MascotCoach";
 import StudyRecap from "../components/StudyRecap";
+import AnimatedNumber from "../components/AnimatedNumber";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -36,33 +37,8 @@ function formatClock(minutes, lang) {
   return `${h}h${String(m).padStart(2, "0")}`;
 }
 
-// Compteur animé (micro-interaction) — anime un entier de 0 → value au montage.
-// Respecte prefers-reduced-motion (saute direct à la valeur finale).
-function useCountUp(value, duration = 900) {
-  const [display, setDisplay] = useState(value);
-  const ref = useRef(value);
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      setDisplay(value); ref.current = value; return;
-    }
-    const from = ref.current, to = value, start = performance.now();
-    let raf;
-    const tick = (now) => {
-      const p = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(Math.round(from + (to - from) * eased));
-      if (p < 1) raf = requestAnimationFrame(tick);
-      else ref.current = to;
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
-  return display;
-}
-
 function CountInt({ value, suffix = "" }) {
-  const n = useCountUp(value || 0);
-  return <>{n}{suffix}</>;
+  return <AnimatedNumber value={value || 0} suffix={suffix} />;
 }
 
 // Barre d'objectif proéminente — libellé, valeur/cible, pourcentage, reste.
@@ -78,7 +54,7 @@ function GoalBar({ icon, chip, label, pct, valueText, targetText, footer, footer
         </span>
       </div>
       <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
-        <div className="h-full rounded-full transition-all duration-700"
+        <div className="h-full rounded-full transition-all duration-300"
           style={{ width: `${Math.min(100, pct)}%`, backgroundImage: reached ? "linear-gradient(90deg,#0E8F68,#14B885)" : "linear-gradient(90deg,#14B885,#2BD9A4)" }} />
       </div>
       <div className="flex items-center justify-between mt-2 gap-2">
@@ -147,7 +123,7 @@ function TrendChip({ dir, pct }) {
 // Mini-carte de stat partagée — fond neutre (l'accent ne reste que sur la puce
 // d'icône, pleine, pour qu'elle ressorte). Supporte une chip de tendance
 // inline et une barre de progression (ex. objectif du jour).
-function StatTile({ icon, chip, label, value, sub, subColor, spanFull, trend, progress, progressLabel }) {
+function StatTile({ icon, chip, label, value, animatedValue, formatValue, suffix, sub, subColor, spanFull, trend, progress, progressLabel }) {
   return (
     <div className={`rounded-2xl p-3.5 ${spanFull ? "col-span-2 sm:col-span-1" : ""}`}
       style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
@@ -164,14 +140,16 @@ function StatTile({ icon, chip, label, value, sub, subColor, spanFull, trend, pr
       <div className="flex items-baseline gap-1.5 flex-wrap">
         <p className="text-[20px] sm:text-[22px] font-num font-bold leading-none tabular-nums"
           style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
-          {value}
+          {animatedValue != null
+            ? <AnimatedNumber value={animatedValue} format={formatValue} suffix={suffix} />
+            : value}
         </p>
         {trend && <TrendChip dir={trend.dir} pct={trend.pct} />}
       </div>
       {progress != null ? (
         <div className="mt-2.5">
           <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
-            <div className="h-full rounded-full transition-all duration-500"
+            <div className="h-full rounded-full transition-all duration-300"
               style={{ width: `${progress}%`, backgroundImage: "linear-gradient(90deg,#14B885,#2BD9A4)" }} />
           </div>
           {progressLabel && (
@@ -510,7 +488,8 @@ export default function Stats() {
               ),
               chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactToday"),
-              value: formatMinutesShort(todaySecs),
+              animatedValue: todaySecs,
+              formatValue: formatMinutesShort,
               trend: trendOf(todayDeltaPct),
               progress: todayGoalPct,
               progressLabel: `${todayGoalPct}% · ${t("dash.goal")}`,
@@ -523,7 +502,8 @@ export default function Stats() {
               ),
               chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactWeek"),
-              value: formatMinutesShort(currentWeekSecs),
+              animatedValue: currentWeekSecs,
+              formatValue: formatMinutesShort,
               trend: trendOf(weekDeltaPct),
               sub: weekDeltaPct === null ? t("stats.weekNoCompare") : t("stats.vsLastWeek"),
               subColor: "var(--bt-text-3)",
@@ -536,7 +516,8 @@ export default function Stats() {
               ),
               chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactMonth"),
-              value: formatMinutesShort(total30),
+              animatedValue: total30,
+              formatValue: formatMinutesShort,
               sub: t("stats.subLast30"),
               subColor: "var(--bt-text-3)",
             },
@@ -548,7 +529,8 @@ export default function Stats() {
               ),
               chip: { bg: "#14B885", color: "#fff" },
               label: t("stats.compactAvg7d"),
-              value: formatMinutesShort(avgPerDay),
+              animatedValue: avgPerDay,
+              formatValue: formatMinutesShort,
               sub: t("stats.subPerDay"),
               subColor: "var(--bt-text-3)",
             },
@@ -575,7 +557,8 @@ export default function Stats() {
                   ),
                   chip: { bg: "#D97706", color: "#fff" },
                   label: t("stats.streakLabel"),
-                  value: `${streak} ${t("stats.dayUnit")}`,
+                  animatedValue: streak,
+                  suffix: ` ${t("stats.dayUnit")}`,
                   sub: t("stats.streakRecord").replace("{n}", String(bestStreak)).replace("{unit}", t("stats.dayUnit")),
                   subColor: "var(--bt-text-3)",
                 },
@@ -587,7 +570,8 @@ export default function Stats() {
                   ),
                   chip: { bg: "#0369a1", color: "#fff" },
                   label: t("stats.allTimeLabel"),
-                  value: formatMinutesShort(allTimeSecs),
+                  animatedValue: allTimeSecs,
+                  formatValue: formatMinutesShort,
                   sub: t("stats.allTimeSub"),
                   subColor: "var(--bt-text-3)",
                 },
@@ -601,7 +585,8 @@ export default function Stats() {
                   ),
                   chip: { bg: "#14B885", color: "#fff" },
                   label: t("stats.bestDayLabel"),
-                  value: formatMinutesShort(bestDaySecs),
+                  animatedValue: bestDaySecs,
+                  formatValue: formatMinutesShort,
                   sub: bestDayLabel || t("stats.bestDaySub"),
                   subColor: "var(--bt-text-3)",
                   spanFull: true,
@@ -688,13 +673,15 @@ export default function Stats() {
         {insights.hasData && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
             {[
-              { label: t("stats.streakLabel"),     value: `${streak} ${t("stats.dayUnit")}` },
-              { label: t("stats.recLongestStreak"), value: `${bestStreak} ${t("stats.dayUnit")}` },
-              { label: t("stats.recBestMonth"),     value: formatMinutesShort(insights.bestMonthSecs) },
-              { label: t("stats.compactAvg7d"),     value: formatMinutesShort(avgPerDay) },
+              { label: t("stats.streakLabel"), value: streak, suffix: ` ${t("stats.dayUnit")}` },
+              { label: t("stats.recLongestStreak"), value: bestStreak, suffix: ` ${t("stats.dayUnit")}` },
+              { label: t("stats.recBestMonth"), value: insights.bestMonthSecs, format: formatMinutesShort },
+              { label: t("stats.compactAvg7d"), value: avgPerDay, format: formatMinutesShort },
             ].map((s, i) => (
               <div key={i} className="text-center">
-                <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
+                <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-text-1)" }}>
+                  <AnimatedNumber value={s.value} suffix={s.suffix} format={s.format} />
+                </p>
                 <p className="text-[10px] font-semibold uppercase tracking-wide mt-0.5" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
               </div>
             ))}
@@ -727,7 +714,7 @@ export default function Stats() {
                 </p>
                 <p className="font-num font-bold leading-none mt-0.5 tabular-nums"
                   style={{ fontSize: "clamp(1.6rem,7vw,2.1rem)", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
-                  {pct}%
+                  <AnimatedNumber value={pct} suffix="%" />
                 </p>
                 <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full"
@@ -785,7 +772,7 @@ export default function Stats() {
                       <div key={b.key} className="flex items-center gap-2">
                         <span className="text-[11px] w-16 shrink-0" style={{ color: b.key === "me" ? "var(--bt-text-1)" : "var(--bt-text-3)", fontWeight: b.key === "me" ? 600 : 400 }}>{b.label}</span>
                         <div className="flex-1 h-4 rounded-md overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                          <div className="h-full rounded-md transition-all duration-700 flex items-center justify-end pr-1.5"
+                          <div className="h-full rounded-md transition-all duration-300 flex items-center justify-end pr-1.5"
                             style={{ width: `${Math.max(6, Math.round(b.val / max * 100))}%`, backgroundColor: b.color }}>
                             <span className="text-[9px] font-num font-bold tabular-nums" style={{ color: "#fff" }}>{m.fmt(b.val)}</span>
                           </div>
@@ -843,7 +830,7 @@ export default function Stats() {
                       </span>
                     </div>
                     <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                      <div className="h-full rounded-full transition-all duration-700"
+                      <div className="h-full rounded-full transition-all duration-300"
                         style={{ width: `${pct}%`, backgroundColor: c.color }} />
                     </div>
                   </div>
@@ -915,7 +902,7 @@ export default function Stats() {
                           <div key={s.key} className="flex items-center gap-2.5">
                             <span className="text-xs w-16 shrink-0" style={{ color: "var(--bt-text-2)" }}>{s.label}</span>
                             <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${p}%`, backgroundColor: s.color }} />
+                              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${p}%`, backgroundColor: s.color }} />
                             </div>
                             <span className="text-xs font-num font-semibold tabular-nums w-9 text-right shrink-0" style={{ color: "var(--bt-text-1)" }}>{p}%</span>
                           </div>

@@ -5,6 +5,7 @@ import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import MascotCoach from "../components/MascotCoach";
+import AnimatedNumber from "../components/AnimatedNumber";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
@@ -201,22 +202,24 @@ function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
           <div style={{ width: 56, height: 56, borderRadius: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 20px rgba(20,184,133,0.50)", flexShrink: 0 }}>
             <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.70)", lineHeight: 1 }}>{t("xp.level")}</span>
-            <span className="font-num tabular-nums" style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.1 }}>{current.level}</span>
+            <AnimatedNumber value={current.level} style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.1 }} />
           </div>
           <div style={{ minWidth: 0 }}>
             <p className="font-display" style={{ fontSize: 20, fontWeight: 700, color: "var(--bt-ink-text)", lineHeight: 1.2, letterSpacing: "-0.01em" }}>{t(current.titleKey)}</p>
-            <p className="tabular-nums" style={{ fontSize: 12, color: "var(--bt-ink-muted)", marginTop: 2 }}>{totalXP} {t("xp.xpLabel")}</p>
+            <p className="tabular-nums" style={{ fontSize: 12, color: "var(--bt-ink-muted)", marginTop: 2 }}>
+              <AnimatedNumber value={totalXP} suffix={` ${t("xp.xpLabel")}`} />
+            </p>
           </div>
         </div>
 
         {/* XP progress bar */}
         <div style={{ marginBottom: 18 }}>
           <div className="tabular-nums" style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--bt-ink-muted)", marginBottom: 6 }}>
-            <span>{next ? `${progressXP} / ${rangeXP} XP` : t("xp.maxLevel")}</span>
+            <span>{next ? <><AnimatedNumber value={progressXP} /> / <AnimatedNumber value={rangeXP} suffix=" XP" /></> : t("xp.maxLevel")}</span>
             {next && <span>{t("xp.nextLevel")} : {t(next.titleKey)}</span>}
           </div>
           <div style={{ height: 10, borderRadius: 99, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" }}>
-            <div style={{ height: "100%", borderRadius: 99, width: `${progressPct}%`, background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)", boxShadow: "0 0 10px rgba(20,184,133,0.70)", transition: "width 0.6s ease" }} />
+            <div style={{ height: "100%", borderRadius: 99, width: `${progressPct}%`, background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)", boxShadow: "0 0 10px rgba(20,184,133,0.70)", transition: "width 0.3s ease-out" }} />
           </div>
         </div>
 
@@ -266,7 +269,7 @@ function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
         right={
           <span className="font-num text-xs font-bold tabular-nums px-2.5 py-1 rounded-full"
             style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
-            {earnedBadgeIds.length}/{BADGES.length}
+            <AnimatedNumber value={earnedBadgeIds.length} />/<AnimatedNumber value={BADGES.length} />
           </span>
         } />
       <div className="px-5 pb-5">
@@ -325,7 +328,7 @@ function ReferralCard({ t, fallbackCode = "" }) {
       <CardHead icon={<IconGift />} label={t("referral.title")}
         right={
           <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
-            {t("referral.signupsCount")} : <span className="font-num font-bold" style={{ color: "var(--bt-text-1)" }}>{count}</span>
+            {t("referral.signupsCount")} : <span className="font-num font-bold" style={{ color: "var(--bt-text-1)" }}><AnimatedNumber value={count} /></span>
           </span>
         } />
       <div className="px-5 pb-4">
@@ -892,16 +895,18 @@ export default function Profile() {
 
   // Classement : #N parmi les actifs de la semaine (RPC leaderboard).
   const rankValue = myRank
-    ? (Number(myRank.my_secs) > 0 ? `#${Number(myRank.better_count) + 1}` : "—")
+    ? (Number(myRank.my_secs) > 0
+        ? <AnimatedNumber value={Number(myRank.better_count) + 1} prefix="#" />
+        : "—")
     : "…";
 
   const sep = <div style={{ height: 1, backgroundColor: "var(--bt-border)" }} />;
 
   const heroStats = [
-    { label: t("profile.statTotalTime"), value: formatMinutesShort(profileTotalSecs) },
-    { label: t("profile.statSessions"), value: sessionCount },
-    { label: t("profile.streakDays"), value: `${streak} ${t("dash.daysShort")}` },
-    { label: t("profile.bestStreakDays"), value: `${best} ${t("dash.daysShort")}` },
+    { label: t("profile.statTotalTime"), value: <AnimatedNumber value={profileTotalSecs} format={formatMinutesShort} /> },
+    { label: t("profile.statSessions"), value: <AnimatedNumber value={sessionCount} /> },
+    { label: t("profile.streakDays"), value: <AnimatedNumber value={streak} suffix={` ${t("dash.daysShort")}`} /> },
+    { label: t("profile.bestStreakDays"), value: <AnimatedNumber value={best} suffix={` ${t("dash.daysShort")}`} /> },
     { label: t("profile.statRank7d"), value: rankValue },
   ];
 
@@ -1010,10 +1015,10 @@ export default function Profile() {
                   <>
                     <StudyHeatmap sessions={profileSessions} />
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-                      <StatTile label={t("profile.hours30d")} value={formatMinutesShort(secs30d)} />
-                      <StatTile label={t("profile.statAvgDay")} value={formatMinutesShort(avgDaySecs30)} />
-                      <StatTile label={t("profile.statActiveDays")} value={activeDays} />
-                      <StatTile label={t("profile.statObjDone")} value={completedObjCount} />
+                      <StatTile label={t("profile.hours30d")} value={<AnimatedNumber value={secs30d} format={formatMinutesShort} />} />
+                      <StatTile label={t("profile.statAvgDay")} value={<AnimatedNumber value={avgDaySecs30} format={formatMinutesShort} />} />
+                      <StatTile label={t("profile.statActiveDays")} value={<AnimatedNumber value={activeDays} />} />
+                      <StatTile label={t("profile.statObjDone")} value={<AnimatedNumber value={completedObjCount} />} />
                     </div>
                   </>
                 ) : (

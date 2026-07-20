@@ -11,6 +11,7 @@ import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
 import { initOneSignal, loginUser } from "../lib/onesignal";
 import SeoHead from "../components/SeoHead";
+import PageTransition from "../components/PageTransition";
 
 // Paliers de série célébrés (jours consécutifs). Volontairement rares pour que
 // le moment reste marquant — on ne fête PAS chaque badge série (3/14).
@@ -333,6 +334,7 @@ export default function App({ Component, pageProps }) {
           <link rel="apple-touch-icon" href="/icon-192x192.png" />
         </Head>
         <SeoHead />
+        <PageTransition />
         <Component {...pageProps} />
         <GlobalLevelUpWatcher />
         <ReferralCapture />
