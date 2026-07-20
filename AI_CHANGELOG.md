@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-20 - Feedback sensoriel discret du chrono
+
+Ajout de micro-signaux facultatifs, generes entierement sur l'appareil et sans asset audio :
+
+- **`lib/sensoryFeedback.js`** (nouveau) : cinq cues Web Audio tres bas volume (`start`, `pause`, `resume`, `goal`, `pomodoro`) et trois retours haptiques (`start`, jalon 25 min, objectif). Le contexte audio est cree uniquement lors d'une interaction ; aucun fichier, aucune requete reseau et aucun egress. Les API non compatibles echouent silencieusement.
+- **`pages/dashboard.js`** : tick au demarrage, son grave en pause, pop a la reprise, accord doux lors d'un objectif de session/jour ou d'un objectif coche, carillon a la fin du travail Pomodoro. Les actions automatiques et la sauvegarde restent silencieuses. Le Pomodoro a priorite pour eviter le doublon objectif + carillon.
+- **Haptics mobile/PWA** : impulsion de 7 ms au demarrage, 10 ms a chaque tranche de 25 min et motif tres court pour les objectifs/Pomodoro. Debounce anti-double retour, detection mobile/standalone, respect de `prefers-reduced-motion` et no-op sur iOS/navigateurs sans Web Vibration.
+- **`pages/profile.js`** : deux interrupteurs accessibles dans Preferences, "Sons du chrono" et "Vibrations mobiles". Choix persistes uniquement dans `localStorage` (`bt_sensory_v1`), actives par defaut et independants de l'ambiance sonore Focus.
+- **i18n** : libelles et descriptions FR/EN ajoutes.
+
+Verification : `npm run lint` clean ; builds production reel (`NEXT_PUBLIC_OFFLINE_DEV=false`) et preview offline (`NEXT_PUBLIC_OFFLINE_DEV=true`) OK. QA navigateur desktop : demarrage/pause/reprise et toggles sans erreur console. QA mobile 390x844 : Focus sans overflow (`scrollWidth = viewport`), boutons 2 colonnes intacts, preferences alignees et interrupteurs 40x24 accessibles. La session offline de test a ete deconnectee et la preference son restauree a son etat actif.
+
 ## 2026-07-20 - Polish applicatif : transitions, nombres, interactions et skeletons
 
 Passe de finition transverse sans nouvelle fonctionnalite ni dependance :

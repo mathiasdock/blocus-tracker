@@ -21,6 +21,7 @@ import MascotCoach from "../components/MascotCoach";
 import AmbientSoundControl from "../components/AmbientSoundControl";
 import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
+import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -259,6 +260,17 @@ export default function Dashboard() {
     pause,
     reset,
   } = useTimer();
+  const sensoryElapsedRef = useRef(elapsed);
+  sensoryElapsedRef.current = elapsed;
+  const startWithFeedback = useCallback(() => {
+    playSensoryCue(sensoryElapsedRef.current > 0 ? "resume" : "start");
+    triggerHaptic("start");
+    start();
+  }, [start]);
+  const pauseWithFeedback = useCallback(() => {
+    playSensoryCue("pause");
+    pause();
+  }, [pause]);
   const [courses, setCourses] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [streak, setStreak] = useState(0);
@@ -441,6 +453,10 @@ export default function Dashboard() {
       clearDashboardCache();
       setTodayObjectives((prev) => prev.map((x) => (x.id === o.id ? data : x)));
       notifyXPChanged();
+      if (data.done) {
+        playSensoryCue("goal");
+        triggerHaptic("goal");
+      }
     }
   }
 
@@ -522,12 +538,12 @@ export default function Dashboard() {
       if (e.code !== "Space" || e.repeat) return;
       if (/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName || "")) return;
       e.preventDefault();
-      if (running) pause();
-      else if (courseId || pomodoro) start();
+      if (running) pauseWithFeedback();
+      else if (courseId || pomodoro) startWithFeedback();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [focusMode, running, courseId, pomodoro, pause, start]);
+  }, [focusMode, running, courseId, pomodoro, pauseWithFeedback, startWithFeedback]);
 
   // ── Pomodoro auto-transition ────────────────────────────────
   useEffect(() => {
@@ -537,6 +553,8 @@ export default function Dashboard() {
     pomoHandled.current = true;
 
     if (pomoPhase === "work") {
+      playSensoryCue("pomodoro");
+      triggerHaptic("goal");
       const secs = Math.min(elapsed, POMO_WORK);
       const endedAt = new Date().toISOString();
       const startedAt = new Date(Date.now() - secs * 1000).toISOString();
@@ -860,6 +878,7 @@ export default function Dashboard() {
   const momentsFired = useRef(new Set());
   const momentTimer = useRef(null);
   const sessionActiveRef = useRef(false);
+  const hapticBlockRef = useRef(null);
 
   // La fin de session (retour à zéro) réarme les moments.
   useEffect(() => {
@@ -873,12 +892,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!running || (pomodoro && pomoPhase === "break")) return;
+    let achievementFeedbackPlayed = false;
     function fire(id, text) {
       if (momentsFired.current.has(id)) return;
       momentsFired.current.add(id);
       setMoment({ id, text });
       clearTimeout(momentTimer.current);
       momentTimer.current = setTimeout(() => setMoment(null), 8000);
+      if (!pomodoro && !achievementFeedbackPlayed && (id === "sessionGoal" || id === "daily")) {
+        playSensoryCue("goal");
+        triggerHaptic("goal");
+        achievementFeedbackPlayed = true;
+      }
     }
     // Du plus banal au plus précieux : si plusieurs seuils tombent dans le
     // même tick, le dernier setMoment gagne → le plus rare l'emporte.
@@ -892,6 +917,22 @@ export default function Dashboard() {
     if (bestDaySecs > 0 && totalToday < bestDaySecs && totalToday + elapsed > bestDaySecs) fire("bestDay", t("dash.momentBestDay"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, running, pomodoro, pomoPhase]);
+
+  // Ce jalon reste indépendant des Blocus Blocks de 15 min : un retour bref
+  // accompagne chaque tranche de 25 min réellement franchie.
+  useEffect(() => {
+    const milestone = Math.floor(elapsed / (25 * 60));
+    if (hapticBlockRef.current === null) {
+      hapticBlockRef.current = milestone;
+      return;
+    }
+    if (elapsed === 0) {
+      hapticBlockRef.current = 0;
+      return;
+    }
+    if (running && milestone > hapticBlockRef.current) triggerHaptic("block");
+    hapticBlockRef.current = milestone;
+  }, [elapsed, running]);
 
   const timerCoach = moment
     ? { id: `timer-${moment.id}`, message: moment.text, persistence: false, live: true }
@@ -1250,7 +1291,7 @@ export default function Dashboard() {
                       boxShadow: "0 4px 16px rgba(20,184,133,0.30)",
                       opacity: (!courseId && !pomodoro) ? 0.45 : 1,
                     }}
-                    onClick={() => { start(); setFocusMode(true); }}
+                    onClick={() => { startWithFeedback(); setFocusMode(true); }}
                     disabled={!courseId && !pomodoro}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="5 3 19 12 5 21 5 3"/>
@@ -1261,7 +1302,7 @@ export default function Dashboard() {
                   <button
                     className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                     style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}
-                    onClick={pause}>
+                    onClick={pauseWithFeedback}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
                     </svg>
@@ -1868,12 +1909,12 @@ export default function Dashboard() {
             ) : (
               <>
                 {!running ? (
-                  <button onClick={start} disabled={!courseId && !pomodoro}
+                  <button onClick={startWithFeedback} disabled={!courseId && !pomodoro}
                     className={`btn-primary min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10 ${isPaused ? "bt-pause-cta" : ""}`}>
                     {elapsed > 0 ? t("dash.resume") : t("dash.start")}
                   </button>
                 ) : (
-                  <button onClick={pause}
+                  <button onClick={pauseWithFeedback}
                     className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
                     style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
                     {t("dash.pause")}

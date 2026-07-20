@@ -19,6 +19,11 @@ import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
+import {
+  DEFAULT_SENSORY_PREFERENCES,
+  readSensoryPreferences,
+  writeSensoryPreferences,
+} from "../lib/sensoryFeedback";
 
 // ── Thème ────────────────────────────────────────────────────
 // bt_theme = "light" | "dark" | "system" (bt_dark est la clé héritée,
@@ -80,6 +85,8 @@ const YEARS = [
 function IconGlobe() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>; }
 function IconMoon() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>; }
 function IconSmartphone() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>; }
+function IconVolume() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>; }
+function IconVibration() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 8v8M20 8v8M1 10v4M23 10v4"/></svg>; }
 function IconInfo() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>; }
 function IconLegal() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>; }
 function IconFeedback() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8M8 12h5"/></svg>; }
@@ -172,6 +179,18 @@ function Segmented({ options, value, onChange }) {
         </button>
       ))}
     </div>
+  );
+}
+
+function MiniSwitch({ checked, onChange, label }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} aria-label={label}
+      onClick={() => onChange(!checked)}
+      className="relative h-6 w-10 shrink-0 rounded-full transition-colors bt-press"
+      style={{ backgroundColor: checked ? "var(--bt-accent)" : "var(--bt-border)" }}>
+      <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform"
+        style={{ transform: checked ? "translateX(16px)" : "translateX(0)", boxShadow: "0 1px 3px rgba(0,0,0,0.18)" }} />
+    </button>
   );
 }
 
@@ -616,10 +635,19 @@ export default function Profile() {
   const [emailInput, setEmailInput] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMsg, setEmailMsg] = useState("");
+  const [sensoryPrefs, setSensoryPrefs] = useState(DEFAULT_SENSORY_PREFERENCES);
   const [form, setForm] = useState({
     first_name: "", last_name: "", university: "",
     study_field: "", study_year: "", study_year_custom: "", bio: "",
   });
+
+  useEffect(() => {
+    setSensoryPrefs(readSensoryPreferences());
+  }, []);
+
+  function setSensoryPreference(key, enabled) {
+    setSensoryPrefs(writeSensoryPreferences({ [key]: enabled }));
+  }
 
   // ── Load badge / XP data ─────────────────────────────────
   useEffect(() => {
@@ -1043,6 +1071,18 @@ export default function Profile() {
                     { value: "dark", label: t("profile.themeDark") },
                   ]} />
               } />
+              {sep}
+              <SettingsRow icon={<IconVolume />} label={t("sensory.soundTitle")}
+                description={t("sensory.soundDesc")}
+                right={<MiniSwitch checked={sensoryPrefs.sound}
+                  onChange={enabled => setSensoryPreference("sound", enabled)}
+                  label={t("sensory.soundTitle")} />} />
+              {sep}
+              <SettingsRow icon={<IconVibration />} label={t("sensory.hapticsTitle")}
+                description={t("sensory.hapticsDesc")}
+                right={<MiniSwitch checked={sensoryPrefs.haptics}
+                  onChange={enabled => setSensoryPreference("haptics", enabled)}
+                  label={t("sensory.hapticsTitle")} />} />
               {sep}
               <PushRow t={t} user={user} />
             </div>
