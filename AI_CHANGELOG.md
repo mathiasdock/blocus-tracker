@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-20 - App : checkbox satisfaisante + barre anime + glissiere des selecteurs (via MCP 21st.dev)
+
+Suite de la demande "modifs dans l'app via le MCP". Credits du jour RECHARGES (2/2) et depenses sur deux composants dont les mecanique/timings ont ete extraits puis portes SANS framer-motion (les originaux en dependent — adaptation CSS pure + mesures DOM, zero dependance) :
+
+- **`get_component` 1/2 : "Animated Checkbox" (tom_ui, id 10239)** → le geste le plus repete de l'app, cocher un objectif, devient satisfaisant :
+  - `.bt-task-check` (globals.css) : l'input NATIF est conserve (clavier/lecteur d'ecran/labels intacts), seul le rendu change via `appearance:none` — boite arrondie bordure `--bt-text-4` (hover → accent), fond qui passe `#14B885` a la coche, coche en masque SVG data-URI qui POP avec ressort (`cubic-bezier(0.34,1.56,0.64,1)`), ring vert qui eclate (`bt-check-ring`, box-shadow 0→9px transparent). Variante `--ink` (bordure blanche 45 %) pour la TodayCard sombre du planning.
+  - `.bt-strike` : le barre du titre se DESSINE (scaleX 0→1, origin left, 0.35 s) au lieu du `line-through` instantane ; `.is-done` pilote l'etat.
+  - Cable sur les 3 sites : dashboard "A faire aujourd'hui", planning TodayCard (variante ink), planning DayDetailModal.
+- **`get_component` 2/2 : "Discrete Tab" (0xUrvish, id 10463)** → essence extraite (pouce qui glisse a ressort) :
+  - **`components/SegmentedGlide.js`** (nouveau) : selecteur segmente generique — un pouce absolu (`.bt-seg-thumb`) glisse sous l'option active ; le JS ne fait que mesurer `offsetLeft/offsetWidth` et poser `transform/width` (transition CSS `cubic-bezier(0.22,1,0.36,1)`), remesure au resize et a `document.fonts.ready` (les metriques bougent quand la display charge). Tons `surface` (pouce blanc + ombre) et `accent` (pouce teinte). Opacity 0 avant la 1re mesure (pas de flash).
+  - Cable sur : planning (Jour/Semaine/Mois, remplace les boutons a fond conditionnel) et social/messages (filtre Tout/Prives/Groupes, ton accent, boutons flex-1).
+- Reduced-motion : ring/pop/strike sans transition, glissiere sans glissement (opacity seule). Aucune nouvelle couleur, aucune cle i18n.
+
+Verifie (build offline, connecte) : glissiere planning — pouce mesure sous "Mois" (x=131px/w=52px) → clic "Semaine" → glisse a x=55px/w=75px et la vue bascule ; checkbox TodayCard — cochee = fond `rgb(20,184,133)` calcule + coche scale(1) + barre dessine (matrix 0→1) + capture "1/1 objectifs" avec trait visible (NB : premiere mesure faussee par un handle DOM perime apres re-render React — re-query = tout vert) ; filtre messages — pouce accent (`rgb(234,251,244)`) glisse 2px→183px ; zero erreur console ; `npm run lint` clean, `npm run build` normal + offline OK.
+
 ## 2026-07-19 - Landing : projecteur vert au survol (Spotlight reactbits via MCP 21st) — credits du jour epuises
 
 Mathias a demande d'utiliser tous ses credits 21st.dev du jour. Bilan honnete : le DERNIER `get_component` (2/2) a ete depense sur le "Spotlight Card" de reactbits (id 2271) — mecanique exacte recuperee (--mouse-x/--mouse-y poses par JS + ::before radial-gradient au survol). `generate` etait DEJA a quota (`generation_limit_reached`) avant meme mon premier appel — probablement consomme a l'installation du plugin ; la maquette IA de la section Methode attendra demain. Retrievals restants : 0/2, generations : 0.

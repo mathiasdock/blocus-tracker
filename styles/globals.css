@@ -742,6 +742,75 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-spot:hover::before { opacity: 1; }
 }
 
+/* ── App : checkbox de tâche satisfaisante (adaptation de l'Animated
+   Checkbox de tom_ui, récupérée via le MCP 21st.dev). L'input NATIF est
+   conservé (clavier/lecteur d'écran intacts), seul le rendu change :
+   boîte custom, coche qui pop avec ressort, ring vert qui éclate. ── */
+.bt-task-check {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 6px;
+  border: 1.5px solid var(--bt-text-4);
+  background-color: transparent;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.bt-task-check:hover:not(:checked) { border-color: var(--bt-accent); }
+.bt-task-check::after {
+  content: "";
+  width: 64%;
+  height: 64%;
+  background-color: #fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center / contain no-repeat;
+  transform: scale(0);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.bt-task-check:checked {
+  background-color: #14B885;
+  border-color: #14B885;
+  animation: bt-check-ring 0.45s ease-out;
+}
+.bt-task-check:checked::after { transform: scale(1); }
+/* Variante sur surface ink (carte sombre du planning) */
+.bt-task-check--ink { border-color: rgba(255, 255, 255, 0.45); }
+@keyframes bt-check-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(20, 184, 133, 0.40); }
+  100% { box-shadow: 0 0 0 9px rgba(20, 184, 133, 0); }
+}
+
+/* ── App : barré qui se DESSINE quand la tâche passe à fait (au lieu du
+   line-through instantané) — essence du strike-through animé de tom_ui. ── */
+.bt-strike { position: relative; }
+.bt-strike::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 1.5px;
+  background-color: currentColor;
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.4, 1);
+  pointer-events: none;
+}
+.bt-strike.is-done::after { transform: translateY(-50%) scaleX(1); }
+
+/* ── App : glissière à ressort des sélecteurs segmentés (essence du
+   "Discrete Tab" récupéré via 21st, portée sans framer-motion) : un pouce
+   absolu glisse sous l'option active, translateX/width mesurés par JS. ── */
+.bt-seg-thumb {
+  position: absolute;
+  top: 2px; bottom: 2px; left: 0;
+  border-radius: 10px;
+  opacity: 0; /* rendu invisible tant que la 1re mesure n'est pas posée */
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.15s ease;
+  will-change: transform, width;
+}
+
 /* ── Écran de chargement : Blocus Blocks qui se remplissent en vague ──
    (components/LoadingScreen.js). Sous prefers-reduced-motion : statique,
    les deux premiers blocs restent remplis pour garder la lecture "en cours". */
@@ -867,6 +936,10 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-beam { display: none !important; }
   .bt-shimmer-accent { animation: none !important; }
   .bt-spot::before { opacity: 0 !important; transition: none !important; }
+  .bt-task-check { animation: none !important; }
+  .bt-task-check::after { transition: none !important; }
+  .bt-strike::after { transition: none !important; }
+  .bt-seg-thumb { transition: opacity 0.15s ease !important; }
   [data-reveal] {
     opacity: 1 !important;
     transform: none !important;

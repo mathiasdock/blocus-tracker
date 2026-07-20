@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
+import SegmentedGlide from "../components/SegmentedGlide";
 import { SkeletonList } from "../components/Skeleton";
 import MascotCoach from "../components/MascotCoach";
 import { useAuth } from "../contexts/AuthContext";
@@ -1300,17 +1301,19 @@ export default function Messages() {
               </div>
             )}
 
-            {/* ── Filtres Tout / Privés / Groupes ── */}
-            <div className="flex gap-1 p-2 shrink-0" style={{ borderBottom: "1px solid var(--bt-border)" }}>
-              {[["all", t("social.filterAll")], ["dm", t("social.filterDm")], ["group", t("social.filterGroups")]].map(([v, label]) => (
-                <button key={v} onClick={() => setConversationFilter(v)}
-                  className="flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all"
-                  style={conversationFilter === v
-                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }
-                    : { color: "var(--bt-text-3)" }}>
-                  {label}
-                </button>
-              ))}
+            {/* ── Filtres Tout / Privés / Groupes — glissière à ressort ── */}
+            <div className="p-2 shrink-0" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              <SegmentedGlide
+                options={[
+                  { value: "all", label: t("social.filterAll") },
+                  { value: "dm", label: t("social.filterDm") },
+                  { value: "group", label: t("social.filterGroups") },
+                ]}
+                value={conversationFilter}
+                onChange={setConversationFilter}
+                tone="accent"
+                buttonClassName="flex-1 py-1.5 text-xs"
+              />
             </div>
 
             {/* ── Liste unifiée de conversations ── */}

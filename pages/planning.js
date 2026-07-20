@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import MascotCoach from "../components/MascotCoach";
+import SegmentedGlide from "../components/SegmentedGlide";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
@@ -386,9 +387,9 @@ function TodayCard() {
           {todayObjectives.slice(0, 3).map(o => (
             <div key={o.id} className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
-                className="w-3.5 h-3.5 accent-emerald-500 shrink-0" />
+                className="bt-task-check bt-task-check--ink w-3.5 h-3.5 shrink-0" />
               {o.course_id && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />}
-              <span className="flex-1 min-w-0 truncate" style={{ color: "var(--bt-ink-text)", opacity: o.done ? 0.5 : 1, textDecoration: o.done ? "line-through" : "none" }}>
+              <span className={`bt-strike ${o.done ? "is-done" : ""} flex-1 min-w-0 truncate`} style={{ color: "var(--bt-ink-text)", opacity: o.done ? 0.5 : 1 }}>
                 {o.title || courseName(o.course_id) || "—"}
               </span>
               {!o.done && o.course_id && (
@@ -800,11 +801,11 @@ function DayDetailModal() {
                         <div className="flex items-start gap-3 px-4 py-3"
                           style={{ backgroundColor: "var(--bt-subtle)" }}>
                           <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
-                            className="w-4 h-4 mt-0.5 accent-emerald-600 shrink-0" />
+                            className="bt-task-check w-4 h-4 mt-0.5 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               {o.course_id && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />}
-                              <p className={`text-sm font-medium flex-1 min-w-0 ${o.done ? "line-through" : ""}`}
+                              <p className={`bt-strike ${o.done ? "is-done" : ""} text-sm font-medium flex-1 min-w-0`}
                                 style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-1)" }}>
                                 {o.title || courseName(o.course_id) || "—"}
                               </p>
@@ -1617,17 +1618,16 @@ export default function Planning() {
           </div>
           <button onClick={goToday} className="btn-ghost text-xs px-3 py-1.5">{t("common.today")}</button>
           <h2 className="font-display text-lg capitalize flex-1 min-w-[150px]" style={{ color: "var(--bt-text-1)" }}>{periodLabel()}</h2>
-          <div className="flex rounded-xl p-0.5 gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-            {[["day",t("plan.day")],["week",t("plan.week")],["month",t("plan.month")]].map(([v, label]) => (
-              <button key={v} onClick={() => setView(v)}
-                className="px-3 py-1.5 rounded-[10px] text-xs font-semibold transition-all"
-                style={view === v
-                  ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
-                  : { color: "var(--bt-text-2)" }}>
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* Glissière à ressort : le pouce glisse entre Jour/Semaine/Mois */}
+          <SegmentedGlide
+            options={[
+              { value: "day", label: t("plan.day") },
+              { value: "week", label: t("plan.week") },
+              { value: "month", label: t("plan.month") },
+            ]}
+            value={view}
+            onChange={setView}
+          />
           <button onClick={togglePlanningPublic} disabled={togglingShare}
             role="switch" aria-checked={!!profile?.planning_public} title={t("plan.public")}
             className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print"

@@ -1470,11 +1470,10 @@ export default function Dashboard() {
                       backgroundColor: o.done ? "var(--bt-subtle)" : "var(--bt-surface)",
                     }}>
                     <input type="checkbox" checked={o.done} onChange={() => toggleObjective(o)}
-                      className="w-4 h-4 shrink-0 rounded" style={{ accentColor: "#14B885" }} />
+                      className="bt-task-check w-4 h-4 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="truncate" style={{
+                      <p className={`bt-strike ${o.done ? "is-done" : ""} truncate`} style={{
                         color: o.done ? "var(--bt-text-3)" : "var(--bt-text-1)",
-                        textDecoration: o.done ? "line-through" : "none",
                         fontWeight: o.done ? 400 : 500,
                       }}>
                         {o.title}
