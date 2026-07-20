@@ -19,6 +19,7 @@ import CourseChecklistModal from "../components/CourseChecklistModal";
 import Mascot from "../components/Mascot";
 import MascotCoach from "../components/MascotCoach";
 import AmbientSoundControl from "../components/AmbientSoundControl";
+import FocusShaderBackground from "../components/FocusShaderBackground";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -447,8 +448,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (!focusMode) return;
     function handler(e) { if (e.key === "Escape") setFocusMode(false); }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handler);
+    };
   }, [focusMode]);
 
   // Objectif de session : restaure le dernier choix.
@@ -1772,20 +1778,9 @@ export default function Dashboard() {
             background: (isPaused && !pomodoro) ? "#1E0F0D" : "var(--bt-ink)",
             zIndex: 100,
           }}>
-          {/* Dégradé ink vivant — dérive lentement, coupé sur l'état pausé */}
-          {!(isPaused && !pomodoro) && <div className="bt-ink-drift" />}
-
-          {/* Marée de progression — lueur verte qui monte vers l'objectif
-              (transform GPU). En mode libre elle reste basse (aucune fin). */}
-          <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none"
-            style={{
-              height: "80%",
-              background: "linear-gradient(to top, rgba(20,184,133,0.20), rgba(20,184,133,0.06) 55%, transparent)",
-              transform: `scaleY(${(0.18 + focusTidePct * 0.82).toFixed(3)})`,
-              transformOrigin: "bottom",
-              opacity: (isPaused && !pomodoro) ? 0 : 1,
-              transition: "transform 2.5s ease, opacity 0.6s ease",
-            }} />
+          {/* Vagues WebGL de marque. Le composant fournit son propre fallback
+              statique et coupe la boucle sous prefers-reduced-motion. */}
+          <FocusShaderBackground paused={isPaused && !pomodoro} />
 
           {/* Marée bordeaux — remplace la verte en pause et pulse doucement */}
           {isPaused && !pomodoro && (
@@ -1852,14 +1847,14 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="relative z-10 mt-8 flex gap-3"
+          <div className="relative z-10 mt-8 flex w-full max-w-[560px] justify-center gap-3 px-4"
             style={{
               opacity: (focusCtlVisible || !running) ? 1 : 0,
               pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
               transition: "opacity 0.8s ease",
             }}>
             {pomoPhase === "break" && pomodoro ? (
-              <button className="btn-ghost text-white border-white/20 px-8 py-3"
+              <button className="btn-ghost w-full border-white/20 px-6 py-3 text-white sm:w-auto sm:px-8"
                 onClick={() => { pause(); reset(); setPomoPhase("work"); pomoHandled.current = false; }}>
                 {t("dash.skipBreak")}
               </button>
@@ -1867,12 +1862,12 @@ export default function Dashboard() {
               <>
                 {!running ? (
                   <button onClick={start} disabled={!courseId && !pomodoro}
-                    className={`btn-primary px-10 py-3 text-base bt-press ${isPaused ? "bt-pause-cta" : ""}`}>
+                    className={`btn-primary min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10 ${isPaused ? "bt-pause-cta" : ""}`}>
                     {elapsed > 0 ? t("dash.resume") : t("dash.start")}
                   </button>
                 ) : (
                   <button onClick={pause}
-                    className="px-10 py-3 text-base rounded-2xl font-semibold transition-colors bt-press"
+                    className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
                     style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
                     {t("dash.pause")}
                   </button>
@@ -1880,7 +1875,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => { setPomodoro(false); setPomoPhase("work"); setPomoCount(0); stopAndSave(); setFocusMode(false); }}
                   disabled={elapsed < 1 || saveStatus === "saving"}
-                  className="px-10 py-3 text-base rounded-2xl font-semibold transition-colors bt-press"
+                  className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
                   style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
                   {saveStatus === "saving" ? t("common.saving") : t("dash.finish")}
                 </button>

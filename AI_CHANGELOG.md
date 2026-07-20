@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-20 - Mode Focus : fond WebGL Waves aux couleurs Blocus Tracker
+
+Le fond vert du mode Focus a ete remplace par un vrai shader WebGL1 anime, adapte du shader "Waves" fourni depuis 21st.dev, sans librairie ni asset externe.
+
+- **`components/FocusShaderBackground.js`** (nouveau) : triangle plein ecran WebGL1 + fragment shader Waves et tous les uniformes fournis (vitesse, zoom, intensite, warp, surface, transformation et swirl curseur). Seule la palette change : `#071C15`, `#0B2E23`, `#0E8F68`, `#14B885`, `#F2FBF7`. DPR plafonne a 2, contexte `low-power`, resize observe, boucle RAF suspendue quand l'onglet est cache, cleanup complet.
+- **Accessibilite / robustesse** : sous `prefers-reduced-motion`, une seule frame statique est dessinee et le curseur n'anime plus le shader. Sans WebGL, le fallback CSS vert/blanc reste lisible. Un voile central protege le contraste du chrono sur les vagues claires.
+- **`pages/dashboard.js`** : ancien blob `bt-ink-drift` et maree verte du plein ecran retires au profit du shader. En pause, le shader reste vivant mais assombri/desature sous la maree bordeaux existante. Le scroll du body est verrouille pendant le Focus pour supprimer le liseré de scrollbar. Les boutons Focus ont maintenant 16 px de marge et deux colonnes egales sur mobile.
+- **`styles/globals.css`** : fallback, canvas, voile, et transitions pause/reduced-motion. L'ancien CSS `bt-ink-drift` inutilise a ete retire.
+
+Verifie sur build production offline : desktop 1280x720 (canvas 2560x1440, plein ecran sans liseré), mobile 390x844 (aucun overflow, boutons contenus entre 16 et 374 px), mouvement mesure entre deux captures, pause active (`opacity 0.48`, `saturate(0.5) brightness(0.68)`), zero log `FocusShader`. `npm run lint` et builds normal/offline OK.
+
 ## 2026-07-20 - App : checkbox satisfaisante + barre anime + glissiere des selecteurs (via MCP 21st.dev)
 
 Suite de la demande "modifs dans l'app via le MCP". Credits du jour RECHARGES (2/2) et depenses sur deux composants dont les mecanique/timings ont ete extraits puis portes SANS framer-motion (les originaux en dependent — adaptation CSS pure + mesures DOM, zero dependance) :

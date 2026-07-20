@@ -321,21 +321,38 @@ html {
 }
 .bt-pulse-green { animation: bt-pulse-green 2.2s ease-out infinite; }
 
-/* Dégradé ink vivant — mode Focus. Un blob radial flou dérive lentement
-   (transform uniquement, pas de repaint de background-position) derrière
-   le contenu. Ambiant, jamais distrayant : 18s, ease-in-out, amplitude faible. */
-.bt-ink-drift {
+/* Mode Focus — fallback vert de marque + canvas WebGL "Waves". Le voile
+   central maintient la lisibilité du chrono quand les vagues passent au blanc. */
+.bt-focus-shader {
   position: absolute;
-  inset: -25%;
-  background: radial-gradient(42% 38% at 50% 42%, rgba(20,184,133,0.24), transparent 72%);
-  filter: blur(60px);
-  animation: bt-ink-drift 18s ease-in-out infinite;
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 70% at 82% 12%, rgba(143,212,184,0.34), transparent 68%),
+    linear-gradient(155deg, #071C15, #0E8F68 58%, #F2FBF7 140%);
+  transition: opacity 0.7s ease, filter 0.7s ease;
 }
-@keyframes bt-ink-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(4%, 3%) scale(1.08); }
-  66%      { transform: translate(-3%, -2%) scale(0.95); }
+.bt-focus-shader canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.bt-focus-shader.is-paused {
+  opacity: 0.48;
+  filter: saturate(0.5) brightness(0.68);
+}
+.bt-focus-shader-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 48%, rgba(4,24,18,0.56), rgba(4,24,18,0.20) 70%, transparent 100%),
+    linear-gradient(to bottom, rgba(4,24,18,0.30), rgba(4,24,18,0.34));
 }
 
 /* Button press — quick scale + opacity tap */
@@ -907,7 +924,6 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-confetti,
   .bt-rise,
   .bt-stagger > *,
-  .bt-ink-drift,
   .bt-toast-in,
   .bt-toast-out,
   .bt-tab-fade,
@@ -940,6 +956,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-task-check::after { transition: none !important; }
   .bt-strike::after { transition: none !important; }
   .bt-seg-thumb { transition: opacity 0.15s ease !important; }
+  .bt-focus-shader, .bt-focus-shader canvas { transition: none !important; }
   [data-reveal] {
     opacity: 1 !important;
     transform: none !important;
