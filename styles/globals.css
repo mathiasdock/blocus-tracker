@@ -998,6 +998,23 @@ details.bt-acc[open]::details-content { block-size: auto; }
   72%           { opacity: 1; transform: scale(1.15); }
 }
 
+/* ── Flamme de serie (components/Flame.js) — vacille en continu partout ou la
+   serie apparait. Ancree sur sa base, elle s'etire/pivote legerement comme une
+   vraie flamme (meme langage que la flamme de la mascotte, bt-m-flick). ── */
+.bt-flame { display: inline-block; vertical-align: middle; overflow: visible; }
+.bt-flame-body {
+  transform-box: fill-box;
+  transform-origin: 50% 92%;
+  animation: bt-flame-flick 1.1s ease-in-out infinite;
+  will-change: transform;
+}
+@keyframes bt-flame-flick {
+  0%, 100% { transform: scale(1, 1) rotate(-1.5deg); }
+  28%      { transform: scale(0.95, 1.07) rotate(1.8deg); }
+  55%      { transform: scale(1.05, 0.96) rotate(-0.8deg); }
+  80%      { transform: scale(0.98, 1.03) rotate(1deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
   .bt-msg-swap,
@@ -1037,7 +1054,8 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-m-anim .bt-m-eyes,
   .bt-m-anim .bt-m-z,
   .bt-m-anim .bt-m-flame,
-  .bt-m-anim .bt-m-spark {
+  .bt-m-anim .bt-m-spark,
+  .bt-flame-body {
     animation: none !important;
   }
   .bt-xp-loop { opacity: 1 !important; transform: none !important; }

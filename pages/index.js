@@ -10,6 +10,7 @@ import { getLandingContent } from "../lib/landingContent";
 import Mascot from "../components/Mascot";
 import RotatingWord from "../components/RotatingWord";
 import ScrollRevealText from "../components/ScrollRevealText";
+import Flame from "../components/Flame";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Landing publique — refonte "app-first" : de vrais screenshots du produit
@@ -408,7 +409,7 @@ export default function Home() {
               {/* Série vivante, posée à côté de la mascotte (desktop) */}
               <div aria-hidden="true" className="bt-plx absolute left-[19%] -top-[38px] hidden sm:block" style={{ "--plx": "16px" }}>
                 <span className="bt-demo-chip">
-                  <span className="text-sm leading-none">🔥</span>
+                  <Flame size={15} style={{ color: "#D97706" }} />
                   <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>12</span>
                 </span>
               </div>

@@ -10,6 +10,7 @@
 import { useEffect } from "react";
 import { useI18n } from "../contexts/I18nContext";
 import Mascot from "./Mascot";
+import Flame from "./Flame";
 
 const CONFETTI_COLORS = ["#14B885", "#22E4A4", "#0E8F68", "#C6EED9"];
 const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
@@ -112,7 +113,7 @@ export default function Celebration({ data, onClose }) {
         )}
 
         {/* Accent */}
-        <div style={{ fontSize: 22, marginTop: 10 }}>{isStreak ? "🔥" : "⭐"}</div>
+        <div style={{ fontSize: 22, marginTop: 10 }}>{isStreak ? <Flame size={26} style={{ color: "#F59E0B" }} /> : "⭐"}</div>
 
         {/* Titre */}
         <p className="mt-2 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>

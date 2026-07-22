@@ -8,6 +8,7 @@ import Leaderboard, { RankBadge } from "../components/Leaderboard";
 import MascotCoach from "../components/MascotCoach";
 import StudyRecap from "../components/StudyRecap";
 import AnimatedNumber from "../components/AnimatedNumber";
+import Flame from "../components/Flame";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -550,11 +551,7 @@ export default function Stats() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
               {[
                 {
-                  icon: (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
-                    </svg>
-                  ),
+                  icon: <Flame size={15} />,
                   chip: { bg: "#D97706", color: "#fff" },
                   label: t("stats.streakLabel"),
                   animatedValue: streak,
@@ -657,7 +654,7 @@ export default function Stats() {
             footer={monthGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(monthRemain))}
             footerColor={monthGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
           <GoalBar
-            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>}
+            icon={<Flame size={14} />}
             chip={{ bg: "#D97706", color: "#fff" }} label={t("stats.goalStreakCard")} pct={streakPct}
             valueText={t("stats.goalStreakUnit").replace("{n}", String(streak)).replace("{target}", String(streakTarget))} targetText=""
             footer={t("stats.goalStreakKeep")} footerColor="var(--bt-text-3)" />
@@ -935,7 +932,7 @@ export default function Stats() {
                     </div>
                     <p className="text-[11px] font-semibold uppercase tracking-wide mb-1 pt-3" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-border)" }}>{t("stats.recordsTitle")}</p>
                     <div className="grid grid-cols-2 gap-x-4">
-                      <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>}
+                      <InsightRow icon={<Flame size={14} />}
                         label={t("stats.recLongestStreak")} value={`${bestStreak} ${t("stats.dayUnit")}`} />
                       <InsightRow icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>}
                         label={t("stats.recBestWeek")} value={formatMinutesShort(insights.bestWeekSecs)} />

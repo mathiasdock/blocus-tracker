@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-22 - Flamme de serie vivante, cohérente partout (composant Flame)
+
+Demande de Mathias : une seule flamme de serie TOUJOURS en mouvement (pas de taille variable selon la serie), la meme partout ou la flamme apparait.
+
+- **`components/Flame.js` (nouveau)** : flamme SVG (meme path classique que la mascotte) qui vacille en continu. Monochrome `currentColor` par defaut → elle herite la couleur de son contexte (blanche sur une puce ambre dans les stats, ambre en ligne dans le classement), donc AUCUN souci de contraste : on ne change que le mouvement. Pour les emplacements ex-emoji, on passe une couleur chaude explicite. `memo`, aria-hidden par defaut (title optionnel).
+- **`styles/globals.css`** : `.bt-flame*` + keyframe `bt-flame-flick` (etirement/pivot ancres sur la base, 1.1 s — meme langage que la flamme de la mascotte `bt-m-flick`). Ajoutee au bloc `prefers-reduced-motion` → flamme statique si l'utilisateur limite les animations.
+- **6 flammes statiques remplacees** par `<Flame>` : puce serie de la landing (`pages/index.js`, etait un emoji 🔥, desormais ambre #D97706), stat "serie en cours" + carte d'objectif serie + ligne record "plus longue serie" (`pages/stats.js`), metrique serie du classement (`components/Leaderboard.js`), et l'accent de la celebration de serie (`components/Celebration.js`, etait 🔥).
+- **Exclus volontairement** (a signaler) : l'icone du BADGE streak7 (`pages/stats.js`) et le systeme de badges (`components/BadgeIcon.jsx`, `lib/badges.js`) — systeme visuel d'achievements distinct, animer une seule icone y serait incoherent ; et la flamme de la mascotte (`components/Mascot.js`) — deja animee et partie integrante du personnage.
+
+Verifie : builds offline + `npm run build` normal OK. En preview offline : landing → flamme ambre animee a cote de la mascotte (DOM : `bt-flame-flick` 1.1 s, `transform-box: fill-box`, couleur #D97706). Stats (session offline forgee) → stat "serie" (flamme blanche sur puce ambre, size 15) et carte objectif serie (size 14) rendues et animees, contraste conserve. Zero erreur console. La flamme du classement/celebration/InsightRow reutilise le meme composant (rendu quand sa section s'affiche).
+
 ## 2026-07-22 - Landing : titre a mot rotatif + phrase manifeste au scroll (via MCP 21st.dev)
 
 Deux gestes cinetiques ajoutes a la landing (le SITE, pas l'app) pour la rendre vivante facon Apple / Notion / Duolingo. Methode habituelle : `search` (gratuit) pour reperer les patterns canoniques, puis les `get_component` du jour (2/2) depenses sur les originaux framer-motion, dont seule la mecanique/les timings sont extraits puis PORTES en CSS + JS vanilla, ZERO dependance ajoutee. Verts et tokens existants uniquement.
