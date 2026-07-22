@@ -853,7 +853,7 @@ export default function Layout({ children }) {
 
       {/* ══ Bottom nav mobile — 5 onglets ════════════════════════ */}
       {/* Structure en deux couches pour le safe-area-inset-bottom (indicateur home iPhone) */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30"
+      <nav className="bt-mobile-nav lg:hidden fixed bottom-0 left-0 right-0 z-30"
         style={{ backgroundColor: "var(--bt-mobile-nav-bg)", borderTop: "1px solid var(--bt-border)", backdropFilter: "blur(10px)" }}>
         <div className="h-14 flex items-stretch">
         {mobileNav.map(n => {

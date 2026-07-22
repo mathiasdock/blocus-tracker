@@ -467,9 +467,13 @@ export default function Dashboard() {
     function handler(e) { if (e.key === "Escape") setFocusMode(false); }
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Fond racine vert + nav mobile masqué : le plein écran couvre la safe-area
+    // du home indicator iPhone (sinon une bande blanche reste en bas). → globals.css
+    document.documentElement.classList.add("bt-focus-active");
     document.addEventListener("keydown", handler);
     return () => {
       document.body.style.overflow = previousOverflow;
+      document.documentElement.classList.remove("bt-focus-active");
       document.removeEventListener("keydown", handler);
     };
   }, [focusMode]);

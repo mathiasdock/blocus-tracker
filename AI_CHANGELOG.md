@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-22 - Mode focus mobile : plein ecran vert jusqu'au bord (safe-area iPhone)
+
+Bug signale par Mathias : sur iPhone, une bande blanche restait en bas du mode focus plein ecran au lieu du fond vert.
+
+- **Cause** : l'overlay focus `fixed inset-0` se dimensionne sur le viewport VISUEL, qui exclut la safe-area du home indicator sur iOS. Dans cette bande (~34 px), le spacer safe-area du nav mobile (`--bt-mobile-nav-bg`, near-blanc) restait visible. (Verifie : sur desktop l'overlay `z-100` couvre bien le nav `z-30` ; le probleme est purement la safe-area iOS.)
+- **Fix** : `pages/dashboard.js` pose la classe `bt-focus-active` sur `<html>` pendant le focus (greffe sur l'effet existant qui verrouille deja le scroll). `styles/globals.css` : `html.bt-focus-active` peint `html` + `body` en `var(--bt-ink)` (donc toute zone hors overlay, dont la safe-area, devient verte) et masque `.bt-mobile-nav` (plus de spacer blanc + distraction-free en plein ecran). `components/Layout.js` : ajout de la classe `bt-mobile-nav` au `<nav>` mobile comme point d'accroche.
+- Tout est retabli a la sortie (cleanup de l'effet, quelle que soit la voie : bouton, Echap, navigation, demontage).
+
+Verifie en preview offline (viewport iPhone 390x844, session forgee) : en focus → `html`/`body` bg = `rgb(11,46,35)` vert ink, nav `display:none`, overlay couvrant 0,0→390,844, point bas = overlay vert ; a la sortie → classe retiree, `body` de retour en `#FAF9F7`, nav reaffiche, scroll restaure. Builds offline + normal OK, zero erreur console.
+
 ## 2026-07-22 - Stats : icônes desaturees (chips ghostes, accent unique) — moins "AI-generated"
 
 Mathias a flag que les tuiles de la page Stats faisaient "trop IA genere" (skills /frontend-design + /taste). Le tell : des **carres arrondis pleins et satures avec glyphe blanc**, en plus d'un **arc-en-ciel** (vert/bleu/violet/ambre) qui cassait l'identite mono-accent verte de la marque.

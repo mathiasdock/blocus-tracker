@@ -365,6 +365,14 @@ html {
     linear-gradient(to bottom, rgba(4,24,18,0.30), rgba(4,24,18,0.34));
 }
 
+/* Mode focus plein écran (classe posée sur <html> par dashboard.js). Sur iPhone,
+   l'overlay `fixed inset-0` se dimensionne sur le viewport visuel et ne couvre pas
+   la safe-area du home indicator → sans ça une bande blanche (le nav mobile) reste
+   en bas. On peint donc le fond racine en vert ink et on masque le nav mobile. */
+html.bt-focus-active,
+html.bt-focus-active body { background-color: var(--bt-ink); }
+html.bt-focus-active .bt-mobile-nav { display: none; }
+
 /* Button press — quick scale + opacity tap */
 .bt-press { transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .bt-press:active:not(:disabled) { transform: scale(0.96); }
