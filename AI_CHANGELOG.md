@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-22 - Stats : icônes desaturees (chips ghostes, accent unique) — moins "AI-generated"
+
+Mathias a flag que les tuiles de la page Stats faisaient "trop IA genere" (skills /frontend-design + /taste). Le tell : des **carres arrondis pleins et satures avec glyphe blanc**, en plus d'un **arc-en-ciel** (vert/bleu/violet/ambre) qui cassait l'identite mono-accent verte de la marque.
+
+Principe applique : **un seul accent** (le vert de la marque), la couleur devient un signal et non une decoration, avec **une exception semantique** (le feu = la serie, ambre).
+
+- **`pages/stats.js` — rendu du chip (StatTile + GoalBar)** : fond plein sature + glyphe blanc → **ghoste** = fond teinte doux (18 % de l'accent) + glyphe dans l'accent. API du chip passee de `{ bg, color }` a `{ tint }` (une seule source de couleur, alpha derive au rendu).
+- **11 chips unifies** : bleu `#0369a1` et violet `#6366F1` supprimes → vert de marque `#0E8F68` (choisi plus fonce que `#14B885` pour la lisibilite du glyphe sur fond clair ET sombre) ; les 2 flammes de serie restent chaudes `#D97706` (semantique + ce sont les flammes vivantes du composant Flame).
+- **Non touche** : les couleurs de SERIES de graphiques (creneau du soir, comparaison fac) gardent leurs teintes distinctes — c'est une vraie distinction de donnees, pas le tell des chips. Les icones de la liste "records" (InsightRow) etaient deja neutres.
+
+Resultat : les chiffres redeviennent les heros, palette calme et coherente avec la marque, la flamme est le seul accent chaud. Verifie en preview offline (session forgee) : 9 glyphes verts `rgb(14,143,104)` + 2 flammes ambre `rgb(217,119,6)`, zero bleu/violet ; builds offline + `npm run build` normal OK ; contraste glyphe OK en clair et sombre.
+
 ## 2026-07-22 - Flamme de serie vivante, cohérente partout (composant Flame)
 
 Demande de Mathias : une seule flamme de serie TOUJOURS en mouvement (pas de taille variable selon la serie), la meme partout ou la flamme apparait.

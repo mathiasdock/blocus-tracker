@@ -48,7 +48,7 @@ function GoalBar({ icon, chip, label, pct, valueText, targetText, footer, footer
   return (
     <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
       <div className="flex items-center gap-2 mb-2.5">
-        <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: chip.bg, color: chip.color }}>{icon}</span>
+        <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${chip.tint}2e`, color: chip.tint }}>{icon}</span>
         <span className="text-[11px] font-semibold uppercase tracking-wide flex-1 min-w-0 truncate" style={{ color: "var(--bt-text-2)" }}>{label}</span>
         <span className="text-sm font-num font-bold tabular-nums" style={{ color: reached ? "#0E8F68" : "var(--bt-text-1)" }}>
           <CountInt value={Math.round(pct)} suffix="%" />
@@ -130,7 +130,7 @@ function StatTile({ icon, chip, label, value, animatedValue, formatValue, suffix
       style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
       <div className="flex items-center gap-2 mb-3">
         <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: chip.bg, color: chip.color }}>
+          style={{ backgroundColor: `${chip.tint}2e`, color: chip.tint }}>
           {icon}
         </span>
         <span className="text-[10px] font-semibold uppercase tracking-wide leading-tight"
@@ -487,7 +487,7 @@ export default function Stats() {
                   <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
                 </svg>
               ),
-              chip: { bg: "#14B885", color: "#fff" },
+              chip: { tint: "#0E8F68" },
               label: t("stats.compactToday"),
               animatedValue: todaySecs,
               formatValue: formatMinutesShort,
@@ -501,7 +501,7 @@ export default function Stats() {
                   <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
                 </svg>
               ),
-              chip: { bg: "#14B885", color: "#fff" },
+              chip: { tint: "#0E8F68" },
               label: t("stats.compactWeek"),
               animatedValue: currentWeekSecs,
               formatValue: formatMinutesShort,
@@ -515,7 +515,7 @@ export default function Stats() {
                   <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
                 </svg>
               ),
-              chip: { bg: "#14B885", color: "#fff" },
+              chip: { tint: "#0E8F68" },
               label: t("stats.compactMonth"),
               animatedValue: total30,
               formatValue: formatMinutesShort,
@@ -528,7 +528,7 @@ export default function Stats() {
                   <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                 </svg>
               ),
-              chip: { bg: "#14B885", color: "#fff" },
+              chip: { tint: "#0E8F68" },
               label: t("stats.compactAvg7d"),
               animatedValue: avgPerDay,
               formatValue: formatMinutesShort,
@@ -552,7 +552,7 @@ export default function Stats() {
               {[
                 {
                   icon: <Flame size={15} />,
-                  chip: { bg: "#D97706", color: "#fff" },
+                  chip: { tint: "#D97706" },
                   label: t("stats.streakLabel"),
                   animatedValue: streak,
                   suffix: ` ${t("stats.dayUnit")}`,
@@ -565,7 +565,7 @@ export default function Stats() {
                       <circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>
                     </svg>
                   ),
-                  chip: { bg: "#0369a1", color: "#fff" },
+                  chip: { tint: "#0E8F68" },
                   label: t("stats.allTimeLabel"),
                   animatedValue: allTimeSecs,
                   formatValue: formatMinutesShort,
@@ -580,7 +580,7 @@ export default function Stats() {
                       <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
                     </svg>
                   ),
-                  chip: { bg: "#14B885", color: "#fff" },
+                  chip: { tint: "#0E8F68" },
                   label: t("stats.bestDayLabel"),
                   animatedValue: bestDaySecs,
                   formatValue: formatMinutesShort,
@@ -637,25 +637,25 @@ export default function Stats() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
           <GoalBar
             icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
-            chip={{ bg: "#14B885", color: "#fff" }} label={t("stats.goalDaily")} pct={todayGoalPct}
+            chip={{ tint: "#0E8F68" }} label={t("stats.goalDaily")} pct={todayGoalPct}
             valueText={formatMinutesShort(todaySecs)} targetText={formatMinutesShort(DAILY_GOAL_SECS)}
             footer={todayGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(dailyRemain))}
             footerColor={todayGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
           <GoalBar
             icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-            chip={{ bg: "#0369a1", color: "#fff" }} label={t("stats.goalWeekly")} pct={weekGoalPct}
+            chip={{ tint: "#0E8F68" }} label={t("stats.goalWeekly")} pct={weekGoalPct}
             valueText={formatMinutesShort(currentWeekSecs)} targetText={formatMinutesShort(WEEKLY_GOAL_SECS)}
             footer={weekGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(weekRemain))}
             footerColor={weekGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
           <GoalBar
             icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>}
-            chip={{ bg: "#6366F1", color: "#fff" }} label={t("stats.goalMonthly")} pct={monthGoalPct}
+            chip={{ tint: "#0E8F68" }} label={t("stats.goalMonthly")} pct={monthGoalPct}
             valueText={formatMinutesShort(total30)} targetText={formatMinutesShort(MONTHLY_GOAL_SECS)}
             footer={monthGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(monthRemain))}
             footerColor={monthGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
           <GoalBar
             icon={<Flame size={14} />}
-            chip={{ bg: "#D97706", color: "#fff" }} label={t("stats.goalStreakCard")} pct={streakPct}
+            chip={{ tint: "#D97706" }} label={t("stats.goalStreakCard")} pct={streakPct}
             valueText={t("stats.goalStreakUnit").replace("{n}", String(streak)).replace("{target}", String(streakTarget))} targetText=""
             footer={t("stats.goalStreakKeep")} footerColor="var(--bt-text-3)" />
         </div>
