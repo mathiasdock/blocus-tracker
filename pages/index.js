@@ -8,6 +8,8 @@ import { COUNTRIES } from "../lib/universities";
 import { HOME_FAQ, HOME_FAQ_EN } from "../lib/seo";
 import { getLandingContent } from "../lib/landingContent";
 import Mascot from "../components/Mascot";
+import RotatingWord from "../components/RotatingWord";
+import ScrollRevealText from "../components/ScrollRevealText";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Landing publique — refonte "app-first" : de vrais screenshots du produit
@@ -371,7 +373,12 @@ export default function Home() {
                 {c.hero.badge}
               </p>
               <h1 className="mt-6 text-[2.7rem] leading-[1.03] sm:text-6xl lg:text-7xl" style={{ color: "var(--bt-text-1)", letterSpacing: "-0.03em" }}>
-                {c.hero.titleBefore}<span className="bt-shimmer-accent">{c.hero.titleAccent}</span>
+                {c.hero.titleBefore}
+                {c.hero.titleAccents?.length > 1 ? (
+                  <RotatingWord words={c.hero.titleAccents} style={{ color: "#0E8F68" }} />
+                ) : (
+                  <span style={{ color: "#0E8F68" }}>{c.hero.titleAccent}</span>
+                )}
               </h1>
               <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
                 {c.hero.subtitle}
@@ -583,6 +590,11 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* ── Manifeste : phrase qui s'illumine mot à mot au scroll ─────── */}
+        <section id="manifeste" aria-label={c.manifesto} className="px-5">
+          <ScrollRevealText text={c.manifesto} />
         </section>
 
         {/* ── Visite interactive — toutes les grandes pages de l'app ─────── */}

@@ -2,6 +2,20 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-22 - Landing : titre a mot rotatif + phrase manifeste au scroll (via MCP 21st.dev)
+
+Deux gestes cinetiques ajoutes a la landing (le SITE, pas l'app) pour la rendre vivante facon Apple / Notion / Duolingo. Methode habituelle : `search` (gratuit) pour reperer les patterns canoniques, puis les `get_component` du jour (2/2) depenses sur les originaux framer-motion, dont seule la mecanique/les timings sont extraits puis PORTES en CSS + JS vanilla, ZERO dependance ajoutee. Verts et tokens existants uniquement.
+
+- **`components/RotatingWord.js` (nouveau) — le mot d'accent du titre tourne** (porte du "Rotating Text", id 10066). Le H1 devient « Le chrono qui rend ton blocus [plus clair. → plus calme. → plus leger. → sous controle.] » (vert `#0E8F68`). Un placeholder INVISIBLE contenant le mot le plus large reserve la largeur → zero decalage de layout (mesure : conteneur constant). Entree seule (fondu + petit glissement + flou de 0.5 s rejoue au remount par `key`), pause quand l'onglet est cache, statique sous `prefers-reduced-motion` ou avec un seul mot. Premier mot rendu en clair (SSR/SEO).
+- **`components/ScrollRevealText.js` (nouveau) — phrase manifeste qui s'illumine mot a mot au scroll** (porte du "Text Reveal" magicui, id 856). Nouvelle section `#manifeste` entre Social et la visite guidee : « Etudier, ce n'est pas travailler plus. C'est savoir ou tu vas, et voir tout le chemin deja parcouru. » (relie planning = « ou tu vas » et stats = « chemin parcouru », aucune stat inventee). Conteneur haut de 200vh, ligne `sticky` centree epinglee ; la progression du scroll est mappee a l'opacite de chaque mot (0.26 → 1) via un handler `scroll` rAF-throttle → allumage gauche→droite type lecture. Progressive enhancement : opacite 1 par defaut en CSS → texte lisible sans JS ; sous `prefers-reduced-motion` le conteneur 200vh est COLLAPSE en phrase compacte centree (pas d'ecran de vide mort) et tous les mots sont pleins.
+- **`lib/landingContent.js`** : `titleAccents` (4 adjectifs FR/EN) + `manifesto` (FR/EN) ajoutes dans les deux blocs de langue.
+- **`pages/index.js`** : import des deux composants ; H1 branche sur `RotatingWord` (fallback `titleAccent` statique si <2 mots) ; section `#manifeste` inseree avant `#decouverte`.
+- **`styles/globals.css`** : vocabulaire `.bt-rotw*` (mot rotatif) et `.bt-reveal*` (reveal au scroll) + bloc `prefers-reduced-motion` (mot rotatif fige, conteneur reveal collapse, mots a opacite 1).
+
+Verifie : builds `NEXT_PUBLIC_OFFLINE_DEV=true` et `npm run build` normal OK. En navigateur (build offline) : mot rotatif capture visuellement (« plus clair./calmer. » etc.), largeur du conteneur stable (aucun layout shift), FR et EN OK, zero erreur console. Manifeste verifie par DOM + math du scroll (p proportionnel a la position, opacites monotones gauche→droite : 9 mots pleins → transition douce → mot sombre) et capture visuelle du rendu reel (police 46px bold, wrap 4 lignes centre, degrade lecture net). Le harness de preview ne capture qu'a scrollY 0 (limitation d'environnement) → le manifeste a ete verifie en le relocalisant en haut de page pour la capture, sans toucher a la source.
+
+NB (hors de ce changement, deja presents dans le working tree AVANT cette session, NON commites ici) : suppression des logos `public/logos/*` + `public/icon-concepts.html`, ajout de photos `public/site-web/*`, et doublons `public/sw 2..6.js`. A trier par Mathias — le marquee ecoles de la section Social reference encore ces logos.
+
 ## 2026-07-20 - Feedback sensoriel discret du chrono
 
 Ajout de micro-signaux facultatifs, generes entierement sur l'appareil et sans asset audio :

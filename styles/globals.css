@@ -777,6 +777,61 @@ details.bt-acc[open]::details-content { block-size: auto; }
   38%, 100%{ background-position: -100% 0; }
 }
 
+/* ── Landing : mot qui tourne dans le titre (components/RotatingWord.js,
+   essence du "Rotating Text" via MCP 21st, portée en CSS pur). Le ghost
+   invisible réserve la largeur du mot le plus large → zéro décalage ; le
+   mot courant est absolu et entre/sort en glissant + flou. ── */
+.bt-rotw { position: relative; display: inline-flex; vertical-align: bottom; }
+.bt-rotw-ghost { visibility: hidden; white-space: nowrap; }
+.bt-rotw-word {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  white-space: nowrap;
+  /* Fondu + petit glissement + flou : translate FAIBLE (0.28em) → le mot ne
+     quitte jamais la boîte, donc pas de trou visible entre deux mots. */
+  animation: bt-rotw-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes bt-rotw-in {
+  from { transform: translateY(0.28em); opacity: 0; filter: blur(5px); }
+  to   { transform: translateY(0);      opacity: 1; filter: blur(0); }
+}
+
+/* ── Landing : phrase qui s'illumine mot à mot au scroll (adaptation du
+   "Text Reveal" de magicui, récupéré via le MCP 21st.dev). Le conteneur haut
+   donne la course de scroll ; la ligne est épinglée (sticky) et centrée ;
+   ScrollRevealText.js pose l'opacité de chaque mot en JS (rAF). Base opacité 1
+   → lisible sans JS. ── */
+.bt-reveal { position: relative; height: 200vh; }
+.bt-reveal-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 0 1.25rem;
+}
+.bt-reveal-text {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 44rem;
+  margin: 0 auto;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.55rem, 4.6vw, 3rem);
+  color: var(--bt-text-1);
+}
+.bt-reveal-word {
+  opacity: 1; /* défaut lisible (SSR / sans JS) ; le JS crée l'effet */
+  margin-right: 0.3em;
+  transition: opacity 0.12s linear;
+}
+
 /* ── Landing : projecteur vert qui suit la souris (adaptation du
    "Spotlight Card" de reactbits, récupéré via le MCP 21st.dev). Le JS
    pose --sx/--sy directement sur l'élément (zéro re-render) ; le halo
@@ -998,6 +1053,12 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-task-check::after { transition: none !important; }
   .bt-strike::after { transition: none !important; }
   .bt-seg-thumb { transition: opacity 0.15s ease !important; }
+  .bt-rotw-word, .bt-rotw-word.is-leaving { animation: none !important; }
+  /* Reveal au scroll : sans animation, on collapse le conteneur 200vh (sinon un
+     écran de vide mort) → une phrase compacte et centrée, tous mots lisibles. */
+  .bt-reveal { height: auto !important; }
+  .bt-reveal-sticky { position: static !important; height: auto !important; padding: 3.5rem 1.25rem !important; }
+  .bt-reveal-word { opacity: 1 !important; transition: none !important; }
   .bt-focus-shader, .bt-focus-shader canvas { transition: none !important; }
   [data-reveal] {
     opacity: 1 !important;
