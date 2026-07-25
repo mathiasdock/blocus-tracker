@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-25 - Admin : generateur de statistiques de demo (captures promo)
+
+Mathias a besoin de stats credibles sur SON compte admin pour les captures promotionnelles.
+
+- **Faisabilite verifiee AVANT de coder** : aucune migration necessaire. La policy RLS `sessions_write` est `FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id)` → chacun peut deja ecrire SES propres sessions. Aucun trigger d'integrite ne contraint l'insert (v28 lit les sessions pour valider badges/missions mais ne bloque pas). Rien a executer dans le SQL Editor.
+- **`components/AdminDemoStats.js` (nouveau)** : genere de VRAIES lignes dans `sessions` pour l'admin lui-meme. Choix assume vs un affichage truque : toutes les vues (Stats, graphes, heatmap, records, XP/niveau, profil) derivent de cette table → tout reste coherent partout sans truquer chaque composant. Parametres : jours d'historique, moyenne min/jour, serie en cours, journee record, graine (reproductible via mulberry32 → une capture est rejouable a l'identique). Repartition realiste : 1 a 3 sessions/jour sur des creneaux plausibles, ~68 % de jours etudies hors serie, jamais de session dans le futur, dates construites en heure LOCALE (car `computeStreak` compare des dates locales) et jour vide force juste avant la serie pour qu'elle vaille exactement la valeur demandee.
+- **Reversibilite** : les ids generes sont memorises en localStorage → "Annuler la derniere generation" supprime exactement ceux-la, les vraies sessions sont preservees. Filet de secours si le localStorage est perdu : suppression par plage de dates. Le champ `note` est laisse VIDE a dessein (il est affiche dans l'historique des sessions cote dashboard → un marqueur polluerait les captures).
+- **`pages/admin.js`** : nouvelle section "Demo" (derriere le gate `profile.is_admin` existant qui redirige sinon). Toutes les requetes sont bornees explicitement par `.eq("user_id", ...)` en plus de la RLS. Libelles en francais en dur, conformement au reste d'admin.js (outil interne, non traduit).
+- **Avertissement affiche dans le panneau** : le classement (amis ET public, via `get_leaderboard_v2` / `get_public_leaderboard`) lit la meme table `sessions`. Tant que les sessions de demo existent, elles comptent dans le temps affiche aux AUTRES utilisateurs. D'ou le bouton d'annulation en un clic, a utiliser apres les captures.
+
+Verifie en preview offline (build offline, utilisateur offline admin) : panneau monte avec ses 5 champs / 3 actions / l'avertissement ; generation → "144 sessions creees sur 66 jours (168.1 h, serie de 12 j)", compteur 2 → 146, 144 ids traces ; page Stats → serie **12 j** (exactement la valeur demandee), meilleure journee **5h** (= 300 min demandes), total **169h50**, moy./7j **2h48** (≈ 150 min/j demandes) ; annulation → 144 supprimees, compteur revenu a **2**, Stats de retour a **2 j / 1h45** (etat d'origine intact), store vide et bouton desactive. `npm run lint` clean, builds offline + normal OK, zero erreur console. NB : les clics de l'environnement headless n'atteignant pas React (y compris sur les onglets pre-existants), la navigation a ete declenchee par `.click()` natif — comportement de l'environnement, pas du code.
+
 ## 2026-07-22 - Mode focus mobile : plein ecran vert jusqu'au bord (safe-area iPhone)
 
 Bug signale par Mathias : sur iPhone, une bande blanche restait en bas du mode focus plein ecran au lieu du fond vert.

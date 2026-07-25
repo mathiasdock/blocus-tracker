@@ -6,6 +6,7 @@ import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import BadgeIcon from "../components/BadgeIcon";
+import AdminDemoStats from "../components/AdminDemoStats";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
@@ -41,6 +42,7 @@ const SECTIONS = [
   { id: "members",   label: "Membres" },
   { id: "technical", label: "Technique" },
   { id: "content",   label: "Contenu" },
+  { id: "demo",      label: "Démo" },
 ];
 
 // Palette graphiques — accents distincts, cohérents avec l'app.
@@ -1721,6 +1723,13 @@ export default function Admin() {
                     </div>
                   </section>
                 )}
+              </div>
+            )}
+
+            {/* ═══════════ DÉMO (captures promo — mon compte only) ═══════════ */}
+            {section === "demo" && (
+              <div className="space-y-5">
+                <AdminDemoStats userId={profile.id} />
               </div>
             )}
           </>
