@@ -126,11 +126,34 @@ export default function AdminDemoStats({ userId }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Suppression par lots, bornée explicitement au compte courant (la RLS le
+  // garantit déjà, mais on reste explicite sur une opération destructive).
+  const removeIds = useCallback(async (ids) => {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const { error } = await supabase
+        .from("sessions").delete()
+        .eq("user_id", userId)
+        .in("id", ids.slice(i, i + CHUNK));
+      if (error) throw error;
+    }
+  }, [userId]);
+
   async function generate() {
     if (!userId || working) return;
     setWorking(true);
     setStatus({ kind: "info", text: "Génération en cours…" });
     try {
+      // Regénérer remplace toujours la démo précédente : sans ça les lots
+      // s'empileraient (deux sessions sur un même jour) et les chiffres
+      // deviendraient imprévisibles. Un clic = un jeu de stats propre.
+      const previous = readStore();
+      if (previous?.ids?.length) {
+        setStatus({ kind: "info", text: `Nettoyage des ${previous.ids.length} sessions de démo précédentes…` });
+        await removeIds(previous.ids);
+        try { localStorage.removeItem(STORE_KEY); } catch {}
+        setStatus({ kind: "info", text: "Génération en cours…" });
+      }
+
       const rng = makeRng(seed);
       const now = new Date();
       const courseIds = courses.map(c => c.id);
@@ -167,22 +190,18 @@ export default function AdminDemoStats({ userId }) {
     }
   }
 
-  async function undoLast() {
+  // Remet le compte dans son état réel : supprime TOUTES les sessions de démo
+  // suivies (tous lots confondus), sans toucher aux vraies sessions.
+  async function resetAll() {
     const store = readStore();
     if (!store?.ids?.length || working) return;
-    if (!confirm(`Supprimer les ${store.ids.length} sessions de la dernière génération ?`)) return;
+    if (!confirm(`Supprimer les ${store.ids.length} sessions de démo et revenir à tes vraies stats ?`)) return;
     setWorking(true);
-    setStatus({ kind: "info", text: "Suppression…" });
+    setStatus({ kind: "info", text: "Réinitialisation…" });
     try {
-      for (let i = 0; i < store.ids.length; i += CHUNK) {
-        const { error } = await supabase
-          .from("sessions").delete()
-          .eq("user_id", userId)                          // garde-fou explicite (RLS le fait déjà)
-          .in("id", store.ids.slice(i, i + CHUNK));
-        if (error) throw error;
-      }
+      await removeIds(store.ids);
       try { localStorage.removeItem(STORE_KEY); } catch {}
-      setStatus({ kind: "ok", text: `${store.ids.length} sessions de démo supprimées.` });
+      setStatus({ kind: "ok", text: `${store.ids.length} sessions de démo supprimées. Tes vraies stats sont de retour.` });
       refresh();
     } catch (e) {
       setStatus({ kind: "error", text: `Échec : ${e.message || e}` });
@@ -229,7 +248,9 @@ export default function AdminDemoStats({ userId }) {
       </p>
       <p className="text-xs mb-4" style={{ color: "var(--bt-text-4)" }}>
         Génère de vraies sessions sur <strong>ton compte uniquement</strong>, pour des captures promotionnelles.
-        Stats, graphes, heatmap, série et records deviennent cohérents partout. Annulable en un clic.
+        Stats, graphes, heatmap, série et records deviennent cohérents partout.
+        Régénère autant de fois que tu veux (chaque essai remplace le précédent), puis
+        <strong> Tout réinitialiser</strong> pour retrouver tes vraies stats.
       </p>
 
       <div className="rounded-xl p-3 mb-4 text-xs leading-relaxed"
@@ -249,11 +270,11 @@ export default function AdminDemoStats({ userId }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={generate} disabled={working} className="btn-primary px-4 py-2 text-sm">
-          {working ? "…" : "Générer"}
+          {working ? "…" : tracked?.ids?.length ? "Regénérer" : "Générer"}
         </button>
-        <button onClick={undoLast} disabled={working || !tracked?.ids?.length} className="btn-ghost px-4 py-2 text-sm"
+        <button onClick={resetAll} disabled={working || !tracked?.ids?.length} className="btn-ghost px-4 py-2 text-sm"
           style={{ opacity: tracked?.ids?.length ? 1 : 0.45 }}>
-          Annuler la dernière génération{tracked?.ids?.length ? ` (${tracked.ids.length})` : ""}
+          Tout réinitialiser{tracked?.ids?.length ? ` (${tracked.ids.length})` : ""}
         </button>
         <button onClick={deleteRange} disabled={working} className="btn-ghost px-4 py-2 text-sm" style={{ color: "#CB5A4E" }}>
           Supprimer par plage…

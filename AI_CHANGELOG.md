@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-25 - Admin/demo : regenerer remplace le lot precedent + "Tout reinitialiser"
+
+Suite du generateur de demo. Mathias a decrit son usage reel : generer de fausses stats, ajuster jusqu'a ce que le rendu soit bon, faire ses captures, puis "reset tout". Ce scenario revelait un trou dans la version precedente.
+
+- **Bug corrige** : le suivi localStorage ne gardait que le DERNIER lot genere. En appuyant deux fois sur "Générer", le premier lot devenait orphelin (plus aucun bouton ne pouvait le supprimer) et les sessions s'empilaient (deux sessions le meme jour → chiffres imprevisibles).
+- **`components/AdminDemoStats.js`** : "Générer" purge desormais le lot precedent AVANT de generer (helper `removeIds` partage). Chaque clic produit donc un jeu de stats propre et previsible. Le bouton devient "Regénérer" quand une demo est active.
+- **"Annuler la derniere generation" → "Tout reinitialiser"** : libelle et message aligne sur l'intention reelle ("Tes vraies stats sont de retour"). Le filet de secours "Supprimer par plage…" reste inchange.
+
+Verifie en preview offline (seed remis a zero) : compteur 2 (reel) → **146** apres la 1re generation (144 suivies, bouton passe a "Regénérer") → **142** apres regeneration avec une autre graine (140 nouvelles, donc AUCUN empilement : ce serait 286 sans le correctif ; jeu different — 140 sessions/68 j/157.9 h vs 144/66/168.1 h — et serie toujours exactement 12 j) → **2** apres "Tout reinitialiser", store vide, bouton revenu a "Générer", et page Stats de retour a **2 j / 1h45** (vraies sessions intactes). `npm run lint` clean, builds offline + normal OK, zero erreur console.
+
 ## 2026-07-25 - Admin : generateur de statistiques de demo (captures promo)
 
 Mathias a besoin de stats credibles sur SON compte admin pour les captures promotionnelles.
