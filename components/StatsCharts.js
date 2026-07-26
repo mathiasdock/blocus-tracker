@@ -240,7 +240,7 @@ export default function StatsCharts({
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={activeCourse} dataKey="minutes" nameKey="name"
+                  <Pie data={activeCourse} dataKey="minutes" nameKey="name" isAnimationActive={false}
                     innerRadius={22} outerRadius={42} paddingAngle={3}>
                     {activeCourse.map((c, i) => (
                       <Cell key={i} fill={c.color || "#14B885"} stroke="none" />
@@ -334,7 +334,7 @@ export default function StatsCharts({
                     <div className="h-52">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={activeCourse} dataKey="minutes" nameKey="name"
+                          <Pie data={activeCourse} dataKey="minutes" nameKey="name" isAnimationActive={false}
                             innerRadius={56} outerRadius={96} paddingAngle={3}>
                             {activeCourse.map((c, i) => (
                               <Cell key={i} fill={c.color || "#14B885"} stroke="none" />
