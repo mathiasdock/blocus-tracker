@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useI18n } from "../contexts/I18nContext";
+import { localISO } from "../lib/format";
 
 const LEVELS = [
   "var(--bt-border)",
@@ -38,9 +39,13 @@ export default function StudyHeatmap({ sessions = [] }) {
     }
   }, []);
 
+  // Dates LOCALES des deux côtés (clés et cases) : `slice(0,10)` donnait la date
+  // UTC, donc en UTC+1/+2 une session de fin de soirée tombait la veille — et le
+  // calcul de série (computeStreak) utilise déjà localISO. Les deux doivent
+  // parler la même langue, sinon la grille est décalée d'un jour.
   const dateMap = {};
   sessions.forEach(s => {
-    const d = s.started_at.slice(0, 10);
+    const d = localISO(s.started_at);
     dateMap[d] = (dateMap[d] || 0) + Math.round(s.duration_seconds / 60);
   });
 
@@ -54,7 +59,7 @@ export default function StudyHeatmap({ sessions = [] }) {
     for (let d = 0; d < 7; d++) {
       const date = new Date(today);
       date.setDate(today.getDate() - dayOfWeek - w * 7 + d);
-      const iso = date.toISOString().slice(0, 10);
+      const iso = localISO(date);
       const isFuture = date > today;
       week.push({ iso, minutes: dateMap[iso] || 0, isFuture });
     }

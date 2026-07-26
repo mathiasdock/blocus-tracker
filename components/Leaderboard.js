@@ -341,7 +341,7 @@ export default function Leaderboard({ user, profile, onViewUser }) {
               return (
                 <li key={row.user_id}
                   className="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors"
-                  style={isMe ? { backgroundColor: "#EAFBF4" } : { cursor: "pointer" }}
+                  style={isMe ? { backgroundColor: "var(--bt-accent-bg)" } : { cursor: "pointer" }}
                   onClick={() => { if (!isMe) onViewUser(row.user_id); }}
                   onMouseEnter={e => { if (!isMe) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                   onMouseLeave={e => { if (!isMe) e.currentTarget.style.backgroundColor = ""; }}>

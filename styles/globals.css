@@ -1023,6 +1023,21 @@ details.bt-acc[open]::details-content { block-size: auto; }
   80%      { transform: scale(0.98, 1.03) rotate(1deg); }
 }
 
+/* ── Champs de saisie : 16 px minimum sur mobile ──────────────────────
+   En dessous de 16 px, iOS Safari zoome automatiquement la page au focus
+   d'un champ — et en PWA installée l'utilisateur n'a AUCUN moyen de
+   dézoomer ensuite. Deux sources de 14 px cohabitent (la classe .input et
+   `text-sm` posé directement sur des inputs), donc on cible les éléments
+   eux-mêmes : la spécificité (0,3,1) passe devant les utilitaires Tailwind.
+   Le desktop (≥1024 px, là où le shell passe en sidebar) garde sa densité. */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bt-pulse-green,
   .bt-msg-swap,
