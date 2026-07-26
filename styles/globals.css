@@ -1023,6 +1023,22 @@ details.bt-acc[open]::details-content { block-size: auto; }
   80%      { transform: scale(0.98, 1.03) rotate(1deg); }
 }
 
+/* ── Cibles tactiles : 44 px minimum sur mobile (Apple HIG / Material) ──
+   L'audit comptait 78 éléments sous 44 px sur chrono/planning/stats, mais ce
+   sont quelques RECETTES partagées, pas 78 bugs : les boutons `.btn*`, les
+   options de glissière (`[data-seg]`) et, pour les contrôles à styles inline
+   que le CSS ne peut pas surcharger, la classe utilitaire `.bt-tap`.
+   On n'agit que sur la HAUTEUR : la largeur n'a jamais été le problème, donc
+   rien ne se réorganise — les contrôles deviennent juste atteignables au pouce.
+   Le desktop garde sa densité. */
+@media (max-width: 1023px) {
+  .btn,
+  [data-seg],
+  .bt-tap {
+    min-height: 44px;
+  }
+}
+
 /* ── Champs de saisie : 16 px minimum sur mobile ──────────────────────
    En dessous de 16 px, iOS Safari zoome automatiquement la page au focus
    d'un champ — et en PWA installée l'utilisateur n'a AUCUN moyen de
@@ -1035,6 +1051,13 @@ details.bt-acc[open]::details-content { block-size: auto; }
   textarea,
   select {
     font-size: 16px;
+  }
+  /* Et une hauteur atteignable au pouce : plusieurs champs n'avaient aucun
+     padding vertical propre (l'ajout rapide du planning ne faisait que 20 px),
+     la hauteur venant du conteneur — or seul le champ reçoit le focus. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select {
+    min-height: 44px;
   }
 }
 

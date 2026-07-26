@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Audit UX mobile : planning mobile (point 7) + cibles tactiles (point 8)
+
+**Point 7 — Planning sur mobile.**
+- **Vue par défaut = Jour sur mobile** (`pages/planning.js`). La vue MOIS etait le defaut partout, mais dans une case de ~50 px aucun texte ne rentre : la grille ne montrait que des points anonymes. Sur desktop le mois reste le defaut, ou il est lisible. Meme pattern que le theme : le choix explicite est memorise (`bt_plan_view`) et n'est jamais reecrase.
+- **Toolbar : 3 rangees → 2.** Les trois actions secondaires (Partage, Dupliquer la semaine, Exporter calendrier) occupaient deux rangees entieres a 390 px. Elles passent dans un menu « … » sur mobile et restent inline a partir de `lg`. Une seule definition (`secondaryActions()`, une fonction et non un composant, donc pas de remontage) sert les deux rendus.
+- **Placeholder d'ajout rapide tronque** : « Ajout rapide — ex : Bio 2h demain 14h » etait coupe en plein milieu, alors que c'est la SEULE indication de syntaxe du parseur. Raccourci en « Ex : Bio 2h demain 14h » (FR) / « E.g. Bio 2h tomorrow 2pm » (EN) — verifie : le texte rentre desormais entierement.
+
+**Point 8 — Cibles tactiles : les recettes partagees, pas 78 correctifs.**
+L'audit comptait 78 elements interactifs sous 44 px. Ce sont quelques recettes reutilisees :
+- **`styles/globals.css`** : une regle mobile unique donne `min-height: 44px` aux `.btn*`, aux options de glissiere (`[data-seg]`) et a une nouvelle classe utilitaire `.bt-tap`. On n'agit que sur la HAUTEUR — la largeur n'a jamais ete le probleme, donc rien ne se reorganise. Le desktop garde sa densite.
+- **`.bt-tap` pour les controles a styles INLINE** que le CSS ne peut pas surcharger : les 4 puces de filtre + le selecteur segmente du classement (`components/Leaderboard.js`).
+- **Icones nues sans padding** (`pages/dashboard.js`) : les 6 boutons modifier/supprimer/annuler des sessions du jour avaient une zone tactile egale a l'icone, soit **13x13 px**. Passes en `.bt-tap` + padding horizontal.
+- **Selecteur Libre/Pomodoro et bouton Mode focus** (controles primaires du chrono) passes a 44 px.
+- **Champs de saisie** : ajout de `min-height: 44px` (en plus des 16 px de police deja livres). Plusieurs champs n'avaient aucun padding vertical propre — l'ajout rapide du planning ne faisait que **20 px** de haut, la hauteur venant du conteneur alors que seul le champ recoit le focus.
+
+Mesure avant/apres a 390x844 (hauteur < 44 px) : chrono **46 → 31**, planning **17 → 7**, stats **15 → 5**, soit **78 → 43**. Honnetement : **20 des 31 restants du chrono sont le nuancier de couleurs des cours** (grille de pastilles de 26 px adjacentes — motif de color-picker standard, la zone collective est large, non touche a dessein). Hors nuancier, le total tombe a **78 → 23**, et les restants sont essentiellement des elements du shell partage (logo, avatar, cloche) plus quelques puces secondaires. Aucun debordement horizontal, aucune mise en page cassee (verifie en capture). `npm run lint` clean, builds offline + normal OK.
+
 ## 2026-07-26 - Audit UX mobile (suite) : thème système par défaut + réorganisation Stats
 
 Points 5 et 6 de l'ordre d'attaque (le point 4, `xs:`, etait deja livre dans le commit precedent).

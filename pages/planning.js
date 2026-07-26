@@ -1316,6 +1316,7 @@ export default function Planning() {
     running: timerRunning, elapsed: timerElapsed, pause: pauseTimer, reset: resetTimer,
   } = useTimer();
   const [view, setView]             = useState("month");
+  const [showMoreActions, setShowMoreActions] = useState(false);
   const [courses, setCourses]       = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [exams, setExams]           = useState([]);
@@ -1329,6 +1330,24 @@ export default function Planning() {
   const [modalPrefillTime, setModalPrefillTime] = useState(null); // heure pré-remplie quand on ouvre depuis un créneau de la grille
   const [togglingShare, setTogglingShare] = useState(false); // pilote l'UI (disabled/opacité)
   const togglingShareRef = useRef(false); // verrou synchrone anti double-clic (cf. togglePlanningPublic)
+
+  // Vue par défaut adaptée au support : sur un téléphone la grille MOIS ne
+  // montre que des points anonymes (aucun texte ne rentre dans une case de
+  // ~50 px), alors que la vue JOUR répond à « qu'est-ce que je révise là ».
+  // Le desktop garde le mois, qui y est lisible. Un choix explicite gagne
+  // toujours : on le mémorise et on ne le réécrase jamais.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bt_plan_view");
+      if (saved && ["day", "week", "month"].includes(saved)) { setView(saved); return; }
+      if (window.matchMedia("(max-width: 1023px)").matches) setView("day");
+    } catch {}
+  }, []);
+
+  const changeView = useCallback((v) => {
+    setView(v);
+    try { localStorage.setItem("bt_plan_view", v); } catch {}
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -1598,6 +1617,46 @@ export default function Planning() {
     return `${months[cursor.month]} ${cursor.year}`;
   }
 
+  // Partage / duplication / export : rendus soit inline dans la barre d'outils
+  // (desktop), soit empilés dans le menu « … » (mobile). Une seule définition
+  // pour les deux, une simple fonction et non un composant : pas de remontage.
+  const secondaryActions = () => (
+    <>
+      <button onClick={togglePlanningPublic} disabled={togglingShare}
+        role="switch" aria-checked={!!profile?.planning_public} title={t("plan.public")}
+        className="btn-ghost text-xs px-3 py-2.5 flex items-center gap-1.5 no-print w-full lg:w-auto justify-start lg:justify-center"
+        style={{ opacity: togglingShare ? 0.6 : 1, cursor: togglingShare ? "wait" : "pointer" }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        {profile?.planning_public ? t("plan.shareShared") : t("plan.sharePrivate")}
+        <span className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ backgroundColor: profile?.planning_public ? "#14B885" : "var(--bt-text-4)" }} />
+      </button>
+      <button onClick={duplicateWeek} title={t("plan.duplicateWeekHint")}
+        className="btn-ghost text-xs px-3 py-2.5 flex items-center gap-1.5 no-print w-full lg:w-auto justify-start lg:justify-center">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        {t("plan.duplicateWeek")}
+      </button>
+      <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
+        className="btn-ghost text-xs px-3 py-2.5 flex items-center gap-1.5 no-print w-full lg:w-auto justify-start lg:justify-center">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+          <path d="M12 14v4"/>
+          <path d="m10 16 2 2 2-2"/>
+        </svg>
+        {t("plan.exportCalendar")}
+      </button>
+    </>
+  );
+
   const ctxValue = {
     view, courses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit,
@@ -1628,40 +1687,30 @@ export default function Planning() {
               { value: "month", label: t("plan.month") },
             ]}
             value={view}
-            onChange={setView}
+            onChange={changeView}
           />
-          <button onClick={togglePlanningPublic} disabled={togglingShare}
-            role="switch" aria-checked={!!profile?.planning_public} title={t("plan.public")}
-            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print"
-            style={{ opacity: togglingShare ? 0.6 : 1, cursor: togglingShare ? "wait" : "pointer" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            {profile?.planning_public ? t("plan.shareShared") : t("plan.sharePrivate")}
-            <span className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: profile?.planning_public ? "#14B885" : "var(--bt-text-4)" }} />
-          </button>
-          <button onClick={duplicateWeek} title={t("plan.duplicateWeekHint")}
-            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-            <span className="hidden sm:inline">{t("plan.duplicateWeek")}</span>
-          </button>
-          <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
-            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 no-print">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-              <path d="M12 14v4"/>
-              <path d="m10 16 2 2 2-2"/>
-            </svg>
-            <span className="hidden sm:inline">{t("plan.exportCalendar")}</span>
-          </button>
+
+          {/* Actions secondaires : inline à partir de lg, sinon dans un menu « … ».
+              À 390 px elles occupaient deux rangées entières à elles seules. */}
+          <div className="relative lg:hidden no-print">
+            <button onClick={() => setShowMoreActions(v => !v)}
+              aria-label={t("plan.moreActions")} aria-expanded={showMoreActions}
+              className="btn-ghost px-3 py-2 text-sm leading-none">…</button>
+            {showMoreActions && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setShowMoreActions(false)} />
+                <div className="absolute right-0 top-full mt-1 z-30 rounded-2xl overflow-hidden min-w-[210px]"
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 28px var(--bt-shadow)" }}>
+                  <div className="flex flex-col p-1" onClick={() => setShowMoreActions(false)}>
+                    {secondaryActions()}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="hidden lg:flex items-center gap-2">
+            {secondaryActions()}
+          </div>
         </div>
 
         <QuickAddBar />

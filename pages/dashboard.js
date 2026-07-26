@@ -1124,7 +1124,7 @@ export default function Dashboard() {
               style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
               <button
                 onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }}
-                className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
+                className="bt-tap px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
                 style={!pomodoro
                   ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
                   : { color: "var(--bt-text-3)" }}>
@@ -1132,7 +1132,7 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }}
-                className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
+                className="bt-tap px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
                 style={pomodoro
                   ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
                   : { color: "var(--bt-text-3)" }}>
@@ -1142,7 +1142,7 @@ export default function Dashboard() {
 
             {/* Plein écran → mode focus */}
             <button onClick={() => setFocusMode(true)} title={t("dash.focusMode")} aria-label={t("dash.focusMode")}
-              className="w-9 h-9 flex items-center justify-center rounded-full shrink-0 transition-colors"
+              className="bt-tap w-9 h-9 flex items-center justify-center rounded-full shrink-0 transition-colors"
               style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}
               onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-text-1)"; }}
               onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-3)"; }}>
@@ -1418,7 +1418,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => updateSession(s)}
                             title={t("common.save")}
-                            className="shrink-0 transition-colors"
+                            className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
                             style={{ color: "#14B885" }}
                             onMouseEnter={e => e.currentTarget.style.color = "#0E8F68"}
                             onMouseLeave={e => e.currentTarget.style.color = "#14B885"}>
@@ -1430,7 +1430,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => setEditingSessionId(null)}
                             title={t("common.cancel")}
-                            className="shrink-0 transition-colors"
+                            className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
                             style={{ color: "var(--bt-text-3)" }}
                             onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
                             onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
@@ -1454,7 +1454,7 @@ export default function Dashboard() {
                         <button
                           onClick={() => { setEditingSessionId(s.id); setEditMinutes(String(maxMins)); setEditCourseId(s.course_id); }}
                           title={t("dash.editSession")}
-                          className="shrink-0 transition-colors"
+                          className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
                           style={{ color: "var(--bt-text-4)" }}
                           onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
                           onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
@@ -1468,7 +1468,7 @@ export default function Dashboard() {
                             <button
                               onClick={() => { deleteSession(s.id); setConfirmDeleteId(null); }}
                               title={t("common.delete")}
-                              className="shrink-0 transition-colors"
+                              className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
                               style={{ color: "#ef4444" }}>
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -1477,7 +1477,7 @@ export default function Dashboard() {
                             <button
                               onClick={() => setConfirmDeleteId(null)}
                               title={t("common.cancel")}
-                              className="shrink-0 transition-colors"
+                              className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
                               style={{ color: "var(--bt-text-3)" }}
                               onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
                               onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
@@ -1490,7 +1490,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => setConfirmDeleteId(s.id)}
                             title={t("common.delete")}
-                            className="shrink-0 transition-colors"
+                            className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
                             style={{ color: "var(--bt-text-4)" }}
                             onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
                             onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
