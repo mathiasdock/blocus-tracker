@@ -41,8 +41,14 @@ function useTheme() {
   useEffect(() => {
     try {
       let t = localStorage.getItem("bt_theme");
-      if (!t) t = localStorage.getItem("bt_dark") === "true" ? "dark" : "light";
-      if (!THEME_MODES.includes(t)) t = "light";
+      if (!t) {
+        // Jamais réglé → on suit le système (un iPhone en sombre recevait une
+        // app blanche). Un choix HÉRITÉ explicite reste respecté : bt_dark
+        // valait "true"/"false" quand l'utilisateur avait tranché lui-même.
+        const legacy = localStorage.getItem("bt_dark");
+        t = legacy === "true" ? "dark" : legacy === "false" ? "light" : "system";
+      }
+      if (!THEME_MODES.includes(t)) t = "system";
       setThemeState(t);
     } catch {}
     setReady(true);

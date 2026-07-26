@@ -16,7 +16,7 @@ export default function Document() {
       {/* Theme: apply class before first paint to avoid flash.
           bt_theme = "light" | "dark" | "system" (bt_dark is the legacy key,
           migrated on the fly). "system" follows prefers-color-scheme. */}
-      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){t=localStorage.getItem('bt_dark')==='true'?'dark':'light';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()` }} />
+      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){var l=localStorage.getItem('bt_dark');t=l==='true'?'dark':l==='false'?'light':'system';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()` }} />
       </Head>
       <body>
         <Main />

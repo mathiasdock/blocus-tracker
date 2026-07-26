@@ -154,6 +154,12 @@ export default function StatsCharts({
   weekToggleLabel,
   monthToggleLabel,
   csvLabel,
+  // Permet de n'afficher qu'un des deux aperçus. Utilisé parce que le camembert
+  // « Répartition par cours » ne dessine aucun secteur (bug recharts pré-existant :
+  // les données et la légende sont correctes, seuls les arcs manquent) — on évite
+  // donc de le promouvoir en haut de page tant qu'il n'est pas réparé.
+  showBar = true,
+  showPie = true,
 }) {
   const [showHours, setShowHours] = useState(true); // heures par défaut
   const [donutPeriod, setDonutPeriod] = useState("week");
@@ -190,9 +196,13 @@ export default function StatsCharts({
 
   return (
     <>
-      {/* ── Mini grid — toujours affichée ── */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* ── Mini grid — toujours affichée ──
+          Une colonne sur mobile : côte à côte, chaque aperçu ne faisait que
+          ~143 px de large sur un iPhone (7 barres illisibles). En pleine
+          largeur l'aperçu redevient lisible, et reste cliquable pour agrandir. */}
+      <div className={`grid grid-cols-1 gap-3 ${showBar && showPie ? "sm:grid-cols-2" : ""}`}>
         {/* Mini bar chart */}
+        {showBar && (
         <section
           className="card p-3 cursor-pointer select-none relative overflow-hidden card-lift"
           onClick={() => setExpanded("bar")}>
@@ -202,7 +212,7 @@ export default function StatsCharts({
           <h2 className="text-[11px] font-semibold truncate mb-1.5 pr-4" style={{ color: "var(--bt-text-2)" }}>
             {chartTitle}
           </h2>
-          <div className="h-24">
+          <div className="h-32 sm:h-24">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyData} barCategoryGap="30%" margin={{ top: 2, right: 0, left: -28, bottom: 0 }}>
                 <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={8} tick={{ fill: AXIS_COLOR }} />
@@ -211,8 +221,10 @@ export default function StatsCharts({
             </ResponsiveContainer>
           </div>
         </section>
+        )}
 
         {/* Mini pie chart */}
+        {showPie && (
         <section
           className="card p-3 cursor-pointer select-none relative overflow-hidden card-lift"
           onClick={() => setExpanded("pie")}>
@@ -222,7 +234,7 @@ export default function StatsCharts({
           <h2 className="text-[11px] font-semibold truncate mb-1.5 pr-4" style={{ color: "var(--bt-text-2)" }}>
             {courseChartTitle}
           </h2>
-          <div className="h-24">
+          <div className="h-32 sm:h-24">
             {activeCourse.length === 0 ? (
               <p className="text-xs mt-2" style={{ color: "var(--bt-text-3)" }}>{noDataText}</p>
             ) : (
@@ -239,6 +251,7 @@ export default function StatsCharts({
             )}
           </div>
         </section>
+        )}
       </div>
 
       {/* ── Modale plein écran (bottom-sheet mobile, centrée desktop) ── */}

@@ -594,6 +594,33 @@ export default function Stats() {
         )}
       </div>
 
+      {/* ── Graphiques — remontés au-dessus de la ligne de flottaison ──
+          « Combien j'ai étudié chaque jour » est la question que vient poser
+          une page Statistiques : elle était auparavant enterrée à ~4 écrans,
+          repliée dans « Analyse avancée ». Le reste (habitudes, records,
+          badges) reste replié, c'est de la consultation ponctuelle. */}
+      <div className="mb-4">
+        <Charts
+          showPie={false}
+          dailyData={dailyData}
+          byCourseWeek={byCourse7}
+          byCourseMonth={byCourse30}
+          weekLabel={weekLabel(weekDates, lang)}
+          onPrev={() => setWeekOffset(o => Math.max(-3, o - 1))}
+          onNext={() => setWeekOffset(o => Math.min(0, o + 1))}
+          canPrev={weekOffset > -3}
+          canNext={weekOffset < 0}
+          chartTitle={t("stats.chartTitle")}
+          courseChartTitle={t("stats.chartCourses")}
+          noDataText={t("stats.chartNoData")}
+          unitMinLabel={t("stats.unitMin")}
+          unitHrLabel={t("stats.unitHrs")}
+          weekToggleLabel={t("stats.week")}
+          monthToggleLabel={t("stats.month")}
+          csvLabel={t("stats.exportCsv")}
+        />
+      </div>
+
       {/* ── Résumé intelligent ─────────────────────────────────── */}
       <div className="card p-5 mb-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundImage: "linear-gradient(180deg,#14B885,#2BD9A4)" }} />
@@ -634,13 +661,11 @@ export default function Stats() {
       {/* ── Objectifs — proéminents ────────────────────────────── */}
       <div className="card p-5 mb-4">
         <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>{t("stats.goalsTitle")}</h2>
+        {/* L'objectif JOURNALIER n'est pas repris ici : la tuile « Aujourd'hui »
+            en haut de page affiche déjà la même valeur, le même pourcentage et
+            la même barre de progression. Les objectifs hebdo / mensuel et le
+            palier de série, eux, n'existent nulle part ailleurs. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-          <GoalBar
-            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>}
-            chip={{ tint: "#0E8F68" }} label={t("stats.goalDaily")} pct={todayGoalPct}
-            valueText={formatMinutesShort(todaySecs)} targetText={formatMinutesShort(DAILY_GOAL_SECS)}
-            footer={todayGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(dailyRemain))}
-            footerColor={todayGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
           <GoalBar
             icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
             chip={{ tint: "#0E8F68" }} label={t("stats.goalWeekly")} pct={weekGoalPct}
@@ -865,8 +890,10 @@ export default function Stats() {
 
           {showAdvanced && (
             <div className="mt-4 space-y-4 bt-stagger">
-              {/* Graphiques détaillés */}
+              {/* Répartition par cours — reste ici (et non remontée) tant que le
+                  camembert ne dessine aucun secteur. */}
               <Charts
+                showBar={false}
                 dailyData={dailyData}
                 byCourseWeek={byCourse7}
                 byCourseMonth={byCourse30}

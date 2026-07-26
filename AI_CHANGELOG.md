@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Audit UX mobile (suite) : thème système par défaut + réorganisation Stats
+
+Points 5 et 6 de l'ordre d'attaque (le point 4, `xs:`, etait deja livre dans le commit precedent).
+
+- **Point 5 — thème système par défaut.** `pages/_document.js` et `pages/profile.js` retombaient sur `"light"` en dur quand aucune preference n'existait : `prefers-color-scheme` n'etait consulte QUE si l'utilisateur avait deja choisi "systeme" lui-meme. Un etudiant dont l'iPhone est en sombre recevait donc une app blanche, alors que le theme sombre est complet et soigne. Defaut passe a `"system"` dans les deux fichiers. **Garde-fou important** : un choix HERITE explicite est respecte — `bt_dark` valait `"true"`/`"false"` quand l'utilisateur avait tranche, donc `"false"` (= je veux clair) reste clair meme sur un OS sombre. Seuls les comptes reellement jamais regles basculent. Le fallback valeur-invalide passe aussi a `"system"`.
+- **Point 6 — Stats : doublon supprime + graphique remonte.**
+  - **Correction de mon propre audit** : la carte "Objectifs" n'etait PAS un doublon complet, contrairement a ce qu'avait avance l'audit. Seule sa ligne JOURNALIERE l'etait (meme icone horloge, meme valeur, meme %, meme barre que la tuile "Aujourd'hui" — `stats.js` L.495-496). Les objectifs hebdo (10h), mensuel (40h) et le palier de serie n'existent NULLE PART ailleurs : les supprimer aurait perdu de l'information. Seule la GoalBar journaliere a donc ete retiree (4 → 3 objectifs).
+  - Le graphique "Minutes par jour" etait enterre a ~4 ecrans, replie dans "Analyse avancee" — sur une page qui s'appelle Statistiques. Remonte juste apres les tuiles (y=808, soit 0,96 ecran).
+  - `components/StatsCharts.js` : la mini-grille etait `grid-cols-2` en dur a tous les breakpoints, donc chaque apercu ne faisait que **143x96 px** sur un iPhone (7 barres illisibles). Passee a `grid-cols-1 sm:grid-cols-2` et hauteur `h-32 sm:h-24` → **324x128 px** sur mobile, 2,3x plus large.
+  - Libelle de l'accordeon corrige (FR+EN) : il annoncait encore "graphiques detailles".
+
+**BUG PRE-EXISTANT DECOUVERT (non corrige, a traiter) : le camembert "Repartition par cours" ne dessine AUCUN secteur, nulle part.** Etabli : `activeCourse` est non vide, le `ResponsiveContainer` mesure bien 324x128, la couche `recharts-pie` existe mais ne contient aucun `path.recharts-sector` — et c'est vrai dans l'apercu ET dans la modale agrandie (ou la legende affiche pourtant correctement "Methodologie 11h36 / Biologie 6h50"), independamment de la periode semaine/mois. Les donnees et la legende sont donc bonnes, seuls les arcs manquent (recharts 2.12.7). Consequence sur ce commit : le camembert n'a PAS ete promu en haut de page (nouveaux props `showBar`/`showPie` sur StatsCharts) et reste dans l'accordeon comme avant — inutile de rendre une carte vide plus visible. Rien n'est perdu, rien de casse n'est promu.
+
+Verifie en preview offline a 390x844 (compte rempli, 143 sessions). Thème : nouvel utilisateur sans preference + OS sombre → app sombre (`body` = `rgb(18,16,14)`), sans flash ; utilisateur herite `bt_dark="false"` + OS sombre → reste CLAIR (`rgb(250,249,247)`), choix respecte. Stats : 1 seul graphique promu, 324x128, 14 barres rendues, camembert absent tant que l'accordeon est ferme, aucun debordement horizontal, page 3422px (4,05 ecrans) contre 3346px (3,96) avant — quasi inchangee malgre le graphique desormais toujours rendu, la suppression du doublon ayant compense. `/stats` reste a 252 kB de first-load. `npm run lint` clean, builds offline + normal OK.
+
 ## 2026-07-26 - Audit UX mobile : 4 correctifs du lot "cette semaine"
 
 Suite de l'audit UX mobile des pages chrono / planning / stats (mesure en main a 390x844 + analyse du code). Ce commit ne traite que les correctifs verifies du premier lot ; la reorganisation des pages reste a faire.
