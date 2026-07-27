@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Fix : bouton d'ambiance sonore intappable en mode focus sur iPhone
+
+Signale par Mathias : en mode focus sur telephone, le bouton des bruits blancs (en haut a gauche) passe sous l'heure et les indicateurs de l'iPhone, donc impossible a cliquer.
+
+- **Cause.** `components/AmbientSoundControl.js` etait positionne en `absolute top-4`, soit 16 px depuis le haut de l'overlay focus — or cet overlay est `fixed inset-0`, il demarre donc au tout bord de l'ecran. Sur iPhone la barre d'etat / Dynamic Island occupe ~47 a 59 px : le bouton se retrouvait dessous. C'est le pendant HAUT du correctif safe-area deja livre pour le bas du mode focus.
+- **Correctif** : `top: calc(1rem + env(safe-area-inset-top))`. `viewport-fit=cover` est deja present dans `pages/_app.js`, donc `env()` est renseigne. Sur navigateur classique l'inset vaut 0 et la position reste identique a avant.
+- **Bonus tactile** : le bouton ne faisait que ~32 px de haut. Passe a **46 x 44** (classe `.bt-tap` + `px-3.5`), donc conforme au minimum Apple de 44 x 44.
+- Verifie qu'aucun autre element du mode focus n'est ancre en haut (seule la maree de pause l'est, en bas, et elle est decorative).
+
+Verifie en preview offline (390x844) : style inline `calc(1rem + env(safe-area-inset-top))` applique et la calc parse bien (elle resout a 16 px la ou l'inset vaut 0, ce qui prouve la syntaxe), bouton mesure 46x44, mode focus intact en capture. LIMITE HONNETE : la valeur reelle de l'inset n'existe que sur l'appareil — un navigateur de bureau renvoie toujours 0. Le comportement final est donc a confirmer sur ton iPhone. Sur un modele a Dynamic Island le bouton devrait se placer vers 75 px du haut. `npm run lint` clean, builds offline + normal OK.
+
 ## 2026-07-26 - Fix : le generateur de demo echouait en production (statement timeout)
 
 Mathias : « quand je clique sur generer ca charge puis j'ai : Échec : canceling statement due to statement timeout ». Le generateur fonctionnait en local mais pas en prod — parce que le client offline est un MOCK qui n'execute aucun trigger.

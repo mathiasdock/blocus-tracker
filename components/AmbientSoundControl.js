@@ -90,15 +90,19 @@ export default function AmbientSoundControl({ active, visible = true }) {
 
   const show = visible || open;
 
+  // Le mode focus est un overlay `fixed inset-0` : il démarre au tout bord de
+  // l'écran. Sans `safe-area-inset-top`, ce bouton se retrouvait SOUS la barre
+  // d'état de l'iPhone (heure, réseau, Dynamic Island) et devenait intappable.
+  // On le descend donc sous la zone réservée par l'OS.
   return (
-    <div ref={rootRef} className="absolute top-4 left-4 z-20"
-      style={{ opacity: show ? 1 : 0, pointerEvents: show ? "auto" : "none", transition: "opacity 0.8s ease" }}>
+    <div ref={rootRef} className="absolute left-4 z-20"
+      style={{ top: "calc(1rem + env(safe-area-inset-top))", opacity: show ? 1 : 0, pointerEvents: show ? "auto" : "none", transition: "opacity 0.8s ease" }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={t("sound.label")}
         aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold bt-press"
+        className="bt-tap flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold bt-press"
         style={{
           color: on ? "#34D399" : "rgba(255,255,255,0.6)",
           backgroundColor: on ? "rgba(20,184,133,0.18)" : "rgba(255,255,255,0.08)",
