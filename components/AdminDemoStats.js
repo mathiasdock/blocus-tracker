@@ -22,7 +22,18 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 const STORE_KEY = "bt_admin_demo_sessions_v1";
-const CHUNK = 200;
+
+// Insertion par TRÈS petits lots. Chaque ligne insérée déclenche deux triggers
+// `FOR EACH ROW` (migration v28) : `validate_new_study_session` (qui agrège le
+// total du jour) puis `refresh_gamification_after_event` (qui rejoue
+// award_badges_for_user + refresh_daily_missions_for_user, donc rescanne tout
+// l'historique). Un lot de 200 lignes = ~400 recalculs complets dans UNE
+// requête → « canceling statement due to statement timeout » (8 s côté
+// Supabase). 20 lignes tiennent largement dans le délai.
+const INSERT_CHUNK = 20;
+// La suppression ne déclenche aucun de ces triggers (ils sont sur INSERT/UPDATE),
+// elle peut donc rester large.
+const DELETE_CHUNK = 200;
 
 // Générateur pseudo-aléatoire déterministe (mulberry32) — même graine = même
 // jeu de données, donc une capture est reproductible à l'identique.
@@ -47,6 +58,12 @@ function readStore() {
 // Répartition des jours étudiés. `computeStreak` raisonne en dates LOCALES :
 // on force donc un jour vide juste avant la série pour qu'elle vaille exactement
 // la valeur demandée, et on garde des trous dans l'historique ancien (réaliste).
+// Plafond par journée. Le trigger `validate_new_study_session` (migration v28)
+// REJETTE toute insertion qui ferait dépasser 16 h d'étude sur une même journée
+// locale. Avec 12 h/jour demandées et la variance (×1,45), on montait à 17,4 h →
+// la base refusait la ligne. On borne donc en dessous du plafond serveur.
+const MAX_DAY_MIN = 940; // 15 h 40, marge sous les 16 h du trigger
+
 function buildDayPlan({ days, avgMin, streakDays, bestDayMin, rng }) {
   const plan = [];
   for (let offset = days - 1; offset >= 0; offset--) {
@@ -54,13 +71,14 @@ function buildDayPlan({ days, avgMin, streakDays, bestDayMin, rng }) {
     const inStreak = offset < streakDays;
     if (!inStreak && rng() > 0.68) continue;                  // jours de repos
     const factor = 0.55 + rng() * 0.9;
-    plan.push({ offset, minutes: Math.max(15, Math.round(avgMin * factor)) });
+    const mins = Math.min(MAX_DAY_MIN, Math.max(15, Math.round(avgMin * factor)));
+    plan.push({ offset, minutes: mins });
   }
   // Journée record : posée hors de la série en cours pour ne pas gonfler la semaine.
   if (plan.length && bestDayMin > 0) {
     const pool = plan.filter(p => p.offset > streakDays);
     const list = pool.length ? pool : plan;
-    list[Math.floor(rng() * list.length)].minutes = bestDayMin;
+    list[Math.floor(rng() * list.length)].minutes = Math.min(MAX_DAY_MIN, bestDayMin);
   }
   return plan;
 }
@@ -129,11 +147,11 @@ export default function AdminDemoStats({ userId }) {
   // Suppression par lots, bornée explicitement au compte courant (la RLS le
   // garantit déjà, mais on reste explicite sur une opération destructive).
   const removeIds = useCallback(async (ids) => {
-    for (let i = 0; i < ids.length; i += CHUNK) {
+    for (let i = 0; i < ids.length; i += DELETE_CHUNK) {
       const { error } = await supabase
         .from("sessions").delete()
         .eq("user_id", userId)
-        .in("id", ids.slice(i, i + CHUNK));
+        .in("id", ids.slice(i, i + DELETE_CHUNK));
       if (error) throw error;
     }
   }, [userId]);
@@ -167,12 +185,21 @@ export default function AdminDemoStats({ userId }) {
       const rows = plan.flatMap(p => expandDay(p, rng, courseIds, userId, now));
       if (!rows.length) { setStatus({ kind: "error", text: "Aucune session à générer." }); return; }
 
+      // On mémorise les ids APRÈS CHAQUE LOT, pas à la fin : si un lot échoue
+      // (timeout, coupure réseau), les lignes déjà créées restent traçables et
+      // « Tout réinitialiser » peut les nettoyer. Sinon elles deviendraient
+      // orphelines en base, sans aucun moyen de les retrouver.
       const ids = [];
-      for (let i = 0; i < rows.length; i += CHUNK) {
+      const persist = () => {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify({ ids, at: new Date().toISOString() })); } catch {}
+      };
+      for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
         const { data, error } = await supabase
-          .from("sessions").insert(rows.slice(i, i + CHUNK)).select("id");
-        if (error) throw error;
+          .from("sessions").insert(rows.slice(i, i + INSERT_CHUNK)).select("id");
+        if (error) { persist(); setTracked(readStore()); throw error; }
         (data || []).forEach(r => ids.push(r.id));
+        persist();
+        setStatus({ kind: "info", text: `Création… ${ids.length} / ${rows.length} sessions` });
       }
       const totalH = Math.round(rows.reduce((s, r) => s + r.duration_seconds, 0) / 360) / 10;
       try {
@@ -184,7 +211,15 @@ export default function AdminDemoStats({ userId }) {
       });
       refresh();
     } catch (e) {
-      setStatus({ kind: "error", text: `Échec : ${e.message || e}` });
+      const msg = String(e?.message || e);
+      const timedOut = /statement timeout|57014/i.test(msg);
+      setStatus({
+        kind: "error",
+        text: timedOut
+          ? "Échec : la base a coupé la requête (délai dépassé). Les sessions déjà créées sont conservées et traçables — clique « Tout réinitialiser », puis réessaie avec moins de jours."
+          : `Échec : ${msg}`,
+      });
+      refresh();
     } finally {
       setWorking(false);
     }
@@ -281,7 +316,12 @@ export default function AdminDemoStats({ userId }) {
         </button>
       </div>
 
-      <p className="text-[11px] mt-3" style={{ color: "var(--bt-text-4)" }}>
+      <p className="text-[11px] mt-3 leading-relaxed" style={{ color: "var(--bt-text-4)" }}>
+        Une génération interrompue laisse des sessions déjà créées : elles restent traçables
+        et « Tout réinitialiser » les enlève. Si le suivi a été perdu (autre navigateur, cache vidé),
+        utilise « Supprimer par plage… » sur le nombre de jours généré.
+      </p>
+      <p className="text-[11px] mt-1.5" style={{ color: "var(--bt-text-4)" }}>
         {existing == null ? "…" : `${existing} session(s) sur ton compte`}
         {courses.length ? ` · réparties sur ${courses.length} cours` : " · aucun cours (sessions sans matière)"}
       </p>

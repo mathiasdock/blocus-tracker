@@ -2,6 +2,21 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Fix : le generateur de demo echouait en production (statement timeout)
+
+Mathias : « quand je clique sur generer ca charge puis j'ai : Échec : canceling statement due to statement timeout ». Le generateur fonctionnait en local mais pas en prod — parce que le client offline est un MOCK qui n'execute aucun trigger.
+
+- **Cause racine.** La table `sessions` porte DEUX triggers `FOR EACH ROW` (migration v28, lignes 768-814 — je ne les avais pas vus, j'avais inspecte le haut du fichier ou seuls figurent ceux de `friendships`/`profiles`) :
+  - `validate_new_study_session` (BEFORE INSERT) : agrege le total de la journee locale pour verifier le plafond ;
+  - `refresh_gamification_sessions` (AFTER INSERT) : rejoue `award_badges_for_user` + `refresh_daily_missions_for_user`, qui rescannent tout l'historique.
+  Un lot de 200 lignes declenchait donc ~400 recalculs complets dans UNE requete → depassement du `statement_timeout` de 8 s cote Supabase.
+- **Correctif principal** : `INSERT_CHUNK` passe de 200 a **20**. La suppression garde 200 (`DELETE_CHUNK`) : les triggers sont sur INSERT/UPDATE uniquement, un DELETE ne coute rien.
+- **Correctif de robustesse (important)** : les ids etaient memorises UNE SEULE FOIS, a la toute fin. Un lot en echec laissait donc en base des lignes deja creees mais **introuvables** — les tentatives echouees de Mathias ont produit exactement ces orphelines. Les ids sont desormais persistes **apres chaque lot**, et aussi en cas d'erreur : « Tout reinitialiser » peut toujours nettoyer. Message d'erreur specialise pour le timeout, expliquant la marche a suivre, et note permanente dans le panneau pour le cas ou le suivi localStorage aurait ete perdu (autre navigateur) → « Supprimer par plage… ».
+- **Deuxieme piege corrige** : le meme trigger REJETTE toute journee depassant 16 h. Avec la moyenne au maximum (720 min) et la variance (x1,45), le generateur produisait jusqu'a 17,4 h sur une journee → ligne refusee par la base. Ajout d'un plafond `MAX_DAY_MIN = 940` (15 h 40), applique aussi a la journee record.
+- **Progression visible** : « Création… 120 / 197 sessions » pendant l'insertion, au lieu d'un bouton fige.
+
+Verifie en preview offline avec la moyenne poussee au MAXIMUM (720 min/jour), en validant la donnee produite contre les regles reelles du trigger (le mock ne les applique pas) : 197 sessions creees sans erreur, journee la plus chargee **15,67 h** et **0 jour** au-dessus du plafond de 16 h, session la plus longue 6,23 h (< 12 h), aucune session dans le futur, ids traces au fur et a mesure. Reinitialisation : 199 → **2**, soit les 2 vraies sessions preservees. `npm run lint` clean, builds offline + normal OK.
+
 ## 2026-07-26 - Audit UX mobile : planning mobile (point 7) + cibles tactiles (point 8)
 
 **Point 7 — Planning sur mobile.**
