@@ -470,129 +470,78 @@ export default function Stats() {
       <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("stats.title")}</h1>
       <p className="text-sm mb-4" style={{ color: "var(--bt-text-2)" }}>{t("stats.subtitle")}</p>
 
-      {/* ── Carte stats unifiée : Temps d'étude + Progression ──── */}
-      <div className="card p-5 mb-4">
-        {/* Groupe : Temps d'étude */}
-        <div className="flex items-center gap-2 mb-3.5">
+      {/* ── Premier écran : UNE réponse, pas sept chiffres ────────────
+          Avant : une grille de 7 tuiles (618 px) livrée d'un bloc, sans
+          hiérarchie — l'œil ne savait pas où se poser, et « ce mois-ci »
+          pesait autant que « aujourd'hui ». Désormais un HÉROS qui répond
+          à la question qu'on vient réellement poser en blocus (« est-ce que
+          j'en ai assez fait aujourd'hui ? »), puis deux chiffres de contexte.
+          Le reste descend ou passe derrière un tap. */}
+      <section className="card p-5 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#14B885" }} />
           <h2 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-2)" }}>
-            {t("stats.groupStudyTime")}
+            {t("stats.compactToday")}
           </h2>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-          {[
-            {
-              icon: (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
-                </svg>
-              ),
-              chip: { tint: "#0E8F68" },
-              label: t("stats.compactToday"),
-              animatedValue: todaySecs,
-              formatValue: formatMinutesShort,
-              trend: trendOf(todayDeltaPct),
-              progress: todayGoalPct,
-              progressLabel: `${todayGoalPct}% · ${t("dash.goal")}`,
-            },
-            {
-              icon: (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
-                </svg>
-              ),
-              chip: { tint: "#0E8F68" },
-              label: t("stats.compactWeek"),
-              animatedValue: currentWeekSecs,
-              formatValue: formatMinutesShort,
-              trend: trendOf(weekDeltaPct),
-              sub: weekDeltaPct === null ? t("stats.weekNoCompare") : t("stats.vsLastWeek"),
-              subColor: "var(--bt-text-3)",
-            },
-            {
-              icon: (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
-                </svg>
-              ),
-              chip: { tint: "#0E8F68" },
-              label: t("stats.compactMonth"),
-              animatedValue: total30,
-              formatValue: formatMinutesShort,
-              sub: t("stats.subLast30"),
-              subColor: "var(--bt-text-3)",
-            },
-            {
-              icon: (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                </svg>
-              ),
-              chip: { tint: "#0E8F68" },
-              label: t("stats.compactAvg7d"),
-              animatedValue: avgPerDay,
-              formatValue: formatMinutesShort,
-              sub: t("stats.subPerDay"),
-              subColor: "var(--bt-text-3)",
-            },
-          ].map((tile, i) => <StatTile key={i} {...tile} />)}
+
+        <div className="flex items-end gap-2.5 flex-wrap">
+          <span className="font-num font-bold tabular-nums leading-none"
+            style={{ fontSize: "clamp(2.4rem, 11vw, 3rem)", letterSpacing: "-0.03em", color: "var(--bt-text-1)" }}>
+            <AnimatedNumber value={todaySecs} format={formatMinutesShort} />
+          </span>
+          {trendOf(todayDeltaPct) && (
+            <span className="mb-1.5"><TrendChip dir={trendOf(todayDeltaPct).dir} pct={trendOf(todayDeltaPct).pct} /></span>
+          )}
         </div>
 
-        {/* Groupe : Progression */}
+        <div className="mt-3 w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
+          <div className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${Math.min(100, todayGoalPct)}%`,
+              backgroundImage: todayGoalPct >= 100 ? "linear-gradient(90deg,#0E8F68,#14B885)" : "linear-gradient(90deg,#14B885,#2BD9A4)" }} />
+        </div>
+        <p className="mt-1.5 text-xs" style={{ color: todayGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)" }}>
+          {todayGoalPct >= 100
+            ? t("stats.heroGoalReached")
+            : t("stats.heroRemaining").replace("{time}", formatMinutesShort(dailyRemain))}
+        </p>
+
+        {/* Le rythme : un seul jour ne dit rien, la moyenne glissante si. */}
         {sessionCount > 0 && (
-          <>
-            <div className="h-px my-5" style={{ backgroundColor: "var(--bt-border)" }} />
-            <div className="flex items-center gap-2 mb-3.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#14B885" }} />
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-2)" }}>
-                {t("stats.groupProgress")}
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
-              {[
-                {
-                  icon: <Flame size={15} />,
-                  chip: { tint: "#D97706" },
-                  label: t("stats.streakLabel"),
-                  animatedValue: streak,
-                  suffix: ` ${t("stats.dayUnit")}`,
-                  sub: t("stats.streakRecord").replace("{n}", String(bestStreak)).replace("{unit}", t("stats.dayUnit")),
-                  subColor: "var(--bt-text-3)",
-                },
-                {
-                  icon: (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>
-                    </svg>
-                  ),
-                  chip: { tint: "#0E8F68" },
-                  label: t("stats.allTimeLabel"),
-                  animatedValue: allTimeSecs,
-                  formatValue: formatMinutesShort,
-                  sub: t("stats.allTimeSub"),
-                  subColor: "var(--bt-text-3)",
-                },
-                {
-                  icon: (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 9H3.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h2.5a2.5 2.5 0 0 0 0-5H18"/>
-                      <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
-                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
-                    </svg>
-                  ),
-                  chip: { tint: "#0E8F68" },
-                  label: t("stats.bestDayLabel"),
-                  animatedValue: bestDaySecs,
-                  formatValue: formatMinutesShort,
-                  sub: bestDayLabel || t("stats.bestDaySub"),
-                  subColor: "var(--bt-text-3)",
-                  spanFull: true,
-                },
-              ].map((tile, i) => <StatTile key={i} {...tile} />)}
-            </div>
-          </>
+          <p className="mt-2.5 pt-2.5 text-xs" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-border)" }}>
+            {t("stats.heroRhythm").replace("{time}", formatMinutesShort(avgPerDay))}
+          </p>
         )}
-      </div>
+      </section>
+
+      {/* Duo de contexte : la semaine (avec sa cible) et la série. */}
+      {sessionCount > 0 && (
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <StatTile
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
+            chip={{ tint: "#0E8F68" }}
+            label={t("stats.compactWeek")}
+            animatedValue={currentWeekSecs}
+            formatValue={formatMinutesShort}
+            trend={trendOf(weekDeltaPct)}
+            progress={weekGoalPct}
+            progressLabel={`${weekGoalPct}% · ${formatMinutesShort(WEEKLY_GOAL_SECS)}`}
+          />
+          <StatTile
+            icon={<Flame size={15} />}
+            chip={{ tint: "#D97706" }}
+            label={t("stats.streakLabel")}
+            animatedValue={streak}
+            suffix={` ${t("stats.dayUnit")}`}
+            sub={t("stats.streakRecord").replace("{n}", String(bestStreak)).replace("{unit}", t("stats.dayUnit"))}
+            subColor="var(--bt-text-3)"
+          />
+        </div>
+      )}
+
+      {/* ── Reste de l'ancienne carte : conservé mais DÉPRIORISÉ ────
+          Ces chiffres ne se regardent pas tous les jours ; ils descendent
+          sous le graphique plutôt que d'occuper la ligne de flottaison. */}
 
       {/* ── Graphiques — remontés au-dessus de la ligne de flottaison ──
           « Combien j'ai étudié chaque jour » est la question que vient poser
@@ -620,6 +569,29 @@ export default function Stats() {
           csvLabel={t("stats.exportCsv")}
         />
       </div>
+
+      {/* ── Chiffres de consultation — sous le graphique, plus au-dessus ──
+          « Ce mois-ci », « Total » et « Meilleure journée » ne se regardent
+          pas tous les jours : ils gardent leur place, mais plus la ligne de
+          flottaison, qui revient à la question du jour. « Moy./7j » a disparu
+          d'ici : elle est devenue la ligne de rythme du héros. */}
+      {sessionCount > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
+          <StatTile
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>}
+            chip={{ tint: "#0E8F68" }} label={t("stats.compactMonth")}
+            animatedValue={total30} formatValue={formatMinutesShort} />
+          <StatTile
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>}
+            chip={{ tint: "#0E8F68" }} label={t("stats.allTimeLabel")}
+            animatedValue={allTimeSecs} formatValue={formatMinutesShort} />
+          <StatTile
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H3.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h2.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>}
+            chip={{ tint: "#0E8F68" }} label={t("stats.bestDayLabel")}
+            animatedValue={bestDaySecs} formatValue={formatMinutesShort}
+            sub={bestDayLabel || t("stats.bestDaySub")} subColor="var(--bt-text-3)" />
+        </div>
+      )}
 
       {/* ── Résumé intelligent ─────────────────────────────────── */}
       <div className="card p-5 mb-4 relative overflow-hidden">
@@ -658,33 +630,11 @@ export default function Stats() {
         t={t}
       />
 
-      {/* ── Objectifs — proéminents ────────────────────────────── */}
-      <div className="card p-5 mb-4">
-        <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>{t("stats.goalsTitle")}</h2>
-        {/* L'objectif JOURNALIER n'est pas repris ici : la tuile « Aujourd'hui »
-            en haut de page affiche déjà la même valeur, le même pourcentage et
-            la même barre de progression. Les objectifs hebdo / mensuel et le
-            palier de série, eux, n'existent nulle part ailleurs. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-          <GoalBar
-            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-            chip={{ tint: "#0E8F68" }} label={t("stats.goalWeekly")} pct={weekGoalPct}
-            valueText={formatMinutesShort(currentWeekSecs)} targetText={formatMinutesShort(WEEKLY_GOAL_SECS)}
-            footer={weekGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(weekRemain))}
-            footerColor={weekGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
-          <GoalBar
-            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>}
-            chip={{ tint: "#0E8F68" }} label={t("stats.goalMonthly")} pct={monthGoalPct}
-            valueText={formatMinutesShort(total30)} targetText={formatMinutesShort(MONTHLY_GOAL_SECS)}
-            footer={monthGoalPct >= 100 ? t("stats.goalReached") : t("stats.goalRemaining").replace("{time}", formatMinutesShort(monthRemain))}
-            footerColor={monthGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)"} />
-          <GoalBar
-            icon={<Flame size={14} />}
-            chip={{ tint: "#D97706" }} label={t("stats.goalStreakCard")} pct={streakPct}
-            valueText={t("stats.goalStreakUnit").replace("{n}", String(streak)).replace("{target}", String(streakTarget))} targetText=""
-            footer={t("stats.goalStreakKeep")} footerColor="var(--bt-text-3)" />
-        </div>
-      </div>
+      {/* La carte « Objectifs » (418 px, 3 barres) a ete retiree : l'objectif
+          HEBDOMADAIRE est desormais porte par la tuile « Cette semaine » du duo,
+          et le palier de serie par la tuile « Serie ». Restait l'objectif MENSUEL,
+          une cible codee en dur (40 h) que l'etudiant n'a jamais choisie : elle ne
+          changeait aucune decision et coutait un demi-ecran. */}
 
       {/* ── Heatmap + synthèse ─────────────────────────────────── */}
       <div className="card p-5 mb-4">

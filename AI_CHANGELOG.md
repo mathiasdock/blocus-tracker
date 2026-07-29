@@ -2,6 +2,22 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Stats : refonte du premier ecran (etape 1/3)
+
+Mathias trouvait la page « mal organisee », avec « trop trop trop de stats visibles des le debut » et suggerait de devoir taper une stat pour en savoir plus. Atelier de conception : 4 approches independantes produites en parallele (question-first, une-metrique-heros, divulgation-progressive, editeur-impitoyable). Les jugements et la synthese automatique ont ete coupes par la limite de session — synthese faite a la main a partir des 4 propositions.
+
+**Convergence des 4 propositions** (donc traitee en priorite) : supprimer la grille de 7 tuiles et la carte « Objectifs », n'avoir QU'UN seul mecanisme de detail, et ajouter les examens.
+
+Livre dans cette etape :
+- **Grille de 7 tuiles (618 px) → heros + duo.** Le premier ecran repond maintenant a UNE question (« est-ce que j'en ai assez fait aujourd'hui ? ») : un chiffre en `clamp(2.4rem, 11vw, 3rem)`, sa barre d'objectif, le reste a faire, et une ligne de RYTHME (`avgPerDay` sur 7 jours glissants — un seul jour ne dit rien, la moyenne si). Puis deux tuiles de contexte : « Cette semaine » (qui absorbe la barre d'objectif hebdomadaire) et « Serie ».
+- **Carte « Objectifs » (418 px) supprimee.** L'hebdo est passe dans la tuile « Cette semaine », le palier de serie dans la tuile « Serie ». Restait l'objectif MENSUEL : une cible codee en dur (40 h) que l'etudiant n'a jamais choisie, qui ne changeait aucune decision et coutait un demi-ecran.
+- **« Ce mois-ci », « Total », « Meilleure journee » conserves mais deprioritises** : ils descendent sous le graphique. « Moy./7j » disparait en tant que tuile — elle est devenue la ligne de rythme du heros.
+- Rangee secondaire en `grid-cols-2 sm:grid-cols-3` : a 3 colonnes sur 390 px les libelles « TOTAL DEPUIS LE DEBUT » cassaient sur 3 lignes.
+
+Mesure a 390x844 : le premier ecran passe de **7 tuiles equivalentes** a **1 heros (188 px) + 2 tuiles de contexte (125 px)**. La hauteur totale bouge peu (3291 px contre 3306) car le podium et le classement se sont etoffes avec le jeu de donnees, mais la HIERARCHIE est le vrai gain : l'oeil sait ou se poser. `npm run lint` clean, builds offline + normal OK, zero erreur console, aucun debordement horizontal.
+
+RESTE A FAIRE (etapes 2 et 3, non livrees) : (2) consolider les QUATRE blocs sociaux — percentile, Comparaison, Podium, Classement — qui pesent ensemble ~1285 px soit 1,5 ecran ; (3) la divulgation progressive proprement dite (feuille de detail, en reutilisant le bottom-sheet qui existe deja dans `components/StatsCharts.js:256-268` plutot que d'ajouter un 3e paradigme) et l'ajout des EXAMENS — `pages/stats.js` ne charge aujourd'hui que `courses` et `sessions`, la page ignore donc totalement ce vers quoi l'etudiant revise, dans une app qui s'appelle Blocus Tracker.
+
 ## 2026-07-26 - Gel de serie : on choisit desormais de l'utiliser (moment anime facon Duolingo)
 
 Mathias : le gel etait invisible la plupart du temps, on ne pouvait pas CHOISIR de l'utiliser, la pastille etait mal agencee dans la carte du chrono, le stock n'apparaissait nulle part dans le profil, et l'ensemble faisait bas de gamme.
