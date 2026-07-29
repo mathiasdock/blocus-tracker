@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Stats etape 2 : comparaison assainie, filtres du classement degraisses
+
+Retours precis de Mathias sur le bloc social : ne rien toucher au percentile, au podium ni au classement lui-meme ; en revanche la barre grise de la comparaison est « vraiment moche », la metrique « sessions » « sert a rien », et les filtres « ma filiere » / « mon annee » du classement « servent a rien la ».
+
+- **Metrique « Sessions » retiree de la comparaison** (`pages/stats.js`). Un nombre de sessions ne dit rien en soi : dix sessions de 6 min valent moins qu'une de 2 h. Restent « temps moyen / jour » et « jours actifs », qui se comparent vraiment.
+- **Barre « toute l'app » : gris taupe `#94908B` → `rgba(20,184,133,0.35)`.** Le gris sortait de la palette et se lisait comme une erreur d'affichage plutot que comme un repere. Le vert de marque tres attenue dit « meme metrique, autre cohorte » et reste clairement subordonne a la barre « Toi » pleine. Fonctionne aussi en sombre (translucide sur la piste `var(--bt-subtle)`).
+- **Filtres « Ma filiere » et « Mon annee » retires du classement** (`components/Leaderboard.js`). Six controles sur trois rangees pour une seule ligne de resultat, et ces deux-la decoupaient la cohorte au point de ne plus rien comparer. « Ma fac » est conserve : c'est le seul decoupage qui parle a un etudiant. Les etats `fField` / `fYear` restent figes a `false` et sont toujours transmis a la RPC `get_leaderboard_v2`, dont la signature ne change pas.
+- Percentile, podium et classement : **inchanges**, comme demande.
+
+Verifie en preview offline a 390x844 : la comparaison n'affiche plus que 2 metriques, **zero barre grise** restante et 2 barres en vert attenue ; « Ma filiere » et « Mon annee » absents, « Ma fac » present. Effet de bord bienvenu : les filtres du classement tiennent desormais sur **2 rangees au lieu de 3**. Les cles i18n `stats.cmpSessions`, `stats.filterMyField` et `stats.filterMyYear` n'ont plus aucune reference dans le code — conservees dans lib/i18n.js, sans effet. `npm run lint` clean, builds offline + normal OK, zero erreur console.
+
 ## 2026-07-26 - Stats : graphique lisible, doublons supprimes, semaine recalee
 
 Retour de Mathias : le graphique « minutes par jour » « trop simple », et deux cartes (le recap, la heatmap) qui « redisent des donnees deja dites » en prenant trop de place.

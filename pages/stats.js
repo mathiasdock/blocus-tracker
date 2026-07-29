@@ -457,7 +457,9 @@ export default function Stats() {
   const cmpReady = comparison && comparison.me && comparison.app;
   const cmpMetrics = cmpReady ? [
     { label: t("stats.cmpAvgDaily"),   fmt: v => formatMinutesShort(v * 60), me: comparison.me.avg_daily_min, uni: comparison.uni?.avg_daily_min, app: comparison.app.avg_daily_min },
-    { label: t("stats.cmpSessions"),   fmt: v => String(Math.round(v)),      me: comparison.me.sessions,      uni: comparison.uni?.sessions,      app: comparison.app.sessions },
+    // « Sessions » retiré : un nombre de sessions ne dit rien en soi (10 sessions
+    // de 6 min valent moins qu'une de 2 h) et n'aide aucune décision. Restent le
+    // temps moyen par jour et les jours actifs, qui se comparent vraiment.
     { label: t("stats.cmpActiveDays"), fmt: v => `${Math.round(v)} ${t("stats.dayUnit")}`, me: comparison.me.active_days, uni: comparison.uni?.active_days, app: comparison.app.active_days },
   ] : [];
   const cmpDelta = (mine, other) => (other && other > 0) ? Math.round((mine - other) / other * 100) : null;
@@ -724,7 +726,11 @@ export default function Stats() {
               const bars = [
                 { key: "me",  label: t("stats.cmpYou"),   val: m.me,  color: "#14B885" },
                 ...(m.uni != null ? [{ key: "uni", label: t("stats.cmpUni"), val: m.uni, color: "#0369a1" }] : []),
-                { key: "app", label: t("stats.cmpApp"),   val: m.app, color: "#94908B" },
+                // La barre « toute l'app » était en gris taupe : ça sortait de la
+                // palette et lisait comme une erreur plutôt que comme un repère.
+                // Vert de marque très atténué = même métrique, autre cohorte,
+                // clairement subordonnée à la barre « Toi » pleine.
+                { key: "app", label: t("stats.cmpApp"),   val: m.app, color: "rgba(20,184,133,0.35)" },
               ];
               const dApp = cmpDelta(m.me, m.app);
               return (
