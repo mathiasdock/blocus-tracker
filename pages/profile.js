@@ -619,6 +619,7 @@ export default function Profile() {
   const [earnedBadgeIds, setEarnedBadgeIds] = useState([]);
   const [profileSessions, setProfileSessions] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
+  const [freezeStock, setFreezeStock] = useState(null); // stock restant (null = pas encore lu)
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
   const [myRank, setMyRank] = useState(null);
@@ -780,7 +781,7 @@ export default function Profile() {
       setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
       // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
       const freeze = await runStreakFreezeUpkeep(supabase, user.id, heatSessions || []);
-      if (freeze.supported) setFrozenDays(freeze.frozenDays);
+      if (freeze.supported) { setFrozenDays(freeze.frozenDays); setFreezeStock(freeze.stock); }
     })();
   }, [user]);
 
@@ -942,6 +943,24 @@ export default function Profile() {
     { label: t("profile.streakDays"), value: <AnimatedNumber value={streak} suffix={` ${t("dash.daysShort")}`} /> },
     { label: t("profile.bestStreakDays"), value: <AnimatedNumber value={best} suffix={` ${t("dash.daysShort")}`} /> },
     { label: t("profile.statRank7d"), value: rankValue },
+    // Les gels n'étaient visibles NULLE PART sur le profil : on ne pouvait pas
+    // savoir combien il en restait. Affiché dès que la fonctionnalité répond,
+    // y compris à 0 (sinon on ne découvre jamais que ce filet existe).
+    ...(freezeStock == null ? [] : [{
+      label: t("streak.stockLabel"),
+      value: (
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke={freezeStock > 0 ? "#38BDF8" : "var(--bt-text-4)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
+          </svg>
+          <span className="font-num tabular-nums">{freezeStock}/2</span>
+        </span>
+      ),
+      // La valeur affiche déjà « n/2 » : le sous-titre sert donc à dire QUAND
+      // ça se recharge, l'info qui manque vraiment (et qui tient dans la tuile).
+      sub: t("streak.stockRefill"),
+    }]),
   ];
 
   return (
@@ -1002,7 +1021,7 @@ export default function Profile() {
 
             {/* Rail de stats-clés — l'essentiel du profil chiffré d'un coup d'œil */}
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-5 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
-              {heroStats.map((s, i) => <StatTile key={i} label={s.label} value={s.value} />)}
+              {heroStats.map((s, i) => <StatTile key={i} label={s.label} value={s.value} sub={s.sub} />)}
             </div>
           </div>
         </div>

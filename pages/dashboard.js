@@ -12,7 +12,9 @@ import { clearClientCache, getClientCache, setClientCache } from "../lib/clientC
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
 import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
-import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
+import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey } from "../lib/streakFreezes";
+import StreakFreezeOffer from "../components/StreakFreezeOffer";
+import Flame from "../components/Flame";
 import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
@@ -189,6 +191,10 @@ function focusGreeting(t) {
   return t("dash.focusGreetingNight");
 }
 
+// Refus de gel déjà exprimé pour un trou donné — évite de reposer la question
+// en boucle le même jour, sans empêcher une nouvelle proposition plus tard.
+const FREEZE_DECLINED_KEY = "bt_freeze_declined_v1";
+
 const DAILY_GOAL_SECS = 7200; // 2 hours
 const POMO_WORK_OPTIONS  = [15, 20, 25, 30, 45, 50, 60];
 const POMO_BREAK_OPTIONS = [3, 5, 10, 15];
@@ -318,7 +324,9 @@ export default function Dashboard() {
   const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
   const [checklistCourse, setChecklistCourse] = useState(null);
   const [recentSessions, setRecentSessions] = useState([]); // 90 jours — records & semaine
-  const [freezeInfo, setFreezeInfo] = useState(null); // gel de série { frozenDays, stock, supported }
+  const [freezeInfo, setFreezeInfo] = useState(null); // gel de série { frozenDays, stock, pendingDays, canRepair }
+  const [freezeOfferOpen, setFreezeOfferOpen] = useState(false);
+  const [freezeBusy, setFreezeBusy] = useState(false);
   // Objectif de session — l'intention posée avant de démarrer. Persisté
   // (localStorage) pour que l'habitude survive aux rechargements.
   const [sessionGoalMin, setSessionGoalMin] = useState(null);
@@ -363,13 +371,39 @@ export default function Dashboard() {
       setFreezeInfo(res);
       setStreak(computeStreak(recentSessions, res.frozenDays));
       setBestStreak(computeBestStreak(recentSessions, res.frozenDays));
-      if (res.usedNow > 0 && !freezeToastShown.current) {
-        freezeToastShown.current = true;
-        toast(t("streak.freezeUsed"), "info");
+      // Le gel ne se consomme plus tout seul : on PROPOSE. Un refus déjà donné
+      // pour ce même trou n'est pas redemandé (mais un nouveau trou le sera).
+      if (res.canRepair && !freezeToastShown.current) {
+        let declined = null;
+        try { declined = localStorage.getItem(FREEZE_DECLINED_KEY); } catch {}
+        if (declined !== gapKey(res.pendingDays)) {
+          freezeToastShown.current = true;
+          setFreezeOfferOpen(true);
+        }
       }
     });
     return () => { alive = false; };
-  }, [user, recentSessions, t, toast]);
+  }, [user, recentSessions]);
+
+  // Accepter : consomme réellement les gels, puis recalcule la série.
+  const acceptFreeze = useCallback(async () => {
+    if (!freezeInfo?.pendingDays?.length || freezeBusy) return;
+    setFreezeBusy(true);
+    const res = await applyStreakFreezes(supabase, freezeInfo.pendingDays);
+    setFreezeBusy(false);
+    if (!res.ok) { toast(t("streak.offerFailed"), "error"); return; }
+    const merged = [...freezeInfo.frozenDays, ...freezeInfo.pendingDays];
+    setFreezeInfo({ ...freezeInfo, frozenDays: merged, stock: res.stock, pendingDays: [], canRepair: false });
+    setStreak(computeStreak(recentSessions, merged));
+    setBestStreak(computeBestStreak(recentSessions, merged));
+    setFreezeOfferOpen(false);
+    toast(t("streak.offerDone"), "success");
+  }, [freezeInfo, freezeBusy, recentSessions, t, toast]);
+
+  const declineFreeze = useCallback(() => {
+    try { localStorage.setItem(FREEZE_DECLINED_KEY, gapKey(freezeInfo?.pendingDays)); } catch {}
+    setFreezeOfferOpen(false);
+  }, [freezeInfo]);
 
   const loadChecklistCounts = useCallback(async () => {
     if (!user) {
@@ -1559,24 +1593,32 @@ export default function Dashboard() {
           <div className="relative z-10">
             {/* La mascotte vit désormais autour du chrono. Ici, la série reste
                 lisible comme une donnée, sans deuxième personnage concurrent. */}
+            {/* Série + gels : une vraie rangée en flux, plus une pastille collée
+                en absolu dans le coin. Les deux pastilles partagent la même
+                forme et la même taille, et le stock reste visible même à 0
+                (sinon on ne découvre jamais que le filet existe). */}
             {streak > 0 && (
-              <div className="absolute top-2 right-3 flex items-center gap-1.5 sm:right-4">
-                {/* Gels de série restants — filet anti-perte de série (v29) */}
-                {freezeInfo?.supported && freezeInfo.stock > 0 && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-                    title={t("streak.freezeStock")} aria-label={t("streak.freezeStock")}
-                    style={{ backgroundColor: "rgba(14,165,233,0.16)", border: "1px solid rgba(14,165,233,0.30)" }}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#7DD3FC" strokeWidth="2" strokeLinecap="round">
+              <div className="mb-3 flex flex-wrap items-center justify-end gap-1.5">
+                {freezeInfo?.supported && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                    title={t("streak.freezeStock")} aria-label={`${t("streak.stockLabel")} : ${t("streak.stockCount").replace("{n}", String(freezeInfo.stock))}`}
+                    style={{
+                      backgroundColor: freezeInfo.stock > 0 ? "rgba(56,189,248,0.16)" : "rgba(255,255,255,0.07)",
+                      border: `1px solid ${freezeInfo.stock > 0 ? "rgba(56,189,248,0.34)" : "rgba(255,255,255,0.10)"}`,
+                    }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke={freezeInfo.stock > 0 ? "#7DD3FC" : "rgba(255,255,255,0.35)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                       <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
                     </svg>
-                    <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#BAE6FD" }}>{freezeInfo.stock}</span>
+                    <span className="text-[11px] font-bold font-num tabular-nums"
+                      style={{ color: freezeInfo.stock > 0 ? "#BAE6FD" : "rgba(255,255,255,0.45)" }}>
+                      {freezeInfo.stock}/2
+                    </span>
                   </span>
                 )}
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                   style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="#FBBF24" stroke="none">
-                    <path d="M12 2c.5 2.5 2 4.2 3.5 5.8C17 9.4 18 11 18 13a6 6 0 0 1-12 0c0-1.2.4-2.2 1-3 .3 1.2 1.2 2 2.3 2 .6-2.3-.3-4.3 2.7-10z"/>
-                  </svg>
+                  <Flame size={12} style={{ color: "#FBBF24" }} />
                   <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>
                     <AnimatedNumber value={streak} suffix={` ${t("dash.streak")}`} />
                   </span>
@@ -1824,6 +1866,19 @@ export default function Dashboard() {
       )}
 
       {/* Focus mode overlay */}
+      {/* La série annoncée est celle qui serait SAUVÉE, pas la série courante :
+          computeStreak la voit déjà cassée (hier manque), elle vaut donc 0 et
+          l'offre dirait « ta série de 0 jours peut être sauvée ». */}
+      <StreakFreezeOffer
+        open={freezeOfferOpen}
+        streak={computeStreak(recentSessions, [...(freezeInfo?.frozenDays || []), ...(freezeInfo?.pendingDays || [])])}
+        days={freezeInfo?.pendingDays || []}
+        stock={freezeInfo?.stock || 0}
+        busy={freezeBusy}
+        onAccept={acceptFreeze}
+        onDecline={declineFreeze}
+      />
+
       {focusMode && (
         <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
           style={{

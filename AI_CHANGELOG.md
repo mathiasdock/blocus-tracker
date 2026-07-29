@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Gel de serie : on choisit desormais de l'utiliser (moment anime facon Duolingo)
+
+Mathias : le gel etait invisible la plupart du temps, on ne pouvait pas CHOISIR de l'utiliser, la pastille etait mal agencee dans la carte du chrono, le stock n'apparaissait nulle part dans le profil, et l'ensemble faisait bas de gamme.
+
+- **Le gel ne se consomme plus tout seul.** C'etait le vrai probleme de fond : `runStreakFreezeUpkeep` appelait la RPC avec les jours manques et l'utilisateur DECOUVRAIT APRES COUP, via un simple toast, qu'un de ses deux gels avait ete depense. Desormais la fonction est en LECTURE SEULE : elle recharge le stock du mois et calcule le trou, sans rien consommer. Detail qui rend ca possible sans migration : appeler `redeem_streak_freezes` avec un tableau VIDE recharge le stock et n'insere rien. **Aucun SQL a executer.**
+- **`lib/streakFreezes.js`** : `runStreakFreezeUpkeep` renvoie maintenant `{ supported, frozenDays, stock, pendingDays, canRepair }`. Nouvelle fonction `applyStreakFreezes(supabase, days)` : l'ecriture, appelee UNIQUEMENT sur action explicite (et qui invalide le memo pour que les pages relisent l'etat frais). Helper `gapKey()` pour identifier un trou donne.
+- **`components/StreakFreezeOffer.js` (nouveau)** : le moment de choix. Flamme prise dans un halo de glace avec flocons qui derivent, panneau qui monte du bas (langage bottom-sheet), eyebrow « Serie en danger », le COUT affiche avant de decider (« 1 gel utilise - il t'en restera 1 »), et deux actions franches : « Utiliser mon gel » / « Non, je repars de zero ». Echappatoire clavier (Echap), focus porte sur l'action principale, `role=dialog` + `aria-modal`, scrim cliquable.
+- **La serie annoncee est celle qui serait SAUVEE**, pas la serie courante : `computeStreak` la voit deja cassee (hier manque) donc elle vaut 0 — l'offre disait « ta serie de 0 jours peut etre sauvee ». Corrige en calculant la serie avec les jours en attente inclus.
+- **Un refus n'est pas redemande** (memorise par trou dans `bt_freeze_declined_v1`), mais un NOUVEAU trou reproposera.
+- **Carte du chrono reagencee** : la pastille de stock etait posee en `absolute top-2 right-3`, coincee dans le coin a cote de la serie. C'est desormais une vraie rangee en flux, les deux pastilles partageant forme et hauteur. Le stock reste visible **meme a 0** (sinon on ne decouvre jamais que ce filet existe) et affiche `n/2` plutot qu'un nombre nu. La flamme y utilise le composant `Flame` vivant au lieu d'un SVG fige.
+- **Profil** : le stock n'y figurait NULLE PART. Nouvelle tuile « Gels de serie » avec flocon, `n/2` et le sous-titre « Recharge le 1er » (l'info qui manquait vraiment — la valeur dit deja le compte).
+- **i18n** : 16 cles FR + EN, avec variantes singulier/pluriel pour le cout et l'action.
+- **Couleur** : bleu glace `#38BDF8`, exception SEMANTIQUE assumee au vert de la marque (la glace s'oppose au feu), au meme titre que l'ambre de la flamme — et deja utilise par la pastille existante.
+- **Animations** : halo qui respire, flocons qui derivent, panneau qui monte. Tout neutralise sous `prefers-reduced-motion` (le panneau reste, fige a un etat lisible).
+
+Verifie en preview offline a 390x844, en fabriquant un vrai trou de serie (7 jours etudies, hier manque, stock 2) : l'offre s'ouvre et annonce « ta serie de **8 jours** peut etre sauvee » ; ACCEPTER → jour gele ecrit en base, stock 2 → 1, serie affichee 8 j, toast de confirmation, modale fermee ; REFUSER → **aucun gel consomme**, stock intact a 2, refus memorise, et l'offre n'est PAS reposee au rechargement. Carte du chrono : deux pastilles de hauteur identique (27 px), alignees a l'ecart 0, en flux (`position: static`). Profil : tuile « 1/2 GELS DE SERIE ». Mode sombre verifie en capture (panneau, glace et CTA lisibles). `npm run lint` clean, builds offline + normal OK, zero erreur console.
+
 ## 2026-07-26 - Fix : bouton d'ambiance sonore intappable en mode focus sur iPhone
 
 Signale par Mathias : en mode focus sur telephone, le bouton des bruits blancs (en haut a gauche) passe sous l'heure et les indicateurs de l'iPhone, donc impossible a cliquer.

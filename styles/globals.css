@@ -1023,6 +1023,34 @@ details.bt-acc[open]::details-content { block-size: auto; }
   80%      { transform: scale(0.98, 1.03) rotate(1deg); }
 }
 
+/* ── Proposition de gel de série (components/StreakFreezeOffer.js) ──────
+   Un moment rare et important : la série est en jeu. Le panneau arrive depuis
+   le bas sur mobile (langage bottom-sheet), le halo de glace respire et les
+   flocons dérivent doucement — assez pour attirer l'œil, pas assez pour
+   distraire pendant la lecture. Tout est neutralisé sous reduced-motion. */
+.bt-freeze-scrim {
+  background: rgba(6, 20, 28, 0.55);
+  backdrop-filter: blur(3px);
+  animation: bt-freeze-fade 0.22s ease-out both;
+}
+.bt-freeze-panel { animation: bt-freeze-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.bt-freeze-halo  { animation: bt-freeze-halo 3.2s ease-in-out infinite; }
+.bt-freeze-flake { animation: bt-freeze-flake 3.6s ease-in-out infinite; }
+
+@keyframes bt-freeze-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bt-freeze-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bt-freeze-halo {
+  0%, 100% { transform: scale(0.9);  opacity: 0.55; }
+  50%      { transform: scale(1.06); opacity: 0.95; }
+}
+@keyframes bt-freeze-flake {
+  0%, 100% { transform: translateY(0) rotate(0deg);      opacity: 0.75; }
+  50%      { transform: translateY(-5px) rotate(28deg);  opacity: 1; }
+}
+
 /* ── Cibles tactiles : 44 px minimum sur mobile (Apple HIG / Material) ──
    L'audit comptait 78 éléments sous 44 px sur chrono/planning/stats, mais ce
    sont quelques RECETTES partagées, pas 78 bugs : les boutons `.btn*`, les
@@ -1118,6 +1146,10 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-strike::after { transition: none !important; }
   .bt-seg-thumb { transition: opacity 0.15s ease !important; }
   .bt-rotw-word, .bt-rotw-word.is-leaving { animation: none !important; }
+  /* Gel de série : le panneau reste, mais sans mouvement (le halo et les
+     flocons se figent à leur état lisible plutôt que de disparaître). */
+  .bt-freeze-scrim, .bt-freeze-panel { animation: none !important; }
+  .bt-freeze-halo, .bt-freeze-flake { animation: none !important; opacity: 0.85 !important; }
   /* Reveal au scroll : sans animation, on collapse le conteneur 200vh (sinon un
      écran de vide mort) → une phrase compacte et centrée, tous mots lisibles. */
   .bt-reveal { height: auto !important; }
