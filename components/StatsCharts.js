@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, CartesianGrid,
+  PieChart, Pie, Cell, CartesianGrid, ReferenceLine,
 } from "recharts";
 
 // Recharts applique `tick.fill` / `stroke` comme ATTRIBUTS SVG, où var(--bt-*)
@@ -154,6 +154,8 @@ export default function StatsCharts({
   weekToggleLabel,
   monthToggleLabel,
   csvLabel,
+  goalMinutes = 0,   // objectif quotidien, en minutes (0 = pas de repere)
+  goalLabel = "",
   // Permet de n'afficher qu'un des deux aperçus. Utilisé parce que le camembert
   // « Répartition par cours » ne dessine aucun secteur (bug recharts pré-existant :
   // les données et la légende sont correctes, seuls les arcs manquent) — on évite
@@ -212,11 +214,28 @@ export default function StatsCharts({
           <h2 className="text-[11px] font-semibold truncate mb-1.5 pr-4" style={{ color: "var(--bt-text-2)" }}>
             {chartTitle}
           </h2>
+          {/* Sept barres sans repere ne disent rien : on ne sait pas si une
+              journee est bonne. La ligne d'objectif rend chaque barre lisible
+              d'un coup d'oeil (au-dessus = journee tenue), et les barres qui
+              l'atteignent passent en vert fonce plutot qu'en vert clair. */}
           <div className="h-32 sm:h-24">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyData} barCategoryGap="30%" margin={{ top: 2, right: 0, left: -28, bottom: 0 }}>
+              <BarChart data={dailyData} barCategoryGap="30%" margin={{ top: 8, right: 0, left: -28, bottom: 0 }}>
                 <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={8} tick={{ fill: AXIS_COLOR }} />
-                <Bar dataKey="minutes" fill="#14B885" radius={[4, 4, 0, 0]} />
+                {/* Axe Y MASQUE mais necessaire : sans lui recharts n'a pas
+                    d'echelle verticale et ne sait pas placer la ReferenceLine.
+                    Le domaine inclut l'objectif pour que le repere reste visible
+                    meme une semaine ou aucune barre ne l'atteint. */}
+                <YAxis hide domain={[0, (max) => Math.max(max || 0, goalMinutes || 0) * 1.1]} />
+                {goalMinutes > 0 && (
+                  <ReferenceLine y={goalMinutes} stroke={AXIS_COLOR} strokeDasharray="3 3" strokeOpacity={0.7}
+                    label={{ value: goalLabel, position: "insideTopRight", fontSize: 8, fill: AXIS_COLOR, offset: 4 }} />
+                )}
+                <Bar dataKey="minutes" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  {dailyData.map((d, i) => (
+                    <Cell key={i} fill={goalMinutes > 0 && d.minutes >= goalMinutes ? "#0E8F68" : "#14B885"} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

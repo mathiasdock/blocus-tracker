@@ -2,6 +2,18 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Stats : graphique lisible, doublons supprimes, semaine recalee
+
+Retour de Mathias : le graphique « minutes par jour » « trop simple », et deux cartes (le recap, la heatmap) qui « redisent des donnees deja dites » en prenant trop de place.
+
+- **BUG TROUVE EN CHEMIN — la semaine etait decalee d'un jour.** `getWeekDates` (lib/format.js) construisait lundi a minuit LOCAL puis appelait `toISOString()` : a l'est de Greenwich ca renvoie la veille, donc la fonction rendait dimanche→samedi au lieu de lundi→dimanche. Le graphique hebdomadaire ET les totaux « cette semaine » / « semaine derniere » etaient donc decales. C'est la QUATRIEME occurrence de la meme cause racine (apres la heatmap et `lastNDates`) : `toISOString()` utilise pour fabriquer une date locale. `getWeekDates` et `lastNDates` passent desormais par `localISO`. Verifie : le graphique se termine maintenant sur « dim. » alors qu'il finissait sur « sam. ».
+- **`pages/stats.js` : dates cohérentes de bout en bout.** Les 8 comparaisons `s.started_at.slice(0, 10)` (date UTC de la session) confrontaient des dates devenues locales — remplacees par `localISO(s.started_at)`, et les 3 `todayISO()` par un « aujourd'hui » local. La page parle enfin la meme langue que `computeStreak`. NOTE : `todayISO()` reste UTC dans lib/format.js et le meme melange existe encore dans planning.js, profile.js, admin.js et Leaderboard.js — non touche ici pour ne pas elargir le rayon de casse, mais c'est a traiter.
+- **Graphique : un repere plutot que sept barres nues.** Ligne d'objectif quotidien en pointilles (`ReferenceLine` + libelle « Objectif 2h »), et les barres qui l'atteignent passent en vert fonce `#0E8F68` au lieu du vert clair. On lit une journee d'un coup d'oeil. Piege rencontre : sans `<YAxis>` recharts n'a aucune echelle verticale et ne dessine PAS la ReferenceLine — axe ajoute en `hide`, avec un domaine qui inclut l'objectif pour que le repere reste visible meme une semaine sans aucune barre au niveau. Le libelle etait rogne en `insideTopLeft` (marge gauche negative du graphique) : passe a `insideTopRight`.
+- **Carte « Mon recap d'etude » (230 px) retiree** : temps etudie, serie et rang y etaient tous repris de plus haut. C'etait une carte de PARTAGE deguisee en statistique. Le composant `StudyRecap` existe toujours et peut etre replace ailleurs (profil) si besoin.
+- **3 des 4 chiffres sous la heatmap retires** : serie, record de serie et moy./7j sont desormais dans le premier ecran (duo + ligne de rythme). Ne reste que « meilleur mois », qui ne se lit nulle part ailleurs. La heatmap elle-meme est CONSERVEE : c'est la seule vue longue duree de la page.
+
+Mesure a 390x844 : la page passe de **3306 px a 2994 px** (3,92 → 3,55 ecrans), soit -312 px, sans perdre une seule information unique. `npm run lint` clean, builds offline + normal OK, zero erreur console.
+
 ## 2026-07-26 - Stats : refonte du premier ecran (etape 1/3)
 
 Mathias trouvait la page « mal organisee », avec « trop trop trop de stats visibles des le debut » et suggerait de devoir taper une stat pour en savoir plus. Atelier de conception : 4 approches independantes produites en parallele (question-first, une-metrique-heros, divulgation-progressive, editeur-impitoyable). Les jugements et la synthese automatique ont ete coupes par la limite de session — synthese faite a la main a partir des 4 propositions.

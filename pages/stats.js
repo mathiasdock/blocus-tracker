@@ -6,14 +6,13 @@ import UserProfileModal from "../components/UserProfileModal";
 import StudyHeatmap from "../components/StudyHeatmap";
 import Leaderboard, { RankBadge } from "../components/Leaderboard";
 import MascotCoach from "../components/MascotCoach";
-import StudyRecap from "../components/StudyRecap";
 import AnimatedNumber from "../components/AnimatedNumber";
 import Flame from "../components/Flame";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatMinutesShort, lastNDates, getWeekDates, todayISO, computeStreak, computeBestStreak } from "../lib/format";
+import { formatMinutesShort, lastNDates, getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
 import { computeInsights } from "../lib/statsInsights";
 
 const Charts = dynamic(() => import("../components/StatsCharts"), { ssr: false });
@@ -263,7 +262,7 @@ export default function Stats() {
   const weekDates   = getWeekDates(weekOffset);
   const dailyData   = weekDates.map((d) => {
     const secs = sessions
-      .filter((s) => s.started_at.slice(0, 10) === d)
+      .filter((s) => localISO(s.started_at) === d)
       .reduce((a, s) => a + s.duration_seconds, 0);
     return {
       day: new Date(d + "T12:00:00").toLocaleDateString(
@@ -276,7 +275,7 @@ export default function Stats() {
 
   // Compact stats card
   const todaySecs = sessions
-    .filter(s => s.started_at.slice(0, 10) === todayISO())
+    .filter(s => localISO(s.started_at) === localISO(new Date()))
     .reduce((a, s) => a + s.duration_seconds, 0);
 
   // Objectif du jour (aligné sur le dashboard : 2h) + progression.
@@ -286,7 +285,7 @@ export default function Stats() {
   // Tendance aujourd'hui vs hier.
   const yesterdayISO = lastNDates(2)[0];
   const yesterdaySecs = sessions
-    .filter(s => s.started_at.slice(0, 10) === yesterdayISO)
+    .filter(s => localISO(s.started_at) === yesterdayISO)
     .reduce((a, s) => a + s.duration_seconds, 0);
   const todayDeltaPct = yesterdaySecs > 0
     ? Math.round((todaySecs - yesterdaySecs) / yesterdaySecs * 100)
@@ -299,7 +298,7 @@ export default function Stats() {
 
   const thisWeekDates = getWeekDates(0); // always current week for stat card
   const currentWeekSecs = sessions
-    .filter(s => thisWeekDates.includes(s.started_at.slice(0, 10)))
+    .filter(s => thisWeekDates.includes(localISO(s.started_at)))
     .reduce((a, s) => a + s.duration_seconds, 0);
 
   const thirtyDaysAgo = lastNDates(30)[0];
@@ -309,7 +308,7 @@ export default function Stats() {
 
   const rolling7 = lastNDates(7);
   const avgPerDay = sessions
-    .filter(s => rolling7.includes(s.started_at.slice(0, 10)))
+    .filter(s => rolling7.includes(localISO(s.started_at)))
     .reduce((a, s) => a + s.duration_seconds, 0) / 7;
 
   const byCourse30 = courses
@@ -329,7 +328,7 @@ export default function Stats() {
       color: c.color,
       minutes: Math.round(
         sessions
-          .filter(s => s.course_id === c.id && rolling7.includes(s.started_at.slice(0, 10)))
+          .filter(s => s.course_id === c.id && rolling7.includes(localISO(s.started_at)))
           .reduce((a, s) => a + s.duration_seconds, 0) / 60
       ),
     }))
@@ -344,7 +343,7 @@ export default function Stats() {
   // Best day: max total over a single calendar day (within loaded window)
   const dayTotals = {};
   for (const s of sessions) {
-    const d = s.started_at.slice(0, 10);
+    const d = localISO(s.started_at);
     dayTotals[d] = (dayTotals[d] || 0) + s.duration_seconds;
   }
   const bestDayEntry = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0] || null;
@@ -357,7 +356,7 @@ export default function Stats() {
   // Week-over-week evolution (calendar weeks)
   const lastWeekDates = getWeekDates(-1);
   const lastWeekSecs  = sessions
-    .filter(s => lastWeekDates.includes(s.started_at.slice(0, 10)))
+    .filter(s => lastWeekDates.includes(localISO(s.started_at)))
     .reduce((a, s) => a + s.duration_seconds, 0);
   const weekDeltaPct = lastWeekSecs > 0
     ? Math.round((currentWeekSecs - lastWeekSecs) / lastWeekSecs * 100)
@@ -409,7 +408,7 @@ export default function Stats() {
   if (todaySecs > 0) aiLines.push({ text: t("stats.aiKeepGoing"), color: "#0E8F68" });
   const aiLinesShown = aiLines.slice(0, 4);
   const previousBestDaySecs = Object.entries(dayTotals)
-    .filter(([date]) => date !== todayISO())
+    .filter(([date]) => date !== localISO(new Date()))
     .reduce((best, [, seconds]) => Math.max(best, seconds), 0);
   const statsCoachMessage = todaySecs === 0
     ? t("coach.stats.noToday")
@@ -567,6 +566,8 @@ export default function Stats() {
           weekToggleLabel={t("stats.week")}
           monthToggleLabel={t("stats.month")}
           csvLabel={t("stats.exportCsv")}
+          goalMinutes={DAILY_GOAL_SECS / 60}
+          goalLabel={t("dash.goal")}
         />
       </div>
 
@@ -603,7 +604,7 @@ export default function Stats() {
           <h2 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-2)" }}>{t("stats.aiTitle")}</h2>
         </div>
         <MascotCoach
-          id={`stats-summary-${todayISO()}`}
+          id={`stats-summary-${localISO(new Date())}`}
           message={statsCoachMessage}
           streak={streak}
           variant="embedded"
@@ -620,15 +621,11 @@ export default function Stats() {
         </div>
       </div>
 
-      <StudyRecap
-        sessions={sessions}
-        courses={courses}
-        streak={streak}
-        profile={profile}
-        userId={user?.id}
-        lang={lang}
-        t={t}
-      />
+      {/* La carte « Mon recap d'etude » (230 px) a ete retiree : temps etudie,
+          serie et rang y etaient tous repris de plus haut. C'etait une carte de
+          PARTAGE deguisee en statistique. Le composant StudyRecap existe
+          toujours et peut etre replace ailleurs (profil) si besoin. */
+      }
 
       {/* La carte « Objectifs » (418 px, 3 barres) a ete retiree : l'objectif
           HEBDOMADAIRE est desormais porte par la tuile « Cette semaine » du duo,
@@ -643,12 +640,12 @@ export default function Stats() {
         </h2>
         <StudyHeatmap sessions={sessions} />
         {insights.hasData && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
+          <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
             {[
-              { label: t("stats.streakLabel"), value: streak, suffix: ` ${t("stats.dayUnit")}` },
-              { label: t("stats.recLongestStreak"), value: bestStreak, suffix: ` ${t("stats.dayUnit")}` },
+              // Serie, record de serie et moy./7j etaient repris ici alors
+              // qu'ils sont deja dans le premier ecran (duo + ligne de rythme).
+              // Ne reste que le meilleur mois, qu'on ne lit nulle part ailleurs.
               { label: t("stats.recBestMonth"), value: insights.bestMonthSecs, format: formatMinutesShort },
-              { label: t("stats.compactAvg7d"), value: avgPerDay, format: formatMinutesShort },
             ].map((s, i) => (
               <div key={i} className="text-center">
                 <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-text-1)" }}>
