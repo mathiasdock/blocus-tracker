@@ -554,6 +554,20 @@ html.bt-focus-active .bt-mobile-nav { display: none; }
 .bt-toast-in  { animation: bt-toast-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .bt-toast-out { animation: bt-toast-out 0.26s ease both; }
 
+/* Photo du feed : fondu doux a l'arrivee plutot qu'une apparition seche.
+   La place est deja reservee par le ratio 4/3, donc rien ne bouge. */
+.bt-feed-photo { transition: opacity 0.32s ease-out; }
+
+/* Coeur du double-tap. Ne part PAS de scale(0) : rien n'apparait de nulle part
+   dans le monde reel. Sortie plus rapide que l'entree. */
+.bt-heart-burst { animation: bt-heart-burst 0.7s cubic-bezier(0.23, 1, 0.32, 1) both; }
+@keyframes bt-heart-burst {
+  0%   { opacity: 0; transform: scale(0.75); }
+  28%  { opacity: 1; transform: scale(1.08); }
+  55%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+
 /* ── Skeletons — balayage doux (theme-neutre via CSS vars) ──────────── */
 .bt-skeleton {
   position: relative;
@@ -1150,6 +1164,9 @@ details.bt-acc[open]::details-content { block-size: auto; }
      flocons se figent à leur état lisible plutôt que de disparaître). */
   .bt-freeze-scrim, .bt-freeze-panel { animation: none !important; }
   .bt-freeze-halo, .bt-freeze-flake { animation: none !important; opacity: 0.85 !important; }
+  /* Coeur du double-tap : on garde le retour visuel, sans le mouvement. */
+  .bt-heart-burst { animation: bt-freeze-fade 0.5s ease both !important; }
+  .bt-feed-photo { transition: none !important; }
   /* Reveal au scroll : sans animation, on collapse le conteneur 200vh (sinon un
      écran de vide mort) → une phrase compacte et centrée, tous mots lisibles. */
   .bt-reveal { height: auto !important; }

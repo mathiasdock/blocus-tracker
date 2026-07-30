@@ -21,6 +21,8 @@ import {
 } from "../lib/security";
 import LevelPill from "../components/LevelPill";
 import EmptyState from "../components/EmptyState";
+import FeedPhoto from "../components/FeedPhoto";
+import { SkeletonRow, SkeletonBar } from "../components/Skeleton";
 
 const DEFAULT_REACTION_EMOJI = "👍";
 const LEGACY_FALLBACK_EMOJI = "♥";
@@ -62,6 +64,9 @@ export default function Feed() {
   const { markSeen } = useNotifications();
   const { t, lang } = useI18n();
   const [posts, setPosts]               = useState([]);
+  // `posts` démarre vide : l'état « aucun post » s'affichait donc PENDANT le
+  // chargement, on voyait « rien à voir » clignoter avant l'arrivée du feed.
+  const [feedLoaded, setFeedLoaded]     = useState(false);
   const [profiles, setProfiles]         = useState({});
   const [authorLevels, setAuthorLevels] = useState({});
   const [caption, setCaption]           = useState("");
@@ -80,6 +85,7 @@ export default function Feed() {
   const [editingPostId, setEditingPostId] = useState(null);
   const [editCaption,   setEditCaption]   = useState("");
   const [reactorsPanel, setReactorsPanel] = useState(null);
+  const [captionOpen, setCaptionOpen]   = useState({}); // légendes longues dépliées
   const [revealedPhotos, setRevealedPhotos] = useState({});
   const [signedPostUrls, setSignedPostUrls] = useState({});
   const [signingPhotos, setSigningPhotos] = useState({});
@@ -117,13 +123,21 @@ export default function Feed() {
       (post.visibility === "friends" && myFriendIds.has(post.user_id))
     );
 
-    setPosts(visible);
+    // Filet : PostgREST renvoie toujours un tableau pour une relation imbriquee,
+    // mais si `likes` ou `comments` manquait, `post.likes.find(...)` faisait
+    // planter TOUTE la page en ecran blanc. Un post sans reaction vaut mieux
+    // qu'un feed mort.
+    setPosts(visible.map(post => ({
+      ...post,
+      likes: Array.isArray(post.likes) ? post.likes : [],
+      comments: Array.isArray(post.comments) ? post.comments : [],
+    })));
 
     const ids = new Set();
     visible.forEach((post) => {
       ids.add(post.user_id);
-      post.comments.forEach((c) => ids.add(c.user_id));
-      post.likes.forEach((l) => ids.add(l.user_id));
+      (post.comments || []).forEach((c) => ids.add(c.user_id));
+      (post.likes || []).forEach((l) => ids.add(l.user_id));
     });
     if (ids.size) {
       const idsArr = [...ids];
@@ -145,6 +159,7 @@ export default function Feed() {
       setProfiles({});
       setAuthorLevels({});
     }
+    setFeedLoaded(true);
   }, [user]);
 
   useEffect(() => {
@@ -489,7 +504,24 @@ export default function Feed() {
         </section>
 
         <div className="space-y-5">
-          {posts.length === 0 && (
+          {/* Pendant le chargement : des squelettes à la forme d'un post, pas
+              l'état vide. L'état « rien à voir » ne s'affiche que lorsqu'on SAIT
+              qu'il n'y a rien. */}
+          {!feedLoaded && (
+            <div aria-hidden="true" className="space-y-5">
+              {[0, 1].map(i => (
+                <div key={i} className="card p-4">
+                  <SkeletonRow avatar={38} lines={2} />
+                  <SkeletonBar height={180} className="mt-4 rounded-2xl" />
+                  <div className="flex gap-2 mt-3">
+                    <SkeletonBar width={72} height={28} />
+                    <SkeletonBar width={72} height={28} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {feedLoaded && posts.length === 0 && (
             <div className="card">
               <EmptyState
                 illustration="feed"
@@ -510,7 +542,6 @@ export default function Feed() {
             }, {});
             const sortedEmojis = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([e]) => e);
             const otherEmojis = sortedEmojis.filter((emoji) => emoji !== DEFAULT_REACTION_EMOJI);
-            const photoLoaded = revealedPhotos[post.id] === true;
             const postImageUrl = signedPostUrls[post.id] || "";
             return (
               <article key={post.id} className="card overflow-hidden">
@@ -596,33 +627,21 @@ export default function Feed() {
                   </div>
                 )}
 
-                {!isTextOnlyActivity(post) ? photoLoaded && postImageUrl ? (
-                  <>
-                    <div className="px-4 pb-2">
-                      <p className="text-[11px] font-semibold" style={{ color: "var(--bt-text-3)" }}>
-                        {t("feed.photoLoaded")}
-                      </p>
-                    </div>
-                    {/* Image — fixed 4:3 ratio for consistent display on iPhone and desktop */}
-                    <div style={{ aspectRatio: "4/3", overflow: "hidden", backgroundColor: "#F7F3EF" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={postImageUrl} alt="session" loading="lazy" className="w-full h-full object-cover" />
-                    </div>
-                  </>
-                ) : (
-                  <div className="px-4 pb-1">
-                    <div className="rounded-2xl px-4 py-5 text-center"
-                      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                      <button
-                        type="button"
-                        onClick={() => revealPostPhoto(post)}
-                        disabled={signingPhotos[post.id]}
-                        className="btn-ghost mx-auto"
-                        style={{ backgroundColor: "var(--bt-surface)" }}>
-                        {signingPhotos[post.id] ? t("security.signingAttachment") : t("feed.viewPhoto")}
-                      </button>
-                    </div>
-                  </div>
+                {!isTextOnlyActivity(post) ? (
+                  /* La photo se charge seule quand le post approche de l'ecran
+                     (cf. components/FeedPhoto.js) : plus de bouton « voir la
+                     photo », mais on ne paie toujours que ce qui est vu. */
+                  <FeedPhoto
+                    post={post}
+                    url={postImageUrl}
+                    signing={!!signingPhotos[post.id]}
+                    onNeedsUrl={revealPostPhoto}
+                    alt={post.caption || t("feed.photoAlt")}
+                    /* Double-tap = reaction par defaut, le geste attendu sur un
+                       feed. Ne fait rien si on a deja reagi : un double-tap ne
+                       doit jamais RETIRER une reaction par accident. */
+                    onDoubleTapLike={myReaction ? undefined : (pst) => react(pst, DEFAULT_REACTION_EMOJI)}
+                  />
                 ) : (
                   <div className="px-4 pb-1">
                     <div className="rounded-2xl px-4 py-4"
@@ -744,11 +763,30 @@ export default function Feed() {
                     ) : null;
                   })()}
 
-                  {/* Caption */}
+                  {/* Legende — repliee au-dela de 3 lignes, comme sur un vrai
+                      feed : une longue legende ne doit pas pousser les reactions
+                      et les commentaires hors de l'ecran. Purement local, aucun
+                      appel reseau. */}
                   {post.caption && !isTextOnlyActivity(post) && (
-                    <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>
-                      <span className="font-semibold">{displayName(author)}</span>{" "}{post.caption}
-                    </p>
+                    <div>
+                      <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>
+                        <span
+                          style={captionOpen[post.id] ? undefined : {
+                            display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                          }}>
+                          <span className="font-semibold">{displayName(author)}</span>{" "}{post.caption}
+                        </span>
+                      </p>
+                      {post.caption.length > 120 && (
+                        <button
+                          type="button"
+                          onClick={() => setCaptionOpen(c => ({ ...c, [post.id]: !c[post.id] }))}
+                          className="text-xs font-semibold mt-0.5"
+                          style={{ color: "var(--bt-text-3)" }}>
+                          {captionOpen[post.id] ? t("feed.captionLess") : t("feed.captionMore")}
+                        </button>
+                      )}
+                    </div>
                   )}
 
                   {/* Comments — with delete button for own comments */}

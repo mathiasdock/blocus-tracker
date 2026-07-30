@@ -2,6 +2,23 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Feed social : touches « vrai reseau social », egress maitrise
+
+Demande : rendre le feed plus proche d'un vrai reseau social, SANS faire exploser l'egress Supabase.
+
+**Ce qui etait deja bien fait (verifie avant de toucher)** : aucun realtime, aucun polling, likes et commentaires deja optimistes (`load()` seulement en rollback d'erreur), filtre serveur 24 h + `limit(20)`, images deja compressees a 800 px / qualite 0,72 (~60-120 Ko, pas des Mo) avec `cacheControl: 1 an`, horodatage relatif via `timeAgo`.
+
+**DIAGNOSTIC CORRIGE** : j'avais annonce un bug de filtrage de visibilite cote client (feed paraissant plus vide + egress gaspille). C'est FAUX : `migration_v32_feed_visibility_rls` applique deja la visibilite au niveau RLS (`visibility IS DISTINCT FROM 'friends' OR is_friend_or_self(user_id)`), donc le filtrage a lieu AVANT le `LIMIT` — rien d'invisible ne quitte la base. Le filtre client est un garde-fou, et il reste NECESSAIRE si v32 n'a pas ete executee en prod. Non touche.
+
+- **Photos inline, chargees a l'approche de l'ecran** (`components/FeedPhoto.js`, nouveau). Le bouton « voir la photo » disparait : sur un vrai feed les images sont la. Mais au lieu de charger les 20 photos au montage (20 appels de signature en rafale), un `IntersectionObserver` avec `rootMargin: 300px` ne demande l'URL signee que quand le post approche du viewport. On ne paie donc l'egress que des photos REELLEMENT vues — on lit rarement jusqu'en bas — et le cache d'un an fait que la 2e visite ne recoute rien. Place reservee par un ratio 4/3 fixe : verifie a 348x261 px, ratio 1,33, donc CLS = 0. Fondu doux a l'arrivee (`.bt-feed-photo`).
+- **Squelettes pendant le chargement.** `posts` demarrant vide, l'etat « Rien a afficher » s'affichait PENDANT le chargement : on voyait « rien a voir » clignoter avant l'arrivee du feed. Nouvel etat `feedLoaded` : squelettes a la forme d'un post pendant le chargement, etat vide seulement quand on SAIT qu'il n'y a rien.
+- **Legendes longues repliees a 3 lignes** avec « Voir plus » / « Voir moins » (au-dela de 120 caracteres). Une longue legende poussait les reactions et les commentaires hors de l'ecran. 100 % local, zero appel reseau.
+- **Double-tap pour reagir** (le geste attendu sur un feed) avec un coeur qui apparait. Gere a la main (deux `pointerup` a moins de 320 ms) plutot qu'avec `onDoubleClick`, inegal sur mobile. Ne fait rien si on a deja reagi : un double-tap ne doit jamais RETIRER une reaction par accident.
+- **Garde-fou anti-ecran-blanc** : `post.likes.find(...)` faisait planter TOUTE la page si la relation imbriquee manquait (rencontre en test). Les relations sont desormais normalisees en tableaux a la lecture.
+- Animations neutralisees sous `prefers-reduced-motion` (le coeur garde un simple fondu, la photo n'a plus de transition).
+
+Verifie en preview offline a 390x844 avec un post recent injecte : photo demandee et chargee SANS aucun tap, conteneur 348x261 (ratio 1,33), legende de 239 caracteres tronquee a 3 lignes avec « Voir plus » present, ancien bouton « voir la photo » absent, double-tap → coeur affiche ET reaction `👍` ecrite en base. `npm run lint` clean, builds offline + normal OK, zero erreur console. `/feed` : 9,25 kB / 238 kB de first-load.
+
 ## 2026-07-26 - Stats etape 2 : comparaison assainie, filtres du classement degraisses
 
 Retours precis de Mathias sur le bloc social : ne rien toucher au percentile, au podium ni au classement lui-meme ; en revanche la barre grise de la comparaison est « vraiment moche », la metrique « sessions » « sert a rien », et les filtres « ma filiere » / « mon annee » du classement « servent a rien la ».
