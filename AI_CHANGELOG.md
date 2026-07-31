@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-26 - Theme : retour au clair par defaut (revert du system-par-defaut)
+
+Mathias : « actuellement si ton tel est en mode sombre tu as l'app en mode sombre » — retour explicite sur le changement livre plus tot dans la session (commit c64caa6, fait dans le cadre du travail sur le gel de serie), qui faisait retomber le theme sur « system » quand rien n'etait regle.
+
+- **`pages/_document.js`** (script anti-flash) et **`pages/profile.js`** (`useTheme`) : le cas « aucune preference stockee » retombe de nouveau sur **`light`** au lieu de `system`. Un choix HERITE explicite (`bt_dark` = `"true"`/`"false"`, pose quand l'utilisateur avait lui-meme tranche avant l'introduction de `bt_theme`) reste respecte dans les deux sens.
+- Le selecteur clair/systeme/sombre du profil (`THEME_MODES`) est INCHANGE : un utilisateur peut toujours choisir « systeme » lui-meme s'il le souhaite, ce n'est simplement plus le comportement PAR DEFAUT.
+- Aucune autre reference a `bt_theme`/`bt_dark` dans le depot (verifie par grep) : ces deux fichiers sont les seuls a porter la logique de theme.
+
+Verifie en preview offline (390x844, OS simule en sombre) sur les trois cas : (1) aucune preference stockee + OS sombre → app CLAIRE (`rgb(250,249,247)`, pas de classe `dark`) — c'est le fix ; (2) `bt_dark="true"` herite + OS sombre → reste SOMBRE (`rgb(18,16,14)`), choix explicite respecte ; (3) `bt_dark="false"` herite + OS sombre → reste CLAIRE, choix explicite respecte. `npm run lint` clean, builds offline + normal OK, zero erreur console.
+
 ## 2026-07-26 - Feed social : touches « vrai reseau social », egress maitrise
 
 Demande : rendre le feed plus proche d'un vrai reseau social, SANS faire exploser l'egress Supabase.

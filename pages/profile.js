@@ -42,13 +42,14 @@ function useTheme() {
     try {
       let t = localStorage.getItem("bt_theme");
       if (!t) {
-        // Jamais réglé → on suit le système (un iPhone en sombre recevait une
-        // app blanche). Un choix HÉRITÉ explicite reste respecté : bt_dark
-        // valait "true"/"false" quand l'utilisateur avait tranché lui-même.
+        // Jamais réglé → clair par défaut (ne PAS suivre l'OS : un iPhone en
+        // sombre ne doit pas silencieusement passer l'app en sombre). Un choix
+        // HÉRITÉ explicite reste respecté : bt_dark valait "true"/"false"
+        // quand l'utilisateur avait lui-même tranché.
         const legacy = localStorage.getItem("bt_dark");
-        t = legacy === "true" ? "dark" : legacy === "false" ? "light" : "system";
+        t = legacy === "true" ? "dark" : "light";
       }
-      if (!THEME_MODES.includes(t)) t = "system";
+      if (!THEME_MODES.includes(t)) t = "light";
       setThemeState(t);
     } catch {}
     setReady(true);

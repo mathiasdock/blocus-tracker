@@ -15,8 +15,10 @@ export default function Document() {
         <meta name="format-detection" content="telephone=no" />
       {/* Theme: apply class before first paint to avoid flash.
           bt_theme = "light" | "dark" | "system" (bt_dark is the legacy key,
-          migrated on the fly). "system" follows prefers-color-scheme. */}
-      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){var l=localStorage.getItem('bt_dark');t=l==='true'?'dark':l==='false'?'light':'system';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()` }} />
+          migrated on the fly). "system" follows prefers-color-scheme, but the
+          default when nothing is set is "light" (not the OS preference) —
+          an iPhone in dark mode must not silently dark-theme the app. */}
+      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){var l=localStorage.getItem('bt_dark');t=l==='true'?'dark':'light';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()` }} />
       </Head>
       <body>
         <Main />
