@@ -2,6 +2,25 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-07-31 - Installation PWA : fenetre repensee + illustration du menu Partager
+
+Demande : ameliorer la fenetre post-inscription qui explique comment ajouter l'app a l'ecran d'accueil, et ajouter une image dans la section « Installer l'application » du profil pour que les gens installent vraiment la PWA.
+
+**Deux defauts de fond corriges dans `components/PwaInstallBanner.js`** (au-dela de l'image) :
+- **Les etapes etaient MASQUEES par defaut**, derriere un bouton « Voir comment faire » — alors qu'apprendre a installer est tout l'objet de cette fenetre. Elles sont desormais visibles d'emblee (l'etat `showSteps` disparait).
+- **Le bouton le plus visible etait « C'est deja fait »**, en `btn-primary` : l'action mise en avant etait celle qui ANNULE. Hierarchie inversee — « Plus tard » devient le bouton principal, « C'est deja fait » passe en lien discret.
+- Ajout d'un bloc **« ce qu'on y gagne »** (3 benefices coches) AVANT les etapes : on demandait un effort sans avoir donne de raison de le faire.
+- `maxHeight: 86vh` + `overflowY: auto` sur le panneau : le contenu ayant grandi, il aurait deborde sur un petit iPhone.
+- Trappe de previsualisation `?pwa=preview` : force l'affichage sur n'importe quel appareil, pour relire la fenetre sans iPhone sous la main. Ne change rien au comportement reel (iOS + non installe + non rejete).
+
+**`components/PwaHomeScreenVisual.js` (nouveau)** — illustration du menu Partager d'iOS avec la ligne « Sur l'ecran d'accueil » encadree en vert de marque. Ajoutee A LA FOIS dans la fenetre et dans la section « Installer l'application » du profil.
+
+CHOIX ASSUME : illustration SVG/CSS plutot que la capture d'ecran fournie. Raisons — (1) elle est TRADUITE : un iPhone en francais affiche « Sur l'ecran d'accueil », une capture anglaise (« Add to Home Screen ») perdrait le public francophone de l'app ; (2) ~2 Ko au lieu de plusieurs centaines, et nette sur tous les ecrans ; (3) elle suit le theme clair/sombre via les tokens ; (4) elle ne montre pas les apps personnelles d'une vraie capture (Pinterest, Amazon), qui sont du bruit. Pour basculer sur une vraie capture : deposer le fichier dans `public/` et remplacer le composant par une `<img>`, le reste de la mise en page ne bouge pas.
+
+i18n : 6 cles ajoutees FR + EN (`pwa.visualAlt`, `pwa.visualRow`, `pwa.whyTitle`, `pwa.whyBenefit1-3`, `pwa.later`).
+
+Verifie en preview offline a 390x844 : section profil → illustration presente (308x188) avec « Sur l'ecran d'accueil » mis en evidence ; fenetre via `?pwa=preview` → benefices, 3 etapes et illustration tous visibles sans interaction, boutons dans le bon ordre, tout tient dans l'ecran. Mode sombre verifie en capture (l'illustration suit les tokens). `npm run lint` clean, builds offline + normal OK, zero erreur console.
+
 ## 2026-07-26 - Theme : retour au clair par defaut (revert du system-par-defaut)
 
 Mathias : « actuellement si ton tel est en mode sombre tu as l'app en mode sombre » — retour explicite sur le changement livre plus tot dans la session (commit c64caa6, fait dans le cadre du travail sur le gel de serie), qui faisait retomber le theme sur « system » quand rien n'etait regle.

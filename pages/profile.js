@@ -6,6 +6,7 @@ import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import MascotCoach from "../components/MascotCoach";
 import AnimatedNumber from "../components/AnimatedNumber";
+import PwaHomeScreenVisual from "../components/PwaHomeScreenVisual";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
@@ -1148,6 +1149,9 @@ export default function Profile() {
                       </li>
                     ))}
                   </ol>
+                  {/* Les étapes seules ne suffisent pas : « Sur l'écran d'accueil »
+                      est noyé dans un long menu iOS, personne ne le trouve. */}
+                  <PwaHomeScreenVisual />
                 </div>
               )}
               {sep}

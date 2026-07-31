@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import PwaHomeScreenVisual from "./PwaHomeScreenVisual";
 
 function ShareIcon() {
   return (
@@ -18,7 +19,6 @@ export default function PwaInstallBanner() {
   const { user } = useAuth();
   const { t } = useI18n();
   const [show, setShow] = useState(false);
-  const [showSteps, setShowSteps] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -29,8 +29,14 @@ export default function PwaInstallBanner() {
     // Session dismiss — clears when browser/tab is closed
     const closedThisSession = sessionStorage.getItem("bt_pwa_closed");
 
-    if (isIOS && !isStandalone && !donePermanently && !closedThisSession) {
-      const timer = setTimeout(() => setShow(true), 900);
+    // Trappe de prévisualisation : `?pwa=preview` force l'affichage sur
+    // n'importe quel appareil. Sert à relire la fenêtre sans avoir un iPhone
+    // sous la main — elle ne change rien au comportement réel.
+    const forced = typeof window !== "undefined"
+      && new URLSearchParams(window.location.search).get("pwa") === "preview";
+
+    if (forced || (isIOS && !isStandalone && !donePermanently && !closedThisSession)) {
+      const timer = setTimeout(() => setShow(true), forced ? 0 : 900);
       return () => clearTimeout(timer);
     }
   }, [user?.id]);
@@ -71,6 +77,10 @@ export default function PwaInstallBanner() {
         style={{
           backgroundColor: "var(--bt-surface)",
           border: "1px solid var(--bt-border)",
+          // Le contenu a grandi (bénéfices + étapes + illustration) : sur un
+          // petit iPhone il dépasserait l'écran sans cette limite.
+          maxHeight: "86vh",
+          overflowY: "auto",
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -120,36 +130,55 @@ export default function PwaInstallBanner() {
           </p>
         </div>
 
-        {/* Steps — masqués par défaut, visibles après "Voir comment faire" */}
-        {showSteps && (
-          <ol className="px-6 pt-4 space-y-3">
-            {steps.map((stepContent, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-                  style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
-                  {i + 1}
-                </span>
-                <p className="text-sm leading-relaxed pt-0.5" style={{ color: "var(--bt-text-2)" }}>
-                  {stepContent}
-                </p>
-              </li>
-            ))}
-          </ol>
-        )}
+        {/* Ce qu'on y gagne — avant le « comment », sinon on demande un effort
+            sans avoir donné de raison de le faire. */}
+        <ul className="px-6 pt-3 space-y-1.5">
+          {[t("pwa.whyBenefit1"), t("pwa.whyBenefit2"), t("pwa.whyBenefit3")].map((b, i) => (
+            <li key={i} className="flex items-start gap-2 text-[13px] leading-snug" style={{ color: "var(--bt-text-2)" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E8F68" strokeWidth="3"
+                strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
 
-        {/* Actions */}
-        <div className="px-6 pt-4 pb-6 space-y-2">
-          {/* Bouton principal — fermeture permanente */}
-          <button onClick={closePermanently} className="btn-primary w-full">
-            {t("pwa.alreadyDone")}
+        {/* Les étapes et l'illustration sont VISIBLES D'EMBLÉE : elles étaient
+            masquées derrière « Voir comment faire », alors qu'apprendre à
+            installer est tout l'objet de cette fenêtre. */}
+        <ol className="px-6 pt-4 space-y-3">
+          {steps.map((stepContent, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
+                style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                {i + 1}
+              </span>
+              <p className="text-sm leading-relaxed pt-0.5" style={{ color: "var(--bt-text-2)" }}>
+                {stepContent}
+              </p>
+            </li>
+          ))}
+        </ol>
+
+        {/* L'écran que l'utilisateur va voir : c'est la ligne « Sur l'écran
+            d'accueil », noyée dans un long menu, que personne ne trouve. */}
+        <div className="px-6 pt-4">
+          <PwaHomeScreenVisual />
+        </div>
+
+        {/* Actions — hiérarchie inversée par rapport à avant : le bouton le plus
+            visible était « C'est déjà fait », c'est-à-dire celui qui annule. */}
+        <div className="px-6 pt-5 pb-6 space-y-1">
+          <button onClick={closeSession} className="btn-primary w-full">
+            {t("pwa.later")}
           </button>
-          {/* Bouton secondaire — toggle des étapes */}
           <button
-            onClick={() => setShowSteps(s => !s)}
-            className="w-full py-2 text-sm font-medium transition-colors rounded-xl"
-            style={{ color: showSteps ? "var(--bt-text-3)" : "#0E8F68" }}>
-            {showSteps ? t("pwa.hideHow") : t("pwa.showHow")}
+            onClick={closePermanently}
+            className="w-full py-2.5 text-sm font-medium transition-colors rounded-xl"
+            style={{ color: "var(--bt-text-3)" }}>
+            {t("pwa.alreadyDone")}
           </button>
         </div>
       </div>
