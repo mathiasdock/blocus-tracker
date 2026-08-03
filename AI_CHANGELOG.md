@@ -2,6 +2,55 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-03 - Chargement des pages : un squelette au lieu de donnees vierges
+
+Demande : quand on ouvre l'app, les pages affichaient des donnees VIERGES (0 min, 0h00,
+listes vides, niveau 1) pendant que les vraies donnees chargeaient. Les gens lisent ca
+comme un bug, pas comme un chargement.
+
+**Le diagnostic.** `PageSkeleton` existait deja et etait bon — mais il n'etait branche
+que sur UN seul moment : `components/Layout.js` l'affiche pendant que l'AUTHENTIFICATION
+se resout. Une fois l'auth finie, la page s'affiche alors que SES propres requetes sont
+encore en vol, avec ses etats initiaux (`useState([])`, `useState(0)`). C'est exactement
+ce trou-la qui produisait les zeros.
+
+**Le correctif.** Nouveau export nomme `PageContentSkeleton` dans
+`components/PageSkeleton.js` : le meme squelette par route, mais SANS la coquille
+(barre laterale, en-tete, nav du bas). Chaque page concernee porte desormais un drapeau
+de premier chargement et sort tot sur `<Layout><PageContentSkeleton /></Layout>`.
+
+CHOIX : on garde la coquille VIVANTE et on ne remplace que la zone de contenu. Le
+`PageSkeleton` plein ecran aurait fait doublon (les pages sont deja dans `<Layout>`) et
+surtout aurait rendu la navigation inerte — on ne pourrait plus changer de page pendant
+un chargement lent.
+
+Pages modifiees : `dashboard`, `planning`, `stats`, `profile`. Le drapeau est leve dans
+le `.finally()` de l'effet de chargement, donc aussi en cas d'erreur — une requete qui
+echoue ne laisse jamais un squelette infini.
+
+PAS touchees, apres verification :
+- `feed.js` faisait DEJA le bon geste (squelettes en forme de post via `feedLoaded`, et
+  l'etat vide seulement quand il SAIT qu'il n'y a rien).
+- `historique.js` affiche deja `<LoadingScreen compact />`.
+- `communautes.js` n'en a pas besoin : sa liste d'ecoles vient d'un import STATIQUE
+  (`lib/universities.js`), elle s'affiche donc instantanement.
+- `profile.js` avait deja un `ready` qui concerne la restauration du THEME, sans rapport —
+  d'ou un drapeau distinct `dataReady`, pour ne pas ecraser le sien.
+
+Trappe de QA ajoutee, build offline UNIQUEMENT (`isOfflineDev` false en prod, donc
+eliminee du bundle) : `?bt_pageloader=1` fige le squelette de contenu. Sans elle il est
+invisible en local — le client offline lit dans localStorage et le squelette ne dure
+qu'une image. Meme intention que le `?bt_loader=1` deja present dans le Layout.
+
+Verifie en preview offline a 540x960 : un MutationObserver confirme que le squelette
+apparait bien a CHAQUE navigation (9-16 ms en local, ou les donnees sont locales ; en
+production contre Supabase ce sont des centaines de ms, et c'est la que ca sert).
+Captures des 4 routes via la trappe : chaque squelette correspond a la forme de sa page
+(grille calendrier pour planning, carte minuteur + blocs pour le chrono, grille de stats,
+en-tete de profil), en-tete et nav du bas restant reels et cliquables. Puis navigation
+sans la trappe sur les 4 pages : squelette bien disparu, vraies donnees affichees, zero
+erreur console. `npm run lint` clean, builds offline + normal OK.
+
 ## 2026-07-31 - Installation PWA : fenetre repensee + illustration du menu Partager
 
 Demande : ameliorer la fenetre post-inscription qui explique comment ajouter l'app a l'ecran d'accueil, et ajouter une image dans la section « Installer l'application » du profil pour que les gens installent vraiment la PWA.

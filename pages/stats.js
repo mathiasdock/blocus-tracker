@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Layout from "../components/Layout";
+import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UserProfileModal from "../components/UserProfileModal";
 import StudyHeatmap from "../components/StudyHeatmap";
 import Leaderboard, { RankBadge } from "../components/Leaderboard";
@@ -168,6 +169,11 @@ function StatTile({ icon, chip, label, value, animatedValue, formatValue, suffix
 export default function Stats() {
   const { user, profile } = useAuth();
   const { t, lang } = useI18n();
+  // Premier chargement des donnees de la page. Tant qu'il n'est pas fini, on
+  // montre un squelette : sinon la page affiche 0h00 partout, ce que les
+  // gens lisent comme un bug et pas comme un chargement.
+  const [ready, setReady] = useState(false);
+  const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses]   = useState([]);
   const [sessions, setSessions] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
@@ -213,7 +219,7 @@ export default function Stats() {
     setSessions(s || []);
   }, [user]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load().finally(() => setReady(true)); }, [load]);
 
   // ── Gel de série : mêmes jours gelés que le dashboard (mémoïsé/jour) ──
   useEffect(() => {
@@ -465,6 +471,8 @@ export default function Stats() {
   const cmpDelta = (mine, other) => (other && other > 0) ? Math.round((mine - other) / other * 100) : null;
 
   // Moyenne / jour (7j glissants) déjà calculée : avgPerDay (secs).
+  if (!ready || forceSkeleton) return <Layout><PageContentSkeleton pathname="/stats" /></Layout>;
+
   return (
     <Layout>
       <div className="bt-stagger">

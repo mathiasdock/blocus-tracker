@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import MascotCoach from "../components/MascotCoach";
 import SegmentedGlide from "../components/SegmentedGlide";
@@ -1317,6 +1318,11 @@ export default function Planning() {
   } = useTimer();
   const [view, setView]             = useState("month");
   const [showMoreActions, setShowMoreActions] = useState(false);
+  // Premier chargement des donnees de la page. Tant qu'il n'est pas termine on
+  // affiche un squelette : sinon la page rend des zeros et des listes vides,
+  // que les gens lisent comme un bug et non comme un chargement.
+  const [ready, setReady] = useState(false);
+  const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses]       = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [exams, setExams]           = useState([]);
@@ -1370,7 +1376,7 @@ export default function Planning() {
     if (freeze.supported) setFrozenDays(freeze.frozenDays);
   }, [user]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load().finally(() => setReady(true)); }, [load]);
 
   useEffect(() => {
     if (view === "month") {
@@ -1664,6 +1670,8 @@ export default function Planning() {
     launchTimer, duplicateDay, duplicateWeek,
     lang, t,
   };
+
+  if (!ready || forceSkeleton) return <Layout><PageContentSkeleton pathname="/planning" /></Layout>;
 
   return (
     <Ctx.Provider value={ctxValue}>

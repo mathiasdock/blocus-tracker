@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import Layout, { Avatar } from "../components/Layout";
+import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
@@ -644,6 +645,13 @@ export default function Profile() {
   const [emailInput, setEmailInput] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMsg, setEmailMsg] = useState("");
+  // Premier chargement des donnees du profil. Tant qu'il n'est pas termine on
+  // affiche un squelette : sinon la page rend un niveau 1, zero badge et des
+  // compteurs a zero, que les gens lisent comme un bug.
+  // NOTE : cette page a deja un `ready` qui concerne la restauration du THEME,
+  // rien a voir — d'ou un nom distinct.
+  const [dataReady, setDataReady] = useState(false);
+  const forceSkeleton = useSkeletonHatch();
   const [sensoryPrefs, setSensoryPrefs] = useState(DEFAULT_SENSORY_PREFERENCES);
   const [form, setForm] = useState({
     first_name: "", last_name: "", university: "",
@@ -766,7 +774,7 @@ export default function Profile() {
       });
       setCanonicalLevelInfo(levelMap[user.id] || null);
     }
-    loadBadges();
+    loadBadges().finally(() => setDataReady(true));
   }, [user]);
 
   // ── Load sessions for heatmap + profile activity stats ───
@@ -964,6 +972,8 @@ export default function Profile() {
       sub: t("streak.stockRefill"),
     }]),
   ];
+
+  if (!dataReady || forceSkeleton) return <Layout><PageContentSkeleton pathname="/profile" /></Layout>;
 
   return (
     <Layout>

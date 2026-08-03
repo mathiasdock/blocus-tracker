@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
+import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -277,6 +278,11 @@ export default function Dashboard() {
     playSensoryCue("pause");
     pause();
   }, [pause]);
+  // Premier chargement des donnees de la page. Tant qu'il n'est pas termine on
+  // affiche un squelette : sinon la page rend des zeros et des listes vides,
+  // que les gens lisent comme un bug et non comme un chargement.
+  const [ready, setReady] = useState(false);
+  const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [streak, setStreak] = useState(0);
@@ -494,7 +500,7 @@ export default function Dashboard() {
     }
   }
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load().finally(() => setReady(true)); }, [load]);
 
   useEffect(() => {
     if (!focusMode) return;
@@ -1011,6 +1017,8 @@ export default function Dashboard() {
     load();
     notifyXPChanged();
   }
+
+  if (!ready || forceSkeleton) return <Layout><PageContentSkeleton pathname="/dashboard" /></Layout>;
 
   return (
     <Layout>

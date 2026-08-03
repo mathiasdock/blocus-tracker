@@ -1,5 +1,17 @@
+import { useRouter } from "next/router";
 import { useI18n } from "../contexts/I18nContext";
 import { SkeletonBar, SkeletonCircle, SkeletonList } from "./Skeleton";
+import { isOfflineDev } from "../lib/supabaseClient";
+
+// Trappe de QA, build offline UNIQUEMENT (`isOfflineDev` est false en prod, donc
+// le bloc est éliminé du bundle) : `?bt_pageloader=1` fige le squelette de
+// contenu d'une page. Sans ça il est invisible en local — les données viennent
+// de localStorage et il ne dure qu'une image. Même intention que le
+// `?bt_loader=1` du Layout, qui fige lui le squelette d'authentification.
+export function useSkeletonHatch() {
+  const router = useRouter();
+  return isOfflineDev && router.query.bt_pageloader === "1";
+}
 
 function Surface({ children, className = "" }) {
   return <section className={`card p-5 ${className}`.trim()}>{children}</section>;
@@ -115,6 +127,21 @@ function contentFor(pathname) {
   if (pathname === "/profile") return <ProfileSkeleton />;
   if (["/messages", "/feed", "/communautes", "/friends"].includes(pathname)) return <SocialSkeleton />;
   return <DashboardSkeleton />;
+}
+
+// Squelette du CONTENU seul, sans la coquille (barre latérale, en-tête, nav du
+// bas). Sert pendant que la page charge SES données, une fois l'auth déjà
+// résolue : la navigation reste vivante et cliquable, on ne remplace que la zone
+// qui, sinon, afficherait des zéros et des listes vides — ce que les gens lisent
+// comme un bug plutôt que comme un chargement.
+export function PageContentSkeleton({ pathname = "/dashboard" }) {
+  const { t } = useI18n();
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" aria-label={t("loading.preparing")}>
+      {contentFor(pathname)}
+      <span className="sr-only">{t("loading.preparing")}</span>
+    </div>
+  );
 }
 
 export default function PageSkeleton({ pathname = "/dashboard" }) {
