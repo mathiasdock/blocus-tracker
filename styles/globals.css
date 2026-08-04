@@ -44,6 +44,12 @@ html {
   --bt-ink-soft:      #114134;
   --bt-ink-text:      #F2FBF7;
   --bt-ink-muted:     #8FD4B8;
+  /* Accents lisibles SUR la surface ink. Les versions claires de l'app
+     (#CB5A4E pour la pause, #0ea5e9 pour la phase Pomodoro) tombent a 2,79:1
+     et 4,14:1 sur le point le plus clair du degrade `card-ink` : sous le seuil
+     AA pour du texte de 11px. Ces deux-la tiennent 5,1:1 et 5,4:1. */
+  --bt-ink-pause:     #E8998C;
+  --bt-ink-info:      #38BDF8;
   --bt-ink-border:    rgba(255,255,255,0.08);
   --bt-scrollbar:     #D0C9C3;
   --bt-scrollbar-h:   #B8AEA6;

@@ -2,6 +2,48 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-04 - Le chrono devient le point focal : panneau ink sur l'accueil
+
+Demande : « j'aimerais quand meme bien embellir l'application, je la trouve assez
+basique en termes de design. Apres, c'est une application d'etude, il faut pas aller
+trop loin. »
+
+**Le diagnostic.** Sur l'accueil, la carte du chrono avait EXACTEMENT le meme poids
+visuel que la liste des sessions en dessous : meme `.card`, meme fond, meme bordure.
+L'ecran n'avait donc pas de point focal — l'oeil ne savait pas ou se poser. Le probleme
+n'etait pas un manque de decoration, c'etait un manque de HIERARCHIE.
+
+**Le correctif.** La zone chiffres + blocs + coach passe sur la surface de marque
+`card-ink bt-grain` (vert profond + grain filmique), en panneau INTERIEUR a la carte.
+Le selecteur de cours au-dessus et les pastilles d'objectif / note / Demarrer en
+dessous restent sur la surface claire.
+
+CHOIX : reutiliser `card-ink` plutot qu'inventer un traitement. C'est deja la couleur
+que le mode focus prend en plein ecran — appuyer sur Demarrer devient une continuite
+de matiere, pas un saut. Zero nouveau jeton de couleur de fond, zero photo (idee
+ecartee avec Mathias : ca deconcentre en mode focus).
+
+**Deux jetons ajoutes** dans `:root`, pour les accents POSES SUR l'ink. Les versions
+claires tombaient sous le seuil AA en 11 px sur le point le plus clair du degrade :
+- `--bt-ink-pause: #E8998C` — le `#CB5A4E` de la pause donnait 2,79:1. Le nouveau : 5,1:1.
+- `--bt-ink-info: #38BDF8` — le `#0ea5e9` du Pomodoro donnait 4,14:1. Le nouveau : 5,4:1.
+Poses dans `:root` sans equivalent `.dark` : verifies aussi sur le fond sombre
+(`#0F3A2C`), ils y tiennent 5,64:1 et 5,9:1.
+
+**Nouvelle prop `onInk` sur `BlocusBlocks`/`Block`.** Piege evite : la prop `focus`
+existante n'est PAS une prop de style — elle change aussi le NOMBRE de blocs (12 → 16)
+et leur TAILLE (14 → 22 px). La reutiliser pour « pose sur du sombre » aurait
+silencieusement change la mise en page. `onInk` ne touche QUE les couleurs.
+
+**La pause ne teinte plus la carte entiere en rouge.** Le signal vit maintenant dans le
+panneau : pastille, chiffres, bloc et message passent tous sur `--bt-ink-pause`. Garder
+en plus le lavis `rgba(239,68,68,...)` sur la carte, c'etait un second rouge autour du
+premier — deux accents pour un seul etat. Au passage, le `#E88A80` code en dur du mode
+focus devient `var(--bt-ink-pause)` (regle 4 : que des variables CSS).
+
+Verifie en preview offline sur les quatre etats × deux themes : repos, en cours, en
+pause, et le mode focus plein ecran (inchange).
+
 ## 2026-08-03 - Chargement des pages : un squelette au lieu de donnees vierges
 
 Demande : quand on ouvre l'app, les pages affichaient des donnees VIERGES (0 min, 0h00,

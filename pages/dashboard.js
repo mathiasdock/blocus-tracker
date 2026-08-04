@@ -91,7 +91,13 @@ function buildBlockLayout({ elapsed, goalSecs, running, paused, max }) {
 }
 
 // Un bloc individuel. `fraction` remplit le bloc en cours (0→1).
-function Block({ state, fraction = 0, focus }) {
+// `focus` = mode focus plein écran : change le NOMBRE de blocs, leur TAILLE et
+// leurs couleurs. `onInk` = simplement posé sur une surface sombre : change
+// UNIQUEMENT les couleurs. Sans cette séparation, réutiliser `focus` sur le
+// dashboard ferait passer les blocs de 12 à 16 et de 14 à 22 px — ce n'est pas
+// un choix de couleur mais de mise en page.
+function Block({ state, fraction = 0, focus, onInk = false }) {
+  const dark = focus || onInk;
   const GREEN = "#14B885";
   const base = {
     flex: 1,
@@ -111,43 +117,43 @@ function Block({ state, fraction = 0, focus }) {
   }
   if (state === "active") {
     return (
-      <span className="bt-block-active" style={{ ...base, backgroundColor: focus ? "rgba(20,184,133,0.16)" : "var(--bt-accent-bg)" }}>
+      <span className="bt-block-active" style={{ ...base, backgroundColor: dark ? "rgba(20,184,133,0.16)" : "var(--bt-accent-bg)" }}>
         <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: GREEN, transition: "width 0.9s linear" }} />
       </span>
     );
   }
   if (state === "paused") {
     return (
-      <span className="bt-block-paused" style={{ ...base, backgroundColor: focus ? "rgba(203,90,78,0.16)" : "rgba(203,90,78,0.10)" }}>
-        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: PAUSE_ACCENT, opacity: 0.85 }} />
+      <span className="bt-block-paused" style={{ ...base, backgroundColor: dark ? "rgba(232,153,140,0.18)" : "rgba(203,90,78,0.10)" }}>
+        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: dark ? "var(--bt-ink-pause)" : PAUSE_ACCENT, opacity: 0.85 }} />
       </span>
     );
   }
   if (state === "next") {
-    return <span style={{ ...base, backgroundColor: "transparent", boxShadow: `inset 0 0 0 1.5px ${focus ? "rgba(255,255,255,0.24)" : "var(--bt-border)"}` }} />;
+    return <span style={{ ...base, backgroundColor: "transparent", boxShadow: `inset 0 0 0 1.5px ${dark ? "rgba(255,255,255,0.24)" : "var(--bt-border)"}` }} />;
   }
   // empty
-  return <span style={{ ...base, backgroundColor: focus ? "rgba(255,255,255,0.07)" : "var(--bt-subtle)", boxShadow: focus ? "none" : "inset 0 0 0 1px var(--bt-border)" }} />;
+  return <span style={{ ...base, backgroundColor: dark ? "rgba(255,255,255,0.07)" : "var(--bt-subtle)", boxShadow: dark ? "none" : "inset 0 0 0 1px var(--bt-border)" }} />;
 }
 
-function BlocusBlocks({ elapsed, running, paused, goalSecs, focus = false }) {
+function BlocusBlocks({ elapsed, running, paused, goalSecs, focus = false, onInk = false }) {
   const max = focus ? 16 : 12;
   const { head, overflow, tail, bonus, fraction } = buildBlockLayout({ elapsed, goalSecs, running, paused, max });
   return (
     <div className="flex items-center justify-center gap-[5px] w-full" style={{ minHeight: focus ? 22 : 14 }} aria-hidden="true">
       {head.map((s, i) => (
-        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} />
+        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} onInk={onInk} />
       ))}
       {overflow > 0 && (
-        <span className="font-num tabular-nums shrink-0 px-1" style={{ fontSize: focus ? 13 : 11, fontWeight: 700, color: focus ? "rgba(255,255,255,0.6)" : "var(--bt-text-3)" }}>
+        <span className="font-num tabular-nums shrink-0 px-1" style={{ fontSize: focus ? 13 : 11, fontWeight: 700, color: focus || onInk ? "rgba(255,255,255,0.6)" : "var(--bt-text-3)" }}>
           +{overflow}
         </span>
       )}
-      {tail && <Block state={tail} fraction={fraction} focus={focus} />}
+      {tail && <Block state={tail} fraction={fraction} focus={focus} onInk={onInk} />}
       {bonus > 0 && (
         <>
           <span className="shrink-0" style={{ width: 4 }} />
-          {Array.from({ length: bonus }, (_, i) => <Block key={`b${i}`} state="bonus" focus={focus} />)}
+          {Array.from({ length: bonus }, (_, i) => <Block key={`b${i}`} state="bonus" focus={focus} onInk={onInk} />)}
         </>
       )}
     </div>
@@ -1067,12 +1073,12 @@ export default function Dashboard() {
             COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
         ══════════════════════════════════════════ */}
         <div className="lg:col-span-2 flex flex-col gap-5 min-w-0">
-        <section className="card relative min-w-0 transition-all duration-300 overflow-hidden"
-          style={{
-            backgroundColor: isPaused ? "rgba(239,68,68,0.06)" : "var(--bt-surface)",
-            borderColor:     isPaused ? "rgba(239,68,68,0.35)" : "var(--bt-border)",
-            boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.10)" : "0 4px 32px var(--bt-shadow)",
-          }}>
+        {/* La pause ne teinte plus la carte entière en rouge. Le signal vit
+            maintenant DANS le panneau ink — pastille, chiffres, bloc et message
+            passent tous sur `--bt-ink-pause`. Garder en plus un lavis rouge sur
+            la carte, c'était un second rouge (#ef4444) autour du premier
+            (#E8998C) : deux accents pour un seul état. */}
+        <section className="card relative min-w-0 transition-all duration-300 overflow-hidden">
 
           {/* Halo de progression — le fond respire et s'intensifie avec la
               session (opacité seule : GPU, aucun re-layout) */}
@@ -1231,11 +1237,20 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
-          <div className="px-5 sm:px-6 pt-9 sm:pt-11 pb-1 text-center">
+          {/* ── Héros : chiffres + onde de session + ligne vivante ──
+              La zone du chrono passe sur la surface de marque `card-ink` (vert
+              profond + grain). C'est le seul élément de l'écran qui doit attirer
+              l'œil : avant, la carte du chrono avait exactement le même poids
+              visuel que la liste des sessions en dessous. Et c'est déjà la
+              couleur que le mode focus prend en plein écran — appuyer sur
+              Démarrer devient une continuité, pas un saut.
+              Les enfants savaient déjà vivre sur du sombre : BlocusBlocks a sa
+              prop `focus`, MascotCoach sa prop `isInk`. */}
+          <div className="card-ink bt-grain mx-5 sm:mx-6 mt-4 px-5 sm:px-6 pt-8 pb-6 text-center">
+          <div className="relative z-10">
             {pomodoro && (
               <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-5"
-                style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
+                style={{ color: pomoPhase === "work" ? "#14B885" : "var(--bt-ink-info)" }}>
                 {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
               </div>
@@ -1243,7 +1258,7 @@ export default function Dashboard() {
             {isPaused && !pomodoro && (
               <div className="mb-5 flex justify-center">
                 <span className="bt-pause-pulse inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1.5 rounded-full"
-                  style={{ color: PAUSE_ACCENT, backgroundColor: "rgba(203,90,78,0.10)", border: "1px solid rgba(203,90,78,0.30)" }}>
+                  style={{ color: "var(--bt-ink-pause)", backgroundColor: "rgba(232,153,140,0.12)", border: "1px solid rgba(232,153,140,0.32)" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
                   {t("dash.pausedStatus")}
                 </span>
@@ -1252,10 +1267,10 @@ export default function Dashboard() {
 
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={isPaused && !pomodoro ? PAUSE_ACCENT : "var(--bt-text-1)"} />
+              color={isPaused && !pomodoro ? "var(--bt-ink-pause)" : "var(--bt-ink-text)"} />
 
             <div className="mt-8 mx-auto w-full max-w-[440px]">
-              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} />
+              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} onInk />
             </div>
 
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
@@ -1271,14 +1286,16 @@ export default function Dashboard() {
                   live={timerCoach.live}
                   className="w-full max-w-md"
                   size={72}
+                  surface="ink"
                 />
               ) : !timerCoach && liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? PAUSE_ACCENT : "var(--bt-text-3)" }}>
+                  style={{ color: isPaused ? "var(--bt-ink-pause)" : "var(--bt-ink-muted)" }}>
                   {liveMessage}
                 </p>
               ) : null}
             </div>
+          </div>
           </div>
 
           {/* ── Objectif de session — poser l'intention avant de démarrer ── */}
@@ -1946,7 +1963,7 @@ export default function Dashboard() {
                 />
               ) : liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? "#E88A80" : "var(--bt-ink-muted)" }}>
+                  style={{ color: isPaused ? "var(--bt-ink-pause)" : "var(--bt-ink-muted)" }}>
                   {liveMessage}
                 </p>
               ) : null}
