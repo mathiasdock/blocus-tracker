@@ -24,6 +24,9 @@ import MascotCoach from "../components/MascotCoach";
 import AmbientSoundControl from "../components/AmbientSoundControl";
 import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
+import SessionCompleteCard from "../components/SessionCompleteCard";
+import { buildSessionShareMessage } from "../lib/sessionShare";
+import { clientRateLimit } from "../lib/security";
 import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
 
 function daysUntilExam(dateStr) {
@@ -325,7 +328,10 @@ export default function Dashboard() {
   const [editingExamId, setEditingExamId] = useState(null);
   const [examDateInput, setExamDateInput] = useState("");
   const [completionToast, setCompletionToast] = useState(null);
-  const [toastVisible, setToastVisible] = useState(false);
+  // Amis pour l'envoi depuis le récapitulatif. `null` = pas encore chargés ;
+  // on ne les charge qu'au clic sur "Envoyer à un ami", pas à chaque fin de
+  // session — la plupart des sessions ne sont pas partagées.
+  const [shareFriends, setShareFriends] = useState(null);
   const [showCourseMenu, setShowCourseMenu] = useState(false);
   const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
   const [checklistCourse, setChecklistCourse] = useState(null);
@@ -699,13 +705,7 @@ export default function Dashboard() {
       setSessions(nextSessions);
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2500);
-      setCompletionToast({ durationSecs: seconds, goalPct: newGoalPct, xpGained });
-      setToastVisible(false);
-      setTimeout(() => setToastVisible(true), 50);
-      setTimeout(() => {
-        setToastVisible(false);
-        setTimeout(() => setCompletionToast(null), 350);
-      }, 4000);
+      setCompletionToast(buildCompletionData({ seconds, goalPct: newGoalPct, xpGained, courseId, note }));
       return;
     }
 
@@ -747,16 +747,69 @@ export default function Dashboard() {
     setSaveStatus("success");
     setTimeout(() => setSaveStatus("idle"), 2500);
 
-    setCompletionToast({ durationSecs: seconds, goalPct: newGoalPct, xpGained });
-    setToastVisible(false);
-    setTimeout(() => setToastVisible(true), 50);
-    setTimeout(() => {
-      setToastVisible(false);
-      setTimeout(() => setCompletionToast(null), 350);
-    }, 4000);
+    setCompletionToast(buildCompletionData({ seconds, goalPct: newGoalPct, xpGained, courseId, note }));
 
     // Refresh streak / goal counters in background
     load();
+  }
+
+  // Le récapitulatif a besoin du COURS, que `stopAndSave` connaît par son id
+  // seulement. On le résout ici, une fois : après `reset()` la sélection de
+  // cours peut déjà avoir changé si l'utilisateur enchaîne.
+  function buildCompletionData({ seconds, goalPct, xpGained, courseId, note }) {
+    const course = courses.find(c => c.id === courseId);
+    return {
+      durationSecs: seconds,
+      goalPct,
+      xpGained,
+      courseName: course?.name || null,
+      courseColor: course?.color || null,
+      note: note || null,
+    };
+  }
+
+  // Chargé à la demande, au clic sur "Envoyer à un ami". Colonnes explicites
+  // et PAS d'`email` : règle 2 du CLAUDE.md — on ne lit jamais l'email d'un
+  // autre utilisateur.
+  const loadShareFriends = useCallback(async () => {
+    if (!user || isGuest) { setShareFriends([]); return; }
+    const { data: links } = await supabase
+      .from("friendships").select("requester, addressee")
+      .or(`requester.eq.${user.id},addressee.eq.${user.id}`)
+      .eq("status", "accepted");
+    const ids = (links || []).map(l => (l.requester === user.id ? l.addressee : l.requester));
+    if (!ids.length) { setShareFriends([]); return; }
+    const { data: profs } = await supabase
+      .from("profiles").select("id, pseudo, first_name, last_name, avatar_url")
+      .in("id", ids);
+    setShareFriends(profs || []);
+  }, [user, isGuest]);
+
+  // Envoie le récapitulatif en message privé. Renvoie true/false : c'est la
+  // carte qui décide quoi afficher ensuite.
+  async function shareSessionWith(friend) {
+    if (!user || !completionToast || !friend?.id) return false;
+    // Même garde-fou que l'envoi de DM normal dans `messages.js` : ce chemin
+    // insère dans la même table, il ne doit pas être une porte dérobée.
+    const allowed = clientRateLimit(`dm:send:${user.id}`, 20, 60_000);
+    if (!allowed.ok) { toast(t("security.rateLimited"), "error"); return false; }
+    const duration = formatMinutesShort(completionToast.durationSecs);
+    const readableText = completionToast.courseName
+      ? t("share.sessionMessage").replace("{duration}", duration).replace("{course}", completionToast.courseName)
+      : t("share.sessionMessageNoCourse").replace("{duration}", duration);
+    const { error } = await supabase.from("private_messages").insert({
+      sender_id: user.id,
+      receiver_id: friend.id,
+      ...buildSessionShareMessage({
+        durationSecs: completionToast.durationSecs,
+        courseName: completionToast.courseName,
+        courseColor: completionToast.courseColor,
+        note: completionToast.note,
+        readableText,
+      }),
+    });
+    if (error) { toast(t("share.sendFailed"), "error"); return false; }
+    return true;
   }
 
   async function updateExamDate(courseId, examDate) {
@@ -2027,85 +2080,21 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Session completion toast */}
+      {/* Récapitulatif de fin de session — voir components/SessionCompleteCard.js
+          pour pourquoi ce n'est PAS une modale. La carte gère elle-même son
+          entrée, sa fermeture automatique et sa mise en pause au survol. */}
       {completionToast && (
-        <div style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: 9000,
-          opacity: toastVisible ? 1 : 0,
-          transform: toastVisible ? "translateY(0)" : "translateY(20px)",
-          transition: "opacity 0.3s ease-out, transform 0.3s ease-out",
-          pointerEvents: "auto",
-        }}>
-          <div
-            className="min-w-[220px] max-w-[280px] lg:min-w-[340px] lg:max-w-[400px]"
-            style={{
-              position: "relative",
-              backgroundColor: "#0E8F68",
-              color: "#fff",
-              borderRadius: 18,
-              boxShadow: "0 8px 32px rgba(14,143,104,0.35)",
-            }}>
-            <button
-              type="button"
-              onClick={() => setCompletionToast(null)}
-              aria-label={t("coach.close")}
-              title={t("coach.close")}
-              className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-lg"
-              style={{ color: "rgba(255,255,255,0.75)" }}
-            >
-              ×
-            </button>
-            <div className="p-4 pr-10 lg:p-6 lg:pr-12 flex items-start gap-3">
-              <Mascot streak={streak} size={58} className="shrink-0" ariaLabel={t("coach.timer.done")} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1.5 lg:mb-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  <span className="font-semibold text-sm lg:text-base">{t("dash.doneTitle")}</span>
-                </div>
-                <p className="text-xs lg:text-sm mb-2" style={{ opacity: 0.9 }}>{t("coach.timer.done")}</p>
-                <div className="text-xs lg:text-sm mb-2" style={{ opacity: 0.9 }}>
-                  {t("dash.doneDuration")} : <strong>{formatMinutesShort(completionToast.durationSecs)}</strong>
-                </div>
-                {completionToast.xpGained > 0 && (
-                  <div className="relative mb-2" style={{ minHeight: 24 }}>
-                    <div className="text-xs lg:text-sm font-bold" style={{ opacity: 0.95, color: "#A7F3D0" }}>
-                      +{completionToast.xpGained} {t("dash.doneXP")}
-                    </div>
-                    {/* Floating XP ghost — animates upward */}
-                    <div
-                      key={completionToast.durationSecs}
-                      className="bt-xp-float absolute left-0 top-0 text-base lg:text-lg font-extrabold pointer-events-none"
-                      style={{ color: "#FBBF24", textShadow: "0 0 12px rgba(251,191,36,0.6)" }}>
-                      +{completionToast.xpGained} XP
-                    </div>
-                  </div>
-                )}
-                {completionToast.goalPct > 0 && (
-                  <>
-                    <div className="text-xs lg:text-sm mb-1.5" style={{ opacity: 0.85 }}>
-                      {completionToast.goalPct}% {t("dash.doneGoalPct")}
-                    </div>
-                    <div style={{ width: "100%", height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.25)" }}>
-                      <div style={{
-                        height: "100%",
-                        borderRadius: 4,
-                        backgroundColor: "#fff",
-                        width: `${completionToast.goalPct}%`,
-                        transition: "width 1s ease-out",
-                      }} />
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <SessionCompleteCard
+          data={completionToast}
+          streak={streak}
+          onClose={() => { setCompletionToast(null); setShareFriends(null); }}
+          friends={shareFriends}
+          onLoadFriends={loadShareFriends}
+          onShare={shareSessionWith}
+          canShare={!isGuest}
+        />
       )}
+
     </Layout>
   );
 }

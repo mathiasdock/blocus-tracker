@@ -2,6 +2,80 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-05 - Fin de session : nouveau recapitulatif + envoi a un ami
+
+Demande de Mathias : pouvoir envoyer une session terminee a un ami DANS l'app,
+ameliorer le pop-up de fin de session et son animation.
+
+### Le recapitulatif — `components/SessionCompleteCard.js`
+
+Remplace le toast vert code en dur dans `dashboard.js`.
+
+CE N'EST PAS UNE MODALE, ET C'EST LE POINT IMPORTANT. `components/Celebration.js`
+est deja la modale centree a confettis, reservee aux moments RARES (level-up,
+paliers de serie 7/30/100). Une session se termine plusieurs fois par jour : en
+faire une seconde modale banaliserait la vraie et forcerait a fermer un voile a
+chaque fois. Choix valide avec Mathias sur maquette. Feuille en bas sur mobile,
+carte en bas a droite sur desktop, l'ecran reste utilisable.
+
+UNE SEULE SURFACE, DEUX ETATS. « Envoyer a un ami » ne pousse pas un calque de
+plus : la carte bascule sur place vers la liste d'amis, puis revient avec
+« Envoye a X ». On ne perd jamais le contexte du moment qu'on fete.
+
+FERMETURE : 10 s au lieu de 4, et le compte a rebours se FIGE au survol, au
+focus clavier ou au toucher — avec un bouton dedans, une carte qui s'evapore
+pendant qu'on la vise est hostile. Il est aussi suspendu tant qu'on est sur la
+liste d'amis.
+
+Animations : entree par le bas avec leger depassement, la mascotte tombe 0,16 s
+APRES la carte (c'est ce decalage qui donne l'impression qu'elle atterrit
+dedans), la coche se dessine en dernier, le contenu arrive en cascade, la barre
+d'objectif se remplit en 1,1 s. Les quatre classes sont inscrites dans le bloc
+`prefers-reduced-motion` de `globals.css` — obligatoire, ce bloc est une liste
+opt-in, pas un interrupteur general.
+
+Le pop-up reste VERT : il l'etait deja avant (`#0E8F68` plein). `card-ink` est
+le meme vert en plus riche, pas une surface de plus. Voir l'entree du 04-08 sur
+la repartition des surfaces du dashboard.
+
+### Envoi a un ami — `lib/sessionShare.js`
+
+AUCUNE MIGRATION, DELIBEREMENT. `private_messages` n'a pas de colonne pour une
+charge utile structuree, et en ajouter une imposerait d'executer du SQL a la
+main avant que la fonctionnalite marche. On reutilise les colonnes de piece
+jointe existantes :
+
+    attachment_type = "session"   ← le marqueur
+    attachment_name = JSON        ← la charge utile
+    attachment_url  = null        ← DOIT rester null
+    content         = phrase lisible
+
+`attachment_url` null n'est pas un detail : `api/storage/sign.js`,
+`api/admin/egress-guard.js` et `api/admin/storage-cleanup.js` filtrent tous sur
+`attachment_url is not null`. Une session ne passe donc jamais pour un fichier
+stocke. Cote rendu, chaque branche de piece jointe de `messages.js` est gardee
+par `m.attachment_url && …` : rien ne casse.
+
+DEGRADATION GRACIEUSE : `content` porte toujours la phrase lisible, donc
+l'apercu de conversation et une notification affichent une phrase correcte meme
+sans comprendre le marqueur.
+
+`readSessionShare` revalide TOUT en lisant (bornes, format couleur, longueurs)
+et renvoie null au moindre doute — l'appelant retombe alors sur le texte.
+
+Meme garde-fou anti-spam que l'envoi de DM normal (`clientRateLimit` 20/min sur
+la meme cle `dm:send:`) : ce chemin insere dans la meme table, il ne doit pas
+etre une porte derobee. Les amis sont charges A LA DEMANDE, colonnes explicites
+et sans `email` (regle 2).
+
+### Corrige au passage — `lib/offlineSupabaseClient.js`
+
+`matchesOr` decoupait l'expression `.or()` sur toutes les virgules, donc il ne
+comprenait pas les groupes `and(...)`. Consequence : `loadMessages` utilise
+`or("and(a,b),and(c,d)")`, et AUCUN message n'a jamais pu s'afficher dans une
+conversation en preview offline. Decoupage au niveau du haut + evaluation
+recursive des groupes. Fichier dev-only (`isOfflineDev`), zero impact en prod.
+
 ## 2026-08-04 - ANNULE : la tentative d'inverser les surfaces du dashboard
 
 Deux commits annules (`git revert`), le code est revenu a l'identique de `a4af55b` :

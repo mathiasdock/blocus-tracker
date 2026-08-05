@@ -10,7 +10,8 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useToast } from "../contexts/ToastContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isOfflineDev, supabase } from "../lib/supabaseClient";
-import { displayName, timeAgo, formatDuration } from "../lib/format";
+import { displayName, timeAgo, formatDuration, formatMinutesShort } from "../lib/format";
+import { readSessionShare } from "../lib/sessionShare";
 import { isStudyingLive } from "../lib/presence";
 import { optimizeFeedImage } from "../lib/imageCompression";
 import { notifyXPChanged } from "../lib/xpEvents";
@@ -83,6 +84,38 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2
         }}>
         {t("attachment.viewImage")}
       </button>
+    </div>
+  );
+}
+
+// ── Session d'étude partagée depuis le récapitulatif de fin de session ──
+// Voir `lib/sessionShare.js` : la charge utile voyage dans les colonnes de
+// pièce jointe existantes, sans migration. Si `readSessionShare` renvoie null
+// (payload absent ou trafiqué), l'appelant retombe sur le texte de `content`,
+// qui reste toujours lisible.
+function SessionShareBubble({ share, mine, t }) {
+  const panelBg     = mine ? "rgba(255,255,255,0.16)" : "var(--bt-surface)";
+  const panelBorder = mine ? "rgba(255,255,255,0.24)" : "var(--bt-border)";
+  const strong      = mine ? "#fff" : "var(--bt-text-1)";
+  const soft        = mine ? "rgba(255,255,255,0.78)" : "var(--bt-text-2)";
+  return (
+    <div className="rounded-2xl px-3 py-2.5" style={{ backgroundColor: panelBg, border: `1px solid ${panelBorder}` }}>
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: soft }}>
+        {t("share.sessionCardTitle")}
+      </p>
+      <p className="font-num font-bold tabular-nums leading-none mt-1"
+        style={{ fontSize: 22, color: strong, letterSpacing: "-0.02em" }}>
+        {formatMinutesShort(share.secs)}
+      </p>
+      {share.course && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs min-w-0" style={{ color: soft }}>
+          {share.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: share.color }} />}
+          <span className="truncate">{share.course}</span>
+        </p>
+      )}
+      {share.note && (
+        <p className="mt-1 text-xs italic break-words" style={{ color: soft }}>« {share.note} »</p>
+      )}
     </div>
   );
 }
@@ -1493,13 +1526,18 @@ export default function Messages() {
                   const mine = m.sender_id === user.id;
                   const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url, "dm") : "";
                   const imageKey = `dm:${m.id}:${m.attachment_url || ""}`;
+                  // Une session partagée remplace le texte par la carte : le
+                  // `content` disait déjà la même chose en moins lisible.
+                  const share = readSessionShare(m);
                   return (
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className="max-w-[75%] px-3.5 py-2.5 text-sm"
                         style={mine
                           ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
                           : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
-                        {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
+                        {share
+                          ? <SessionShareBubble share={share} mine={mine} t={t} />
+                          : m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                         {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
                           <AttachmentImageGate
                             src={attachmentUrl}
