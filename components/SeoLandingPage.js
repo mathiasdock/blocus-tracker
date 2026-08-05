@@ -61,7 +61,7 @@ function PublicHeader({ ui }) {
           href="/login"
           className="rounded-full px-4 py-2 text-sm font-semibold transition-colors"
           style={{
-            color: "var(--bt-accent-dark)",
+            color: "var(--bt-accent-text)",
             backgroundColor: "var(--bt-accent-bg)",
             border: "1px solid var(--bt-accent-border)",
           }}
@@ -116,7 +116,7 @@ export default function SeoLandingPage({ page }) {
                 <p
                   className="mb-4 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase"
                   style={{
-                    color: "var(--bt-accent-dark)",
+                    color: "var(--bt-accent-text)",
                     backgroundColor: "var(--bt-accent-bg)",
                     border: "1px solid var(--bt-accent-border)",
                   }}
@@ -144,7 +144,7 @@ export default function SeoLandingPage({ page }) {
                 <dl className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
                   {p.proofPoints.map((point) => (
                     <div key={point} className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
-                      <dt className="text-xs font-bold uppercase" style={{ color: "var(--bt-accent-dark)" }}>{ui.included}</dt>
+                      <dt className="text-xs font-bold uppercase" style={{ color: "var(--bt-accent-text)" }}>{ui.included}</dt>
                       <dd className="mt-1 text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{point}</dd>
                     </div>
                   ))}
@@ -204,7 +204,7 @@ export default function SeoLandingPage({ page }) {
                         </li>
                       ))}
                     </ul>
-                    <Link href="/signup" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold" style={{ color: "#0E8F68" }}>
+                    <Link href="/signup" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold" style={{ color: "var(--bt-accent-text)" }}>
                       {ui.createSpace}
                     </Link>
                   </div>

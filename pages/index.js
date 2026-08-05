@@ -351,7 +351,7 @@ export default function Home() {
               {c.nav.login}
             </Link>
             <Link href="/signup" className="hidden items-center rounded-full px-4 text-sm font-semibold text-white sm:inline-flex"
-              style={{ minHeight: 44, backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 6px 18px rgba(20,184,133,0.28)" }}>
+              style={{ minHeight: 44, backgroundImage: "linear-gradient(165deg, var(--bt-accent-fill), var(--bt-accent-fill-deep) 115%)", boxShadow: "0 6px 18px rgba(20,184,133,0.28)" }}>
               {c.nav.signup}
             </Link>
           </nav>
@@ -370,15 +370,15 @@ export default function Home() {
           <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-14 text-center sm:pt-20">
             <div className="bt-stagger mx-auto max-w-3xl">
               <p className="mx-auto inline-flex rounded-full px-3.5 py-1 text-xs font-bold uppercase tracking-wide"
-                style={{ color: "var(--bt-accent-dark)", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+                style={{ color: "var(--bt-accent-text)", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
                 {c.hero.badge}
               </p>
               <h1 className="mt-6 text-[2.7rem] leading-[1.03] sm:text-6xl lg:text-7xl" style={{ color: "var(--bt-text-1)", letterSpacing: "-0.03em" }}>
                 {c.hero.titleBefore}
                 {c.hero.titleAccents?.length > 1 ? (
-                  <RotatingWord words={c.hero.titleAccents} style={{ color: "#0E8F68" }} />
+                  <RotatingWord words={c.hero.titleAccents} style={{ color: "var(--bt-accent-dark)" }} />
                 ) : (
-                  <span style={{ color: "#0E8F68" }}>{c.hero.titleAccent}</span>
+                  <span style={{ color: "var(--bt-accent-dark)" }}>{c.hero.titleAccent}</span>
                 )}
               </h1>
               <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
@@ -420,7 +420,7 @@ export default function Home() {
               {/* +XP qui tombe en boucle — bord gauche du cadre */}
               <div aria-hidden="true" className="bt-plx absolute -left-2 top-[42%] sm:-left-9" style={{ "--plx": "-18px" }}>
                 <span className="bt-demo-chip bt-xp-loop">
-                  <span className="text-sm font-bold" style={{ color: "var(--bt-accent-dark)" }}>+45 XP</span>
+                  <span className="text-sm font-bold" style={{ color: "var(--bt-accent-text)" }}>+45 XP</span>
                 </span>
               </div>
               {/* Téléphone : parallax (extérieur) + flottement (intérieur) */}
@@ -498,7 +498,7 @@ export default function Home() {
               <ul className="mt-6 space-y-3">
                 {c.planning.list.map((li) => (
                   <li key={li} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--bt-text-1)" }}>
-                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                       <IconCheck size={11} />
                     </span>
                     {li}
@@ -520,7 +520,7 @@ export default function Home() {
                 {c.statsSection.text}
               </p>
               <Link href="/dashboard" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold transition-colors"
-                style={{ color: "var(--bt-accent-dark)" }}>
+                style={{ color: "var(--bt-accent-text)" }}>
                 {c.statsSection.link} <IconArrow size={15} />
               </Link>
             </div>
@@ -574,7 +574,7 @@ export default function Home() {
 
             {/* Marquee des vraies écoles (même source que l'app) */}
             <div className="pb-8">
-              <p className="mb-5 text-center text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
+              <p className="mb-5 text-center text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-text)" }}>
                 {c.social.marquee(UNIVERSITY_COUNT, COUNTRY_COUNT)}
               </p>
               <div className="bt-marquee overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)" }}>
@@ -603,7 +603,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="grid items-end gap-7 lg:grid-cols-[1fr_auto]" data-reveal>
               <div className="max-w-2xl">
-                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-text)" }}>
                   {c.tour.eyebrow}
                 </p>
                 <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
@@ -664,7 +664,7 @@ export default function Home() {
                     {activeArea.features.map((feature) => (
                       <li key={feature} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--bt-text-1)" }}>
                         <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                          style={{ color: "var(--bt-accent-dark)", backgroundColor: "var(--bt-accent-bg)" }}>
+                          style={{ color: "var(--bt-accent-text)", backgroundColor: "var(--bt-accent-bg)" }}>
                           <IconCheck size={11} />
                         </span>
                         {feature}
@@ -675,7 +675,7 @@ export default function Home() {
 
                 <div className="mt-auto flex flex-wrap gap-3 pt-8">
                   <Link href="/dashboard" className="btn-ghost px-4 py-2.5 text-sm">{c.tour.tryTimer}</Link>
-                  <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+                  <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-text)" }}>
                     {c.tour.unlockAll} <IconArrow size={14} />
                   </Link>
                 </div>
@@ -706,7 +706,7 @@ export default function Home() {
           style={{ backgroundColor: "var(--bt-surface)", borderTop: "1px solid var(--bt-border)", borderBottom: "1px solid var(--bt-border)" }}>
           <div className="mx-auto max-w-6xl">
             <div className="max-w-2xl" data-reveal>
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-text)" }}>
                 {c.method.eyebrow}
               </p>
               <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
@@ -721,12 +721,12 @@ export default function Home() {
               {studyFlow.map((step, i) => (
                 <li key={step.number} className="bt-spot grid grid-cols-[auto_1fr] gap-4 py-7"
                   style={{ borderTop: "1px solid var(--bt-border)", "--rv-delay": `${(i % 2) * 0.07}s` }} data-reveal>
-                  <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{step.number}</span>
+                  <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>{step.number}</span>
                   <div>
                     <h3 className="text-xl" style={{ color: "var(--bt-text-1)" }}>{step.title}</h3>
                     <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{step.text}</p>
                     <p className="mt-4 text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{step.app}</p>
-                    <Link href={step.href} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+                    <Link href={step.href} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-text)" }}>
                       {step.link} <IconArrow size={14} />
                     </Link>
                   </div>
@@ -762,7 +762,7 @@ export default function Home() {
               <div className="mt-7 rounded-2xl p-5" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
                 <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{c.faqSection.boxTitle}</p>
                 <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{c.faqSection.boxText}</p>
-                <Link href="/dashboard" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+                <Link href="/dashboard" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--bt-accent-text)" }}>
                   {c.faqSection.boxLink} <IconArrow size={14} />
                 </Link>
               </div>
@@ -803,7 +803,7 @@ export default function Home() {
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link href="/dashboard" className="btn-shine inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"
-                  style={{ backgroundColor: "#fff", color: "#0E8F68", minHeight: 44 }}>
+                  style={{ backgroundColor: "#fff", color: "var(--bt-accent-text)", minHeight: 44 }}>
                   {c.cta.tryTimer}
                 </Link>
                 <Link href="/signup" className="inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"

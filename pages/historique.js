@@ -105,7 +105,7 @@ export default function Historique() {
                           <span style={{ color: "var(--bt-text-1)" }}>{courseName(s.course_id)}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-semibold whitespace-nowrap" style={{ color: "#0E8F68" }}>
+                      <td className="px-4 py-3 font-semibold whitespace-nowrap" style={{ color: "var(--bt-accent-text)" }}>
                         {formatMinutesShort(s.duration_seconds)}
                       </td>
                       <td className="px-4 py-3 max-w-[220px] truncate" style={{ color: "var(--bt-text-3)" }}>

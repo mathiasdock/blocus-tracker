@@ -127,9 +127,9 @@ export default function UserProfileModal({ userId, onClose }) {
                 const isStudying = isStudyingLive(profile.studying_since);
                 return isStudying ? (
                   <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full"
-                    style={{ backgroundColor: "#EAFBF4", border: "1px solid #C6EED9" }}>
+                    style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
                     <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#14B885" }} />
-                    <span className="text-xs font-medium" style={{ color: "#0E8F68" }}>{t("profile.studyingNow")}</span>
+                    <span className="text-xs font-medium" style={{ color: "var(--bt-accent-text)" }}>{t("profile.studyingNow")}</span>
                   </div>
                 ) : null;
               })()}
@@ -229,13 +229,13 @@ export default function UserProfileModal({ userId, onClose }) {
             {userId !== user.id && (
               <div className="mt-5">
                 {relStatus === "accepted" ? (
-                  <p className="text-sm text-center" style={{ color: "#0E8F68" }}>{t("modal.alreadyFriends")} ✓</p>
+                  <p className="text-sm text-center" style={{ color: "var(--bt-accent-text)" }}>{t("modal.alreadyFriends")} ✓</p>
                 ) : relStatus === "pending" ? (
                   <p className="text-sm text-center" style={{ color: "var(--bt-text-3)" }}>{t("modal.pendingFriend")}</p>
                 ) : (
                   <button onClick={addFriend} className="btn-primary w-full">{t("modal.addFriend")}</button>
                 )}
-                {msg && <p className="text-xs text-center mt-2" style={{ color: "#0E8F68" }}>{msg}</p>}
+                {msg && <p className="text-xs text-center mt-2" style={{ color: "var(--bt-accent-text)" }}>{msg}</p>}
               </div>
             )}
           </>

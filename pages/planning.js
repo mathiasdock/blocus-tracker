@@ -152,7 +152,7 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
               title={wd[(dow + 6) % 7]}
               className="w-8 h-8 rounded-full text-[11px] font-bold transition-all shrink-0"
               style={active
-                ? { backgroundColor: "#14B885", color: "#fff" }
+                ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }
                 : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
               {wd[(dow + 6) % 7].slice(0, 1)}
             </button>
@@ -227,8 +227,11 @@ function recurrenceBadgeLabel(o, t, lang) {
 // rouge <= 0 j (aujourd'hui/passé), orange <= 7 j (urgent), vert au-delà.
 function ExamBadge({ days }) {
   const { t } = usePlan();
-  const bg    = days <= 0 ? "#FEF2F2" : days <= 7 ? "#FEF3C7" : "#EAFBF4";
-  const color = days <= 0 ? "#DC2626" : days <= 7 ? "#D97706" : "#0E8F68";
+  // 11px gras sur pastille claire : 4,5:1 exiges dans les TROIS etats. L'orange
+  // etait le pire (2,86:1), pas le vert — il reprend le brun de /dashboard, qui
+  // tenait deja 6,37:1 pour ce meme badge.
+  const bg    = days <= 0 ? "#FEF2F2" : days <= 7 ? "#FEF3C7" : "var(--bt-accent-bg)";
+  const color = days <= 0 ? "#B91C1C" : days <= 7 ? "#92400E" : "var(--bt-accent-text)";
   const label = days === 0 ? t("exam.today")
     : days === 1 ? t("plan.tomorrow")
     : days > 1  ? `J-${days}`
@@ -598,7 +601,7 @@ function DayDetailModal() {
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   {isToday && (
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                      style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                       {t("common.today")}
                     </span>
                   )}
@@ -634,20 +637,20 @@ function DayDetailModal() {
             {/* ── Time studied ── */}
             {totalStudiedSecs > 0 && (
               <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl"
-                style={{ backgroundColor: "#EAFBF4", border: "1px solid #C6EED9" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E8F68" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--bt-accent-dark)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                 </svg>
                 <div className="flex-1">
-                  <p className="text-xs font-medium" style={{ color: "#0E8F68" }}>{t("plan.dayStudied")}</p>
-                  <p className="text-base font-bold leading-tight" style={{ color: "#0E8F68" }}>
+                  <p className="text-xs font-medium" style={{ color: "var(--bt-accent-text)" }}>{t("plan.dayStudied")}</p>
+                  <p className="text-base font-bold leading-tight" style={{ color: "var(--bt-accent-text)" }}>
                     {formatMinutesShort(totalStudiedSecs)}
                   </p>
                 </div>
                 {totalTargetMin > 0 && (
                   <div className="text-right">
-                    <p className="text-xs" style={{ color: "#0E8F68" }}>/ {totalTargetMin} min</p>
-                    <p className="text-xs font-bold" style={{ color: "#0E8F68" }}>
+                    <p className="text-xs" style={{ color: "var(--bt-accent-text)" }}>/ {totalTargetMin} min</p>
+                    <p className="text-xs font-bold" style={{ color: "var(--bt-accent-text)" }}>
                       {Math.min(100, Math.round(totalStudiedSecs / 60 / totalTargetMin * 100))}%
                     </p>
                   </div>
@@ -789,8 +792,8 @@ function DayDetailModal() {
                     : 0;
                   const recurLabel  = recurrenceBadgeLabel(o, t, lang);
                   const statusLabel = o.done ? t("plan.dayDone") : isPast ? t("plan.dayOverdue") : t("plan.dayTodo");
-                  const statusColor = o.done ? "#0E8F68" : isPast ? "#DC2626" : "var(--bt-text-3)";
-                  const statusBg    = o.done ? "#EAFBF4"  : isPast ? "#FEF2F2"  : "var(--bt-subtle)";
+                  const statusColor = o.done ? "var(--bt-accent-text)" : isPast ? "#DC2626" : "var(--bt-text-3)";
+                  const statusBg    = o.done ? "var(--bt-accent-bg)"  : isPast ? "#FEF2F2"  : "var(--bt-subtle)";
                   const isEditing   = editingObjId === o.id;
 
                   return (
@@ -821,7 +824,7 @@ function DayDetailModal() {
                               {o.scheduled_time && <span className="text-xs font-medium" style={{ color: "var(--bt-text-3)" }}>· {o.scheduled_time}</span>}
                               {o.target_minutes > 0 && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>· {o.target_minutes} min</span>}
                               {recurLabel && <span className="text-xs font-semibold" style={{ color: "var(--bt-text-4)" }}>· ↻ {recurLabel}</span>}
-                              {realSecs > 0 && <span className="text-xs font-semibold" style={{ color: "#0E8F68" }}>· {formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
+                              {realSecs > 0 && <span className="text-xs font-semibold" style={{ color: "var(--bt-accent-text)" }}>· {formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
                             </div>
                             {o.target_minutes > 0 && realSecs > 0 && (
                               <div className="mt-1.5 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
@@ -1007,7 +1010,7 @@ function MonthView() {
           <div key={d}
             className="py-3 text-center text-xs font-semibold uppercase tracking-wider"
             style={{
-              color: i >= 5 ? "var(--bt-accent-dark)" : "var(--bt-text-3)",
+              color: i >= 5 ? "var(--bt-accent-text)" : "var(--bt-text-3)",
               backgroundColor: i >= 5 ? "var(--bt-accent-bg)" : "transparent",
             }}>
             {d}
@@ -1063,9 +1066,9 @@ function MonthView() {
                   {/* Day number */}
                   <span className="relative inline-flex w-6 h-6 items-center justify-center rounded-full text-xs font-bold mb-1"
                     style={isToday
-                      ? { backgroundColor: "#14B885", color: "#fff" }
+                      ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }
                       : isSel
-                      ? { backgroundColor: "rgba(20,184,133,0.15)", color: "#0E8F68" }
+                      ? { backgroundColor: "rgba(20,184,133,0.15)", color: "var(--bt-accent-text)" }
                       : { color: isPast ? "var(--bt-text-3)" : "var(--bt-text-1)" }}>
                     {d.getDate()}
                   </span>
@@ -1151,8 +1154,8 @@ function TimeGrid({ days }) {
               onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = "transparent"; }}>
               <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}</p>
               <span className="mt-0.5 inline-flex w-7 h-7 items-center justify-center rounded-full text-sm font-num font-bold tabular-nums"
-                style={isToday ? { backgroundColor: "#14B885", color: "#fff" }
-                  : isSel ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }
+                style={isToday ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }
+                  : isSel ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }
                   : { color: "var(--bt-text-1)" }}>
                 {d.getDate()}
               </span>
@@ -1245,7 +1248,7 @@ function QuickAddChip({ children, accent }) {
   return (
     <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
       style={accent
-        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
+        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }
         : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
       {children}
     </span>

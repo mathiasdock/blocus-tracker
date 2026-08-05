@@ -140,7 +140,7 @@ function StatCard({ label, value, accent, sub, dot, delta }) {
       <div className="flex items-center gap-1.5 mt-1">
         <p className="text-[11px] font-medium truncate" style={{ color: "var(--bt-text-3)" }}>{label}</p>
         {delta && (
-          <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color: delta.positive ? "#0E8F68" : "#DC2626" }}>
+          <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color: delta.positive ? "var(--bt-accent-text)" : "#DC2626" }}>
             {delta.sign}{delta.abs}%
           </span>
         )}
@@ -190,7 +190,7 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
   ];
   const alerts = buildEgressAlerts(data, t);
   const alertStyles = {
-    ok: { bg: "var(--bt-accent-bg)", color: "#0E8F68", border: "var(--bt-accent-border)" },
+    ok: { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "var(--bt-accent-border)" },
     warn: { bg: "#FFF7ED", color: "#C2410C", border: "#FED7AA" },
     critical: { bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
   };
@@ -356,7 +356,7 @@ function StorageCleanupPanel({
 
       {result && (
         <div className="rounded-2xl px-3 py-2 mb-4 text-xs"
-          style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68", border: "1px solid var(--bt-accent-border)" }}>
+          style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }}>
           <span className="font-semibold">{t("admin.cleanupDeleted")} : {result.deletedCount}</span>
           <span> · {formatBytes(result.deletedBytes)}</span>
           {result.skippedCount > 0 && <span> · {t("admin.cleanupSkipped")} : {result.skippedCount}</span>}
@@ -421,7 +421,7 @@ function StorageCleanupPanel({
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className="text-[10px] font-bold uppercase rounded-full px-2 py-0.5"
                         style={candidate.safeDelete
-                          ? { backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }
+                          ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }
                           : { backgroundColor: "#FFF7ED", color: "#C2410C" }}>
                         {candidate.safeDelete ? t("admin.cleanupSafe") : t("admin.cleanupDmExcluded")}
                       </span>
@@ -661,7 +661,7 @@ function SendMessageModal({ user, adminId, onClose }) {
         <h2 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>Message à @{user.pseudo}</h2>
         <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>Envoyé comme message privé depuis ton compte admin.</p>
         {done ? (
-          <p className="text-sm font-medium py-4 text-center" style={{ color: "var(--bt-accent-dark)" }}>Message envoyé ✓</p>
+          <p className="text-sm font-medium py-4 text-center" style={{ color: "var(--bt-accent-text)" }}>Message envoyé ✓</p>
         ) : (
           <form onSubmit={send} className="space-y-3">
             <textarea className="input" rows={4} maxLength={1000} autoFocus value={text}
@@ -733,9 +733,9 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-bold text-lg" style={{ color: "var(--bt-text-1)" }}>@{user.pseudo}</span>
                 {levelInfo && <LevelPill level={levelInfo.current.level} size="sm" solid />}
-                {user.is_admin && <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>Admin</span>}
+                {user.is_admin && <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>Admin</span>}
                 {user.locked && <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>Suspendu</span>}
-                {isOnline && <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />En ligne</span>}
+                {isOnline && <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}><span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />En ligne</span>}
               </div>
               {displayName(user) !== user.pseudo && <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-2)" }}>{displayName(user)}</p>}
               <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>
@@ -804,7 +804,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
                         <p className="text-xs font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{s.courses?.name || "Session libre"}</p>
                         <p className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>{new Date(s.started_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</p>
                       </div>
-                      <span className="text-xs font-semibold shrink-0 ml-2" style={{ color: "#14B885" }}>{formatMinutesShort(s.duration_seconds)}</span>
+                      <span className="text-xs font-semibold shrink-0 ml-2" style={{ color: "var(--bt-accent-text)" }}>{formatMinutesShort(s.duration_seconds)}</span>
                     </div>
                   ))}
                 </div>
@@ -817,7 +817,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
           <button onClick={onEdit} className="btn-primary flex-1 min-w-[100px]">Éditer</button>
           <button onClick={() => onMessage(user)} className="btn flex-1 min-w-[100px]" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}>Message</button>
           {!isSelf && !user.is_admin && (
-            <button onClick={toggleLock} disabled={locking} className="btn flex-1 min-w-[100px]" style={{ backgroundColor: user.locked ? "var(--bt-accent-bg)" : "#FFF7ED", color: user.locked ? "#0E8F68" : "#C2410C", border: `1px solid ${user.locked ? "var(--bt-accent-border)" : "#FED7AA"}` }}>
+            <button onClick={toggleLock} disabled={locking} className="btn flex-1 min-w-[100px]" style={{ backgroundColor: user.locked ? "var(--bt-accent-bg)" : "#FFF7ED", color: user.locked ? "var(--bt-accent-text)" : "#C2410C", border: `1px solid ${user.locked ? "var(--bt-accent-border)" : "#FED7AA"}` }}>
               {locking ? "…" : user.locked ? "Réactiver" : "Suspendre"}
             </button>
           )}
@@ -1285,7 +1285,7 @@ export default function Admin() {
                   </ChartCard>
 
                   <ChartCard title="Activité en direct" subtitle={liveStatus === "live" ? "Temps réel connecté" : liveStatus === "offline" ? "Temps réel indisponible" : "Connexion…"}
-                    right={<span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: liveStatus === "live" ? "#0E8F68" : "var(--bt-text-3)" }}><span className="w-2 h-2 rounded-full" style={{ backgroundColor: liveStatus === "live" ? "#22c55e" : "#94908B", animation: liveStatus === "live" ? "pulse 1.5s infinite" : "none" }} />{liveStatus === "live" ? "LIVE" : "—"}</span>}>
+                    right={<span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: liveStatus === "live" ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}><span className="w-2 h-2 rounded-full" style={{ backgroundColor: liveStatus === "live" ? "#22c55e" : "#94908B", animation: liveStatus === "live" ? "pulse 1.5s infinite" : "none" }} />{liveStatus === "live" ? "LIVE" : "—"}</span>}>
                     <div className="-mx-5 -mb-5 max-h-[220px] overflow-y-auto">
                       {activity.length === 0 ? <p className="px-5 py-6 text-sm" style={{ color: "var(--bt-text-3)" }}>En attente d'activité…</p>
                         : activity.slice(0, 12).map(ev => <ActivityRow key={ev.id} ev={ev} />)}
@@ -1476,7 +1476,7 @@ export default function Admin() {
             {/* ═══════════ ACTIVITY ═══════════ */}
             {section === "activity" && (
               <ChartCard title="Flux d'activité" subtitle="Comptes, sessions, posts, messages, badges, suggestions"
-                right={<span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: liveStatus === "live" ? "#0E8F68" : "var(--bt-text-3)" }}><span className="w-2 h-2 rounded-full" style={{ backgroundColor: liveStatus === "live" ? "#22c55e" : "#94908B" }} />{liveStatus === "live" ? "Temps réel" : liveStatus === "offline" ? "Hors ligne" : "Connexion…"}</span>}>
+                right={<span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: liveStatus === "live" ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}><span className="w-2 h-2 rounded-full" style={{ backgroundColor: liveStatus === "live" ? "#22c55e" : "#94908B" }} />{liveStatus === "live" ? "Temps réel" : liveStatus === "offline" ? "Hors ligne" : "Connexion…"}</span>}>
                 <div className="-mx-5 -mb-5 max-h-[70vh] overflow-y-auto">
                   {activity.length === 0 ? <p className="px-5 py-8 text-sm" style={{ color: "var(--bt-text-3)" }}>En attente d'activité…</p>
                     : activity.map(ev => <ActivityRow key={ev.id} ev={ev} />)}
@@ -1536,7 +1536,7 @@ export default function Admin() {
                                   <div className="flex items-center gap-1.5">
                                     <span className="font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>@{u.pseudo}</span>
                                     {isStudyingLive(u.studying_since) && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: "#22c55e" }} />}
-                                    {u.is_admin && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>A</span>}
+                                    {u.is_admin && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>A</span>}
                                     {u.locked && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>⏸</span>}
                                   </div>
                                   {displayName(u) !== u.pseudo && <span className="text-[11px] truncate block" style={{ color: "var(--bt-text-3)" }}>{displayName(u)}</span>}
@@ -1547,7 +1547,7 @@ export default function Admin() {
                             <td className="py-2.5 pr-3 whitespace-nowrap text-xs hidden md:table-cell" style={{ color: "var(--bt-text-3)" }}>{new Date(u.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" })}</td>
                             <td className="py-2.5 pr-3 text-xs whitespace-nowrap" style={{ color: stat?.lastAt ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{relDate(stat?.lastAt)}</td>
                             <td className="py-2.5 pr-3 text-xs hidden lg:table-cell" style={{ color: stat?.totalSecs ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{stat?.totalSecs ? formatMinutesShort(stat.totalSecs) : "—"}</td>
-                            <td className="py-2.5 pr-3 text-xs hidden sm:table-cell">{referralCounts[u.id] ? <span className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>{referralCounts[u.id]}</span> : <span style={{ color: "var(--bt-text-4)" }}>—</span>}</td>
+                            <td className="py-2.5 pr-3 text-xs hidden sm:table-cell">{referralCounts[u.id] ? <span className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>{referralCounts[u.id]}</span> : <span style={{ color: "var(--bt-text-4)" }}>—</span>}</td>
                             <td className="py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                               <button onClick={() => setDetailUser(u)} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>Ouvrir</button>
                             </td>
@@ -1646,7 +1646,7 @@ export default function Admin() {
                     {announcements.length === 0 ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("admin.annEmpty")}</p> : (
                       <ul className="space-y-2">
                         {announcements.map(a => {
-                          const ts = { new: { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: t("ann.typeNew") }, info: { bg: "rgba(3,105,161,0.14)", color: "#0369a1", label: t("ann.typeInfo") }, important: { bg: "rgba(220,38,38,0.14)", color: "#DC2626", label: t("ann.typeImportant") } }[a.type] || { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", label: a.type };
+                          const ts = { new: { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", label: t("ann.typeNew") }, info: { bg: "rgba(3,105,161,0.14)", color: "#0369a1", label: t("ann.typeInfo") }, important: { bg: "rgba(220,38,38,0.14)", color: "#DC2626", label: t("ann.typeImportant") } }[a.type] || { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", label: a.type };
                           return (
                             <li key={a.id} className="rounded-xl p-3 flex items-start gap-3" style={{ backgroundColor: "var(--bt-subtle)", opacity: a.is_active ? 1 : 0.55 }}>
                               <div className="min-w-0 flex-1">
@@ -1659,7 +1659,7 @@ export default function Admin() {
                                 <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-4)" }}>{new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</p>
                               </div>
                               <div className="flex flex-col gap-1.5 shrink-0">
-                                <button onClick={() => toggleAnnouncement(a)} className="text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: a.is_active ? "var(--bt-border)" : "var(--bt-accent-bg)", color: a.is_active ? "var(--bt-text-2)" : "#0E8F68" }}>{a.is_active ? t("admin.annDeactivate") : t("admin.annActivate")}</button>
+                                <button onClick={() => toggleAnnouncement(a)} className="text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: a.is_active ? "var(--bt-border)" : "var(--bt-accent-bg)", color: a.is_active ? "var(--bt-text-2)" : "var(--bt-accent-text)" }}>{a.is_active ? t("admin.annDeactivate") : t("admin.annActivate")}</button>
                                 <button onClick={() => deleteAnnouncement(a)} className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>{t("admin.annDelete")}</button>
                               </div>
                             </li>
@@ -1676,7 +1676,7 @@ export default function Admin() {
                     {feedback.length === 0 ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Aucune suggestion.</p> : (
                       <ul className="space-y-2">
                         {feedback.map(f => {
-                          const sc = { new: { bg: "var(--bt-accent-bg)", color: "#0E8F68", label: "Nouveau" }, read: { bg: "rgba(3,105,161,0.14)", color: "#0369a1", label: "Lu" }, done: { bg: "var(--bt-border)", color: "var(--bt-text-3)", label: "Traité" } }[f.status] || { bg: "var(--bt-subtle)", color: "var(--bt-text-3)", label: f.status };
+                          const sc = { new: { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", label: "Nouveau" }, read: { bg: "rgba(3,105,161,0.14)", color: "#0369a1", label: "Lu" }, done: { bg: "var(--bt-border)", color: "var(--bt-text-3)", label: "Traité" } }[f.status] || { bg: "var(--bt-subtle)", color: "var(--bt-text-3)", label: f.status };
                           return (
                             <li key={f.id} className="rounded-xl p-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
                               <div className="flex items-start justify-between gap-3">
@@ -1744,7 +1744,7 @@ function PeriodPicker({ period, setPeriod }) {
   return (
     <div className="flex gap-0.5 p-0.5 rounded-xl" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
       {[[7, "7j"], [30, "30j"], [90, "90j"]].map(([v, label]) => (
-        <button key={v} onClick={() => setPeriod(v)} className="px-3 py-1 rounded-lg text-xs font-semibold transition-colors" style={period === v ? { backgroundColor: "#14B885", color: "#fff" } : { color: "var(--bt-text-3)" }}>{label}</button>
+        <button key={v} onClick={() => setPeriod(v)} className="px-3 py-1 rounded-lg text-xs font-semibold transition-colors" style={period === v ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" } : { color: "var(--bt-text-3)" }}>{label}</button>
       ))}
     </div>
   );

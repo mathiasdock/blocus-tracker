@@ -16,9 +16,16 @@ export default function LevelPill({ level, size = "xs", solid = false }) {
     ? { padX: 7,   padY: 2,    fs: 11, gap: 3 }
     : { padX: 5.5, padY: 1.5,  fs: 10, gap: 2.5 };
 
-  const bg = solid ? "#14B885" : "rgba(20,184,133,0.14)";
-  const color = solid ? "#fff" : "#0E8F68";
-  const border = solid ? "transparent" : "rgba(20,184,133,0.32)";
+  // 10-11px : du petit texte, donc 4,5:1 exiges dans les deux variantes.
+  // En plein, le blanc sur le vert vif ne faisait que 2,55:1 — l'aplat descend
+  // d'un cran pour porter son blanc. En discret, #0E8F68 tombait a 3,8:1.
+  // Le fond discret etait un vert translucide : sa valeur reelle dependait de
+  // la surface derriere, et sur --bt-subtle le texte retombait a 4,27:1.
+  // --bt-accent-bg est le meme vert pale, mais opaque et theme-aware : 4,97:1
+  // partout, quelle que soit la carte qui porte la pastille.
+  const bg = solid ? "var(--bt-accent-fill)" : "var(--bt-accent-bg)";
+  const color = solid ? "var(--bt-accent-on-fill)" : "var(--bt-accent-text)";
+  const border = solid ? "transparent" : "var(--bt-accent-border)";
 
   return (
     <span
@@ -40,7 +47,9 @@ export default function LevelPill({ level, size = "xs", solid = false }) {
       }}
       title={`${t("xp.level")} ${level}`}
     >
-      <span style={{ opacity: 0.85 }}>{t("xp.level")}</span>
+      {/* Pas d'opacite : a 0,85 le mot « Niv. » retombait a 3,4:1. La
+          hierarchie passe deja par la taille et la graisse du chiffre. */}
+      <span>{t("xp.level")}</span>
       <span>{level}</span>
     </span>
   );

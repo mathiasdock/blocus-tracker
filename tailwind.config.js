@@ -26,6 +26,10 @@ module.exports = {
           DEFAULT: "#14B885",
           dark:    "#0E8F68",
           soft:    "#EAFBF4",
+          // Aplat qui porte du blanc : 4,99:1, la ou `DEFAULT` ne fait que
+          // 2,55:1. Miroir de --bt-accent-fill dans globals.css — un aplat ne
+          // bascule pas avec le theme, les deux valeurs restent identiques.
+          fill:    "#0D7F5C",
         },
         bt: {
           bg:       "#FAF9F7",

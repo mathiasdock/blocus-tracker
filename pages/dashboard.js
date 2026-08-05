@@ -1049,7 +1049,7 @@ export default function Dashboard() {
             <Link href="/feed" className="btn-ghost px-3 py-2 text-xs">{t("guest.discoverSocial")}</Link>
             <span className="hidden flex-1 sm:block" />
             <Link href="/signup" className="btn-primary px-3 py-2 text-xs">{t("guest.keepProgress")}</Link>
-            <Link href="/login" className="px-2 py-2 text-xs font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+            <Link href="/login" className="px-2 py-2 text-xs font-semibold" style={{ color: "var(--bt-accent-text)" }}>
               {t("guest.signIn")}
             </Link>
           </div>
@@ -1151,8 +1151,8 @@ export default function Dashboard() {
               const d = daysUntilExam(c.exam_date);
               return (
                 <span className="text-[11px] px-2.5 py-1 rounded-full font-bold shrink-0 whitespace-nowrap" style={{
-                  backgroundColor: d <= 0 ? "#FEF2F2" : d <= 7 ? "#FEF3C7" : "#EAFBF4",
-                  color: d <= 0 ? "#DC2626" : d <= 7 ? "#D97706" : "#0E8F68",
+                  backgroundColor: d <= 0 ? "#FEF2F2" : d <= 7 ? "#FEF3C7" : "var(--bt-accent-bg)",
+                  color: d <= 0 ? "#B91C1C" : d <= 7 ? "#92400E" : "var(--bt-accent-text)",
                 }}>
                   {d === 0 ? t("exam.today") : d < 0 ? t("exam.passed") : `J-${d}`}
                 </span>
@@ -1206,7 +1206,7 @@ export default function Dashboard() {
                       onClick={() => { setPomoWorkMin(m); pomoHandled.current = false; }}
                       className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
                       style={pomoWorkMin === m
-                        ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 2px 6px rgba(20,184,133,0.25)" }
+                        ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)", boxShadow: "0 2px 6px rgba(20,184,133,0.25)" }
                         : { backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
                       {m} min
                     </button>
@@ -1294,7 +1294,7 @@ export default function Dashboard() {
                     aria-pressed={sessionGoalMin === m}
                     className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all bt-press"
                     style={sessionGoalMin === m
-                      ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 2px 8px rgba(20,184,133,0.25)" }
+                      ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)", boxShadow: "0 2px 8px rgba(20,184,133,0.25)" }
                       : { backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
                     {label}
                   </button>
@@ -1332,7 +1332,7 @@ export default function Dashboard() {
                   <button
                     className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
                     style={{
-                      backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)",
+                      backgroundImage: "linear-gradient(165deg, var(--bt-accent-fill), var(--bt-accent-fill-deep) 115%)",
                       color: "#fff",
                       boxShadow: "0 4px 16px rgba(20,184,133,0.30)",
                       opacity: (!courseId && !pomodoro) ? 0.45 : 1,
@@ -1461,9 +1461,9 @@ export default function Dashboard() {
                             onClick={() => updateSession(s)}
                             title={t("common.save")}
                             className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                            style={{ color: "#14B885" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "#0E8F68"}
-                            onMouseLeave={e => e.currentTarget.style.color = "#14B885"}>
+                            style={{ color: "var(--bt-accent-text)" }}
+                            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-accent-text)"}
+                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-accent-dark)"}>
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="20 6 9 17 4 12"/>
                             </svg>
@@ -1633,7 +1633,7 @@ export default function Dashboard() {
                 </span>
               </div>
             )}
-            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-accent)" }}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-ink-accent)" }}>
               {t("dash.today")}
             </p>
             <div className="font-num font-bold tabular-nums mb-3"
@@ -1678,8 +1678,10 @@ export default function Dashboard() {
                   { label: t("dash.recBestStreak"), value: bestStreak, suffix: ` ${t("dash.daysShort")}` },
                 ].map(({ label, value, format, suffix }) => (
                   <div key={label}>
+                    {/* Pas d'opacite sur l'intitule : a 0,8 ces 10px
+                        retombaient a 2,89:1 sur le fond ink eclairci. */}
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
-                      style={{ color: "var(--bt-ink-muted)", opacity: 0.8 }}>{label}</p>
+                      style={{ color: "var(--bt-ink-muted)" }}>{label}</p>
                     <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-ink-text)" }}>
                       <AnimatedNumber value={value} format={format} suffix={suffix} />
                     </p>
@@ -1774,8 +1776,8 @@ export default function Dashboard() {
                         <span className="truncate min-w-0 font-medium" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
                         {c.exam_date && (
                           <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap" style={{
-                            backgroundColor: examDays <= 0 ? "#FEF2F2" : examDays <= 7 ? "#FEF3C7" : "#EAFBF4",
-                            color: examDays <= 0 ? "#DC2626" : examDays <= 7 ? "#92400E" : "#0E8F68",
+                            backgroundColor: examDays <= 0 ? "#FEF2F2" : examDays <= 7 ? "#FEF3C7" : "var(--bt-accent-bg)",
+                            color: examDays <= 0 ? "#B91C1C" : examDays <= 7 ? "#92400E" : "var(--bt-accent-text)",
                           }}>
                             {examDays === 0 ? t("exam.today") : examDays < 0 ? t("exam.passed") : `J-${examDays}`}
                           </span>
@@ -1813,7 +1815,7 @@ export default function Dashboard() {
                       </span>
                       <button onClick={(e) => { e.stopPropagation(); setChecklistCourse(c); }}
                         className="text-[11px] font-semibold px-2 py-0.5 rounded-lg transition-colors"
-                        style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-border)" }}>
+                        style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-border)" }}>
                         {t("checklist.button")}
                       </button>
                     </div>
@@ -1837,7 +1839,7 @@ export default function Dashboard() {
                           }}
                         />
                         <button onClick={(e) => { e.stopPropagation(); updateExamDate(c.id, examDateInput); setEditingExamId(null); }}
-                          title={t("common.save")} style={{ color: "#14B885" }}>
+                          title={t("common.save")} style={{ color: "var(--bt-accent-dark)" }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
@@ -2043,8 +2045,8 @@ export default function Dashboard() {
             className="min-w-[220px] max-w-[280px] lg:min-w-[340px] lg:max-w-[400px]"
             style={{
               position: "relative",
-              backgroundColor: "#0E8F68",
-              color: "#fff",
+              backgroundColor: "var(--bt-accent-fill)",
+              color: "var(--bt-accent-on-fill)",
               borderRadius: 18,
               boxShadow: "0 8px 32px rgba(14,143,104,0.35)",
             }}>

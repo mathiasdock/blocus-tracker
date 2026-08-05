@@ -79,7 +79,7 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2
         style={{
           backgroundColor: mine ? "#fff" : "var(--bt-accent-bg)",
           border: mine ? "none" : "1px solid var(--bt-accent-border)",
-          color: mine ? "#0E8F68" : "var(--bt-accent-dark)",
+          color: mine ? "var(--bt-accent-text)" : "var(--bt-accent-text)",
         }}>
         {t("attachment.viewImage")}
       </button>
@@ -1087,7 +1087,7 @@ export default function Messages() {
   function chronoStatusChip(status) {
     if (status === "accepted")
       return {
-        bg: "#EAFBF4", color: "#0E8F68",
+        bg: "var(--bt-accent-bg)", color: "var(--bt-accent-text)",
         icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
       };
     if (status === "declined")
@@ -1116,7 +1116,7 @@ export default function Messages() {
         width: size, height: size, borderRadius: "50%", flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: size * 0.38, fontWeight: 700,
-        backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)",
+        backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)",
         border: "1.5px solid var(--bt-accent-border)",
       }}>
         {(group?.name || "?").slice(0, 1).toUpperCase()}
@@ -1230,7 +1230,7 @@ export default function Messages() {
                       )}
                     </>
                   )}
-                  {socialMsg && <p className="px-4 py-2 text-xs" style={{ color: "#0E8F68", borderTop: "1px solid var(--bt-border)" }}>{socialMsg}</p>}
+                  {socialMsg && <p className="px-4 py-2 text-xs" style={{ color: "var(--bt-accent-text)", borderTop: "1px solid var(--bt-border)" }}>{socialMsg}</p>}
                 </div>
               )}
             </div>
@@ -1243,7 +1243,7 @@ export default function Messages() {
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
                   <span className="flex items-center gap-2 font-medium" style={{ color: "var(--bt-text-1)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--bt-accent-dark)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--bt-accent-text)" }}>
                       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M19 8v6"/>
                     </svg>
                     {t("social.requestsCompact").replace("{n}", String(incoming.length + outgoing.length))}
@@ -1348,7 +1348,7 @@ export default function Messages() {
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {c.lastAt && <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{timeAgo(c.lastAt, lang)}</span>}
                         {c.unread > 0 && (
-                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-red-500 text-white rounded-full px-1 leading-none">
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-red-600 text-white rounded-full px-1 leading-none">
                             {c.unread > 99 ? "99+" : c.unread}
                           </span>
                         )}
@@ -1363,7 +1363,7 @@ export default function Messages() {
             <div className="p-2.5 shrink-0" style={{ borderTop: "1px solid var(--bt-border)" }}>
               <button onClick={() => setShowCreate(true)}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl transition-colors"
-                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-border)" }}>
+                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-border)" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
@@ -1401,7 +1401,7 @@ export default function Messages() {
                               <Avatar url={s.avatar_url} pseudo={displayName(s)} size={28} />
                               <span className="flex-1 min-w-0">
                                 <span className="block truncate text-sm" style={{ color: "var(--bt-text-1)" }}>{displayName(s)}</span>
-                                {reason && <span className="block truncate text-[10px] font-semibold" style={{ color: "#14B885" }}>{reason}</span>}
+                                {reason && <span className="block truncate text-[10px] font-semibold" style={{ color: "var(--bt-accent-text)" }}>{reason}</span>}
                               </span>
                             </button>
                             <button onClick={() => addFriend(s.id)} className="btn-primary text-xs px-2.5 py-1 shrink-0">{t("friends.addBtn")}</button>
@@ -1470,7 +1470,7 @@ export default function Messages() {
                       <p className="font-medium text-sm truncate" style={{ color: "var(--bt-text-1)" }}>{displayName(activeFriend.profile)}</p>
                       <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
                         @{activeFriend.profile.pseudo}
-                        {isStudyingLive(activeFriend.profile.studying_since) && <span style={{ color: "#0E8F68" }}> · {t("social.onlineNow")}</span>}
+                        {isStudyingLive(activeFriend.profile.studying_since) && <span style={{ color: "var(--bt-accent-text)" }}> · {t("social.onlineNow")}</span>}
                       </p>
                     </button>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1497,7 +1497,7 @@ export default function Messages() {
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className="max-w-[75%] px-3.5 py-2.5 text-sm"
                         style={mine
-                          ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                          ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)", borderRadius: "18px 18px 6px 18px" }
                           : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                         {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                         {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
@@ -1599,8 +1599,8 @@ export default function Messages() {
                     onClick={() => setShowChronoStart(v => !v)}
                     className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
                     style={{
-                      backgroundColor: showChronoStart ? "#EAFBF4" : "var(--bt-subtle)",
-                      color: showChronoStart ? "#0E8F68" : "var(--bt-text-2)",
+                      backgroundColor: showChronoStart ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
+                      color: showChronoStart ? "var(--bt-accent-text)" : "var(--bt-text-2)",
                       border: "1px solid var(--bt-border)",
                     }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1647,7 +1647,7 @@ export default function Messages() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
-                        style={{ color: groupChrono.status === "paused" ? "#ef4444" : "var(--bt-accent-dark)" }}>
+                        style={{ color: groupChrono.status === "paused" ? "#ef4444" : "var(--bt-accent-text)" }}>
                         ⏱ {t("groups.chronoTitle")}
                         {groupChrono.note && <span className="font-normal ml-1 normal-case tracking-normal">— {groupChrono.note}</span>}
                       </p>
@@ -1693,7 +1693,7 @@ export default function Messages() {
                           )}
                           <button onClick={finishGroupChrono}
                             className="text-xs px-2.5 py-1.5 rounded-xl font-semibold"
-                            style={{ backgroundColor: "#14B885", color: "#fff" }}>
+                            style={{ backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }}>
                             {t("groups.chronoFinish")}
                           </button>
                           {amCreator && (
@@ -1766,7 +1766,7 @@ export default function Messages() {
                         </span>
                         <div className="rounded-2xl px-3.5 py-2.5 text-sm"
                           style={mine
-                            ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                            ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)", borderRadius: "18px 18px 6px 18px" }
                             : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                           {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                           {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
@@ -1782,7 +1782,7 @@ export default function Messages() {
                           {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
                             <a href={attachmentUrl} target="_blank" rel="noreferrer"
                               className="mt-2 inline-flex items-center gap-2 underline"
-                              style={{ color: mine ? "#fff" : "#0E8F68" }}>
+                              style={{ color: mine ? "#fff" : "var(--bt-accent-text)" }}>
                               <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                             </a>
                           )}
@@ -1915,7 +1915,7 @@ export default function Messages() {
                       </span>
                       {m.role === "admin" && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                          style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                          style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                           admin
                         </span>
                       )}
@@ -1956,7 +1956,7 @@ export default function Messages() {
                         </span>
                         <button onClick={() => inviteUser(p.id)} disabled={inviting === p.id}
                           className="text-xs font-semibold px-3 py-1 rounded-xl shrink-0"
-                          style={{ backgroundColor: "#14B885", color: "#fff" }}>
+                          style={{ backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }}>
                           {inviting === p.id ? "…" : t("groups.invite")}
                         </button>
                       </div>
@@ -2039,7 +2039,7 @@ export default function Messages() {
                         </span>
                         <button onClick={() => inviteToNewGroup(p.id)}
                           className="text-xs font-semibold px-3 py-1 rounded-lg shrink-0"
-                          style={{ backgroundColor: "#14B885", color: "#fff" }}>
+                          style={{ backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }}>
                           {t("groups.invite")}
                         </button>
                       </div>

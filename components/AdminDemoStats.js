@@ -274,7 +274,7 @@ export default function AdminDemoStats({ userId }) {
   }
 
   const statusColor = status?.kind === "error" ? "#CB5A4E"
-    : status?.kind === "ok" ? "#0E8F68" : "var(--bt-text-3)";
+    : status?.kind === "ok" ? "var(--bt-accent-text)" : "var(--bt-text-3)";
 
   return (
     <div className="card p-5">

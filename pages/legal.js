@@ -48,7 +48,7 @@ export default function Legal() {
                 <button key={d.id} onClick={() => selectTab(d.id)}
                   className="px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors"
                   style={isActive
-                    ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 1px 4px rgba(20,184,133,0.3)" }
+                    ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)", boxShadow: "0 1px 4px rgba(20,184,133,0.3)" }
                     : { color: "var(--bt-text-2)" }}>
                   {t(TAB_KEYS[d.id])}
                 </button>

@@ -97,7 +97,7 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
           <div className="mb-4">
             <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--bt-text-2)" }}>
               <span className="font-medium">{done}/{total} {t("checklist.tasks")}</span>
-              <span className="font-semibold" style={{ color: "#14B885" }}>{pct}%</span>
+              <span className="font-semibold" style={{ color: "var(--bt-accent-text)" }}>{pct}%</span>
             </div>
             <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
               <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: "#14B885" }} />

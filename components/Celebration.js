@@ -99,11 +99,14 @@ export default function Celebration({ data, onClose }) {
               width: 88,
               height: 88,
               borderRadius: 28,
-              background: "linear-gradient(135deg, #0E8F68 0%, #14B885 55%, #22E4A4 100%)",
+              // Porte « Niveau » en 11px et le numero en 40px, tous deux blancs.
+              // L'ancien degre montait jusqu'a #22E4A4, ou le blanc tombait a
+              // 1,65:1 — meme le seuil 3:1 du grand texte n'etait pas tenu.
+              background: "linear-gradient(135deg, var(--bt-accent-fill-deep) 0%, var(--bt-accent-fill) 55%, #0D8562 100%)",
               boxShadow: "0 8px 32px rgba(20,184,133,0.55)",
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", lineHeight: 1 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--bt-accent-on-fill)", lineHeight: 1 }}>
               {t("xp.level")}
             </span>
             <span className="font-num tabular-nums" style={{ fontSize: 40, fontWeight: 800, color: "#fff", lineHeight: 1.1 }}>
@@ -121,7 +124,7 @@ export default function Celebration({ data, onClose }) {
         </p>
 
         {/* Sous-titre (nom du niveau / libellé du palier) */}
-        <p className="mt-1 text-base font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
+        <p className="mt-1 text-base font-semibold" style={{ color: "var(--bt-accent-text)" }}>
           {subtitle}
         </p>
 

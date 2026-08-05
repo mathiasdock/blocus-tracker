@@ -34,6 +34,29 @@ html {
   --bt-accent-dark:   #0E8F68;
   --bt-accent-bg:     #EAFBF4;
   --bt-accent-border: #C6EED9;
+  /* `--bt-accent-dark` est calibre pour des ICONES et des aplats (3:1 exiges).
+     En petit texte il ne tient pas : 3,70:1 sur le pire fond clair, alors que
+     le seuil AA du petit texte est 4,5:1. Il servait pourtant de couleur de
+     texte a ~50 endroits — les pastilles « J-33 » des cours, les boutons
+     « Checklist », l'intitule « Chrono » de la nav.
+     Des qu'un MOT est ecrit en vert, c'est ce ton-ci qu'il faut.
+     Comme pour l'echelle de gris, la valeur est calee sur le PIRE fond, qui
+     n'est pas `--bt-surface` mais `--bt-subtle` (#F7F3EF) — et il faut aussi
+     tenir sur `--bt-accent-bg` (#EAFBF4), le fond des pastilles vertes.
+     4,82:1 sur --bt-subtle · 4,97 sur --bt-accent-bg · 5,25 sur --bt-surface. */
+  --bt-accent-text:   #0C7A59;
+  /* Aplats de marque qui portent du BLANC : pastilles de niveau, compteurs de
+     notifications, bouton primaire, chrono flottant, tuile de niveau.
+     Le vert vif n'en est pas capable — blanc sur #14B885 = 2,55:1, et le
+     degrade descendait jusqu'a 1,65:1 sur son stop clair. L'encre profonde en
+     sens inverse ne marchait pas non plus : sur le stop sombre (#0E8F68) elle
+     ne fait que 3,60:1. Seul un vert plus profond tient le blanc partout.
+     Un aplat est son propre fond : ces tons ne basculent PAS avec le theme.
+     Le vert vif reste intact partout ou il ne porte pas de texte — barres de
+     progression, points, bordures, confettis. */
+  --bt-accent-fill:      #0D7F5C;  /* blanc dessus : 4,99:1 */
+  --bt-accent-fill-deep: #0A6B4E;  /* blanc dessus : 6,51:1 — stop sombre */
+  --bt-accent-on-fill:   #FFFFFF;
   --bt-shadow:        rgba(31,26,23,0.055);
   --bt-shimmer:       rgba(255,255,255,0.62);
   --bt-mobile-bg:     rgba(255,253,251,0.95);
@@ -44,6 +67,10 @@ html {
   --bt-ink-soft:      #114134;
   --bt-ink-text:      #F2FBF7;
   --bt-ink-muted:     #8FD4B8;
+  /* L'accent tel qu'il s'ecrit SUR la surface ink. Le vert de marque n'y tient
+     pas : #14B885 sur le fond ink eclairci ne fait que 3,25:1. Ce vert-ci est
+     deja celui des confettis et du reflet du hero — 5,02:1 au pire. */
+  --bt-ink-accent:    #22E4A4;
   --bt-ink-border:    rgba(255,255,255,0.08);
   --bt-scrollbar:     #D0C9C3;
   --bt-scrollbar-h:   #B8AEA6;
@@ -65,6 +92,14 @@ html {
   --bt-text-4:        #4A4642;
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
+  /* `--bt-accent-dark` (#0E8F68) ne bascule pas avec le theme : sur fond sombre
+     il tombait a 3,71:1, il echouait donc dans les DEUX themes. Ici le vert de
+     marque lui-meme est deja tres au-dessus du seuil, le ton texte le rejoint
+     — meme logique que --bt-ice-text en sombre.
+     Pire fond sombre = --bt-accent-bg (#0D2B22), pas --bt-subtle : le vert
+     sombre pese plus lourd en luminance que le gris.
+     5,94:1 sur --bt-accent-bg · 6,30 sur --bt-subtle · 6,99 sur --bt-surface. */
+  --bt-accent-text:   #14B885;
   --bt-shadow:        rgba(0,0,0,0.18);
   --bt-shimmer:       rgba(255,255,255,0.06);
   --bt-mobile-bg:     rgba(26,23,21,0.95);
@@ -73,6 +108,7 @@ html {
   --bt-ink-soft:      #0F3A2C;
   --bt-ink-text:      #ECFAF4;
   --bt-ink-muted:     #7FC7AB;
+  --bt-ink-accent:    #22E4A4;
   --bt-ink-border:    rgba(255,255,255,0.07);
   --bt-scrollbar:     #3A332E;
   --bt-scrollbar-h:   #4A4642;
@@ -141,8 +177,13 @@ html {
     overflow: hidden;
     border-radius: 20px;
     border: 1px solid var(--bt-ink-border);
+    /* Le voile vert du coin haut-droit eclaircissait le fond jusqu'a #126E53.
+       A 0,38 il faisait tomber SOUS le seuil tout ce qui s'ecrit dessus :
+       --bt-ink-muted a 3,62:1 et l'eyebrow accent a 2,43:1. A 0,20 la lueur
+       reste lisible comme intention et le pire fond redescend a #125944,
+       ou --bt-ink-muted repasse a 4,85:1. */
     background:
-      radial-gradient(120% 100% at 88% -12%, rgba(20, 184, 133, 0.38), transparent 55%),
+      radial-gradient(120% 100% at 88% -12%, rgba(20, 184, 133, 0.20), transparent 55%),
       linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink) 70%);
     color: var(--bt-ink-text);
     box-shadow: 0 16px 44px rgba(9, 38, 29, 0.30);
@@ -199,12 +240,16 @@ html {
 
   .btn-primary {
     @apply btn;
-    background-image: linear-gradient(165deg, #14B885, #0E8F68 115%);
-    color: #fff;
+    /* 14px semi-gras en blanc : 4,5:1 exiges. L'ancien degrade partait de
+       #14B885, ou le blanc ne faisait que 2,55:1. */
+    background-image: linear-gradient(165deg, var(--bt-accent-fill), var(--bt-accent-fill-deep) 115%);
+    color: var(--bt-accent-on-fill);
     box-shadow: 0 2px 10px rgba(20, 184, 133, 0.28);
   }
   .btn-primary:hover:not(:disabled) {
-    background-image: linear-gradient(165deg, #0FA173, #0E8F68 115%);
+    /* Le survol comprime le degrade sur son extremite sombre — meme geste
+       qu'avant, ou le stop clair descendait de #14B885 a #0FA173. */
+    background-image: linear-gradient(165deg, var(--bt-accent-fill-deep), var(--bt-accent-fill-deep) 115%);
     box-shadow: 0 4px 14px rgba(20, 184, 133, 0.34);
   }
 
@@ -782,7 +827,9 @@ details.bt-acc[open]::details-content { block-size: auto; }
 /* ── Landing : reflet qui balaie le mot accent du hero (pattern
    "animated shiny text" magicui/21st) : dégradé clippé au texte,
    surbrillance qui traverse puis longue pause. Fallback : couleur pleine. */
-.bt-shimmer-accent { color: #0E8F68; }
+/* Le mot accent du hero est en 43px+ : du GRAND texte, seuil 3:1, que le vert
+   icone tient deja (4,02:1). Il reste donc sur --bt-accent-dark. */
+.bt-shimmer-accent { color: var(--bt-accent-dark); }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .bt-shimmer-accent {
     color: transparent;

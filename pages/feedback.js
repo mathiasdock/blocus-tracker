@@ -137,7 +137,7 @@ export default function FeedbackPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         <header>
           <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 mb-3"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
             <IconInbox size={15} />
             <span className="text-xs font-semibold">{t("feedback.kicker")}</span>
           </div>
@@ -161,7 +161,7 @@ export default function FeedbackPage() {
                     onClick={() => setType(option)}
                     className="rounded-xl px-3 py-2 text-sm font-semibold transition-colors"
                     style={type === option
-                      ? { backgroundColor: "#14B885", color: "#fff" }
+                      ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }
                       : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
                     {t(`feedback.type.${option}`)}
                   </button>
@@ -186,7 +186,7 @@ export default function FeedbackPage() {
             </div>
 
             {formMsg && (
-              <p className="text-sm" style={{ color: formMsg === t("feedback.success") ? "var(--bt-accent-dark)" : "#DC2626" }}>
+              <p className="text-sm" style={{ color: formMsg === t("feedback.success") ? "var(--bt-accent-text)" : "#DC2626" }}>
                 {formMsg}
               </p>
             )}
@@ -232,7 +232,7 @@ export default function FeedbackPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs font-semibold rounded-full px-2 py-0.5"
-                              style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+                              style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                               {t(`feedback.type.${row.type}`)}
                             </span>
                             <span className="text-xs font-semibold rounded-full px-2 py-0.5"

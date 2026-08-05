@@ -50,7 +50,7 @@ function GoalBar({ icon, chip, label, pct, valueText, targetText, footer, footer
       <div className="flex items-center gap-2 mb-2.5">
         <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${chip.tint}2e`, color: chip.tint }}>{icon}</span>
         <span className="text-[11px] font-semibold uppercase tracking-wide flex-1 min-w-0 truncate" style={{ color: "var(--bt-text-2)" }}>{label}</span>
-        <span className="text-sm font-num font-bold tabular-nums" style={{ color: reached ? "#0E8F68" : "var(--bt-text-1)" }}>
+        <span className="text-sm font-num font-bold tabular-nums" style={{ color: reached ? "var(--bt-accent-text)" : "var(--bt-text-1)" }}>
           <CountInt value={Math.round(pct)} suffix="%" />
         </span>
       </div>
@@ -82,7 +82,7 @@ function StatBadge({ earned, label, icon }) {
   return (
     <div className="flex flex-col items-center text-center gap-1.5" style={{ opacity: earned ? 1 : 0.45 }} title={label}>
       <span className="w-12 h-12 rounded-2xl flex items-center justify-center"
-        style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: `1px solid ${earned ? "var(--bt-accent-border)" : "var(--bt-border)"}`, color: earned ? "#0E8F68" : "var(--bt-text-4)" }}>
+        style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: `1px solid ${earned ? "var(--bt-accent-border)" : "var(--bt-border)"}`, color: earned ? "var(--bt-accent-text)" : "var(--bt-text-4)" }}>
         {icon}
       </span>
       <span className="text-[10px] leading-tight font-medium" style={{ color: earned ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{label}</span>
@@ -106,7 +106,7 @@ function weekLabel(dates, lang) {
 // neutre si stable. Direction portée par la flèche (pct affiché en absolu).
 function TrendChip({ dir, pct }) {
   const cfg = dir === "up"
-    ? { color: "#0E8F68", bg: "rgba(20,184,133,0.14)", arrow: <polyline points="5 12 12 5 19 12" /> }
+    ? { color: "var(--bt-accent-text)", bg: "rgba(20,184,133,0.14)", arrow: <polyline points="5 12 12 5 19 12" /> }
     : dir === "down"
     ? { color: "#DC2626", bg: "rgba(220,38,38,0.12)", arrow: <polyline points="5 12 12 19 19 12" /> }
     : { color: "var(--bt-text-3)", bg: "var(--bt-subtle)", arrow: <line x1="5" y1="12" x2="19" y2="12" /> };
@@ -409,9 +409,9 @@ export default function Stats() {
   // Ligne de régularité seulement si la semaine passée avait de l'activité.
   if (insights.activeDaysLastWeek > 0) {
     aiLines.push({ text: insights.moreRegular ? t("stats.aiMoreRegular") : t("stats.aiLessRegular"),
-      color: insights.moreRegular ? "#0E8F68" : "var(--bt-text-2)" });
+      color: insights.moreRegular ? "var(--bt-accent-text)" : "var(--bt-text-2)" });
   }
-  if (todaySecs > 0) aiLines.push({ text: t("stats.aiKeepGoing"), color: "#0E8F68" });
+  if (todaySecs > 0) aiLines.push({ text: t("stats.aiKeepGoing"), color: "var(--bt-accent-text)" });
   const aiLinesShown = aiLines.slice(0, 4);
   const previousBestDaySecs = Object.entries(dayTotals)
     .filter(([date]) => date !== localISO(new Date()))
@@ -509,7 +509,7 @@ export default function Stats() {
             style={{ width: `${Math.min(100, todayGoalPct)}%`,
               backgroundImage: todayGoalPct >= 100 ? "linear-gradient(90deg,#0E8F68,#14B885)" : "linear-gradient(90deg,#14B885,#2BD9A4)" }} />
         </div>
-        <p className="mt-1.5 text-xs" style={{ color: todayGoalPct >= 100 ? "#0E8F68" : "var(--bt-text-3)" }}>
+        <p className="mt-1.5 text-xs" style={{ color: todayGoalPct >= 100 ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>
           {todayGoalPct >= 100
             ? t("stats.heroGoalReached")
             : t("stats.heroRemaining").replace("{time}", formatMinutesShort(dailyRemain))}
@@ -528,7 +528,7 @@ export default function Stats() {
         <div className="grid grid-cols-2 gap-3 mb-4">
           <StatTile
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-            chip={{ tint: "#0E8F68" }}
+            chip={{ tint: "var(--bt-accent-text)" }}
             label={t("stats.compactWeek")}
             animatedValue={currentWeekSecs}
             formatValue={formatMinutesShort}
@@ -590,15 +590,15 @@ export default function Stats() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
           <StatTile
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>}
-            chip={{ tint: "#0E8F68" }} label={t("stats.compactMonth")}
+            chip={{ tint: "var(--bt-accent-text)" }} label={t("stats.compactMonth")}
             animatedValue={total30} formatValue={formatMinutesShort} />
           <StatTile
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>}
-            chip={{ tint: "#0E8F68" }} label={t("stats.allTimeLabel")}
+            chip={{ tint: "var(--bt-accent-text)" }} label={t("stats.allTimeLabel")}
             animatedValue={allTimeSecs} formatValue={formatMinutesShort} />
           <StatTile
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H3.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h2.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>}
-            chip={{ tint: "#0E8F68" }} label={t("stats.bestDayLabel")}
+            chip={{ tint: "var(--bt-accent-text)" }} label={t("stats.bestDayLabel")}
             animatedValue={bestDaySecs} formatValue={formatMinutesShort}
             sub={bestDayLabel || t("stats.bestDaySub")} subColor="var(--bt-text-3)" />
         </div>
@@ -608,7 +608,7 @@ export default function Stats() {
       <div className="card p-5 mb-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundImage: "linear-gradient(180deg,#14B885,#2BD9A4)" }} />
         <div className="flex items-center gap-2 mb-3 pl-1">
-          <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+          <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5 10.1 10.9 5.5 9l4.6-1.4L12 3z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/></svg>
           </span>
           <h2 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-2)" }}>{t("stats.aiTitle")}</h2>
@@ -732,7 +732,7 @@ export default function Stats() {
             {cmpMetrics.map((m, i) => {
               const max = Math.max(m.me, m.uni || 0, m.app || 0) || 1;
               const bars = [
-                { key: "me",  label: t("stats.cmpYou"),   val: m.me,  color: "#14B885" },
+                { key: "me",  label: t("stats.cmpYou"),   val: m.me,  color: "var(--bt-accent)" },
                 ...(m.uni != null ? [{ key: "uni", label: t("stats.cmpUni"), val: m.uni, color: "#0369a1" }] : []),
                 // La barre « toute l'app » était en gris taupe : ça sortait de la
                 // palette et lisait comme une erreur plutôt que comme un repère.
@@ -755,11 +755,16 @@ export default function Stats() {
                       <div key={b.key} className="flex items-center gap-2">
                         <span className="text-[11px] w-16 shrink-0" style={{ color: b.key === "me" ? "var(--bt-text-1)" : "var(--bt-text-3)", fontWeight: b.key === "me" ? 600 : 400 }}>{b.label}</span>
                         <div className="flex-1 h-4 rounded-md overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                          <div className="h-full rounded-md transition-all duration-300 flex items-center justify-end pr-1.5"
-                            style={{ width: `${Math.max(6, Math.round(b.val / max * 100))}%`, backgroundColor: b.color }}>
-                            <span className="text-[9px] font-num font-bold tabular-nums" style={{ color: "#fff" }}>{m.fmt(b.val)}</span>
-                          </div>
+                          <div className="h-full rounded-md transition-all duration-300"
+                            style={{ width: `${Math.max(6, Math.round(b.val / max * 100))}%`, backgroundColor: b.color }} />
                         </div>
+                        {/* La valeur sort de la barre. En blanc dessus elle ne
+                            faisait que 2,55:1 sur le vert de marque, elle etait
+                            illisible sur la barre « toute l'app » (volontairement
+                            tres pale), et des que la barre etait courte elle
+                            debordait sur le rail clair — 1,10:1. */}
+                        <span className="text-[10px] font-num font-bold tabular-nums w-12 shrink-0 text-right"
+                          style={{ color: b.key === "me" ? "var(--bt-text-1)" : "var(--bt-text-2)" }}>{m.fmt(b.val)}</span>
                       </div>
                     ))}
                   </div>
@@ -774,7 +779,7 @@ export default function Stats() {
       {sessionCount === 0 && (
         <div className="card p-8 sm:p-10 flex flex-col items-center text-center">
           <span className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6" rx="0.5"/><rect x="12" y="8" width="3" height="10" rx="0.5"/><rect x="17" y="4" width="3" height="14" rx="0.5"/></svg>
           </span>
           <h3 className="text-base font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>{t("stats.emptyChartsTitle")}</h3>
@@ -808,7 +813,7 @@ export default function Stats() {
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                         <span className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
                       </span>
-                      <span className="text-sm font-num font-semibold tabular-nums shrink-0 ml-2" style={{ color: "#0E8F68" }}>
+                      <span className="text-sm font-num font-semibold tabular-nums shrink-0 ml-2" style={{ color: "var(--bt-accent-text)" }}>
                         {formatMinutesShort(c.minutes * 60)}
                       </span>
                     </div>
@@ -836,7 +841,7 @@ export default function Stats() {
             aria-expanded={showAdvanced}
             onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
             onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
             </span>
             <span className="flex-1 min-w-0">
@@ -938,7 +943,7 @@ export default function Stats() {
                 <div className="card p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("stats.badgesTitle")}</h2>
-                    <span className="text-xs font-num tabular-nums px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+                    <span className="text-xs font-num tabular-nums px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                       {t("stats.badgesEarned").replace("{n}", String(earnedBadges)).replace("{total}", String(badgeDefs.length))}
                     </span>
                   </div>

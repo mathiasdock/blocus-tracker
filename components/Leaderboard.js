@@ -44,16 +44,16 @@ const segWrap = { display: "inline-flex", backgroundColor: "var(--bt-subtle)", b
 const segBtn = (active) => ({
   borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: active ? 600 : 400,
   border: "none", cursor: "pointer", transition: "all 0.15s",
-  backgroundColor: active ? "#14B885" : "transparent",
-  color: active ? "#fff" : "var(--bt-text-3)",
+  backgroundColor: active ? "var(--bt-accent-fill)" : "transparent",
+  color: active ? "var(--bt-accent-on-fill)" : "var(--bt-text-3)",
   boxShadow: active ? "0 1px 4px rgba(20,184,133,0.30)" : "none",
 });
 const chipBtn = (active) => ({
   borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: active ? 600 : 400,
   border: "1px solid", cursor: "pointer", transition: "all 0.15s",
-  backgroundColor: active ? "#EAFBF4" : "transparent",
-  color: active ? "#0E8F68" : "var(--bt-text-3)",
-  borderColor: active ? "#C6EED9" : "var(--bt-border)",
+  backgroundColor: active ? "var(--bt-accent-bg)" : "transparent",
+  color: active ? "var(--bt-accent-text)" : "var(--bt-text-3)",
+  borderColor: active ? "var(--bt-accent-border)" : "var(--bt-border)",
   flexShrink: 0,
 });
 
@@ -238,13 +238,13 @@ export default function Leaderboard({ user, profile, onViewUser }) {
     }
     if (v2Available && metric === "regularity") {
       return (
-        <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
+        <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
           {animate ? <AnimatedNumber value={row.active_days} /> : row.active_days}/{periodDays} {t("stats.dayUnit")}
         </span>
       );
     }
     return (
-      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
+      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
         {animate
           ? <AnimatedNumber value={row.total_seconds} format={formatMinutesShort} />
           : formatMinutesShort(row.total_seconds)}

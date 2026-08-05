@@ -92,8 +92,8 @@ function MiniToggle({ options, value, onChange }) {
               border: "none",
               cursor: "pointer",
               transition: "all 0.15s",
-              backgroundColor: active ? "#14B885" : "transparent",
-              color: active ? "#fff" : "var(--bt-text-3)",
+              backgroundColor: active ? "var(--bt-accent-fill)" : "transparent",
+              color: active ? "var(--bt-accent-on-fill)" : "var(--bt-text-3)",
             }}>
             {opt.label}
           </button>

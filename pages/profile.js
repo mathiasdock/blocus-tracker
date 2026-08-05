@@ -146,7 +146,7 @@ function CardHead({ icon, label, right }) {
 //  • href + right=<IconChevronRight>  → mene a une autre page
 //  • right=<controle>                 → s'ajuste sur place (toggle/segmented)
 function SettingsRow({ icon, label, description, right, onClick, href, danger, accent }) {
-  const labelColor = danger ? "#DC2626" : accent ? "var(--bt-accent-dark)" : "var(--bt-text-1)";
+  const labelColor = danger ? "#DC2626" : accent ? "var(--bt-accent-text)" : "var(--bt-text-1)";
   const iconColor  = danger ? "#DC2626" : accent ? "var(--bt-accent-dark)" : "var(--bt-text-2)";
   const iconBg     = danger ? "rgba(220,38,38,0.10)" : accent ? "var(--bt-accent-bg)" : "var(--bt-subtle)";
   const inner = (
@@ -183,7 +183,7 @@ function Segmented({ options, value, onChange }) {
       {options.map(o => (
         <button key={o.value} onClick={() => onChange(o.value)} title={o.title || undefined}
           className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-          style={value === o.value ? { backgroundColor: "#14B885", color: "#fff" } : { color: "var(--bt-text-3)" }}>
+          style={value === o.value ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" } : { color: "var(--bt-text-3)" }}>
           {o.label}
         </button>
       ))}
@@ -228,8 +228,10 @@ function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
 
         {/* Level badge + title */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 20px rgba(20,184,133,0.50)", flexShrink: 0 }}>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.70)", lineHeight: 1 }}>{t("xp.level")}</span>
+          <div style={{ width: 56, height: 56, borderRadius: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(165deg, var(--bt-accent-fill), var(--bt-accent-fill-deep) 115%)", boxShadow: "0 4px 20px rgba(20,184,133,0.50)", flexShrink: 0 }}>
+            {/* Blanc plein : meme a 0,90 d'opacite ce libelle ne depassait pas
+                4,36:1 sur l'aplat vert. La hierarchie tient au corps du texte. */}
+            <span style={{ fontSize: 10, fontWeight: 600, color: "var(--bt-accent-on-fill)", lineHeight: 1 }}>{t("xp.level")}</span>
             <AnimatedNumber value={current.level} style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.1 }} />
           </div>
           <div style={{ minWidth: 0 }}>
@@ -296,7 +298,7 @@ function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
       <CardHead icon={<IconAward />} label={t("badge.title")}
         right={
           <span className="font-num text-xs font-bold tabular-nums px-2.5 py-1 rounded-full"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
             <AnimatedNumber value={earnedBadgeIds.length} />/<AnimatedNumber value={BADGES.length} />
           </span>
         } />
@@ -367,9 +369,12 @@ function ReferralCard({ t, fallbackCode = "" }) {
             style={{ color: "var(--bt-text-2)" }} title={shareLink}>
             {shareLink || "…"}
           </div>
+          {/* Un aplat, pas du texte : les deux etats prennent le ton plein.
+              L'etat « copie » etait reste sur le vert vif, ou le blanc ne
+              fait que 2,55:1 — dans les deux themes. */}
           <button onClick={copy} disabled={!shareLink}
             className="px-3.5 text-xs font-semibold whitespace-nowrap transition-colors"
-            style={{ backgroundColor: copied ? "#14B885" : "var(--bt-accent-dark)", color: "#fff" }}>
+            style={{ backgroundColor: copied ? "var(--bt-accent-fill-deep)" : "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }}>
             {copied ? t("referral.copied") : t("referral.copy")}
           </button>
         </div>
@@ -394,7 +399,7 @@ function ReferralCard({ t, fallbackCode = "" }) {
                     <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>@{r.pseudo}</p>
                     <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>{new Date(r.created_at).toLocaleDateString()}</p>
                   </div>
-                  <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>+{r.xp_awarded} XP</span>
+                  <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>+{r.xp_awarded} XP</span>
                 </li>
               ))}
             </ul>
@@ -453,7 +458,7 @@ function PushRow({ t, user }) {
     description = t("push.enabled");
     right = (
       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
-        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         OK
       </span>
@@ -464,7 +469,7 @@ function PushRow({ t, user }) {
     right = (
       <button onClick={enable} disabled={busy}
         className="px-3 py-1.5 rounded-full text-xs font-semibold transition disabled:opacity-60"
-        style={{ backgroundColor: "#14B885", color: "#fff" }}>
+        style={{ backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }}>
         {busy ? "…" : t("push.enable")}
       </button>
     );
@@ -503,7 +508,7 @@ function BadgeSheet({ badge, earned, t, onClose }) {
             <div className="mt-2 mb-4 flex flex-wrap items-center justify-center gap-2">
               {earned ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
+                  style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   {t("badge.earnedStatus")}
                 </span>
@@ -516,7 +521,7 @@ function BadgeSheet({ badge, earned, t, onClose }) {
               )}
               {badge.xp > 0 && (
                 <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(20,184,133,0.12)", color: "#14B885" }}>
+                  style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                   {t("badge.xpReward")} : +{badge.xp} XP
                 </span>
               )}
@@ -601,7 +606,7 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
               <button className="btn-primary w-full" type="submit" disabled={busy || !!locked}>
                 {busy ? t("common.saving") : t("common.save")}
               </button>
-              {msg && <p className="text-xs text-center" style={{ color: msg.startsWith("Erreur") ? "#DC2626" : "var(--bt-accent-dark)" }}>{msg}</p>}
+              {msg && <p className="text-xs text-center" style={{ color: msg.startsWith("Erreur") ? "#DC2626" : "var(--bt-accent-text)" }}>{msg}</p>}
             </form>
           </div>
         </div>
@@ -993,7 +998,7 @@ export default function Profile() {
                 <button onClick={() => avatarInputRef.current?.click()} disabled={busy}
                   title={t("profile.changePhoto")}
                   className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-                  style={{ backgroundColor: "#14B885", color: "#fff", boxShadow: "0 1px 6px rgba(0,0,0,0.25)" }}>
+                  style={{ backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)", boxShadow: "0 1px 6px rgba(0,0,0,0.25)" }}>
                   {busy ? <span className="block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <IconCamera />}
                 </button>
                 <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={uploadAvatar} disabled={busy} />
@@ -1028,7 +1033,7 @@ export default function Profile() {
             </div>
 
             {avatarMsg && (
-              <p className="text-xs mt-2.5 text-center sm:text-left" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-dark)" : "#DC2626" }}>{avatarMsg}</p>
+              <p className="text-xs mt-2.5 text-center sm:text-left" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-text)" : "#DC2626" }}>{avatarMsg}</p>
             )}
 
             {/* Rail de stats-clés — l'essentiel du profil chiffré d'un coup d'œil */}
@@ -1135,7 +1140,7 @@ export default function Profile() {
                   <form onSubmit={saveEmail} className="space-y-2">
                     <input className="input" type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} autoComplete="email" placeholder="ton@email.com" />
                     <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("profile.emailHint")}</p>
-                    {emailMsg && <p className="text-xs" style={{ color: emailMsg === t("profile.emailSaved") ? "var(--bt-accent-dark)" : "#DC2626" }}>{emailMsg}</p>}
+                    {emailMsg && <p className="text-xs" style={{ color: emailMsg === t("profile.emailSaved") ? "var(--bt-accent-text)" : "#DC2626" }}>{emailMsg}</p>}
                     <button className="btn-primary w-full" type="submit" disabled={emailBusy || !emailInput.trim() || emailInput === (profile?.email || "")}>
                       {emailBusy ? t("profile.emailSaving") : t("profile.emailSave")}
                     </button>
@@ -1154,7 +1159,7 @@ export default function Profile() {
                   <ol className="space-y-2">
                     {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
-                        <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
+                        <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-text)" }}>{i + 1}.</span>
                         <span>{step}</span>
                       </li>
                     ))}

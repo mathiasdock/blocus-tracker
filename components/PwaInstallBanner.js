@@ -88,7 +88,7 @@ export default function PwaInstallBanner() {
         <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+              style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
@@ -135,7 +135,7 @@ export default function PwaInstallBanner() {
         <ul className="px-6 pt-3 space-y-1.5">
           {[t("pwa.whyBenefit1"), t("pwa.whyBenefit2"), t("pwa.whyBenefit3")].map((b, i) => (
             <li key={i} className="flex items-start gap-2 text-[13px] leading-snug" style={{ color: "var(--bt-text-2)" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E8F68" strokeWidth="3"
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--bt-accent-dark)" strokeWidth="3"
                 strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5" aria-hidden="true">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -152,7 +152,7 @@ export default function PwaInstallBanner() {
             <li key={i} className="flex items-start gap-3">
               <span
                 className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-                style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                 {i + 1}
               </span>
               <p className="text-sm leading-relaxed pt-0.5" style={{ color: "var(--bt-text-2)" }}>

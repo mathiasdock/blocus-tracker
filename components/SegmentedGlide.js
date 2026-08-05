@@ -59,7 +59,7 @@ export default function SegmentedGlide({
             className={`relative z-[1] rounded-[10px] font-semibold transition-colors ${buttonClassName}`}
             style={{
               color: active
-                ? (tone === "accent" ? "var(--bt-accent-dark)" : "var(--bt-text-1)")
+                ? (tone === "accent" ? "var(--bt-accent-text)" : "var(--bt-text-1)")
                 : "var(--bt-text-2)",
             }}>
             {o.label}

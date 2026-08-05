@@ -108,8 +108,8 @@ export default function Onboarding() {
           {STEP_KEYS.map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                i < step ? "bg-accent text-white" :
-                i === step ? "bg-accent text-white ring-4 ring-accent/20" :
+                i < step ? "bg-accent-fill text-white" :
+                i === step ? "bg-accent-fill text-white ring-4 ring-accent/20" :
                 "bg-stone-200 dark:bg-stone-700 text-stone-400"
               }`}>
                 {i < step ? "✓" : i + 1}
@@ -272,7 +272,7 @@ export default function Onboarding() {
             </p>
             <div className="text-left rounded-xl p-4 space-y-2 text-sm"
               style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-text-2)" }}>
-              <p className="font-medium" style={{ color: "var(--bt-accent-dark)" }}>{t("onboarding.done.howTitle")}</p>
+              <p className="font-medium" style={{ color: "var(--bt-accent-text)" }}>{t("onboarding.done.howTitle")}</p>
               <p>{t("onboarding.done.how1")}</p>
               <p>{t("onboarding.done.how2")}</p>
               <p>{t("onboarding.done.how3")}</p>

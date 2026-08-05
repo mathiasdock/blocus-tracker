@@ -96,7 +96,7 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, t }) {
         style={{
           backgroundColor: mine ? "#fff" : "var(--bt-accent-bg)",
           border: mine ? "none" : "1px solid var(--bt-accent-border)",
-          color: "var(--bt-accent-dark)",
+          color: "var(--bt-accent-text)",
         }}>
         {t("attachment.viewImage")}
       </button>
@@ -141,7 +141,7 @@ function ExamDateBadge({ days, t }) {
     );
   }
   const bg = days <= 0 ? "#FEF2F2" : days <= 7 ? "#FEF3C7" : "var(--bt-accent-bg)";
-  const color = days <= 0 ? "#DC2626" : days <= 7 ? "#D97706" : "var(--bt-accent-dark)";
+  const color = days <= 0 ? "#DC2626" : days <= 7 ? "#D97706" : "var(--bt-accent-text)";
   const label = days === 0 ? t("exam.today") : days === 1 ? t("plan.tomorrow") : days > 1 ? `J-${days}` : t("exam.passed");
   return (
     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap"
@@ -206,7 +206,7 @@ function UniversityButton({ u, badge, isActive, onClick, size = 20 }) {
     <button onClick={onClick}
       className="relative w-full text-left rounded-2xl px-3 py-2 transition-all flex items-center gap-2.5"
       style={isActive
-        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }
+        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }
         : { color: "var(--bt-text-2)" }}
       onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
       onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = ""; }}>
@@ -216,7 +216,7 @@ function UniversityButton({ u, badge, isActive, onClick, size = 20 }) {
       <CommunityLogo university={u} size={size} rounded={6} />
       <span className="flex-1 min-w-0 text-xs font-medium truncate">{u.name}</span>
       {badge > 0 && (
-        <span className="inline-flex items-center justify-center min-w-[15px] h-[15px] text-[9px] font-bold bg-red-500 text-white rounded-full px-0.5 leading-none shrink-0">
+        <span className="inline-flex items-center justify-center min-w-[15px] h-[15px] text-[9px] font-bold bg-red-600 text-white rounded-full px-0.5 leading-none shrink-0">
           {badge > 99 ? "99+" : badge}
         </span>
       )}
@@ -633,7 +633,7 @@ export default function Communautes() {
             {m.attachment_url && m.attachment_type === "file" && (
               <a href={m.attachment_url} target="_blank" rel="noreferrer"
                 className="mt-2 inline-flex items-center gap-2 underline break-all"
-                style={{ color: mine ? "#fff" : "var(--bt-accent-dark)" }}>
+                style={{ color: mine ? "#fff" : "var(--bt-accent-text)" }}>
                 <IconPaperclip size={13} /> {m.attachment_name || t("msg.file")}
               </a>
             )}
@@ -719,7 +719,7 @@ export default function Communautes() {
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = ""}>
                         <span className="flex-1 text-xs font-semibold uppercase tracking-wide">{country.name}</span>
                         {countryBadge > 0 && !isOpen && (
-                          <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] text-[9px] font-bold bg-red-500 text-white rounded-full px-0.5 leading-none">
+                          <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] text-[9px] font-bold bg-red-600 text-white rounded-full px-0.5 leading-none">
                             {countryBadge > 99 ? "99+" : countryBadge}
                           </span>
                         )}
@@ -786,7 +786,7 @@ export default function Communautes() {
                     onClick={() => { setCommunitySpace(space.id); setActiveThreadId(null); }}
                     className="shrink-0 text-xs font-semibold rounded-full px-3 py-1.5 transition-colors"
                     style={communitySpace === space.id
-                      ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
+                      ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }
                       : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
                     {t(space.labelKey)}{tabCounts[space.id] > 0 ? ` · ${tabCounts[space.id]}` : ""}
                   </button>
@@ -818,7 +818,7 @@ export default function Communautes() {
                   activeThreadId && activeThread ? (
                     <div className="px-4 py-4 space-y-3">
                       <button onClick={() => setActiveThreadId(null)}
-                        className="text-xs font-semibold flex items-center gap-1 mb-2" style={{ color: "var(--bt-accent-dark)" }}>
+                        className="text-xs font-semibold flex items-center gap-1 mb-2" style={{ color: "var(--bt-accent-text)" }}>
                         <IconBack size={11} /> {t("comm.spaceQuestions")}
                       </button>
                       <div className="rounded-2xl p-3.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
@@ -860,7 +860,7 @@ export default function Communautes() {
                       ) : (
                         <button onClick={() => setShowQuestionForm(true)}
                           className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-xl mb-3 transition-colors"
-                          style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
+                          style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }}>
                           <IconPlus /> {t("comm.askQuestion")}
                         </button>
                       )}
@@ -936,7 +936,7 @@ export default function Communautes() {
                     ) : (
                       <button onClick={() => setShowResourceForm(true)}
                         className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-xl mb-3 transition-colors"
-                        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
+                        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }}>
                         <IconPlus /> {t("comm.shareResource")}
                       </button>
                     )}
@@ -960,7 +960,7 @@ export default function Communautes() {
                               )}
                               {rm.attachment_url && rm.attachment_type === "file" && (
                                 <a href={rm.attachment_url} target="_blank" rel="noreferrer"
-                                  className="inline-flex items-center gap-2 underline break-all text-sm" style={{ color: "var(--bt-accent-dark)" }}>
+                                  className="inline-flex items-center gap-2 underline break-all text-sm" style={{ color: "var(--bt-accent-text)" }}>
                                   <IconPaperclip size={13} /> {rm.attachment_name || t("msg.file")}
                                 </a>
                               )}
@@ -995,7 +995,7 @@ export default function Communautes() {
                     ) : (
                       <button onClick={() => setShowExamForm(true)}
                         className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-xl mb-3 transition-colors"
-                        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
+                        style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }}>
                         <IconPlus /> {t("comm.addExam")}
                       </button>
                     )}
@@ -1016,7 +1016,7 @@ export default function Communautes() {
                                 </p>
                                 {em.exam_date && (
                                   <button onClick={() => addExamToPlanning(em)} disabled={planningAdded[em.id]}
-                                    className="text-xs font-semibold mt-1.5" style={{ color: planningAdded[em.id] ? "var(--bt-text-3)" : "var(--bt-accent-dark)" }}>
+                                    className="text-xs font-semibold mt-1.5" style={{ color: planningAdded[em.id] ? "var(--bt-text-3)" : "var(--bt-accent-text)" }}>
                                     {planningAdded[em.id] ? t("comm.addedToPlanning") : t("comm.addToMyPlanning")}
                                   </button>
                                 )}

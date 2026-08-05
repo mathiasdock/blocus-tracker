@@ -130,7 +130,7 @@ export default function AmbientSoundControl({ active, visible = true }) {
               <button key={p} type="button" onClick={() => choose(p)}
                 className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
                 style={on && preset === p
-                  ? { backgroundColor: "#14B885", color: "#fff" }
+                  ? { backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)" }
                   : { backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>
                 {t(LABEL_KEY[p])}
               </button>

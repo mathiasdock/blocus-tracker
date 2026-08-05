@@ -834,7 +834,7 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
                 <ShareIcon />
                 {t("stats.recapOpen")}
               </button>
-              <span className="text-[10px] font-semibold" style={{ color: isReady ? "var(--bt-accent-dark)" : "var(--bt-text-3)" }}>
+              <span className="text-[10px] font-semibold" style={{ color: isReady ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>
                 {isReady ? t("stats.recapReady") : t("stats.recapLive")}
               </span>
             </div>
@@ -877,7 +877,7 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
                 </div>
 
                 <div className="p-5 sm:p-7 flex flex-col justify-center" style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--bt-accent-dark)" }}>{t("stats.recapEyebrow")}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--bt-accent-text)" }}>{t("stats.recapEyebrow")}</p>
                   <h2 id="recap-dialog-title" className="text-xl sm:text-2xl font-semibold pr-8" style={{ color: "var(--bt-text-1)" }}>{t("stats.recapDialogTitle")}</h2>
                   <p className="text-sm mt-1.5" style={{ color: "var(--bt-text-2)" }}>{t("stats.recapDialogSubtitle")}</p>
 
@@ -891,7 +891,7 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
                     <button onClick={download} disabled={exporting || rankLoading || brandLogoLoading || !brandLogo} className="btn-ghost inline-flex items-center justify-center gap-2 disabled:opacity-60"><DownloadIcon />{t("stats.recapDownload")}</button>
                   </div>
                   <p className="text-[11px] mt-3" style={{ color: "var(--bt-text-3)" }}>{t("stats.recapShareHint")}</p>
-                  {status && <p role="status" className="text-xs font-medium mt-3" style={{ color: status === t("stats.recapError") ? "#DC2626" : "var(--bt-accent-dark)" }}>{status}</p>}
+                  {status && <p role="status" className="text-xs font-medium mt-3" style={{ color: status === t("stats.recapError") ? "#DC2626" : "var(--bt-accent-text)" }}>{status}</p>}
                 </div>
               </div>
             </div>

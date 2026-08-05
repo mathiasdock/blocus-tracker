@@ -53,13 +53,13 @@ export default function PwaHomeScreenVisual() {
 
       {/* LA ligne qui compte — encadrée en vert de marque */}
       <div className="mx-2 my-2.5 rounded-xl px-2.5 py-2.5 flex items-center gap-2.5"
-        style={{ backgroundColor: "var(--bt-accent-bg)", border: "2px solid #14B885" }}>
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0E8F68"
+        style={{ backgroundColor: "var(--bt-accent-bg)", border: "2px solid var(--bt-accent)" }}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--bt-accent-dark)"
           strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
           <rect x="3" y="3" width="18" height="18" rx="3" />
           <line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
         </svg>
-        <span className="text-[12px] font-bold leading-tight" style={{ color: "#0E8F68" }}>
+        <span className="text-[12px] font-bold leading-tight" style={{ color: "var(--bt-accent-text)" }}>
           {t("pwa.visualRow")}
         </span>
       </div>

@@ -299,7 +299,7 @@ function InstallBanner() {
           </p>
         </div>
         <button onClick={install} style={{
-          backgroundColor: "#14B885", color: "#fff", border: "none",
+          backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)", border: "none",
           borderRadius: 10, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
         }}>
           Installer

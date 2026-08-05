@@ -191,7 +191,7 @@ function Avatar({ url, pseudo, size = 32 }) {
         width: size, height: size,
         fontSize: size * 0.4,
         backgroundColor: "var(--bt-accent-bg)",
-        color: "var(--bt-accent-dark)",
+        color: "var(--bt-accent-text)",
         border: "1.5px solid var(--bt-accent-border)",
       }}>
       {(pseudo || "?").slice(0, 1).toUpperCase()}
@@ -205,7 +205,9 @@ export { Avatar };
 
 function Badge({ count, small = false }) {
   if (!count) return null;
-  const base = "inline-flex items-center justify-center font-bold bg-red-500 text-white rounded-full leading-none";
+  // 9-10px gras en blanc : 4,5:1 exiges. Sur red-500 le compteur ne faisait que
+  // 3,76:1 ; red-600 le remonte a 4,83:1 pour un rouge quasi identique a l'oeil.
+  const base = "inline-flex items-center justify-center font-bold bg-red-600 text-white rounded-full leading-none";
   if (small) return (
     <span className={`${base} absolute -top-1 -right-1.5 min-w-[14px] h-[14px] text-[9px] px-0.5`}>
       {count > 9 ? "9+" : count}
@@ -298,7 +300,7 @@ function NotificationPanel({
         style={{ borderBottom: "1px solid var(--bt-border)" }}>
         <div className="flex items-center gap-2.5">
           <span className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
             <IconBell size={16} />
           </span>
           <p className="text-[15px] font-bold" style={{ color: "var(--bt-text-1)" }}>{t("notif.title")}</p>
@@ -340,7 +342,7 @@ function NotificationPanel({
                 const annTitle = item.titleKey ? t(item.titleKey) : item.title;
                 const annBody  = item.bodyKey  ? t(item.bodyKey)  : item.body;
                 const s = {
-                  new:       { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", glyph: "sparkles" },
+                  new:       { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", glyph: "sparkles" },
                   info:      { bg: "rgba(3,105,161,0.14)", color: "#0369a1", glyph: "info" },
                   important: { bg: "rgba(220,38,38,0.12)", color: "#DC2626", glyph: "alert" },
                 }[item.annType || "info"] || { bg: "rgba(3,105,161,0.14)", color: "#0369a1", glyph: "info" };
@@ -490,7 +492,7 @@ function GuestLockedPanel({ pathname }) {
           </div>
 
           <div className="p-6 sm:p-8">
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>{t(page.eyebrow)}</p>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-text)" }}>{t(page.eyebrow)}</p>
             <h1 className="mt-3 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{t(page.title)}</h1>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t(page.text)}</p>
             <ul className="mt-5 grid gap-2 sm:grid-cols-3">
@@ -596,7 +598,7 @@ export default function Layout({ children }) {
         className="relative flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-medium transition-all"
         style={active ? {
           backgroundColor: "var(--bt-accent-bg)",
-          color: "var(--bt-accent-dark)",
+          color: "var(--bt-accent-text)",
           fontWeight: 600,
         } : {
           color: "var(--bt-text-2)",
@@ -626,7 +628,7 @@ export default function Layout({ children }) {
         }}
         className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0"
         style={{
-          color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
+          color: notificationsOpen ? "var(--bt-accent-text)" : "var(--bt-text-2)",
           backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
           border: "1px solid var(--bt-border)",
         }}
@@ -709,7 +711,7 @@ export default function Layout({ children }) {
                   {userLevel && (
                     <span style={{
                       position: "absolute", bottom: -3, right: -7,
-                      backgroundColor: "#14B885", color: "#fff",
+                      backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)",
                       fontSize: 9, fontWeight: 800,
                       borderRadius: 99, padding: "1px 5px",
                       border: "1.5px solid var(--bt-surface)",
@@ -758,14 +760,14 @@ export default function Layout({ children }) {
             {running && router.pathname !== "/dashboard" && (
               <Link href="/dashboard"
                 className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 2px 8px rgba(20,184,133,0.3)" }}>
+                style={{ backgroundImage: "linear-gradient(165deg, var(--bt-accent-fill), var(--bt-accent-fill-deep) 115%)", boxShadow: "0 2px 8px rgba(20,184,133,0.3)" }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 <span className="font-num tabular-nums">{formatDuration(elapsed)}</span>
               </Link>
             )}
             {isGuest ? (
               <Link href="/login" className="text-xs font-semibold px-3 py-2 rounded-full"
-                style={{ color: "#0E8F68", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+                style={{ color: "var(--bt-accent-text)", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
                 {t("guest.signIn")}
               </Link>
             ) : (
@@ -778,7 +780,7 @@ export default function Layout({ children }) {
                   }}
                   className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors"
                   style={{
-                    color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
+                    color: notificationsOpen ? "var(--bt-accent-text)" : "var(--bt-text-2)",
                     backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
                     border: "1px solid var(--bt-border)",
                   }}
@@ -791,7 +793,7 @@ export default function Layout({ children }) {
                   {userLevel && (
                     <span style={{
                       position: "absolute", bottom: -3, right: -7,
-                      backgroundColor: "#14B885", color: "#fff",
+                      backgroundColor: "var(--bt-accent-fill)", color: "var(--bt-accent-on-fill)",
                       fontSize: 9, fontWeight: 800,
                       borderRadius: 99, padding: "1px 5px",
                       border: "1.5px solid var(--bt-surface)",
@@ -818,14 +820,14 @@ export default function Layout({ children }) {
               return (
                 <Link key={n.href} href={n.href}
                   className="relative flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium transition-colors"
-                  style={{ color: active ? "var(--bt-accent-dark)" : "var(--bt-text-3)" }}>
+                  style={{ color: active ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>
                   {active && (
                     <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full"
                       style={{ backgroundColor: "#14B885" }} />
                   )}
                   {t(n.key)}
                   {badge > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[14px] h-[14px] text-[9px] font-bold bg-red-500 text-white rounded-full px-0.5 leading-none">
+                    <span className="inline-flex items-center justify-center min-w-[14px] h-[14px] text-[9px] font-bold bg-red-600 text-white rounded-full px-0.5 leading-none">
                       {badge > 99 ? "99+" : badge}
                     </span>
                   )}
@@ -844,7 +846,7 @@ export default function Layout({ children }) {
           <span>{t("footer.tagline")}</span>
           <span aria-hidden="true">·</span>
           <Link href="/legal" className="transition-colors hover:underline"
-            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-accent-dark)"}
+            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-accent-text)"}
             onMouseLeave={e => e.currentTarget.style.color = ""}>
             {t("footer.legal")}
           </Link>
@@ -864,7 +866,7 @@ export default function Layout({ children }) {
           return (
             <Link key={n.href} href={n.href}
               className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"
-              style={{ color: active ? "var(--bt-accent-dark)" : "var(--bt-text-3)" }}>
+              style={{ color: active ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>
               <div className="relative rounded-full px-3.5 py-0.5 transition-all duration-200"
                 style={{ backgroundColor: active ? "var(--bt-accent-bg)" : "transparent" }}>
                 <NavIcon href={n.iconKey} size={22} />
@@ -899,9 +901,9 @@ export default function Layout({ children }) {
       {running && router.pathname !== "/dashboard" && (
         <Link href="/dashboard"
           className="hidden lg:flex fixed bottom-6 right-6 z-40 items-center gap-2 rounded-full text-white pl-4 pr-5 py-2.5 text-sm font-semibold transition-all"
-          style={{ backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 16px rgba(20,184,133,0.35)" }}
-          onMouseEnter={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, #0FA173, #0E8F68 115%)"}
-          onMouseLeave={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, #14B885, #0E8F68 115%)"}>
+          style={{ backgroundImage: "linear-gradient(165deg, var(--bt-accent-fill), var(--bt-accent-fill-deep) 115%)", boxShadow: "0 4px 16px rgba(20,184,133,0.35)" }}
+          onMouseEnter={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, var(--bt-accent-fill-deep), var(--bt-accent-fill-deep) 115%)"}
+          onMouseLeave={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, var(--bt-accent-fill), var(--bt-accent-fill-deep) 115%)"}>
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
           <span className="font-num tabular-nums">{formatDuration(elapsed)}</span>
         </Link>

@@ -410,7 +410,7 @@ export default function Feed() {
 
             <button type="button" onClick={() => fileInputRef.current?.click()}
               className="w-full rounded-2xl text-sm font-medium py-3 px-4 transition-colors flex items-center justify-center gap-2"
-              style={{ border: "2px dashed var(--bt-border)", color: file ? "var(--bt-accent-dark)" : "var(--bt-text-2)", backgroundColor: file ? "var(--bt-accent-bg)" : "var(--bt-subtle)", borderColor: file ? "var(--bt-accent-border)" : "var(--bt-border)" }}>
+              style={{ border: "2px dashed var(--bt-border)", color: file ? "var(--bt-accent-text)" : "var(--bt-text-2)", backgroundColor: file ? "var(--bt-accent-bg)" : "var(--bt-subtle)", borderColor: file ? "var(--bt-accent-border)" : "var(--bt-border)" }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 {file
                   ? <><path d="M20 6 9 17l-5-5"/></>
@@ -443,7 +443,7 @@ export default function Feed() {
                   onClick={() => setVisibility(opt.val)}
                   className="flex-1 text-xs py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-1.5"
                   style={visibility === opt.val
-                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
+                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }
                     : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
                   {opt.icon}{opt.label}
                 </button>
@@ -560,7 +560,7 @@ export default function Feed() {
                         </p>
                         {post.visibility === "friends" ? (
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-1"
-                            style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                               <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -647,7 +647,7 @@ export default function Feed() {
                     <div className="rounded-2xl px-4 py-4"
                       style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
                       <p className="text-[11px] font-bold uppercase tracking-wide mb-1"
-                        style={{ color: "var(--bt-accent-dark)" }}>
+                        style={{ color: "var(--bt-accent-text)" }}>
                         {t("feed.activityBadge")}
                       </p>
                       <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>
@@ -672,7 +672,7 @@ export default function Feed() {
                           onClick={() => react(post, DEFAULT_REACTION_EMOJI)}
                           className="text-sm flex items-center gap-1 rounded-full px-2.5 py-1 transition-all"
                           style={active
-                            ? { backgroundColor: "#EAFBF4", border: "1px solid #C6EED9", color: "#0E8F68" }
+                            ? { backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-accent-text)" }
                             : { border: "1px solid #E8E2DC", color: "var(--bt-text-2)", backgroundColor: "transparent" }}
                           title={t("feed.likeReaction")}
                           aria-label={t("feed.likeReaction")}>
@@ -690,7 +690,7 @@ export default function Feed() {
                         <button key={emoji} type="button" onClick={() => react(post, emoji)}
                           className="text-sm flex items-center gap-1 rounded-full px-2.5 py-1 transition-all"
                           style={active
-                            ? { backgroundColor: "#EAFBF4", border: "1px solid #C6EED9", color: "#0E8F68" }
+                            ? { backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-accent-text)" }
                             : { border: "1px solid #E8E2DC", color: "var(--bt-text-2)", backgroundColor: "transparent" }}>
                           <span style={{ color: isHeart ? "#ef4444" : undefined }}>{emoji}</span>
                           {n > 0 && <span className="text-xs tabular-nums font-medium">{n}</span>}
@@ -723,9 +723,9 @@ export default function Feed() {
                             style={{
                               width: 30,
                               height: 30,
-                              backgroundColor: myReaction === emoji ? "#EAFBF4" : "transparent",
-                              color: myReaction === emoji ? "#0E8F68" : "var(--bt-text-1)",
-                              border: myReaction === emoji ? "1px solid #C6EED9" : "1px solid transparent",
+                              backgroundColor: myReaction === emoji ? "var(--bt-accent-bg)" : "transparent",
+                              color: myReaction === emoji ? "var(--bt-accent-text)" : "var(--bt-text-1)",
+                              border: myReaction === emoji ? "1px solid var(--bt-accent-border)" : "1px solid transparent",
                               fontSize: 17,
                             }}
                             aria-label={`${t("feed.addReaction")} ${emoji}`}>
