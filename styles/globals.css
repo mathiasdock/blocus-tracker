@@ -26,9 +26,23 @@ html {
   --bt-surface:       #FFFDFB;
   --bt-subtle:        #F7F3EF;
   --bt-border:        #E8E2DC;
-  --bt-text-1:        #1F1A17;
-  --bt-text-2:        #7C746E;
-  --bt-text-3:        #A8A09A;
+  /* Echelle de gris — TOUS les tons qui portent du texte tiennent 4,5:1, le
+     seuil AA du petit texte, sur les TROIS fonds de l'app. Le pire cas n'est
+     pas `--bt-surface` (#FFFDFB) mais `--bt-subtle` (#F7F3EF), le plus sombre
+     des trois : c'est lui qui fixe les valeurs ci-dessous.
+     L'ancien `--bt-text-3` (#A8A09A) tombait a 2,54:1 et servait pourtant a
+     ~250 endroits, dont les intitules de section en capitales de 10-12px.
+     On ne pouvait pas simplement l'assombrir : `--bt-text-2` etait deja a
+     4,52:1, soit 0,5 % sous le plafond AA — aucun palier lisible ne tenait
+     EN DESSOUS de lui. L'echelle a donc ete decalee d'un cran.
+     Ratios donnes sur --bt-subtle (pire cas) / --bt-surface (meilleur cas). */
+  --bt-text-1:        #1F1A17;  /* 15,61 / 16,99 */
+  --bt-text-2:        #6B645E;  /*  5,27 /  5,73 */
+  --bt-text-3:        #766E68;  /*  4,53 /  4,93 — plancher AA, dernier ton lisible */
+  /* `--bt-text-4` (1,85:1) ne peut pas porter de texte : quatre gris distincts
+     ne tiennent pas au-dessus du plancher AA. Reservé aux traits et aux fonds
+     purement decoratifs, jamais a du contenu. Meme logique que --bt-ice /
+     --bt-flame plus bas, qui ne portent que des icones. */
   --bt-text-4:        #C4BCB6;
   --bt-accent:        #14B885;
   --bt-accent-dark:   #0E8F68;
@@ -67,6 +81,16 @@ html {
   --bt-ice:           #0284C7;
   --bt-ice-bg:        rgba(2,132,199,0.09);
   --bt-ice-line:      rgba(2,132,199,0.24);
+  /* `--bt-ice` est calibre pour des ICONES (4,04:1 : au-dessus des 3:1 exiges,
+     sous les 4,5:1 du texte). Des qu'un mot est ecrit en bleu glace — l'exergue
+     de la modale de gel, en capitales de 11px — il faut ce ton-ci a la place.
+     5,85:1 sur --bt-surface, 5,37:1 sur le pire fond (--bt-subtle). */
+  --bt-ice-text:      #0369A1;
+  /* Bouton plein « glace ». Un aplat est son propre fond : il n'a pas besoin de
+     basculer avec le theme, et ces deux-la tiennent 7,70:1 l'un sur l'autre.
+     Memes pixels qu'avant, simplement sortis du JS et mis dans un token. */
+  --bt-ice-fill:      #38BDF8;
+  --bt-ice-on-fill:   #04222E;
   --bt-scrollbar:     #D0C9C3;
   --bt-scrollbar-h:   #B8AEA6;
   /* Voile au-dessus de la photo des pages auth — s'assombrit en dark mode
@@ -81,10 +105,16 @@ html {
   --bt-surface:       #1A1715;
   --bt-subtle:        #222120;
   --bt-border:        #2C2622;
-  --bt-text-1:        #F0EDE8;
-  --bt-text-2:        #A8A09A;
-  --bt-text-3:        #6B635D;
-  --bt-text-4:        #4A4642;
+  /* En sombre le correctif va dans l'AUTRE sens : `--bt-text-3` etait a
+     3,03:1 et doit s'ECLAIRCIR, pas s'assombrir. `--bt-text-2` garde sa
+     valeur — a 6,25:1 il a de la marge, contrairement au theme clair.
+     Ici le pire fond est aussi `--bt-subtle` (#222120), le plus CLAIR des
+     trois : c'est lui qui fixe --bt-text-3.
+     Ratios sur --bt-subtle (pire cas) / --bt-surface. */
+  --bt-text-1:        #F0EDE8;  /* 13,77 / 15,28 */
+  --bt-text-2:        #A8A09A;  /*  6,25 /  6,93 */
+  --bt-text-3:        #8F8781;  /*  4,55 /  5,05 — plancher AA */
+  --bt-text-4:        #4A4642;  /*  1,91 — decoratif uniquement, jamais de texte */
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
   --bt-shadow:        rgba(0,0,0,0.18);
@@ -102,6 +132,10 @@ html {
   --bt-ice:           #7DD3FC;
   --bt-ice-bg:        rgba(125,211,252,0.13);
   --bt-ice-line:      rgba(125,211,252,0.26);
+  /* Sur fond sombre le bleu clair passe deja tres large (10,70:1) : le ton
+     texte rejoint --bt-ice. `--bt-ice-fill` / `--bt-ice-on-fill` ne sont pas
+     redefinis — un aplat ne bascule pas avec le theme. */
+  --bt-ice-text:      #7DD3FC;
   --bt-scrollbar:     #3A332E;
   --bt-scrollbar-h:   #4A4642;
   --bt-auth-overlay:  rgba(14,12,10,0.78);
@@ -918,7 +952,9 @@ details.bt-acc[open]::details-content { block-size: auto; }
   appearance: none;
   -webkit-appearance: none;
   border-radius: 6px;
-  border: 1.5px solid var(--bt-text-4);
+  /* Contour d'une case a cocher : c'est ce qui rend la commande identifiable,
+     donc 3:1 minimum (SC 1.4.11). --bt-text-4 n'etait qu'a 1,85:1. */
+  border: 1.5px solid var(--bt-text-3);
   background-color: transparent;
   display: inline-grid;
   place-items: center;

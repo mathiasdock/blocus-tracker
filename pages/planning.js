@@ -270,7 +270,7 @@ function RevisionChecklists() {
   return (
     <div className="card p-5 mt-4">
       <p className="text-[11px] font-semibold uppercase tracking-wider mb-3"
-        style={{ color: "var(--bt-text-4)" }}>
+        style={{ color: "var(--bt-text-3)" }}>
         {t("checklist.sectionTitle")}
       </p>
       <ul className="space-y-2">
@@ -603,7 +603,7 @@ function DayDetailModal() {
                     </span>
                   )}
                   {isPast && !isToday && (
-                    <span className="text-[11px] font-medium" style={{ color: "var(--bt-text-4)" }}>
+                    <span className="text-[11px] font-medium" style={{ color: "var(--bt-text-3)" }}>
                       {t("plan.dayPast")}
                     </span>
                   )}
@@ -660,7 +660,7 @@ function DayDetailModal() {
             <div className="mb-4">
               {exams.length > 0 && (
                 <>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-4)" }}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>
                     {t("plan.dayExams")}
                   </p>
                   <div className="space-y-2 mb-2">
@@ -772,12 +772,12 @@ function DayDetailModal() {
             {/* ── Objectives ── */}
             <div className="mb-4">
               {objectives.length > 0 && (
-                <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-4)" }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>
                   {t("plan.dayObjectives")}
                 </p>
               )}
               {objectives.length === 0 && exams.length === 0 && (
-                <p className="text-sm text-center py-8" style={{ color: "var(--bt-text-4)" }}>
+                <p className="text-sm text-center py-8" style={{ color: "var(--bt-text-3)" }}>
                   {t("plan.dayNoContent")}
                 </p>
               )}
@@ -808,7 +808,7 @@ function DayDetailModal() {
                             <div className="flex items-center gap-2 flex-wrap">
                               {o.course_id && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />}
                               <p className={`bt-strike ${o.done ? "is-done" : ""} text-sm font-medium flex-1 min-w-0`}
-                                style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-1)" }}>
+                                style={{ color: o.done ? "var(--bt-text-3)" : "var(--bt-text-1)" }}>
                                 {o.title || courseName(o.course_id) || "—"}
                               </p>
                               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
@@ -820,7 +820,7 @@ function DayDetailModal() {
                               {o.course_id && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{courseName(o.course_id)}</span>}
                               {o.scheduled_time && <span className="text-xs font-medium" style={{ color: "var(--bt-text-3)" }}>· {o.scheduled_time}</span>}
                               {o.target_minutes > 0 && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>· {o.target_minutes} min</span>}
-                              {recurLabel && <span className="text-xs font-semibold" style={{ color: "var(--bt-text-4)" }}>· ↻ {recurLabel}</span>}
+                              {recurLabel && <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>· ↻ {recurLabel}</span>}
                               {realSecs > 0 && <span className="text-xs font-semibold" style={{ color: "#0E8F68" }}>· {formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
                             </div>
                             {o.target_minutes > 0 && realSecs > 0 && (
@@ -837,9 +837,9 @@ function DayDetailModal() {
                             {!o.done && isToday && o.course_id && (
                               <button onClick={() => launchTimer(o.course_id)}
                                 className="w-7 h-7 flex items-center justify-center rounded-lg"
-                                style={{ color: "var(--bt-text-4)" }} title={t("plan.launchTimer")}
+                                style={{ color: "var(--bt-text-3)" }} title={t("plan.launchTimer")}
                                 onMouseEnter={e => e.currentTarget.style.color = "#14B885"}
-                                onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                                onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                                   <polygon points="5 3 19 12 5 21 5 3"/>
                                 </svg>
@@ -848,10 +848,10 @@ function DayDetailModal() {
                             {!o.done && (
                               <button onClick={() => setPostponingId(p => p === o.id ? null : o.id)}
                                 className="w-7 h-7 flex items-center justify-center rounded-lg"
-                                style={{ color: postponingId === o.id ? "#D97706" : "var(--bt-text-4)" }}
+                                style={{ color: postponingId === o.id ? "#D97706" : "var(--bt-text-3)" }}
                                 title={t("plan.postponeTooltip")}
                                 onMouseEnter={e => e.currentTarget.style.color = "#D97706"}
-                                onMouseLeave={e => e.currentTarget.style.color = postponingId === o.id ? "#D97706" : "var(--bt-text-4)"}>
+                                onMouseLeave={e => e.currentTarget.style.color = postponingId === o.id ? "#D97706" : "var(--bt-text-3)"}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <rect x="3" y="4" width="18" height="18" rx="2"/>
                                   <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
@@ -862,9 +862,9 @@ function DayDetailModal() {
                             )}
                             <button onClick={() => startInlineEdit(o)}
                               className="w-7 h-7 flex items-center justify-center rounded-lg"
-                              style={{ color: "var(--bt-text-4)" }} title={t("plan.dayEdit")}
+                              style={{ color: "var(--bt-text-3)" }} title={t("plan.dayEdit")}
                               onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
-                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -872,9 +872,9 @@ function DayDetailModal() {
                             </button>
                             <button onClick={() => remove(o.id)}
                               className="w-7 h-7 flex items-center justify-center rounded-lg"
-                              style={{ color: "var(--bt-text-4)" }}
+                              style={{ color: "var(--bt-text-3)" }}
                               onMouseEnter={e => e.currentTarget.style.color = "#DC2626"}
-                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                               </svg>
@@ -1080,7 +1080,7 @@ function MonthView() {
                       <span key={e.id} className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: "#DC2626" }} />
                     ))}
                     {(items.length + examItems.length) > 6 && (
-                      <span className="text-[9px] leading-none" style={{ color: "var(--bt-text-4)" }}>
+                      <span className="text-[9px] leading-none" style={{ color: "var(--bt-text-3)" }}>
                         +{items.length + examItems.length - 6}
                       </span>
                     )}
@@ -1093,7 +1093,7 @@ function MonthView() {
                         <span className="w-1.5 h-1.5 rounded-full shrink-0 flex-none"
                           style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.35 : 1 }} />
                         <span className="text-[10px] truncate leading-tight"
-                          style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-2)",
+                          style={{ color: o.done ? "var(--bt-text-3)" : "var(--bt-text-2)",
                             textDecoration: o.done ? "line-through" : "none" }}>
                           {o.title}
                         </span>
@@ -1106,7 +1106,7 @@ function MonthView() {
                       </div>
                     ))}
                     {(items.length + examItems.length) > 3 && (
-                      <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>
+                      <span className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>
                         +{items.length + examItems.length - 3}
                       </span>
                     )}
@@ -1290,12 +1290,12 @@ function QuickAddBar() {
       </div>
       {trimmed && parsed && (
         <div className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
-          <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddPreview")}</span>
+          <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("plan.quickAddPreview")}</span>
           {parsed.courseId
             ? <QuickAddChip accent>{courseName(parsed.courseId)}</QuickAddChip>
             : parsed.title
               ? <QuickAddChip accent>{parsed.title}</QuickAddChip>
-              : <span className="text-xs" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddNothing")}</span>}
+              : <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.quickAddNothing")}</span>}
           {parsed.courseId && parsed.title && <QuickAddChip>{parsed.title}</QuickAddChip>}
           {(parsed.courseId || parsed.title) && <QuickAddChip>{quickDateLabel(parsed.dateISO, lang, t)}</QuickAddChip>}
           {parsed.minutes > 0 && <QuickAddChip>{parsed.minutes} min</QuickAddChip>}

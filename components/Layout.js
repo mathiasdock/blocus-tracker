@@ -356,7 +356,7 @@ function NotificationPanel({
                       <span className="min-w-0 flex-1">
                         <span className="flex items-start justify-between gap-2">
                           <span className="text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{annTitle}</span>
-                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
+                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-3)" }}>{ts}</span>}
                         </span>
                         <span className="block text-xs mt-1 leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{annBody}</span>
                       </span>
@@ -378,7 +378,7 @@ function NotificationPanel({
                             <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>{name}</span>{" "}
                             {t("notif.friendRequest")}
                           </p>
-                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
+                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-3)" }}>{ts}</span>}
                         </div>
                         <div className="flex gap-2 mt-2.5">
                           <button type="button" onClick={() => onAcceptFriend(item.id).catch(console.error)}
@@ -409,7 +409,7 @@ function NotificationPanel({
                         {t(textKey)}
                         {item.type === "reaction" && item.emoji && <span className="ml-1 text-base align-middle">{item.emoji}</span>}
                       </span>
-                      {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
+                      {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-3)" }}>{ts}</span>}
                     </span>
                   </button>
                 </li>
@@ -666,7 +666,7 @@ export default function Layout({ children }) {
           {/* Social section */}
           <div className="pt-4 pb-1.5 px-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider"
-              style={{ color: "var(--bt-text-4)" }}>Social</p>
+              style={{ color: "var(--bt-text-3)" }}>Social</p>
           </div>
           <div className="space-y-0.5">
             {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
@@ -677,7 +677,7 @@ export default function Layout({ children }) {
             <>
               <div className="pt-4 pb-1.5 px-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{ color: "var(--bt-text-4)" }}>Admin</p>
+                  style={{ color: "var(--bt-text-3)" }}>Admin</p>
               </div>
               <div className="space-y-0.5">
                 {renderDesktopNavItem(NAV_ADMIN)}

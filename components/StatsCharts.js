@@ -208,7 +208,7 @@ export default function StatsCharts({
         <section
           className="card p-3 cursor-pointer select-none relative overflow-hidden card-lift"
           onClick={() => setExpanded("bar")}>
-          <div style={{ position: "absolute", top: 7, right: 7, color: "var(--bt-text-4)", opacity: 0.45 }}>
+          <div style={{ position: "absolute", top: 7, right: 7, color: "var(--bt-text-3)", opacity: 0.45 }}>
             <ExpandIcon />
           </div>
           <h2 className="text-[11px] font-semibold truncate mb-1.5 pr-4" style={{ color: "var(--bt-text-2)" }}>
@@ -247,7 +247,7 @@ export default function StatsCharts({
         <section
           className="card p-3 cursor-pointer select-none relative overflow-hidden card-lift"
           onClick={() => setExpanded("pie")}>
-          <div style={{ position: "absolute", top: 7, right: 7, color: "var(--bt-text-4)", opacity: 0.45 }}>
+          <div style={{ position: "absolute", top: 7, right: 7, color: "var(--bt-text-3)", opacity: 0.45 }}>
             <ExpandIcon />
           </div>
           <h2 className="text-[11px] font-semibold truncate mb-1.5 pr-4" style={{ color: "var(--bt-text-2)" }}>
@@ -308,12 +308,12 @@ export default function StatsCharts({
                 <div className="flex items-center gap-1 mb-3">
                   <button onClick={onPrev} disabled={!canPrev}
                     className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors"
-                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: canPrev ? "var(--bt-text-2)" : "var(--bt-text-4)", cursor: canPrev ? "pointer" : "not-allowed" }}>
+                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: canPrev ? "var(--bt-text-2)" : "var(--bt-text-3)", cursor: canPrev ? "pointer" : "not-allowed" }}>
                     <ChevronIcon direction="left" />
                   </button>
                   <button onClick={onNext} disabled={!canNext}
                     className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors"
-                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: canNext ? "var(--bt-text-2)" : "var(--bt-text-4)", cursor: canNext ? "pointer" : "not-allowed" }}>
+                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: canNext ? "var(--bt-text-2)" : "var(--bt-text-3)", cursor: canNext ? "pointer" : "not-allowed" }}>
                     <ChevronIcon direction="right" />
                   </button>
                 </div>

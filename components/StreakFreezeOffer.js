@@ -13,11 +13,16 @@ import { useEffect, useRef } from "react";
 import { useI18n } from "../contexts/I18nContext";
 import Flame from "./Flame";
 
-const ICE = "#38BDF8";
-const ICE_SOFT = "rgba(56,189,248,0.16)";
-const ICE_LINE = "rgba(56,189,248,0.34)";
+// Le bleu glace vit dans `globals.css` (famille --bt-ice) : il bascule avec le
+// theme et chaque usage a son ton. L'ancien #38BDF8 code en dur servait a la
+// fois d'icone, de texte et d'aplat ; en texte sur fond clair il ne faisait que
+// 2,11:1. Ici : --bt-ice pour les icones (3:1 suffit), --bt-ice-text des qu'il
+// s'agit de mots (4,5:1), --bt-ice-fill/-on-fill pour le bouton plein.
+const ICE_ICON = "var(--bt-ice)";
+const ICE_SOFT = "var(--bt-ice-bg)";
+const ICE_LINE = "var(--bt-ice-line)";
 
-function IconSnowflake({ size = 22, color = ICE }) {
+function IconSnowflake({ size = 22, color = ICE_ICON }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
       stroke={color} strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
@@ -55,12 +60,12 @@ export default function StreakFreezeOffer({ open, streak, days, stock, busy, onA
         {/* La flamme en péril, prise dans la glace */}
         <div className="relative mx-auto mb-4 flex items-center justify-center" style={{ width: 96, height: 96 }}>
           <span aria-hidden="true" className="bt-freeze-halo absolute inset-0 rounded-full" style={{ backgroundColor: ICE_SOFT }} />
-          <Flame size={46} style={{ color: "#D97706", position: "relative" }} />
+          <Flame size={46} style={{ color: "var(--bt-flame)", position: "relative" }} />
           <span aria-hidden="true" className="bt-freeze-flake absolute" style={{ top: -2, right: 6 }}><IconSnowflake size={26} /></span>
           <span aria-hidden="true" className="bt-freeze-flake absolute" style={{ bottom: 2, left: 2, animationDelay: "0.9s" }}><IconSnowflake size={16} /></span>
         </div>
 
-        <p className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: ICE }}>
+        <p className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--bt-ice-text)" }}>
           {t("streak.offerEyebrow")}
         </p>
         <h2 id="bt-freeze-title" className="text-xl font-bold leading-snug" style={{ color: "var(--bt-text-1)" }}>
@@ -83,7 +88,7 @@ export default function StreakFreezeOffer({ open, streak, days, stock, busy, onA
         <div className="mt-5 flex flex-col gap-2">
           <button ref={acceptRef} onClick={onAccept} disabled={busy}
             className="btn w-full text-sm font-bold"
-            style={{ backgroundColor: ICE, color: "#04222E", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>
+            style={{ backgroundColor: "var(--bt-ice-fill)", color: "var(--bt-ice-on-fill)", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>
             {busy ? t("common.loading") : (count > 1 ? t("streak.offerAcceptMany") : t("streak.offerAccept"))}
           </button>
           <button onClick={onDecline} disabled={busy} className="btn-ghost w-full text-sm">
@@ -91,7 +96,7 @@ export default function StreakFreezeOffer({ open, streak, days, stock, busy, onA
           </button>
         </div>
 
-        <p className="mt-3 text-[11px] leading-relaxed" style={{ color: "var(--bt-text-4)" }}>
+        <p className="mt-3 text-[11px] leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
           {t("streak.offerFootnote")}
         </p>
       </div>

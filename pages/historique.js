@@ -71,16 +71,16 @@ export default function Historique() {
             {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           {sessions.length > 0 && (
-            <span className="text-sm" style={{ color: "#7C746E" }}>
+            <span className="text-sm" style={{ color: "var(--bt-text-2)" }}>
               {sessions.length} session{sessions.length > 1 ? "s" : ""}
-              {" "}· Total affiché : <strong style={{ color: "#1F1A17" }}>{formatMinutesShort(totalSecs)}</strong>
+              {" "}· Total affiché : <strong style={{ color: "var(--bt-text-1)" }}>{formatMinutesShort(totalSecs)}</strong>
             </span>
           )}
         </div>
 
         <div className="card overflow-hidden">
           {sessions.length === 0 && !loading ? (
-            <div className="p-10 text-center text-sm" style={{ color: "#A8A09A" }}>{t("hist.empty")}</div>
+            <div className="p-10 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>{t("hist.empty")}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

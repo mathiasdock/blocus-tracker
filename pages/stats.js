@@ -82,10 +82,10 @@ function StatBadge({ earned, label, icon }) {
   return (
     <div className="flex flex-col items-center text-center gap-1.5" style={{ opacity: earned ? 1 : 0.45 }} title={label}>
       <span className="w-12 h-12 rounded-2xl flex items-center justify-center"
-        style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: `1px solid ${earned ? "var(--bt-accent-border)" : "var(--bt-border)"}`, color: earned ? "#0E8F68" : "var(--bt-text-4)" }}>
+        style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: `1px solid ${earned ? "var(--bt-accent-border)" : "var(--bt-border)"}`, color: earned ? "#0E8F68" : "var(--bt-text-3)" }}>
         {icon}
       </span>
-      <span className="text-[10px] leading-tight font-medium" style={{ color: earned ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{label}</span>
+      <span className="text-[10px] leading-tight font-medium" style={{ color: earned ? "var(--bt-text-2)" : "var(--bt-text-3)" }}>{label}</span>
     </div>
   );
 }
@@ -747,7 +747,7 @@ export default function Stats() {
                     <span className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>{m.label}</span>
                     <span className="flex items-center gap-1.5">
                       {dApp != null && <TrendChip dir={dApp > 0 ? "up" : dApp < 0 ? "down" : "flat"} pct={Math.abs(dApp)} />}
-                      {dApp != null && <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{t("stats.cmpVsApp")}</span>}
+                      {dApp != null && <span className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>{t("stats.cmpVsApp")}</span>}
                     </span>
                   </div>
                   <div className="space-y-1.5">
@@ -767,7 +767,7 @@ export default function Stats() {
               );
             })}
           </div>
-          <p className="text-[10px] mt-4" style={{ color: "var(--bt-text-4)" }}>{t("stats.cmpPrivacy")}</p>
+          <p className="text-[10px] mt-4" style={{ color: "var(--bt-text-3)" }}>{t("stats.cmpPrivacy")}</p>
         </div>
       )}
 

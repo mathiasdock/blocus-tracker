@@ -1301,7 +1301,7 @@ export default function Dashboard() {
           {/* ── Objectif de session — poser l'intention avant de démarrer ── */}
           {!pomodoro && !running && elapsed === 0 && (
             <div className="px-5 sm:px-6 mt-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-center mb-2.5" style={{ color: "var(--bt-text-4)" }}>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-center mb-2.5" style={{ color: "var(--bt-text-3)" }}>
                 {t("dash.sessionGoalLabel")}
               </p>
               <div className="flex flex-wrap justify-center gap-1.5">
@@ -1403,7 +1403,7 @@ export default function Dashboard() {
                 )}
               </div>
             )}
-            <p className="text-[11px] text-center mt-4" style={{ color: "var(--bt-text-4)" }}>{t("dash.subtitle")}</p>
+            <p className="text-[11px] text-center mt-4" style={{ color: "var(--bt-text-3)" }}>{t("dash.subtitle")}</p>
           </div>
         </section>
 
@@ -1504,7 +1504,7 @@ export default function Dashboard() {
                       <>
                         <span className="flex-1 min-w-0">
                           <span className="font-medium" style={{ color: "var(--bt-text-1)" }}>{courseName(s.course_id)}</span>
-                          {s.note && <span style={{ color: "#A8A09A" }}> — {s.note}</span>}
+                          {s.note && <span style={{ color: "var(--bt-text-3)" }}> — {s.note}</span>}
                         </span>
                         <span className="shrink-0 tabular-nums" style={{ color: "var(--bt-text-2)" }}>
                           {formatMinutesShort(s.duration_seconds)}
@@ -1514,9 +1514,9 @@ export default function Dashboard() {
                           onClick={() => { setEditingSessionId(s.id); setEditMinutes(String(maxMins)); setEditCourseId(s.course_id); }}
                           title={t("dash.editSession")}
                           className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                          style={{ color: "var(--bt-text-4)" }}
+                          style={{ color: "var(--bt-text-3)" }}
                           onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
-                          onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                          onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
                           </svg>
@@ -1550,9 +1550,9 @@ export default function Dashboard() {
                             onClick={() => setConfirmDeleteId(s.id)}
                             title={t("common.delete")}
                             className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                            style={{ color: "var(--bt-text-4)" }}
+                            style={{ color: "var(--bt-text-3)" }}
                             onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
                             </svg>
@@ -1813,18 +1813,18 @@ export default function Dashboard() {
                           onClick={(e) => { e.stopPropagation(); setEditingExamId(editingExamId === c.id ? null : c.id); setExamDateInput(c.exam_date || ""); }}
                           title={t("exam.setDate")}
                           className="transition-colors w-7 h-7 flex items-center justify-center rounded-lg"
-                          style={{ color: c.exam_date ? "#14B885" : "var(--bt-text-4)" }}
+                          style={{ color: c.exam_date ? "#14B885" : "var(--bt-text-3)" }}
                           onMouseEnter={e => { e.currentTarget.style.color = "#14B885"; e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = c.exam_date ? "#14B885" : "var(--bt-text-4)"; e.currentTarget.style.backgroundColor = ""; }}>
+                          onMouseLeave={e => { e.currentTarget.style.color = c.exam_date ? "#14B885" : "var(--bt-text-3)"; e.currentTarget.style.backgroundColor = ""; }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                           </svg>
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); deleteCourse(c.id); }}
                           className="transition-colors w-7 h-7 flex items-center justify-center rounded-lg"
-                          style={{ color: "var(--bt-text-4)" }}
+                          style={{ color: "var(--bt-text-3)" }}
                           onMouseEnter={e => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.08)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-4)"; e.currentTarget.style.backgroundColor = ""; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-3)"; e.currentTarget.style.backgroundColor = ""; }}
                           title={t("common.remove")}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -1872,9 +1872,9 @@ export default function Dashboard() {
                         {c.exam_date && (
                           <button onClick={(e) => { e.stopPropagation(); updateExamDate(c.id, null); setEditingExamId(null); }}
                             title={t("common.remove")}
-                            style={{ color: "var(--bt-text-4)" }}
+                            style={{ color: "var(--bt-text-3)" }}
                             onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
                             </svg>
@@ -1941,11 +1941,11 @@ export default function Dashboard() {
             <p className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
               style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
               {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
-              {pomoCount > 0 && <span className="font-normal ml-2" style={{ color: "#555" }}>· {t("dash.cycle")} {pomoCount}</span>}
+              {pomoCount > 0 && <span className="font-normal ml-2" style={{ color: "var(--bt-ink-muted)" }}>· {t("dash.cycle")} {pomoCount}</span>}
             </p>
           )}
 
-          <p className="text-sm mb-2 relative z-10" style={{ color: "#A8A09A" }}>
+          <p className="text-sm mb-2 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {courseId ? courseName(courseId) : t("dash.noCourse")}
           </p>
 

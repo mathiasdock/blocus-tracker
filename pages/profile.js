@@ -120,7 +120,7 @@ function IconSun() { return <svg width="17" height="17" viewBox="0 0 24 24" fill
 
 // ── UI primitives (uniformes sur toute la page) ─────────────
 function SectionLabel({ children }) {
-  return <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{children}</p>;
+  return <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{children}</p>;
 }
 
 function IconBox({ color, bg, children }) {
@@ -210,7 +210,7 @@ function StatTile({ label, value, sub }) {
       style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
       <p className="font-num font-bold tabular-nums leading-none truncate" style={{ fontSize: "1.05rem", color: "var(--bt-text-1)", letterSpacing: "-0.01em" }}>{value}</p>
       <p className="text-[10px] font-semibold uppercase tracking-wide mt-1 truncate" style={{ color: "var(--bt-text-3)" }} title={label}>{label}</p>
-      {sub && <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--bt-text-4)" }}>{sub}</p>}
+      {sub && <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }}>{sub}</p>}
     </div>
   );
 }
@@ -522,7 +522,7 @@ function BadgeSheet({ badge, earned, t, onClose }) {
               )}
             </div>
             {!earned && (
-              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-4)" }}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-3)" }}>
                 {t("badge.howToEarn")}
               </p>
             )}
@@ -961,7 +961,7 @@ export default function Profile() {
       value: (
         <span className="inline-flex items-center gap-1.5">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke={freezeStock > 0 ? "#38BDF8" : "var(--bt-text-4)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            stroke={freezeStock > 0 ? "#38BDF8" : "var(--bt-text-3)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
           </svg>
           <span className="font-num tabular-nums">{freezeStock}/2</span>

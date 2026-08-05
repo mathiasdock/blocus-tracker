@@ -640,9 +640,9 @@ export default function Communautes() {
           </div>
           {(mine || isAdmin) && (
             <button onClick={() => remove(m.id)} className="text-[10px] mt-0.5 transition-colors"
-              style={{ color: "var(--bt-text-4)" }}
+              style={{ color: "var(--bt-text-3)" }}
               onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
-              onMouseLeave={(e) => e.currentTarget.style.color = "var(--bt-text-4)"}>
+              onMouseLeave={(e) => e.currentTarget.style.color = "var(--bt-text-3)"}>
               {t("common.remove")}
             </button>
           )}
@@ -661,7 +661,7 @@ export default function Communautes() {
         <aside className={`${listVisible} lg:col-span-1 card flex-col overflow-hidden`} style={panelStyle}>
           <div className="p-3 shrink-0 relative" style={{ borderBottom: "1px solid var(--bt-border)" }}>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-3)" }}>
                 <IconSearch />
               </span>
               <input className="input text-sm w-full" style={{ paddingLeft: "2.15rem" }}
@@ -687,7 +687,7 @@ export default function Communautes() {
                 {myUni ? (
                   myUniMatches && (
                     <div className="mb-2">
-                      <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
+                      <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
                         {t("comm.yourSchool")}
                       </p>
                       <UniversityButton u={myUni} badge={communityCount[myUni.id] || 0}
@@ -702,7 +702,7 @@ export default function Communautes() {
                 )}
 
                 {(myUni ? myUniMatches : true) && filteredCountries.length > 0 && (
-                  <p className="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
+                  <p className="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
                     {t("comm.allCommunities")}
                   </p>
                 )}
@@ -725,7 +725,7 @@ export default function Communautes() {
                         )}
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                           stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          className={`transition-transform ${isOpen ? "rotate-180" : ""}`} style={{ color: "var(--bt-text-4)" }}>
+                          className={`transition-transform ${isOpen ? "rotate-180" : ""}`} style={{ color: "var(--bt-text-3)" }}>
                           <path d="M6 9l6 6 6-6"/>
                         </svg>
                       </button>
@@ -831,9 +831,9 @@ export default function Communautes() {
                             <>
                               {" · "}
                               <button onClick={() => { remove(activeThread.id); setActiveThreadId(null); }}
-                                className="transition-colors" style={{ color: "var(--bt-text-4)" }}
+                                className="transition-colors" style={{ color: "var(--bt-text-3)" }}
                                 onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
-                                onMouseLeave={(e) => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                                onMouseLeave={(e) => e.currentTarget.style.color = "var(--bt-text-3)"}>
                                 {t("common.remove")}
                               </button>
                             </>
@@ -892,9 +892,9 @@ export default function Communautes() {
                                 {(qm.user_id === user.id || isAdmin) && (
                                   <button onClick={(e) => { e.stopPropagation(); remove(qm.id); }}
                                     className="absolute top-3 right-3 text-[10px] transition-colors"
-                                    style={{ color: "var(--bt-text-4)" }}
+                                    style={{ color: "var(--bt-text-3)" }}
                                     onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
-                                    onMouseLeave={(e) => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                                    onMouseLeave={(e) => e.currentTarget.style.color = "var(--bt-text-3)"}>
                                     {t("common.remove")}
                                   </button>
                                 )}
@@ -965,7 +965,7 @@ export default function Communautes() {
                                 </a>
                               )}
                               {(rm.user_id === user.id || isAdmin) && (
-                                <button onClick={() => remove(rm.id)} className="block text-[10px] mt-2" style={{ color: "var(--bt-text-4)" }}>{t("common.remove")}</button>
+                                <button onClick={() => remove(rm.id)} className="block text-[10px] mt-2" style={{ color: "var(--bt-text-3)" }}>{t("common.remove")}</button>
                               )}
                             </li>
                           );
@@ -1023,7 +1023,7 @@ export default function Communautes() {
                               </div>
                               <ExamDateBadge days={days} t={t} />
                               {(em.user_id === user.id || isAdmin) && (
-                                <button onClick={() => remove(em.id)} className="text-[10px] shrink-0" style={{ color: "var(--bt-text-4)" }}>{t("common.remove")}</button>
+                                <button onClick={() => remove(em.id)} className="text-[10px] shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("common.remove")}</button>
                               )}
                             </li>
                           );

@@ -281,7 +281,7 @@ export default function AdminDemoStats({ userId }) {
       <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-text-3)" }}>
         Statistiques de démo (mon compte)
       </p>
-      <p className="text-xs mb-4" style={{ color: "var(--bt-text-4)" }}>
+      <p className="text-xs mb-4" style={{ color: "var(--bt-text-3)" }}>
         Génère de vraies sessions sur <strong>ton compte uniquement</strong>, pour des captures promotionnelles.
         Stats, graphes, heatmap, série et records deviennent cohérents partout.
         Régénère autant de fois que tu veux (chaque essai remplace le précédent), puis
@@ -316,12 +316,12 @@ export default function AdminDemoStats({ userId }) {
         </button>
       </div>
 
-      <p className="text-[11px] mt-3 leading-relaxed" style={{ color: "var(--bt-text-4)" }}>
+      <p className="text-[11px] mt-3 leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
         Une génération interrompue laisse des sessions déjà créées : elles restent traçables
         et « Tout réinitialiser » les enlève. Si le suivi a été perdu (autre navigateur, cache vidé),
         utilise « Supprimer par plage… » sur le nombre de jours généré.
       </p>
-      <p className="text-[11px] mt-1.5" style={{ color: "var(--bt-text-4)" }}>
+      <p className="text-[11px] mt-1.5" style={{ color: "var(--bt-text-3)" }}>
         {existing == null ? "…" : `${existing} session(s) sur ton compte`}
         {courses.length ? ` · réparties sur ${courses.length} cours` : " · aucun cours (sessions sans matière)"}
       </p>

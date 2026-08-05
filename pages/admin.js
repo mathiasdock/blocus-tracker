@@ -145,7 +145,7 @@ function StatCard({ label, value, accent, sub, dot, delta }) {
           </span>
         )}
       </div>
-      {sub && <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--bt-text-4)" }}>{sub}</p>}
+      {sub && <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }}>{sub}</p>}
     </div>
   );
 }
@@ -175,7 +175,7 @@ function HealthPill({ label, value, status, hint }) {
         <span className="text-xs font-semibold uppercase tracking-wide truncate" style={{ color: "var(--bt-text-3)" }}>{label}</span>
       </div>
       <p className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>{value}</p>
-      {hint && <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--bt-text-4)" }}>{hint}</p>}
+      {hint && <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--bt-text-3)" }}>{hint}</p>}
     </div>
   );
 }
@@ -202,7 +202,7 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
           <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
             {t("admin.egressGuard")}
           </p>
-          <p className="text-xs mt-1 max-w-2xl" style={{ color: "var(--bt-text-4)" }}>
+          <p className="text-xs mt-1 max-w-2xl" style={{ color: "var(--bt-text-3)" }}>
             {t("admin.egressGuardDesc")}
           </p>
         </div>
@@ -302,7 +302,7 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--bt-text-4)" }}>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--bt-text-3)" }}>
             <span>{t("admin.egressGeneratedAt")} {new Date(data.generatedAt).toLocaleString("fr-FR")}</span>
             <span>Scan max {data.limits.maxFilesPerBucket} objets/bucket</span>
             {data.scan?.warnings?.length > 0 && <span>{data.scan.warnings.length} avertissement(s) de scan</span>}
@@ -338,7 +338,7 @@ function StorageCleanupPanel({
           <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
             {t("admin.cleanupTitle")}
           </p>
-          <p className="text-xs mt-1 max-w-2xl" style={{ color: "var(--bt-text-4)" }}>
+          <p className="text-xs mt-1 max-w-2xl" style={{ color: "var(--bt-text-3)" }}>
             {t("admin.cleanupDesc")}
           </p>
         </div>
@@ -439,7 +439,7 @@ function StorageCleanupPanel({
             </table>
           </div>
 
-          <p className="text-[11px]" style={{ color: "var(--bt-text-4)" }}>
+          <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
             {t("admin.egressGeneratedAt")} {new Date(data.generatedAt).toLocaleString("fr-FR")} · max {data.limits.maxDeleteIds} suppressions par action.
           </p>
         </div>
@@ -469,7 +469,7 @@ function ActivityRow({ ev }) {
         <p className="text-sm truncate" style={{ color: "var(--bt-text-1)" }}>
           <span className="font-semibold">@{ev.pseudo}</span> {ev.text}
         </p>
-        <p className="text-[11px]" style={{ color: "var(--bt-text-4)" }}>{relDate(ev.at)} · {new Date(ev.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+        <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>{relDate(ev.at)} · {new Date(ev.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
       </div>
       {ev.value && <span className="text-xs font-semibold tabular-nums shrink-0" style={{ color: meta.color }}>{ev.value}</span>}
     </div>
@@ -508,7 +508,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
 
   return (
     <div ref={wrapRef} className="relative w-full sm:w-80">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-3)" }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
       </span>
       <input
@@ -523,7 +523,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
           {results.empty && <p className="px-4 py-4 text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun résultat pour « {q} »</p>}
           {results.u.length > 0 && (
             <div>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>Membres</p>
+              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>Membres</p>
               {results.u.map(x => (
                 <button key={x.id} onClick={() => { onPickUser(x); setOpen(false); setQ(""); }}
                   className="w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors"
@@ -540,15 +540,15 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
           )}
           {results.comms.length > 0 && (
             <div>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>Communautés</p>
+              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>Communautés</p>
               {results.comms.map(c => (
-                <div key={c.id} className="px-4 py-2 text-sm" style={{ color: "var(--bt-text-2)" }}>{c.name} <span className="text-[11px]" style={{ color: "var(--bt-text-4)" }}>· {c.full}</span></div>
+                <div key={c.id} className="px-4 py-2 text-sm" style={{ color: "var(--bt-text-2)" }}>{c.name} <span className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>· {c.full}</span></div>
               ))}
             </div>
           )}
           {results.anns.length > 0 && (
             <div>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>Annonces</p>
+              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>Annonces</p>
               {results.anns.map(a => (
                 <button key={a.id} onClick={() => { onPickSection("content"); setOpen(false); setQ(""); }}
                   className="w-full px-4 py-2 text-left text-sm transition-colors truncate" style={{ color: "var(--bt-text-2)" }}
@@ -559,7 +559,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
           )}
           {results.sugg.length > 0 && (
             <div>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>Suggestions</p>
+              <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>Suggestions</p>
               {results.sugg.map(f => (
                 <button key={f.id} onClick={() => { onPickSection("content"); setOpen(false); setQ(""); }}
                   className="w-full px-4 py-2 text-left text-sm transition-colors truncate" style={{ color: "var(--bt-text-2)" }}
@@ -1383,7 +1383,7 @@ export default function Admin() {
                             </div>
                           </div>
                           <p className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>{label}</p>
-                          <p className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{r.eligible} éligibles</p>
+                          <p className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>{r.eligible} éligibles</p>
                         </div>
                       ))}
                     </div>
@@ -1545,9 +1545,9 @@ export default function Admin() {
                             </td>
                             <td className="py-2.5 pr-3 max-w-[120px] truncate text-xs" style={{ color: "var(--bt-text-2)" }}>{u.university ? (Object.values(COMMUNITY_BY_ID).find(m => m.full === u.university)?.name || u.university.split(" ")[0]) : "—"}</td>
                             <td className="py-2.5 pr-3 whitespace-nowrap text-xs hidden md:table-cell" style={{ color: "var(--bt-text-3)" }}>{new Date(u.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" })}</td>
-                            <td className="py-2.5 pr-3 text-xs whitespace-nowrap" style={{ color: stat?.lastAt ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{relDate(stat?.lastAt)}</td>
-                            <td className="py-2.5 pr-3 text-xs hidden lg:table-cell" style={{ color: stat?.totalSecs ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{stat?.totalSecs ? formatMinutesShort(stat.totalSecs) : "—"}</td>
-                            <td className="py-2.5 pr-3 text-xs hidden sm:table-cell">{referralCounts[u.id] ? <span className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>{referralCounts[u.id]}</span> : <span style={{ color: "var(--bt-text-4)" }}>—</span>}</td>
+                            <td className="py-2.5 pr-3 text-xs whitespace-nowrap" style={{ color: stat?.lastAt ? "var(--bt-text-2)" : "var(--bt-text-3)" }}>{relDate(stat?.lastAt)}</td>
+                            <td className="py-2.5 pr-3 text-xs hidden lg:table-cell" style={{ color: stat?.totalSecs ? "var(--bt-text-2)" : "var(--bt-text-3)" }}>{stat?.totalSecs ? formatMinutesShort(stat.totalSecs) : "—"}</td>
+                            <td className="py-2.5 pr-3 text-xs hidden sm:table-cell">{referralCounts[u.id] ? <span className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>{referralCounts[u.id]}</span> : <span style={{ color: "var(--bt-text-3)" }}>—</span>}</td>
                             <td className="py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                               <button onClick={() => setDetailUser(u)} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>Ouvrir</button>
                             </td>
@@ -1598,7 +1598,7 @@ export default function Admin() {
                 />
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-text-3)" }}>Nécessite l'API Management Supabase</p>
-                  <p className="text-xs mb-3" style={{ color: "var(--bt-text-4)" }}>Ces métriques ne sont pas exposées côté client. Elles demandent un endpoint serveur (clé Management Supabase / Vercel) — affichées ici en attente de branchement pour éviter des chiffres inventés.</p>
+                  <p className="text-xs mb-3" style={{ color: "var(--bt-text-3)" }}>Ces métriques ne sont pas exposées côté client. Elles demandent un endpoint serveur (clé Management Supabase / Vercel) — affichées ici en attente de branchement pour éviter des chiffres inventés.</p>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <HealthPill label="Stockage" value="À brancher" status="idle" hint="Storage : espace utilisé / quota" />
                     <HealthPill label="Egress / Bande passante" value="À brancher" status="idle" hint="Transfert sortant mensuel" />
@@ -1656,7 +1656,7 @@ export default function Admin() {
                                   {!a.is_active && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-border)", color: "var(--bt-text-3)" }}>{t("admin.annInactive")}</span>}
                                 </div>
                                 <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{a.message}</p>
-                                <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-4)" }}>{new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</p>
+                                <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-3)" }}>{new Date(a.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</p>
                               </div>
                               <div className="flex flex-col gap-1.5 shrink-0">
                                 <button onClick={() => toggleAnnouncement(a)} className="text-xs px-2.5 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: a.is_active ? "var(--bt-border)" : "var(--bt-accent-bg)", color: a.is_active ? "var(--bt-text-2)" : "#0E8F68" }}>{a.is_active ? t("admin.annDeactivate") : t("admin.annActivate")}</button>
@@ -1683,10 +1683,10 @@ export default function Admin() {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: sc.bg, color: sc.color }}>{sc.label}</span>
-                                    <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bt-text-4)" }}>{f.type} · @{usersById[f.user_id]?.pseudo || "?"}</span>
+                                    <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{f.type} · @{usersById[f.user_id]?.pseudo || "?"}</span>
                                   </div>
                                   <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>{f.message}</p>
-                                  <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-4)" }}>{new Date(f.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</p>
+                                  <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-3)" }}>{new Date(f.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</p>
                                 </div>
                                 <div className="flex flex-col gap-1 shrink-0">
                                   {["new", "read", "done"].filter(s => s !== f.status).map(s => (

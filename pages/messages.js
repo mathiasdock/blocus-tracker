@@ -1142,7 +1142,7 @@ export default function Messages() {
               style={{ borderBottom: "1px solid var(--bt-border)" }}>
               <div className="relative">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
+                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-3)" }}>
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <input ref={socialSearchInputRef} className="input text-sm w-full" style={{ paddingLeft: "2.15rem" }}
@@ -1171,7 +1171,7 @@ export default function Messages() {
                     <>
                       {matchingConversations.length > 0 && (
                         <div>
-                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
                             {t("social.searchConversations")}
                           </p>
                           {matchingConversations.map(c => (
@@ -1193,7 +1193,7 @@ export default function Messages() {
                       )}
                       {socialResults.people.length > 0 && (
                         <div>
-                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
                             {t("social.searchPeople")}
                           </p>
                           {socialResults.people.map(p => {
@@ -1341,12 +1341,12 @@ export default function Messages() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</p>
                         <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
-                          {c.type === "dm" && <span className="font-semibold" style={{ color: "var(--bt-text-4)" }}>{t("social.typePrivate")} · </span>}
+                          {c.type === "dm" && <span className="font-semibold" style={{ color: "var(--bt-text-3)" }}>{t("social.typePrivate")} · </span>}
                           {c.subtitle}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        {c.lastAt && <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{timeAgo(c.lastAt, lang)}</span>}
+                        {c.lastAt && <span className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>{timeAgo(c.lastAt, lang)}</span>}
                         {c.unread > 0 && (
                           <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-red-500 text-white rounded-full px-1 leading-none">
                             {c.unread > 99 ? "99+" : c.unread}
@@ -1380,7 +1380,7 @@ export default function Messages() {
               ) : (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{t("social.suggestionsTitle")}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{t("social.suggestionsTitle")}</span>
                     <button onClick={() => setShowSuggestions(false)} className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("common.close")}</button>
                   </div>
                   {loadingSuggestions ? (
@@ -1437,7 +1437,7 @@ export default function Messages() {
             </div>
             {suggestions.length > 0 && (
               <div className="w-full max-w-xs mt-5 pt-5" style={{ borderTop: "1px solid var(--bt-border)" }}>
-                <p className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: "var(--bt-text-4)" }}>
+                <p className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: "var(--bt-text-3)" }}>
                   {t("social.suggestionsTitle")}
                 </p>
                 <div className="space-y-2">
@@ -1699,9 +1699,9 @@ export default function Messages() {
                           {amCreator && (
                             <button onClick={cancelGroupChrono}
                               className="text-xs transition-colors"
-                              style={{ color: "var(--bt-text-4)" }}
+                              style={{ color: "var(--bt-text-3)" }}
                               onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                               {t("groups.chronoCancel")}
                             </button>
                           )}
@@ -1795,9 +1795,9 @@ export default function Messages() {
                         {(mine || isAdmin) && (
                           <button onClick={() => removeGroupMessage(m.id)}
                             className="text-[10px] mt-0.5 transition-colors"
-                            style={{ color: "var(--bt-text-4)" }}
+                            style={{ color: "var(--bt-text-3)" }}
                             onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
+                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
                             {t("common.remove")}
                           </button>
                         )}
@@ -1923,7 +1923,7 @@ export default function Messages() {
                         <button
                           onClick={() => removeMember(m.user_id)}
                           className="text-[10px] shrink-0 transition-colors hover:text-red-500"
-                          style={{ color: "var(--bt-text-4)" }}>
+                          style={{ color: "var(--bt-text-3)" }}>
                           ✕
                         </button>
                       )}
