@@ -15,6 +15,7 @@ import { readSessionShare } from "../lib/sessionShare";
 import { isStudyingLive } from "../lib/presence";
 import { optimizeFeedImage } from "../lib/imageCompression";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { playSensoryCue } from "../lib/sensoryFeedback";
 import {
   TEXT_LIMITS,
   attachmentKind,
@@ -942,22 +943,23 @@ export default function Messages() {
     setShowChronoStart(false);
     setChronoStartNote("");
     setChronoLoading(false);
+    playSensoryCue("start");
     await loadGroupChrono();
   }
 
   async function joinGroupChrono() {
     if (!groupChrono) return;
     const my = chronoParticipants.find(p => p.user_id === user.id);
-    if (my) {
-      await supabase.from("group_chrono_members")
+    const { error } = my
+      ? await supabase.from("group_chrono_members")
         .update({ status: "accepted", joined_at: new Date().toISOString() })
-        .eq("id", my.id);
-    } else {
-      await supabase.from("group_chrono_members").insert({
+        .eq("id", my.id)
+      : await supabase.from("group_chrono_members").insert({
         session_id: groupChrono.id, user_id: user.id,
         status: "accepted", joined_at: new Date().toISOString(),
       });
-    }
+    if (error) return;
+    playSensoryCue("resume");
     await loadGroupChrono();
   }
 
@@ -976,22 +978,26 @@ export default function Messages() {
 
   async function pauseGroupChrono() {
     if (!groupChrono) return;
-    await supabase.from("group_chrono_sessions")
+    const { error } = await supabase.from("group_chrono_sessions")
       .update({ status: "paused", last_pause_at: new Date().toISOString() })
       .eq("id", groupChrono.id);
+    if (error) return;
+    playSensoryCue("pause");
     await loadGroupChrono();
   }
 
   async function resumeGroupChrono() {
     if (!groupChrono?.last_pause_at) return;
     const pausedSecs = Math.floor((Date.now() - new Date(groupChrono.last_pause_at).getTime()) / 1000);
-    await supabase.from("group_chrono_sessions")
+    const { error } = await supabase.from("group_chrono_sessions")
       .update({
         status: "active",
         last_pause_at: null,
         total_paused_seconds: groupChrono.total_paused_seconds + pausedSecs,
       })
       .eq("id", groupChrono.id);
+    if (error) return;
+    playSensoryCue("resume");
     await loadGroupChrono();
   }
 
@@ -1001,6 +1007,7 @@ export default function Messages() {
       p_session_id: groupChrono.id,
     });
     if (!error) {
+      playSensoryCue("complete");
       setGroupChrono(null);
       setChronoParticipants([]);
       setMyChronoStatus(null);
@@ -1033,6 +1040,7 @@ export default function Messages() {
     setGrpActiveId(grp.id);
     setActiveType("group");
     setMobileView("chat");
+    playSensoryCue("confirm");
     await loadGroups();
   }
 

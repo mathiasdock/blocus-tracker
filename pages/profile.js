@@ -347,6 +347,7 @@ function ReferralCard({ t, fallbackCode = "" }) {
     if (!shareLink) return;
     try {
       await navigator.clipboard.writeText(shareLink);
+      playSensoryCue("confirm");
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch (_) {}

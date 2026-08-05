@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const ToastContext = createContext({ toast: () => {} });
 
@@ -41,6 +42,7 @@ export function ToastProvider({ children }) {
   const toast = useCallback(
     (message, type = "success") => {
       if (!message) return;
+      if (type === "success") playSensoryCue("confirm");
       const id = ++idRef.current;
       setToasts((prev) => {
         // Keep the stack shallow — a premium app never buries the user in toasts.

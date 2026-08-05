@@ -2,6 +2,32 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-06 - Bruitages satisfaisants et selectifs dans l'app
+
+Extension du moteur sonore ElevenLabs ajoute le 05-08, sans nouvel asset ni
+poids reseau. Trois intentions semantiques reutilisent les cinq MP3 locaux :
+`confirm` (petit pop), `task` (validation douce) et `share` (tick montant).
+
+Moments sonorises :
+
+- chaque toast de succes, ce qui couvre de facon centralisee les ajouts au
+  planning, demandes/acceptations d'amis, publications de communaute, exports
+  et sauvegardes de profil ; les toasts d'erreur et d'information restent
+  silencieux ;
+- objectif termine depuis Planning ;
+- publication creee dans le feed ;
+- session envoyee a un ami, recap telecharge ou partage, lien de parrainage
+  copie ;
+- demande d'ami acceptee depuis le centre de notifications ;
+- chrono de groupe : creation, rejoindre, pause, reprise et fin ;
+- creation d'un groupe de revision.
+
+CHOIX VOLONTAIRE : aucun son sur la navigation, les likes/reactions, chaque
+message envoye, les suppressions, les ouvertures de modales ou les simples
+toggles. Ces gestes sont trop frequents ou ne representent pas une reussite.
+Tous les nouveaux sons respectent toujours le reglage global Profil > Sons du
+chrono et les limites anti-spam de `lib/sensoryFeedback.js`.
+
 ## 2026-08-05 - Bruitages ElevenLabs fiables
 
 L'ancien retour sonore de `lib/sensoryFeedback.js` etait bien branche au chrono,

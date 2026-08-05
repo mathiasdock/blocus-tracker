@@ -23,6 +23,7 @@ import LevelPill from "../components/LevelPill";
 import EmptyState from "../components/EmptyState";
 import FeedPhoto from "../components/FeedPhoto";
 import { SkeletonRow, SkeletonBar } from "../components/Skeleton";
+import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const DEFAULT_REACTION_EMOJI = "👍";
 const LEGACY_FALLBACK_EMOJI = "♥";
@@ -221,7 +222,10 @@ export default function Feed() {
       caption: cleanCaption || null,
       visibility,
     });
-    if (!error) notifyXPChanged();
+    if (!error) {
+      playSensoryCue("share");
+      notifyXPChanged();
+    }
     setCaption("");
     setFile(null);
     setVisibility("public");

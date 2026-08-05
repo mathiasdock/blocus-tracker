@@ -454,6 +454,7 @@ export function NotificationProvider({ children }) {
       .eq("addressee", user.id)
       .eq("status", "pending");
     if (error) throw error;
+    playSensoryCue("confirm");
     notifyXPChanged();
     setFriendCount((count) => Math.max(0, count - 1));
     setNotificationItems((items) => items.filter((item) => item.key !== `friend_request:${requestId}`));

@@ -16,6 +16,7 @@ import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { parseQuickObjective } from "../lib/planningQuickAdd";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { playSensoryCue } from "../lib/sensoryFeedback";
 
 // ── Constants ─────────────────────────────────────────────────
 // Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
@@ -1400,6 +1401,7 @@ export default function Planning() {
       setObjectives(p => p.map(x => x.id === o.id ? data : x));
       notifyXPChanged();
       if (!o.done) {
+        playSensoryCue("task");
         const nextDate = nextRecurrenceDate(o);
         if (nextDate) {
           const alreadyExists = objectives.some(x =>
