@@ -6,10 +6,9 @@ import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import BadgeIcon from "../components/BadgeIcon";
-import AdminDemoStats from "../components/AdminDemoStats";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
-import { supabase } from "../lib/supabaseClient";
+import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort } from "../lib/format";
 import { isStudyingLive } from "../lib/presence";
 import { COMMUNITY_BY_ID, COUNTRIES } from "../lib/universities";
@@ -38,11 +37,9 @@ const YEARS = [
 const SECTIONS = [
   { id: "overview",  label: "Vue d'ensemble" },
   { id: "analytics", label: "Analytics" },
-  { id: "activity",  label: "Activité" },
   { id: "members",   label: "Membres" },
   { id: "technical", label: "Technique" },
   { id: "content",   label: "Contenu" },
-  { id: "demo",      label: "Démo" },
 ];
 
 // Palette graphiques — accents distincts, cohérents avec l'app.
@@ -74,6 +71,20 @@ function formatBytes(bytes) {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(value < 10 * 1024 ? 1 : 0)} KB`;
   return `${(value / 1024 / 1024).toFixed(value < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+
+async function fetchPagedRows(makeQuery, maxRows = 10000) {
+  const pageSize = 1000;
+  const rows = [];
+  for (let from = 0; from < maxRows; from += pageSize) {
+    const to = Math.min(from + pageSize, maxRows) - 1;
+    const { data, error } = await makeQuery().range(from, to);
+    if (error) return { data: rows, error };
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return { data: rows, error: null, truncated: rows.length >= maxRows };
 }
 
 function egressStatusLabel(status, t) {
@@ -178,6 +189,114 @@ function HealthPill({ label, value, status, hint }) {
       {hint && <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "var(--bt-text-4)" }}>{hint}</p>}
     </div>
   );
+}
+
+function ActionRow({ label, detail, count, tone = "neutral", onClick }) {
+  const colors = {
+    neutral: { bg: "var(--bt-subtle)", color: "var(--bt-text-2)" },
+    warn: { bg: "rgba(245,158,11,0.12)", color: "#B45309" },
+    critical: { bg: "rgba(220,38,38,0.10)", color: "#DC2626" },
+  };
+  const current = colors[tone] || colors.neutral;
+  return (
+    <button type="button" onClick={onClick} className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2" style={{ border: "1px solid var(--bt-border)", color: "var(--bt-text-1)" }}>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{label}</span>
+        <span className="block text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>{detail}</span>
+      </span>
+      <span className="inline-flex min-w-8 h-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: current.bg, color: current.color }}>{count}</span>
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--bt-text-4)" }}><path d="m9 18 6-6-6-6" /></svg>
+    </button>
+  );
+}
+
+function AdoptionRows({ insights, total }) {
+  const rows = [
+    ["Chrono", insights?.adoption?.timer, C.green],
+    ["Badges", insights?.adoption?.badges, C.violet],
+    ["Amis", insights?.adoption?.social, C.blue],
+    ["Planning", insights?.adoption?.planning, C.amber],
+    ["Missions reçues", insights?.adoption?.missions, C.teal],
+    ["Missions terminées", insights?.adoption?.missionsCompleted, C.rose],
+  ];
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+      {rows.map(([label, item, color]) => {
+        const available = item?.available !== false && Number.isFinite(item?.users);
+        const pct = available && total ? Math.round((item.users / total) * 100) : null;
+        return (
+          <div key={label}>
+            <div className="flex items-center justify-between gap-3 mb-1.5">
+              <span className="text-sm font-medium" style={{ color: "var(--bt-text-2)" }}>{label}</span>
+              <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{pct === null ? "Indisponible" : `${pct}% · ${item.users}`}</span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
+              <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, pct || 0))}%`, backgroundColor: color }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const MEMBER_STATUS = {
+  active: { label: "Actif", bg: "var(--bt-accent-bg)", color: "#0E8F68" },
+  new: { label: "Nouveau", bg: "rgba(14,165,233,0.12)", color: "#0369A1" },
+  stalled: { label: "À activer", bg: "rgba(245,158,11,0.12)", color: "#B45309" },
+  dormant: { label: "Dormant", bg: "var(--bt-subtle)", color: "var(--bt-text-3)" },
+  locked: { label: "Suspendu", bg: "rgba(220,38,38,0.10)", color: "#DC2626" },
+};
+
+function memberStatus(user, stat, now = Date.now()) {
+  if (user.locked) return "locked";
+  const lastAt = stat?.lastAt ? new Date(stat.lastAt).getTime() : 0;
+  if (lastAt >= now - 30 * 864e5) return "active";
+  if (lastAt) return "dormant";
+  const createdAt = user.created_at ? new Date(user.created_at).getTime() : now;
+  return createdAt <= now - 48 * 36e5 ? "stalled" : "new";
+}
+
+function MemberStatusPill({ status }) {
+  const meta = MEMBER_STATUS[status] || MEMBER_STATUS.new;
+  return <span className="inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold whitespace-nowrap" style={{ backgroundColor: meta.bg, color: meta.color }}>{meta.label}</span>;
+}
+
+function buildLocalInsights(users, sessions, badges, feedback, announcements) {
+  const now = Date.now();
+  const timerUsers = new Set(sessions.map((session) => session.user_id).filter(Boolean));
+  const badgeUsers = new Set(badges.map((badge) => badge.user_id).filter(Boolean));
+  const lastSession = new Map();
+  sessions.forEach((session) => {
+    const stamp = session.started_at ? new Date(session.started_at).getTime() : 0;
+    if (stamp > (lastSession.get(session.user_id) || 0)) lastSession.set(session.user_id, stamp);
+  });
+  const stalled = users.filter((user) => new Date(user.created_at).getTime() <= now - 48 * 36e5 && !timerUsers.has(user.id));
+  return {
+    generatedAt: new Date(now).toISOString(),
+    members: users.length,
+    source: "local",
+    adoption: {
+      timer: { users: timerUsers.size, available: true },
+      planning: { users: null, available: false },
+      badges: { users: badgeUsers.size, available: true },
+      social: { users: null, available: false },
+      missions: { users: null, available: false },
+      missionsCompleted: { users: null, available: false },
+    },
+    queue: {
+      stalledAfter48h: stalled.length,
+      dormant30d: users.filter((user) => {
+        const stamp = lastSession.get(user.id);
+        return stamp && stamp < now - 30 * 864e5;
+      }).length,
+      lockedAccounts: users.filter((user) => user.locked).length,
+      newFeedback: feedback.filter((item) => item.status === "new").length,
+      inactiveAnnouncements: announcements.filter((item) => !item.is_active).length,
+    },
+    stalledUsers: stalled.slice(0, 8).map((user) => ({ id: user.id, pseudo: user.pseudo, university: user.university, createdAt: user.created_at })),
+    warnings: ["Aperçu local partiel"],
+  };
 }
 
 function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
@@ -859,9 +978,15 @@ export default function Admin() {
   const [search, setSearch] = useState("");
   const [filterUni, setFilterUni] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
+  const [memberSegment, setMemberSegment] = useState("all");
 
   // Analytics
   const [period, setPeriod] = useState(30);
+  const [insights, setInsights] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // Modals
   const [detailUser, setDetailUser] = useState(null);
@@ -898,10 +1023,10 @@ export default function Admin() {
     if (!profile || !profile.is_admin) return;
     const [uRes, sRes, pRes, mRes, bRes, fRes, refRes, annRes] = await Promise.all([
       supabase.from("profiles").select("id, pseudo, first_name, last_name, university, study_field, study_year, bio, avatar_url, created_at, is_admin, locked, studying_since, referral_code, bonus_xp").order("created_at", { ascending: false }),
-      // Limite de sûreté : au-delà, agréger côté SQL (voir lib/adminAnalytics.js).
-      supabase.from("sessions").select("user_id, duration_seconds, started_at").order("started_at", { ascending: false }).limit(8000),
-      supabase.from("posts").select("id, user_id, created_at").order("created_at", { ascending: false }).limit(2000),
-      supabase.from("private_messages").select("id, sender_id, created_at").order("created_at", { ascending: false }).limit(2000),
+      // Pagination explicite : PostgREST plafonne souvent chaque réponse à 1000 lignes.
+      fetchPagedRows(() => supabase.from("sessions").select("user_id, duration_seconds, started_at").order("started_at", { ascending: false }), 8000),
+      supabase.from("posts").select("id, user_id, created_at").order("created_at", { ascending: false }).limit(100),
+      supabase.from("private_messages").select("id, sender_id, created_at").order("created_at", { ascending: false }).limit(100),
       supabase.from("user_badges").select("user_id, badge_id, earned_at").order("earned_at", { ascending: false }).limit(2000),
       supabase.from("app_feedback").select("id, user_id, type, message, status, created_at").order("created_at", { ascending: false }),
       supabase.rpc("admin_get_referral_counts"),
@@ -928,10 +1053,41 @@ export default function Admin() {
       if (!m.lastAt || s.started_at > m.lastAt) m.lastAt = s.started_at;
     }
     setUserStats(map);
+    setLastUpdated(new Date());
     setBusy(false);
   }, [profile]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  const loadInsights = useCallback(async () => {
+    if (!profile?.is_admin || isOfflineDev) return;
+    setInsightsLoading(true);
+    setInsightsError("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Session admin introuvable.");
+      const response = await fetch("/api/admin/insights", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error || "Impossible de charger les indicateurs admin.");
+      setInsights(body);
+    } catch (error) {
+      setInsightsError(error?.message || "Impossible de charger les indicateurs admin.");
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, [profile?.is_admin]);
+
+  useEffect(() => { loadInsights(); }, [loadInsights]);
+
+  useEffect(() => {
+    if (!isOfflineDev || busy) return;
+    setInsights(buildLocalInsights(users, sessions, badges, feedback, announcements));
+    setInsightsError("");
+  }, [busy, users, sessions, badges, feedback, announcements]);
 
   /* ── Activity: backfill from loaded data ───────────────── */
   useEffect(() => {
@@ -1104,6 +1260,15 @@ export default function Admin() {
     }
   }, [cleanupScan, cleanupSelected, loadEgressGuard, loadStorageCleanup, profile?.is_admin, t]);
 
+  async function refreshAdminData() {
+    if (refreshing) return;
+    setRefreshing(true);
+    const tasks = [loadAll(), loadInsights()];
+    if (section === "technical") tasks.push(loadEgressGuard());
+    await Promise.allSettled(tasks);
+    setRefreshing(false);
+  }
+
   const loadDeleted = useCallback(async () => {
     if (!profile?.is_admin) return;
     const { data } = await supabase.from("deleted_accounts").select("*").order("deleted_at", { ascending: false });
@@ -1182,15 +1347,30 @@ export default function Admin() {
   const uniDist = useMemo(() => usersByUniversity(users), [users]);
   const topUnis = useMemo(() => topActiveUniversities(users, sessions), [users, sessions]);
   const activation = useMemo(() => activationBreakdown(users, sessions, now), [users, sessions, now]);
-  const sessionsToday = sessions.filter(s => s.started_at.slice(0, 10) === todayStr).length;
   const totalSecs30 = sessions.filter(s => s.started_at.slice(0, 10) >= monthAgo).reduce((a, s) => a + (s.duration_seconds || 0), 0);
   const sessions30 = sessions.filter(s => s.started_at.slice(0, 10) >= monthAgo);
   const avgSecs = sessions30.length ? Math.round(totalSecs30 / sessions30.length) : 0;
+  const timerAdoption = insights?.adoption?.timer?.users;
+  const timerAdoptionRate = Number.isFinite(timerAdoption) && users.length ? Math.round((timerAdoption / users.length) * 100) : 0;
+  const queue = insights?.queue || {};
+  const attentionCount = [queue.stalledAfter48h, queue.dormant30d, queue.lockedAccounts, queue.newFeedback, queue.inactiveAnnouncements].filter((count) => count > 0).length;
 
   /* ── Members filtering ─────────────────────────────────── */
   const q = search.trim().toLowerCase();
+  const memberStatuses = useMemo(() => {
+    const stamp = Date.now();
+    return Object.fromEntries(users.map((user) => [user.id, memberStatus(user, userStats[user.id], stamp)]));
+  }, [users, userStats]);
+  const memberSegmentCounts = useMemo(() => {
+    const counts = { all: users.length, active: 0, stalled: 0, dormant: 0, locked: 0 };
+    Object.values(memberStatuses).forEach((status) => {
+      if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status] += 1;
+    });
+    return counts;
+  }, [users.length, memberStatuses]);
   const filtered = useMemo(() => {
     const base = users
+      .filter(u => memberSegment === "all" || memberStatuses[u.id] === memberSegment)
       .filter(u => !filterUni ? true : filterUni === "__autre__" ? !ALL_UNI_FULLS.has(u.university || "") : u.university === filterUni)
       .filter(u => !q || u.pseudo?.toLowerCase().includes(q) || u.first_name?.toLowerCase().includes(q) || u.last_name?.toLowerCase().includes(q) || u.university?.toLowerCase().includes(q));
     return [...base].sort((a, b) => {
@@ -1201,7 +1381,39 @@ export default function Admin() {
       if (sortBy === "referrals") return (referralCounts[b.id] || 0) - (referralCounts[a.id] || 0);
       return 0;
     });
-  }, [users, filterUni, q, sortBy, userStats, referralCounts]);
+  }, [users, memberSegment, memberStatuses, filterUni, q, sortBy, userStats, referralCounts]);
+
+  function openMemberSegment(segment) {
+    setMemberSegment(segment);
+    setSection("members");
+  }
+
+  function exportMembersCsv() {
+    const headers = ["pseudo", "nom", "universite", "statut", "inscription", "derniere_session", "sessions", "minutes_etudiees", "parrainages"];
+    const rows = filtered.map((user) => {
+      const stat = userStats[user.id];
+      return [
+        user.pseudo || "",
+        displayName(user) || "",
+        user.university || "",
+        MEMBER_STATUS[memberStatuses[user.id]]?.label || "",
+        user.created_at || "",
+        stat?.lastAt || "",
+        stat?.count || 0,
+        Math.round((stat?.totalSecs || 0) / 60),
+        referralCounts[user.id] || 0,
+      ];
+    });
+    const escape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `blocus-tracker-membres-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   // Garde admin — placée APRÈS tous les hooks pour garder leur ordre stable
   // (sinon "Rendered more hooks than during the previous render").
@@ -1230,8 +1442,14 @@ export default function Admin() {
             <h1 className="text-2xl font-display" style={{ color: "var(--bt-text-1)" }}>Cockpit</h1>
             <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Pilotage de Blocus Tracker · réservé aux admins</p>
           </div>
-          <GlobalSearch users={users} announcements={announcements} feedback={feedback}
-            onPickUser={u => setDetailUser(u)} onPickSection={s => setSection(s)} />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <GlobalSearch users={users} announcements={announcements} feedback={feedback}
+              onPickUser={u => setDetailUser(u)} onPickSection={s => setSection(s)} />
+            <button type="button" onClick={refreshAdminData} disabled={refreshing} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold shrink-0 disabled:opacity-60" style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }} title={lastUpdated ? `Dernière actualisation : ${lastUpdated.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "Actualiser les données"}>
+              <svg aria-hidden="true" className={refreshing ? "motion-safe:animate-spin" : ""} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5" /></svg>
+              <span className="hidden md:inline">{refreshing ? "Actualisation…" : "Actualiser"}</span>
+            </button>
+          </div>
         </div>
 
         {/* ══ Section nav ══ */}
@@ -1254,19 +1472,54 @@ export default function Admin() {
               <div className="space-y-5">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   <StatCard label="Membres" value={users.length} accent={C.green} />
-                  <StatCard label="En ligne" value={onlineNow} dot={onlineNow > 0} />
+                  <StatCard label="Actifs (30j)" value={kpis.mau} accent={C.blue} />
+                  <StatCard label="En session" value={onlineNow} dot={onlineNow > 0} />
                   <StatCard label="Nouveaux (7j)" value={`+${weekCount}`} delta={deltaLabel(weekSignupDelta)} sub={`+${todayCount} aujourd'hui`} />
-                  <StatCard label="DAU" value={kpis.dau} accent={C.blue} sub="actifs aujourd'hui" />
-                  <StatCard label="WAU" value={kpis.wau} sub="actifs 7 jours" />
-                  <StatCard label="MAU" value={kpis.mau} sub="actifs 30 jours" />
+                  <StatCard label="Temps étudié (30j)" value={formatMinutesShort(totalSecs30)} />
+                  <StatCard label="Activation chrono" value={insightsLoading ? "…" : `${timerAdoptionRate}%`} accent={C.violet} sub={Number.isFinite(timerAdoption) ? `${timerAdoption} membres` : "calcul en cours"} />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <StatCard label="Sessions auj." value={sessionsToday} />
-                  <StatCard label="Temps 30j" value={formatMinutesShort(totalSecs30)} />
-                  <StatCard label="Durée moy." value={formatMinutesShort(avgSecs)} />
-                  <StatCard label="Activés" value={`${activation.total ? Math.round(activation.active / activation.total * 100) : 0}%`} sub={`${activation.active} actifs 30j`} />
-                  <StatCard label="Dormants" value={activation.dormant} sub="inactifs 30j" />
-                  <StatCard label="Jamais actifs" value={activation.never} />
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  <ChartCard title="À traiter" subtitle={insightsLoading ? "Analyse en cours…" : `${attentionCount} ${attentionCount > 1 ? "catégories demandent" : "catégorie demande"} ton attention`}>
+                    {insightsError && !insights ? (
+                      <div className="rounded-xl px-3 py-3 text-sm" style={{ backgroundColor: "rgba(220,38,38,0.08)", color: "#B91C1C" }}>{insightsError} Utilise Actualiser pour réessayer.</div>
+                    ) : attentionCount === 0 && insights ? (
+                      <div className="flex items-center gap-3 py-5">
+                        <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
+                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>
+                        </span>
+                        <div><p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>Rien d'urgent</p><p className="text-xs" style={{ color: "var(--bt-text-3)" }}>Aucun signal administratif ne demande une action.</p></div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {(queue.newFeedback || 0) > 0 && <ActionRow label="Nouvelles suggestions" detail="Lire et classer les retours reçus" count={queue.newFeedback} onClick={() => { setContentTab("suggestions"); setSection("content"); }} />}
+                        {(queue.lockedAccounts || 0) > 0 && <ActionRow label="Comptes suspendus" detail="Vérifier les comptes actuellement bloqués" count={queue.lockedAccounts} tone="critical" onClick={() => openMemberSegment("locked")} />}
+                        {(queue.stalledAfter48h || 0) > 0 && <ActionRow label="Sans première session" detail="Inscrits depuis plus de 48 h à activer" count={queue.stalledAfter48h} tone="warn" onClick={() => openMemberSegment("stalled")} />}
+                        {(queue.dormant30d || 0) > 0 && <ActionRow label="Membres dormants" detail="Ont déjà étudié, mais plus depuis 30 jours" count={queue.dormant30d} onClick={() => openMemberSegment("dormant")} />}
+                        {(queue.inactiveAnnouncements || 0) > 0 && <ActionRow label="Annonces inactives" detail="Réactiver ou supprimer les anciennes annonces" count={queue.inactiveAnnouncements} onClick={() => { setContentTab("announcements"); setSection("content"); }} />}
+                      </div>
+                    )}
+                  </ChartCard>
+
+                  <ChartCard title="Comptes à activer" subtitle="Inscrits depuis plus de 48 h sans session">
+                    {insightsLoading && !insights ? <p className="py-5 text-sm" style={{ color: "var(--bt-text-3)" }}>Analyse des parcours…</p> : (insights?.stalledUsers || []).length === 0 ? (
+                      <p className="py-5 text-sm" style={{ color: "var(--bt-text-3)" }}>Tous les comptes récents ont lancé leur première session.</p>
+                    ) : (
+                      <div className="-mx-2">
+                        {(insights?.stalledUsers || []).slice(0, 5).map((entry) => {
+                          const user = usersById[entry.id];
+                          return (
+                            <button key={entry.id} type="button" onClick={() => user && setDetailUser(user)} disabled={!user} className="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl text-left disabled:opacity-60">
+                              <Avatar url={user?.avatar_url} pseudo={entry.pseudo} size={30} />
+                              <span className="flex-1 min-w-0"><span className="block text-sm font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>@{entry.pseudo}</span><span className="block text-[11px] truncate" style={{ color: "var(--bt-text-3)" }}>{entry.university || `Inscrit ${relDate(entry.createdAt)}`}</span></span>
+                              <span className="text-xs font-semibold" style={{ color: "#0E8F68" }}>Ouvrir</span>
+                            </button>
+                          );
+                        })}
+                        {(queue.stalledAfter48h || 0) > 5 && <button type="button" onClick={() => openMemberSegment("stalled")} className="mt-2 text-xs font-semibold" style={{ color: "#0E8F68" }}>Voir les {queue.stalledAfter48h} comptes</button>}
+                      </div>
+                    )}
+                  </ChartCard>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -1306,6 +1559,11 @@ export default function Admin() {
                   </div>
                   <PeriodPicker period={period} setPeriod={setPeriod} />
                 </div>
+
+                <ChartCard title="Adoption des fonctionnalités" subtitle="Part des membres ayant réellement utilisé chaque parcours" right={insights?.source === "local" ? <span className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>Aperçu local partiel</span> : null}>
+                  <AdoptionRows insights={insights} total={insights?.members || users.length} />
+                  {insightsError && <p className="text-xs mt-4" style={{ color: "#B45309" }}>{insightsError}</p>}
+                </ChartCard>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                   <ChartCard title="Nouveaux utilisateurs" subtitle={`${monthCount} sur 30 j · ${weekCount} sur 7 j`}>
@@ -1389,30 +1647,6 @@ export default function Admin() {
                     </div>
                   </ChartCard>
 
-                  <ChartCard title="Publications Feed par jour" subtitle="Activité sociale">
-                    <ResponsiveContainer width="100%" height={180}>
-                      <BarChart data={series} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
-                        <CartesianGrid stroke={GRID} vertical={false} />
-                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: AXIS }} interval={Math.floor(series.length / 8)} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: AXIS }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(148,144,139,0.08)" }} />
-                        <Bar dataKey="posts" name="Posts" fill={C.violet} radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartCard>
-
-                  <ChartCard title="Messages envoyés par jour" subtitle="Messagerie privée">
-                    <ResponsiveContainer width="100%" height={180}>
-                      <BarChart data={series} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
-                        <CartesianGrid stroke={GRID} vertical={false} />
-                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: AXIS }} interval={Math.floor(series.length / 8)} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: AXIS }} tickLine={false} axisLine={false} allowDecimals={false} />
-                        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(148,144,139,0.08)" }} />
-                        <Bar dataKey="messages" name="Messages" fill={C.amber} radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartCard>
-
                   <ChartCard title="Répartition par université" subtitle={`${uniDist.length} établissements`}>
                     <ResponsiveContainer width="100%" height={Math.max(180, uniDist.length * 26)}>
                       <BarChart data={uniDist} layout="vertical" margin={{ top: 0, right: 28, left: 4, bottom: 0 }} barCategoryGap="26%">
@@ -1459,29 +1693,8 @@ export default function Admin() {
                     </div>
                   </ChartCard>
 
-                  <ChartCard title="Répartition mobile / desktop" subtitle="Nécessite une instrumentation">
-                    <div className="flex flex-col items-center justify-center text-center py-8 gap-2">
-                      <span className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)" }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="14" height="11" rx="1" /><path d="M2 17h14M17 8h5v11a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1z" /></svg>
-                      </span>
-                      <p className="text-sm max-w-[260px]" style={{ color: "var(--bt-text-3)" }}>
-                        Non suivi actuellement. Nécessite d'enregistrer la plateforme (colonne <span className="font-mono text-xs">device</span>) à la connexion ou par session.
-                      </p>
-                    </div>
-                  </ChartCard>
                 </div>
               </div>
-            )}
-
-            {/* ═══════════ ACTIVITY ═══════════ */}
-            {section === "activity" && (
-              <ChartCard title="Flux d'activité" subtitle="Comptes, sessions, posts, messages, badges, suggestions"
-                right={<span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: liveStatus === "live" ? "#0E8F68" : "var(--bt-text-3)" }}><span className="w-2 h-2 rounded-full" style={{ backgroundColor: liveStatus === "live" ? "#22c55e" : "#94908B" }} />{liveStatus === "live" ? "Temps réel" : liveStatus === "offline" ? "Hors ligne" : "Connexion…"}</span>}>
-                <div className="-mx-5 -mb-5 max-h-[70vh] overflow-y-auto">
-                  {activity.length === 0 ? <p className="px-5 py-8 text-sm" style={{ color: "var(--bt-text-3)" }}>En attente d'activité…</p>
-                    : activity.map(ev => <ActivityRow key={ev.id} ev={ev} />)}
-                </div>
-              </ChartCard>
             )}
 
             {/* ═══════════ MEMBERS ═══════════ */}
@@ -1489,26 +1702,39 @@ export default function Admin() {
               <section className="card p-5">
                 <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                   <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>Membres <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({filtered.length})</span></h2>
-                  <div className="flex gap-2 flex-wrap">
-                    <input className="input w-36" placeholder="Filtrer…" value={search} onChange={e => setSearch(e.target.value)} />
-                    <select className="input w-44" value={filterUni} onChange={e => setFilterUni(e.target.value)}>
-                      <option value="">Toutes les unifs</option>
-                      {COUNTRIES.map(country => (
-                        <optgroup key={country.code} label={country.name.replace(/\s*[^\w\s].*/, "").trim()}>
-                          {country.universities.map(u => <option key={u.id} value={u.full}>{u.name}</option>)}
-                        </optgroup>
-                      ))}
-                      <option value="__autre__">Autre</option>
-                    </select>
-                    <select className="input w-44" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                      <option value="created_at">Inscription (récent)</option>
-                      <option value="last_session">Dernière session</option>
-                      <option value="study_time">Temps d'étude</option>
-                      <option value="referrals">Parrainages</option>
-                      <option value="university">Université</option>
-                      <option value="last_name">Nom</option>
-                    </select>
-                  </div>
+                  <button type="button" onClick={exportMembersCsv} disabled={filtered.length === 0} className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold disabled:opacity-50" style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>
+                    Exporter CSV
+                  </button>
+                </div>
+                <div className="flex gap-1 mb-4 p-1 rounded-xl overflow-x-auto" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                  {[
+                    ["all", "Tous"], ["active", "Actifs"], ["stalled", "À activer"], ["dormant", "Dormants"], ["locked", "Suspendus"],
+                  ].map(([id, label]) => (
+                    <button key={id} type="button" onClick={() => setMemberSegment(id)} className="px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap" style={memberSegment === id ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" } : { color: "var(--bt-text-3)" }}>
+                      {label} <span className="tabular-nums" style={{ color: memberSegment === id ? "#0E8F68" : "var(--bt-text-4)" }}>{memberSegmentCounts[id] || 0}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 flex-wrap mb-4">
+                  <input className="input min-w-[150px] flex-1" placeholder="Pseudo, nom ou université…" value={search} onChange={e => setSearch(e.target.value)} />
+                  <select className="input w-full sm:w-48" value={filterUni} onChange={e => setFilterUni(e.target.value)}>
+                    <option value="">Toutes les universités</option>
+                    {COUNTRIES.map(country => (
+                      <optgroup key={country.code} label={country.name.replace(/\s*[^\w\s].*/, "").trim()}>
+                        {country.universities.map(u => <option key={u.id} value={u.full}>{u.name}</option>)}
+                      </optgroup>
+                    ))}
+                    <option value="__autre__">Autre</option>
+                  </select>
+                  <select className="input w-full sm:w-48" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                    <option value="created_at">Inscription (récent)</option>
+                    <option value="last_session">Dernière session</option>
+                    <option value="study_time">Temps d'étude</option>
+                    <option value="referrals">Parrainages</option>
+                    <option value="university">Université</option>
+                    <option value="last_name">Nom</option>
+                  </select>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1517,7 +1743,7 @@ export default function Admin() {
                         {[
                           { label: "Membre", cls: "" }, { label: "Université", cls: "" },
                           { label: "Inscrit", cls: "hidden md:table-cell" }, { label: "Dernière session", cls: "" },
-                          { label: "Temps", cls: "hidden lg:table-cell" }, { label: "Parrain.", cls: "hidden sm:table-cell" }, { label: "", cls: "" },
+                          { label: "Statut", cls: "hidden lg:table-cell" }, { label: "Temps", cls: "hidden xl:table-cell" }, { label: "Parrain.", cls: "hidden sm:table-cell" }, { label: "", cls: "" },
                         ].map(h => <th key={h.label} className={`pb-3 text-left font-semibold ${h.cls}`} style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-text-3)", paddingRight: 12 }}>{h.label}</th>)}
                       </tr>
                     </thead>
@@ -1537,7 +1763,6 @@ export default function Admin() {
                                     <span className="font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>@{u.pseudo}</span>
                                     {isStudyingLive(u.studying_since) && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: "#22c55e" }} />}
                                     {u.is_admin && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>A</span>}
-                                    {u.locked && <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>⏸</span>}
                                   </div>
                                   {displayName(u) !== u.pseudo && <span className="text-[11px] truncate block" style={{ color: "var(--bt-text-3)" }}>{displayName(u)}</span>}
                                 </div>
@@ -1546,7 +1771,8 @@ export default function Admin() {
                             <td className="py-2.5 pr-3 max-w-[120px] truncate text-xs" style={{ color: "var(--bt-text-2)" }}>{u.university ? (Object.values(COMMUNITY_BY_ID).find(m => m.full === u.university)?.name || u.university.split(" ")[0]) : "—"}</td>
                             <td className="py-2.5 pr-3 whitespace-nowrap text-xs hidden md:table-cell" style={{ color: "var(--bt-text-3)" }}>{new Date(u.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" })}</td>
                             <td className="py-2.5 pr-3 text-xs whitespace-nowrap" style={{ color: stat?.lastAt ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{relDate(stat?.lastAt)}</td>
-                            <td className="py-2.5 pr-3 text-xs hidden lg:table-cell" style={{ color: stat?.totalSecs ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{stat?.totalSecs ? formatMinutesShort(stat.totalSecs) : "—"}</td>
+                            <td className="py-2.5 pr-3 hidden lg:table-cell"><MemberStatusPill status={memberStatuses[u.id]} /></td>
+                            <td className="py-2.5 pr-3 text-xs hidden xl:table-cell" style={{ color: stat?.totalSecs ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>{stat?.totalSecs ? formatMinutesShort(stat.totalSecs) : "—"}</td>
                             <td className="py-2.5 pr-3 text-xs hidden sm:table-cell">{referralCounts[u.id] ? <span className="inline-flex items-center justify-center min-w-[22px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>{referralCounts[u.id]}</span> : <span style={{ color: "var(--bt-text-4)" }}>—</span>}</td>
                             <td className="py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                               <button onClick={() => setDetailUser(u)} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>Ouvrir</button>
@@ -1554,7 +1780,7 @@ export default function Admin() {
                           </tr>
                         );
                       })}
-                      {filtered.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun résultat.</td></tr>}
+                      {filtered.length === 0 && <tr><td colSpan={8} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun membre dans ce segment.</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -1566,13 +1792,14 @@ export default function Admin() {
               <div className="space-y-5">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: "var(--bt-text-3)" }}>Vérifiés automatiquement</p>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                     {health ? (
                       <>
                         <HealthPill label="Base de données" value={health.db.value} status={health.db.status} hint={health.db.hint} />
                         <HealthPill label="Temps réel" value={health.realtime.value} status={health.realtime.status} hint={health.realtime.hint} />
                         <HealthPill label="Notifications push" value={health.push.value} status={health.push.status} hint={health.push.hint} />
                         <HealthPill label="Authentification" value={health.auth.value} status={health.auth.status} hint={health.auth.hint} />
+                        <HealthPill label="Déploiement" value={health.deploy.value} status={health.deploy.status} hint={health.deploy.hint} />
                       </>
                     ) : <p className="text-sm col-span-full" style={{ color: "var(--bt-text-3)" }}>Vérification en cours…</p>}
                   </div>
@@ -1596,26 +1823,6 @@ export default function Admin() {
                   onToggle={toggleCleanupCandidate}
                   t={t}
                 />
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-text-3)" }}>Nécessite l'API Management Supabase</p>
-                  <p className="text-xs mb-3" style={{ color: "var(--bt-text-4)" }}>Ces métriques ne sont pas exposées côté client. Elles demandent un endpoint serveur (clé Management Supabase / Vercel) — affichées ici en attente de branchement pour éviter des chiffres inventés.</p>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <HealthPill label="Stockage" value="À brancher" status="idle" hint="Storage : espace utilisé / quota" />
-                    <HealthPill label="Egress / Bande passante" value="À brancher" status="idle" hint="Transfert sortant mensuel" />
-                    <HealthPill label="Emails (SMTP)" value="À brancher" status="idle" hint="Envois Resend / quota" />
-                    <HealthPill label="Dernière sauvegarde" value="À brancher" status="idle" hint="Backups Supabase" />
-                    <HealthPill label="Dernier déploiement" value={health?.deploy?.value || "…"} status={health?.deploy?.status || "idle"} hint={health?.deploy?.hint || "Vercel"} />
-                  </div>
-                </div>
-                <div className="card p-5">
-                  <p className="text-[11px] font-bold uppercase tracking-wider mb-3" style={{ color: "var(--bt-text-3)" }}>Volumétrie (données chargées)</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <StatCard label="Profils" value={users.length} />
-                    <StatCard label="Sessions" value={sessions.length} sub={sessions.length >= 8000 ? "limite atteinte" : undefined} />
-                    <StatCard label="Posts" value={posts.length} />
-                    <StatCard label="Messages" value={messages.length} />
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1723,13 +1930,6 @@ export default function Admin() {
                     </div>
                   </section>
                 )}
-              </div>
-            )}
-
-            {/* ═══════════ DÉMO (captures promo — mon compte only) ═══════════ */}
-            {section === "demo" && (
-              <div className="space-y-5">
-                <AdminDemoStats userId={profile.id} />
               </div>
             )}
           </>

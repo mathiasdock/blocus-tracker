@@ -2,6 +2,32 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-06 - Cockpit admin recentre sur l'activation et les actions
+
+La page `/admin` sert maintenant de poste de pilotage plutot que de collection
+de compteurs. La vue d'ensemble conserve six KPI utiles, puis affiche une file
+"A traiter" et les comptes inscrits depuis plus de 48 h sans premiere session.
+Chaque signal ouvre directement le bon segment Membres ou le bon onglet Contenu.
+
+Nouvelle route `GET /api/admin/insights` : session Supabase verifiee, controle
+`profiles.is_admin`, rate limit et service role uniquement cote serveur. Elle
+renvoie des agregats d'adoption (chrono, planning, amis, badges, missions), les
+comptes dormants/suspendus et une courte liste de comptes a activer. Aucun email,
+message prive ou secret n'est renvoye. Aucune migration Supabase n'est requise.
+
+La page Analytics gagne une lecture de l'adoption des fonctionnalites. Membres
+gagne les segments Tous/Actifs/A activer/Dormants/Suspendus, un statut par ligne
+et un export CSV de la vue filtree sans email. Les lectures initiales de posts et
+DM passent de 2000 a 100 lignes, suffisantes pour le flux recent. Les sessions et
+les sources d'adoption sont lues par pages de 1000 afin de ne pas etre tronquees
+par le plafond PostgREST (le projet depasse deja 2000 sessions).
+
+Retire de l'admin : l'onglet Activite en doublon avec la vue d'ensemble,
+l'onglet Demo destine aux captures promotionnelles, les graphes Feed/DM peu
+exploitables, le placeholder mobile/desktop et les cartes techniques "A
+brancher". Egress Guard, nettoyage Storage, annonces, suggestions et toutes les
+actions membres existantes restent en place.
+
 ## 2026-08-06 - Bruitages satisfaisants et selectifs dans l'app
 
 Extension du moteur sonore ElevenLabs ajoute le 05-08, sans nouvel asset ni
