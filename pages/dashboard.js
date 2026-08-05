@@ -1040,7 +1040,7 @@ export default function Dashboard() {
           <div className="flex items-end gap-3 sm:items-center">
             <Mascot streak={12} size={76} className="h-[70px] w-[70px] shrink-0" ariaLabel="Mascotte de Blocus Tracker" />
             <div className="relative min-w-0 flex-1 rounded-2xl px-4 py-3"
-              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
+              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow-raised)" }}>
               <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
                 style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
               <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.discoveryTitle")}</p>
@@ -1129,7 +1129,7 @@ export default function Dashboard() {
               {/* Menu déroulant des cours */}
               {showCourseMenu && !running && (
                 <div className="absolute top-full left-0 mt-1.5 w-72 max-w-[78vw] rounded-2xl z-30 overflow-hidden"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 32px var(--bt-shadow)" }}>
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 32px var(--bt-shadow-raised)" }}>
                   {courses.map((c, i) => (
                     <button key={c.id}
                       onClick={() => { setCourseId(c.id); setShowCourseMenu(false); }}
@@ -1613,8 +1613,14 @@ export default function Dashboard() {
         ══════════════════════════════════════════ */}
         <div className="space-y-5 min-w-0">
 
-          {/* ── Aujourd'hui — surface ink signature ── */}
-          <section className="card-ink bt-grain p-5 min-w-0 relative">
+          {/* ── Aujourd'hui — carte normale ──
+              `card-ink` est LA surface de marque, et il n'en faut qu'une par
+              écran : Planning, Stats et Profil en ont exactement une chacun.
+              Depuis que le chrono la porte, ce récap en avait fait une seconde,
+              juste à côté — deux grands panneaux vert profond côte à côte en
+              desktop. Et c'était la carte SECONDAIRE qui portait la marque.
+              Elle repasse donc sur fond clair, ses accents avec elle. */}
+          <section className="card p-5 min-w-0 relative">
           <div className="relative z-10">
             {/* La mascotte vit désormais autour du chrono. Ici, la série reste
                 lisible comme une donnée, sans deuxième personnage concurrent. */}
@@ -1628,41 +1634,43 @@ export default function Dashboard() {
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                     title={t("streak.freezeStock")} aria-label={`${t("streak.stockLabel")} : ${t("streak.stockCount").replace("{n}", String(freezeInfo.stock))}`}
                     style={{
-                      backgroundColor: freezeInfo.stock > 0 ? "rgba(56,189,248,0.16)" : "rgba(255,255,255,0.07)",
-                      border: `1px solid ${freezeInfo.stock > 0 ? "rgba(56,189,248,0.34)" : "rgba(255,255,255,0.10)"}`,
+                      backgroundColor: freezeInfo.stock > 0 ? "var(--bt-ice-bg)" : "var(--bt-subtle)",
+                      border: `1px solid ${freezeInfo.stock > 0 ? "var(--bt-ice-line)" : "var(--bt-border)"}`,
                     }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke={freezeInfo.stock > 0 ? "#7DD3FC" : "rgba(255,255,255,0.35)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      stroke={freezeInfo.stock > 0 ? "var(--bt-ice)" : "var(--bt-text-3)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                       <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
                     </svg>
                     <span className="text-[11px] font-bold font-num tabular-nums"
-                      style={{ color: freezeInfo.stock > 0 ? "#BAE6FD" : "rgba(255,255,255,0.45)" }}>
+                      style={{ color: freezeInfo.stock > 0 ? "var(--bt-text-1)" : "var(--bt-text-3)" }}>
                       {freezeInfo.stock}/2
                     </span>
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                  <Flame size={12} style={{ color: "#FBBF24" }} />
-                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>
+                  style={{ backgroundColor: "var(--bt-flame-bg)", border: "1px solid var(--bt-border)" }}>
+                  <Flame size={12} style={{ color: "var(--bt-flame)" }} />
+                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "var(--bt-text-1)" }}>
                     <AnimatedNumber value={streak} suffix={` ${t("dash.streak")}`} />
                   </span>
                 </span>
               </div>
             )}
-            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-accent)" }}>
+            {/* --bt-text-2 et pas --bt-text-3 : en 12 px gras, le gris clair des
+                autres intitulés tombe à 2,5:1. Celui-ci tient 4,56:1. */}
+            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-text-2)" }}>
               {t("dash.today")}
             </p>
             <div className="font-num font-bold tabular-nums mb-3"
-              style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "var(--bt-ink-text)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+              style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "var(--bt-text-1)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
               <AnimatedNumber value={totalToday} format={formatMinutesShort} />
             </div>
             <div className="mb-4">
-              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "var(--bt-ink-muted)" }}>
+              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "var(--bt-text-2)" }}>
                 <span>{t("dash.goal")}</span>
                 <span className="font-bold tabular-nums"><AnimatedNumber value={goalPct} suffix="%" /></span>
               </div>
-              <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
+              <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
                 <div className="h-full rounded-full transition-all duration-300"
                   style={{ width: `${goalPct}%`, backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
               </div>
@@ -1672,22 +1680,22 @@ export default function Dashboard() {
                 <li key={c.id} className="flex items-center justify-between gap-2 text-sm overflow-hidden">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="truncate min-w-0" style={{ color: "var(--bt-ink-muted)" }}>{c.name}</span>
+                    <span className="truncate min-w-0" style={{ color: "var(--bt-text-2)" }}>{c.name}</span>
                   </span>
-                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-ink-text)" }}>
+                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-text-1)" }}>
                     <AnimatedNumber value={c.secs} format={formatMinutesShort} />
                   </span>
                 </li>
               ))}
               {totalToday === 0 && (
-                <li className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.noSession")}</li>
+                <li className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</li>
               )}
             </ul>
 
             {/* Records — repères à battre, calculés sur les 90 derniers jours */}
             {(bestDaySecs > 0 || weekSecs > 0) && (
               <div className="mt-4 pt-4 grid grid-cols-2 gap-x-4 gap-y-3"
-                style={{ borderTop: "1px solid var(--bt-ink-border)" }}>
+                style={{ borderTop: "1px solid var(--bt-border)" }}>
                 {[
                   { label: t("dash.recBestDay"), value: bestDaySecs, format: formatMinutesShort },
                   { label: t("dash.recLongest"), value: longestSessionSecs, format: formatMinutesShort },
@@ -1695,9 +1703,11 @@ export default function Dashboard() {
                   { label: t("dash.recBestStreak"), value: bestStreak, suffix: ` ${t("dash.daysShort")}` },
                 ].map(({ label, value, format, suffix }) => (
                   <div key={label}>
+                    {/* L'opacité 0.8 d'avant ramenait ces intitulés à 3,15:1 sur
+                        fond clair : elle saute, la couleur suffit. */}
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
-                      style={{ color: "var(--bt-ink-muted)", opacity: 0.8 }}>{label}</p>
-                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-ink-text)" }}>
+                      style={{ color: "var(--bt-text-2)" }}>{label}</p>
+                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-text-1)" }}>
                       <AnimatedNumber value={value} format={format} suffix={suffix} />
                     </p>
                   </div>

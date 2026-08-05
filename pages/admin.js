@@ -117,7 +117,7 @@ function buildEgressAlerts(data, t) {
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ borderRadius: 12, border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)", boxShadow: "0 4px 16px var(--bt-shadow)", padding: "8px 11px" }}>
+    <div style={{ borderRadius: 12, border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)", boxShadow: "0 4px 16px var(--bt-shadow-raised)", padding: "8px 11px" }}>
       <p className="text-[11px] font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>{label}</p>
       {payload.map((p, i) => (
         <p key={i} className="text-[11px] tabular-nums" style={{ color: "var(--bt-text-2)" }}>
@@ -519,7 +519,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
         onFocus={() => setOpen(true)} />
       {open && results && (
         <div className="absolute z-40 mt-1.5 left-0 right-0 rounded-2xl overflow-hidden max-h-[70vh] overflow-y-auto"
-          style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 12px 40px var(--bt-shadow)" }}>
+          style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 12px 40px var(--bt-shadow-raised)" }}>
           {results.empty && <p className="px-4 py-4 text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun résultat pour « {q} »</p>}
           {results.u.length > 0 && (
             <div>

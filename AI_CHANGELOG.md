@@ -2,6 +2,58 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-04 - Une seule surface de marque par ecran, et une vraie echelle d'elevation
+
+Retour de Mathias sur le changement precedent : « l'idee est bien, mais avec la carte
+verte a droite aussi, ca fait deux cartes de la meme couleur, et c'est pas beau. »
+
+**Il avait raison, et le diagnostic est plus net que "trop de vert".** `card-ink` est LA
+surface de marque, et il n'en faut qu'UNE par ecran : Planning, Stats et Profil en ont
+exactement une chacun. Depuis que le chrono la portait, le dashboard en avait deux — et
+c'etait la carte SECONDAIRE (le recap) qui portait la marque, pas l'action principale.
+Erreur de ma part : j'avais verifie en mobile et en desktop sombre, jamais la colonne de
+droite en clair.
+
+Arbitrage pris avec Mathias : **le chrono garde le vert**, « AUJOURD'HUI » repasse en
+carte normale. C'est aussi ce que disait deja le commentaire du jeton (« hero chrono »
+en premier).
+
+Tous ses accents suivent : `--bt-ink-text` → `--bt-text-1`, `--bt-ink-muted` →
+`--bt-text-2`, la piste de progression `rgba(255,255,255,0.14)` → `--bt-subtle`, le
+filet des records → `--bt-border`.
+
+**Pastilles serie / gel : cinq jetons ajoutes**, une paire par theme. Les valeurs
+etaient calees sur l'ink (blanc a 12 %, `#7DD3FC`, `#BAE6FD`) et disparaissaient sur
+fond clair. Memes teintes, pas de nouvelle couleur : `--bt-flame` reprend le `#D97706`
+deja utilise sur la landing, `--bt-ice` le bleu de `StreakFreezeOffer`. Ces deux-la ne
+portent que des ICONES (3:1 suffit, elles font 4,04 et 3,15:1) ; les chiffres a cote
+passent sur `--bt-text-1`.
+
+Deux corrections de contraste au passage : l'intitule « AUJOURD'HUI » sur `--bt-text-2`
+(4,56:1) et non `--bt-text-3` (2,5:1), et l'`opacity: 0.8` des intitules de records
+saute — elle les ramenait a 3,15:1.
+
+### Echelle d'elevation : deux crans, plus de demi-mesure
+
+`.card` portait `0 4px 24px` a 5,5 % d'alpha : un halo gris sous CHAQUE carte. Quand
+tout flotte, plus rien ne flotte — c'est une des raisons pour lesquelles le hero du
+chrono ne se detachait pas. Au repos, une carte n'a plus d'ombre du tout : la bordure
+1 px suffit a separer #FFFDFB de #FAF9F7, et en sombre c'est deja la surface plus claire
+qui porte l'elevation.
+
+En echange, ce qui flotte VRAIMENT flotte pour de bon. Nouveau jeton
+`--bt-shadow-raised` (13 % en clair, 50 % en sombre, teinte chaude comme le fond, jamais
+du noir pur), applique aux 20 calques dont le flou est >= 16 px : menus deroulants,
+modales, toasts, infobulles de graphiques, maquettes de la landing, survol de
+`.card-lift` et de `.btn`. Un menu deroulant ne se fondait plus dans le contenu derriere
+lui — c'etait un vrai probleme d'usage, pas seulement d'esthetique.
+
+Les 8 ombres restees sur `--bt-shadow` sont toutes des `0 1px 3-4px` : le pouce blanc
+des segmented controls. A cette echelle, une hairline est la bonne magnitude.
+
+Verifie en preview offline, desktop et mobile, les deux themes, chrono au repos / en
+cours / en pause.
+
 ## 2026-08-04 - Le chrono devient le point focal : panneau ink sur l'accueil
 
 Demande : « j'aimerais quand meme bien embellir l'application, je la trouve assez

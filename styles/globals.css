@@ -35,6 +35,11 @@ html {
   --bt-accent-bg:     #EAFBF4;
   --bt-accent-border: #C6EED9;
   --bt-shadow:        rgba(31,26,23,0.055);
+  /* Ombre des elements qui flottent VRAIMENT (carte soulevee au survol, bouton
+     appuye, puces du hero). `--bt-shadow` seul, a 5,5 % d'alpha, ne se voyait
+     pas : le survol d'une carte se resumait a un saut de 2 px sans profondeur.
+     Teintee chaude comme le fond, jamais du noir pur. */
+  --bt-shadow-raised: rgba(31,26,23,0.13);
   --bt-shimmer:       rgba(255,255,255,0.62);
   --bt-mobile-bg:     rgba(255,253,251,0.95);
   --bt-mobile-nav-bg: rgba(255,253,251,0.97);
@@ -51,6 +56,17 @@ html {
   --bt-ink-pause:     #E8998C;
   --bt-ink-info:      #38BDF8;
   --bt-ink-border:    rgba(255,255,255,0.08);
+  /* Pastilles serie / gel du recap "Aujourd'hui". Depuis que cette carte est
+     repassee sur fond clair (une seule surface ink par ecran, et c'est le
+     chrono qui la prend), les valeurs calees sur l'ink — blanc a 12 %, #7DD3FC —
+     ne tenaient plus. Memes teintes, une paire par theme. Ces deux-la ne
+     portent que des ICONES : 3:1 suffit, et elles font 4,04 et 3,15:1. Les
+     chiffres a cote restent sur --bt-text-1. */
+  --bt-flame:         #D97706;
+  --bt-flame-bg:      rgba(217,119,6,0.10);
+  --bt-ice:           #0284C7;
+  --bt-ice-bg:        rgba(2,132,199,0.09);
+  --bt-ice-line:      rgba(2,132,199,0.24);
   --bt-scrollbar:     #D0C9C3;
   --bt-scrollbar-h:   #B8AEA6;
   /* Voile au-dessus de la photo des pages auth — s'assombrit en dark mode
@@ -72,6 +88,7 @@ html {
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
   --bt-shadow:        rgba(0,0,0,0.18);
+  --bt-shadow-raised: rgba(0,0,0,0.5);
   --bt-shimmer:       rgba(255,255,255,0.06);
   --bt-mobile-bg:     rgba(26,23,21,0.95);
   --bt-mobile-nav-bg: rgba(26,23,21,0.97);
@@ -80,6 +97,11 @@ html {
   --bt-ink-text:      #ECFAF4;
   --bt-ink-muted:     #7FC7AB;
   --bt-ink-border:    rgba(255,255,255,0.07);
+  --bt-flame:         #FBBF24;
+  --bt-flame-bg:      rgba(251,191,36,0.13);
+  --bt-ice:           #7DD3FC;
+  --bt-ice-bg:        rgba(125,211,252,0.13);
+  --bt-ice-line:      rgba(125,211,252,0.26);
   --bt-scrollbar:     #3A332E;
   --bt-scrollbar-h:   #4A4642;
   --bt-auth-overlay:  rgba(14,12,10,0.78);
@@ -118,12 +140,19 @@ html {
 }
 
 @layer components {
-  /* ── Card ─────────────────────────────────────────────────── */
+  /* ── Card ─────────────────────────────────────────────────────
+     Echelle d'elevation, deux crans seulement :
+       repos   → bordure 1 px, AUCUNE ombre
+       souleve → ombre reelle (`--bt-shadow-raised`) : survol, `card-ink`, modales
+     Au repos, l'ombre de 24 px a 5,5 % posait un halo gris sous CHAQUE carte.
+     Quand tout flotte, plus rien ne flotte : le hero du chrono ne se detachait
+     pas de la liste des sessions. La bordure suffit a separer #FFFDFB de
+     #FAF9F7, et en sombre c'est deja la surface plus claire qui porte
+     l'elevation. */
   .card {
     background-color: var(--bt-surface);
     border: 1px solid var(--bt-border);
     border-radius: 20px;
-    box-shadow: 0 4px 24px var(--bt-shadow);
   }
 
   /* Carte interactive — lift discret au hover (desktop pointer only) */
@@ -133,7 +162,7 @@ html {
     }
     .card-lift:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 34px var(--bt-shadow);
+      box-shadow: 0 12px 34px var(--bt-shadow-raised);
     }
   }
   .card-lift:active {
@@ -199,7 +228,7 @@ html {
   @media (hover: hover) and (pointer: fine) {
     .btn:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 0 6px 18px var(--bt-shadow);
+      box-shadow: 0 6px 18px var(--bt-shadow-raised);
     }
   }
 
@@ -682,7 +711,7 @@ html.bt-focus-active .bt-mobile-nav { display: none; }
   border-radius: 9999px; padding: 8px 14px;
   background-color: var(--bt-surface);
   border: 1px solid var(--bt-border);
-  box-shadow: 0 10px 30px var(--bt-shadow);
+  box-shadow: 0 10px 30px var(--bt-shadow-raised);
 }
 .bt-live-dot {
   width: 8px; height: 8px; border-radius: 9999px; flex-shrink: 0;

@@ -70,7 +70,7 @@ export function ToastProvider({ children }) {
               style={{
                 backgroundColor: "var(--bt-surface)",
                 border: "1px solid var(--bt-border)",
-                boxShadow: "0 10px 30px var(--bt-shadow)",
+                boxShadow: "0 10px 30px var(--bt-shadow-raised)",
               }}
             >
               <span

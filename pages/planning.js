@@ -1708,7 +1708,7 @@ export default function Planning() {
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setShowMoreActions(false)} />
                 <div className="absolute right-0 top-full mt-1 z-30 rounded-2xl overflow-hidden min-w-[210px]"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 28px var(--bt-shadow)" }}>
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 28px var(--bt-shadow-raised)" }}>
                   <div className="flex flex-col p-1" onClick={() => setShowMoreActions(false)}>
                     {secondaryActions()}
                   </div>

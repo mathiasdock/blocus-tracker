@@ -84,7 +84,7 @@ function IconChevron({ size = 15 }) {
 function BrowserFrame({ src, alt, width, height, priority = false, className = "" }) {
   return (
     <div className={`overflow-hidden rounded-[20px] sm:rounded-[24px] ${className}`}
-      style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)", boxShadow: "0 24px 70px var(--bt-shadow)" }}>
+      style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)", boxShadow: "0 24px 70px var(--bt-shadow-raised)" }}>
       <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid var(--bt-border)" }}>
         <span className="flex gap-1.5" aria-hidden="true">
           {["#F87171", "#FBBF24", "#34D399"].map((c) => (
@@ -107,7 +107,7 @@ function BrowserFrame({ src, alt, width, height, priority = false, className = "
 function PhoneFrame({ src, alt, width, height, className = "", style = {} }) {
   return (
     <div className={`shrink-0 rounded-[34px] p-2 ${className}`}
-      style={{ backgroundColor: "var(--bt-ink)", boxShadow: "0 22px 55px var(--bt-shadow)", ...style }}>
+      style={{ backgroundColor: "var(--bt-ink)", boxShadow: "0 22px 55px var(--bt-shadow-raised)", ...style }}>
       <Image src={src} alt={alt} width={width} height={height}
         sizes="240px" className="h-auto w-full rounded-[26px]" />
     </div>
@@ -531,7 +531,7 @@ export default function Home() {
               {/* L'encart classement dérive à contre-sens du grand cadre → profondeur */}
               <div className="bt-plx absolute -bottom-8 -left-3 w-[46%] sm:-left-8" style={{ "--plx": "-12px" }}>
                 <div className="overflow-hidden rounded-xl"
-                  style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 44px var(--bt-shadow)", transform: "rotate(-2deg)" }}>
+                  style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 44px var(--bt-shadow-raised)", transform: "rotate(-2deg)" }}>
                   <Image src={SHOT("classement-desktop")} alt={c.statsSection.overlayAlt} width={1100} height={623}
                     sizes="(min-width: 1024px) 260px, 45vw" className="h-auto w-full" />
                 </div>
@@ -561,7 +561,7 @@ export default function Home() {
                 ].map((fig, i) => (
                   <figure key={fig.shot} data-reveal="zoom" style={{ "--rv-delay": `${i * 0.08}s` }}>
                     <div className="bt-plx" style={{ "--plx": `${i === 0 ? 12 : -12}px` }}>
-                      <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 50px var(--bt-shadow)" }}>
+                      <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 50px var(--bt-shadow-raised)" }}>
                         <Image src={SHOT(fig.shot)} alt={fig.alt} width={1400} height={793}
                           sizes="(min-width: 1024px) 520px, 100vw" className="h-auto w-full" />
                       </div>
@@ -642,7 +642,7 @@ export default function Home() {
             </div>
 
             <div id="product-tour-panel" role="tabpanel" className="bt-spot mt-5 grid overflow-hidden rounded-[28px] lg:grid-cols-[0.72fr_1.28fr]"
-              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 20px 60px var(--bt-shadow)" }}>
+              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 20px 60px var(--bt-shadow-raised)" }}>
               <div className="flex min-w-0 flex-col p-6 sm:p-9 lg:p-10" aria-live="polite">
                 <div className="flex items-end gap-3">
                   <Mascot streak={activeArea.id === "progression" ? 30 : 12} size={92} className="h-20 w-20 shrink-0" />
