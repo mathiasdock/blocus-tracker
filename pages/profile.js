@@ -987,7 +987,7 @@ export default function Profile() {
               {/* Avatar + caméra — seul l'avatar chevauche le cover, le texte
                   reste sous la ligne pour garder son contraste */}
               <div className="relative shrink-0" style={{ marginTop: -58 }}>
-                <div style={{ borderRadius: "50%", padding: 3, backgroundColor: "var(--bt-surface)", boxShadow: "0 6px 20px var(--bt-shadow-raised)" }}>
+                <div style={{ borderRadius: "50%", padding: 3, backgroundColor: "var(--bt-surface)", boxShadow: "0 6px 20px var(--bt-shadow)" }}>
                   <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={88} />
                 </div>
                 <button onClick={() => avatarInputRef.current?.click()} disabled={busy}

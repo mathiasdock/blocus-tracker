@@ -114,7 +114,7 @@ function formatHourMinutes(minutes) {
 function CustomTooltip({ active, payload, label, showHours }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", borderRadius: 14, padding: "8px 14px", boxShadow: "0 4px 16px var(--bt-shadow-raised)" }}>
+    <div style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", borderRadius: 14, padding: "8px 14px", boxShadow: "0 4px 16px var(--bt-shadow)" }}>
       {label && <p style={{ fontSize: 11, color: "var(--bt-text-3)", marginBottom: 2 }}>{label}</p>}
       {payload.map((p, i) => (
         <p key={i} className="font-num tabular-nums" style={{ fontSize: 14, fontWeight: 700, color: p.fill || "var(--bt-text-1)" }}>
@@ -130,7 +130,7 @@ function PieTooltip({ active, payload, showHours }) {
   const p = payload[0];
   const displayVal = showHours ? formatHourMinutes(p.value) : `${p.value} min`;
   return (
-    <div style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", borderRadius: 14, padding: "8px 14px", boxShadow: "0 4px 16px var(--bt-shadow-raised)" }}>
+    <div style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", borderRadius: 14, padding: "8px 14px", boxShadow: "0 4px 16px var(--bt-shadow)" }}>
       <p style={{ fontSize: 12, color: "var(--bt-text-2)", marginBottom: 2 }}>{p.name}</p>
       <p className="font-num tabular-nums" style={{ fontSize: 14, fontWeight: 700, color: p.payload.color || "#14B885" }}>{displayVal}</p>
     </div>

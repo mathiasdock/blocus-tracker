@@ -292,7 +292,7 @@ function NotificationPanel({
         top: "calc(58px + env(safe-area-inset-top))",
         backgroundColor: "var(--bt-surface)",
         border: "1px solid var(--bt-border)",
-        boxShadow: "0 24px 60px var(--bt-shadow-raised)",
+        boxShadow: "0 24px 60px var(--bt-shadow)",
       }}>
       <div className="flex items-center justify-between px-4 py-3.5"
         style={{ borderBottom: "1px solid var(--bt-border)" }}>
@@ -481,7 +481,7 @@ function GuestLockedPanel({ pathname }) {
             <div className="relative flex items-end gap-2">
               <Mascot streak={12} size={132} className="h-32 w-32" />
               <div className="relative mb-16 max-w-[170px] rounded-2xl px-3.5 py-3 text-xs leading-relaxed"
-                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)", boxShadow: "0 12px 28px var(--bt-shadow-raised)" }}>
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)", boxShadow: "0 12px 28px var(--bt-shadow)" }}>
                 <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
                   style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
                 <span className="relative">{t("guest.tooltip")}</span>
@@ -912,7 +912,7 @@ export default function Layout({ children }) {
         <button
           onClick={() => { clearMsgToast(); router.push("/messages"); }}
           className="fixed bottom-20 lg:bottom-6 left-4 lg:left-auto lg:right-6 z-40 flex items-center gap-3 rounded-2xl text-white pl-4 pr-5 py-3 transition-all"
-          style={{ backgroundColor: "var(--bt-text-1)", boxShadow: "0 8px 28px var(--bt-shadow-raised)" }}
+          style={{ backgroundColor: "var(--bt-text-1)", boxShadow: "0 8px 28px var(--bt-shadow)" }}
           onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-border)"}
           onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-text-1)"}>
           <span className="text-lg">💬</span>

@@ -91,13 +91,7 @@ function buildBlockLayout({ elapsed, goalSecs, running, paused, max }) {
 }
 
 // Un bloc individuel. `fraction` remplit le bloc en cours (0→1).
-// `focus` = mode focus plein écran : change le NOMBRE de blocs, leur TAILLE et
-// leurs couleurs. `onInk` = simplement posé sur une surface sombre : change
-// UNIQUEMENT les couleurs. Sans cette séparation, réutiliser `focus` sur le
-// dashboard ferait passer les blocs de 12 à 16 et de 14 à 22 px — ce n'est pas
-// un choix de couleur mais de mise en page.
-function Block({ state, fraction = 0, focus, onInk = false }) {
-  const dark = focus || onInk;
+function Block({ state, fraction = 0, focus }) {
   const GREEN = "#14B885";
   const base = {
     flex: 1,
@@ -117,43 +111,43 @@ function Block({ state, fraction = 0, focus, onInk = false }) {
   }
   if (state === "active") {
     return (
-      <span className="bt-block-active" style={{ ...base, backgroundColor: dark ? "rgba(20,184,133,0.16)" : "var(--bt-accent-bg)" }}>
+      <span className="bt-block-active" style={{ ...base, backgroundColor: focus ? "rgba(20,184,133,0.16)" : "var(--bt-accent-bg)" }}>
         <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: GREEN, transition: "width 0.9s linear" }} />
       </span>
     );
   }
   if (state === "paused") {
     return (
-      <span className="bt-block-paused" style={{ ...base, backgroundColor: dark ? "rgba(232,153,140,0.18)" : "rgba(203,90,78,0.10)" }}>
-        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: dark ? "var(--bt-ink-pause)" : PAUSE_ACCENT, opacity: 0.85 }} />
+      <span className="bt-block-paused" style={{ ...base, backgroundColor: focus ? "rgba(203,90,78,0.16)" : "rgba(203,90,78,0.10)" }}>
+        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: PAUSE_ACCENT, opacity: 0.85 }} />
       </span>
     );
   }
   if (state === "next") {
-    return <span style={{ ...base, backgroundColor: "transparent", boxShadow: `inset 0 0 0 1.5px ${dark ? "rgba(255,255,255,0.24)" : "var(--bt-border)"}` }} />;
+    return <span style={{ ...base, backgroundColor: "transparent", boxShadow: `inset 0 0 0 1.5px ${focus ? "rgba(255,255,255,0.24)" : "var(--bt-border)"}` }} />;
   }
   // empty
-  return <span style={{ ...base, backgroundColor: dark ? "rgba(255,255,255,0.07)" : "var(--bt-subtle)", boxShadow: dark ? "none" : "inset 0 0 0 1px var(--bt-border)" }} />;
+  return <span style={{ ...base, backgroundColor: focus ? "rgba(255,255,255,0.07)" : "var(--bt-subtle)", boxShadow: focus ? "none" : "inset 0 0 0 1px var(--bt-border)" }} />;
 }
 
-function BlocusBlocks({ elapsed, running, paused, goalSecs, focus = false, onInk = false }) {
+function BlocusBlocks({ elapsed, running, paused, goalSecs, focus = false }) {
   const max = focus ? 16 : 12;
   const { head, overflow, tail, bonus, fraction } = buildBlockLayout({ elapsed, goalSecs, running, paused, max });
   return (
     <div className="flex items-center justify-center gap-[5px] w-full" style={{ minHeight: focus ? 22 : 14 }} aria-hidden="true">
       {head.map((s, i) => (
-        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} onInk={onInk} />
+        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} />
       ))}
       {overflow > 0 && (
-        <span className="font-num tabular-nums shrink-0 px-1" style={{ fontSize: focus ? 13 : 11, fontWeight: 700, color: focus || onInk ? "rgba(255,255,255,0.6)" : "var(--bt-text-3)" }}>
+        <span className="font-num tabular-nums shrink-0 px-1" style={{ fontSize: focus ? 13 : 11, fontWeight: 700, color: focus ? "rgba(255,255,255,0.6)" : "var(--bt-text-3)" }}>
           +{overflow}
         </span>
       )}
-      {tail && <Block state={tail} fraction={fraction} focus={focus} onInk={onInk} />}
+      {tail && <Block state={tail} fraction={fraction} focus={focus} />}
       {bonus > 0 && (
         <>
           <span className="shrink-0" style={{ width: 4 }} />
-          {Array.from({ length: bonus }, (_, i) => <Block key={`b${i}`} state="bonus" focus={focus} onInk={onInk} />)}
+          {Array.from({ length: bonus }, (_, i) => <Block key={`b${i}`} state="bonus" focus={focus} />)}
         </>
       )}
     </div>
@@ -1040,7 +1034,7 @@ export default function Dashboard() {
           <div className="flex items-end gap-3 sm:items-center">
             <Mascot streak={12} size={76} className="h-[70px] w-[70px] shrink-0" ariaLabel="Mascotte de Blocus Tracker" />
             <div className="relative min-w-0 flex-1 rounded-2xl px-4 py-3"
-              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow-raised)" }}>
+              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
               <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
                 style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
               <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.discoveryTitle")}</p>
@@ -1073,12 +1067,12 @@ export default function Dashboard() {
             COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
         ══════════════════════════════════════════ */}
         <div className="lg:col-span-2 flex flex-col gap-5 min-w-0">
-        {/* La pause ne teinte plus la carte entière en rouge. Le signal vit
-            maintenant DANS le panneau ink — pastille, chiffres, bloc et message
-            passent tous sur `--bt-ink-pause`. Garder en plus un lavis rouge sur
-            la carte, c'était un second rouge (#ef4444) autour du premier
-            (#E8998C) : deux accents pour un seul état. */}
-        <section className="card relative min-w-0 transition-all duration-300 overflow-hidden">
+        <section className="card relative min-w-0 transition-all duration-300 overflow-hidden"
+          style={{
+            backgroundColor: isPaused ? "rgba(239,68,68,0.06)" : "var(--bt-surface)",
+            borderColor:     isPaused ? "rgba(239,68,68,0.35)" : "var(--bt-border)",
+            boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.10)" : "0 4px 32px var(--bt-shadow)",
+          }}>
 
           {/* Halo de progression — le fond respire et s'intensifie avec la
               session (opacité seule : GPU, aucun re-layout) */}
@@ -1129,7 +1123,7 @@ export default function Dashboard() {
               {/* Menu déroulant des cours */}
               {showCourseMenu && !running && (
                 <div className="absolute top-full left-0 mt-1.5 w-72 max-w-[78vw] rounded-2xl z-30 overflow-hidden"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 32px var(--bt-shadow-raised)" }}>
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 32px var(--bt-shadow)" }}>
                   {courses.map((c, i) => (
                     <button key={c.id}
                       onClick={() => { setCourseId(c.id); setShowCourseMenu(false); }}
@@ -1237,20 +1231,11 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ── Héros : chiffres + onde de session + ligne vivante ──
-              La zone du chrono passe sur la surface de marque `card-ink` (vert
-              profond + grain). C'est le seul élément de l'écran qui doit attirer
-              l'œil : avant, la carte du chrono avait exactement le même poids
-              visuel que la liste des sessions en dessous. Et c'est déjà la
-              couleur que le mode focus prend en plein écran — appuyer sur
-              Démarrer devient une continuité, pas un saut.
-              Les enfants savaient déjà vivre sur du sombre : BlocusBlocks a sa
-              prop `focus`, MascotCoach sa prop `isInk`. */}
-          <div className="card-ink bt-grain mx-5 sm:mx-6 mt-4 px-5 sm:px-6 pt-8 pb-6 text-center">
-          <div className="relative z-10">
+          {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
+          <div className="px-5 sm:px-6 pt-9 sm:pt-11 pb-1 text-center">
             {pomodoro && (
               <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-5"
-                style={{ color: pomoPhase === "work" ? "#14B885" : "var(--bt-ink-info)" }}>
+                style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
                 {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
               </div>
@@ -1258,7 +1243,7 @@ export default function Dashboard() {
             {isPaused && !pomodoro && (
               <div className="mb-5 flex justify-center">
                 <span className="bt-pause-pulse inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1.5 rounded-full"
-                  style={{ color: "var(--bt-ink-pause)", backgroundColor: "rgba(232,153,140,0.12)", border: "1px solid rgba(232,153,140,0.32)" }}>
+                  style={{ color: PAUSE_ACCENT, backgroundColor: "rgba(203,90,78,0.10)", border: "1px solid rgba(203,90,78,0.30)" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
                   {t("dash.pausedStatus")}
                 </span>
@@ -1267,10 +1252,10 @@ export default function Dashboard() {
 
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={isPaused && !pomodoro ? "var(--bt-ink-pause)" : "var(--bt-ink-text)"} />
+              color={isPaused && !pomodoro ? PAUSE_ACCENT : "var(--bt-text-1)"} />
 
             <div className="mt-8 mx-auto w-full max-w-[440px]">
-              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} onInk />
+              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} />
             </div>
 
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
@@ -1286,16 +1271,14 @@ export default function Dashboard() {
                   live={timerCoach.live}
                   className="w-full max-w-md"
                   size={72}
-                  surface="ink"
                 />
               ) : !timerCoach && liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? "var(--bt-ink-pause)" : "var(--bt-ink-muted)" }}>
+                  style={{ color: isPaused ? PAUSE_ACCENT : "var(--bt-text-3)" }}>
                   {liveMessage}
                 </p>
               ) : null}
             </div>
-          </div>
           </div>
 
           {/* ── Objectif de session — poser l'intention avant de démarrer ── */}
@@ -1613,14 +1596,8 @@ export default function Dashboard() {
         ══════════════════════════════════════════ */}
         <div className="space-y-5 min-w-0">
 
-          {/* ── Aujourd'hui — carte normale ──
-              `card-ink` est LA surface de marque, et il n'en faut qu'une par
-              écran : Planning, Stats et Profil en ont exactement une chacun.
-              Depuis que le chrono la porte, ce récap en avait fait une seconde,
-              juste à côté — deux grands panneaux vert profond côte à côte en
-              desktop. Et c'était la carte SECONDAIRE qui portait la marque.
-              Elle repasse donc sur fond clair, ses accents avec elle. */}
-          <section className="card p-5 min-w-0 relative">
+          {/* ── Aujourd'hui — surface ink signature ── */}
+          <section className="card-ink bt-grain p-5 min-w-0 relative">
           <div className="relative z-10">
             {/* La mascotte vit désormais autour du chrono. Ici, la série reste
                 lisible comme une donnée, sans deuxième personnage concurrent. */}
@@ -1634,43 +1611,41 @@ export default function Dashboard() {
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                     title={t("streak.freezeStock")} aria-label={`${t("streak.stockLabel")} : ${t("streak.stockCount").replace("{n}", String(freezeInfo.stock))}`}
                     style={{
-                      backgroundColor: freezeInfo.stock > 0 ? "var(--bt-ice-bg)" : "var(--bt-subtle)",
-                      border: `1px solid ${freezeInfo.stock > 0 ? "var(--bt-ice-line)" : "var(--bt-border)"}`,
+                      backgroundColor: freezeInfo.stock > 0 ? "rgba(56,189,248,0.16)" : "rgba(255,255,255,0.07)",
+                      border: `1px solid ${freezeInfo.stock > 0 ? "rgba(56,189,248,0.34)" : "rgba(255,255,255,0.10)"}`,
                     }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke={freezeInfo.stock > 0 ? "var(--bt-ice)" : "var(--bt-text-3)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      stroke={freezeInfo.stock > 0 ? "#7DD3FC" : "rgba(255,255,255,0.35)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                       <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
                     </svg>
                     <span className="text-[11px] font-bold font-num tabular-nums"
-                      style={{ color: freezeInfo.stock > 0 ? "var(--bt-text-1)" : "var(--bt-text-3)" }}>
+                      style={{ color: freezeInfo.stock > 0 ? "#BAE6FD" : "rgba(255,255,255,0.45)" }}>
                       {freezeInfo.stock}/2
                     </span>
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-flame-bg)", border: "1px solid var(--bt-border)" }}>
-                  <Flame size={12} style={{ color: "var(--bt-flame)" }} />
-                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+                  style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <Flame size={12} style={{ color: "#FBBF24" }} />
+                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>
                     <AnimatedNumber value={streak} suffix={` ${t("dash.streak")}`} />
                   </span>
                 </span>
               </div>
             )}
-            {/* --bt-text-2 et pas --bt-text-3 : en 12 px gras, le gris clair des
-                autres intitulés tombe à 2,5:1. Celui-ci tient 4,56:1. */}
-            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-text-2)" }}>
+            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-accent)" }}>
               {t("dash.today")}
             </p>
             <div className="font-num font-bold tabular-nums mb-3"
-              style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "var(--bt-text-1)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
+              style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "var(--bt-ink-text)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
               <AnimatedNumber value={totalToday} format={formatMinutesShort} />
             </div>
             <div className="mb-4">
-              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "var(--bt-text-2)" }}>
+              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "var(--bt-ink-muted)" }}>
                 <span>{t("dash.goal")}</span>
                 <span className="font-bold tabular-nums"><AnimatedNumber value={goalPct} suffix="%" /></span>
               </div>
-              <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
+              <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
                 <div className="h-full rounded-full transition-all duration-300"
                   style={{ width: `${goalPct}%`, backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
               </div>
@@ -1680,22 +1655,22 @@ export default function Dashboard() {
                 <li key={c.id} className="flex items-center justify-between gap-2 text-sm overflow-hidden">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="truncate min-w-0" style={{ color: "var(--bt-text-2)" }}>{c.name}</span>
+                    <span className="truncate min-w-0" style={{ color: "var(--bt-ink-muted)" }}>{c.name}</span>
                   </span>
-                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-ink-text)" }}>
                     <AnimatedNumber value={c.secs} format={formatMinutesShort} />
                   </span>
                 </li>
               ))}
               {totalToday === 0 && (
-                <li className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</li>
+                <li className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.noSession")}</li>
               )}
             </ul>
 
             {/* Records — repères à battre, calculés sur les 90 derniers jours */}
             {(bestDaySecs > 0 || weekSecs > 0) && (
               <div className="mt-4 pt-4 grid grid-cols-2 gap-x-4 gap-y-3"
-                style={{ borderTop: "1px solid var(--bt-border)" }}>
+                style={{ borderTop: "1px solid var(--bt-ink-border)" }}>
                 {[
                   { label: t("dash.recBestDay"), value: bestDaySecs, format: formatMinutesShort },
                   { label: t("dash.recLongest"), value: longestSessionSecs, format: formatMinutesShort },
@@ -1703,11 +1678,9 @@ export default function Dashboard() {
                   { label: t("dash.recBestStreak"), value: bestStreak, suffix: ` ${t("dash.daysShort")}` },
                 ].map(({ label, value, format, suffix }) => (
                   <div key={label}>
-                    {/* L'opacité 0.8 d'avant ramenait ces intitulés à 3,15:1 sur
-                        fond clair : elle saute, la couleur suffit. */}
                     <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
-                      style={{ color: "var(--bt-text-2)" }}>{label}</p>
-                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-text-1)" }}>
+                      style={{ color: "var(--bt-ink-muted)", opacity: 0.8 }}>{label}</p>
+                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-ink-text)" }}>
                       <AnimatedNumber value={value} format={format} suffix={suffix} />
                     </p>
                   </div>
@@ -1973,7 +1946,7 @@ export default function Dashboard() {
                 />
               ) : liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? "var(--bt-ink-pause)" : "var(--bt-ink-muted)" }}>
+                  style={{ color: isPaused ? "#E88A80" : "var(--bt-ink-muted)" }}>
                   {liveMessage}
                 </p>
               ) : null}

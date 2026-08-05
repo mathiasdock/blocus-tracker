@@ -152,7 +152,7 @@ export default function SeoLandingPage({ page }) {
               </div>
 
               <figure className="relative">
-                <div className="overflow-hidden rounded-[28px]" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 20px 50px var(--bt-shadow-raised)" }}>
+                <div className="overflow-hidden rounded-[28px]" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 20px 50px var(--bt-shadow)" }}>
                   <Image
                     src="/seo-preview.png"
                     alt={ui.previewAlt}

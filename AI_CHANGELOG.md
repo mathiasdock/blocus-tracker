@@ -2,99 +2,33 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
-## 2026-08-04 - Une seule surface de marque par ecran, et une vraie echelle d'elevation
+## 2026-08-04 - ANNULE : la tentative d'inverser les surfaces du dashboard
 
-Retour de Mathias sur le changement precedent : « l'idee est bien, mais avec la carte
-verte a droite aussi, ca fait deux cartes de la meme couleur, et c'est pas beau. »
+Deux commits annules (`git revert`), le code est revenu a l'identique de `a4af55b` :
+- `4c9e51e` — le hero du chrono passait sur `card-ink` (vert profond + grain).
+- `1e530a3` — en consequence, « AUJOURD'HUI » repassait en carte claire, plus une
+  echelle d'elevation (`--bt-shadow-raised`, `.card` sans ombre au repos).
 
-**Il avait raison, et le diagnostic est plus net que "trop de vert".** `card-ink` est LA
-surface de marque, et il n'en faut qu'UNE par ecran : Planning, Stats et Profil en ont
-exactement une chacun. Depuis que le chrono la portait, le dashboard en avait deux — et
-c'etait la carte SECONDAIRE (le recap) qui portait la marque, pas l'action principale.
-Erreur de ma part : j'avais verifie en mobile et en desktop sombre, jamais la colonne de
-droite en clair.
+**Verdict de Mathias, sans ambiguite : « je preferais quand le chrono etait blanc et
+que le petit recap des stats d'aujourd'hui a droite etait en vert. »**
 
-Arbitrage pris avec Mathias : **le chrono garde le vert**, « AUJOURD'HUI » repasse en
-carte normale. C'est aussi ce que disait deja le commentaire du jeton (« hero chrono »
-en premier).
+A RETENIR POUR NE PAS LE REFAIRE : la repartition actuelle — chrono sur carte claire,
+recap « AUJOURD'HUI » sur `card-ink` — est un CHOIX, pas un oubli. Mon raisonnement
+etait qu'il fallait donner la surface de marque a l'action principale plutot qu'a une
+donnee secondaire. Ce raisonnement est logique et il a quand meme donne un resultat que
+Mathias n'aime pas. Ne pas le rejouer sous un autre angle.
 
-Tous ses accents suivent : `--bt-ink-text` → `--bt-text-1`, `--bt-ink-muted` →
-`--bt-text-2`, la piste de progression `rgba(255,255,255,0.14)` → `--bt-subtle`, le
-filet des records → `--bt-border`.
+Ce qui reste vrai et non traite, si le sujet revient un jour : la carte du chrono a le
+meme poids visuel que la liste des sessions en dessous. Si on veut y revenir, il faudra
+passer par la TAILLE et l'ESPACE (chiffres plus grands, plus de respiration), pas par la
+couleur — les deux pistes couleur ont ete essayees et refusees.
 
-**Pastilles serie / gel : cinq jetons ajoutes**, une paire par theme. Les valeurs
-etaient calees sur l'ink (blanc a 12 %, `#7DD3FC`, `#BAE6FD`) et disparaissaient sur
-fond clair. Memes teintes, pas de nouvelle couleur : `--bt-flame` reprend le `#D97706`
-deja utilise sur la landing, `--bt-ice` le bleu de `StreakFreezeOffer`. Ces deux-la ne
-portent que des ICONES (3:1 suffit, elles font 4,04 et 3,15:1) ; les chiffres a cote
-passent sur `--bt-text-1`.
-
-Deux corrections de contraste au passage : l'intitule « AUJOURD'HUI » sur `--bt-text-2`
-(4,56:1) et non `--bt-text-3` (2,5:1), et l'`opacity: 0.8` des intitules de records
-saute — elle les ramenait a 3,15:1.
-
-### Echelle d'elevation : deux crans, plus de demi-mesure
-
-`.card` portait `0 4px 24px` a 5,5 % d'alpha : un halo gris sous CHAQUE carte. Quand
-tout flotte, plus rien ne flotte — c'est une des raisons pour lesquelles le hero du
-chrono ne se detachait pas. Au repos, une carte n'a plus d'ombre du tout : la bordure
-1 px suffit a separer #FFFDFB de #FAF9F7, et en sombre c'est deja la surface plus claire
-qui porte l'elevation.
-
-En echange, ce qui flotte VRAIMENT flotte pour de bon. Nouveau jeton
-`--bt-shadow-raised` (13 % en clair, 50 % en sombre, teinte chaude comme le fond, jamais
-du noir pur), applique aux 20 calques dont le flou est >= 16 px : menus deroulants,
-modales, toasts, infobulles de graphiques, maquettes de la landing, survol de
-`.card-lift` et de `.btn`. Un menu deroulant ne se fondait plus dans le contenu derriere
-lui — c'etait un vrai probleme d'usage, pas seulement d'esthetique.
-
-Les 8 ombres restees sur `--bt-shadow` sont toutes des `0 1px 3-4px` : le pouce blanc
-des segmented controls. A cette echelle, une hairline est la bonne magnitude.
-
-Verifie en preview offline, desktop et mobile, les deux themes, chrono au repos / en
-cours / en pause.
-
-## 2026-08-04 - Le chrono devient le point focal : panneau ink sur l'accueil
-
-Demande : « j'aimerais quand meme bien embellir l'application, je la trouve assez
-basique en termes de design. Apres, c'est une application d'etude, il faut pas aller
-trop loin. »
-
-**Le diagnostic.** Sur l'accueil, la carte du chrono avait EXACTEMENT le meme poids
-visuel que la liste des sessions en dessous : meme `.card`, meme fond, meme bordure.
-L'ecran n'avait donc pas de point focal — l'oeil ne savait pas ou se poser. Le probleme
-n'etait pas un manque de decoration, c'etait un manque de HIERARCHIE.
-
-**Le correctif.** La zone chiffres + blocs + coach passe sur la surface de marque
-`card-ink bt-grain` (vert profond + grain filmique), en panneau INTERIEUR a la carte.
-Le selecteur de cours au-dessus et les pastilles d'objectif / note / Demarrer en
-dessous restent sur la surface claire.
-
-CHOIX : reutiliser `card-ink` plutot qu'inventer un traitement. C'est deja la couleur
-que le mode focus prend en plein ecran — appuyer sur Demarrer devient une continuite
-de matiere, pas un saut. Zero nouveau jeton de couleur de fond, zero photo (idee
-ecartee avec Mathias : ca deconcentre en mode focus).
-
-**Deux jetons ajoutes** dans `:root`, pour les accents POSES SUR l'ink. Les versions
-claires tombaient sous le seuil AA en 11 px sur le point le plus clair du degrade :
-- `--bt-ink-pause: #E8998C` — le `#CB5A4E` de la pause donnait 2,79:1. Le nouveau : 5,1:1.
-- `--bt-ink-info: #38BDF8` — le `#0ea5e9` du Pomodoro donnait 4,14:1. Le nouveau : 5,4:1.
-Poses dans `:root` sans equivalent `.dark` : verifies aussi sur le fond sombre
-(`#0F3A2C`), ils y tiennent 5,64:1 et 5,9:1.
-
-**Nouvelle prop `onInk` sur `BlocusBlocks`/`Block`.** Piege evite : la prop `focus`
-existante n'est PAS une prop de style — elle change aussi le NOMBRE de blocs (12 → 16)
-et leur TAILLE (14 → 22 px). La reutiliser pour « pose sur du sombre » aurait
-silencieusement change la mise en page. `onInk` ne touche QUE les couleurs.
-
-**La pause ne teinte plus la carte entiere en rouge.** Le signal vit maintenant dans le
-panneau : pastille, chiffres, bloc et message passent tous sur `--bt-ink-pause`. Garder
-en plus le lavis `rgba(239,68,68,...)` sur la carte, c'etait un second rouge autour du
-premier — deux accents pour un seul etat. Au passage, le `#E88A80` code en dur du mode
-focus devient `var(--bt-ink-pause)` (regle 4 : que des variables CSS).
-
-Verifie en preview offline sur les quatre etats × deux themes : repos, en cours, en
-pause, et le mode focus plein ecran (inchange).
+Deux choses ont disparu avec l'annulation, a ressortir separement si besoin :
+- `.card` porte une ombre `0 4px 24px` a 5,5 % d'alpha sous CHAQUE carte, et les menus
+  deroulants / modales / toasts ont la meme : a cette opacite un menu deroulant ne se
+  detache pas du contenu derriere lui. C'est un probleme d'usage, pas d'esthetique.
+- Le `#E88A80` code en dur du mode focus (`pages/dashboard.js`, message en pause) n'est
+  toujours pas un jeton CSS.
 
 ## 2026-08-03 - Chargement des pages : un squelette au lieu de donnees vierges
 

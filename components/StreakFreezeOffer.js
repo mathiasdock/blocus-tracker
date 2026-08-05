@@ -50,7 +50,7 @@ export default function StreakFreezeOffer({ open, streak, days, stock, busy, onA
       <div className="absolute inset-0 bt-freeze-scrim" onClick={() => { if (!busy) onDecline(); }} />
 
       <div className="bt-freeze-panel relative w-full max-w-sm rounded-3xl p-6 text-center"
-        style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 24px 70px var(--bt-shadow-raised)" }}>
+        style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 24px 70px var(--bt-shadow)" }}>
 
         {/* La flamme en péril, prise dans la glace */}
         <div className="relative mx-auto mb-4 flex items-center justify-center" style={{ width: 96, height: 96 }}>
