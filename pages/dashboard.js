@@ -47,7 +47,7 @@ function daysUntilExam(dateStr) {
 // remplit + pulse doux) · pause (bordeaux doux qui pulse) · bonus (sobre
 // mais valorisé).
 const BLOCK_SECS = 900;          // 15 minutes par bloc
-const PAUSE_ACCENT = "#CB5A4E";  // rouge/bordeaux doux, jamais agressif
+const PAUSE_ACCENT = "#EF4444";  // rouge vif — la pause doit se voir d'un coup d'oeil
 
 // Construit la liste des blocs à afficher selon le mode.
 function buildBlockLayout({ elapsed, goalSecs, running, paused, max }) {
@@ -121,8 +121,8 @@ function Block({ state, fraction = 0, focus }) {
   }
   if (state === "paused") {
     return (
-      <span className="bt-block-paused" style={{ ...base, backgroundColor: focus ? "rgba(203,90,78,0.16)" : "rgba(203,90,78,0.10)" }}>
-        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: PAUSE_ACCENT, opacity: 0.85 }} />
+      <span className="bt-block-paused" style={{ ...base, backgroundColor: focus ? "rgba(239,68,68,0.18)" : "rgba(239,68,68,0.12)" }}>
+        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: PAUSE_ACCENT, opacity: 0.9 }} />
       </span>
     );
   }
@@ -1122,9 +1122,9 @@ export default function Dashboard() {
         <div className="lg:col-span-2 flex flex-col gap-5 min-w-0">
         <section className="card relative min-w-0 transition-all duration-300 overflow-hidden"
           style={{
-            backgroundColor: isPaused ? "rgba(239,68,68,0.06)" : "var(--bt-surface)",
-            borderColor:     isPaused ? "rgba(239,68,68,0.35)" : "var(--bt-border)",
-            boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.10)" : "0 4px 32px var(--bt-shadow)",
+            backgroundColor: isPaused ? "rgba(239,68,68,0.13)" : "var(--bt-surface)",
+            borderColor:     isPaused ? "rgba(239,68,68,0.60)" : "var(--bt-border)",
+            boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.22)" : "0 4px 32px var(--bt-shadow)",
           }}>
 
           {/* Halo de progression — le fond respire et s'intensifie avec la
@@ -1296,7 +1296,7 @@ export default function Dashboard() {
             {isPaused && !pomodoro && (
               <div className="mb-5 flex justify-center">
                 <span className="bt-pause-pulse inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1.5 rounded-full"
-                  style={{ color: PAUSE_ACCENT, backgroundColor: "rgba(203,90,78,0.10)", border: "1px solid rgba(203,90,78,0.30)" }}>
+                  style={{ color: "#FFFFFF", backgroundColor: "#DC2626", border: "1px solid #DC2626" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
                   {t("dash.pausedStatus")}
                 </span>
@@ -1943,18 +1943,16 @@ export default function Dashboard() {
       {focusMode && (
         <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
           style={{
-            background: (isPaused && !pomodoro) ? "#1E0F0D" : "var(--bt-ink)",
+            background: (isPaused && !pomodoro) ? "#1A0605" : "var(--bt-ink)",
             zIndex: 100,
           }}>
           {/* Vagues WebGL de marque. Le composant fournit son propre fallback
               statique et coupe la boucle sous prefers-reduced-motion. */}
           <FocusShaderBackground paused={isPaused && !pomodoro} />
 
-          {/* Marée bordeaux — remplace la verte en pause et pulse doucement */}
-          {isPaused && !pomodoro && (
-            <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none bt-pause-tide"
-              style={{ height: "55%", background: "linear-gradient(to top, rgba(203,90,78,0.26), rgba(203,90,78,0.05) 60%, transparent)" }} />
-          )}
+          {/* Battement rouge à 1 Hz — un seul rythme, il happe le regard et
+              dit "en pause" avant même de lire quoi que ce soit. */}
+          {isPaused && !pomodoro && <div aria-hidden className="bt-pause-flash" />}
 
           {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
           <AmbientSoundControl active={focusMode} visible={focusCtlVisible || !running} />
@@ -1978,7 +1976,7 @@ export default function Dashboard() {
           <div className="relative z-10 w-full text-center px-6">
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={(isPaused && !pomodoro) ? "#ef4444" : "var(--bt-ink-text)"}
+              color={(isPaused && !pomodoro) ? "#FFEDEB" : "var(--bt-ink-text)"}
               size="clamp(4.5rem, 16vw, 8.5rem)" />
 
             <div className="mt-10 mx-auto w-full max-w-[600px]">
@@ -1999,7 +1997,7 @@ export default function Dashboard() {
                 />
               ) : liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? "#E88A80" : "var(--bt-ink-muted)" }}>
+                  style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
                   {liveMessage}
                 </p>
               ) : null}
@@ -2008,7 +2006,7 @@ export default function Dashboard() {
             {/* Indicateur EN PAUSE — pastille bordeaux qui pulse */}
             {isPaused && !pomodoro && (
               <div className="bt-pause-pulse inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
-                style={{ color: "#E88A80", backgroundColor: "rgba(203,90,78,0.18)", letterSpacing: "0.12em" }}>
+                style={{ color: "#FFFFFF", backgroundColor: "#DC2626", letterSpacing: "0.12em" }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
                 {t("dash.pausedStatus")}
               </div>

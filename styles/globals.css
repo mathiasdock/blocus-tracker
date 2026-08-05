@@ -353,9 +353,12 @@ html {
   opacity: 0;
   transition: opacity 0.3s ease-out;
 }
+/* Pause : les vagues passent au rouge (palette pilotée dans le shader), le
+   fallback statique suit. On ne désature plus — la pause doit être franche. */
 .bt-focus-shader.is-paused {
-  opacity: 0.48;
-  filter: saturate(0.5) brightness(0.68);
+  background:
+    radial-gradient(90% 70% at 82% 12%, rgba(255,138,128,0.30), transparent 68%),
+    linear-gradient(155deg, #1C0707, #A32116 58%, #FFA79B 140%);
 }
 .bt-focus-shader-veil {
   position: absolute;
@@ -363,6 +366,31 @@ html {
   background:
     radial-gradient(ellipse 62% 58% at 50% 48%, rgba(4,24,18,0.56), rgba(4,24,18,0.20) 70%, transparent 100%),
     linear-gradient(to bottom, rgba(4,24,18,0.30), rgba(4,24,18,0.34));
+}
+/* Voile plus dense au centre en pause : le champ périphérique reste
+   franchement rouge, mais le chrono garde son contraste. */
+.bt-focus-shader.is-paused .bt-focus-shader-veil {
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 48%, rgba(24,5,5,0.74), rgba(24,5,5,0.30) 70%, transparent 100%),
+    linear-gradient(to bottom, rgba(24,5,5,0.34), rgba(24,5,5,0.38));
+}
+
+/* Pause (focus) — battement rouge à 1 Hz : attaque sèche, retombée douce.
+   Vignette : le regard est happé sans que le chrono soit lavé. */
+@keyframes bt-pause-flash {
+  0%   { opacity: 0.14; }
+  7%   { opacity: 1; }
+  55%  { opacity: 0.20; }
+  100% { opacity: 0.14; }
+}
+.bt-pause-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 74% 66% at 50% 50%, transparent 34%, rgba(239,68,68,0.15) 66%, rgba(239,68,68,0.52) 100%);
+  animation: bt-pause-flash 1s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 /* Mode focus plein écran (classe posée sur <html> par dashboard.js). Sur iPhone,
@@ -406,26 +434,19 @@ html.bt-focus-active .bt-mobile-nav { display: none; }
 }
 .bt-block-active { animation: bt-block-active 2s ease-in-out infinite; }
 
-/* Blocus Blocks — bloc en pause : bordeaux doux qui pulse (jamais agressif) */
+/* Blocus Blocks — bloc en pause : rouge vif qui pulse */
 @keyframes bt-block-paused {
-  0%, 100% { box-shadow: 0 0 0 1.5px rgba(203, 90, 78, 0.7); }
-  50%      { box-shadow: 0 0 12px 1.5px rgba(203, 90, 78, 0.5); }
+  0%, 100% { box-shadow: 0 0 0 1.5px rgba(239, 68, 68, 0.75); }
+  50%      { box-shadow: 0 0 12px 1.5px rgba(239, 68, 68, 0.55); }
 }
 .bt-block-paused { animation: bt-block-paused 2.6s ease-in-out infinite; }
 
-/* Pause — halo bordeaux doux autour de la pastille "EN PAUSE" */
+/* Pause — halo rouge autour de la pastille "EN PAUSE" */
 @keyframes bt-pause-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(203, 90, 78, 0); }
-  50%      { box-shadow: 0 0 0 5px rgba(203, 90, 78, 0.14); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  50%      { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.18); }
 }
 .bt-pause-pulse { animation: bt-pause-pulse 2.4s ease-in-out infinite; }
-
-/* Pause — marée bordeaux du mode focus, respiration lente */
-@keyframes bt-pause-tide {
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 0.85; }
-}
-.bt-pause-tide { animation: bt-pause-tide 2.6s ease-in-out infinite; }
 
 /* Pause — bouton Reprendre : léger appel visuel */
 @keyframes bt-pause-cta {
@@ -1150,7 +1171,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-block-active,
   .bt-block-paused,
   .bt-pause-pulse,
-  .bt-pause-tide,
+  .bt-pause-flash,
   .bt-pause-cta,
   .bt-xp-float,
   .badge-shine,
@@ -1191,6 +1212,8 @@ details.bt-acc[open]::details-content { block-size: auto; }
   }
   /* La barre d'objectif garde sa valeur finale, sans la parcourir. */
   .bt-session-bar { transition: none !important; }
+  /* Sans clignotement, la vignette rouge reste posée : la pause se lit quand même. */
+  .bt-pause-flash { opacity: 0.55 !important; }
   .bt-xp-loop { opacity: 1 !important; transform: none !important; }
   .bt-tilt { transform: none !important; transition: none !important; }
   details.bt-acc::details-content { transition: none !important; }

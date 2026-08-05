@@ -267,6 +267,19 @@ const COLORS = new Float32Array([
   0.949, 0.984, 0.969,
 ]);
 
+// Même rampe, teinte pause : les vagues deviennent rouges au lieu d'être
+// simplement assombries. On interpole vers cette palette dans la boucle.
+const PAUSED_COLORS = new Float32Array([
+  0.110, 0.027, 0.027, // #1C0707
+  0.180, 0.043, 0.043, // #2E0B0B
+  0.639, 0.129, 0.086, // #A32116
+  0.937, 0.267, 0.267, // #EF4444
+  1.000, 0.655, 0.608, // #FFA79B — la crête reste saumon, pas blanc grisé
+  1.000, 0.655, 0.608,
+  1.000, 0.655, 0.608,
+  1.000, 0.655, 0.608,
+]);
+
 function compileShader(gl, type, source) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
@@ -298,6 +311,13 @@ function createProgram(gl) {
 
 export default function FocusShaderBackground({ paused = false }) {
   const canvasRef = useRef(null);
+  const pausedRef = useRef(paused);
+  const syncPausedRef = useRef(null);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+    syncPausedRef.current?.();
+  }, [paused]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -341,7 +361,16 @@ export default function FocusShaderBackground({ paused = false }) {
       cursor: gl.getUniformLocation(program, "u_cursor"),
     };
 
-    gl.uniform3fv(uniforms.colors, COLORS);
+    // Palette courante = mélange vert → rouge piloté par `blend`.
+    let blend = pausedRef.current ? 1 : 0;
+    const palette = new Float32Array(COLORS.length);
+    const applyPalette = () => {
+      for (let i = 0; i < palette.length; i++)
+        palette[i] = COLORS[i] + (PAUSED_COLORS[i] - COLORS[i]) * blend;
+      gl.uniform3fv(uniforms.colors, palette);
+    };
+
+    applyPalette();
     gl.uniform4f(uniforms.shape, 1.88, 0.43, 0.71, 0.33);
     gl.uniform4f(uniforms.surface, 1.73, 0.92, -0.03, 1.28);
     gl.uniform4f(uniforms.finish, 0.0, 0.0, 0.0, 0.0);
@@ -376,6 +405,14 @@ export default function FocusShaderBackground({ paused = false }) {
 
     const draw = () => {
       resize();
+      const blendTarget = pausedRef.current ? 1 : 0;
+      if (Math.abs(blendTarget - blend) > 0.002) {
+        blend += (blendTarget - blend) * (reduceMotion ? 1 : 0.07);
+        applyPalette();
+      } else if (blend !== blendTarget) {
+        blend = blendTarget;
+        applyPalette();
+      }
       if (!reduceMotion) {
         pointerX += (targetX - pointerX) * 0.09;
         pointerY += (targetY - pointerY) * 0.09;
@@ -435,10 +472,17 @@ export default function FocusShaderBackground({ paused = false }) {
     document.documentElement.addEventListener("pointerleave", onPointerLeave);
     document.addEventListener("visibilitychange", onVisibilityChange);
     motion.addEventListener?.("change", onMotionChange);
+    // Sans boucle rAF (reduced-motion / onglet caché), le changement de palette
+    // n'arriverait jamais : on force un rendu unique.
+    syncPausedRef.current = () => {
+      if (disposed || (!reduceMotion && !document.hidden)) return;
+      draw();
+    };
     start();
 
     return () => {
       disposed = true;
+      syncPausedRef.current = null;
       window.cancelAnimationFrame(rafId);
       resizeObserver?.disconnect();
       window.removeEventListener("resize", resize);
