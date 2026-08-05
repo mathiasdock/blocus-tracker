@@ -8,16 +8,18 @@ import { formatMinutesShort } from "../lib/format";
 
 const PAGE_SIZE = 25;
 
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString("fr-FR", {
+function formatDate(iso, lang) {
+  return new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", {
     day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
 }
 
+const COLUMNS = ["hist.colDate", "hist.colCourse", "hist.colDuration", "hist.colNote"];
+
 export default function Historique() {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [sessions, setSessions] = useState([]);
   const [courses, setCourses] = useState([]);
   const [filterCourse, setFilterCourse] = useState("");
@@ -67,13 +69,13 @@ export default function Historique() {
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <select className="input w-auto text-sm" value={filterCourse}
             onChange={e => setFilterCourse(e.target.value)}>
-            <option value="">Tous les cours</option>
+            <option value="">{t("hist.allCourses")}</option>
             {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           {sessions.length > 0 && (
             <span className="text-sm" style={{ color: "#7C746E" }}>
-              {sessions.length} session{sessions.length > 1 ? "s" : ""}
-              {" "}· Total affiché : <strong style={{ color: "#1F1A17" }}>{formatMinutesShort(totalSecs)}</strong>
+              {(sessions.length > 1 ? t("hist.countMany") : t("hist.count")).replace("{n}", String(sessions.length))}
+              {" "}· {t("hist.totalShown")} <strong style={{ color: "#1F1A17" }}>{formatMinutesShort(totalSecs)}</strong>
             </span>
           )}
         </div>
@@ -86,9 +88,9 @@ export default function Historique() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
-                    {["Date", "Cours", "Durée", "Note"].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide"
-                        style={{ color: "var(--bt-text-2)" }}>{h}</th>
+                    {COLUMNS.map(k => (
+                      <th key={k} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide"
+                        style={{ color: "var(--bt-text-2)" }}>{t(k)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -96,7 +98,7 @@ export default function Historique() {
                   {sessions.map((s, i) => (
                     <tr key={s.id} style={{ borderBottom: i < sessions.length - 1 ? "1px solid var(--bt-subtle)" : "" }}>
                       <td className="px-4 py-3 whitespace-nowrap text-xs" style={{ color: "var(--bt-text-2)" }}>
-                        {formatDate(s.started_at)}
+                        {formatDate(s.started_at, lang)}
                       </td>
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-2">
