@@ -12,6 +12,7 @@ import Celebration from "../components/Celebration";
 import { initOneSignal, loginUser } from "../lib/onesignal";
 import SeoHead from "../components/SeoHead";
 import PageTransition from "../components/PageTransition";
+import { initSensoryFeedback } from "../lib/sensoryFeedback";
 
 // Paliers de série célébrés (jours consécutifs). Volontairement rares pour que
 // le moment reste marquant — on ne fête PAS chaque badge série (3/14).
@@ -316,6 +317,8 @@ function InstallBanner() {
 }
 
 export default function App({ Component, pageProps }) {
+  useEffect(() => initSensoryFeedback(), []);
+
   return (
     <AuthProvider>
       <I18nProvider>

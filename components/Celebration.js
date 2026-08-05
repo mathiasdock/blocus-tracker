@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { useI18n } from "../contexts/I18nContext";
 import Mascot from "./Mascot";
 import Flame from "./Flame";
+import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const CONFETTI_COLORS = ["#14B885", "#22E4A4", "#0E8F68", "#C6EED9"];
 const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
@@ -25,6 +26,10 @@ const STREAK_SUBTITLE_KEY = { 7: "streak.celebSub7", 30: "streak.celebSub30", 10
 
 export default function Celebration({ data, onClose }) {
   const { t } = useI18n();
+
+  useEffect(() => {
+    if (data) playSensoryCue(data.kind === "level" ? "xp" : "goal");
+  }, [data]);
 
   useEffect(() => {
     const id = setTimeout(onClose, 5500);

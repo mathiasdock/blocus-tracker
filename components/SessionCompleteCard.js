@@ -19,6 +19,7 @@ import { formatMinutesShort, displayName } from "../lib/format";
 import AnimatedNumber from "./AnimatedNumber";
 import Mascot from "./Mascot";
 import { Avatar } from "./Layout";
+import { playSensoryCue } from "../lib/sensoryFeedback";
 
 // Durée avant fermeture automatique. Le compte à rebours se FIGE dès que la
 // carte est survolée, touchée ou reçoit le focus clavier : avec un bouton
@@ -68,6 +69,10 @@ export default function SessionCompleteCard({
   const [held, setHeld]       = useState(false);   // survol / focus / doigt
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+
+  useEffect(() => {
+    if (data) playSensoryCue("complete");
+  }, [data]);
 
   // Fermeture automatique — suspendue tant que la carte est tenue, ou dès qu'on
   // est passé sur la liste d'amis (choisir quelqu'un prend plus de 10 s).

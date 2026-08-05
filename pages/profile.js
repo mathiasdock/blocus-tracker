@@ -23,6 +23,7 @@ import { isPushSupported, isIOS, isStandalone, enablePush, loginUser } from "../
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
 import {
   DEFAULT_SENSORY_PREFERENCES,
+  playSensoryCue,
   readSensoryPreferences,
   writeSensoryPreferences,
 } from "../lib/sensoryFeedback";
@@ -664,7 +665,12 @@ export default function Profile() {
 
   function setSensoryPreference(key, enabled) {
     setSensoryPrefs(writeSensoryPreferences({ [key]: enabled }));
+    if (key === "sound" && enabled) playSensoryCue("start");
   }
+
+  useEffect(() => {
+    if (newBadgeId) playSensoryCue("xp");
+  }, [newBadgeId]);
 
   // ── Load badge / XP data ─────────────────────────────────
   useEffect(() => {

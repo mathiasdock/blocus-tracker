@@ -2,6 +2,42 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-05 - Bruitages ElevenLabs fiables
+
+L'ancien retour sonore de `lib/sensoryFeedback.js` etait bien branche au chrono,
+mais il reposait uniquement sur des oscillateurs Web Audio regles autour de
+`0.01` de gain. En pratique, le rendu etait presque inaudible et le contexte
+audio n'etait pas deverrouille assez tot pour les evenements asynchrones sur
+Safari/iOS.
+
+### Nouveau moteur sonore
+
+- Cinq extraits de la galerie officielle ElevenLabs sont stockes localement
+  dans `public/sounds/` : depart, reprise, fin, XP et notification.
+- Les fichiers ont ete coupes, convertis en mono et compresses en MP3 64 kb/s.
+  L'ensemble pese environ 39 Ko, donc aucun appel ElevenLabs n'est effectue en
+  production et l'impact reseau reste minime.
+- `_app.js` initialise le moteur une seule fois. Le premier `pointerdown` ou
+  appui clavier deverrouille le contexte audio avant le gestionnaire React,
+  ce qui fiabilise les sons sur mobile et Safari.
+- Les sons sont precharges et caches. Un petit son synthetise, maintenant
+  audible, reste disponible comme fallback si un fichier ne peut pas etre lu.
+- Une limitation par type de son evite les doublons et le spam sonore.
+
+### Evenements couverts
+
+- Chrono : demarrage, pause, reprise, objectif Pomodoro et fin de session.
+- Progression : level-up, badge debloque et celebration de serie.
+- Notifications : nouveau DM, demande d'ami, commentaire, reaction ou annonce.
+  Aucun son n'est joue au premier chargement pour des notifications deja non
+  lues, et l'onglet doit etre visible.
+- Profil : activer l'option « Sons du chrono » joue un apercu immediat.
+
+Le reglage existant `bt_sensory_v1` reste la source de verite : l'utilisateur
+peut couper tous les sons depuis Profil > Preferences. Les credits et liens
+vers les sources ElevenLabs sont dans `public/sounds/README.md` et sur la page
+Mentions legales, conformement aux conditions de la galerie gratuite.
+
 ## 2026-08-05 - Fin de session : nouveau recapitulatif + envoi a un ami
 
 Demande de Mathias : pouvoir envoyer une session terminee a un ami DANS l'app,

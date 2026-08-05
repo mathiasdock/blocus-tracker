@@ -5,6 +5,7 @@ import { useAuth } from "./AuthContext";
 import { ALL_UNIVERSITIES } from "../lib/universities";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { isSafeInternalHref } from "../lib/security";
+import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const NotificationContext = createContext({
   feedCount: 0,
@@ -81,6 +82,7 @@ export function NotificationProvider({ children }) {
   const [msgToast, setMsgToast] = useState(false);
   const pollingRef = useRef(false);
   const pollTimeoutRef = useRef(null);
+  const notificationBaselineRef = useRef(null);
 
   const clearMsgToast = useCallback(() => setMsgToast(false), []);
 
@@ -118,7 +120,11 @@ export function NotificationProvider({ children }) {
         },
         () => {
           setMessageCount((c) => c + 1);
-          if (router.pathname !== "/messages") setMsgToast(true);
+          if (notificationBaselineRef.current !== null) notificationBaselineRef.current += 1;
+          if (router.pathname !== "/messages") {
+            setMsgToast(true);
+            if (typeof document === "undefined" || !document.hidden) playSensoryCue("notification");
+          }
         }
       )
       .subscribe();
@@ -405,10 +411,27 @@ export function NotificationProvider({ children }) {
       setCommentCount(notificationRes.commentsCount || 0);
       setReactionCount(notificationRes.reactionsCount || 0);
       setNotificationItems(notificationRes.items || []);
+
+      const nextAudibleTotal = (friendRes.count || 0)
+        + (messageRes.count || 0)
+        + (notificationRes.commentsCount || 0)
+        + (notificationRes.reactionsCount || 0)
+        + (notificationRes.announcementCount || 0);
+      if (notificationBaselineRef.current !== null
+          && nextAudibleTotal > notificationBaselineRef.current
+          && (typeof document === "undefined" || !document.hidden)
+          && router.pathname !== "/messages") {
+        playSensoryCue("notification");
+      }
+      notificationBaselineRef.current = nextAudibleTotal;
     } finally {
       pollingRef.current = false;
     }
-  }, [user]);
+  }, [router.pathname, user]);
+
+  useEffect(() => {
+    notificationBaselineRef.current = null;
+  }, [user?.id]);
 
   const schedulePoll = useCallback((delay = POLL_DEBOUNCE_MS) => {
     if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);

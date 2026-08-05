@@ -88,6 +88,11 @@ export default function Legal() {
             ))}
           </div>
         </article>
+        <p className="mt-4 text-xs text-center" style={{ color: "var(--bt-text-3)" }}>
+          {t("legal.audioCredit")}{" "}
+          <a href="https://elevenlabs.io/sound-effects" target="_blank" rel="noreferrer"
+            className="underline underline-offset-2">ElevenLabs</a>
+        </p>
       </div>
     </Layout>
   );
