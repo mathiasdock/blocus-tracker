@@ -330,7 +330,9 @@ export default function App({ Component, pageProps }) {
           <meta name="application-name" content="Blocus Tracker" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-          <meta name="apple-mobile-web-app-title" content="Blocus" />
+          {/* Nom pré-rempli dans la boîte « Sur l'écran d'accueil » d'iOS.
+              C'était « Blocus » : la marque est « Blocus Tracker ». */}
+          <meta name="apple-mobile-web-app-title" content="Blocus Tracker" />
           <meta name="mobile-web-app-capable" content="yes" />
           <link rel="manifest" href="/manifest.json" />
           <link rel="icon" type="image/png" href="/icon-192x192.png" />
