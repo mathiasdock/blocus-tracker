@@ -96,6 +96,7 @@ NEXT_PUBLIC_SUPABASE_URL       = https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY  = <anon public key>
 NEXT_PUBLIC_SITE_URL           = https://blocus-tracker.com
 SUPABASE_SERVICE_ROLE_KEY      = <service_role>     ← server-only, used by /api/login
+RESEND_API_KEY                 = re_xxxxxxxx       ← server-only, promo email audience sync
 NEXT_PUBLIC_ONESIGNAL_APP_ID   = <onesignal app id> ← push
 ONESIGNAL_REST_API_KEY         = <onesignal rest>   ← server-only, push
 ONESIGNAL_WEBHOOK_SECRET       = <shared secret>    ← server-only, /api/push/notify

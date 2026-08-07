@@ -123,7 +123,10 @@ export function AuthProvider({ children }) {
   // signUp — nouveaux utilisateurs avec vrai email
   //   Anciens utilisateurs : toujours via pseudoToEmail (inchangé)
   // ---------------------------------------------------------------
-  const signUp = useCallback(async (pseudo, password, email, firstName, lastName, university, referralCode, studyField = "", studyYear = "") => {
+  // `promoEmails` : consentement marketing, FAUX par défaut. L'email sert à
+  // créer le compte et aux emails transactionnels ; il ne vaut pas
+  // consentement promotionnel tant que la case n'est pas cochée (v38).
+  const signUp = useCallback(async (pseudo, password, email, firstName, lastName, university, referralCode, studyField = "", studyYear = "", promoEmails = false) => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
     const ln    = (lastName   || "").trim();
@@ -181,6 +184,20 @@ export function AuthProvider({ children }) {
           timezone: detectTimezone(),
         });
       if (pErr) return { error: "Compte créé mais profil non enregistré : " + pErr.message };
+
+      // Consentement marketing : écrit SÉPARÉMENT et sans bloquer. Les
+      // migrations sont appliquées à la main, donc le code arrive en prod
+      // avant la v38 : mettre `promo_emails` dans l'INSERT ci-dessus ferait
+      // échouer TOUTE création de compte pendant cette fenêtre. Ici, au pire,
+      // la case cochée est perdue et l'utilisateur peut réactiver le réglage
+      // depuis son profil.
+      if (promoEmails === true) {
+        try {
+          await supabase.from("profiles").update({ promo_emails: true }).eq("id", uid);
+        } catch (_) {
+          // Colonne absente (migration pas encore passée) : sans conséquence.
+        }
+      }
 
       // Parrainage : si un code valide a été stocké à l'arrivée, on l'applique
       // côté serveur via RPC SECURITY DEFINER. Erreurs silencieuses : un code

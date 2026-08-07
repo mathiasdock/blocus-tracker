@@ -9,6 +9,7 @@ import MascotCoach from "../components/MascotCoach";
 import AnimatedNumber from "../components/AnimatedNumber";
 import PwaHomeScreenVisual from "../components/PwaHomeScreenVisual";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
+import { fetchPromoConsent, setPromoConsent } from "../lib/promoEmails";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
@@ -526,6 +527,48 @@ function PushRow({ t, user }) {
       <SettingsRow icon={<IconBell />} label={t("push.title")}
         description={pushErrorMessage(t, failure?.reason, failure?.origin) || description}
         right={right} />
+    </>
+  );
+}
+
+// ── Emails promotionnels — opt-in strict ─────────────────────
+// Décoché par défaut : l'email donné à l'inscription sert au compte et aux
+// emails transactionnels, il ne vaut pas consentement marketing. La rangée ne
+// s'affiche pas tant que la migration v38 n'est pas passée, et pas non plus
+// pour les comptes legacy en @blocus.local, qui n'ont pas de vraie adresse.
+// Le séparateur est rendu ICI, pas par le parent : la rangée peut disparaître
+// entièrement (migration absente, adresse legacy), et un trait resterait alors
+// suspendu en bas de la carte.
+function PromoEmailRow({ t, user, email, sep }) {
+  const [state, setState] = useState({ ready: false, supported: false, optedIn: false });
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPromoConsent(supabase).then(({ supported, optedIn }) => {
+      if (!cancelled) setState({ ready: true, supported, optedIn });
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const realEmail = Boolean(email) && !String(email).endsWith("@blocus.local");
+  if (!state.ready || !state.supported || !realEmail) return null;
+
+  async function toggle(next) {
+    if (busy) return;
+    setBusy(true);
+    setState(s => ({ ...s, optedIn: next }));           // optimiste
+    const { ok } = await setPromoConsent(supabase, user?.id, next);
+    if (!ok) setState(s => ({ ...s, optedIn: !next })); // rollback si refus
+    setBusy(false);
+  }
+
+  return (
+    <>
+      {sep}
+      <SettingsRow icon={<IconMail />} label={t("promo.title")}
+        description={state.optedIn ? t("promo.descOn") : t("promo.descOff")}
+        right={<MiniSwitch checked={state.optedIn} onChange={toggle} label={t("promo.title")} />} />
     </>
   );
 }
@@ -1180,6 +1223,7 @@ export default function Profile() {
                   label={t("sensory.hapticsTitle")} />} />
               {sep}
               <PushRow t={t} user={user} />
+              <PromoEmailRow t={t} user={user} email={profile?.email} sep={sep} />
             </div>
 
             {/* Compte — email, app, avis, légal, à propos + zone de sortie */}

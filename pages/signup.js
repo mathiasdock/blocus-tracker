@@ -43,6 +43,7 @@ export default function Signup() {
   const [useCustomUniversity, setUseCustomUniversity] = useState(false);
   const [studyField, setStudyField] = useState("");
   const [studyYear, setStudyYear] = useState("");
+  const [promoEmails, setPromoEmails] = useState(false);
   const [customStudyYear, setCustomStudyYear] = useState("");
   const [touched, setTouched] = useState({});
   const [error, setError] = useState("");
@@ -134,7 +135,8 @@ export default function Signup() {
         selectedUniversity,
         referralCode,
         studyField.trim(),
-        selectedStudyYear
+        selectedStudyYear,
+        promoEmails
       );
 
       if (signUpError) {
@@ -424,6 +426,21 @@ export default function Signup() {
                   />
                 </div>
               )}
+
+              {/* Opt-in marketing — DÉCOCHÉ par défaut, et jamais requis pour
+                  créer le compte : un consentement RGPD doit être un acte
+                  positif et libre, pas une case pré-remplie. */}
+              <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="bt-task-check w-4 h-4 mt-0.5 shrink-0"
+                  checked={promoEmails}
+                  onChange={event => setPromoEmails(event.target.checked)}
+                />
+                <span className="text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                  {t("promo.signupOptIn")}
+                </span>
+              </label>
 
               {error && <div className="bt-form-alert" role="alert" aria-live="polite">{error}</div>}
 

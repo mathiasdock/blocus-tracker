@@ -80,6 +80,7 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 NEXT_PUBLIC_SITE_URL
 SUPABASE_SERVICE_ROLE_KEY      ← server-only
+RESEND_API_KEY                 ← server-only (emails promo, /api/admin/sync-audience)
 ```
 
 Full env reference → `docs/SUPABASE.md`.
