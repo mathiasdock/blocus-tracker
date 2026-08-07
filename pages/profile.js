@@ -430,6 +430,7 @@ function PushRow({ t, user }) {
       if (res?.reason === "unconfigured") { setError(t("push.unconfigured")); return; }
       if (res?.reason === "blocked") { setError(t("push.blocked")); return; }
       if (res?.reason === "timeout") { setError(t("push.timeout")); return; }
+      if (res?.reason === "origin") { setError(t("push.origin").replace("{url}", res.origin)); return; }
       const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
       setPermission(perm);
       // Permission accordée ≠ inscription créée : sans ce garde-fou l'écran
