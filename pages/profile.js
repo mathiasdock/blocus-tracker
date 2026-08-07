@@ -413,10 +413,14 @@ function PushRow({ t, user }) {
   const [permission, setPermission] = useState("default");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Une permission accordée ne prouve rien : seul ce drapeau, posé après une
+  // inscription OneSignal vérifiée, autorise l'affichage "activé".
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     setEnv({ ready: true, supported: isPushSupported(), ios: isIOS(), standalone: isStandalone() });
     if (typeof Notification !== "undefined") setPermission(Notification.permission);
+    try { setConfirmed(localStorage.getItem("bt_push_enabled") === "1"); } catch (_) {}
   }, []);
 
   async function enable() {
@@ -425,14 +429,16 @@ function PushRow({ t, user }) {
       const res = await enablePush();
       if (res?.reason === "unconfigured") { setError(t("push.unconfigured")); return; }
       if (res?.reason === "blocked") { setError(t("push.blocked")); return; }
+      if (res?.reason === "timeout") { setError(t("push.timeout")); return; }
       const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
       setPermission(perm);
       // Permission accordée ≠ inscription créée : sans ce garde-fou l'écran
       // affichait "activé" alors qu'aucune notification ne pouvait arriver.
       if (res?.reason === "no-subscription") { setError(t("push.noSubscription")); return; }
-      if (perm === "granted") {
+      if (res?.ok && perm === "granted") {
         if (user) await loginUser(user.id);
         try { localStorage.setItem("bt_push_enabled", "1"); } catch (_) {}
+        setConfirmed(true);
       }
     } catch (_) {
       setError(t("push.error"));
@@ -454,7 +460,7 @@ function PushRow({ t, user }) {
     description = t("push.iosHint");
   } else if (!env.supported) {
     description = t("push.unsupported");
-  } else if (permission === "granted") {
+  } else if (permission === "granted" && confirmed) {
     description = t("push.enabled");
     right = (
       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
