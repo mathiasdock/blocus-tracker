@@ -19,7 +19,7 @@ import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } f
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
-import { isPushSupported, isIOS, isStandalone, enablePush, loginUser } from "../lib/onesignal";
+import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
 import {
   DEFAULT_SENSORY_PREFERENCES,
@@ -427,6 +427,9 @@ function PushRow({ t, user }) {
       if (res?.reason === "blocked") { setError(t("push.blocked")); return; }
       const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
       setPermission(perm);
+      // Permission accordée ≠ inscription créée : sans ce garde-fou l'écran
+      // affichait "activé" alors qu'aucune notification ne pouvait arriver.
+      if (res?.reason === "no-subscription") { setError(t("push.noSubscription")); return; }
       if (perm === "granted") {
         if (user) await loginUser(user.id);
         try { localStorage.setItem("bt_push_enabled", "1"); } catch (_) {}
@@ -440,7 +443,7 @@ function PushRow({ t, user }) {
 
   if (!env.ready) return null;
 
-  const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+  const appId = getAppId();
   const iosNeedsInstall = env.ios && !env.standalone;
 
   let description = t("push.desc");
