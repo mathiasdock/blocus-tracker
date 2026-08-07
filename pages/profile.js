@@ -408,11 +408,28 @@ function ReferralCard({ t, fallbackCode = "" }) {
 }
 
 // ── Notifications push — rangée de réglage compacte ──────────
+// Le motif d'echec doit survivre a un rechargement : sinon l'utilisateur qui
+// va verifier ses reglages systeme revient sur un ecran muet, et l'information
+// qui expliquait la panne est perdue.
+const PUSH_ERROR_KEY = "bt_push_last_error";
+
+function pushErrorMessage(t, reason, origin) {
+  if (reason === "unconfigured") return t("push.unconfigured");
+  if (reason === "blocked") return t("push.blocked");
+  if (reason === "timeout") return t("push.timeout");
+  if (reason === "origin") return t("push.origin").replace("{url}", origin || "");
+  if (reason === "no-subscription") return t("push.noSubscription");
+  if (reason === "error") return t("push.error");
+  return "";
+}
+
 function PushRow({ t, user }) {
   const [env, setEnv] = useState({ ready: false, supported: false, ios: false, standalone: false });
   const [permission, setPermission] = useState("default");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  // On garde le motif brut, pas le texte : il se traduit au rendu et suit donc
+  // un changement de langue.
+  const [failure, setFailure] = useState(null);
   // Une permission accordée ne prouve rien : seul ce drapeau, posé après une
   // inscription OneSignal vérifiée, autorise l'affichage "activé".
   const [confirmed, setConfirmed] = useState(false);
@@ -421,7 +438,14 @@ function PushRow({ t, user }) {
     const supported = isPushSupported();
     setEnv({ ready: true, supported, ios: isIOS(), standalone: isStandalone() });
     if (typeof Notification !== "undefined") setPermission(Notification.permission);
-    try { setConfirmed(localStorage.getItem("bt_push_enabled") === "1"); } catch (_) {}
+    try {
+      const ok = localStorage.getItem("bt_push_enabled") === "1";
+      setConfirmed(ok);
+      if (!ok) {
+        const [reason, origin] = (localStorage.getItem(PUSH_ERROR_KEY) || "").split("|");
+        if (reason) setFailure({ reason, origin });
+      }
+    } catch (_) {}
 
     // Précharge le SDK pour qui s'apprête à cliquer. Sans ça, le clic doit
     // attendre un chargement réseau avant d'atteindre subscribe(), et WebKit a
@@ -434,25 +458,30 @@ function PushRow({ t, user }) {
   }, []);
 
   async function enable() {
-    setBusy(true); setError("");
+    setBusy(true); setFailure(null);
+    const fail = (reason, origin) => {
+      try { localStorage.setItem(PUSH_ERROR_KEY, origin ? `${reason}|${origin}` : reason); } catch (_) {}
+      setFailure({ reason, origin });
+    };
     try {
       const res = await enablePush();
-      if (res?.reason === "unconfigured") { setError(t("push.unconfigured")); return; }
-      if (res?.reason === "blocked") { setError(t("push.blocked")); return; }
-      if (res?.reason === "timeout") { setError(t("push.timeout")); return; }
-      if (res?.reason === "origin") { setError(t("push.origin").replace("{url}", res.origin)); return; }
       const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
       setPermission(perm);
+
       // Permission accordée ≠ inscription créée : sans ce garde-fou l'écran
       // affichait "activé" alors qu'aucune notification ne pouvait arriver.
-      if (res?.reason === "no-subscription") { setError(t("push.noSubscription")); return; }
       if (res?.ok && perm === "granted") {
         if (user) await loginUser(user.id);
-        try { localStorage.setItem("bt_push_enabled", "1"); } catch (_) {}
+        try {
+          localStorage.setItem("bt_push_enabled", "1");
+          localStorage.removeItem(PUSH_ERROR_KEY);
+        } catch (_) {}
         setConfirmed(true);
+        return;
       }
+      if (res?.reason) fail(res.reason, res.origin);
     } catch (_) {
-      setError(t("push.error"));
+      fail("error");
     } finally {
       setBusy(false);
     }
@@ -494,7 +523,9 @@ function PushRow({ t, user }) {
 
   return (
     <>
-      <SettingsRow icon={<IconBell />} label={t("push.title")} description={error || description} right={right} />
+      <SettingsRow icon={<IconBell />} label={t("push.title")}
+        description={pushErrorMessage(t, failure?.reason, failure?.origin) || description}
+        right={right} />
     </>
   );
 }
