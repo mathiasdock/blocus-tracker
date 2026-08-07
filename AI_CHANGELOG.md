@@ -2,6 +2,26 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-07 - Inscription complete en deux etapes
+
+Ajustement demande par Mathias apres validation du design auth : la creation de
+compte collecte de nouveau le prenom ET le nom, ainsi qu'une confirmation du mot
+de passe. L'inscription reste lisible grace a deux ecrans dans la meme carte :
+identite/securite, puis etudes.
+
+L'etablissement est maintenant obligatoire avant la creation effective du
+compte. L'utilisateur choisit dans le `UniPicker` canonique afin que
+`profiles.university` corresponde aux communautes existantes ; le choix
+"Autre etablissement" ouvre une saisie manuelle. La filiere et l'annee d'etude
+sont proposees sur le meme ecran mais explicitement optionnelles.
+
+`AuthContext.signUp` enregistre desormais `last_name`, `university`,
+`study_field` et `study_year` lors de l'INSERT initial. Le nouvel utilisateur
+arrive ensuite directement sur l'ajout de son premier cours dans `/onboarding`,
+sans ressaisir ses informations d'etudes. Les annees partagees ont ete extraites
+dans `lib/studyYears.js`. Aucune migration Supabase n'est necessaire : les
+colonnes et permissions existent deja.
+
 ## 2026-08-07 - Audit de securite et durcissement transversal
 
 Audit standard complet du depot (283 fichiers, 12 constats confirmes : 1 haut,

@@ -123,16 +123,19 @@ export function AuthProvider({ children }) {
   // signUp — nouveaux utilisateurs avec vrai email
   //   Anciens utilisateurs : toujours via pseudoToEmail (inchangé)
   // ---------------------------------------------------------------
-  const signUp = useCallback(async (pseudo, password, email, firstName, lastName = "", university = "", referralCode) => {
+  const signUp = useCallback(async (pseudo, password, email, firstName, lastName, university, referralCode, studyField = "", studyYear = "") => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
     const ln    = (lastName   || "").trim();
     const uni   = (university || "").trim() || null;
+    const field = (studyField || "").trim() || null;
+    const year  = (studyYear  || "").trim() || null;
     const em    = (email      || "").trim().toLowerCase();
     const ref   = (referralCode || "").trim().toUpperCase() || null;
 
     if (clean.length < 3)   return { error: "Le pseudo doit faire au moins 3 caractères." };
-    if (!fn)                 return { error: "Le prénom est obligatoire." };
+    if (!fn || !ln)          return { error: "Le prénom et le nom sont obligatoires." };
+    if (!uni)                return { error: "L'établissement est obligatoire." };
     if (password.length < 6) return { error: "Le mot de passe doit faire au moins 6 caractères." };
     if (!em)                 return { error: "L'adresse email est obligatoire." };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
@@ -173,8 +176,9 @@ export function AuthProvider({ children }) {
       const { error: pErr } = await supabase
         .from("profiles")
         .insert({
-          id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln || null,
-          university: uni, timezone: detectTimezone(),
+          id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln,
+          university: uni, study_field: field, study_year: year,
+          timezone: detectTimezone(),
         });
       if (pErr) return { error: "Compte créé mais profil non enregistré : " + pErr.message };
 
@@ -192,7 +196,7 @@ export function AuthProvider({ children }) {
 
       await loadProfile(uid);
     }
-    return { error: null };
+    return { error: null, userId: uid || null };
   }, [loadProfile]);
 
   // ---------------------------------------------------------------

@@ -6,21 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { supabase } from "../lib/supabaseClient";
-
-const YEARS = [
-  { value: "BAC 1", key: "onboarding.year.bac1" },
-  { value: "BAC 2", key: "onboarding.year.bac2" },
-  { value: "BAC 3", key: "onboarding.year.bac3" },
-  { value: "Année préparatoire", key: "onboarding.year.prep" },
-  { value: "Année passerelle", key: "onboarding.year.bridge" },
-  { value: "Master 1", key: "onboarding.year.master1" },
-  { value: "Master 2", key: "onboarding.year.master2" },
-  { value: "Année de spécialisation", key: "onboarding.year.spec" },
-  { value: "Certificat / formation courte", key: "onboarding.year.cert" },
-  { value: "Doctorat", key: "onboarding.year.phd" },
-  { value: "Formation continue", key: "onboarding.year.continuing" },
-  { value: "Autre", key: "onboarding.year.other" },
-];
+import { STUDY_YEARS } from "../lib/studyYears";
 
 function PlusIcon() {
   return (
@@ -124,7 +110,7 @@ export default function Onboarding() {
         const currentProfile = profileResult.data || {};
         const currentCourses = coursesResult.data || [];
         const currentYear = currentProfile.study_year || "";
-        const knownYear = YEARS.some(year => year.value === currentYear);
+        const knownYear = STUDY_YEARS.some(year => year.value === currentYear);
         let savedStep = 0;
         try { savedStep = Number(localStorage.getItem(`bt_onboarding_step_${user.id}`)) || 0; } catch (_) {}
 
@@ -137,7 +123,6 @@ export default function Onboarding() {
 
         if (!currentProfile.university) setStep(0);
         else if (savedStep >= 1 && savedStep <= 2) setStep(savedStep);
-        else if (!currentProfile.study_field && !currentProfile.study_year && currentCourses.length === 0) setStep(1);
         else setStep(2);
 
         setReady(true);
@@ -433,7 +418,7 @@ export default function Onboarding() {
                       }}
                     >
                       <option value="">{t("onboarding.year.choose")}</option>
-                      {YEARS.map(year => <option key={year.value} value={year.value}>{t(year.key)}</option>)}
+                      {STUDY_YEARS.map(year => <option key={year.value} value={year.value}>{t(year.key)}</option>)}
                     </select>
                   </div>
 
