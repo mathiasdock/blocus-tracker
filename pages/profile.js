@@ -19,7 +19,7 @@ import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } f
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
-import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId } from "../lib/onesignal";
+import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
 import {
   DEFAULT_SENSORY_PREFERENCES,
@@ -418,9 +418,19 @@ function PushRow({ t, user }) {
   const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
-    setEnv({ ready: true, supported: isPushSupported(), ios: isIOS(), standalone: isStandalone() });
+    const supported = isPushSupported();
+    setEnv({ ready: true, supported, ios: isIOS(), standalone: isStandalone() });
     if (typeof Notification !== "undefined") setPermission(Notification.permission);
     try { setConfirmed(localStorage.getItem("bt_push_enabled") === "1"); } catch (_) {}
+
+    // Précharge le SDK pour qui s'apprête à cliquer. Sans ça, le clic doit
+    // attendre un chargement réseau avant d'atteindre subscribe(), et WebKit a
+    // alors perdu le geste utilisateur : l'abonnement échoue sur iOS. Le coût
+    // reste nul pour les visiteurs qui ne verront jamais le bouton.
+    if (supported && getAppId() && typeof Notification !== "undefined"
+        && Notification.permission !== "denied") {
+      initOneSignal().catch(() => {});
+    }
   }, []);
 
   async function enable() {
