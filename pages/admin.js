@@ -1404,7 +1404,11 @@ export default function Admin() {
         referralCounts[user.id] || 0,
       ];
     });
-    const escape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const escape = (value) => {
+      const raw = String(value ?? "");
+      const spreadsheetSafe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+      return `"${spreadsheetSafe.replace(/"/g, '""')}"`;
+    };
     const csv = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\n");
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);

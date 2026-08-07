@@ -2,6 +2,36 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-07 - Audit de securite et durcissement transversal
+
+Audit standard complet du depot (283 fichiers, 12 constats confirmes : 1 haut,
+8 moyens, 3 faibles). Le chrono de groupe ne repose plus sur des `UPDATE`
+directs : les transitions pause/reprise/annulation passent par des RPC
+verrouillees et autorisees, les participants sont lies aux membres du groupe et
+l'ancien overload de finalisation est supprime. Les destinataires de DM ne
+peuvent plus modifier que le champ `read`. Les quotas sociaux sont serialises et
+les sessions d'etude sont plafonnees a 200 lignes par jour.
+
+Le bucket `community` devient prive. Les pieces jointes communautaires et les
+photos de groupe sont maintenant stockees comme references opaques puis signees
+par `/api/storage/sign` apres verification de leur relation. Le service worker
+ne met plus en cache les reponses Supabase privees et purge les anciens caches
+partages. L'annuaire anonyme de pseudos est remplace par l'RPC exacte
+`is_pseudo_available`, les boucles de notifications sont bornees, l'export CSV
+neutralise les formules et les secrets cron ne sont plus acceptes dans l'URL.
+
+`supabase/migration_v37_security_followup.sql` est volontairement creee mais
+non executee : elle doit etre appliquee manuellement dans Supabase apres v36.
+Les mises a jour sans rupture de Sharp, PostCSS, brace-expansion et fast-uri
+retirent leurs alertes `npm audit`; Next 14 reste une dette de migration, les
+avis courants visant des fonctionnalites absentes de ce projet Pages Router.
+Le fichier local non suivi `voix=0`, qui contenait une cle API, a ete deplace
+dans la Corbeille et son nom est desormais ignore par Git.
+
+Verification : `npm run lint` OK, `npm run build` OK, assertions du service
+worker OK. Les suppressions et fichiers non suivis deja presents dans `public/`
+restent hors du commit.
+
 ## 2026-08-07 - Parcours connexion, inscription et onboarding simplifie
 
 Refonte ciblee du parcours qui mene un nouvel etudiant jusqu'au chrono, avec

@@ -267,6 +267,19 @@ export default function Messages() {
     return signedAttachmentUrls[attachmentCacheKey(bucket, ref)] || "";
   }
 
+  function signedGroupPhotoUrl(ref) {
+    if (!ref) return "";
+    const bucket = storagePathFromReference(ref, "group")
+      ? "group"
+      : storagePathFromReference(ref, "community")
+        ? "community"
+        : null;
+    if (!bucket) return ref;
+    const path = storagePathFromReference(ref, bucket);
+    if (isOfflineDev) return `/offline-upload/${bucket}/${path}`;
+    return signedAttachmentUrls[attachmentCacheKey(bucket, ref)] || "";
+  }
+
   // ── DM loading ─────────────────────────────────────────────────
   const loadFriends = useCallback(async () => {
     if (!user) return;
@@ -632,6 +645,17 @@ export default function Messages() {
         if (!signedAttachmentUrls[key]) refsByKey.set(key, { bucket, ref });
       }
     }
+    for (const group of groups) {
+      const ref = group.photo_url;
+      const bucket = storagePathFromReference(ref, "group")
+        ? "group"
+        : storagePathFromReference(ref, "community")
+          ? "community"
+          : null;
+      if (!bucket) continue;
+      const key = attachmentCacheKey(bucket, ref);
+      if (!signedAttachmentUrls[key]) refsByKey.set(key, { bucket, ref });
+    }
     const refs = [...refsByKey.entries()];
     if (isOfflineDev) return () => { cancelled = true; };
     if (!refs.length) return () => { cancelled = true; };
@@ -664,7 +688,7 @@ export default function Messages() {
     })();
 
     return () => { cancelled = true; };
-  }, [messages, groupMessages, signedAttachmentUrls]);
+  }, [messages, groupMessages, groups, signedAttachmentUrls]);
   useEffect(() => { loadGroups(); }, [loadGroups]);
   useEffect(() => {
     if (!grpActiveId) {
@@ -900,14 +924,13 @@ export default function Messages() {
     const uploadFile = opt?.file || file;
     const pathInfo = safeStoragePath(user.id, uploadFile, ["groups", grpActiveId], "groupPhoto");
     if (!pathInfo.ok) { alert(uploadErrorMessage(t, pathInfo)); return; }
-    const { error: upErr } = await supabase.storage.from("community").upload(pathInfo.path, uploadFile, {
+    const { error: upErr } = await supabase.storage.from("group").upload(pathInfo.path, uploadFile, {
       upsert: true,
       cacheControl: "31536000",
       contentType: pathInfo.contentType,
     });
     if (upErr) { alert(upErr.message); return; }
-    const { data: pub } = supabase.storage.from("community").getPublicUrl(pathInfo.path);
-    const photoUrl = pub.publicUrl;
+    const photoUrl = `group:${pathInfo.path}`;
     await supabase.from("study_groups").update({ photo_url: photoUrl }).eq("id", grpActiveId);
     setGroups(prev => prev.map(g => g.id === grpActiveId ? { ...g, photo_url: photoUrl } : g));
   }
@@ -978,9 +1001,12 @@ export default function Messages() {
 
   async function pauseGroupChrono() {
     if (!groupChrono) return;
-    const { error } = await supabase.from("group_chrono_sessions")
-      .update({ status: "paused", last_pause_at: new Date().toISOString() })
-      .eq("id", groupChrono.id);
+    let { error } = await supabase.rpc("pause_group_chrono", { p_session_id: groupChrono.id });
+    if (error?.code === "PGRST202") {
+      ({ error } = await supabase.from("group_chrono_sessions")
+        .update({ status: "paused", last_pause_at: new Date().toISOString() })
+        .eq("id", groupChrono.id));
+    }
     if (error) return;
     playSensoryCue("pause");
     await loadGroupChrono();
@@ -988,14 +1014,17 @@ export default function Messages() {
 
   async function resumeGroupChrono() {
     if (!groupChrono?.last_pause_at) return;
-    const pausedSecs = Math.floor((Date.now() - new Date(groupChrono.last_pause_at).getTime()) / 1000);
-    const { error } = await supabase.from("group_chrono_sessions")
-      .update({
-        status: "active",
-        last_pause_at: null,
-        total_paused_seconds: groupChrono.total_paused_seconds + pausedSecs,
-      })
-      .eq("id", groupChrono.id);
+    let { error } = await supabase.rpc("resume_group_chrono", { p_session_id: groupChrono.id });
+    if (error?.code === "PGRST202") {
+      const pausedSecs = Math.floor((Date.now() - new Date(groupChrono.last_pause_at).getTime()) / 1000);
+      ({ error } = await supabase.from("group_chrono_sessions")
+        .update({
+          status: "active",
+          last_pause_at: null,
+          total_paused_seconds: groupChrono.total_paused_seconds + pausedSecs,
+        })
+        .eq("id", groupChrono.id));
+    }
     if (error) return;
     playSensoryCue("resume");
     await loadGroupChrono();
@@ -1016,9 +1045,13 @@ export default function Messages() {
 
   async function cancelGroupChrono() {
     if (!groupChrono) return;
-    await supabase.from("group_chrono_sessions")
-      .update({ status: "cancelled" })
-      .eq("id", groupChrono.id);
+    let { error } = await supabase.rpc("cancel_group_chrono", { p_session_id: groupChrono.id });
+    if (error?.code === "PGRST202") {
+      ({ error } = await supabase.from("group_chrono_sessions")
+        .update({ status: "cancelled" })
+        .eq("id", groupChrono.id));
+    }
+    if (error) return;
     setGroupChrono(null);
     setChronoParticipants([]);
     setMyChronoStatus(null);
@@ -1070,6 +1103,7 @@ export default function Messages() {
   const activeFriend  = friends.find(f => f.profile.id === dmActiveId);
   const activeGroup   = groups.find(g => g.id === grpActiveId);
   const amCreator     = activeGroup?.created_by === user?.id;
+  const canFinishGroupChrono = groupChrono?.started_by === user?.id || amCreator;
   const grpWho        = id => msgProfiles[id] || { pseudo: t("common.unknownUser"), avatar_url: null };
   const chatVisible   = mobileView === "list" ? "hidden lg:flex" : "flex";
   const incoming = friendLinks.filter((l) => l.status === "pending" && l.addressee === user?.id);
@@ -1144,10 +1178,11 @@ export default function Messages() {
 
   // Avatar de groupe (photo ou initiale)
   function GroupAvatar({ group, size = 36 }) {
-    if (group?.photo_url) {
+    const photoUrl = signedGroupPhotoUrl(group?.photo_url);
+    if (photoUrl) {
       return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={group.photo_url} alt={group.name}
+        <img src={photoUrl} alt={group.name}
           style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover",
             border: "1.5px solid var(--bt-border)", flexShrink: 0 }} />
       );
@@ -1667,6 +1702,7 @@ export default function Messages() {
                   </p>
                   <input className="input text-sm mb-2"
                     placeholder={t("dash.notePlaceholder")}
+                    maxLength={500}
                     value={chronoStartNote}
                     onChange={e => setChronoStartNote(e.target.value)} />
                   <div className="flex gap-2">
@@ -1737,12 +1773,14 @@ export default function Messages() {
                               {t("dash.resume")}
                             </button>
                           )}
-                          <button onClick={finishGroupChrono}
-                            className="text-xs px-2.5 py-1.5 rounded-xl font-semibold"
-                            style={{ backgroundColor: "#14B885", color: "#fff" }}>
-                            {t("groups.chronoFinish")}
-                          </button>
-                          {amCreator && (
+                          {canFinishGroupChrono && (
+                            <button onClick={finishGroupChrono}
+                              className="text-xs px-2.5 py-1.5 rounded-xl font-semibold"
+                              style={{ backgroundColor: "#14B885", color: "#fff" }}>
+                              {t("groups.chronoFinish")}
+                            </button>
+                          )}
+                          {canFinishGroupChrono && (
                             <button onClick={cancelGroupChrono}
                               className="text-xs transition-colors"
                               style={{ color: "var(--bt-text-4)" }}

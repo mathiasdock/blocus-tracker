@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useToast } from "../contexts/ToastContext";
 import { useI18n } from "../contexts/I18nContext";
-import { supabase } from "../lib/supabaseClient";
+import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo } from "../lib/format";
 import { COUNTRIES, COMMUNITY_BY_ID, communityIdForUniversity } from "../lib/universities";
 import { optimizeFeedImage } from "../lib/imageCompression";
@@ -17,6 +17,7 @@ import {
   clientRateLimit,
   safeStoragePath,
   sanitizeFileName,
+  storagePathFromReference,
   trimmedText,
   uploadErrorMessage,
   validateUploadFile,
@@ -35,6 +36,10 @@ const CHAT_ACCEPT = [
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ].join(",");
+
+function attachmentCacheKey(ref) {
+  return `community|${ref}`;
+}
 
 function IconPaperclip({ size = 15 }) {
   return (
@@ -266,6 +271,7 @@ export default function Communautes() {
   }, [active, authLoading, myCommunityId]);
 
   const [messages, setMessages] = useState([]);
+  const [signedAttachmentUrls, setSignedAttachmentUrls] = useState({});
   const [profiles, setProfiles] = useState({});
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
@@ -297,6 +303,13 @@ export default function Communautes() {
   const statsCache = useRef({});
 
   const activeMeta = COMMUNITY_BY_ID[active];
+
+  function signedAttachmentUrl(ref) {
+    const path = storagePathFromReference(ref, "community");
+    if (!path) return ref;
+    if (isOfflineDev) return `/offline-upload/community/${path}`;
+    return signedAttachmentUrls[attachmentCacheKey(ref)] || "";
+  }
 
   function pickFile(input, setter = setFile) {
     const f = input.files?.[0] || null;
@@ -401,6 +414,39 @@ export default function Communautes() {
   }, [pollNew]);
 
   useEffect(() => {
+    let cancelled = false;
+    const refs = [...new Set(messages.map((message) => message.attachment_url).filter(Boolean))]
+      .filter((ref) => storagePathFromReference(ref, "community"))
+      .filter((ref) => !signedAttachmentUrls[attachmentCacheKey(ref)]);
+    if (isOfflineDev || refs.length === 0) return () => { cancelled = true; };
+
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) return;
+      const entries = await Promise.all(refs.map(async (ref) => {
+        try {
+          const res = await fetch("/api/storage/sign", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ bucket: "community", ref }),
+          });
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data?.signedUrl ? [attachmentCacheKey(ref), data.signedUrl] : null;
+        } catch {
+          return null;
+        }
+      }));
+      if (cancelled) return;
+      const next = Object.fromEntries(entries.filter(Boolean));
+      if (Object.keys(next).length) setSignedAttachmentUrls((prev) => ({ ...prev, ...next }));
+    })();
+
+    return () => { cancelled = true; };
+  }, [messages, signedAttachmentUrls]);
+
+  useEffect(() => {
     if (!shouldScrollRef.current) return;
     shouldScrollRef.current = false;
     const scroller = scrollRef.current;
@@ -480,8 +526,7 @@ export default function Communautes() {
         contentType: pathInfo.contentType,
       });
       if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return false; }
-      const { data: pub } = supabase.storage.from("community").getPublicUrl(pathInfo.path);
-      attachment_url = pub.publicUrl;
+      attachment_url = `community:${pathInfo.path}`;
       attachment_type = attachmentKind(finalFile);
       attachment_name = sanitizeFileName(uploadFile.name);
     }
@@ -612,6 +657,7 @@ export default function Communautes() {
     const mine = m.user_id === user.id;
     const parsed = parseCommunityContent(m.content);
     const imageKey = `community:${m.id}:${m.attachment_url || ""}`;
+    const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url) : "";
     return (
       <div key={m.id} className={`flex gap-2 min-w-0 ${mine ? "flex-row-reverse" : ""}`}>
         <button onClick={() => setViewUserId(m.user_id)} className="shrink-0">
@@ -626,16 +672,21 @@ export default function Communautes() {
               ? { backgroundColor: "var(--bt-accent)", color: "#fff", borderRadius: "18px 18px 6px 18px" }
               : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
             {parsed.text && <p className="whitespace-pre-wrap break-words">{parsed.text}</p>}
-            {m.attachment_url && m.attachment_type === "image" && (
-              <AttachmentImageGate src={m.attachment_url} alt={m.attachment_name || "image"} mine={mine}
+            {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
+              <AttachmentImageGate src={attachmentUrl} alt={m.attachment_name || "image"} mine={mine}
                 loaded={revealedImages[imageKey]} onLoad={() => revealImage(imageKey)} t={t} />
             )}
-            {m.attachment_url && m.attachment_type === "file" && (
-              <a href={m.attachment_url} target="_blank" rel="noreferrer"
+            {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
+              <a href={attachmentUrl} target="_blank" rel="noreferrer"
                 className="mt-2 inline-flex items-center gap-2 underline break-all"
                 style={{ color: mine ? "#fff" : "var(--bt-accent-dark)" }}>
                 <IconPaperclip size={13} /> {m.attachment_name || t("msg.file")}
               </a>
+            )}
+            {m.attachment_url && !attachmentUrl && (
+              <p className="mt-2 text-xs" style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--bt-text-3)" }}>
+                {t("security.signingAttachment")}
+              </p>
             )}
           </div>
           {(mine || isAdmin) && (
@@ -948,21 +999,25 @@ export default function Communautes() {
                           const author = who(rm.user_id);
                           const parsed = parseCommunityContent(rm.content);
                           const imageKey = `community:${rm.id}:${rm.attachment_url || ""}`;
+                          const attachmentUrl = rm.attachment_url ? signedAttachmentUrl(rm.attachment_url) : "";
                           return (
                             <li key={rm.id} className="rounded-2xl p-3.5" style={{ border: "1px solid var(--bt-border)" }}>
                               <p className="text-xs mb-1.5" style={{ color: "var(--bt-text-3)" }}>
                                 {t("comm.by").replace("{name}", displayName(author))} · {timeAgo(rm.created_at, lang)}
                               </p>
                               {parsed.text && <p className="text-sm break-words mb-2" style={{ color: "var(--bt-text-1)" }}>{parsed.text}</p>}
-                              {rm.attachment_url && rm.attachment_type === "image" && (
-                                <AttachmentImageGate src={rm.attachment_url} alt={rm.attachment_name || "image"} mine={rm.user_id === user.id}
+                              {rm.attachment_url && rm.attachment_type === "image" && attachmentUrl && (
+                                <AttachmentImageGate src={attachmentUrl} alt={rm.attachment_name || "image"} mine={rm.user_id === user.id}
                                   loaded={revealedImages[imageKey]} onLoad={() => revealImage(imageKey)} t={t} />
                               )}
-                              {rm.attachment_url && rm.attachment_type === "file" && (
-                                <a href={rm.attachment_url} target="_blank" rel="noreferrer"
+                              {rm.attachment_url && rm.attachment_type === "file" && attachmentUrl && (
+                                <a href={attachmentUrl} target="_blank" rel="noreferrer"
                                   className="inline-flex items-center gap-2 underline break-all text-sm" style={{ color: "var(--bt-accent-dark)" }}>
                                   <IconPaperclip size={13} /> {rm.attachment_name || t("msg.file")}
                                 </a>
+                              )}
+                              {rm.attachment_url && !attachmentUrl && (
+                                <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("security.signingAttachment")}</p>
                               )}
                               {(rm.user_id === user.id || isAdmin) && (
                                 <button onClick={() => remove(rm.id)} className="block text-[10px] mt-2" style={{ color: "var(--bt-text-4)" }}>{t("common.remove")}</button>

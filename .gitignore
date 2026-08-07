@@ -6,6 +6,9 @@ out
 .DS_Store
 *.log
 
+# Local voice/API credential scratch file (never commit).
+voix=0
+
 .vercel
 
 # PWA — fichiers auto-générés par next-pwa à chaque build (régénérés par

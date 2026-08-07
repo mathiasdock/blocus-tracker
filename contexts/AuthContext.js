@@ -139,12 +139,22 @@ export function AuthProvider({ children }) {
       return { error: "L'adresse email n'est pas valide." };
 
     // Vérifier disponibilité du pseudo
-    const { data: existing } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("pseudo", clean)
-      .maybeSingle();
-    if (existing) return { error: "Ce pseudo est déjà pris." };
+    let { data: pseudoAvailable, error: availabilityError } = await supabase
+      .rpc("is_pseudo_available", { p_pseudo: clean });
+    // Rolling-deploy compatibility: the frontend may reach production a few
+    // minutes before the manual v37 migration. This path becomes unusable as
+    // soon as v37 revokes anonymous profile SELECT.
+    if (availabilityError?.code === "PGRST202") {
+      const legacy = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("pseudo", clean)
+        .maybeSingle();
+      pseudoAvailable = !legacy.data;
+      availabilityError = legacy.error;
+    }
+    if (availabilityError) return { error: "Impossible de vérifier ce pseudo pour le moment." };
+    if (pseudoAvailable !== true) return { error: "Ce pseudo est déjà pris." };
 
     // Note : la vérification de l'unicité de l'email est gérée
     // par Supabase Auth et l'index unique sur profiles.email.

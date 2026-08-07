@@ -1,7 +1,7 @@
 const nextPwa = require("@ducanh2912/next-pwa");
 const withPWA = nextPwa.default;
 // Tableau runtimeCaching par défaut de next-pwa (fonts, assets statiques, pages…).
-// On le conserve intégralement et on préfixe notre règle Supabase devant.
+// On le conserve intégralement et on préfixe nos règles privées devant.
 const defaultRuntimeCaching = nextPwa.runtimeCaching || [];
 
 /** @type {import('next').NextConfig} */
@@ -72,8 +72,18 @@ const supabaseStorageCache = {
 const privateNetworkOnly = {
   urlPattern: ({ url, sameOrigin }) => (
     (sameOrigin && url.pathname.startsWith("/api/"))
+    || url.pathname.startsWith("/rest/v1/")
+    || url.pathname.startsWith("/auth/v1/")
+    || url.pathname.startsWith("/realtime/v1/")
+    || url.pathname.startsWith("/functions/v1/")
+    || url.pathname.startsWith("/graphql/v1")
     || url.pathname.includes("/storage/v1/object/sign/")
     || url.pathname.includes("/storage/v1/object/authenticated/")
+    || url.pathname.includes("/storage/v1/object/public/community/")
+    || (
+      url.pathname.startsWith("/storage/v1/")
+      && !url.pathname.includes("/storage/v1/object/public/")
+    )
   ),
   handler: "NetworkOnly",
 };
@@ -90,6 +100,7 @@ module.exports = withPWA({
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
+    importScripts: ["/sw-cache-cleanup.js"],
     runtimeCaching: [privateNetworkOnly, supabaseStorageCache, ...defaultRuntimeCaching],
   },
 })(nextConfig);

@@ -3,8 +3,8 @@
 //
 // ⚠️ Outward-facing : ça part à tous tes abonnés push. À déclencher à la main.
 //
-// Auth : secret cron (Authorization: Bearer <CRON_SECRET>, header x-cron-secret,
-//        ou ?secret=<CRON_SECRET>). Corps JSON : { title, body, url? } où
+// Auth : secret cron (Authorization: Bearer <CRON_SECRET> ou header
+//        x-cron-secret). Corps JSON : { title, body, url? } où
 //        title/body sont une string ou un objet { fr, en }.
 //
 // Exemple (une seule fois) :
@@ -24,8 +24,7 @@ function authorized(req) {
   const bearer = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   const hdr = req.headers["x-cron-secret"];
   const header = Array.isArray(hdr) ? hdr[0] : hdr || "";
-  const q = typeof req.query.secret === "string" ? req.query.secret : "";
-  return [bearer, header, q].some((s) => s && timingSafeEqualText(s, CRON_SECRET));
+  return [bearer, header].some((s) => s && timingSafeEqualText(s, CRON_SECRET));
 }
 
 export const config = { api: { bodyParser: { sizeLimit: "16kb" } } };

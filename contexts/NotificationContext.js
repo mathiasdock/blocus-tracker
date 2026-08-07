@@ -35,6 +35,9 @@ const POLL_VISIBLE_MS = 120000; // 2 min (était 45s) — réduit l'egress API
 const POLL_HIDDEN_MS = 300000;  // 5 min (était 2 min) — onglet en arrière-plan
 const POLL_DEBOUNCE_MS = 1200;
 const COMMUNITY_PAGE_SIZE = 1000;
+// Keep background polling predictable even when a user has a very stale
+// last-seen marker. The visible badge is intentionally capped at this budget.
+const NOTIFICATION_ROW_LIMIT = 5000;
 const PRODUCT_ANNOUNCEMENTS = [
   {
     id: "referral-links-v1",
@@ -171,7 +174,7 @@ export function NotificationProvider({ children }) {
         if (!earliestLastSeen) return { data: [] };
 
         const rows = [];
-        for (let from = 0; ; from += COMMUNITY_PAGE_SIZE) {
+        for (let from = 0; from < NOTIFICATION_ROW_LIMIT; from += COMMUNITY_PAGE_SIZE) {
           const { data, error } = await supabase
             .from("community_messages")
             .select("community, created_at")
@@ -179,7 +182,7 @@ export function NotificationProvider({ children }) {
             .gt("created_at", earliestLastSeen)
             .neq("user_id", user.id)
             .order("created_at", { ascending: false })
-            .range(from, from + COMMUNITY_PAGE_SIZE - 1);
+            .range(from, Math.min(from + COMMUNITY_PAGE_SIZE, NOTIFICATION_ROW_LIMIT) - 1);
           if (error) return { data: rows, error };
           rows.push(...(data || []));
           if (!data || data.length < COMMUNITY_PAGE_SIZE) break;
@@ -214,7 +217,7 @@ export function NotificationProvider({ children }) {
         );
 
         const rows = [];
-        for (let from = 0; ; from += COMMUNITY_PAGE_SIZE) {
+        for (let from = 0; from < NOTIFICATION_ROW_LIMIT; from += COMMUNITY_PAGE_SIZE) {
           const { data, error } = await supabase
             .from("group_messages")
             .select("group_id, created_at")
@@ -222,7 +225,7 @@ export function NotificationProvider({ children }) {
             .gt("created_at", earliestLastSeen)
             .neq("user_id", user.id)
             .order("created_at", { ascending: false })
-            .range(from, from + COMMUNITY_PAGE_SIZE - 1);
+            .range(from, Math.min(from + COMMUNITY_PAGE_SIZE, NOTIFICATION_ROW_LIMIT) - 1);
           if (error) return { data: rows, groupIds, seenGroups };
           rows.push(...(data || []));
           if (!data || data.length < COMMUNITY_PAGE_SIZE) break;

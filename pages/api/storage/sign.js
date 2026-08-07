@@ -12,7 +12,7 @@ export const config = {
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const SIGNABLE_BUCKETS = new Set(["dm", "posts", "group"]);
+const SIGNABLE_BUCKETS = new Set(["dm", "posts", "group", "community"]);
 
 function publicUrlFor(bucket, path) {
   return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`;
@@ -88,12 +88,38 @@ async function userCanAccessGroupAttachment(admin, userId, path, originalRef) {
     "attachment_url",
     referenceVariants("group", path, originalRef)
   );
-  if (!message || !pathBelongsTo(path, message.user_id)) return false;
+  if (message && pathBelongsTo(path, message.user_id)) {
+    const { data, error } = await admin
+      .from("group_members")
+      .select("id")
+      .eq("group_id", message.group_id)
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    return !error && !!data?.id;
+  }
+
+  return userCanAccessGroupPhoto(admin, userId, "group", path, originalRef);
+}
+
+async function userCanAccessGroupPhoto(admin, userId, bucket, path, originalRef) {
+  const group = await findReferencedRow(
+    admin,
+    "study_groups",
+    "id, created_by",
+    "photo_url",
+    referenceVariants(bucket, path, originalRef)
+  );
+  // The creator can change after the succession trigger runs, while the
+  // existing photo remains stored under the previous creator's folder. The
+  // exact study_groups.photo_url relationship is therefore the authority.
+  if (!group) return false;
 
   const { data, error } = await admin
     .from("group_members")
     .select("id")
-    .eq("group_id", message.group_id)
+    .eq("group_id", group.id)
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle();
@@ -101,10 +127,25 @@ async function userCanAccessGroupAttachment(admin, userId, path, originalRef) {
   return !error && !!data?.id;
 }
 
+async function userCanAccessCommunityAttachment(admin, userId, path, originalRef) {
+  const message = await findReferencedRow(
+    admin,
+    "community_messages",
+    "id, user_id",
+    "attachment_url",
+    referenceVariants("community", path, originalRef)
+  );
+  if (message && pathBelongsTo(path, message.user_id)) return true;
+
+  // Older versions stored private group photos in the community bucket.
+  return userCanAccessGroupPhoto(admin, userId, "community", path, originalRef);
+}
+
 async function canAccessAttachment(admin, bucket, userId, path, originalRef) {
   if (bucket === "dm") return userCanAccessDmAttachment(admin, userId, path, originalRef);
   if (bucket === "posts") return userCanAccessPostImage(admin, userId, path, originalRef);
   if (bucket === "group") return userCanAccessGroupAttachment(admin, userId, path, originalRef);
+  if (bucket === "community") return userCanAccessCommunityAttachment(admin, userId, path, originalRef);
   return false;
 }
 

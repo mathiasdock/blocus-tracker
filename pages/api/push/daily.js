@@ -6,8 +6,7 @@
 //   3. Nudge etude/planning → actif recemment mais pas etudie aujourd'hui
 //
 // Securite : appelable uniquement avec le secret cron (Vercel injecte
-//   "Authorization: Bearer <CRON_SECRET>" quand CRON_SECRET est defini ;
-//   on accepte aussi ?secret=<CRON_SECRET> pour un test manuel).
+//   "Authorization: Bearer <CRON_SECRET>" quand CRON_SECRET est defini).
 // Mode test : ?dry=1 → calcule et RENVOIE qui serait notifie, sans rien envoyer.
 //
 // Env vars requises (Vercel, server-only sauf NEXT_PUBLIC_*) :
@@ -42,8 +41,7 @@ async function fetchAll(query) {
 function authorized(req) {
   if (!CRON_SECRET) return false;
   const bearer = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  const q = typeof req.query.secret === "string" ? req.query.secret : "";
-  return timingSafeEqualText(bearer, CRON_SECRET) || timingSafeEqualText(q, CRON_SECRET);
+  return timingSafeEqualText(bearer, CRON_SECRET);
 }
 
 export default async function handler(req, res) {
