@@ -4,6 +4,7 @@ import AuthBrand from "../components/AuthBrand";
 import UniPicker from "../components/UniPicker";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import { clearClientCache } from "../lib/clientCache";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { supabase } from "../lib/supabaseClient";
 import { STUDY_YEARS } from "../lib/studyYears";
@@ -217,6 +218,7 @@ export default function Onboarding() {
         .single();
       if (error || !data) throw error || new Error("course_create_failed");
 
+      clearClientCache(`dashboard:${user.id}:`);
       setCourses(current => [...current, data]);
       setNewCourse("");
       return data;
@@ -254,6 +256,7 @@ export default function Onboarding() {
     }
 
     try {
+      clearClientCache(`dashboard:${user.id}:`);
       try {
         localStorage.setItem(`bt_onboarded_${user.id}`, "true");
         localStorage.removeItem(`bt_onboarding_step_${user.id}`);
