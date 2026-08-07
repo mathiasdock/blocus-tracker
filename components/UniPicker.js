@@ -1,107 +1,205 @@
-import { useState, useRef, useEffect } from "react";
-import { COUNTRIES } from "../lib/universities";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "../contexts/I18nContext";
+import { COUNTRIES } from "../lib/universities";
 
-export default function UniPicker({ value, onChange, disabled, placeholder }) {
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-4-4" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+export default function UniPicker({
+  id,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  error = false,
+  ariaDescribedBy,
+}) {
   const { t } = useI18n();
+  const generatedId = useId().replace(/:/g, "");
+  const inputId = id || `university-${generatedId}`;
+  const listId = `${inputId}-listbox`;
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef(null);
 
-  // Close when clicking outside
   useEffect(() => {
-    function handler(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    function handleOutsideClick(event) {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setOpen(false);
+        setQuery("");
+        setActiveIndex(-1);
+      }
     }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  // If the short name isn't already in the full name, prefix it: "ULB - Université Libre de Bruxelles"
-  function dropdownLabel(u) {
-    if (u.full.toLowerCase().includes(u.name.toLowerCase())) return u.full;
-    return `${u.name} – ${u.full}`;
+  function dropdownLabel(university) {
+    if (university.full.toLowerCase().includes(university.name.toLowerCase())) return university.full;
+    return `${university.name} - ${university.full}`;
   }
 
-  const q = query.trim().toLowerCase();
+  const selectedMeta = COUNTRIES
+    .flatMap(country => country.universities)
+    .find(university => university.full === value);
+  const selectedLabel = selectedMeta ? dropdownLabel(selectedMeta) : value;
+  const normalizedQuery = query.trim().toLowerCase();
   const filtered = COUNTRIES
     .map(country => ({
       ...country,
       universities: country.universities
-        .filter(
-          u =>
-            u.full.toLowerCase().includes(q) ||
-            u.name.toLowerCase().includes(q) ||
-            country.name.toLowerCase().includes(q)
-        )
+        .filter(university => (
+          university.full.toLowerCase().includes(normalizedQuery) ||
+          university.name.toLowerCase().includes(normalizedQuery) ||
+          country.name.toLowerCase().includes(normalizedQuery)
+        ))
         .sort((a, b) => a.name.localeCompare(b.name, "fr")),
     }))
     .filter(country => country.universities.length > 0);
+  const options = filtered.flatMap(country => country.universities.map(university => ({
+    ...university,
+    countryCode: country.code,
+    countryName: country.name,
+  })));
 
-  function select(full) {
-    onChange(full);
+  function choose(university) {
+    onChange(university.full);
     setQuery("");
     setOpen(false);
+    setActiveIndex(-1);
   }
 
   function clear() {
     onChange("");
     setQuery("");
+    setOpen(true);
+    setActiveIndex(-1);
+  }
+
+  function handleKeyDown(event) {
+    if (event.key === "Escape") {
+      setOpen(false);
+      setQuery("");
+      setActiveIndex(-1);
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex(current => Math.min(current + 1, options.length - 1));
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex(current => Math.max(current - 1, 0));
+      return;
+    }
+    if (event.key === "Enter" && open && activeIndex >= 0 && options[activeIndex]) {
+      event.preventDefault();
+      choose(options[activeIndex]);
+    }
   }
 
   return (
     <div ref={ref} className="relative">
-      <div className="input flex items-center gap-2 cursor-text" onClick={() => { if (!disabled) setOpen(true); }}>
-        {value && !open ? (
-          <>
-            <span className="flex-1 text-stone-800 text-sm truncate">
-              {(() => {
-                const meta = COUNTRIES.flatMap(c => c.universities).find(u => u.full === value);
-                return meta ? dropdownLabel(meta) : value;
-              })()}
-            </span>
-            {!disabled && (
-              <button type="button" onClick={e => { e.stopPropagation(); clear(); }}
-                className="text-stone-400 hover:text-stone-600 leading-none shrink-0">✕</button>
-            )}
-          </>
-        ) : (
-          <input
-            type="text"
-            className="flex-1 bg-transparent outline-none text-sm placeholder:text-stone-400"
-            placeholder={value || placeholder || "Rechercher une université…"}
-            value={query}
-            onChange={e => { setQuery(e.target.value); setOpen(true); }}
-            onFocus={() => setOpen(true)}
-            disabled={disabled}
-          />
+      <div className={`input flex items-center gap-2 px-3 ${error ? "input-error" : "focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10"}`}>
+        <span className="shrink-0" style={{ color: "var(--bt-text-3)" }}><SearchIcon /></span>
+        <input
+          id={inputId}
+          type="text"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-activedescendant={activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
+          aria-invalid={error}
+          aria-describedby={ariaDescribedBy}
+          className="min-w-0 flex-1 bg-transparent py-0 outline-none !min-h-0"
+          style={{ color: "var(--bt-text-1)" }}
+          placeholder={placeholder || t("signup.uniSearch")}
+          value={open ? query : (selectedLabel || query)}
+          onChange={event => {
+            setQuery(event.target.value);
+            setOpen(true);
+            setActiveIndex(-1);
+          }}
+          onFocus={() => {
+            setQuery("");
+            setOpen(true);
+            setActiveIndex(-1);
+          }}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          autoComplete="off"
+        />
+        {value && !disabled && (
+          <button
+            type="button"
+            onMouseDown={event => event.preventDefault()}
+            onClick={clear}
+            className="bt-tap inline-flex w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
+            style={{ color: "var(--bt-text-2)" }}
+            aria-label={t("signup.clearUniversity")}
+          >
+            <CloseIcon />
+          </button>
         )}
       </div>
 
       {open && !disabled && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-xl border border-stone-200 bg-white shadow-lg">
-          {filtered.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-stone-400">{t("common.noResults")}</p>
+        <div
+          id={listId}
+          role="listbox"
+          className="absolute left-0 right-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border shadow-lg"
+          style={{ backgroundColor: "var(--bt-surface)", borderColor: "var(--bt-border)" }}
+        >
+          {options.length === 0 ? (
+            <p className="px-4 py-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("common.noResults")}</p>
           ) : (
-            filtered.map(country => (
-              <div key={country.code}>
-                <p className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
-                  {country.name}
-                </p>
-                {country.universities.map(u => (
+            options.map((university, index) => {
+              const showCountry = index === 0 || options[index - 1].countryCode !== university.countryCode;
+              return (
+                <Fragment key={university.id}>
+                  {showCountry && (
+                    <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-2)" }}>
+                      {university.countryName}
+                    </p>
+                  )}
                   <button
-                    key={u.id}
+                    id={`${listId}-option-${index}`}
                     type="button"
-                    onClick={() => select(u.full)}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-stone-50 transition-colors ${
-                      value === u.full ? "text-accent font-medium" : "text-stone-700"
-                    }`}
+                    role="option"
+                    aria-selected={value === university.full}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onMouseDown={event => event.preventDefault()}
+                    onClick={() => choose(university)}
+                    className="min-h-11 w-full px-4 py-2.5 text-left text-sm transition-colors"
+                    style={{
+                      backgroundColor: activeIndex === index ? "var(--bt-subtle)" : "transparent",
+                      color: value === university.full ? "var(--bt-accent-text)" : "var(--bt-text-1)",
+                      fontWeight: value === university.full ? 600 : 400,
+                    }}
                   >
-                    {dropdownLabel(u)}
+                    {dropdownLabel(university)}
                   </button>
-                ))}
-              </div>
-            ))
+                </Fragment>
+              );
+            })
           )}
         </div>
       )}

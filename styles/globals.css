@@ -32,6 +32,7 @@ html {
   --bt-text-4:        #C4BCB6;
   --bt-accent:        #14B885;
   --bt-accent-dark:   #0E8F68;
+  --bt-accent-text:   #087454;
   --bt-accent-bg:     #EAFBF4;
   --bt-accent-border: #C6EED9;
   --bt-shadow:        rgba(31,26,23,0.055);
@@ -65,6 +66,7 @@ html {
   --bt-text-4:        #4A4642;
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
+  --bt-accent-text:   #54D3A9;
   --bt-shadow:        rgba(0,0,0,0.18);
   --bt-shimmer:       rgba(255,255,255,0.06);
   --bt-mobile-bg:     rgba(26,23,21,0.95);
@@ -242,6 +244,43 @@ html {
     cursor: not-allowed;
     background-color: var(--bt-subtle);
   }
+  .input-error,
+  .input-error:focus {
+    border-color: #DC6868;
+    box-shadow: 0 0 0 4px rgba(220, 104, 104, 0.12);
+  }
+
+  .bt-form-error {
+    color: #B83E3E;
+  }
+  .dark .bt-form-error {
+    color: #F29A9A;
+  }
+  .bt-form-alert {
+    border-radius: 12px;
+    background-color: rgba(220, 104, 104, 0.10);
+    padding: 0.7rem 0.8rem;
+    color: #A93434;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+  .dark .bt-form-alert {
+    background-color: rgba(242, 154, 154, 0.10);
+    color: #F4AAAA;
+  }
+
+  .bt-accent-link {
+    color: var(--bt-accent-text);
+  }
+
+  .bt-button-spinner {
+    width: 0.9rem;
+    height: 0.9rem;
+    border: 2px solid rgba(255,255,255,0.45);
+    border-top-color: #fff;
+    border-radius: 9999px;
+    animation: bt-button-spin 0.65s linear infinite;
+  }
 
   /* ── Labels ───────────────────────────────────────────────── */
   .label {
@@ -253,6 +292,10 @@ html {
     color: var(--bt-text-2);
     margin-bottom: 0.3rem;
   }
+}
+
+@keyframes bt-button-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── Mobile: réduction légère de la taille des boutons ─────── */
@@ -1247,6 +1290,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
     transition: none !important;
   }
   .bt-press { transition: none !important; }
+  .bt-button-spinner { animation: none !important; }
   .btn:active:not(:disabled) { transform: none !important; }
   .bt-app-shell :where(button:not(:disabled), a[href]):active { transform: none !important; }
   .bt-route-leaving [data-bt-route-content],

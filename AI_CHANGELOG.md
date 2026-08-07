@@ -2,6 +2,36 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-08-07 - Parcours connexion, inscription et onboarding simplifie
+
+Refonte ciblee du parcours qui mene un nouvel etudiant jusqu'au chrono, avec
+`impeccable` et `ui-ux-pro-max` comme references UX. L'inscription passe de
+sept champs obligatoires a quatre : prenom, pseudo, email et mot de passe. Le
+nom, la confirmation du mot de passe et l'etablissement ne ralentissent plus la
+creation du compte. Le mot de passe peut etre affiche/masque et les erreurs sont
+maintenant liees au champ concerne, annoncees aux lecteurs d'ecran et
+accompagnees d'une solution claire.
+
+L'ancien onboarding de quatre ecrans (dont un accueil et un tutoriel final)
+est remplace par trois choix utiles : etablissement obligatoire pour retrouver
+la communaute de son ecole, filiere/annee optionnelles, puis au moins un premier
+cours pour rendre le chrono immediatement utilisable. Chaque etape enregistre
+les donnees utiles, le parcours reprend apres une interruption et le dernier
+bouton ouvre directement le dashboard. Une confirmation email renvoie desormais
+vers `/onboarding` au lieu de contourner la configuration via `/dashboard`.
+
+Le selecteur d'etablissement devient un vrai combobox accessible : recherche,
+navigation clavier, option active, fermeture Escape, bouton d'effacement
+labellise et styles light/dark. Les pages auth utilisent le logo officiel
+`/logo-transparent.png`, la police de l'app, des cibles tactiles de 44 px, des
+etats loading/error et le nouveau token `--bt-accent-text` pour les petits liens
+verts conformes au contraste AA. Aucun changement de schema Supabase n'est
+necessaire ; `profiles.last_name` etait deja nullable.
+
+Verification : `npm run lint` OK, `npm run build` OK, pages `/login` et
+`/signup` servies en HTTP 200. Les suppressions et fichiers non suivis deja
+presents dans `public/` restent hors du commit.
+
 ## 2026-08-06 - Cockpit admin recentre sur l'activation et les actions
 
 La page `/admin` sert maintenant de poste de pilotage plutot que de collection

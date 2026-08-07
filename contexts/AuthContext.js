@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
   // signUp — nouveaux utilisateurs avec vrai email
   //   Anciens utilisateurs : toujours via pseudoToEmail (inchangé)
   // ---------------------------------------------------------------
-  const signUp = useCallback(async (pseudo, password, email, firstName, lastName, university, referralCode) => {
+  const signUp = useCallback(async (pseudo, password, email, firstName, lastName = "", university = "", referralCode) => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
     const ln    = (lastName   || "").trim();
@@ -132,7 +132,7 @@ export function AuthProvider({ children }) {
     const ref   = (referralCode || "").trim().toUpperCase() || null;
 
     if (clean.length < 3)   return { error: "Le pseudo doit faire au moins 3 caractères." };
-    if (!fn || !ln)          return { error: "Le prénom et le nom sont obligatoires." };
+    if (!fn)                 return { error: "Le prénom est obligatoire." };
     if (password.length < 6) return { error: "Le mot de passe doit faire au moins 6 caractères." };
     if (!em)                 return { error: "L'adresse email est obligatoire." };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
@@ -150,11 +150,11 @@ export function AuthProvider({ children }) {
     // par Supabase Auth et l'index unique sur profiles.email.
 
     // Créer le compte Supabase Auth avec le vrai email
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "")).replace(/\/$/, "");
     const { data, error } = await supabase.auth.signUp({
       email: em,
       password,
-      options: { emailRedirectTo: `${siteUrl}/dashboard` },
+      options: { emailRedirectTo: `${siteUrl}/onboarding` },
     });
     if (error) return { error: error.message };
 
@@ -163,7 +163,7 @@ export function AuthProvider({ children }) {
       const { error: pErr } = await supabase
         .from("profiles")
         .insert({
-          id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln,
+          id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln || null,
           university: uni, timezone: detectTimezone(),
         });
       if (pErr) return { error: "Compte créé mais profil non enregistré : " + pErr.message };
