@@ -156,22 +156,93 @@ export function AuthProvider({ children }) {
       pseudoAvailable = !legacy.data;
       availabilityError = legacy.error;
     }
-    if (availabilityError) return { error: "Impossible de vérifier ce pseudo pour le moment." };
-    if (pseudoAvailable !== true) return { error: "Ce pseudo est déjà pris." };
+    if (availabilityError) {
+      return {
+        error: "Impossible de vérifier ce pseudo pour le moment.",
+        errorCode: "PSEUDO_CHECK_FAILED",
+      };
+    }
+    if (pseudoAvailable !== true) {
+      return { error: "Ce pseudo est déjà pris.", errorCode: "PSEUDO_TAKEN" };
+    }
 
     // Note : la vérification de l'unicité de l'email est gérée
     // par Supabase Auth et l'index unique sur profiles.email.
 
-    // Créer le compte Supabase Auth avec le vrai email
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "")).replace(/\/$/, "");
-    const { data, error } = await supabase.auth.signUp({
-      email: em,
-      password,
-      options: { emailRedirectTo: `${siteUrl}/onboarding` },
-    });
-    if (error) return { error: error.message };
+    // Une création Auth réussie suivie d'un INSERT profiles en échec laisse
+    // une session valide sans profil. Réutiliser cette session permet au même
+    // formulaire de terminer l'inscription au lieu d'afficher "email pris".
+    let uid = null;
+    const { data: currentAuthData } = await supabase.auth.getUser();
+    const currentAuthUser = currentAuthData?.user || null;
 
-    const uid = data.user?.id;
+    if (currentAuthUser?.id) {
+      if ((currentAuthUser.email || "").toLowerCase() !== em) {
+        return { error: "Une autre session est déjà active.", errorCode: "ACTIVE_SESSION" };
+      }
+
+      const { data: existingProfile, error: profileLookupError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", currentAuthUser.id)
+        .maybeSingle();
+      if (profileLookupError) {
+        return { error: "Impossible de vérifier le profil pour le moment.", errorCode: "PROFILE_CHECK_FAILED" };
+      }
+      if (existingProfile) {
+        return { error: "Cet email est déjà utilisé.", errorCode: "EMAIL_TAKEN" };
+      }
+      uid = currentAuthUser.id;
+    }
+
+    if (!uid) {
+      // Créer le compte Supabase Auth avec le vrai email.
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "")).replace(/\/$/, "");
+      const { data, error } = await supabase.auth.signUp({
+        email: em,
+        password,
+        options: { emailRedirectTo: `${siteUrl}/onboarding` },
+      });
+
+      if (error) {
+        const alreadyRegistered = error.code === "user_already_exists"
+          || /already (?:been )?registered/i.test(error.message || "");
+
+        if (!alreadyRegistered) return { error: error.message, errorCode: "AUTH_SIGNUP_FAILED" };
+
+        // Répare aussi un compte incomplet depuis un autre navigateur : le mot
+        // de passe fourni doit être valide et aucun profil ne doit déjà exister.
+        const { data: recoveredAuth, error: recoveryError } = await supabase.auth.signInWithPassword({
+          email: em,
+          password,
+        });
+        if (recoveryError || !recoveredAuth.user?.id) {
+          return { error: error.message, errorCode: "EMAIL_TAKEN" };
+        }
+
+        const { data: recoveredProfile, error: recoveredProfileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", recoveredAuth.user.id)
+          .maybeSingle();
+
+        if (recoveredProfileError || recoveredProfile) {
+          await supabase.auth.signOut({ scope: "local" });
+          return {
+            error: recoveredProfileError ? "Impossible de vérifier le profil pour le moment." : error.message,
+            errorCode: recoveredProfileError ? "PROFILE_CHECK_FAILED" : "EMAIL_TAKEN",
+          };
+        }
+        uid = recoveredAuth.user.id;
+      } else {
+        uid = data.user?.id || null;
+      }
+    }
+
+    if (!uid) {
+      return { error: "Le compte n'a pas pu être initialisé.", errorCode: "AUTH_SIGNUP_FAILED" };
+    }
+
     if (uid) {
       const { error: pErr } = await supabase
         .from("profiles")
@@ -180,7 +251,13 @@ export function AuthProvider({ children }) {
           university: uni, study_field: field, study_year: year,
           timezone: detectTimezone(),
         });
-      if (pErr) return { error: "Compte créé mais profil non enregistré : " + pErr.message };
+      if (pErr) {
+        const pseudoConflict = pErr.code === "23505" && /pseudo/i.test(`${pErr.message || ""} ${pErr.details || ""}`);
+        return {
+          error: pseudoConflict ? "Ce pseudo est déjà pris." : "Le profil n'a pas pu être enregistré.",
+          errorCode: pseudoConflict ? "PSEUDO_TAKEN" : "PROFILE_CREATE_FAILED",
+        };
+      }
 
       // Parrainage : si un code valide a été stocké à l'arrivée, on l'applique
       // côté serveur via RPC SECURITY DEFINER. Erreurs silencieuses : un code
@@ -196,7 +273,7 @@ export function AuthProvider({ children }) {
 
       await loadProfile(uid);
     }
-    return { error: null, userId: uid || null };
+    return { error: null, errorCode: null, userId: uid || null };
   }, [loadProfile]);
 
   // ---------------------------------------------------------------

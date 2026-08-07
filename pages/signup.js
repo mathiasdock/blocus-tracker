@@ -125,7 +125,7 @@ export default function Signup() {
     signupInProgress.current = true;
     setBusy(true);
     try {
-      const { error: signUpError, userId } = await signUp(
+      const { error: signUpError, errorCode: signUpErrorCode, userId } = await signUp(
         pseudo.trim(),
         password,
         email.trim(),
@@ -139,9 +139,9 @@ export default function Signup() {
 
       if (signUpError) {
         signupInProgress.current = false;
-        if (signUpError.includes("already registered") || signUpError.includes("already been registered")) {
+        if (signUpErrorCode === "EMAIL_TAKEN") {
           setError(t("signup.errEmailTaken"));
-        } else if (signUpError.includes("pseudo") || signUpError.includes("username")) {
+        } else if (signUpErrorCode === "PSEUDO_TAKEN") {
           setError(t("signup.errPseudoTaken"));
         } else {
           setError(t("signup.unavailable"));
