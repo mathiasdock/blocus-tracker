@@ -134,7 +134,9 @@ REVOKE INSERT ON TABLE public.group_chrono_sessions FROM authenticated;
 GRANT INSERT (group_id, started_by, note, status, started_at)
   ON public.group_chrono_sessions TO authenticated;
 
-REVOKE ALL ON FUNCTION public.finish_group_chrono(uuid, text) FROM PUBLIC, anon, authenticated;
+-- DROP removes the function and its grants when the legacy overload exists;
+-- IF EXISTS also keeps this migration compatible with databases where an
+-- earlier hardening pass already removed it.
 DROP FUNCTION IF EXISTS public.finish_group_chrono(uuid, text);
 
 CREATE OR REPLACE FUNCTION public.finish_group_chrono(p_session_id uuid)

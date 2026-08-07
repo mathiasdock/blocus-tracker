@@ -22,6 +22,9 @@ neutralise les formules et les secrets cron ne sont plus acceptes dans l'URL.
 
 `supabase/migration_v37_security_followup.sql` est volontairement creee mais
 non executee : elle doit etre appliquee manuellement dans Supabase apres v36.
+Le retrait de l'ancien overload `finish_group_chrono(uuid, text)` utilise
+`DROP FUNCTION IF EXISTS` sans `REVOKE` prealable, afin que la migration passe
+aussi sur les bases ou cette signature avait deja ete supprimee.
 Les mises a jour sans rupture de Sharp, PostCSS, brace-expansion et fast-uri
 retirent leurs alertes `npm audit`; Next 14 reste une dette de migration, les
 avis courants visant des fonctionnalites absentes de ce projet Pages Router.
