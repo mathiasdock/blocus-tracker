@@ -159,7 +159,7 @@ function GlobalLevelUpWatcher() {
         fresh.forEach((id) => {
           known.add(id);
           const def = BADGE_BY_ID[id];
-          if (def) enqueueCelebration({ kind: "badge", icon: def.icon, labelKey: def.labelKey, descKey: def.descKey });
+          if (def) enqueueCelebration({ kind: "badge", badgeId: def.id, labelKey: def.labelKey, descKey: def.descKey });
         });
         if (fresh.length) localStorage.setItem(badgeKey, JSON.stringify([...known]));
       }

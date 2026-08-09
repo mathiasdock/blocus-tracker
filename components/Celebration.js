@@ -7,12 +7,13 @@
 // Piloté par `data` :
 //   { kind: "level",  level, titleKey }
 //   { kind: "streak", days }            // days ∈ {7, 30, 100}
-//   { kind: "badge",  icon, labelKey, descKey }
+//   { kind: "badge",  badgeId, labelKey, descKey }
 
 import { useEffect } from "react";
 import { useI18n } from "../contexts/I18nContext";
 import Mascot from "./Mascot";
 import Flame from "./Flame";
+import BadgeIcon from "./BadgeIcon";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const CONFETTI_COLORS = ["#14B885", "#22E4A4", "#0E8F68", "#C6EED9"];
@@ -104,15 +105,9 @@ export default function Celebration({ data, onClose }) {
         {/* Héros — mascotte pour la série, médaillon vert pour le niveau,
             l'emblème du badge pour un badge. */}
         {isBadge ? (
-          <div
-            className="bt-pulse-green mx-auto flex items-center justify-center"
-            style={{
-              width: 88, height: 88, borderRadius: 28, fontSize: 40,
-              background: "linear-gradient(135deg, #0E8F68 0%, #14B885 55%, #22E4A4 100%)",
-              boxShadow: "0 8px 32px rgba(20,184,133,0.55)",
-            }}
-          >
-            <span aria-hidden>{data.icon}</span>
+          <div className="bt-pulse-green mx-auto flex items-center justify-center"
+            style={{ width: 88, height: 88, borderRadius: 28 }}>
+            <BadgeIcon id={data.badgeId} earned size={88} animate />
           </div>
         ) : isStreak ? (
           <div className="mx-auto flex items-center justify-center" style={{ width: 116, height: 116 }}>

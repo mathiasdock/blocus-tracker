@@ -306,13 +306,16 @@ function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
           {BADGES.map(b => {
             const earned = earnedBadgeIds.includes(b.id);
             return (
+              // L'emblème porte lui-même sa surface : un second cadre autour
+              // empâtait la grille et écrasait la distinction acquis/verrouillé.
               <button key={b.id} onClick={() => onBadgeClick(b)}
                 title={t(b.labelKey)}
+                aria-label={t(b.labelKey)}
                 className="bt-press"
-                style={{ width: 40, height: 40, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: earned ? "1px solid var(--bt-accent-border)" : "1px solid var(--bt-border)", transition: "transform 0.12s", opacity: earned ? 1 : 0.55 }}
+                style={{ display: "flex", flexShrink: 0, cursor: "pointer", background: "none", border: "none", padding: 0, transition: "transform 0.12s" }}
                 onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.10)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                <BadgeIcon id={b.id} earned={earned} size={28} />
+                <BadgeIcon id={b.id} earned={earned} size={40} />
               </button>
             );
           })}

@@ -444,6 +444,25 @@ html.bt-focus-active,
 html.bt-focus-active body { background-color: var(--bt-ink); }
 html.bt-focus-active .bt-mobile-nav { display: none; }
 
+/* Badges — palier "débuts" et emplacement verrouillé.
+   Définis ici plutôt qu'en style inline pour que le mode sombre puisse
+   remonter le glyphe : en clair, --bt-accent-dark sur fond menthe se lit très
+   bien ; en sombre (#0E8F68 sur #0D2B22) il se noyait dans son propre fond et
+   le palier devenait indistinct du palier rare. Les paliers "progression" et
+   "rare" gardent leurs dégradés en inline : ils tiennent dans les deux modes. */
+.bt-badge-starter {
+  background: var(--bt-accent-bg);
+  border: 1px solid var(--bt-accent-border);
+  color: var(--bt-accent-dark);
+}
+.dark .bt-badge-starter { color: #14B885; }
+
+.bt-badge-locked {
+  background: var(--bt-subtle);
+  border: 1px dashed var(--bt-border);
+  color: var(--bt-text-4);
+}
+
 /* Button press — quick scale + opacity tap */
 .bt-press { transition: transform 0.12s ease, box-shadow 0.12s ease; }
 .bt-press:active:not(:disabled) { transform: scale(0.96); }

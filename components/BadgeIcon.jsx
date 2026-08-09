@@ -1,150 +1,217 @@
-// Premium badge visuals — replaces emojis with real SVG medals/shields.
-// Each badge has a category (color theme) + a glyph (line icon).
-// Earned = colored + subtle shine. Locked = monochrome + low opacity.
+// Emblèmes de badges.
+//
+// Refonte : la version précédente empilait quatre formes (bouclier / étoile /
+// trophée / flamme) sur treize teintes — or / bleu / rose / violet… — dans une
+// app par ailleurs strictement verte. La forme "flamme" rendait une goutte, les
+// glyphes étaient tracés à la main hors grille et mal centrés dans le bouclier,
+// et l'état verrouillé (grayscale + opacité 0,35) réduisait dix-neuf badges sur
+// vingt-deux à un mur de gris indistinct.
+//
+// Principes ici :
+//   • UNE seule forme — le carré arrondi, déjà le langage du médaillon de
+//     niveau et des cartes. L'emblème EST le conteneur : plus de cadre dans un
+//     cadre comme dans la grille du profil.
+//   • Trois paliers, tous dans le vert de marque. La rareté se lit à la
+//     profondeur, pas à la teinte. Aucune couleur nouvelle.
+//   • Glyphes redessinés sur une grille 24 partagée, en tracé de 2 comme le
+//     reste des icônes de l'app — donc lisibles à 22 px comme à 72 px.
+//   • Verrouillé = emplacement vide assumé (surface neutre, glyphe estompé),
+//     pas une version délavée de l'acquis.
 
+const TIERS = { starter: 1, progress: 2, rare: 3 };
+
+// Palier fondé sur la difficulté réelle mesurée en base, pas sur l'intuition.
 const BADGE_VISUALS = {
-  // ── Sessions / first ──
-  first_session:    { theme: "gold",   shape: "star",     glyph: "star"    },
-  // ── Streak ──
-  streak_3:         { theme: "amber",  shape: "flame",    glyph: "flame"   },
-  streak_7:         { theme: "orange", shape: "flame",    glyph: "bolt"    },
-  streak_14:        { theme: "cyan",   shape: "flame",    glyph: "wave"    },
-  streak_30:        { theme: "violet", shape: "flame",    glyph: "sparkle" },
-  // ── Hours studied ──
-  hours_10:         { theme: "green",  shape: "shield",   glyph: "book"    },
-  hours_50:         { theme: "emerald",shape: "shield",   glyph: "cap"     },
-  hours_100:        { theme: "gold",   shape: "trophy",   glyph: "trophy"  },
-  hours_250:        { theme: "violet", shape: "trophy",   glyph: "crown"   },
-  marathon_day:     { theme: "red",    shape: "shield",   glyph: "runner"  },
-  // ── Planning ──
-  planner:          { theme: "blue",   shape: "shield",   glyph: "calendar"},
-  strategist:       { theme: "indigo", shape: "shield",   glyph: "target"  },
-  blocus_architect: { theme: "violet", shape: "shield",   glyph: "tower"   },
-  first_exam:       { theme: "blue",   shape: "shield",   glyph: "doc"     },
-  // ── Social ──
-  first_post:       { theme: "rose",   shape: "shield",   glyph: "camera"  },
-  influencer:       { theme: "violet", shape: "shield",   glyph: "film"    },
-  first_friend:     { theme: "green",  shape: "shield",   glyph: "hand"    },
-  social:           { theme: "teal",   shape: "shield",   glyph: "users"   },
-  motivator:        { theme: "pink",   shape: "shield",   glyph: "chat"    },
-  team_spirit:      { theme: "orange", shape: "shield",   glyph: "fist"    },
-  community_pillar: { theme: "emerald",shape: "trophy",   glyph: "globe"   },
-  referrer:         { theme: "green",  shape: "star",     glyph: "users"   },
+  first_session:    { glyph: "spark",    tier: TIERS.starter },
+  streak_3:         { glyph: "flame",    tier: TIERS.starter },
+  streak_7:         { glyph: "flame",    tier: TIERS.progress },
+  // Palier rare assumé : 8 détenteurs seulement, et surtout la flamme change
+  // ainsi de profondeur à chaque cran — sans quoi 7 et 14 étaient identiques.
+  streak_14:        { glyph: "flame",    tier: TIERS.rare },
+  streak_30:        { glyph: "crown",    tier: TIERS.rare },
+  hours_10:         { glyph: "book",     tier: TIERS.starter },
+  hours_50:         { glyph: "cap",      tier: TIERS.progress },
+  hours_100:        { glyph: "trophy",   tier: TIERS.progress },
+  // Couronne réservée au sommet des séries : la réutiliser ici rendait les
+  // deux badges indiscernables. Le gemme clôt l'échelle livre → toque → coupe.
+  hours_250:        { glyph: "gem",      tier: TIERS.rare },
+  marathon_day:     { glyph: "hourglass",tier: TIERS.progress },
+  planner:          { glyph: "calendar", tier: TIERS.starter },
+  strategist:       { glyph: "target",   tier: TIERS.progress },
+  blocus_architect: { glyph: "columns",  tier: TIERS.rare },
+  first_exam:       { glyph: "doc",      tier: TIERS.starter },
+  first_post:       { glyph: "camera",   tier: TIERS.starter },
+  influencer:       { glyph: "images",   tier: TIERS.rare },
+  first_friend:     { glyph: "userPlus", tier: TIERS.starter },
+  social:           { glyph: "users",    tier: TIERS.rare },
+  motivator:        { glyph: "heart",    tier: TIERS.rare },
+  team_spirit:      { glyph: "flag",     tier: TIERS.starter },
+  community_pillar: { glyph: "globe",    tier: TIERS.rare },
+  referrer:         { glyph: "share",    tier: TIERS.rare },
 };
 
-const THEMES = {
-  gold:    { from: "#FCD34D", to: "#D97706", shine: "#FEF3C7", ring: "#D97706" },
-  amber:   { from: "#FBBF24", to: "#B45309", shine: "#FEF3C7", ring: "#B45309" },
-  orange:  { from: "#FB923C", to: "#C2410C", shine: "#FFEDD5", ring: "#C2410C" },
-  red:     { from: "#F87171", to: "#B91C1C", shine: "#FEE2E2", ring: "#B91C1C" },
-  rose:    { from: "#FB7185", to: "#BE123C", shine: "#FFE4E6", ring: "#BE123C" },
-  pink:    { from: "#F472B6", to: "#9D174D", shine: "#FCE7F3", ring: "#9D174D" },
-  violet:  { from: "#A78BFA", to: "#6D28D9", shine: "#EDE9FE", ring: "#6D28D9" },
-  indigo:  { from: "#818CF8", to: "#3730A3", shine: "#E0E7FF", ring: "#3730A3" },
-  blue:    { from: "#60A5FA", to: "#1D4ED8", shine: "#DBEAFE", ring: "#1D4ED8" },
-  cyan:    { from: "#22D3EE", to: "#0E7490", shine: "#CFFAFE", ring: "#0E7490" },
-  teal:    { from: "#2DD4BF", to: "#0F766E", shine: "#CCFBF1", ring: "#0F766E" },
-  emerald: { from: "#34D399", to: "#047857", shine: "#D1FAE5", ring: "#047857" },
-  green:   { from: "#4ADE80", to: "#15803D", shine: "#DCFCE7", ring: "#15803D" },
+// Tracés sur une grille 24×24, contour uniquement — même langage que les
+// icônes de navigation. Rien de rempli : à 22 px, le remplissage empâte.
+const GLYPHS = {
+  spark: <path d="M12 3.2 13.9 9.4 20.3 11.3 13.9 13.2 12 19.6 10.1 13.2 3.7 11.3 10.1 9.4Z" />,
+  // La flamme a besoin de son décroché latéral : un contour symétrique et
+  // arrondi se lit comme une goutte d'eau, pas comme du feu.
+  flame: <path d="M12 2.6c.7 2.7 2.3 4.4 3.8 5.8 1.7 1.6 2.8 3.3 2.8 5.4a6.6 6.6 0 0 1-13.2 0c0-1.1.4-2.2 1.1-2.9a2.45 2.45 0 0 0 4.9 0c0-1.3-.5-2-1-2.9-1-2-.3-3.9 1.6-5.4Z" />,
+  // Sans les perles sur les pointes, la silhouette se lit comme une montagne.
+  crown: <>
+    <path d="M3.8 9 7.5 12.4 12 6l4.5 6.4L20.2 9l-1.3 8.4H5.1Z" />
+    <path d="M5.4 20.4h13.2" />
+    <circle cx="3.8" cy="7.4" r="1.15" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="4.2" r="1.15" fill="currentColor" stroke="none" />
+    <circle cx="20.2" cy="7.4" r="1.15" fill="currentColor" stroke="none" />
+  </>,
+  gem: <>
+    <path d="M7.6 3.8h8.8l4 5.3L12 20.2 3.6 9.1Z" />
+    <path d="M3.6 9.1h16.8" />
+    <path d="M9.4 9.1 12 3.8l2.6 5.3M9.4 9.1 12 20.2l2.6-11.1" />
+  </>,
+  book: <>
+    <path d="M4 5.2h5.2A2.8 2.8 0 0 1 12 8v10.8a2.4 2.4 0 0 0-2.4-2.4H4Z" />
+    <path d="M20 5.2h-5.2A2.8 2.8 0 0 0 12 8v10.8a2.4 2.4 0 0 1 2.4-2.4H20Z" />
+  </>,
+  cap: <>
+    <path d="M12 4.4 21.2 9 12 13.6 2.8 9Z" />
+    <path d="M6.8 11.1v4.6c0 1.7 2.3 3 5.2 3s5.2-1.3 5.2-3v-4.6" />
+  </>,
+  trophy: <>
+    <path d="M7.4 4.4h9.2v5.2a4.6 4.6 0 0 1-9.2 0Z" />
+    <path d="M7.4 6.2H4.6v1.4a3 3 0 0 0 2.8 3M16.6 6.2h2.8v1.4a3 3 0 0 1-2.8 3" />
+    <path d="M12 14.2v3.2M8.6 19.6h6.8" />
+  </>,
+  hourglass: <>
+    <path d="M6.6 4h10.8M6.6 20h10.8" />
+    <path d="M7.6 4c0 4 4.4 5.4 4.4 8s-4.4 4-4.4 8M16.4 4c0 4-4.4 5.4-4.4 8s4.4 4 4.4 8" />
+  </>,
+  calendar: <>
+    <rect x="3.6" y="5.4" width="16.8" height="15" rx="2.6" />
+    <path d="M3.6 10h16.8M8.4 3.2v4.2M15.6 3.2v4.2" />
+    <path d="M8.6 14.4 11 16.8l4.4-4.4" />
+  </>,
+  target: <>
+    <circle cx="12" cy="12" r="8.2" />
+    <circle cx="12" cy="12" r="4.2" />
+    <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
+  </>,
+  columns: <>
+    <path d="M4.6 19.4V13M11.4 19.4V8.4M18.2 19.4V4.6" />
+    <path d="M2.4 19.4h19.2" />
+  </>,
+  doc: <>
+    <path d="M6 3.6h7.6L18.6 8.6v11.8H6Z" />
+    <path d="M13.4 3.6v5.2h5.2" />
+    <path d="M9 13h6.2M9 16.4h6.2" />
+  </>,
+  camera: <>
+    <rect x="3.2" y="7" width="17.6" height="13.2" rx="3" />
+    <circle cx="12" cy="13.6" r="3.6" />
+    <path d="M8.6 7 10 4.2h4L15.4 7" />
+  </>,
+  images: <>
+    <rect x="7.4" y="3.6" width="13" height="13" rx="2.6" />
+    <path d="M16.6 20.4H6.2a2.6 2.6 0 0 1-2.6-2.6V7.4" />
+    <path d="M7.4 12.6 11 9.4l5.4 4.6" />
+  </>,
+  userPlus: <>
+    <circle cx="10" cy="8.2" r="3.8" />
+    <path d="M3.4 20a6.6 6.6 0 0 1 13.2 0" />
+    <path d="M18.6 6.6v5.2M21.2 9.2H16" />
+  </>,
+  users: <>
+    <circle cx="9.2" cy="8.2" r="3.6" />
+    <path d="M2.8 19.8a6.4 6.4 0 0 1 12.8 0" />
+    <path d="M16 4.9a3.6 3.6 0 0 1 0 6.9M17.4 14.2a6.4 6.4 0 0 1 3.8 5.6" />
+  </>,
+  heart: <path d="M12 20.2 4.9 13a4.4 4.4 0 0 1 6.2-6.2l.9.9.9-.9A4.4 4.4 0 0 1 19.1 13Z" />,
+  flag: <>
+    <path d="M5.4 20.4V4.2" />
+    <path d="M5.4 5.2h11.8l-2.4 4 2.4 4H5.4" />
+  </>,
+  globe: <>
+    <circle cx="12" cy="12" r="8.4" />
+    <path d="M3.6 12h16.8" />
+    <path d="M12 3.6a13 13 0 0 1 0 16.8 13 13 0 0 1 0-16.8Z" />
+  </>,
+  share: <>
+    <circle cx="17.6" cy="5.8" r="2.8" />
+    <circle cx="6.4" cy="12" r="2.8" />
+    <circle cx="17.6" cy="18.2" r="2.8" />
+    <path d="M8.9 10.6 15.1 7.2M8.9 13.4l6.2 3.4" />
+  </>,
 };
 
-// ── Glyph (the icon drawn inside the shape) ─────────────────────────
-function Glyph({ name, color, size }) {
-  const s = size;
-  const stroke = { stroke: color, strokeWidth: 2.2, strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
-  const fill = { fill: color };
-  switch (name) {
-    case "star":     return <polygon {...fill} points={`${s/2},2 ${s*0.62},${s*0.38} ${s-2},${s*0.42} ${s*0.68},${s*0.62} ${s*0.78},${s-2} ${s/2},${s*0.78} ${s*0.22},${s-2} ${s*0.32},${s*0.62} 2,${s*0.42} ${s*0.38},${s*0.38}`} />;
-    case "flame":    return <path {...fill} d={`M ${s/2} ${s*0.08} C ${s*0.78} ${s*0.32}, ${s*0.82} ${s*0.55}, ${s*0.66} ${s*0.78} C ${s*0.62} ${s*0.66}, ${s*0.56} ${s*0.62}, ${s*0.52} ${s*0.66} C ${s*0.56} ${s*0.86}, ${s*0.42} ${s*0.92}, ${s*0.32} ${s*0.82} C ${s*0.18} ${s*0.68}, ${s*0.22} ${s*0.46}, ${s/2} ${s*0.08} Z`} />;
-    case "bolt":     return <polygon {...fill} points={`${s*0.55},2 ${s*0.18},${s*0.55} ${s*0.45},${s*0.55} ${s*0.32},${s-2} ${s*0.82},${s*0.42} ${s*0.55},${s*0.42}`} />;
-    case "wave":     return <path {...stroke} d={`M 2 ${s*0.55} Q ${s*0.25} ${s*0.35}, ${s*0.5} ${s*0.55} T ${s-2} ${s*0.55}`} />;
-    case "sparkle":  return <g><path {...fill} d={`M ${s/2} 2 L ${s*0.56} ${s*0.44} L ${s-2} ${s/2} L ${s*0.56} ${s*0.56} L ${s/2} ${s-2} L ${s*0.44} ${s*0.56} L 2 ${s/2} L ${s*0.44} ${s*0.44} Z`} /></g>;
-    case "book":     return <g><path {...stroke} d={`M ${s*0.18} ${s*0.2} L ${s*0.18} ${s*0.82} L ${s/2} ${s*0.78} L ${s*0.82} ${s*0.82} L ${s*0.82} ${s*0.2} L ${s/2} ${s*0.24} Z`}/><line {...stroke} x1={s/2} y1={s*0.24} x2={s/2} y2={s*0.78} /></g>;
-    case "cap":      return <g><polygon {...fill} points={`${s/2},${s*0.2} ${s*0.92},${s*0.42} ${s/2},${s*0.62} ${s*0.08},${s*0.42}`} /><path {...stroke} d={`M ${s*0.3} ${s*0.5} L ${s*0.3} ${s*0.72} Q ${s/2} ${s*0.82}, ${s*0.7} ${s*0.72} L ${s*0.7} ${s*0.5}`} /></g>;
-    case "trophy":   return <g><path {...fill} d={`M ${s*0.32} ${s*0.18} L ${s*0.68} ${s*0.18} L ${s*0.68} ${s*0.48} Q ${s*0.68} ${s*0.66}, ${s/2} ${s*0.66} Q ${s*0.32} ${s*0.66}, ${s*0.32} ${s*0.48} Z`} /><rect {...fill} x={s*0.42} y={s*0.66} width={s*0.16} height={s*0.12} /><rect {...fill} x={s*0.3} y={s*0.78} width={s*0.4} height={s*0.06} rx="2" /></g>;
-    case "crown":    return <g><path {...fill} d={`M ${s*0.1} ${s*0.4} L ${s*0.25} ${s*0.65} L ${s*0.35} ${s*0.32} L ${s/2} ${s*0.7} L ${s*0.65} ${s*0.32} L ${s*0.75} ${s*0.65} L ${s*0.9} ${s*0.4} L ${s*0.85} ${s*0.78} L ${s*0.15} ${s*0.78} Z`} /></g>;
-    case "runner":   return <g><circle {...fill} cx={s*0.62} cy={s*0.2} r={s*0.08} /><path {...stroke} strokeWidth="2.8" d={`M ${s*0.62} ${s*0.32} L ${s*0.45} ${s*0.5} L ${s*0.3} ${s*0.5} M ${s*0.45} ${s*0.5} L ${s*0.55} ${s*0.7} L ${s*0.7} ${s*0.75} M ${s*0.55} ${s*0.7} L ${s*0.42} ${s*0.85}`} /></g>;
-    case "calendar": return <g><rect {...stroke} x={s*0.18} y={s*0.22} width={s*0.64} height={s*0.62} rx="3" /><line {...stroke} x1={s*0.18} y1={s*0.38} x2={s*0.82} y2={s*0.38} /><line {...stroke} x1={s*0.32} y1={s*0.14} x2={s*0.32} y2={s*0.28} /><line {...stroke} x1={s*0.68} y1={s*0.14} x2={s*0.68} y2={s*0.28} /><polyline {...stroke} points={`${s*0.34},${s*0.58} ${s*0.46},${s*0.7} ${s*0.66},${s*0.5}`} /></g>;
-    case "target":   return <g><circle {...stroke} cx={s/2} cy={s/2} r={s*0.32} /><circle {...stroke} cx={s/2} cy={s/2} r={s*0.18} /><circle {...fill} cx={s/2} cy={s/2} r={s*0.06} /></g>;
-    case "tower":    return <g><polygon {...fill} points={`${s/2},${s*0.12} ${s*0.78},${s*0.32} ${s*0.78},${s*0.86} ${s*0.22},${s*0.86} ${s*0.22},${s*0.32}`} /><rect fill={color === "#fff" ? "rgba(0,0,0,0.35)" : "#fff"} x={s*0.42} y={s*0.5} width={s*0.16} height={s*0.36} opacity="0.5" /></g>;
-    case "doc":      return <g><path {...stroke} d={`M ${s*0.28} ${s*0.16} L ${s*0.6} ${s*0.16} L ${s*0.76} ${s*0.32} L ${s*0.76} ${s*0.84} L ${s*0.28} ${s*0.84} Z`} /><polyline {...stroke} points={`${s*0.6},${s*0.16} ${s*0.6},${s*0.32} ${s*0.76},${s*0.32}`} /><line {...stroke} x1={s*0.38} y1={s*0.5} x2={s*0.66} y2={s*0.5} /><line {...stroke} x1={s*0.38} y1={s*0.62} x2={s*0.66} y2={s*0.62} /></g>;
-    case "camera":   return <g><rect {...stroke} x={s*0.16} y={s*0.32} width={s*0.68} height={s*0.46} rx="4" /><circle {...stroke} cx={s/2} cy={s*0.56} r={s*0.14} /><path {...fill} d={`M ${s*0.36} ${s*0.32} L ${s*0.4} ${s*0.22} L ${s*0.6} ${s*0.22} L ${s*0.64} ${s*0.32} Z`} /></g>;
-    case "film":     return <g><rect {...stroke} x={s*0.18} y={s*0.24} width={s*0.64} height={s*0.52} rx="3" /><line {...stroke} x1={s*0.18} y1={s*0.4} x2={s*0.82} y2={s*0.4} /><line {...stroke} x1={s*0.18} y1={s*0.6} x2={s*0.82} y2={s*0.6} /><circle {...fill} cx={s*0.28} cy={s*0.32} r="1.5" /><circle {...fill} cx={s*0.28} cy={s*0.5} r="1.5" /><circle {...fill} cx={s*0.28} cy={s*0.68} r="1.5" /><circle {...fill} cx={s*0.72} cy={s*0.32} r="1.5" /><circle {...fill} cx={s*0.72} cy={s*0.5} r="1.5" /><circle {...fill} cx={s*0.72} cy={s*0.68} r="1.5" /></g>;
-    case "hand":     return <g><path {...fill} d={`M ${s*0.18} ${s*0.5} L ${s*0.36} ${s*0.32} L ${s*0.5} ${s*0.5} L ${s*0.64} ${s*0.32} L ${s*0.82} ${s*0.5} L ${s*0.72} ${s*0.7} L ${s*0.28} ${s*0.7} Z`} /></g>;
-    case "users":    return <g><circle {...fill} cx={s*0.36} cy={s*0.36} r={s*0.12} /><circle {...fill} cx={s*0.64} cy={s*0.36} r={s*0.12} /><path {...fill} d={`M ${s*0.18} ${s*0.78} Q ${s*0.36} ${s*0.55}, ${s*0.5} ${s*0.78} Q ${s*0.64} ${s*0.55}, ${s*0.82} ${s*0.78} L ${s*0.82} ${s*0.84} L ${s*0.18} ${s*0.84} Z`} /></g>;
-    case "chat":     return <g><path {...stroke} d={`M ${s*0.16} ${s*0.3} Q ${s*0.16} ${s*0.22}, ${s*0.24} ${s*0.22} L ${s*0.76} ${s*0.22} Q ${s*0.84} ${s*0.22}, ${s*0.84} ${s*0.3} L ${s*0.84} ${s*0.58} Q ${s*0.84} ${s*0.66}, ${s*0.76} ${s*0.66} L ${s*0.5} ${s*0.66} L ${s*0.36} ${s*0.82} L ${s*0.36} ${s*0.66} L ${s*0.24} ${s*0.66} Q ${s*0.16} ${s*0.66}, ${s*0.16} ${s*0.58} Z`} /></g>;
-    case "fist":     return <g><rect {...fill} x={s*0.24} y={s*0.38} width={s*0.52} height={s*0.36} rx={s*0.08} /><rect {...fill} x={s*0.3} y={s*0.28} width={s*0.06} height={s*0.18} /><rect {...fill} x={s*0.4} y={s*0.24} width={s*0.06} height={s*0.22} /><rect {...fill} x={s*0.5} y={s*0.24} width={s*0.06} height={s*0.22} /><rect {...fill} x={s*0.6} y={s*0.28} width={s*0.06} height={s*0.18} /></g>;
-    case "globe":    return <g><circle {...stroke} cx={s/2} cy={s/2} r={s*0.34} /><ellipse {...stroke} cx={s/2} cy={s/2} rx={s*0.16} ry={s*0.34} /><line {...stroke} x1={s*0.16} y1={s/2} x2={s*0.84} y2={s/2} /></g>;
-    default:         return <circle {...fill} cx={s/2} cy={s/2} r={s*0.2} />;
+// Trois profondeurs de vert. La rareté se lit sans quitter la marque.
+// Les deux paliers qui dépendent des variables de thème passent par une classe
+// (voir globals.css) : le mode sombre doit pouvoir corriger leur glyphe.
+function tierStyle(tier) {
+  if (tier === TIERS.rare) {
+    return {
+      style: {
+        background: "linear-gradient(160deg, #0E8F68 0%, #08402F 70%, #071C15 100%)",
+        border: "1px solid rgba(34,228,164,0.45)",
+        color: "#22E4A4",
+        boxShadow: "0 3px 14px rgba(7,28,21,0.35)",
+      },
+    };
   }
+  if (tier === TIERS.progress) {
+    return {
+      style: {
+        background: "linear-gradient(160deg, #22E4A4 0%, #14B885 45%, #0E8F68 100%)",
+        border: "1px solid rgba(14,143,104,0.55)",
+        color: "#FFFFFF",
+        boxShadow: "0 3px 12px rgba(20,184,133,0.32)",
+      },
+    };
+  }
+  return { className: "bt-badge-starter", style: {} };
 }
 
-// ── Shape (the outer frame: shield / star / trophy / flame) ─────────
-function Shape({ shape, fillId, strokeColor, size }) {
-  const s = size;
-  switch (shape) {
-    case "shield":
-      return <path d={`M ${s/2} 1 L ${s-2} ${s*0.18} L ${s-2} ${s*0.55} Q ${s-2} ${s*0.86}, ${s/2} ${s-1} Q 2 ${s*0.86}, 2 ${s*0.55} L 2 ${s*0.18} Z`}
-        fill={`url(#${fillId})`} stroke={strokeColor} strokeWidth="1.5" />;
-    case "star":
-      return <polygon points={`${s/2},2 ${s*0.62},${s*0.36} ${s-2},${s*0.4} ${s*0.7},${s*0.6} ${s*0.78},${s-2} ${s/2},${s*0.78} ${s*0.22},${s-2} ${s*0.3},${s*0.6} 2,${s*0.4} ${s*0.38},${s*0.36}`}
-        fill={`url(#${fillId})`} stroke={strokeColor} strokeWidth="1.5" />;
-    case "trophy":
-      return <path d={`M ${s*0.1} ${s*0.1} L ${s*0.9} ${s*0.1} L ${s*0.9} ${s*0.5} Q ${s*0.9} ${s*0.82}, ${s/2} ${s*0.92} Q ${s*0.1} ${s*0.82}, ${s*0.1} ${s*0.5} Z`}
-        fill={`url(#${fillId})`} stroke={strokeColor} strokeWidth="1.5" />;
-    case "flame":
-      return <path d={`M ${s/2} 1 C ${s*0.92} ${s*0.3}, ${s} ${s*0.62}, ${s*0.78} ${s*0.92} C ${s*0.7} ${s*0.78}, ${s*0.58} ${s*0.78}, ${s*0.54} ${s*0.86} C ${s*0.6} ${s*0.98}, ${s*0.4} ${s} , ${s*0.3} ${s*0.92} C 0 ${s*0.7}, ${s*0.08} ${s*0.3}, ${s/2} 1 Z`}
-        fill={`url(#${fillId})`} stroke={strokeColor} strokeWidth="1.5" />;
-    default:
-      return <circle cx={s/2} cy={s/2} r={s/2 - 1} fill={`url(#${fillId})`} stroke={strokeColor} strokeWidth="1.5" />;
-  }
-}
+const LOCKED = { className: "bt-badge-locked", style: {} };
 
 /**
- * Premium badge visual.
- * @param {string} id        — badge id (from lib/badges.js)
- * @param {boolean} earned   — true if user has earned it
- * @param {number} size      — outer size in px (default 36)
- * @param {boolean} animate  — shine animation (for newly unlocked)
+ * Emblème de badge.
+ * @param {string}  id      — identifiant (lib/badges.js)
+ * @param {boolean} earned  — débloqué ou non
+ * @param {number}  size    — côté en px (défaut 36)
+ * @param {boolean} animate — brillance, pour un déblocage tout juste obtenu
  */
 export default function BadgeIcon({ id, earned = false, size = 36, animate = false }) {
-  const v = BADGE_VISUALS[id] || { theme: "green", shape: "shield", glyph: "star" };
-  const theme = THEMES[v.theme] || THEMES.green;
-  const uid = `bi-${id}`;
-  const fillId = `${uid}-fill`;
-  const shineId = `${uid}-shine`;
-  const glyphColor = "#ffffff";
+  const v = BADGE_VISUALS[id] || { glyph: "spark", tier: TIERS.starter };
+  const s = earned ? tierStyle(v.tier) : LOCKED;
+  const glyphSize = Math.round(size * 0.56);
 
   return (
     <span
-      className={animate && earned ? "badge-shine" : ""}
+      className={`${s.className || ""}${animate && earned ? " badge-shine" : ""}`.trim()}
       style={{
         display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
         width: size,
         height: size,
-        filter: earned ? "drop-shadow(0 2px 6px rgba(0,0,0,0.18))" : "grayscale(1)",
-        opacity: earned ? 1 : 0.35,
-        transition: "opacity 0.2s, filter 0.2s, transform 0.15s",
+        borderRadius: Math.max(6, Math.round(size * 0.3)),
+        flexShrink: 0,
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        ...s.style,
       }}
     >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <defs>
-          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={theme.from} />
-            <stop offset="100%" stopColor={theme.to} />
-          </linearGradient>
-          <linearGradient id={shineId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={theme.shine} stopOpacity="0.8" />
-            <stop offset="60%" stopColor={theme.shine} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <Shape shape={v.shape} fillId={fillId} strokeColor={theme.ring} size={size} />
-        {/* highlight */}
-        <Shape shape={v.shape} fillId={shineId} strokeColor="transparent" size={size} />
-        {/* glyph centered */}
-        <g transform={`translate(${size * 0.18}, ${size * 0.18})`}>
-          <Glyph name={v.glyph} color={glyphColor} size={size * 0.64} />
-        </g>
+      <svg
+        width={glyphSize}
+        height={glyphSize}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {GLYPHS[v.glyph] || GLYPHS.spark}
       </svg>
     </span>
   );
