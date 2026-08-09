@@ -7,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak } from "../lib/format";
+import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
@@ -26,6 +26,8 @@ import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
 import SessionCompleteCard from "../components/SessionCompleteCard";
 import DailyProgressCard from "../components/DailyProgressCard";
+import BlocusCard from "../components/BlocusCard";
+import { toRanges } from "../lib/blocus";
 import { buildSessionShareMessage } from "../lib/sessionShare";
 import { clientRateLimit } from "../lib/security";
 import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
@@ -545,6 +547,19 @@ export default function Dashboard() {
   // En pause on rend le chrono TRÈS visible : "Pause depuis mm:ss" +
   // bordeaux doux qui pulse. On mémorise l'instant de mise en pause et on
   // tick chaque seconde (le TimerContext ne re-rend plus quand il est figé).
+  // Périodes de blocus — remontées par BlocusCard, qui les charge déjà. Elles
+  // neutralisent les jours hors blocus dans le calcul de série (cf. computeStreak).
+  const [blocusRanges, setBlocusRanges] = useState(null);
+  const handleBlocusLoaded = useCallback((res) => {
+    setBlocusRanges(res.supported ? toRanges(res.periods) : null);
+  }, []);
+  const streakPaused = isStreakPaused(blocusRanges);
+
+  useEffect(() => {
+    if (!blocusRanges || !recentSessions.length) return;
+    setStreak(computeStreak(recentSessions, freezeInfo?.frozenDays || [], blocusRanges));
+  }, [blocusRanges, recentSessions, freezeInfo]);
+
   // Repli local pour les missions du dashboard : sert uniquement quand le RPC
   // serveur n'est pas joignable (mode hors-ligne, migration pas encore passée).
   const missionStats = useMemo(() => ({
@@ -1695,11 +1710,18 @@ export default function Dashboard() {
                 )}
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                   style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                  <Flame size={12} style={{ color: "#FBBF24" }} />
+                  <Flame size={12} style={{ color: streakPaused ? "rgba(251,191,36,0.45)" : "#FBBF24" }} />
                   <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>
                     <AnimatedNumber value={streak} suffix={` ${t("dash.streak")}`} />
                   </span>
                 </span>
+                {/* Hors blocus, la série ne court plus : le dire, sinon un
+                    compteur figé passe pour un bug. */}
+                {streakPaused && (
+                  <span className="text-[10px] w-full text-right" style={{ color: "var(--bt-ink-muted)" }}>
+                    {t("blocus.paused")}
+                  </span>
+                )}
               </div>
             )}
             <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-accent)" }}>
@@ -1758,6 +1780,13 @@ export default function Dashboard() {
             )}
           </div>
           </section>
+
+          {/* ── Mon blocus — la campagne bornée ── */}
+          <BlocusCard
+            sessions={recentSessions}
+            exams={courses.filter(c => c.exam_date)}
+            onChange={handleBlocusLoaded}
+          />
 
           {/* ── Progression — niveau + missions, à côté du chrono ── */}
           <DailyProgressCard todayStats={missionStats} />
