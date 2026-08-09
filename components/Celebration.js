@@ -1,11 +1,13 @@
 // Moment de célébration unifié — UN seul effet marquant, réutilisé pour le
-// level-up ET les paliers de série (7 / 30 / 100 jours). Pop-in + lueur verte
-// + confettis légers. Auto-fermeture après quelques secondes, croix toujours
-// visible, Échap pour fermer. Dark-mode safe (variables CSS), mobile + desktop.
+// level-up, les paliers de série (7 / 30 / 100 jours) ET l'obtention d'un
+// badge. Pop-in + lueur verte + confettis légers. Auto-fermeture après quelques
+// secondes, croix toujours visible, Échap pour fermer. Dark-mode safe
+// (variables CSS), mobile + desktop.
 //
 // Piloté par `data` :
 //   { kind: "level",  level, titleKey }
 //   { kind: "streak", days }            // days ∈ {7, 30, 100}
+//   { kind: "badge",  icon, labelKey, descKey }
 
 import { useEffect } from "react";
 import { useI18n } from "../contexts/I18nContext";
@@ -41,15 +43,22 @@ export default function Celebration({ data, onClose }) {
   if (!data) return null;
 
   const isStreak = data.kind === "streak";
+  const isBadge = data.kind === "badge";
 
   // Contenu selon le type de célébration.
-  const title = isStreak
-    ? t("streak.celebTitle").replace("{n}", String(data.days))
-    : `${t("levelup.levelWord")} ${data.level} ${t("levelup.unlockedSuffix")}`;
-  const subtitle = isStreak
-    ? t(STREAK_SUBTITLE_KEY[data.days] || "streak.celebSub7")
-    : t(data.titleKey);
-  const caption = isStreak ? t("streak.celebCaption") : t("levelup.subtitle");
+  const title = isBadge
+    ? t("badge.celebTitle")
+    : isStreak
+      ? t("streak.celebTitle").replace("{n}", String(data.days))
+      : `${t("levelup.levelWord")} ${data.level} ${t("levelup.unlockedSuffix")}`;
+  const subtitle = isBadge
+    ? t(data.labelKey)
+    : isStreak
+      ? t(STREAK_SUBTITLE_KEY[data.days] || "streak.celebSub7")
+      : t(data.titleKey);
+  const caption = isBadge
+    ? t(data.descKey)
+    : isStreak ? t("streak.celebCaption") : t("levelup.subtitle");
 
   return (
     <div
@@ -92,8 +101,20 @@ export default function Celebration({ data, onClose }) {
           ✕
         </button>
 
-        {/* Héros — la mascotte fête la série ; le médaillon vert pour le niveau */}
-        {isStreak ? (
+        {/* Héros — mascotte pour la série, médaillon vert pour le niveau,
+            l'emblème du badge pour un badge. */}
+        {isBadge ? (
+          <div
+            className="bt-pulse-green mx-auto flex items-center justify-center"
+            style={{
+              width: 88, height: 88, borderRadius: 28, fontSize: 40,
+              background: "linear-gradient(135deg, #0E8F68 0%, #14B885 55%, #22E4A4 100%)",
+              boxShadow: "0 8px 32px rgba(20,184,133,0.55)",
+            }}
+          >
+            <span aria-hidden>{data.icon}</span>
+          </div>
+        ) : isStreak ? (
           <div className="mx-auto flex items-center justify-center" style={{ width: 116, height: 116 }}>
             <Mascot streak={data.days} size={116} ariaLabel={title} />
           </div>
@@ -118,7 +139,15 @@ export default function Celebration({ data, onClose }) {
         )}
 
         {/* Accent */}
-        <div style={{ fontSize: 22, marginTop: 10 }}>{isStreak ? <Flame size={26} style={{ color: "#F59E0B" }} /> : "⭐"}</div>
+        {/* Pour un badge, l'emblème EST déjà l'accent : une étoile en plus
+            ferait doublon. On met le gain d'XP à la place. */}
+        {isBadge ? (
+          <p className="font-num tabular-nums mt-3 text-sm font-bold" style={{ color: "var(--bt-accent-dark)" }}>
+            +50 XP
+          </p>
+        ) : (
+          <div style={{ fontSize: 22, marginTop: 10 }}>{isStreak ? <Flame size={26} style={{ color: "#F59E0B" }} /> : "⭐"}</div>
+        )}
 
         {/* Titre */}
         <p className="mt-2 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>

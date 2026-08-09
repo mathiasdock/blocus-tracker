@@ -973,7 +973,7 @@ export default function Profile() {
   const fallbackTotalXP = computeTotalXP({
     totalMinutes: profileTotalSecs / 60,
     completedObjectives: completedObjCount,
-    streak, examCount, badgeCount: earnedBadgeIds.length,
+    bestStreak: best, examCount, badgeCount: earnedBadgeIds.length,
     bonusXP: profile?.bonus_xp || 0,
   });
   const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);

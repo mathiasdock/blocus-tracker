@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
@@ -25,6 +25,7 @@ import AmbientSoundControl from "../components/AmbientSoundControl";
 import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
 import SessionCompleteCard from "../components/SessionCompleteCard";
+import DailyProgressCard from "../components/DailyProgressCard";
 import { buildSessionShareMessage } from "../lib/sessionShare";
 import { clientRateLimit } from "../lib/security";
 import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
@@ -544,6 +545,21 @@ export default function Dashboard() {
   // En pause on rend le chrono TRÈS visible : "Pause depuis mm:ss" +
   // bordeaux doux qui pulse. On mémorise l'instant de mise en pause et on
   // tick chaque seconde (le TimerContext ne re-rend plus quand il est figé).
+  // Repli local pour les missions du dashboard : sert uniquement quand le RPC
+  // serveur n'est pas joignable (mode hors-ligne, migration pas encore passée).
+  const missionStats = useMemo(() => ({
+    todaySecs: sessions.reduce((a, s) => a + Number(s.duration_seconds || 0), 0),
+    todayMaxSessionSecs: sessions.length ? Math.max(...sessions.map(s => Number(s.duration_seconds || 0))) : 0,
+    todaySessionCount: sessions.length,
+    todayCoursesCount: new Set(sessions.map(s => s.course_id).filter(Boolean)).size,
+    todayDoneObj: todayObjectives.filter(o => o.done).length,
+    tomorrowObjCount: 0,
+    streak,
+    studiedBeforeNoon: sessions.some(s => new Date(s.started_at).getHours() < 12),
+    hasStudyNote: sessions.some(s => Boolean((s.note || "").trim())),
+    referredToday: false,
+  }), [sessions, todayObjectives, streak]);
+
   const isPaused = !running && elapsed > 0;
   const [pausedAt, setPausedAt] = useState(null);
   const [, setPauseTick] = useState(0);
@@ -1742,6 +1758,9 @@ export default function Dashboard() {
             )}
           </div>
           </section>
+
+          {/* ── Progression — niveau + missions, à côté du chrono ── */}
+          <DailyProgressCard todayStats={missionStats} />
 
           {/* ── Mes cours ── */}
           <section className="card p-5 min-w-0">

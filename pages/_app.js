@@ -13,12 +13,28 @@ import { initOneSignal, loginUser } from "../lib/onesignal";
 import SeoHead from "../components/SeoHead";
 import PageTransition from "../components/PageTransition";
 import { initSensoryFeedback } from "../lib/sensoryFeedback";
+import { BADGES } from "../lib/badges";
 
 // Paliers de série célébrés (jours consécutifs). Volontairement rares pour que
 // le moment reste marquant — on ne fête PAS chaque badge série (3/14).
 const STREAK_MILESTONES = [7, 30, 100];
 function highestStreakMilestone(streak) {
   return STREAK_MILESTONES.filter((m) => streak >= m).pop() || 0;
+}
+
+// Les badges étaient attribués sans que rien ne l'annonce : on les gagnait et
+// on l'apprenait, plus tard, en ouvrant son profil. On lit la liste réelle
+// (user_badges est en lecture seule côté client depuis v28) et on fête ce qui
+// est apparu depuis le dernier passage.
+const BADGE_BY_ID = Object.fromEntries(BADGES.map((b) => [b.id, b]));
+
+async function loadOwnBadgeIds(userId) {
+  const { data, error } = await supabase
+    .from("user_badges")
+    .select("badge_id")
+    .eq("user_id", userId);
+  if (error) return null;
+  return (data || []).map((r) => r.badge_id);
 }
 
 async function loadCurrentStatus(userId) {
@@ -39,6 +55,7 @@ function GlobalLevelUpWatcher() {
   const queueRef = useRef([]);
   const previousLevelRef = useRef(null);
   const streakBaselineRef = useRef(null);
+  const badgeBaselineRef = useRef(null);
   const activeUserRef = useRef(null);
   const loadingRef = useRef(false);
   const pendingRef = useRef(null);
@@ -86,6 +103,8 @@ function GlobalLevelUpWatcher() {
       const storedLevel = Number(localStorage.getItem(storageKey) || 0);
       const streakKey = `blocus:last-streak-milestone:${user.id}`;
       const storedStreak = Number(localStorage.getItem(streakKey) || 0);
+      const badgeKey = `blocus:announced-badges:${user.id}`;
+      const ownedBadges = await loadOwnBadgeIds(user.id);
 
       localStorage.setItem("bt_level", String(currentLevel));
       window.dispatchEvent(new CustomEvent("bt-level-updated", { detail: { level: currentLevel } }));
@@ -94,6 +113,7 @@ function GlobalLevelUpWatcher() {
         activeUserRef.current = user.id;
         previousLevelRef.current = null;
         streakBaselineRef.current = null;
+        badgeBaselineRef.current = null;
       }
 
       // Premier passage pour cet utilisateur : on fixe les repères sans rien
@@ -106,6 +126,15 @@ function GlobalLevelUpWatcher() {
         const streakBaseline = Math.max(storedStreak, reachedMilestone);
         streakBaselineRef.current = streakBaseline;
         if (storedStreak < streakBaseline) localStorage.setItem(streakKey, String(streakBaseline));
+
+        // Un compte qui possède déjà 6 badges ne doit pas en recevoir 6 pop-ups
+        // au chargement : le premier passage ne fait qu'établir le repère.
+        if (ownedBadges) {
+          const known = new Set(JSON.parse(localStorage.getItem(badgeKey) || "[]"));
+          ownedBadges.forEach((id) => known.add(id));
+          badgeBaselineRef.current = known;
+          localStorage.setItem(badgeKey, JSON.stringify([...known]));
+        }
         return;
       }
 
@@ -122,6 +151,18 @@ function GlobalLevelUpWatcher() {
         localStorage.setItem(streakKey, String(reachedMilestone));
       }
       streakBaselineRef.current = Math.max(streakBaselineRef.current || 0, reachedMilestone);
+
+      // Nouveaux badges ? Un par célébration, la file les enchaîne.
+      if (ownedBadges && badgeBaselineRef.current) {
+        const known = badgeBaselineRef.current;
+        const fresh = ownedBadges.filter((id) => !known.has(id));
+        fresh.forEach((id) => {
+          known.add(id);
+          const def = BADGE_BY_ID[id];
+          if (def) enqueueCelebration({ kind: "badge", icon: def.icon, labelKey: def.labelKey, descKey: def.descKey });
+        });
+        if (fresh.length) localStorage.setItem(badgeKey, JSON.stringify([...known]));
+      }
     } catch (error) {
       console.error("Level watcher error:", error);
     } finally {
