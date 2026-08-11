@@ -151,12 +151,17 @@ function SettingsRow({ icon, label, description, right, onClick, href, danger, a
   const iconColor  = danger ? "#DC2626" : accent ? "var(--bt-accent-dark)" : "var(--bt-text-2)";
   const iconBg     = danger ? "rgba(220,38,38,0.10)" : accent ? "var(--bt-accent-bg)" : "var(--bt-subtle)";
   const inner = (
-    <div className="flex items-center justify-between px-5 py-3.5 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
+    // Le contrôle passe à la ligne plutôt que d'écraser le texte : sur 375 px,
+    // un bouton large ne laissait qu'une centaine de pixels au libellé et à la
+    // description, tous deux tronqués. « Autorisation accordée, mais
+    // l'inscription a échoué » s'affichait « Autorisation a... » — le
+    // diagnostic était à l'écran, illisible, et nous a coûté plusieurs essais.
+    <div className="flex flex-wrap items-center justify-between px-5 py-3.5 gap-3">
+      <div className="flex items-center gap-3 min-w-[55%] flex-1">
         <IconBox color={iconColor} bg={iconBg}>{icon}</IconBox>
         <div className="min-w-0">
-          <span className="block text-sm font-medium truncate" style={{ color: labelColor }}>{label}</span>
-          {description && <span className="block text-xs mt-0.5 truncate" style={{ color: "var(--bt-text-3)" }} title={description}>{description}</span>}
+          <span className="block text-sm font-medium" style={{ color: labelColor }}>{label}</span>
+          {description && <span className="block text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>{description}</span>}
         </div>
       </div>
       <div className="shrink-0">{right}</div>
