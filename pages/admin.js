@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import LoadingScreen from "../components/LoadingScreen";
 import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
+import PushConsole from "../components/PushConsole";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import BadgeIcon from "../components/BadgeIcon";
@@ -39,7 +40,11 @@ const SECTIONS = [
   { id: "analytics", label: "Analytics" },
   { id: "members",   label: "Membres" },
   { id: "technical", label: "Technique" },
-  { id: "content",   label: "Contenu" },
+  // « Contenu » réunissait trois choses sans rapport (annonces, retours,
+  // comptes supprimés). La section porte désormais un seul métier : ce qu'on
+  // envoie AUX membres. Les retours et les comptes supprimés ont rejoint
+  // Membres, où ils ont un sens.
+  { id: "content",   label: "Communication" },
 ];
 
 // Palette graphiques — accents distincts, cohérents avec l'app.
@@ -994,7 +999,7 @@ export default function Admin() {
   const [messageUser, setMessageUser] = useState(null);
 
   // Content sub-tab
-  const [contentTab, setContentTab] = useState("announcements");
+  const [contentTab, setContentTab] = useState("notifications");
   const [annForm, setAnnForm] = useState({ title: "", message: "", type: "new", href: "" });
   const [annCreating, setAnnCreating] = useState(false);
   const [annError, setAnnError] = useState("");
@@ -1274,7 +1279,7 @@ export default function Admin() {
     const { data } = await supabase.from("deleted_accounts").select("*").order("deleted_at", { ascending: false });
     setDeletedAccounts(data || []);
   }, [profile]);
-  useEffect(() => { if (section === "content" && contentTab === "deleted") loadDeleted(); }, [section, contentTab, loadDeleted]);
+  useEffect(() => { if (section === "members") loadDeleted(); }, [section, loadDeleted]);
 
   /* ── Actions ───────────────────────────────────────────── */
   async function deleteAccount(u) {
@@ -1382,6 +1387,14 @@ export default function Admin() {
       return 0;
     });
   }, [users, memberSegment, memberStatuses, filterUni, q, sortBy, userStats, referralCounts]);
+
+  // Cibles d'envoi : seulement les écoles ayant réellement des membres.
+  // Dérouler les 92 du catalogue donnerait une liste illisible dont presque
+  // tous les choix n'atteindraient personne.
+  const universityOptions = useMemo(
+    () => [...new Set(users.map(u => u.university).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr")),
+    [users]
+  );
 
   function openMemberSegment(segment) {
     setMemberSegment(segment);
@@ -1703,6 +1716,7 @@ export default function Admin() {
 
             {/* ═══════════ MEMBERS ═══════════ */}
             {section === "members" && (
+              <>
               <section className="card p-5">
                 <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                   <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>Membres <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({filtered.length})</span></h2>
@@ -1789,6 +1803,73 @@ export default function Admin() {
                   </table>
                 </div>
               </section>
+
+            {/* Repliés par défaut : consultables sans encombrer la liste des membres. */}
+            <details className="card bt-acc overflow-hidden">
+              <summary className="px-5 py-3.5 cursor-pointer text-sm font-semibold select-none" style={{ color: "var(--bt-text-1)" }}>
+                {`Suggestions des membres (${feedback.length})`}
+              </summary>
+              <div style={{ borderTop: "1px solid var(--bt-border)" }}>
+                  <section className="card p-5">
+                    <h2 className="text-base font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>Suggestions <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({feedback.length})</span></h2>
+                    {feedback.length === 0 ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Aucune suggestion.</p> : (
+                      <ul className="space-y-2">
+                        {feedback.map(f => {
+                          const sc = { new: { bg: "var(--bt-accent-bg)", color: "#0E8F68", label: "Nouveau" }, read: { bg: "rgba(3,105,161,0.14)", color: "#0369a1", label: "Lu" }, done: { bg: "var(--bt-border)", color: "var(--bt-text-3)", label: "Traité" } }[f.status] || { bg: "var(--bt-subtle)", color: "var(--bt-text-3)", label: f.status };
+                          return (
+                            <li key={f.id} className="rounded-xl p-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: sc.bg, color: sc.color }}>{sc.label}</span>
+                                    <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bt-text-4)" }}>{f.type} · @{usersById[f.user_id]?.pseudo || "?"}</span>
+                                  </div>
+                                  <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>{f.message}</p>
+                                  <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-4)" }}>{new Date(f.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</p>
+                                </div>
+                                <div className="flex flex-col gap-1 shrink-0">
+                                  {["new", "read", "done"].filter(s => s !== f.status).map(s => (
+                                    <button key={s} onClick={() => setFeedbackStatus(f, s)} className="text-[11px] px-2 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>{s === "new" ? "Nouveau" : s === "read" ? "Lu" : "Traité"}</button>
+                                  ))}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </section>
+              </div>
+            </details>
+
+            {/* Repliés par défaut : consultables sans encombrer la liste des membres. */}
+            <details className="card bt-acc overflow-hidden">
+              <summary className="px-5 py-3.5 cursor-pointer text-sm font-semibold select-none" style={{ color: "var(--bt-text-1)" }}>
+                {`Comptes supprimés (${deletedAccounts.length})`}
+              </summary>
+              <div style={{ borderTop: "1px solid var(--bt-border)" }}>
+                  <section className="card p-5">
+                    <h2 className="text-base font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>Comptes supprimés <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({deletedAccounts.length})</span></h2>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead><tr style={{ borderBottom: "1px solid var(--bt-border)" }}>{["Pseudo", "Nom", "Université", "Supprimé le"].map(h => <th key={h} className="pb-3 text-left" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-text-3)", paddingRight: 12 }}>{h}</th>)}</tr></thead>
+                        <tbody>
+                          {deletedAccounts.map(da => (
+                            <tr key={da.id} style={{ borderBottom: "1px solid var(--bt-subtle)" }}>
+                              <td className="py-3 pr-3 font-semibold" style={{ color: "var(--bt-text-1)" }}>@{da.pseudo || "—"}</td>
+                              <td className="py-3 pr-3" style={{ color: "var(--bt-text-2)" }}>{[da.first_name, da.last_name].filter(Boolean).join(" ") || "—"}</td>
+                              <td className="py-3 pr-3 max-w-[130px] truncate" style={{ color: "var(--bt-text-2)" }}>{da.university || "—"}</td>
+                              <td className="py-3 pr-3 whitespace-nowrap text-xs" style={{ color: "var(--bt-text-3)" }}>{new Date(da.deleted_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</td>
+                            </tr>
+                          ))}
+                          {deletedAccounts.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun compte supprimé.</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+              </div>
+            </details>
+            </>
             )}
 
             {/* ═══════════ TECHNICAL ═══════════ */}
@@ -1834,13 +1915,21 @@ export default function Admin() {
             {section === "content" && (
               <div className="space-y-5">
                 <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                  {[["announcements", `Annonces (${announcements.length})`], ["suggestions", `Suggestions (${feedback.length})`], ["deleted", `Supprimés (${deletedAccounts.length})`]].map(([id, label]) => (
+                  {[["notifications", "Notifications push"], ["announcements", `Annonces dans l'app (${announcements.length})`]].map(([id, label]) => (
                     <button key={id} onClick={() => setContentTab(id)} className="px-4 py-1.5 rounded-xl text-sm font-medium transition-all" style={contentTab === id ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" } : { color: "var(--bt-text-2)" }}>{label}</button>
                   ))}
                 </div>
 
+                {contentTab === "notifications" && (
+                  <PushConsole users={users} universities={universityOptions} />
+                )}
+
                 {contentTab === "announcements" && (
                   <section className="card p-5">
+                    <p className="text-[11px] mb-4 leading-snug" style={{ color: "var(--bt-text-3)" }}>
+                      Une annonce s'affiche <strong>dans l'app</strong>, en bandeau, quand le membre l'ouvre.
+                      Contrairement à une notification push, elle ne fait pas sonner le téléphone.
+                    </p>
                     <form onSubmit={createAnnouncement} className="space-y-3 mb-6 pb-6" style={{ borderBottom: "1px solid var(--bt-border)" }}>
                       <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--bt-text-3)" }}>{t("admin.annFormTitle")}</p>
                       <div><label className="label">{t("admin.annTitleLabel")}</label><input className="input" maxLength={120} value={annForm.title} onChange={e => setAnnForm(f => ({ ...f, title: e.target.value }))} placeholder={t("admin.annTitlePlaceholder")} /></div>
@@ -1881,59 +1970,6 @@ export default function Admin() {
                   </section>
                 )}
 
-                {contentTab === "suggestions" && (
-                  <section className="card p-5">
-                    <h2 className="text-base font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>Suggestions <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({feedback.length})</span></h2>
-                    {feedback.length === 0 ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Aucune suggestion.</p> : (
-                      <ul className="space-y-2">
-                        {feedback.map(f => {
-                          const sc = { new: { bg: "var(--bt-accent-bg)", color: "#0E8F68", label: "Nouveau" }, read: { bg: "rgba(3,105,161,0.14)", color: "#0369a1", label: "Lu" }, done: { bg: "var(--bt-border)", color: "var(--bt-text-3)", label: "Traité" } }[f.status] || { bg: "var(--bt-subtle)", color: "var(--bt-text-3)", label: f.status };
-                          return (
-                            <li key={f.id} className="rounded-xl p-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full" style={{ backgroundColor: sc.bg, color: sc.color }}>{sc.label}</span>
-                                    <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--bt-text-4)" }}>{f.type} · @{usersById[f.user_id]?.pseudo || "?"}</span>
-                                  </div>
-                                  <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>{f.message}</p>
-                                  <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-4)" }}>{new Date(f.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</p>
-                                </div>
-                                <div className="flex flex-col gap-1 shrink-0">
-                                  {["new", "read", "done"].filter(s => s !== f.status).map(s => (
-                                    <button key={s} onClick={() => setFeedbackStatus(f, s)} className="text-[11px] px-2 py-1 rounded-lg font-medium whitespace-nowrap" style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>{s === "new" ? "Nouveau" : s === "read" ? "Lu" : "Traité"}</button>
-                                  ))}
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </section>
-                )}
-
-                {contentTab === "deleted" && (
-                  <section className="card p-5">
-                    <h2 className="text-base font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>Comptes supprimés <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({deletedAccounts.length})</span></h2>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead><tr style={{ borderBottom: "1px solid var(--bt-border)" }}>{["Pseudo", "Nom", "Université", "Supprimé le"].map(h => <th key={h} className="pb-3 text-left" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-text-3)", paddingRight: 12 }}>{h}</th>)}</tr></thead>
-                        <tbody>
-                          {deletedAccounts.map(da => (
-                            <tr key={da.id} style={{ borderBottom: "1px solid var(--bt-subtle)" }}>
-                              <td className="py-3 pr-3 font-semibold" style={{ color: "var(--bt-text-1)" }}>@{da.pseudo || "—"}</td>
-                              <td className="py-3 pr-3" style={{ color: "var(--bt-text-2)" }}>{[da.first_name, da.last_name].filter(Boolean).join(" ") || "—"}</td>
-                              <td className="py-3 pr-3 max-w-[130px] truncate" style={{ color: "var(--bt-text-2)" }}>{da.university || "—"}</td>
-                              <td className="py-3 pr-3 whitespace-nowrap text-xs" style={{ color: "var(--bt-text-3)" }}>{new Date(da.deleted_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</td>
-                            </tr>
-                          ))}
-                          {deletedAccounts.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun compte supprimé.</td></tr>}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                )}
               </div>
             )}
           </>
