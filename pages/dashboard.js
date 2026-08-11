@@ -1849,10 +1849,15 @@ export default function Dashboard() {
 
           {/* ── Mes cours ── */}
           <section className="order-6 card p-5 min-w-0">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider"
-                style={{ color: "var(--bt-text-2)" }}>{t("dash.myCourses")}</h2>
-              <button type="button" onClick={() => openCourseEditor()} className="btn-ghost min-h-11 px-3 text-xs">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 className="text-base font-bold"
+                style={{ color: "var(--bt-text-1)" }}>{t("dash.myCourses")}</h2>
+              <button
+                type="button"
+                onClick={() => openCourseEditor()}
+                className="bt-tap flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition-colors hover:bg-[var(--bt-accent-bg)]"
+                style={{ color: "var(--bt-accent-text)" }}
+              >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
@@ -1866,49 +1871,58 @@ export default function Dashboard() {
                 {t("courseEditor.empty")}
               </p>
             ) : (
-            <ul>
+            <ul className="-mx-1">
               {courses.map((c) => {
                 const examDays = daysUntilExam(c.exam_date);
                 const count = checklistCounts[c.id] || { done: 0, total: 0 };
+                const examStatus = !c.exam_date
+                  ? ""
+                  : examDays === 0
+                    ? t("exam.today")
+                    : examDays < 0
+                      ? t("exam.passed")
+                      : `J-${examDays}`;
                 return (
                   <li key={c.id}
-                    className="border-b border-[var(--bt-border)] py-3 first:pt-0 last:border-b-0 last:pb-0">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                      <div className="min-w-0 flex-1">
-                        <p className="break-words text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{c.name}</p>
-                        {c.exam_date && (
-                          <p className="mt-1 flex items-center gap-1.5 text-xs font-medium"
-                            style={{ color: examDays <= 0 ? "#DC2626" : examDays <= 7 ? "#92400E" : "var(--bt-text-2)" }}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <rect x="3" y="4" width="18" height="18" rx="2" />
-                              <line x1="16" y1="2" x2="16" y2="6" />
-                              <line x1="8" y1="2" x2="8" y2="6" />
-                              <line x1="3" y1="10" x2="21" y2="10" />
-                            </svg>
-                            <span>{t("exam.setDate")} · {examDays === 0 ? t("exam.today") : examDays < 0 ? t("exam.passed") : `J-${examDays}`}</span>
-                          </p>
-                        )}
-                      </div>
-                      <button type="button" onClick={() => openCourseEditor(c)} className="btn-ghost min-h-11 shrink-0 px-3 text-xs">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                        </svg>
-                        {t("courseEditor.edit")}
-                      </button>
-                    </div>
+                    className="flex items-stretch gap-1 border-b border-[var(--bt-border)] last:border-b-0">
                     <button
                       type="button"
                       onClick={() => isGuest ? toast(t("courseEditor.checklistAccountRequired"), "info") : setChecklistCourse(c)}
-                      className="mt-2 flex min-h-11 w-full items-center justify-between gap-3 pl-5 text-left text-sm font-medium transition-colors"
-                      style={{ color: "var(--bt-accent-text)", borderTop: "1px solid var(--bt-border)" }}
+                      className="group flex min-h-[68px] min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-2.5 text-left transition-colors hover:bg-[var(--bt-subtle)]"
+                      aria-label={`${t("courseEditor.openChecklist")} — ${c.name}, ${count.done}/${count.total}`}
                     >
-                      <span>
-                        {t("checklist.title")}
-                        <span className="ml-2 font-normal" style={{ color: "var(--bt-text-2)" }}>{count.done}/{count.total}</span>
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} aria-hidden="true" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block break-words text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
+                        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs" style={{ color: "var(--bt-text-2)" }}>
+                          {c.exam_date && (
+                            <>
+                              <span
+                                className="font-medium"
+                                style={{ color: examDays <= 0 ? "var(--bt-danger)" : examDays <= 7 ? "var(--bt-warning)" : "var(--bt-text-2)" }}
+                              >
+                                {t("exam.setDate")} {examStatus}
+                              </span>
+                              <span aria-hidden="true">·</span>
+                            </>
+                          )}
+                          <span>{t("courseEditor.checklistShort")} {count.done}/{count.total}</span>
+                        </span>
                       </span>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <svg className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--bt-text-3)" }}>
                         <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openCourseEditor(c)}
+                      className="bt-tap my-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-[var(--bt-subtle)]"
+                      style={{ color: "var(--bt-text-2)" }}
+                      aria-label={`${t("courseEditor.edit")} ${c.name}`}
+                      title={`${t("courseEditor.edit")} ${c.name}`}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                       </svg>
                     </button>
                   </li>

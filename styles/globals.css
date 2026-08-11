@@ -35,6 +35,11 @@ html {
   --bt-accent-text:   #087454;
   --bt-accent-bg:     #EAFBF4;
   --bt-accent-border: #C6EED9;
+  --bt-danger:        #B83E3E;
+  --bt-danger-solid:  #C43D3D;
+  --bt-danger-bg:     #FFF1F0;
+  --bt-danger-border: #F2C9C6;
+  --bt-warning:       #8A5A10;
   --bt-shadow:        rgba(31,26,23,0.055);
   --bt-shimmer:       rgba(255,255,255,0.62);
   --bt-mobile-bg:     rgba(255,253,251,0.95);
@@ -67,6 +72,11 @@ html {
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
   --bt-accent-text:   #54D3A9;
+  --bt-danger:        #F29A9A;
+  --bt-danger-solid:  #C84D4D;
+  --bt-danger-bg:     #321A19;
+  --bt-danger-border: #663532;
+  --bt-warning:       #F0C675;
   --bt-shadow:        rgba(0,0,0,0.18);
   --bt-shimmer:       rgba(255,255,255,0.06);
   --bt-mobile-bg:     rgba(26,23,21,0.95);
@@ -296,6 +306,39 @@ html {
 
 @keyframes bt-button-spin {
   to { transform: rotate(360deg); }
+}
+
+/* Fenêtre d’édition d’un cours : un seul mouvement court et fonctionnel. */
+.bt-course-editor-scrim {
+  background: rgba(18, 16, 14, 0.55);
+  backdrop-filter: blur(2px);
+  animation: bt-course-editor-fade 0.18s ease-out both;
+}
+.bt-course-editor-panel {
+  animation: bt-course-editor-sheet-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes bt-course-editor-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bt-course-editor-sheet-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (min-width: 640px) {
+  @keyframes bt-course-editor-sheet-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-course-editor-scrim,
+  .bt-course-editor-panel {
+    animation: none !important;
+  }
+  .bt-course-editor-panel .transition-transform {
+    transition: none !important;
+  }
 }
 
 /* ── Mobile: réduction légère de la taille des boutons ─────── */
