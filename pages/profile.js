@@ -422,6 +422,7 @@ function pushErrorMessage(t, reason, origin) {
   if (reason === "timeout") return t("push.timeout");
   if (reason === "origin") return t("push.origin").replace("{url}", origin || "");
   if (reason === "no-subscription") return t("push.noSubscription");
+  if (reason === "denied") return t("push.denied");
   if (reason === "error") return t("push.error");
   return "";
 }
