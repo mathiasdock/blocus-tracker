@@ -19,6 +19,7 @@ import Flame from "../components/Flame";
 import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
+import CourseEditorModal from "../components/CourseEditorModal";
 import Mascot from "../components/Mascot";
 import MascotCoach from "../components/MascotCoach";
 import AmbientSoundControl from "../components/AmbientSoundControl";
@@ -320,16 +321,15 @@ export default function Dashboard() {
     router.replace("/dashboard", undefined, { shallow: true });
   }, [router, router.isReady, router.query.quickstart, running, courseId, start]);
   const [todayObjectives, setTodayObjectives] = useState([]);
-  const [newCourse, setNewCourse] = useState("");
-  const [newColor, setNewColor] = useState(COLORS[0]);
+  const [courseEditorOpen, setCourseEditorOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [courseEditorBusy, setCourseEditorBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle"|"saving"|"success"|"error"
   const savingRef = useRef(false);
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [editMinutes, setEditMinutes] = useState("");
   const [editCourseId, setEditCourseId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  const [editingExamId, setEditingExamId] = useState(null);
-  const [examDateInput, setExamDateInput] = useState("");
   const [completionToast, setCompletionToast] = useState(null);
   // Amis pour l'envoi depuis le récapitulatif. `null` = pas encore chargés ;
   // on ne les charge qu'au clic sur "Envoyer à un ami", pas à chaque fin de
@@ -843,18 +843,6 @@ export default function Dashboard() {
     return true;
   }
 
-  async function updateExamDate(courseId, examDate) {
-    clearDashboardCache();
-    if (isGuest) {
-      const nextCourses = courses.map(c => c.id === courseId ? { ...c, exam_date: examDate || null } : c);
-      setCourses(nextCourses);
-      writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions: sessions, objectives: todayObjectives });
-      return;
-    }
-    await supabase.from("courses").update({ exam_date: examDate || null }).eq("id", courseId);
-    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, exam_date: examDate || null } : c));
-  }
-
   async function deleteSession(id) {
     clearDashboardCache();
     if (isGuest) {
@@ -897,53 +885,107 @@ export default function Dashboard() {
     setEditingSessionId(null);
   }
 
-  async function addCourse(e) {
-    e.preventDefault();
-    const name = newCourse.trim();
-    if (!name) return;
-    if (isGuest) {
-      const data = {
-        id: newClientId(),
-        user_id: GUEST_USER_ID,
-        name,
-        color: newColor,
-        exam_date: null,
-        created_at: new Date().toISOString(),
-      };
-      const nextCourses = [...courses, data];
-      setNewCourse("");
-      setCourses(nextCourses);
-      setCourseId(data.id);
-      writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions: sessions, objectives: todayObjectives });
-      return;
-    }
-    const { data } = await supabase
-      .from("courses")
-      .insert({ user_id: user.id, name, color: newColor })
-      .select()
-      .single();
-    setNewCourse("");
-    if (data) {
+  function openCourseEditor(course = null) {
+    setEditingCourse(course);
+    setCourseEditorOpen(true);
+  }
+
+  function closeCourseEditor() {
+    setCourseEditorOpen(false);
+    setEditingCourse(null);
+  }
+
+  async function saveCourse({ id, name, color, examDate }) {
+    const duplicate = courses.some((course) => course.id !== id && course.name.trim().toLowerCase() === name.toLowerCase());
+    if (duplicate) return { ok: false, message: t("courseEditor.duplicate") };
+
+    setCourseEditorBusy(true);
+    try {
+      if (isGuest) {
+        const savedCourse = id
+          ? { ...courses.find((course) => course.id === id), name, color, exam_date: examDate }
+          : {
+              id: newClientId(),
+              user_id: GUEST_USER_ID,
+              name,
+              color,
+              exam_date: examDate,
+              created_at: new Date().toISOString(),
+            };
+        const nextCourses = id
+          ? courses.map((course) => course.id === id ? savedCourse : course)
+          : [...courses, savedCourse];
+        setCourses(nextCourses);
+        if (!id) setCourseId(savedCourse.id);
+        writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions, objectives: todayObjectives });
+        toast(t(id ? "courseEditor.updated" : "courseEditor.created"), "success");
+        return { ok: true };
+      }
+
+      const query = id
+        ? supabase
+            .from("courses")
+            .update({ name, color, exam_date: examDate })
+            .eq("id", id)
+            .eq("user_id", user.id)
+        : supabase
+            .from("courses")
+            .insert({ user_id: user.id, name, color, exam_date: examDate });
+      const { data, error } = await query.select("*").single();
+      if (error || !data) return { ok: false, message: t("courseEditor.saveError") };
+
       clearDashboardCache();
-      setCourses((prev) => [...prev, data]);
-      setCourseId(data.id);
+      setCourses((prev) => id
+        ? prev.map((course) => course.id === id ? data : course)
+        : [...prev, data]);
+      if (!id) setCourseId(data.id);
+      toast(t(id ? "courseEditor.updated" : "courseEditor.created"), "success");
+      return { ok: true };
+    } catch (_) {
+      return { ok: false, message: t("courseEditor.saveError") };
+    } finally {
+      setCourseEditorBusy(false);
     }
   }
 
   async function deleteCourse(id) {
-    clearDashboardCache();
-    if (isGuest) {
-      const nextCourses = courses.filter((c) => c.id !== id);
-      const nextSessions = sessions.map((s) => s.course_id === id ? { ...s, course_id: null } : s);
+    setCourseEditorBusy(true);
+    try {
+      const nextCourses = courses.filter((course) => course.id !== id);
+      const nextSessions = sessions.map((session) => session.course_id === id ? { ...session, course_id: null } : session);
+      const nextObjectives = todayObjectives.map((objective) => objective.course_id === id ? { ...objective, course_id: null } : objective);
+
+      if (!isGuest) {
+        const { data, error } = await supabase
+          .from("courses")
+          .delete()
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .select("id")
+          .maybeSingle();
+        if (error || !data) return { ok: false, message: t("courseEditor.deleteError") };
+        clearDashboardCache();
+      }
+
       setCourses(nextCourses);
       setSessions(nextSessions);
-      writeGuestDashboardData({ courses: nextCourses, sessions: nextSessions, recentSessions: nextSessions, objectives: todayObjectives });
+      setTodayObjectives(nextObjectives);
+      setChecklistCounts((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       if (courseId === id) setCourseId(nextCourses[0]?.id || "");
-      return;
+      if (isGuest) {
+        writeGuestDashboardData({ courses: nextCourses, sessions: nextSessions, recentSessions, objectives: nextObjectives });
+      }
+      toast(t("courseEditor.deleted"), "success");
+      return { ok: true };
+    } catch (_) {
+      return { ok: false, message: t("courseEditor.deleteError") };
+    } finally {
+      setCourseEditorBusy(false);
     }
-    await supabase.from("courses").delete().eq("id", id);
-    setCourses((prev) => prev.filter((c) => c.id !== id));
-    if (courseId === id) setCourseId("");
   }
 
   const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
@@ -1807,176 +1849,88 @@ export default function Dashboard() {
 
           {/* ── Mes cours ── */}
           <section className="order-6 card p-5 min-w-0">
-            <h2 className="text-sm font-bold uppercase tracking-wider mb-4"
-              style={{ color: "var(--bt-text-3)" }}>{t("dash.myCourses")}</h2>
-            <form onSubmit={addCourse} className="mb-5">
-              {/* Input + bouton inline */}
-              <div className="flex gap-2 mb-3">
-                <input className="input flex-1 min-w-0" placeholder={t("dash.newCourse")}
-                  value={newCourse} onChange={(e) => setNewCourse(e.target.value)} />
-                <button className="btn-primary shrink-0 px-3.5 rounded-xl" type="submit"
-                  style={{ padding: "0 14px" }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                </button>
-              </div>
-              {/* Palette horizontale scrollable */}
-              <div className="relative">
-                <div
-                  className="[&::-webkit-scrollbar]:hidden flex gap-2"
-                  style={{
-                    overflowX: "auto",
-                    scrollbarWidth: "none",
-                    WebkitOverflowScrolling: "touch",
-                    // `overflow-x: auto` fait implicitement passer overflow-y à
-                    // "auto" aussi (règle CSS : un seul axe ne peut pas rester
-                    // "visible"). Sans marge, ce conteneur ne fait QUE 26px de haut
-                    // → l'anneau de sélection (qui déborde du cercle) se faisait
-                    // rogner en haut, et à gauche pour la 1ère pastille (pas de
-                    // marge gauche). Le padding donne la place au débordement de
-                    // respirer sans être coupé.
-                    padding: 8,
-                    margin: -8,
-                  }}>
-                  {COLORS.map((col) => (
-                    <button type="button" key={col} onClick={() => setNewColor(col)}
-                      className="transition-all"
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: "50%",
-                        backgroundColor: col,
-                        // box-shadow au lieu de border/outline : le cercle garde sa
-                        // couleur pleine (border-box grignotait le rond avec la
-                        // bordure) et l'anneau suit parfaitement le rayon partout.
-                        boxShadow: newColor === col
-                          ? `0 0 0 2px var(--bt-surface), 0 0 0 4px var(--bt-text-1)`
-                          : "none",
-                        transform: newColor === col ? "scale(1.08)" : "scale(1)",
-                        position: "relative",
-                        zIndex: newColor === col ? 1 : 0,
-                        flexShrink: 0,
-                        cursor: "pointer",
-                      }}
-                      aria-label={col} />
-                  ))}
-                </div>
-                {/* Fade côté droit */}
-                <div className="absolute top-0 right-0 bottom-0 w-8 pointer-events-none"
-                  style={{ background: "linear-gradient(to left, var(--bt-surface), transparent)" }} />
-              </div>
-            </form>
-            <ul className="space-y-1.5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider"
+                style={{ color: "var(--bt-text-2)" }}>{t("dash.myCourses")}</h2>
+              <button type="button" onClick={() => openCourseEditor()} className="btn-ghost min-h-11 px-3 text-xs">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                {t("common.add")}
+              </button>
+            </div>
+
+            {courses.length === 0 ? (
+              <p className="py-5 text-center text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                {t("courseEditor.empty")}
+              </p>
+            ) : (
+            <ul>
               {courses.map((c) => {
                 const examDays = daysUntilExam(c.exam_date);
+                const count = checklistCounts[c.id] || { done: 0, total: 0 };
                 return (
                   <li key={c.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setCourseId(c.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setCourseId(c.id);
-                      }
-                    }}
-                    className="rounded-2xl px-3 py-2.5 transition-colors overflow-hidden cursor-pointer"
-                    style={{ border: "1px solid var(--bt-border)", backgroundColor: courseId === c.id ? "var(--bt-accent-bg)" : "var(--bt-surface)" }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-2.5 text-sm min-w-0 flex-1">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                        <span className="truncate min-w-0 font-medium" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
+                    className="border-b border-[var(--bt-border)] py-3 first:pt-0 last:border-b-0 last:pb-0">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{c.name}</p>
                         {c.exam_date && (
-                          <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap" style={{
-                            backgroundColor: examDays <= 0 ? "#FEF2F2" : examDays <= 7 ? "#FEF3C7" : "#EAFBF4",
-                            color: examDays <= 0 ? "#DC2626" : examDays <= 7 ? "#92400E" : "#0E8F68",
-                          }}>
-                            {examDays === 0 ? t("exam.today") : examDays < 0 ? t("exam.passed") : `J-${examDays}`}
-                          </span>
+                          <p className="mt-1 flex items-center gap-1.5 text-xs font-medium"
+                            style={{ color: examDays <= 0 ? "#DC2626" : examDays <= 7 ? "#92400E" : "var(--bt-text-2)" }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <rect x="3" y="4" width="18" height="18" rx="2" />
+                              <line x1="16" y1="2" x2="16" y2="6" />
+                              <line x1="8" y1="2" x2="8" y2="6" />
+                              <line x1="3" y1="10" x2="21" y2="10" />
+                            </svg>
+                            <span>{t("exam.setDate")} · {examDays === 0 ? t("exam.today") : examDays < 0 ? t("exam.passed") : `J-${examDays}`}</span>
+                          </p>
                         )}
-                      </span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setEditingExamId(editingExamId === c.id ? null : c.id); setExamDateInput(c.exam_date || ""); }}
-                          title={t("exam.setDate")}
-                          className="transition-colors w-7 h-7 flex items-center justify-center rounded-lg"
-                          style={{ color: c.exam_date ? "#14B885" : "var(--bt-text-4)" }}
-                          onMouseEnter={e => { e.currentTarget.style.color = "#14B885"; e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = c.exam_date ? "#14B885" : "var(--bt-text-4)"; e.currentTarget.style.backgroundColor = ""; }}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                          </svg>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteCourse(c.id); }}
-                          className="transition-colors w-7 h-7 flex items-center justify-center rounded-lg"
-                          style={{ color: "var(--bt-text-4)" }}
-                          onMouseEnter={e => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.backgroundColor = "rgba(239,68,68,0.08)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-4)"; e.currentTarget.style.backgroundColor = ""; }}
-                          title={t("common.remove")}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                          </svg>
-                        </button>
                       </div>
-                    </div>
-                    {/* Checklist révision — aperçu + bouton */}
-                    <div className="flex items-center justify-between gap-2 mt-1.5" onClick={(e) => e.stopPropagation()}>
-                      <span className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
-                        {t("checklist.revisionLabel")}{" "}
-                        {(() => { const cc = checklistCounts[c.id]; return `${cc?.done || 0}/${cc?.total || 0}`; })()}
-                      </span>
-                      <button onClick={(e) => { e.stopPropagation(); setChecklistCourse(c); }}
-                        className="text-[11px] font-semibold px-2 py-0.5 rounded-lg transition-colors"
-                        style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-border)" }}>
-                        {t("checklist.button")}
+                      <button type="button" onClick={() => openCourseEditor(c)} className="btn-ghost min-h-11 shrink-0 px-3 text-xs">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                        </svg>
+                        {t("courseEditor.edit")}
                       </button>
                     </div>
-                    {editingExamId === c.id && (
-                      <div className="flex items-center gap-1.5 mt-2 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="date"
-                          value={examDateInput}
-                          onChange={e => setExamDateInput(e.target.value)}
-                          min={todayISO()}
-                          style={{
-                            fontSize: 12,
-                            padding: "3px 8px",
-                            borderRadius: 10,
-                            border: "1px solid var(--bt-border)",
-                            backgroundColor: "var(--bt-subtle)",
-                            color: "var(--bt-text-1)",
-                            outline: "none",
-                            minWidth: 0,
-                            flex: "1 1 auto",
-                          }}
-                        />
-                        <button onClick={(e) => { e.stopPropagation(); updateExamDate(c.id, examDateInput); setEditingExamId(null); }}
-                          title={t("common.save")} style={{ color: "#14B885" }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"/>
-                          </svg>
-                        </button>
-                        {c.exam_date && (
-                          <button onClick={(e) => { e.stopPropagation(); updateExamDate(c.id, null); setEditingExamId(null); }}
-                            title={t("common.remove")}
-                            style={{ color: "var(--bt-text-4)" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => isGuest ? toast(t("courseEditor.checklistAccountRequired"), "info") : setChecklistCourse(c)}
+                      className="mt-2 flex min-h-11 w-full items-center justify-between gap-3 pl-5 text-left text-sm font-medium transition-colors"
+                      style={{ color: "var(--bt-accent-text)", borderTop: "1px solid var(--bt-border)" }}
+                    >
+                      <span>
+                        {t("checklist.title")}
+                        <span className="ml-2 font-normal" style={{ color: "var(--bt-text-2)" }}>{count.done}/{count.total}</span>
+                      </span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
                   </li>
                 );
               })}
             </ul>
+            )}
           </section>
         </div>
       </div>
+
+      {courseEditorOpen && (
+        <CourseEditorModal
+          key={editingCourse?.id || "new-course"}
+          course={editingCourse}
+          colors={COLORS}
+          busy={courseEditorBusy}
+          onClose={closeCourseEditor}
+          onSave={saveCourse}
+          onDelete={deleteCourse}
+        />
+      )}
 
       {/* Checklist de révision (depuis la carte Mes cours) */}
       {checklistCourse && user && (
