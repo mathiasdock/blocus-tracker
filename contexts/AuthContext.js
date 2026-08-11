@@ -1,5 +1,11 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { supabase, pseudoToEmail, isOfflineDev } from "../lib/supabaseClient";
+import { classifyAuthError } from "../lib/authLogin.mjs";
+import {
+  canStartProfileRequest,
+  isCurrentProfileRequest,
+} from "../lib/authProfile.mjs";
+import { getSiteUrl } from "../lib/siteUrl";
 
 const AuthContext = createContext(null);
 
@@ -34,51 +40,111 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileStatus, setProfileStatus] = useState("idle");
+  const profileRequestRef = useRef(0);
+  const activeUserIdRef = useRef(null);
 
   const loadProfile = useCallback(async (uid) => {
     if (!uid) {
+      profileRequestRef.current += 1;
       setProfile(null);
+      setProfileStatus("idle");
       return;
     }
-    const { data } = await supabase
-      .from("profiles")
-      .select(PROFILE_COLUMNS)
-      .eq("id", uid)
-      .maybeSingle();
-    if (!data) {
-      setProfile(null);
-      return;
+    // A callback retained by a component from the previous account must not
+    // even start a request, otherwise it could cancel and overwrite B with A.
+    if (!canStartProfileRequest(uid, activeUserIdRef.current)) return;
+
+    const requestId = ++profileRequestRef.current;
+    const requestIsCurrent = () => isCurrentProfileRequest({
+      requestId,
+      currentRequestId: profileRequestRef.current,
+      requestedUserId: uid,
+      activeUserId: activeUserIdRef.current,
+    });
+
+    setProfileStatus("loading");
+    let data = null;
+    let email = null;
+    const retryDelays = [0, 250, 750];
+
+    // A transient network failure immediately after sign-in must not strand a
+    // valid user on the login form. Retry briefly, while every await remains
+    // tied to both the request generation and the active Auth UUID.
+    for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+      if (retryDelays[attempt] > 0) {
+        await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+      }
+      if (!requestIsCurrent()) return;
+
+      try {
+        const profileResult = await supabase
+          .from("profiles")
+          .select(PROFILE_COLUMNS)
+          .eq("id", uid)
+          .maybeSingle();
+        if (!requestIsCurrent()) return;
+        if (profileResult.error) throw profileResult.error;
+
+        // Supabase Auth is the only trusted source for the login/recovery
+        // email. A profile is never committed until its UUID is confirmed by
+        // the Auth server, even though profile rows are broadly readable.
+        const userResult = await supabase.auth.getUser();
+        if (!requestIsCurrent()) return;
+        if (userResult.error || userResult.data?.user?.id !== uid) {
+          throw userResult.error || new Error("profile_auth_mismatch");
+        }
+
+        if (!profileResult.data) {
+          setProfile(null);
+          setProfileStatus("missing");
+          return;
+        }
+
+        data = profileResult.data;
+        const authEmail = userResult.data.user.email || "";
+        if (authEmail && !/@blocus\.local$/i.test(authEmail)) email = authEmail;
+        break;
+      } catch {
+        if (!requestIsCurrent()) return;
+        if (attempt === retryDelays.length - 1) {
+          setProfile(null);
+          setProfileStatus("error");
+          return;
+        }
+      }
     }
 
-    let email = null;
-    try {
-      const { data: rpcEmail } = await supabase.rpc("get_my_email");
-      if (typeof rpcEmail === "string") email = rpcEmail;
-    } catch {}
-    if (!email) {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.id === uid) email = userData.user.email || null;
-    }
+    if (!data || !requestIsCurrent()) return;
 
     const deviceTimezone = detectTimezone();
     if (deviceTimezone && data.timezone !== deviceTimezone) {
-      const { error: timezoneError } = await supabase
-        .from("profiles")
-        .update({ timezone: deviceTimezone })
-        .eq("id", uid);
+      let timezoneError = null;
+      try {
+        ({ error: timezoneError } = await supabase
+          .from("profiles")
+          .update({ timezone: deviceTimezone })
+          .eq("id", uid));
+      } catch {
+        timezoneError = new Error("timezone_update_failed");
+      }
+      if (!requestIsCurrent()) return;
       if (!timezoneError) data.timezone = deviceTimezone;
     }
 
+    if (!requestIsCurrent()) return;
     setProfile({ ...data, email });
+    setProfileStatus("ready");
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    // Hard safety net: the UI must never stay stuck on "Chargement…".
+    // Last-resort UI fallback. Normal initialization completes through the
+    // INITIAL_SESSION event; later auth events still repair state if this fires.
     const safety = setTimeout(() => {
       if (mounted) setLoading(false);
-    }, 6000);
+    }, 12000);
 
     // IMPORTANT: the onAuthStateChange callback must stay synchronous.
     // Awaiting a Supabase query here deadlocks the internal auth lock
@@ -86,34 +152,29 @@ export function AuthProvider({ children }) {
     // the profile fetch outside the callback with setTimeout.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
+      clearTimeout(safety);
       setUser(session?.user ?? null);
       setLoading(false);
       const uid = session?.user?.id;
+      if (activeUserIdRef.current !== (uid || null)) setProfile(null);
+      activeUserIdRef.current = uid || null;
       if (uid) {
+        // Cancel an in-flight request for the previous account immediately;
+        // the deferred fetch below receives its own generation number.
+        profileRequestRef.current += 1;
+        setProfileStatus("loading");
         setTimeout(() => {
           if (mounted) loadProfile(uid);
         }, 0);
       } else {
-        setProfile(null);
+        loadProfile(null);
       }
     });
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        if (!mounted) return;
-        setUser(session?.user ?? null);
-        setLoading(false);
-        const uid = session?.user?.id;
-        if (uid) setTimeout(() => mounted && loadProfile(uid), 0);
-      })
-      .catch((e) => {
-        console.error("Auth init error:", e);
-        if (mounted) setLoading(false);
-      });
-
     return () => {
       mounted = false;
+      activeUserIdRef.current = null;
+      profileRequestRef.current += 1;
       clearTimeout(safety);
       sub.subscription.unsubscribe();
     };
@@ -197,7 +258,7 @@ export function AuthProvider({ children }) {
 
     if (!uid) {
       // Créer le compte Supabase Auth avec le vrai email.
-      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "")).replace(/\/$/, "");
+      const siteUrl = getSiteUrl();
       const { data, error } = await supabase.auth.signUp({
         email: em,
         password,
@@ -285,23 +346,34 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(async (loginId, password) => {
     const clean = (loginId || "").trim();
 
+    const loginError = (error) => {
+      const kind = classifyAuthError(error);
+      if (kind === "rate_limited") return "LOGIN_RATE_LIMITED";
+      if (kind === "unavailable") return "LOGIN_UNAVAILABLE";
+      return "LOGIN_INVALID_CREDENTIALS";
+    };
+
     if (isOfflineDev) {
       const { error } = await supabase.auth.signInWithPassword({
         email: clean.includes("@") ? clean.toLowerCase() : pseudoToEmail(clean || "mathias"),
         password,
       });
-      if (error) return { error: "LOGIN_INVALID_CREDENTIALS" };
+      if (error) return { error: loginError(error) };
       return { error: null };
     }
 
     // Cas 1 : email fourni → signin direct
     if (clean.includes("@")) {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: clean.toLowerCase(),
-        password,
-      });
-      if (error) return { error: "LOGIN_INVALID_CREDENTIALS" };
-      return { error: null };
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: clean.toLowerCase(),
+          password,
+        });
+        if (error) return { error: loginError(error) };
+        return { error: null };
+      } catch {
+        return { error: "LOGIN_UNAVAILABLE" };
+      }
     }
 
     // Cas 2 : pseudo → résolution serveur via /api/login
@@ -315,9 +387,10 @@ export function AuthProvider({ children }) {
       if (res.status === 429) {
         return { error: "LOGIN_RATE_LIMITED" };
       }
-      if (!res.ok) {
+      if (res.status === 400 || res.status === 401) {
         return { error: "LOGIN_INVALID_CREDENTIALS" };
       }
+      if (!res.ok) return { error: "LOGIN_UNAVAILABLE" };
 
       const { session } = await res.json();
       if (!session?.access_token || !session?.refresh_token) {
@@ -328,23 +401,13 @@ export function AuthProvider({ children }) {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
-      if (error) return { error: "LOGIN_INVALID_CREDENTIALS" };
+      if (error) return { error: "LOGIN_UNAVAILABLE" };
 
       return { error: null };
-    } catch (e) {
-      // Erreur réseau / serveur — fallback : on tente l'ancien chemin
-      // (utile si le déploiement n'a pas encore l'API route).
-      try {
-        const fallback = pseudoToEmail(clean);
-        const { error } = await supabase.auth.signInWithPassword({
-          email: fallback,
-          password,
-        });
-        if (error) return { error: "LOGIN_INVALID_CREDENTIALS" };
-        return { error: null };
-      } catch {
-        return { error: "LOGIN_INVALID_CREDENTIALS" };
-      }
+    } catch {
+      // A server/network failure is not proof that the credentials are wrong.
+      // Never fall back to a guessed Auth email: that could target another user.
+      return { error: "LOGIN_UNAVAILABLE" };
     }
   }, []);
 
@@ -358,23 +421,22 @@ export function AuthProvider({ children }) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
       return { error: "L'adresse email n'est pas valide." };
 
-	    // Sauvegarder dans profiles
-	    const { error: pErr } = await supabase
-	      .from("profiles")
-	      .update({ email: em })
-	      .eq("id", (await supabase.auth.getUser()).data.user?.id);
-	    if (pErr) {
-	      if (pErr.code === "23505") return { error: "Cet email est déjà utilisé." };
-	      return { error: pErr.message };
-	    }
-
-    // Mettre à jour l'email Supabase Auth (envoie un email de confirmation)
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    // Supabase Auth validates the change first. The database trigger copies
+    // only the confirmed Auth email to profiles afterwards.
+    const siteUrl = getSiteUrl();
     const { error: aErr } = await supabase.auth.updateUser(
       { email: em },
-      { emailRedirectTo: `${siteUrl}/reset-password` }
+      { emailRedirectTo: `${siteUrl}/profile?email-change=confirmed` }
     );
-    if (aErr) return { error: aErr.message };
+    if (aErr) {
+      if (classifyAuthError(aErr) === "rate_limited") {
+        return { error: "Un email vient déjà d'être envoyé. Réessaie dans une minute." };
+      }
+      if (aErr.code === "email_exists" || aErr.code === "user_already_exists") {
+        return { error: "Cet email est déjà utilisé." };
+      }
+      return { error: "L'adresse email n'a pas pu être modifiée pour le moment." };
+    }
 
     return { error: null };
   }, []);
@@ -383,15 +445,15 @@ export function AuthProvider({ children }) {
     if (user) {
       await supabase.from("profiles").update({ studying_since: null }).eq("id", user.id);
     }
-    await supabase.auth.signOut();
-    setProfile(null);
-  }, [user]);
+    await supabase.auth.signOut({ scope: "local" });
+    await loadProfile(null);
+  }, [user, loadProfile]);
 
   const refreshProfile = useCallback(() => loadProfile(user?.id), [user, loadProfile]);
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signUp, signIn, signOut, refreshProfile, updateEmail }}
+      value={{ user, profile, profileStatus, loading, signUp, signIn, signOut, refreshProfile, updateEmail }}
     >
       {children}
     </AuthContext.Provider>

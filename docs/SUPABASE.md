@@ -85,6 +85,7 @@ All in `supabase/`. **Run manually** in Supabase Dashboard → SQL Editor when n
 | `migration_v25_community_public_read.sql` | Communautés page redesign — opens community_messages READ to all authenticated users (any school), keeps INSERT restricted to own community; adds `parent_id` (question replies) and `exam_date` (structured exam dates for J-X badges) columns |
 | `migration_v26_new_universities.sql` | Registers 40 new schools (FR/NL/ES/CH) in `university_communities` so their students can post in their own community — must stay in sync with `lib/universities.js` |
 | `migration_v27_leaderboard_v2.sql` | `get_leaderboard_v2()` — leaderboard with metrics (time / streak / regularity), scope (all / friends via `auth.uid()`) and profile filters (university / study_field / study_year). UI falls back to `get_public_leaderboard` until this is executed |
+| `migration_v42_auth_identity_reliability.sql` | Canonical Auth email sync, safe reconciliation, protected case-insensitive pseudo resolver and collision guard for new signups |
 
 > ⚠️ The project has **three v12 files** — confusing but intentional (parallel features). When numbering a new one, jump to **v14** or higher. See `.claude/skills/new-migration.md`.
 
@@ -94,7 +95,7 @@ In Vercel Dashboard:
 ```
 NEXT_PUBLIC_SUPABASE_URL       = https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY  = <anon public key>
-NEXT_PUBLIC_SITE_URL           = https://blocus-tracker.com
+NEXT_PUBLIC_SITE_URL           = https://www.blocus-tracker.com
 SUPABASE_SERVICE_ROLE_KEY      = <service_role>     ← server-only, used by /api/login
 NEXT_PUBLIC_ONESIGNAL_APP_ID   = <onesignal app id> ← push
 ONESIGNAL_REST_API_KEY         = <onesignal rest>   ← server-only, push
@@ -113,20 +114,22 @@ CRON_SECRET                    = <random secret>    ← server-only, gates /api/
 
 - **Authentication → Providers → Email**: enabled. "Confirm email" optional.
 - **Authentication → URL Configuration**:
-  - Site URL: `https://blocus-tracker.com`
-  - Redirect URLs: `https://blocus-tracker.com/*`
+  - Site URL: `https://www.blocus-tracker.com`
+  - Redirect URLs: `https://www.blocus-tracker.com/*` and `https://blocus-tracker.com/*` during the apex → www transition
 - **Authentication → SMTP**: Resend (`smtp.resend.com:587`, user `resend`, password = Resend API key).
 - **Storage → Buckets**: avatars 2 MB max, posts/community/dm 5 MB max.
 
 ## Known issues / monitored
 
 - **Legacy users (~60)** have fake emails `<pseudo>@blocus.local`. They cannot reset password by email until they add a real one in `/profile`.
+- **Auth users without a profile** are preserved and sent through the onboarding repair flow after signing in by email; never delete or recreate their Auth UUID because existing study data may reference it.
 - **Rate limit on `/api/login`** is in-memory — meaningless on Vercel's serverless (each invocation = new instance). Replace with Upstash Redis for production if needed. See `lib/rateLimit.js`.
 - **Duplicate v12 migration numbers** — see note above.
 
 ## Anti-patterns
 
 - ❌ Querying `profiles.email` for users other than self → potential leak
+- ❌ Using `profiles.email` to authenticate or recover an account → it is only a synchronized display copy; Auth is canonical
 - ❌ Bypassing RLS with `service_role` from the client (use `/api/login` server-only pattern)
 - ❌ `select("*")` on `profiles` — always list explicit columns
 - ❌ Forgetting `SECURITY DEFINER` + `SET search_path = public` on cross-user aggregation functions

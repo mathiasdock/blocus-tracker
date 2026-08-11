@@ -67,14 +67,14 @@
 
 ### Signup (new users)
 1. `signup.js` collects: first name, last name, pseudo, **email**, university, password.
-2. `AuthContext.signUp()` calls `supabase.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL/dashboard } })`.
+2. `AuthContext.signUp()` calls `supabase.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL/onboarding } })`.
 3. Profile row inserted in `public.profiles` with the real email column.
 4. Resend SMTP sends confirmation email (if "Confirm email" is enabled in Supabase).
 
 ### Login (all users)
-1. `AuthContext.signIn(pseudo, password)` POSTs to `/api/login` with `{ pseudo, password }`.
-2. Server (`pages/api/login.js`) uses `SUPABASE_SERVICE_ROLE_KEY` to look up the real email from `profiles` without exposing it to the browser.
-3. Server calls `supabase.auth.signInWithPassword({ email, password })`, returns only the session tokens — no email exposed.
+1. An email signs in directly with Supabase Auth. A pseudo POSTs to `/api/login` with `{ pseudo, password }`.
+2. Server (`pages/api/login.js`) resolves the profile id case-insensitively, then reads that exact user's canonical email from Supabase Auth. `profiles.email` is never trusted for authentication.
+3. Server calls `supabase.auth.signInWithPassword({ email, password })`, verifies the returned user id matches the profile id, then returns only the session tokens — no email exposed.
 4. Client calls `supabase.auth.setSession(tokens)`.
 5. Rate limit: 8 attempts/minute/IP (in-memory, `lib/rateLimit.js`).
 
@@ -83,16 +83,22 @@
 ### Reset password
 1. `/forgot-password` → `supabase.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL/reset-password })`.
 2. User clicks email link → lands on `/reset-password`.
-3. `onAuthStateChange("PASSWORD_RECOVERY", ...)` fires → form is shown.
-4. `supabase.auth.updateUser({ password })`.
+3. The callback intent is captured before the Supabase client starts. `auth.initialize()` must validate it successfully, and the token subject must match the recovered session UUID.
+4. The password mutation runs through an isolated, memory-only Auth client pinned to that exact recovery session, so another tab cannot switch the target account between checks.
 
 > **Legacy users** with fake emails (`<pseudo>@blocus.local`) cannot reset by email. They must add a real email in `/profile` settings first.
+
+### Incomplete legacy signup repair
+1. `AuthContext` distinguishes a truly missing profile from a temporary profile-load error.
+2. An authenticated account with no `profiles` row is sent to `/onboarding` (never auto-deleted or recreated).
+3. The user confirms their name, pseudo and university. Onboarding inserts the missing profile with the existing Auth UUID and canonical Auth email.
+4. Existing sessions, courses and other data remain attached to the same account.
 
 ## Contexts
 
 | Context | Purpose | Key exports |
 |---------|---------|-------------|
-| `AuthContext` | Auth state, profile | `user`, `profile`, `signIn`, `signUp`, `signOut`, `updateEmail`, `refreshProfile` |
+| `AuthContext` | Auth state, profile | `user`, `profile`, `profileStatus`, `signIn`, `signUp`, `signOut`, `updateEmail`, `refreshProfile` |
 | `I18nContext` | FR/EN i18n | `t`, `lang`, `setLang` |
 | `NotificationContext` | Unread badges (feed, friends, communities, messages, comments) | `feedCount`, `commentCount`, `friendCount`, `totalCommunity`, `messageCount`, `markSeen` |
 | `TimerContext` | Global pomodoro timer state | `running`, `elapsed`, `start`, `pause`, `stop` |

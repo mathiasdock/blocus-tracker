@@ -14,6 +14,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { getClientIp, requireJson, setBaseSecurityHeaders } from "../../lib/apiSecurity";
 import { rateLimit } from "../../lib/rateLimit";
+import {
+  buildLoginIdentity,
+  classifyAuthError,
+  pickPseudoCandidate,
+} from "../../lib/authLogin.mjs";
 
 export const config = {
   api: {
@@ -28,6 +33,11 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Origines autorisées pour CORS
 const allowedOrigins = [
   process.env.NEXT_PUBLIC_SITE_URL,
+  // Older installed PWAs can still run from the apex origin even though the
+  // canonical website now redirects to www. Their cross-origin API redirect
+  // must remain usable until those service workers age out.
+  "https://blocus-tracker.com",
+  "https://www.blocus-tracker.com",
   ...(process.env.NODE_ENV === "development"
     ? ["http://localhost:3000", "http://127.0.0.1:3000"]
     : []),
@@ -43,6 +53,32 @@ function setCors(req, res) {
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }
   setBaseSecurityHeaders(res);
+}
+
+function escapeIlikePattern(value) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+async function resolveProfileForLogin(adminClient, pseudo) {
+  const { data: userId, error: rpcError } = await adminClient
+    .rpc("resolve_login_user_id", { p_pseudo: pseudo });
+
+  if (!rpcError) {
+    return { profile: userId ? { id: userId, pseudo } : null, error: null };
+  }
+
+  // Rolling-deploy compatibility while v42 is being applied. This fallback
+  // preserves case-insensitive login without ever choosing an ambiguous row.
+  if (rpcError.code !== "PGRST202") return { profile: null, error: rpcError };
+
+  const { data: candidates, error } = await adminClient
+    .from("profiles")
+    .select("id,pseudo")
+    .ilike("pseudo", escapeIlikePattern(pseudo))
+    .limit(3);
+
+  if (error) return { profile: null, error };
+  return { profile: pickPseudoCandidate(candidates, pseudo), error: null };
 }
 
 export default async function handler(req, res) {
@@ -89,33 +125,75 @@ export default async function handler(req, res) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: profile, error: lookupErr } = await adminClient
-    .from("profiles")
-    .select("email")
-    .eq("pseudo", cleanPseudo)
-    .maybeSingle();
+  const { profile, error: lookupErr } = await resolveProfileForLogin(
+    adminClient,
+    cleanPseudo
+  );
 
   if (lookupErr) {
+    console.error("[login] Unable to resolve the profile identity", {
+      code: lookupErr.code || "unknown",
+    });
     return res.status(500).json({ error: "Server error" });
   }
 
-  // Si pas d'email réel défini, fallback sur le format ancien
-  const email = (profile?.email && profile.email.length > 0)
-    ? profile.email
-    : `${cleanPseudo}@blocus.local`;
+  if (!profile) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  // The profile row identifies the account, but never supplies the login
+  // email. Only Supabase Auth owns that identity.
+  const { data: authData, error: authLookupError } = await adminClient.auth.admin
+    .getUserById(profile.id);
+  if (authLookupError) {
+    console.error("[login] Unable to load the Auth identity", {
+      status: authLookupError.status || 0,
+      code: authLookupError.code || "unknown",
+    });
+    return res.status(503).json({ error: "Service unavailable" });
+  }
+
+  const identity = buildLoginIdentity(profile, authData?.user);
+  if (!identity) {
+    console.error("[login] Profile/Auth identity invariant failed");
+    return res.status(500).json({ error: "Server error" });
+  }
 
   // Client utilisateur (anon-key) pour le signin
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data, error } = await userClient.auth.signInWithPassword({
-    email,
-    password,
-  });
+  let data;
+  let error;
+  try {
+    ({ data, error } = await userClient.auth.signInWithPassword({
+      email: identity.email,
+      password,
+    }));
+  } catch (signInError) {
+    console.error("[login] Supabase Auth request failed");
+    return res.status(503).json({ error: "Service unavailable" });
+  }
 
   if (error || !data?.session) {
+    const kind = classifyAuthError(error);
+    if (kind === "rate_limited") {
+      res.setHeader("Retry-After", "60");
+      return res.status(429).json({ error: "Too many login attempts" });
+    }
+    if (kind === "unavailable") {
+      return res.status(503).json({ error: "Service unavailable" });
+    }
     return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  // Defense in depth: even if a future lookup regression returns another
+  // email, a session for a different account must never leave this endpoint.
+  if (data.user?.id !== identity.userId) {
+    await userClient.auth.signOut({ scope: "local" });
+    console.error("[login] Refused a session for a different account");
+    return res.status(500).json({ error: "Server error" });
   }
 
   // Retour : UNIQUEMENT les tokens de session — aucune fuite d'email

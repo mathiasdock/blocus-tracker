@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
+import { classifyAuthError } from "../lib/authLogin.mjs";
+import { getSiteUrl } from "../lib/siteUrl";
 import { useI18n } from "../contexts/I18nContext";
 import AuthBackground from "../components/AuthBackground";
 
@@ -16,18 +18,24 @@ export default function ForgotPassword() {
     setErr("");
     setBusy(true);
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.blocus-tracker.com';
-    const redirectTo = `${origin.replace(/\/$/, '')}/reset-password`;
-    if (process.env.NODE_ENV === 'development') console.log('Password reset redirectTo:', redirectTo);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo,
-    });
+    let error = null;
+    try {
+      ({ error } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        { redirectTo: `${getSiteUrl()}/reset-password` }
+      ));
+    } catch {
+      error = { code: "unexpected_failure", status: 503 };
+    }
 
     setBusy(false);
 
     if (error) {
-      setErr(error.message);
+      setErr(
+        classifyAuthError(error) === "rate_limited"
+          ? t("auth.forgotRateLimited")
+          : t("auth.forgotUnavailable")
+      );
     } else {
       setSent(true);
     }

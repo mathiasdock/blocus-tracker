@@ -1,12 +1,14 @@
 import "../styles/globals.css";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { ToastProvider } from "../contexts/ToastContext";
-import { I18nProvider } from "../contexts/I18nContext";
+import { I18nProvider, useI18n } from "../contexts/I18nContext";
 import { supabase, isOfflineDev } from "../lib/supabaseClient";
+import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
 import { initOneSignal, loginUser } from "../lib/onesignal";
@@ -27,6 +29,45 @@ function highestStreakMilestone(streak) {
 // (user_badges est en lecture seule côté client depuis v28) et on fête ce qui
 // est apparu depuis le dernier passage.
 const BADGE_BY_ID = Object.fromEntries(BADGES.map((b) => [b.id, b]));
+
+function IncompleteProfileGuard() {
+  const { user, loading, profileStatus, refreshProfile } = useAuth();
+  const { t } = useI18n();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (shouldRedirectToProfileRepair({
+      authLoading: loading,
+      hasUser: Boolean(user),
+      profileStatus,
+      pathname: router.pathname,
+    })) {
+      router.replace({ pathname: "/onboarding", query: { repair: "1" } });
+    }
+  }, [loading, profileStatus, router, user]);
+
+  if (
+    !loading
+    && user
+    && profileStatus === "error"
+    && router.pathname !== "/reset-password"
+  ) {
+    return (
+      <div className="fixed inset-x-4 bottom-4 z-[1000] mx-auto max-w-md" role="alert">
+        <div className="card flex items-center gap-3 p-4 shadow-xl">
+          <p className="min-w-0 flex-1 text-sm leading-relaxed" style={{ color: "var(--bt-text-1)" }}>
+            {t("auth.profileLoadError")}
+          </p>
+          <button type="button" className="btn-primary shrink-0" onClick={refreshProfile}>
+            {t("auth.profileRetry")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 async function loadOwnBadgeIds(userId) {
   const { data, error } = await supabase
@@ -379,6 +420,7 @@ export default function App({ Component, pageProps }) {
         </Head>
         <SeoHead />
         <PageTransition />
+        <IncompleteProfileGuard />
         <Component {...pageProps} />
         <GlobalLevelUpWatcher />
         <ReferralCapture />

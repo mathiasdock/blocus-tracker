@@ -44,7 +44,11 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [ready, setReady] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [profileMissing, setProfileMissing] = useState(false);
+  const [pseudo, setPseudo] = useState("");
   const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [identityError, setIdentityError] = useState("");
   const [loadError, setLoadError] = useState("");
 
   const [university, setUniversity] = useState("");
@@ -78,13 +82,6 @@ export default function Onboarding() {
       return undefined;
     }
 
-    try {
-      if (localStorage.getItem(`bt_onboarded_${user.id}`) === "true") {
-        router.replace("/dashboard");
-        return undefined;
-      }
-    } catch (_) {}
-
     let cancelled = false;
 
     async function loadSetup() {
@@ -94,7 +91,7 @@ export default function Onboarding() {
         const [profileResult, coursesResult] = await Promise.all([
           supabase
             .from("profiles")
-            .select("first_name,university,study_field,study_year")
+            .select("id,pseudo,first_name,last_name,university,study_field,study_year")
             .eq("id", user.id)
             .maybeSingle(),
           supabase
@@ -108,21 +105,36 @@ export default function Onboarding() {
         if (cancelled) return;
         if (profileResult.error || coursesResult.error) throw new Error("setup_load_failed");
 
+        const missingProfile = !profileResult.data;
         const currentProfile = profileResult.data || {};
         const currentCourses = coursesResult.data || [];
         const currentYear = currentProfile.study_year || "";
         const knownYear = STUDY_YEARS.some(year => year.value === currentYear);
         let savedStep = 0;
-        try { savedStep = Number(localStorage.getItem(`bt_onboarding_step_${user.id}`)) || 0; } catch (_) {}
+        try {
+          // Never trust a local completion flag when the database profile is
+          // missing: that is exactly how legacy half-created accounts became
+          // stuck outside the repair flow.
+          if (!missingProfile && localStorage.getItem(`bt_onboarded_${user.id}`) === "true") {
+            router.replace("/dashboard");
+            return;
+          }
+          if (!missingProfile) {
+            savedStep = Number(localStorage.getItem(`bt_onboarding_step_${user.id}`)) || 0;
+          }
+        } catch (_) {}
 
+        setProfileMissing(missingProfile);
+        setPseudo(currentProfile.pseudo || "");
         setFirstName(currentProfile.first_name || "");
+        setLastName(currentProfile.last_name || "");
         setUniversity(currentProfile.university || "");
         setStudyField(currentProfile.study_field || "");
         setStudyYear(knownYear ? currentYear : (currentYear ? "Autre" : ""));
         setStudyYearCustom(knownYear ? "" : currentYear);
         setCourses(currentCourses);
 
-        if (!currentProfile.university) setStep(0);
+        if (missingProfile || !currentProfile.university) setStep(0);
         else if (savedStep >= 1 && savedStep <= 2) setStep(savedStep);
         else setStep(2);
 
@@ -146,25 +158,121 @@ export default function Onboarding() {
   async function saveUniversity(event) {
     event.preventDefault();
     setUniversityError("");
+    setIdentityError("");
     if (!selectedUniversity) {
       setUniversityError(t("onboarding.university.required"));
       return;
     }
 
+    const cleanPseudo = pseudo.trim();
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+    if (profileMissing) {
+      if (!cleanFirstName) {
+        setIdentityError(t("signup.errFirstName"));
+        return;
+      }
+      if (!cleanLastName) {
+        setIdentityError(t("signup.errLastName"));
+        return;
+      }
+      if (cleanPseudo.length < 3 || cleanPseudo.length > 30 || /\s/.test(cleanPseudo)) {
+        setIdentityError(t("signup.errPseudo"));
+        return;
+      }
+    }
+
     setSavingUniversity(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ university: selectedUniversity })
-        .eq("id", user.id);
-      if (error) throw error;
+      if (profileMissing) {
+        const loadOwnProfile = () => supabase
+          .from("profiles")
+          .select("id,pseudo,first_name,last_name,university")
+          .eq("id", user.id)
+          .maybeSingle();
+        const resumeExistingProfile = async (existingProfile) => {
+          setProfileMissing(false);
+          setPseudo(existingProfile.pseudo || cleanPseudo);
+          setFirstName(existingProfile.first_name || cleanFirstName);
+          setLastName(existingProfile.last_name || cleanLastName);
+          setUniversity(existingProfile.university || selectedUniversity);
+          setUseCustomUniversity(false);
+          await refreshProfile();
+          goToStep(1);
+        };
+
+        // Idempotency: another device, or an INSERT whose response was lost,
+        // may already have completed the repair for this same Auth UUID.
+        const initialOwnProfile = await loadOwnProfile();
+        if (initialOwnProfile.error) throw initialOwnProfile.error;
+        if (initialOwnProfile.data) {
+          await resumeExistingProfile(initialOwnProfile.data);
+          return;
+        }
+
+        const { data: pseudoAvailable, error: pseudoError } = await supabase
+          .rpc("is_pseudo_available", { p_pseudo: cleanPseudo });
+        if (pseudoError) throw pseudoError;
+        if (pseudoAvailable !== true) {
+          const racedOwnProfile = await loadOwnProfile();
+          if (racedOwnProfile.error) throw racedOwnProfile.error;
+          if (racedOwnProfile.data) {
+            await resumeExistingProfile(racedOwnProfile.data);
+            return;
+          }
+          setIdentityError(t("signup.errPseudoTaken"));
+          return;
+        }
+
+        const timezone = typeof Intl === "undefined"
+          ? "Europe/Paris"
+          : (Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris");
+        const { data, error } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            pseudo: cleanPseudo,
+            first_name: cleanFirstName,
+            last_name: cleanLastName,
+            university: selectedUniversity,
+            email: user.email,
+            timezone,
+          })
+          .select("id")
+          .single();
+        if (error) {
+          if (error.code === "23505") {
+            const racedOwnProfile = await loadOwnProfile();
+            if (racedOwnProfile.error) throw racedOwnProfile.error;
+            if (racedOwnProfile.data) {
+              await resumeExistingProfile(racedOwnProfile.data);
+              return;
+            }
+          }
+          throw error;
+        }
+        if (data?.id !== user.id) throw new Error("profile_repair_failed");
+        setProfileMissing(false);
+      } else {
+        const { data, error } = await supabase
+          .from("profiles")
+          .update({ university: selectedUniversity })
+          .eq("id", user.id)
+          .select("id")
+          .single();
+        if (error || data?.id !== user.id) throw error || new Error("profile_update_failed");
+      }
 
       setUniversity(selectedUniversity);
       setUseCustomUniversity(false);
       await refreshProfile();
       goToStep(1);
-    } catch (_) {
-      setUniversityError(t("onboarding.saveError"));
+    } catch (error) {
+      if (error?.code === "23505" && /pseudo/i.test(`${error.message || ""} ${error.details || ""}`)) {
+        setIdentityError(t("signup.errPseudoTaken"));
+      } else {
+        setUniversityError(t("onboarding.saveError"));
+      }
     } finally {
       setSavingUniversity(false);
     }
@@ -179,14 +287,16 @@ export default function Onboarding() {
 
     setSavingStudyInfo(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .update({
           study_field: studyField.trim() || null,
           study_year: actualYear || null,
         })
-        .eq("id", user.id);
-      if (error) throw error;
+        .eq("id", user.id)
+        .select("id")
+        .single();
+      if (error || data?.id !== user.id) throw error || new Error("profile_update_failed");
 
       await refreshProfile();
       goToStep(2);
@@ -317,11 +427,71 @@ export default function Onboarding() {
             {step === 0 && (
               <form onSubmit={saveUniversity} noValidate>
                 <div className="mb-6">
-                  <h1 className="text-2xl">{t("onboarding.university.title")}</h1>
+                  <h1 className="text-2xl">
+                    {profileMissing ? t("onboarding.repair.title") : t("onboarding.university.title")}
+                  </h1>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                    {t("onboarding.university.subtitle")}
+                    {profileMissing ? t("onboarding.repair.subtitle") : t("onboarding.university.subtitle")}
                   </p>
                 </div>
+
+                {profileMissing && (
+                  <div className="mb-5 space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="label" htmlFor="onboarding-first-name">{t("profile.firstName")}</label>
+                        <input
+                          id="onboarding-first-name"
+                          className="input"
+                          value={firstName}
+                          onChange={event => { setFirstName(event.target.value); setIdentityError(""); }}
+                          maxLength={80}
+                          autoComplete="given-name"
+                        />
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="onboarding-last-name">{t("profile.lastName")}</label>
+                        <input
+                          id="onboarding-last-name"
+                          className="input"
+                          value={lastName}
+                          onChange={event => { setLastName(event.target.value); setIdentityError(""); }}
+                          maxLength={80}
+                          autoComplete="family-name"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="label" htmlFor="onboarding-pseudo">{t("signup.pseudo")}</label>
+                      <input
+                        id="onboarding-pseudo"
+                        className="input"
+                        value={pseudo}
+                        onChange={event => { setPseudo(event.target.value); setIdentityError(""); }}
+                        maxLength={30}
+                        autoComplete="username"
+                        autoCapitalize="none"
+                        spellCheck="false"
+                      />
+                      <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.pseudoHint")}</p>
+                    </div>
+
+                    <div>
+                      <label className="label" htmlFor="onboarding-email">{t("signup.email")}</label>
+                      <input
+                        id="onboarding-email"
+                        className="input"
+                        value={user.email || ""}
+                        readOnly
+                        autoComplete="email"
+                      />
+                      <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("onboarding.repair.emailHelp")}</p>
+                    </div>
+
+                    {identityError && <div className="bt-form-alert" role="alert">{identityError}</div>}
+                  </div>
+                )}
 
                 <label className="label" htmlFor="onboarding-university">{t("signup.university")}</label>
                 {!useCustomUniversity ? (

@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 
 export default function Login() {
-  const { signIn, user, loading } = useAuth();
+  const { signIn, user, loading, profileStatus } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
   const [loginId, setLoginId] = useState("");
@@ -18,8 +18,13 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace("/dashboard");
-  }, [user, loading, router]);
+    if (loading || !user) return;
+    if (profileStatus === "missing") {
+      router.replace({ pathname: "/onboarding", query: { repair: "1" } });
+    } else if (profileStatus === "ready") {
+      router.replace("/dashboard");
+    }
+  }, [user, loading, profileStatus, router]);
 
   const loginIdError = touched.loginId && !loginId.trim()
     ? t("login.errIdentifier")
@@ -47,8 +52,6 @@ export default function Login() {
         setError(t("login.rateLimited"));
       } else if (signInError) {
         setError(t("login.unavailable"));
-      } else {
-        router.replace("/dashboard");
       }
     } finally {
       setBusy(false);
@@ -132,6 +135,9 @@ export default function Login() {
             <Link href="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:underline" style={{ color: "var(--bt-text-2)" }}>
               {t("login.forgotPwd")}
             </Link>
+            <p className="mx-auto max-w-xs text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
+              {t("login.repairHint")}
+            </p>
           </div>
         </form>
 

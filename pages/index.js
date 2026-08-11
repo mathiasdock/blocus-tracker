@@ -199,7 +199,7 @@ function LiveChrono({ label }) {
 }
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, loading, profileStatus } = useAuth();
   const { lang } = useI18n();
   const router = useRouter();
 
@@ -216,8 +216,13 @@ export default function Home() {
   const activeArea = appAreas.find((area) => area.id === activeAreaId) || appAreas[0];
 
   useEffect(() => {
-    if (!loading && user) router.replace("/dashboard");
-  }, [loading, router, user]);
+    if (loading || !user) return;
+    if (profileStatus === "missing") {
+      router.replace({ pathname: "/onboarding", query: { repair: "1" } });
+    } else if (profileStatus === "ready") {
+      router.replace("/dashboard");
+    }
+  }, [loading, profileStatus, router, user]);
 
   // Tilt 3D du cadre hero : on écrit --tilt-x/--tilt-y directement sur le nœud
   // (aucun state, aucun re-render). Souris fine uniquement, jamais en

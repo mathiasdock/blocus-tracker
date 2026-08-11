@@ -27,7 +27,7 @@ function FieldMessage({ id, error, helper }) {
 }
 
 export default function Signup() {
-  const { signUp, user, loading } = useAuth();
+  const { signUp, user, loading, profileStatus } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
   const signupInProgress = useRef(false);
@@ -49,8 +49,13 @@ export default function Signup() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user && !signupInProgress.current) router.replace("/dashboard");
-  }, [user, loading, router]);
+    if (loading || !user || signupInProgress.current) return;
+    if (profileStatus === "missing") {
+      router.replace({ pathname: "/onboarding", query: { repair: "1" } });
+    } else if (profileStatus === "ready") {
+      router.replace("/dashboard");
+    }
+  }, [user, loading, profileStatus, router]);
 
   const selectedUniversity = useCustomUniversity
     ? customUniversity.trim()
