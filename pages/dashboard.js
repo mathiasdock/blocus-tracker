@@ -1150,8 +1150,15 @@ export default function Dashboard() {
         {/* ══════════════════════════════════════════
             COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
         ══════════════════════════════════════════ */}
-        <div className="lg:col-span-2 flex flex-col gap-5 min-w-0">
-        <section className="card relative min-w-0 transition-all duration-300 overflow-hidden"
+        {/* `contents` sous lg : les deux colonnes s'effacent et leurs cartes
+            deviennent enfants directs de la grille. L'ordre mobile se pilote
+            alors carte par carte (order-N), sans quoi déplacer une carte de
+            colonne sur desktop la déplaçait aussi dans l'empilement mobile —
+            « Aujourd'hui » se retrouvait un écran plus bas. Les rangs lg: sont
+            donnés en clair plutôt que remis à zéro : `lg:order-none` ne
+            l'emportait pas de façon fiable sur le rang mobile. */}
+        <div className="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-2 min-w-0">
+        <section className="order-1 lg:order-1 card relative min-w-0 transition-all duration-300 overflow-hidden"
           style={{
             backgroundColor: isPaused ? "rgba(239,68,68,0.13)" : "var(--bt-surface)",
             borderColor:     isPaused ? "rgba(239,68,68,0.60)" : "var(--bt-border)",
@@ -1482,7 +1489,7 @@ export default function Dashboard() {
             égaler), un flex-basis fixe non conditionnel créerait un vide
             artificiel — d'où le préfixe lg: sur la classe flex ci-dessous. */}
         {sessions.length > 0 && (
-          <section className="card p-5 flex flex-col min-h-0 lg:[flex:1_1_260px]">
+          <section className="order-3 lg:order-2 card p-5 flex flex-col min-h-0 lg:[flex:1_1_260px]">
             <h2 className="text-sm font-bold uppercase tracking-wider mb-4 shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("dash.todaySessions")}</h2>
             <ul className="divide-y flex-1 min-h-0 overflow-y-auto" style={{ borderColor: "var(--bt-border)" }}>
               {sessions.map((s) => {
@@ -1635,7 +1642,7 @@ export default function Dashboard() {
         )}
 
         {todayObjectives.length > 0 && (
-          <section className="card p-5 flex flex-col min-h-0 lg:[flex:1_1_200px]">
+          <section className="order-4 lg:order-3 card p-5 flex flex-col min-h-0 lg:[flex:1_1_200px]">
             <h2 className="text-sm font-bold uppercase tracking-wider mb-4 shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("dash.todo")}</h2>
             <ul className="space-y-2 flex-1 min-h-0 overflow-y-auto">
               {todayObjectives.map((o) => {
@@ -1673,15 +1680,32 @@ export default function Dashboard() {
             </ul>
           </section>
         )}
+
+        {/* ── Blocus + Progression, en 2-up sous le chrono ──────────────
+            Empilées dans le rail de droite, ces deux cartes portaient la
+            colonne à 1265 px face à 648 px à gauche : ~600 px de vide sous le
+            chrono. Placées ici, elles comblent ce vide les jours sans session,
+            et passent sous les listes du jour dès qu'il y en a — l'ordre de
+            lecture après une session reste « ce que je viens de faire »
+            d'abord. `items-start` : sans lui, la plus courte des deux
+            s'étirerait sur la hauteur de l'autre et se creuserait du vide. */}
+        <div className="order-5 lg:order-4 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start min-w-0">
+          <BlocusCard
+            sessions={recentSessions}
+            exams={courses.filter(c => c.exam_date)}
+            onChange={handleBlocusLoaded}
+          />
+          <DailyProgressCard todayStats={missionStats} />
+        </div>
         </div>
 
         {/* ══════════════════════════════════════════
             SIDE — Aujourd'hui + Mes cours
         ══════════════════════════════════════════ */}
-        <div className="space-y-5 min-w-0">
+        <div className="contents lg:block lg:space-y-5 min-w-0">
 
           {/* ── Aujourd'hui — surface ink signature ── */}
-          <section className="card-ink bt-grain p-5 min-w-0 relative">
+          <section className="order-2 card-ink bt-grain p-5 min-w-0 relative">
           <div className="relative z-10">
             {/* La mascotte vit désormais autour du chrono. Ici, la série reste
                 lisible comme une donnée, sans deuxième personnage concurrent. */}
@@ -1781,18 +1805,8 @@ export default function Dashboard() {
           </div>
           </section>
 
-          {/* ── Mon blocus — la campagne bornée ── */}
-          <BlocusCard
-            sessions={recentSessions}
-            exams={courses.filter(c => c.exam_date)}
-            onChange={handleBlocusLoaded}
-          />
-
-          {/* ── Progression — niveau + missions, à côté du chrono ── */}
-          <DailyProgressCard todayStats={missionStats} />
-
           {/* ── Mes cours ── */}
-          <section className="card p-5 min-w-0">
+          <section className="order-6 card p-5 min-w-0">
             <h2 className="text-sm font-bold uppercase tracking-wider mb-4"
               style={{ color: "var(--bt-text-3)" }}>{t("dash.myCourses")}</h2>
             <form onSubmit={addCourse} className="mb-5">
