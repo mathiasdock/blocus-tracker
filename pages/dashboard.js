@@ -28,6 +28,7 @@ import AnimatedNumber from "../components/AnimatedNumber";
 import SessionCompleteCard from "../components/SessionCompleteCard";
 import DailyProgressCard from "../components/DailyProgressCard";
 import BlocusCard from "../components/BlocusCard";
+import PushOptInPrompt from "../components/PushOptInPrompt";
 import { toRanges } from "../lib/blocus";
 import { buildSessionShareMessage } from "../lib/sessionShare";
 import { clientRateLimit } from "../lib/security";
@@ -1960,6 +1961,10 @@ export default function Dashboard() {
       {/* La série annoncée est celle qui serait SAUVÉE, pas la série courante :
           computeStreak la voit déjà cassée (hier manque), elle vaut donc 0 et
           l'offre dirait « ta série de 0 jours peut être sauvée ». */}
+      {/* Invitation aux notifications — au premier passage seulement, et après
+          l'offre de gel pour ne pas empiler deux fenêtres. */}
+      <PushOptInPrompt />
+
       <StreakFreezeOffer
         open={freezeOfferOpen}
         streak={computeStreak(recentSessions, [...(freezeInfo?.frozenDays || []), ...(freezeInfo?.pendingDays || [])])}
