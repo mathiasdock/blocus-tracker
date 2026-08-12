@@ -19,7 +19,15 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isIOS, isStandalone, isPushSupported, getAppId, enablePush, loginUser } from "../lib/onesignal";
 
-const SEEN_KEY = "bt_push_prompt_seen";
+// Une seule proposition ne touchait que les nouveaux inscrits : tous ceux qui
+// utilisent déjà l'app ignoraient la fonctionnalité. L'invitation revient donc
+// à chaque nouvelle session — mais PLAFONNÉE. Au-delà de quelques rappels, on
+// n'obtient plus d'activations : on apprend seulement aux gens à fermer sans
+// lire, et on abîme le peu de crédit qu'a une fenêtre modale.
+const NEVER_KEY = "bt_push_prompt_never";   // choix explicite : ne plus proposer
+const COUNT_KEY = "bt_push_prompt_count";   // nombre de rappels déjà montrés
+const SESSION_KEY = "bt_push_prompt_closed"; // fermée pour cette session
+const MAX_PROMPTS = 4;
 const DELAY_MS = 1200; // laisse le tableau de bord se poser avant d'interrompre
 
 export default function PushOptInPrompt() {
@@ -29,19 +37,24 @@ export default function PushOptInPrompt() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const dismiss = useCallback(() => {
-    try { localStorage.setItem(SEEN_KEY, "1"); } catch (_) {}
+  const close = useCallback(({ forever = false } = {}) => {
+    try {
+      if (forever) localStorage.setItem(NEVER_KEY, "1");
+      else sessionStorage.setItem(SESSION_KEY, "1");
+    } catch (_) {}
     setVisible(false);
   }, []);
 
   useEffect(() => {
     if (!user || typeof window === "undefined") return undefined;
-    let seen = false, enabled = false;
+    let never = false, enabled = false, closedThisSession = false, count = 0;
     try {
-      seen = localStorage.getItem(SEEN_KEY) === "1";
+      never = localStorage.getItem(NEVER_KEY) === "1";
       enabled = localStorage.getItem("bt_push_enabled") === "1";
+      closedThisSession = sessionStorage.getItem(SESSION_KEY) === "1";
+      count = Number(localStorage.getItem(COUNT_KEY) || 0);
     } catch (_) {}
-    if (seen || enabled || !getAppId()) return undefined;
+    if (never || enabled || closedThisSession || count >= MAX_PROMPTS || !getAppId()) return undefined;
 
     // Déjà accordée ou déjà refusée : dans les deux cas, l'invite système ne
     // reviendra pas. Insister n'apporterait rien.
@@ -52,7 +65,12 @@ export default function PushOptInPrompt() {
     if (isIOS() && !isStandalone()) return undefined;
     if (!isPushSupported()) return undefined;
 
-    const id = setTimeout(() => setVisible(true), DELAY_MS);
+    const id = setTimeout(() => {
+      setVisible(true);
+      // Compté à l'affichage réel, pas au montage : un rappel jamais vu ne
+      // doit pas consommer le quota.
+      try { localStorage.setItem(COUNT_KEY, String(count + 1)); } catch (_) {}
+    }, DELAY_MS);
     return () => clearTimeout(id);
   }, [user]);
 
@@ -63,7 +81,7 @@ export default function PushOptInPrompt() {
       if (res?.ok) {
         if (user) await loginUser(user.id);
         try { localStorage.setItem("bt_push_enabled", "1"); } catch (_) {}
-        dismiss();
+        close({ forever: true });
         return;
       }
       // On ne laisse pas la personne dans le flou, mais on ne l'enferme pas
@@ -79,8 +97,19 @@ export default function PushOptInPrompt() {
     <div role="dialog" aria-modal="true" aria-labelledby="push-prompt-title"
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(3px)" }}
-      onClick={dismiss}>
-      <div className="card bt-pop-in w-full max-w-sm p-6 text-center" onClick={e => e.stopPropagation()}>
+      onClick={() => close()}>
+      <div className="card bt-pop-in w-full max-w-sm p-6 text-center relative" onClick={e => e.stopPropagation()}>
+        {/* Croix : ferme pour cette session, l'invitation revient au prochain
+            lancement. Fermer n'est pas refuser. */}
+        <button type="button" onClick={() => close()} aria-label={t("pushPrompt.later")}
+          className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center"
+          style={{ color: "var(--bt-text-3)" }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+            strokeLinecap="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+
         <span className="mx-auto flex items-center justify-center"
           style={{ width: 56, height: 56, borderRadius: 18, background: "linear-gradient(165deg, #14B885, #0E8F68 115%)" }}>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.1"
@@ -106,7 +135,7 @@ export default function PushOptInPrompt() {
           <button className="btn-primary w-full py-3 bt-press" disabled={busy} onClick={activate}>
             {busy ? t("pushPrompt.working") : t("pushPrompt.cta")}
           </button>
-          <button className="btn-ghost w-full py-2.5 text-sm" disabled={busy} onClick={dismiss}>
+          <button className="btn-ghost w-full py-2.5 text-sm" disabled={busy} onClick={() => close()}>
             {t("pushPrompt.later")}
           </button>
         </div>
@@ -114,6 +143,15 @@ export default function PushOptInPrompt() {
         <p className="text-[11px] mt-3" style={{ color: "var(--bt-text-4)" }}>
           {t("pushPrompt.footnote")}
         </p>
+
+        {/* Sortie définitive, volontairement discrète : qui ne veut vraiment
+            pas doit pouvoir le dire une fois pour toutes, sans que ce soit le
+            geste le plus facile de la fenêtre. */}
+        <button type="button" disabled={busy} onClick={() => close({ forever: true })}
+          className="mt-3 text-[11px] underline underline-offset-2"
+          style={{ color: "var(--bt-text-4)" }}>
+          {t("pushPrompt.never")}
+        </button>
       </div>
     </div>
   );
