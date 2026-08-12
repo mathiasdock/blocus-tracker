@@ -4,6 +4,7 @@ import LoadingScreen from "../components/LoadingScreen";
 import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
 import PushConsole from "../components/PushConsole";
+import PushAutomations from "../components/PushAutomations";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import BadgeIcon from "../components/BadgeIcon";
@@ -1915,7 +1916,7 @@ export default function Admin() {
             {section === "content" && (
               <div className="space-y-5">
                 <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                  {[["notifications", "Notifications push"], ["announcements", `Annonces dans l'app (${announcements.length})`]].map(([id, label]) => (
+                  {[["notifications", "Envoyer"], ["automations", "Automatiques"], ["announcements", `Annonces dans l'app (${announcements.length})`]].map(([id, label]) => (
                     <button key={id} onClick={() => setContentTab(id)} className="px-4 py-1.5 rounded-xl text-sm font-medium transition-all" style={contentTab === id ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" } : { color: "var(--bt-text-2)" }}>{label}</button>
                   ))}
                 </div>
@@ -1923,6 +1924,8 @@ export default function Admin() {
                 {contentTab === "notifications" && (
                   <PushConsole users={users} universities={universityOptions} />
                 )}
+
+                {contentTab === "automations" && <PushAutomations />}
 
                 {contentTab === "announcements" && (
                   <section className="card p-5">

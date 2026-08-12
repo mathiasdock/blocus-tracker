@@ -21,6 +21,7 @@ import { getClientIp, requireJson, setBaseSecurityHeaders, timingSafeEqualText }
 import { rateLimit } from "../../../lib/rateLimit";
 import { sendPushToUser } from "../../../lib/pushServer";
 import { displayName } from "../../../lib/format";
+import { loadAutomations, fillVars } from "../../../lib/pushAutomations";
 
 export const config = {
   api: {
@@ -108,13 +109,19 @@ export default async function handler(req, res) {
 
       const name = displayName(prof);
 
+      // Texte et activation pilotés depuis l'admin. Sans réglage enregistré,
+      // ce sont les valeurs du code qui s'appliquent — comportement inchangé.
+      const automations = await loadAutomations(admin);
+      const conf = automations.friend_request;
+      if (!conf.enabled) {
+        console.info("push/notify skipped: friend_request désactivé par l'admin");
+        return res.status(200).json({ skipped: true, reason: "automation-disabled" });
+      }
+
       const pushResult = await sendPushToUser(addresseeId, {
-        title: { fr: "Nouvelle demande d'ami", en: "New friend request" },
-        body: {
-          fr: `${name} t'a envoyé une demande d'ami`,
-          en: `${name} sent you a friend request`,
-        },
-        url: "/friends",
+        title: fillVars(conf.title, { name }),
+        body: fillVars(conf.body, { name }),
+        url: conf.url,
       });
 
       console.info("push/notify sent", {

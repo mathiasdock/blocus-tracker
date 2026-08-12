@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getClientIp, setBaseSecurityHeaders, timingSafeEqualText } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
 import { sendPushToUsers } from "../../../lib/pushServer";
+import { loadAutomations } from "../../../lib/pushAutomations";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -103,28 +104,13 @@ export default async function handler(req, res) {
     // Nudge alterne etude / planning selon le jour (variete anti-lassitude).
     const planningDay = parseInt(today.replace(/-/g, ""), 10) % 2 === 0;
 
+    // Textes et activation pilotés depuis l'admin ; sans réglage enregistré,
+    // ce sont les valeurs de lib/pushAutomations.js qui s'appliquent.
+    const automations = await loadAutomations(admin);
     const MESSAGES = {
-      exam: {
-        title: { fr: "Ton examen est demain 📖", en: "Your exam is tomorrow 📖" },
-        body: { fr: "Une dernière révision aujourd'hui, et tu seras prêt·e.", en: "One last review today and you're ready." },
-        url: "/planning",
-      },
-      streak: {
-        title: { fr: "Ta série est en danger 🔥", en: "Your streak is at risk 🔥" },
-        body: { fr: "Tu n'as pas encore étudié aujourd'hui. Garde ta série !", en: "You haven't studied today yet. Keep your streak alive!" },
-        url: "/dashboard",
-      },
-      nudge: planningDay
-        ? {
-            title: { fr: "Prépare ta journée 🗓️", en: "Plan your day 🗓️" },
-            body: { fr: "Prends 2 minutes pour organiser ton planning de révision.", en: "Take 2 minutes to set up your study plan." },
-            url: "/planning",
-          }
-        : {
-            title: { fr: "C'est l'heure de réviser 📚", en: "Time to study 📚" },
-            body: { fr: "Lance une petite session avant la fin de la journée.", en: "Start a quick session before the day ends." },
-            url: "/dashboard",
-          },
+      exam: automations.exam_tomorrow,
+      streak: automations.streak_at_risk,
+      nudge: planningDay ? automations.nudge_planning : automations.nudge_study,
     };
 
     const summary = {
@@ -141,6 +127,9 @@ export default async function handler(req, res) {
     const sent = {};
     for (const [key, ids] of [["exam", examList], ["streak", streakAtRisk], ["nudge", studyNudge]]) {
       if (!ids.length) { sent[key] = { recipients: 0 }; continue; }
+      // Une relance coupée depuis l'admin ne part pas, mais son décompte reste
+      // visible dans le récapitulatif : on saurait ce qu'on se prive d'envoyer.
+      if (!MESSAGES[key]?.enabled) { sent[key] = { skipped: "désactivé" }; continue; }
       try {
         const r = await sendPushToUsers(ids, MESSAGES[key]);
         sent[key] = { recipients: r.recipients, batches: r.batches };
