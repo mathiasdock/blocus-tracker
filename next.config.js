@@ -100,7 +100,20 @@ module.exports = withPWA({
   disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
-    importScripts: ["/sw-cache-cleanup.js"],
+    // L'import OneSignal est ICI, donc écrit littéralement dans sw.js — et non
+    // niché dans sw-cache-cleanup.js comme avant. OneSignal se voit désigner
+    // sw.js comme son service worker (serviceWorkerPath) : le SDK doit pouvoir
+    // reconnaître son propre code dans ce fichier. L'indirection créait un
+    // écart entre ce qu'il attend et ce qu'on lui donne.
+    //
+    // Contrepartie assumée : un CDN OneSignal injoignable fait alors échouer
+    // l'installation du worker. L'ancien worker continue de servir dans ce cas,
+    // et la tentative suivante repart. Le push étant aujourd'hui cassé pour
+    // tout le monde sauf un appareil, l'échange en vaut la peine.
+    importScripts: [
+      "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js",
+      "/sw-cache-cleanup.js",
+    ],
     runtimeCaching: [privateNetworkOnly, supabaseStorageCache, ...defaultRuntimeCaching],
   },
 })(nextConfig);
