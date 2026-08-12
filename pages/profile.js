@@ -19,7 +19,7 @@ import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } f
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
-import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal } from "../lib/onesignal";
+import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal, collectPushDiagnostics } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
 import {
   DEFAULT_SENSORY_PREFERENCES,
@@ -439,6 +439,18 @@ function PushRow({ t, user }) {
   // On garde le motif brut, pas le texte : il se traduit au rendu et suit donc
   // un changement de langue.
   const [failure, setFailure] = useState(null);
+  const [diagCopied, setDiagCopied] = useState(false);
+
+  async function copyDiagnostics() {
+    const diag = await collectPushDiagnostics({ motif: failure?.reason || "?" });
+    const text = Object.entries(diag)
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? (v.join(" | ") || "aucun") : String(v)}`)
+      .join("\n");
+    try { await navigator.clipboard.writeText(text); }
+    catch (_) { window.prompt("Copie ce texte :", text.replace(/\n/g, " · ")); }
+    setDiagCopied(true);
+    setTimeout(() => setDiagCopied(false), 4000);
+  }
   // Une permission accordée ne prouve rien : seul ce drapeau, posé après une
   // inscription OneSignal vérifiée, autorise l'affichage "activé".
   const [confirmed, setConfirmed] = useState(false);
@@ -535,6 +547,18 @@ function PushRow({ t, user }) {
       <SettingsRow icon={<IconBell />} label={t("push.title")}
         description={pushErrorMessage(t, failure?.reason, failure?.origin) || description}
         right={right} />
+      {/* Le motif seul ne suffit pas à distinguer les causes possibles d'un
+          abonnement manquant. Ce bouton met l'état technique de l'appareil dans
+          le presse-papiers pour qu'un testeur puisse l'envoyer tel quel. */}
+      {failure?.reason === "no-subscription" && (
+        <div className="px-5 pb-4 -mt-1">
+          <button type="button" onClick={copyDiagnostics}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium"
+            style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+            {diagCopied ? t("push.diagCopied") : t("push.copyDiag")}
+          </button>
+        </div>
+      )}
     </>
   );
 }
