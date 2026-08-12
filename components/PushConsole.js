@@ -100,15 +100,16 @@ export default function PushConsole({ users = [], universities = [] }) {
   const [picked, setPicked] = useState([]);
   const [search, setSearch] = useState("");
 
+  const [sendAfter, setSendAfter] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
 
-  const authedFetch = useCallback(async (options = {}) => {
+  const authedFetch = useCallback(async (options = {}, query = "") => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token;
     if (!token) throw new Error("Session expirée — reconnecte-toi.");
-    const res = await fetch("/api/admin/push", {
+    const res = await fetch(`/api/admin/push${query}`, {
       ...options,
       headers: { Authorization: `Bearer ${token}`, ...(options.body ? { "Content-Type": "application/json" } : {}) },
     });
@@ -143,6 +144,14 @@ export default function PushConsole({ users = [], universities = [] }) {
     && (targetType !== "university" || university)
     && (targetType !== "users" || picked.length > 0);
 
+  async function cancel(id) {
+    setError("");
+    try {
+      await authedFetch({ method: "DELETE" }, `?id=${encodeURIComponent(id)}`);
+      load();
+    } catch (e) { setError(e.message); }
+  }
+
   async function send() {
     setSending(true); setError("");
     try {
@@ -150,13 +159,14 @@ export default function PushConsole({ users = [], universities = [] }) {
         method: "POST",
         body: JSON.stringify({
           title, message, url: url.trim(),
+          sendAfter: sendAfter ? new Date(sendAfter).toISOString() : undefined,
           target: targetType === "university" ? { type: "university", university }
             : targetType === "users" ? { type: "users", userIds: picked.map(u => u.id) }
             : { type: "all" },
         }),
       });
       setResult(payload);
-      setTitle(""); setMessage(""); setUrl(""); setPicked([]);
+      setTitle(""); setMessage(""); setUrl(""); setPicked([]); setSendAfter("");
       setConfirming(false);
       load();
     } catch (e) { setError(humanError(e.message)); setConfirming(false); }
@@ -283,6 +293,15 @@ export default function PushConsole({ users = [], universities = [] }) {
           )}
         </div>
 
+        <Field label="Quand"
+          hint={sendAfter
+            ? "Elle partira à cette heure. Tu pourras l'annuler tant qu'elle n'est pas partie."
+            : "Vide : envoi immédiat, et plus rien à faire — une notification partie ne se rattrape pas."}>
+          <input type="datetime-local" className="input" value={sendAfter}
+            min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+            onChange={e => setSendAfter(e.target.value)} />
+        </Field>
+
         <Preview title={title} message={message} />
 
         {error && <p className="text-xs" style={{ color: "#DC2626" }} role="alert">{error}</p>}
@@ -294,7 +313,7 @@ export default function PushConsole({ users = [], universities = [] }) {
 
         <button type="button" className="btn-primary w-full sm:w-auto" disabled={!ready || sending}
           onClick={() => setConfirming(true)}>
-          Envoyer la notification
+          {sendAfter ? "Programmer la notification" : "Envoyer la notification"}
         </button>
       </section>
 
@@ -317,14 +336,28 @@ export default function PushConsole({ users = [], universities = [] }) {
                     <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{n.title || "(sans titre)"}</p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-2)" }}>{n.body}</p>
                     <p className="text-[10px] mt-1" style={{ color: "var(--bt-text-4)" }}>
-                      {n.sentAt ? new Date(n.sentAt).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
+                      {n.scheduledFor
+                        ? `Programmée pour le ${new Date(n.scheduledFor).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+                        : n.sentAt ? new Date(n.sentAt).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}
                       {" · "}{n.audience}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-num tabular-nums text-sm font-bold" style={{ color: "var(--bt-accent-dark)" }}>{n.successful}</p>
-                    <p className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>reçues</p>
-                    {n.failed > 0 && <p className="text-[10px] mt-0.5" style={{ color: "#DC2626" }}>{n.failed} échec(s)</p>}
+                    {n.scheduledFor ? (
+                      <button type="button" onClick={() => cancel(n.id)}
+                        className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                        style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>
+                        Annuler
+                      </button>
+                    ) : n.canceled ? (
+                      <p className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>Annulée</p>
+                    ) : (
+                      <>
+                        <p className="font-num tabular-nums text-sm font-bold" style={{ color: "var(--bt-accent-dark)" }}>{n.successful}</p>
+                        <p className="text-[10px]" style={{ color: "var(--bt-text-3)" }}>reçues</p>
+                        {n.failed > 0 && <p className="text-[10px] mt-0.5" style={{ color: "#DC2626" }}>{n.failed} échec(s)</p>}
+                      </>
+                    )}
                   </div>
                 </div>
               </li>
@@ -339,14 +372,19 @@ export default function PushConsole({ users = [], universities = [] }) {
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(3px)" }}
           onClick={() => !sending && setConfirming(false)}>
           <div className="card w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>Envoyer maintenant ?</h3>
+            <h3 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
+              {sendAfter ? "Programmer cet envoi ?" : "Envoyer maintenant ?"}
+            </h3>
             <p className="text-sm mt-1" style={{ color: "var(--bt-text-2)" }}>
-              Vers <strong>{audienceLabel}</strong>. L'envoi est immédiat et définitif.
+              Vers <strong>{audienceLabel}</strong>.{" "}
+              {sendAfter
+                ? `Partira le ${new Date(sendAfter).toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}, annulable jusque-là.`
+                : "L'envoi est immédiat et définitif."}
             </p>
             <div className="mt-3"><Preview title={title} message={message} /></div>
             <div className="flex gap-2 mt-4">
               <button className="btn-primary flex-1" disabled={sending} onClick={send}>
-                {sending ? "Envoi…" : "Envoyer"}
+                {sending ? "…" : sendAfter ? "Programmer" : "Envoyer"}
               </button>
               <button className="btn-ghost px-4" disabled={sending} onClick={() => setConfirming(false)}>Annuler</button>
             </div>

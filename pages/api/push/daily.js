@@ -4,6 +4,9 @@
 //   1. Examen demain      → "Ton examen est demain"
 //   2. Serie en danger    → a etudie hier mais pas aujourd'hui
 //   3. Nudge etude/planning → actif recemment mais pas etudie aujourd'hui
+//   4. Relance des nouveaux → inscrit il y a 3 jours, jamais reparti
+//
+// Textes et activation modifiables depuis l'admin (lib/pushAutomations.js).
 //
 // Securite : appelable uniquement avec le secret cron (Vercel injecte
 //   "Authorization: Bearer <CRON_SECRET>" quand CRON_SECRET est defini).
@@ -89,9 +92,19 @@ export default async function handler(req, res) {
       set.add(dayOf(s.started_at));
     }
 
+    // 3. Inscrits il y a 3 jours → relance unique s'ils n'ont pas demarre.
+    // Fenetre d'un jour : la relance ne part qu'une fois, jamais en boucle.
+    const windowStart = new Date(Date.now() - 4 * 864e5).toISOString();
+    const windowEnd = new Date(Date.now() - 3 * 864e5).toISOString();
+    const newcomers = await fetchAll(
+      admin.from("profiles").select("id, created_at")
+        .gte("created_at", windowStart).lt("created_at", windowEnd)
+    );
+
     // Repartition en groupes exclusifs (un seul rappel / user).
     const streakAtRisk = [];
     const studyNudge = [];
+    const comeback = [];
     for (const [uid, days] of daysByUser) {
       if (examUsers.has(uid)) continue;           // priorite a l'examen
       if (days.has(today)) continue;              // deja etudie aujourd'hui → rien
@@ -100,6 +113,16 @@ export default async function handler(req, res) {
       // >3 jours sans etudier : on ne relance pas (evite le harcelement).
     }
     const examList = [...examUsers];
+
+    // Nouveaux inscrits n'ayant rien lance depuis leur premier jour. Places
+    // APRES les groupes ci-dessus et exclus de ceux-ci : un rappel par personne.
+    const alreadyTargeted = new Set([...examUsers, ...streakAtRisk, ...studyNudge]);
+    for (const p of newcomers) {
+      if (!p.id || alreadyTargeted.has(p.id)) continue;
+      const days = daysByUser.get(p.id);
+      if (days && (days.has(today) || days.has(yesterday))) continue; // deja reparti
+      comeback.push(p.id);
+    }
 
     // Nudge alterne etude / planning selon le jour (variete anti-lassitude).
     const planningDay = parseInt(today.replace(/-/g, ""), 10) % 2 === 0;
@@ -111,12 +134,13 @@ export default async function handler(req, res) {
       exam: automations.exam_tomorrow,
       streak: automations.streak_at_risk,
       nudge: planningDay ? automations.nudge_planning : automations.nudge_study,
+      comeback: automations.comeback_day3,
     };
 
     const summary = {
       date: today,
-      counts: { exam: examList.length, streak: streakAtRisk.length, nudge: studyNudge.length },
-      totalTargeted: examList.length + streakAtRisk.length + studyNudge.length,
+      counts: { exam: examList.length, streak: streakAtRisk.length, nudge: studyNudge.length, comeback: comeback.length },
+      totalTargeted: examList.length + streakAtRisk.length + studyNudge.length + comeback.length,
     };
 
     if (dry) {
@@ -125,7 +149,7 @@ export default async function handler(req, res) {
 
     // Envoi batché, résilient (un groupe qui échoue n'annule pas les autres).
     const sent = {};
-    for (const [key, ids] of [["exam", examList], ["streak", streakAtRisk], ["nudge", studyNudge]]) {
+    for (const [key, ids] of [["exam", examList], ["streak", streakAtRisk], ["nudge", studyNudge], ["comeback", comeback]]) {
       if (!ids.length) { sent[key] = { recipients: 0 }; continue; }
       // Une relance coupée depuis l'admin ne part pas, mais son décompte reste
       // visible dans le récapitulatif : on saurait ce qu'on se prive d'envoyer.

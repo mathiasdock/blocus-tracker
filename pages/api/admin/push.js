@@ -10,7 +10,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getBearerToken, getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
-import { getPushAudience, listRecentPushes, sendBroadcast, sendPushToUsers } from "../../../lib/pushServer";
+import { getPushAudience, listRecentPushes, sendBroadcast, sendPushToUsers, cancelPush } from "../../../lib/pushServer";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -55,7 +55,7 @@ function cleanText(value, max) {
 export default async function handler(req, res) {
   setBaseSecurityHeaders(res);
 
-  if (req.method !== "GET" && req.method !== "POST") {
+  if (!["GET", "POST", "DELETE"].includes(req.method)) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -75,6 +75,19 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "OneSignal unreachable", detail: audience.error });
     }
     return res.status(200).json({ audience, history });
+  }
+
+  // ── Annulation d'un envoi programmé ───────────────────────────────────────
+  if (req.method === "DELETE") {
+    const id = String(req.query.id || "").trim();
+    if (!id) return res.status(400).json({ error: "Identifiant manquant." });
+    try {
+      await cancelPush(id);
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      console.error("admin/push cancel failed:", error.message);
+      return res.status(502).json({ error: "Annulation refusée — la notification est peut-être déjà partie." });
+    }
   }
 
   // ── Envoi ─────────────────────────────────────────────────────────────────
@@ -97,7 +110,23 @@ export default async function handler(req, res) {
   if (rawUrl && !rawUrl.startsWith("/")) {
     return res.status(400).json({ error: "Le lien doit être un chemin interne, commençant par /." });
   }
-  const opts = { title, body: message, url: rawUrl || undefined };
+  // Envoi différé. On refuse une date passée : OneSignal partirait aussitôt,
+  // sans que l'admin comprenne pourquoi. Plafonné à 90 jours — au-delà, c'est
+  // une erreur de saisie plus probablement qu'une intention.
+  let sendAfter;
+  if (body.sendAfter) {
+    const when = new Date(body.sendAfter);
+    if (Number.isNaN(when.getTime())) return res.status(400).json({ error: "Date d'envoi invalide." });
+    if (when.getTime() < Date.now() + 60_000) {
+      return res.status(400).json({ error: "Choisis une date au moins une minute dans le futur." });
+    }
+    if (when.getTime() > Date.now() + 90 * 864e5) {
+      return res.status(400).json({ error: "Date trop lointaine (90 jours maximum)." });
+    }
+    sendAfter = when.toISOString();
+  }
+
+  const opts = { title, body: message, url: rawUrl || undefined, sendAfter };
 
   try {
     if (target.type === "all") {
