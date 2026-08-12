@@ -5,8 +5,11 @@
 // fort est l'arrivée sur le tableau de bord, une fois le compte créé.
 //
 // Sur iPhone, demander la permission est IMPOSSIBLE tant que l'app n'est pas
-// sur l'écran d'accueil : iOS ne l'autorise qu'en mode standalone. L'invitation
-// bifurque donc — on explique l'installation d'abord, la permission plus tard.
+// sur l'écran d'accueil : iOS ne l'autorise qu'en mode standalone. Dans ce cas
+// on ne montre RIEN ici — PwaInstallBanner explique déjà l'installation, avec
+// ses étapes et son illustration. Deux fenêtres disant la même chose, c'est
+// exactement le trop-plein de texte qu'on cherche à éviter. L'invitation
+// reviendra d'elle-même une fois l'app installée.
 //
 // Ne s'affiche qu'une fois, et jamais si la personne a déjà répondu à l'invite
 // système : un rappel qu'on ne peut pas honorer serait pire que rien.
@@ -22,13 +25,13 @@ const DELAY_MS = 1200; // laisse le tableau de bord se poser avant d'interrompre
 export default function PushOptInPrompt() {
   const { user } = useAuth();
   const { t } = useI18n();
-  const [mode, setMode] = useState(null); // null | "ask" | "ios-install"
+  const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const dismiss = useCallback(() => {
     try { localStorage.setItem(SEEN_KEY, "1"); } catch (_) {}
-    setMode(null);
+    setVisible(false);
   }, []);
 
   useEffect(() => {
@@ -45,10 +48,11 @@ export default function PushOptInPrompt() {
     const decided = typeof Notification !== "undefined" && Notification.permission !== "default";
     if (decided) return undefined;
 
-    const next = isIOS() && !isStandalone() ? "ios-install" : (isPushSupported() ? "ask" : null);
-    if (!next) return undefined;
+    // iPhone hors écran d'accueil : PwaInstallBanner s'en charge, on se tait.
+    if (isIOS() && !isStandalone()) return undefined;
+    if (!isPushSupported()) return undefined;
 
-    const id = setTimeout(() => setMode(next), DELAY_MS);
+    const id = setTimeout(() => setVisible(true), DELAY_MS);
     return () => clearTimeout(id);
   }, [user]);
 
@@ -69,8 +73,7 @@ export default function PushOptInPrompt() {
     finally { setBusy(false); }
   }
 
-  if (!mode) return null;
-  const ios = mode === "ios-install";
+  if (!visible) return null;
 
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="push-prompt-title"
@@ -87,10 +90,10 @@ export default function PushOptInPrompt() {
         </span>
 
         <h2 id="push-prompt-title" className="font-display text-lg font-bold mt-4" style={{ color: "var(--bt-text-1)" }}>
-          {t(ios ? "pushPrompt.iosTitle" : "pushPrompt.title")}
+          {t("pushPrompt.title")}
         </h2>
         <p className="text-sm mt-2 leading-snug" style={{ color: "var(--bt-text-2)" }}>
-          {t(ios ? "pushPrompt.iosBody" : "pushPrompt.body")}
+          {t("pushPrompt.body")}
         </p>
 
         {failed && (
@@ -100,25 +103,17 @@ export default function PushOptInPrompt() {
         )}
 
         <div className="mt-5 flex flex-col gap-2">
-          {ios ? (
-            <button className="btn-primary w-full py-3" onClick={dismiss}>{t("pushPrompt.iosCta")}</button>
-          ) : (
-            <>
-              <button className="btn-primary w-full py-3 bt-press" disabled={busy} onClick={activate}>
-                {busy ? t("pushPrompt.working") : t("pushPrompt.cta")}
-              </button>
-              <button className="btn-ghost w-full py-2.5 text-sm" disabled={busy} onClick={dismiss}>
-                {t("pushPrompt.later")}
-              </button>
-            </>
-          )}
+          <button className="btn-primary w-full py-3 bt-press" disabled={busy} onClick={activate}>
+            {busy ? t("pushPrompt.working") : t("pushPrompt.cta")}
+          </button>
+          <button className="btn-ghost w-full py-2.5 text-sm" disabled={busy} onClick={dismiss}>
+            {t("pushPrompt.later")}
+          </button>
         </div>
 
-        {!ios && (
-          <p className="text-[11px] mt-3" style={{ color: "var(--bt-text-4)" }}>
-            {t("pushPrompt.footnote")}
-          </p>
-        )}
+        <p className="text-[11px] mt-3" style={{ color: "var(--bt-text-4)" }}>
+          {t("pushPrompt.footnote")}
+        </p>
       </div>
     </div>
   );

@@ -130,19 +130,10 @@ export default function PwaInstallBanner() {
           </p>
         </div>
 
-        {/* Ce qu'on y gagne — avant le « comment », sinon on demande un effort
-            sans avoir donné de raison de le faire. */}
-        <ul className="px-6 pt-3 space-y-1.5">
-          {[t("pwa.whyBenefit1"), t("pwa.whyBenefit2"), t("pwa.whyBenefit3")].map((b, i) => (
-            <li key={i} className="flex items-start gap-2 text-[13px] leading-snug" style={{ color: "var(--bt-text-2)" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E8F68" strokeWidth="3"
-                strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5" aria-hidden="true">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span>{b}</span>
-            </li>
-          ))}
-        </ul>
+        {/* Les trois arguments qui vivaient ici ont été retirés : sur une
+            fenêtre dont le seul but est d'expliquer un geste, ils repoussaient
+            les étapes plus bas et ajoutaient du texte que personne ne lit. La
+            raison d'installer tient déjà dans la phrase au-dessus. */}
 
         {/* Les étapes et l'illustration sont VISIBLES D'EMBLÉE : elles étaient
             masquées derrière « Voir comment faire », alors qu'apprendre à
