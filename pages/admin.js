@@ -851,7 +851,8 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
     <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-end sm:justify-center bg-black/45 sm:p-4" onClick={onClose}>
       <div className="card w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[92vh] overflow-y-auto p-0" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-6 pb-4" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+        {/* paddingTop inclut env(safe-area-inset-top) pour que la croix reste sous la barre de statut iOS, pas dessous */}
+        <div className="p-6 pb-4" style={{ borderBottom: "1px solid var(--bt-border)", paddingTop: "calc(1.5rem + env(safe-area-inset-top))" }}>
           <div className="flex items-start gap-4">
             <Avatar url={user.avatar_url} pseudo={user.pseudo} size={64} />
             <div className="flex-1 min-w-0">
