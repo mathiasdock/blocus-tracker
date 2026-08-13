@@ -53,6 +53,7 @@ export default function ResetPassword() {
     let recoveryObserved = false;
     let initializationSucceeded = false;
     let callbackRejected = false;
+    let settled = false;
     const callback = getInitialAuthCallback();
 
     const acceptRecovery = (session, event = "INITIAL_SESSION") => {
@@ -63,6 +64,7 @@ export default function ResetPassword() {
         initializationSucceeded,
         callbackRejected,
       })) return false;
+      settled = true;
       recoveryObserved = true;
       recoveryUserIdRef.current = session.user.id;
       recoverySessionRef.current = {
@@ -75,6 +77,7 @@ export default function ResetPassword() {
     };
 
     const rejectCallback = () => {
+      settled = true;
       callbackRejected = true;
       recoveryUserIdRef.current = null;
       recoverySessionRef.current = null;
@@ -82,6 +85,16 @@ export default function ResetPassword() {
       setReady(false);
       setInvalid(true);
     };
+
+    // Filet de sécurité : initialize()/getSession() n'ont aucun timeout interne
+    // (vérifié dans @supabase/auth-js), donc un réseau lent au moment précis où
+    // quelqu'un ouvre son lien de réinitialisation peut laisser la page bloquée
+    // sur le rond qui tourne indéfiniment. Avant, un simple setTimeout(8s)
+    // garantissait un état "lien invalide, en redemander un" actionnable ;
+    // perdu en réécrivant ce flux pour la protection anti-hijack de session.
+    const timeoutTimer = setTimeout(() => {
+      if (active && !settled) rejectCallback();
+    }, 8000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
@@ -136,6 +149,7 @@ export default function ResetPassword() {
 
     return () => {
       active = false;
+      clearTimeout(timeoutTimer);
       subscription.unsubscribe();
     };
   }, [router, router.isReady]);
