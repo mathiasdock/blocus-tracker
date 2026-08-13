@@ -1026,9 +1026,31 @@ export default function Admin() {
   const usersById = useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
 
   /* ── Initial load ──────────────────────────────────────── */
+  // La date d'inscription fiable est celle du COMPTE (auth.users), pas celle de
+  // la fiche : une fiche recréée après coup (compte à moitié créé puis réparé)
+  // porte la date de sa réparation et fait passer un ancien membre pour un
+  // nouveau. auth.users n'est lisible que côté serveur, d'où cette route.
+  const fetchSignupDates = useCallback(async () => {
+    if (isOfflineDev) return null;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) return null;
+      const res = await fetch("/api/admin/signup-dates", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const body = await res.json().catch(() => null);
+      return body?.signupDates || null;
+    } catch (_) {
+      return null;
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     if (!profile || !profile.is_admin) return;
-    const [uRes, sRes, pRes, mRes, bRes, fRes, refRes, annRes] = await Promise.all([
+    const [uRes, sRes, pRes, mRes, bRes, fRes, refRes, annRes, signupDates] = await Promise.all([
       supabase.from("profiles").select("id, pseudo, first_name, last_name, university, study_field, study_year, bio, avatar_url, created_at, is_admin, locked, studying_since, referral_code, bonus_xp").order("created_at", { ascending: false }),
       // Pagination explicite : PostgREST plafonne souvent chaque réponse à 1000 lignes.
       fetchPagedRows(() => supabase.from("sessions").select("user_id, duration_seconds, started_at").order("started_at", { ascending: false }), 8000),
@@ -1038,9 +1060,20 @@ export default function Admin() {
       supabase.from("app_feedback").select("id, user_id, type, message, status, created_at").order("created_at", { ascending: false }),
       supabase.rpc("admin_get_referral_counts"),
       supabase.from("app_announcements").select("*").order("created_at", { ascending: false }),
+      fetchSignupDates(),
     ]);
 
-    const allUsers = uRes.data || [];
+    // created_at porte désormais la date réelle du compte : tri, compteurs de
+    // nouveaux, export CSV et fiche membre deviennent justes d'un coup. Repli
+    // silencieux sur la date de la fiche si la route serveur est indisponible.
+    const allUsers = (uRes.data || []).map(u => (
+      signupDates?.[u.id]
+        ? { ...u, created_at: signupDates[u.id], profile_created_at: u.created_at }
+        : u
+    ));
+    // Le tri "Inscription (récent)" s'appuie sur l'ordre du tableau, que la
+    // requête avait établi sur l'ancienne date : il faut le refaire ici.
+    allUsers.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
     const allSessions = sRes.data || [];
     setUsers(allUsers);
     setSessions(allSessions);
@@ -1062,7 +1095,7 @@ export default function Admin() {
     setUserStats(map);
     setLastUpdated(new Date());
     setBusy(false);
-  }, [profile]);
+  }, [profile, fetchSignupDates]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
