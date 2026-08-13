@@ -259,10 +259,26 @@ export function AuthProvider({ children }) {
     if (!uid) {
       // Créer le compte Supabase Auth avec le vrai email.
       const siteUrl = getSiteUrl();
+      // `data` alimente raw_user_meta_data, que le trigger v43
+      // (create_profile_for_new_user) lit pour créer la fiche DANS la même
+      // transaction que le compte. Sans ces métadonnées le trigger ne fait
+      // rien : c'est ce qui rend la migration et ce déploiement indépendants
+      // l'un de l'autre. L'upsert plus bas reste la voie normale.
       const { data, error } = await supabase.auth.signUp({
         email: em,
         password,
-        options: { emailRedirectTo: `${siteUrl}/onboarding` },
+        options: {
+          emailRedirectTo: `${siteUrl}/onboarding`,
+          data: {
+            pseudo: clean,
+            first_name: fn,
+            last_name: ln,
+            university: uni,
+            study_field: field,
+            study_year: year,
+            timezone: detectTimezone(),
+          },
+        },
       });
 
       if (error) {
@@ -305,19 +321,35 @@ export function AuthProvider({ children }) {
     }
 
     if (uid) {
+      // upsert et non insert : une fois la migration v43 passée, le trigger a
+      // déjà créé la ligne et un insert échouerait sur la clé primaire — ce qui
+      // afficherait une erreur alors que l'inscription a réussi. L'upsert
+      // fonctionne donc avec ET sans le trigger, dans les deux sens de
+      // déploiement. Un pseudo appartenant à quelqu'un d'autre lève toujours
+      // 23505 sur profiles_pseudo_key, et reste donc signalé correctement.
       const { error: pErr } = await supabase
         .from("profiles")
-        .insert({
+        .upsert({
           id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln,
           university: uni, study_field: field, study_year: year,
           timezone: detectTimezone(),
-        });
+        }, { onConflict: "id" });
       if (pErr) {
-        const pseudoConflict = pErr.code === "23505" && /pseudo/i.test(`${pErr.message || ""} ${pErr.details || ""}`);
-        return {
-          error: pseudoConflict ? "Ce pseudo est déjà pris." : "Le profil n'a pas pu être enregistré.",
-          errorCode: pseudoConflict ? "PSEUDO_TAKEN" : "PROFILE_CREATE_FAILED",
-        };
+        // Filet de sécurité : le trigger v43 a pu créer la fiche avant nous.
+        // Dans ce cas l'inscription a bel et bien réussi et afficher une erreur
+        // enverrait la personne refaire un compte pour rien.
+        const { data: createdProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", uid)
+          .maybeSingle();
+        if (!createdProfile) {
+          const pseudoConflict = pErr.code === "23505" && /pseudo/i.test(`${pErr.message || ""} ${pErr.details || ""}`);
+          return {
+            error: pseudoConflict ? "Ce pseudo est déjà pris." : "Le profil n'a pas pu être enregistré.",
+            errorCode: pseudoConflict ? "PSEUDO_TAKEN" : "PROFILE_CREATE_FAILED",
+          };
+        }
       }
 
       // Parrainage : si un code valide a été stocké à l'arrivée, on l'applique
