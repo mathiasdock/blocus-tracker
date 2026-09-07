@@ -1,29 +1,21 @@
 # Polices auto-hébergées
 
-Ces fichiers étaient auparavant chargés depuis `fonts.googleapis.com` /
-`fonts.gstatic.com`. Chaque visiteur — y compris non connecté et avant tout
-consentement — transmettait alors son adresse IP à Google. Les polices sont
-donc désormais servies depuis notre propre domaine : aucune requête vers un
-tiers, aucune donnée transmise, et un rendu identique.
+Nunito Sans et Quicksand sont servies exclusivement depuis `/fonts`. Le
+navigateur ne contacte donc ni Google Fonts ni un autre CDN au chargement de
+l'application.
 
-| Fichier | Famille | Sous-ensemble | Source |
+| Fichier | Famille | Graisses | Sous-ensemble |
 |---|---|---|---|
-| `bricolage-grotesque-latin.woff2` | Bricolage Grotesque (variable 500–800) | latin | Google Fonts v9 |
-| `bricolage-grotesque-latin-ext.woff2` | Bricolage Grotesque (variable 500–800) | latin-ext | Google Fonts v9 |
-| `space-grotesk-latin.woff2` | Space Grotesk (variable 500–700) | latin | Google Fonts v22 |
-| `space-grotesk-latin-ext.woff2` | Space Grotesk (variable 500–700) | latin-ext | Google Fonts v22 |
+| `nunito-sans-latin.woff2` | Nunito Sans variable | 400–800 | latin |
+| `nunito-sans-latin-ext.woff2` | Nunito Sans variable | 400–800 | latin-ext |
+| `quicksand-latin.woff2` | Quicksand variable | 600–700 | latin |
+| `quicksand-latin-ext.woff2` | Quicksand variable | 600–700 | latin-ext |
 
-Les déclarations `@font-face` vivent dans `styles/globals.css`.
-Les noms de familles sont inchangés (`Bricolage Grotesque`, `Space Grotesk`),
-donc `tailwind.config.js` et le rendu canvas de `components/StudyRecap.js`
-continuent de fonctionner sans modification.
+Les déclarations `@font-face` vivent dans `styles/globals.css`. Nunito Sans
+est la famille principale et Quicksand est réservée aux accents typographiques.
 
-## Licences
+## Sources et licences
 
-Les deux familles sont sous SIL Open Font License 1.1 (redistribution
-autorisée) — voir `OFL-Bricolage-Grotesque.txt` et `OFL-Space-Grotesk.txt`.
-
-## Mettre à jour
-
-Retélécharger le `.woff2` depuis l'URL `fonts.gstatic.com` publiée par
-`https://fonts.googleapis.com/css2?family=…` et remplacer le fichier.
+Les fichiers proviennent du dépôt officiel Google Fonts et sont redistribués
+sous SIL Open Font License 1.1. Les textes de licence se trouvent dans
+`OFL-Nunito-Sans.txt` et `OFL-Quicksand.txt`.

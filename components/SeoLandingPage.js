@@ -169,7 +169,7 @@ export default function SeoLandingPage({ page }) {
 
           <section className="px-5 py-10">
             <div className="mx-auto max-w-3xl rounded-3xl p-6 sm:p-7" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
-              <h2 className="text-xl sm:text-2xl" style={{ color: "var(--bt-text-1)" }}>{ui.shortAnswer}</h2>
+              <h2 className="font-display text-xl sm:text-2xl" style={{ color: "var(--bt-text-1)" }}>{ui.shortAnswer}</h2>
               <p className="mt-3 text-base leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{p.shortAnswer}</p>
             </div>
           </section>
@@ -179,7 +179,7 @@ export default function SeoLandingPage({ page }) {
               <div className="space-y-12">
                 {p.sections.map((section) => (
                   <section key={section.title}>
-                    <h2 className="text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{section.title}</h2>
+                    <h2 className="font-display text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{section.title}</h2>
                     <div className="mt-4 space-y-4">
                       {section.body.map((paragraph) => (
                         <p key={paragraph} className="text-base leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
@@ -215,7 +215,7 @@ export default function SeoLandingPage({ page }) {
 
           <section className="px-5 py-12" style={{ backgroundColor: "var(--bt-surface)", borderTop: "1px solid var(--bt-border)", borderBottom: "1px solid var(--bt-border)" }}>
             <div className="mx-auto max-w-6xl">
-              <h2 className="text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{ui.relatedTitle}</h2>
+              <h2 className="font-display text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{ui.relatedTitle}</h2>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                 {ui.relatedText}
               </p>
@@ -233,7 +233,7 @@ export default function SeoLandingPage({ page }) {
           <section className="px-5 py-14">
             <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
               <div>
-                <h2 className="text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{ui.faqTitle}</h2>
+                <h2 className="font-display text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{ui.faqTitle}</h2>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                   {ui.faqText}
                 </p>
@@ -251,7 +251,7 @@ export default function SeoLandingPage({ page }) {
 
           <section className="px-5 pb-16">
             <div className="mx-auto max-w-4xl rounded-[28px] p-7 text-center sm:p-10" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
-              <h2 className="text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{ui.finalTitle}</h2>
+              <h2 className="font-display text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{ui.finalTitle}</h2>
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                 {ui.finalText}
               </p>

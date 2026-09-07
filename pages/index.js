@@ -327,7 +327,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-dvh font-display" style={{ backgroundColor: "var(--bt-bg)", color: "var(--bt-text-1)" }}>
+    <div className="min-h-dvh font-sans" style={{ backgroundColor: "var(--bt-bg)", color: "var(--bt-text-1)" }}>
       {/* ── Header — sticky, flouté, safe-area ─────────────────────────── */}
       <header className="sticky top-0 z-50"
         style={{
@@ -462,7 +462,7 @@ export default function Home() {
           <div className="card-ink bt-grain mx-auto max-w-6xl overflow-hidden rounded-[28px] sm:rounded-[36px]" data-reveal="zoom">
             <div className="relative z-10 grid items-center gap-10 p-7 sm:p-12 lg:grid-cols-2 lg:gap-14">
               <div>
-                <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
+                <h2 className="font-display text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
                   {c.focus.title}
                 </h2>
                 <p className="mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-ink-muted)" }}>
@@ -496,7 +496,7 @@ export default function Home() {
               </div>
             </div>
             <div data-reveal className="order-1 lg:order-2" style={{ "--rv-delay": "0.08s" }}>
-              <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
+              <h2 className="font-display text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
                 {c.planning.title}
               </h2>
               <p className="mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
@@ -520,7 +520,7 @@ export default function Home() {
         <section className="px-5 py-14 sm:py-20">
           <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div data-reveal>
-              <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
+              <h2 className="font-display text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
                 {c.statsSection.title}
               </h2>
               <p className="mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
@@ -553,7 +553,7 @@ export default function Home() {
             style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }} data-reveal>
             <div className="p-7 sm:p-12">
               <div className="mx-auto max-w-2xl text-center">
-                <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
+                <h2 className="font-display text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
                   {c.social.title}
                 </h2>
                 <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
@@ -613,7 +613,7 @@ export default function Home() {
                 <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
                   {c.tour.eyebrow}
                 </p>
-                <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
+                <h2 className="font-display mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
                   {c.tour.title}
                 </h2>
                 <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
@@ -665,7 +665,7 @@ export default function Home() {
                   <p className="font-num text-xs font-bold tabular-nums" style={{ color: "var(--bt-text-3)" }}>
                     {String(appAreas.indexOf(activeArea) + 1).padStart(2, "0")} / {String(appAreas.length).padStart(2, "0")}
                   </p>
-                  <h3 className="mt-2 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{activeArea.title}</h3>
+                  <h3 className="font-display mt-2 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{activeArea.title}</h3>
                   <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{activeArea.description}</p>
                   <ul className="mt-6 space-y-3">
                     {activeArea.features.map((feature) => (
@@ -716,7 +716,7 @@ export default function Home() {
               <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>
                 {c.method.eyebrow}
               </p>
-              <h2 className="mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
+              <h2 className="font-display mt-3 text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>
                 {c.method.title}
               </h2>
               <p className="mt-4 text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-text-2)" }}>
@@ -762,7 +762,7 @@ export default function Home() {
         <section id="faq" className="scroll-mt-24 px-5 py-14 sm:py-20">
           <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
             <div data-reveal>
-              <h2 className="text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>{c.faqSection.title}</h2>
+              <h2 className="font-display text-3xl leading-tight sm:text-4xl" style={{ color: "var(--bt-text-1)" }}>{c.faqSection.title}</h2>
               <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                 {c.faqSection.text}
               </p>
@@ -802,7 +802,7 @@ export default function Home() {
               <div aria-hidden="true" className="mb-5 flex justify-center">
                 <Mascot streak={30} size={92} />
               </div>
-              <h2 className="text-3xl sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
+              <h2 className="font-display text-3xl sm:text-4xl" style={{ color: "var(--bt-ink-text)" }}>
                 {c.cta.title}
               </h2>
               <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed sm:text-base" style={{ color: "var(--bt-ink-muted)" }}>

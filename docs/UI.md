@@ -3,11 +3,13 @@
 ## Design direction — "l'instrument de focus"
 
 L'app est un instrument de mesure du temps d'étude. Trois piliers :
-- **Bricolage Grotesque** (`font-display`) pour les titres — h1/h2/h3 l'appliquent automatiquement (700, tracking -0.02em).
-- **Space Grotesk** (`font-num` + `tabular-nums`) pour TOUT chiffre affiché en grand : chrono, stats, records, XP.
+- **Nunito Sans** (`font-sans`) pour l'interface entière : textes, navigation, boutons, formulaires, cartes, métadonnées et chiffres.
+- **Quicksand 600/700** (`font-display`) comme accent rare : titres de page, wordmark et quelques grands titres importants. Les `h1` l'utilisent automatiquement ; les `h2/h3` restent en Nunito Sans sauf choix explicite.
+- **Nunito Sans** (`font-num` + `tabular-nums`) pour les chiffres : chrono, stats, records et XP restent parfaitement alignés sans introduire une troisième voix.
 - **Surface "ink"** (`.card-ink`, vert profond) réservée aux moments de marque : hero chrono "Aujourd'hui", records. Jamais pour du contenu courant.
 
-Les deux fontes sont chargées via Google Fonts dans `pages/_document.js`.
+Les deux fontes variables sont auto-hébergées en `.woff2` dans `public/fonts/`.
+Il ne doit exister aucune requête d'exécution vers Google Fonts ou un autre CDN.
 
 ## Design tokens
 
@@ -64,7 +66,9 @@ All colors live in `styles/globals.css` as CSS variables. **Never hardcode** col
 | `btn-ghost` | transparent secondary button |
 | `input` | text input with subtle bg |
 | `label` | small uppercase form label |
-| `font-num` | Space Grotesk — pair with `tabular-nums` for any displayed number |
+| `font-sans` | Nunito Sans — interface et contenu courant |
+| `font-display` | Quicksand 600/700 — accent typographique rare |
+| `font-num` | Nunito Sans — à associer à `tabular-nums` pour les nombres affichés |
 | `bt-rise` | fade-up entrance for a single element |
 | `bt-stagger` | parent class: direct children fade-up with staggered delays |
 

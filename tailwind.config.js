@@ -17,9 +17,9 @@ module.exports = {
         xs: "380px",
       },
       fontFamily: {
-        sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
-        display: ["Bricolage Grotesque", "ui-sans-serif", "system-ui", "sans-serif"],
-        num: ["Space Grotesk", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Nunito Sans", "Avenir Next", "Segoe UI", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Quicksand", "Avenir Next", "ui-rounded", "ui-sans-serif", "system-ui", "sans-serif"],
+        num: ["Nunito Sans", "Avenir Next", "Segoe UI", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
         accent: {

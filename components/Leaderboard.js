@@ -13,7 +13,7 @@ import Flame from "./Flame";
 // ── RankBadge ────────────────────────────────────────────────
 // Pastille de rang — podium or / argent / bronze pour bien démarquer le 1er.
 // Réservé et intentionnel (comme le rouge pour le destructif) ; le reste en
-// numéro discret. Chiffres en Space Grotesk. Dark-safe (couleurs pleines).
+// numéro discret. Chiffres en Nunito Sans. Dark-safe (couleurs pleines).
 // (Déplacé depuis pages/stats.js — aussi utilisé par le podium des cours.)
 export function RankBadge({ rank }) {
   const medal = rank === 1

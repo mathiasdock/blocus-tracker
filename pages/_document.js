@@ -8,8 +8,8 @@ export default function Document() {
             Elles sont servies depuis /fonts (voir styles/globals.css et
             public/fonts/README.md) — aucun tiers ne reçoit donc l'IP d'un
             visiteur au simple chargement d'une page. */}
-        <link rel="preload" as="font" type="font/woff2" href="/fonts/bricolage-grotesque-latin.woff2" crossOrigin="anonymous" />
-        <link rel="preload" as="font" type="font/woff2" href="/fonts/space-grotesk-latin.woff2" crossOrigin="anonymous" />
+        <link rel="preload" as="font" type="font/woff2" href="/fonts/nunito-sans-latin.woff2" crossOrigin="anonymous" />
+        <link rel="preload" as="font" type="font/woff2" href="/fonts/quicksand-latin.woff2" crossOrigin="anonymous" />
         {/* PWA */}
         {/* PWA meta tags are in _app.js via next/head */}
         <meta name="format-detection" content="telephone=no" />

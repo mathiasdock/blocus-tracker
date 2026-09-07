@@ -85,7 +85,7 @@ function strokeRoundedRect(ctx, x, y, width, height, radius, color, lineWidth = 
   ctx.stroke();
 }
 
-function setFont(ctx, weight, size, family = "Bricolage Grotesque") {
+function setFont(ctx, weight, size, family = "Nunito Sans") {
   ctx.font = `${weight} ${size}px "${family}", Arial, sans-serif`;
 }
 
@@ -274,7 +274,7 @@ function drawBlockRhythm(ctx, recap, copy) {
   setFont(ctx, 700, 24);
   ctx.fillText(copy.storyBlocksRhythm, 72, 790);
   ctx.fillStyle = CREAM;
-  setFont(ctx, 700, 24, "Space Grotesk");
+  setFont(ctx, 700, 24, "Nunito Sans");
   ctx.textAlign = "right";
   ctx.fillText(`${recap.blockCount} ${recap.blockCount === 1 ? copy.blockSingular : copy.blockPlural}`, 1008, 790);
   ctx.textAlign = "left";
@@ -285,7 +285,7 @@ function drawBlockRhythm(ctx, recap, copy) {
     const x = 72 + groupIndex * (groupWidth + groupGap);
     const isBest = groupIndex === recap.bestGroupIndex && group.seconds > 0;
     ctx.fillStyle = isBest ? AMBER : MUTED;
-    setFont(ctx, 700, recap.period === "month" ? 18 : 21, "Space Grotesk");
+    setFont(ctx, 700, recap.period === "month" ? 18 : 21, "Nunito Sans");
     ctx.textAlign = "center";
     ctx.fillText(group.label, x + groupWidth / 2, 858);
 
@@ -302,11 +302,11 @@ function drawBlockRhythm(ctx, recap, copy) {
     if (group.blocks > 8) {
       fillRoundedRect(ctx, x + groupWidth / 2 - 28, 1024, 56, 30, 15, "rgba(243,182,74,0.16)");
       ctx.fillStyle = AMBER;
-      setFont(ctx, 700, 17, "Space Grotesk");
+      setFont(ctx, 700, 17, "Nunito Sans");
       ctx.fillText(`+${group.blocks - 8}`, x + groupWidth / 2, 1045);
     } else {
       ctx.fillStyle = "rgba(159,215,193,0.72)";
-      setFont(ctx, 600, 17, "Space Grotesk");
+      setFont(ctx, 600, 17, "Nunito Sans");
       ctx.fillText(formatStoryDuration(group.seconds), x + groupWidth / 2, 1045);
     }
   });
@@ -338,7 +338,7 @@ function drawMetricStrip(ctx, recap, copy) {
     setFont(ctx, 700, 21);
     ctx.fillText(metric.label, x + 24, 1202);
     ctx.fillStyle = CREAM;
-    fittedFont(ctx, metric.value, width - 48, 58, 42, 700, "Space Grotesk");
+    fittedFont(ctx, metric.value, width - 48, 58, 42, 700, "Nunito Sans");
     ctx.fillText(metric.value, x + 24, 1262);
   });
 }
@@ -356,7 +356,7 @@ function drawHighlightStrip(ctx, recap, copy) {
     setFont(ctx, 700, 20);
     ctx.fillText(item.label, x, 1355);
     ctx.fillStyle = CREAM;
-    fittedFont(ctx, item.value, width - 38, 39, 26, 700, index === 1 ? "Space Grotesk" : undefined);
+    fittedFont(ctx, item.value, width - 38, 39, 26, 700, "Nunito Sans");
     ctx.fillText(item.value, x, 1408);
   });
 }
@@ -378,7 +378,7 @@ function drawProgress(ctx, recap, copy) {
     drawBlockCell(ctx, x, 1526, width, 24, index < filled ? "filled" : "empty", recap.record && index === filled - 1 ? AMBER : GREEN);
   }
   ctx.fillStyle = CREAM;
-  setFont(ctx, 700, 29, "Space Grotesk");
+  setFont(ctx, 700, 29, "Nunito Sans");
   ctx.fillText(`${Math.round(recap.goalProgress * 100)}%`, 72, 1602);
   ctx.fillStyle = recap.goalReached ? AMBER : MUTED;
   setFont(ctx, 700, 22);
@@ -426,7 +426,7 @@ function drawStory(canvas, recap, copy, brandLogo) {
 
   drawBrandMark(ctx, brandLogo, 72, 74);
   ctx.fillStyle = CREAM;
-  setFont(ctx, 700, 43);
+  setFont(ctx, 700, 43, "Quicksand");
   ctx.fillText("blocus·tracker", 150, 116);
 
   fillRoundedRect(ctx, 801, 76, 207, 52, 26, recap.variant === "record" ? AMBER : GREEN);
@@ -441,7 +441,7 @@ function drawStory(canvas, recap, copy, brandLogo) {
   ctx.fillText(recap.periodLabel.toUpperCase(), 72, 214);
 
   ctx.fillStyle = CREAM;
-  setFont(ctx, 700, 52);
+  setFont(ctx, 700, 52, "Quicksand");
   ctx.fillText(recap.period === "month" ? copy.storyMonthTitle : copy.storyWeekTitle, 72, 294);
   ctx.fillStyle = recap.variant === "record" ? AMBER : GREEN;
   ctx.fillRect(72, 326, 92, 8);
@@ -454,13 +454,13 @@ function drawStory(canvas, recap, copy, brandLogo) {
   ctx.fillText(copy.storyFocusTime, 74, 432);
 
   ctx.fillStyle = CREAM;
-  fittedFont(ctx, recap.totalLabel, 650, 155, 98, 700, "Space Grotesk");
+  fittedFont(ctx, recap.totalLabel, 650, 155, 98, 700, "Nunito Sans");
   ctx.fillText(recap.totalLabel, 68, 607);
 
   ctx.fillStyle = "rgba(255,255,255,0.16)";
   ctx.fillRect(728, 472, 2, 156);
   ctx.fillStyle = recap.variant === "record" ? AMBER : GREEN_LIGHT;
-  setFont(ctx, 700, 74, "Space Grotesk");
+  setFont(ctx, 700, 74, "Nunito Sans");
   ctx.fillText(String(recap.blockCount), 770, 565);
   ctx.fillStyle = MUTED;
   setFont(ctx, 700, 21);
@@ -746,8 +746,8 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
     (async () => {
       try {
         await document.fonts?.ready;
-        await document.fonts?.load('700 80px "Bricolage Grotesque"');
-        await document.fonts?.load('700 80px "Space Grotesk"');
+        await document.fonts?.load('700 80px "Nunito Sans"');
+        await document.fonts?.load('700 80px "Quicksand"');
       } catch (_) {}
       if (active) drawStory(canvasRef.current, recap, copy, brandLogo);
     })();

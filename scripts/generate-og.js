@@ -4,55 +4,18 @@
 // Rendu 100% vectoriel via sharp (librsvg) → PNG net à 1200×630.
 // On réutilise l'identité réelle de l'app : surface "ink" vert profond,
 // le vrai logo (public/icon.svg), les Blocus Blocks et la police de marque
-// Bricolage Grotesque (display) + Space Grotesk (chiffres). Les polices sont
-// embarquées en base64 dans le SVG (librsvg les honore) — aucune dépendance
-// aux polices système (fontconfig est vide dans cet environnement).
+// Quicksand (accent) + Nunito Sans (interface et chiffres). Les polices locales
+// sont embarquées en base64 dans le SVG (librsvg les honore) — aucune requête
+// réseau et aucune dépendance aux polices système.
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
-const https = require("https");
-const os = require("os");
 
-const CACHE = path.join(os.tmpdir(), "blocus-og-fonts");
+const LOCAL_FONTS = path.join(__dirname, "..", "public", "fonts");
 const FONTS = {
-  bricolage: {
-    file: path.join(CACHE, "bricolage.ttf"),
-    url: "https://github.com/google/fonts/raw/main/ofl/bricolagegrotesque/BricolageGrotesque%5Bopsz,wdth,wght%5D.ttf",
-  },
-  space: {
-    file: path.join(CACHE, "space.ttf"),
-    url: "https://github.com/googlefonts/SpaceGrotesk/raw/master/fonts/ttf/SpaceGrotesk-Bold.ttf",
-  },
+  nunito: path.join(LOCAL_FONTS, "nunito-sans-latin.woff2"),
+  quicksand: path.join(LOCAL_FONTS, "quicksand-latin.woff2"),
 };
-
-function download(url, dest) {
-  return new Promise((resolve, reject) => {
-    const go = (u, redirects = 0) => {
-      https.get(u, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          if (redirects > 5) return reject(new Error("too many redirects"));
-          return go(res.headers.location, redirects + 1);
-        }
-        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode} for ${u}`));
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => { fs.writeFileSync(dest, Buffer.concat(chunks)); resolve(); });
-      }).on("error", reject);
-    };
-    go(url);
-  });
-}
-
-async function ensureFonts() {
-  fs.mkdirSync(CACHE, { recursive: true });
-  for (const f of Object.values(FONTS)) {
-    if (!fs.existsSync(f.file) || fs.statSync(f.file).size < 5000) {
-      process.stdout.write(`↓ ${path.basename(f.file)}… `);
-      await download(f.url, f.file);
-      console.log("ok");
-    }
-  }
-}
 
 // Tuile du VRAI logo de l'app (public/logo-source.png : chrono + livre ouvert).
 // On recadre l'icône (sans le texte "blocus/tracker" du bas), on la recentre
@@ -90,20 +53,19 @@ function blocks(x, baseY, states) {
 }
 
 async function main() {
-  await ensureFonts();
-  const bricolage = fs.readFileSync(FONTS.bricolage.file).toString("base64");
-  const space = fs.readFileSync(FONTS.space.file).toString("base64");
+  const nunito = fs.readFileSync(FONTS.nunito).toString("base64");
+  const quicksand = fs.readFileSync(FONTS.quicksand).toString("base64");
 
   const W = 1200, H = 630;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * 2}" height="${H * 2}" viewBox="0 0 ${W} ${H}">
   <defs>
     <style>
-      @font-face { font-family: 'Bricolage'; src: url(data:font/ttf;base64,${bricolage}); font-weight: 200 800; }
-      @font-face { font-family: 'Space'; src: url(data:font/ttf;base64,${space}); font-weight: 700; }
-      .head { font-family: 'Bricolage'; font-weight: 800; }
-      .word { font-family: 'Bricolage'; font-weight: 800; }
-      .num  { font-family: 'Space'; font-weight: 700; }
+      @font-face { font-family: 'Nunito Sans'; src: url(data:font/woff2;base64,${nunito}); font-weight: 400 800; }
+      @font-face { font-family: 'Quicksand'; src: url(data:font/woff2;base64,${quicksand}); font-weight: 600 700; }
+      .head { font-family: 'Quicksand'; font-weight: 700; }
+      .word { font-family: 'Quicksand'; font-weight: 700; }
+      .num  { font-family: 'Nunito Sans'; font-weight: 700; }
     </style>
 
     <linearGradient id="bg" x1="0" y1="0" x2="0.25" y2="1">
@@ -151,14 +113,14 @@ async function main() {
   <text x="72" y="372" class="head" font-size="70" letter-spacing="-2"><tspan fill="#F2FBF7">ton blocus</tspan><tspan fill="#34D399" dx="19">plus clair.</tspan></text>
 
   <!-- Sous-titre -->
-  <text x="74" y="436" font-family="Bricolage" font-weight="500" font-size="27" fill="#8FD4B8">Chrono, planning, stats et entraide pour étudiants.</text>
+  <text x="74" y="436" font-family="Nunito Sans" font-weight="600" font-size="27" fill="#8FD4B8">Chrono, planning, stats et entraide pour étudiants.</text>
 
   <!-- Signature chrono : Blocus Blocks + timer -->
   ${blocks(74, 566, ["done", "done", "done", "done", "active", "todo", "todo", "todo"])}
   <text x="258" y="562" class="num" font-size="34" fill="#F2FBF7" letter-spacing="1">1:47:12</text>
 
   <!-- URL -->
-  <text x="${W - 72}" y="562" text-anchor="end" font-family="Bricolage" font-weight="600" font-size="24" fill="#8FD4B8">blocus-tracker.com</text>
+  <text x="${W - 72}" y="562" text-anchor="end" font-family="Nunito Sans" font-weight="600" font-size="24" fill="#8FD4B8">blocus-tracker.com</text>
 </svg>`;
 
   const out = path.join(__dirname, "..", "public", "seo-preview.png");
