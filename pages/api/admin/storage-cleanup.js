@@ -16,7 +16,7 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const BUCKETS = ["posts", "avatars", "community", "dm"];
 const DELETABLE_BUCKETS = new Set(["posts", "avatars", "community"]);
 const DELETABLE_CATEGORIES = new Set([
-  "post_expired_48h",
+  "post_expired_24h",
   "posts_orphan",
   "avatar_orphan",
   "community_image_orphan",
@@ -27,7 +27,9 @@ const MAX_FILES_PER_BUCKET = 2500;
 const MAX_FOLDERS_PER_BUCKET = 400;
 const MAX_DELETE_IDS = 100;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const POST_EXPIRY_MS = 48 * 60 * 60 * 1000;
+// Aligné sur la règle unique de rétention du feed : 24 h (voir
+// pages/api/cron/purge-posts.js, qui fait désormais l'essentiel du travail).
+const POST_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 function cleanPath(path) {
   if (typeof path !== "string") return null;
@@ -227,7 +229,7 @@ function addCandidate(candidates, file, category, reasonKey, safeDelete) {
 
 async function scanCleanupCandidates(admin) {
   const now = Date.now();
-  const cutoff48Iso = new Date(now - POST_EXPIRY_MS).toISOString();
+  const expiryCutoffIso = new Date(now - POST_EXPIRY_MS).toISOString();
   const warnings = [];
 
   const [
@@ -291,9 +293,9 @@ async function scanCleanupCandidates(admin) {
       addCandidate(candidates, file, "posts_orphan", "admin.cleanupReasonPostsOrphan", true);
       continue;
     }
-    const onlyExpired48h = refs.every((ref) => ref.createdAt && ref.createdAt < cutoff48Iso);
-    if (onlyExpired48h) {
-      addCandidate(candidates, file, "post_expired_48h", "admin.cleanupReasonPostExpired", true);
+    const onlyExpired = refs.every((ref) => ref.createdAt && ref.createdAt < expiryCutoffIso);
+    if (onlyExpired) {
+      addCandidate(candidates, file, "post_expired_24h", "admin.cleanupReasonPostExpired", true);
     }
   }
 

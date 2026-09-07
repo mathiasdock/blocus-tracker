@@ -24,8 +24,10 @@ const nextConfig = {
       "manifest-src 'self'",
       "worker-src 'self' blob:",
       "script-src 'self' 'unsafe-inline' https://cdn.onesignal.com https://onesignal.com https://*.onesignal.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' data: https://fonts.gstatic.com",
+      // Les polices sont auto-hebergees (public/fonts) : plus aucun hote
+      // Google n'est autorise, donc plus aucune IP de visiteur ne part chez eux.
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self' data:",
       `img-src 'self' data: blob: ${supabaseHttps}`,
       `media-src 'self' blob: ${supabaseHttps}`,
       `connect-src 'self' ${supabaseHttps} ${supabaseWss} https://api.onesignal.com https://onesignal.com https://*.onesignal.com`,
@@ -110,6 +112,20 @@ module.exports = withPWA({
     // l'installation du worker. L'ancien worker continue de servir dans ce cas,
     // et la tentative suivante repart. Le push étant aujourd'hui cassé pour
     // tout le monde sauf un appareil, l'échange en vaut la peine.
+    //
+    // ⚠️ CONSÉQUENCE VIE PRIVÉE — assumée et DOCUMENTÉE dans la politique de
+    // confidentialité (lib/legal.js, section "Qui reçoit tes données") :
+    // ce fichier est récupéré chez OneSignal (États-Unis) à l'INSTALLATION du
+    // service worker, donc pour tout visiteur qui ouvre l'app, même s'il
+    // n'active jamais les notifications. OneSignal voit alors son adresse IP
+    // et son navigateur. Aucun identifiant n'est créé et aucun abonnement
+    // n'existe tant que la personne n'active pas le push : le SDK de page
+    // (lib/onesignal.js) ne se charge, lui, qu'après un consentement explicite.
+    //
+    // Pour supprimer aussi cette requête : télécharger OneSignalSDK.sw.js au
+    // moment du BUILD dans public/vendor/ et importer le chemin local. À faire
+    // seulement en dehors d'une fenêtre sensible — le push a déjà été cassé
+    // par des changements de service worker (voir l'historique de ce fichier).
     importScripts: [
       "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js",
       "/sw-cache-cleanup.js",

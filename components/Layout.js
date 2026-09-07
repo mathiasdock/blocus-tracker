@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
+import { useConsent } from "../contexts/ConsentContext";
 import { formatDuration, displayName, timeAgo } from "../lib/format";
 import PwaInstallBanner from "./PwaInstallBanner";
 import LegacyEmailBanner from "./LegacyEmailBanner";
@@ -539,6 +540,7 @@ export default function Layout({ children }) {
     dismissAnnouncement,
   } = useNotifications();
   const { t } = useI18n();
+  const { openSettings: openConsentSettings } = useConsent();
   const router = useRouter();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const isGuest = !user;
@@ -848,6 +850,15 @@ export default function Layout({ children }) {
             onMouseLeave={e => e.currentTarget.style.color = ""}>
             {t("footer.legal")}
           </Link>
+          <span aria-hidden="true">·</span>
+          {/* Retirer un consentement doit être aussi simple que le donner :
+              l'entrée reste au même endroit, sur toutes les pages. */}
+          <button type="button" onClick={openConsentSettings}
+            className="transition-colors hover:underline"
+            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-accent-dark)"}
+            onMouseLeave={e => e.currentTarget.style.color = ""}>
+            {t("footer.cookieSettings")}
+          </button>
         </footer>
       </div>
 

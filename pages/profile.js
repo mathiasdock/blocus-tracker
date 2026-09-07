@@ -11,6 +11,7 @@ import PwaHomeScreenVisual from "../components/PwaHomeScreenVisual";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
+import { useConsent } from "../contexts/ConsentContext";
 import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
@@ -21,6 +22,12 @@ import BadgeIcon from "../components/BadgeIcon";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal, collectPushDiagnostics } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
+import { buildDataExport, downloadJson } from "../lib/dataExport";
+import {
+  DEFAULT_PRIVACY_SETTINGS,
+  loadPrivacySettings,
+  savePrivacySettings,
+} from "../lib/privacySettings";
 import {
   DEFAULT_SENSORY_PREFERENCES,
   playSensoryCue,
@@ -108,6 +115,10 @@ function IconMail() { return <svg width="16" height="16" viewBox="0 0 24 24" fil
 function IconActivity() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>; }
 function IconUser() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
 function IconChevronDown({ open }) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>; }
+function IconShieldCheck() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v6c0 4.5-3 8.2-7 9-4-.8-7-4.5-7-9V6z"/><polyline points="9 12 11.2 14.2 15.5 9.9"/></svg>; }
+function IconCookie() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a9 9 0 1 0 9 9 4 4 0 0 1-4.5-2.2A4 4 0 0 1 12 3z"/><circle cx="9.5" cy="10" r="0.6" fill="currentColor"/><circle cx="14" cy="14.5" r="0.6" fill="currentColor"/><circle cx="9" cy="15" r="0.6" fill="currentColor"/></svg>; }
+function IconMegaphone() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10v4h3l6 4V6L6 10z"/><path d="M17 9a4 4 0 0 1 0 6"/><path d="M20 6.5a8 8 0 0 1 0 11"/></svg>; }
+function IconDownload() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>; }
 function IconChevronRight() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.35 }}><polyline points="9 18 15 12 9 6"/></svg>; }
 function IconLock() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>; }
 function IconAlert() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
@@ -653,8 +664,14 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
                   <input className="input" value={form.first_name} onChange={e => set("first_name", e.target.value)} disabled={locked} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <label className="label">{t("profile.lastName")}</label>
+                  <div className="mb-1 flex items-center justify-between">
+                    <label className="label mb-0">{t("profile.lastName")}</label>
+                    <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.optional")}</span>
+                  </div>
                   <input className="input" value={form.last_name} onChange={e => set("last_name", e.target.value)} disabled={locked} />
+                  {/* Vider le champ enregistre NULL (saveInfo fait `|| null`) :
+                      c'est le geste par lequel on retire son nom du profil. */}
+                  <p className="mt-1.5 text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>{t("profile.lastNameHint")}</p>
                 </div>
               </div>
               <div>
@@ -702,6 +719,7 @@ export default function Profile() {
   const { t, langPref, setLangPref } = useI18n();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
+  const { openSettings: openConsentSettings } = useConsent();
   const avatarInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState("");
@@ -727,6 +745,12 @@ export default function Profile() {
   const [canonicalLevelInfo, setCanonicalLevelInfo] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  // Préférences vie privée rattachées au compte. `unavailable` = migration v44
+  // pas encore passée : on masque alors les réglages plutôt que d'afficher des
+  // interrupteurs qui ne s'enregistreraient nulle part.
+  const [privacy, setPrivacy] = useState(DEFAULT_PRIVACY_SETTINGS);
+  const [privacyAvailable, setPrivacyAvailable] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [msg, setMsg] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
@@ -748,6 +772,21 @@ export default function Profile() {
     setSensoryPrefs(readSensoryPreferences());
   }, []);
 
+  // Préférences vie privée du compte. Tant que la migration v44 n'est pas
+  // passée, `unavailable` reste vrai et la carte n'affiche que ce qui
+  // fonctionne réellement — jamais d'interrupteur décoratif.
+  useEffect(() => {
+    if (!user) return undefined;
+    let cancelled = false;
+    (async () => {
+      const { settings, unavailable } = await loadPrivacySettings(supabase, user.id);
+      if (cancelled) return;
+      setPrivacyAvailable(!unavailable);
+      if (settings) setPrivacy(settings);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
   function setSensoryPreference(key, enabled) {
     setSensoryPrefs(writeSensoryPreferences({ [key]: enabled }));
     if (key === "sound" && enabled) playSensoryCue("start");
@@ -767,8 +806,8 @@ export default function Profile() {
       const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
       const [
-        sessionsRes, examRes, objRes, friendRes, postRes, existingRes,
-        doneObjRes, todayDoneRes, likesRes, commentsRes, groupRes,
+        sessionsRes, examRes, objRes, friendRes, activityTotalsRes, existingRes,
+        doneObjRes, todayDoneRes, groupRes,
         commMsgRes, tomorrowObjRes, referralStatsRes, syncedBadgesRes,
         missionsRes,
       ] = await Promise.all([
@@ -777,12 +816,16 @@ export default function Profile() {
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("friendships").select("id", { count: "exact", head: true })
           .or(`requester.eq.${user.id},addressee.eq.${user.id}`).eq("status", "accepted"),
-        supabase.from("posts").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        // Publications et réactions sont supprimées au bout de 24 h (v46) :
+        // les compter en direct ferait retomber la progression vers les badges
+        // à zéro chaque jour. On lit le total à vie, alimenté à la création.
+        supabase.from("user_activity_totals")
+          .select("lifetime_posts, lifetime_reactions")
+          .eq("user_id", user.id)
+          .maybeSingle(),
         supabase.from("user_badges").select("badge_id").eq("user_id", user.id),
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("done", true),
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("done", true).eq("scheduled_date", today),
-        supabase.from("likes").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("comments").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("group_members").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("community_messages").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("scheduled_date", tomorrowStr),
@@ -814,8 +857,8 @@ export default function Profile() {
         objectiveCount: objRes.count || 0,
         completedObjCount: completedObj,
         friendCount: friendRes.count || 0,
-        postCount: postRes.count || 0,
-        reactionsCount: (likesRes.count || 0) + (commentsRes.count || 0),
+        postCount: activityTotalsRes.data?.lifetime_posts || 0,
+        reactionsCount: activityTotalsRes.data?.lifetime_reactions || 0,
         groupMemberCount: groupRes.count || 0,
         communityMsgCount: commMsgRes.count || 0,
         referralCount: referralStatsRes.data?.ok ? (referralStatsRes.data.count || 0) : 0,
@@ -964,11 +1007,58 @@ export default function Profile() {
     else { setEmailMsg(t("profile.emailSaved")); refreshProfile(); }
   }
 
+  // La suppression passe par /api/account/delete : le RPC seul laissait en
+  // ligne tous les FICHIERS envoyés (avatar, photos du feed, pièces jointes),
+  // que la cascade base de données n'atteint pas. La route efface d'abord le
+  // stockage, puis appelle le même RPC avec le jeton de la personne.
+  // Repli sur le RPC direct si la route est indisponible : mieux vaut une
+  // suppression incomplète qu'un compte qu'on ne peut plus supprimer du tout.
   async function deleteAccount() {
     setDeleting(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        const res = await fetch("/api/account/delete", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) { await signOut(); return; }
+      }
+    } catch (_) {}
+
     const { error } = await supabase.rpc("self_delete_user");
     if (error) { setDeleting(false); setMsg("Erreur : " + error.message); setDeleteConfirm(false); return; }
     await signOut();
+  }
+
+  // Un refus de notification doit tenir CÔTÉ SERVEUR : on l'écrit d'abord, et
+  // on ne bascule l'interface que si l'écriture a réussi. L'inverse laisserait
+  // croire à un refus enregistré alors que les envois continueraient.
+  async function setPushPreference(key, value) {
+    if (!user) return;
+    const previous = privacy[key];
+    setPrivacy(current => ({ ...current, [key]: value }));
+    const { ok } = await savePrivacySettings(supabase, user.id, { [key]: value });
+    if (!ok) {
+      setPrivacy(current => ({ ...current, [key]: previous }));
+      toast(t("toast.genericError"), "error");
+    }
+  }
+
+  async function exportMyData() {
+    if (!user || exporting) return;
+    setExporting(true);
+    try {
+      const { export: payload, notes } = await buildDataExport(supabase, { user, profile });
+      if (!payload) { toast(t("toast.genericError"), "error"); return; }
+      downloadJson(payload, `blocus-tracker-${new Date().toISOString().slice(0, 10)}.json`);
+      toast(notes.length ? t("privacy.exportPartial") : t("privacy.exportDone"));
+    } catch (_) {
+      toast(t("toast.genericError"), "error");
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function saveInfo(e) {
@@ -1272,9 +1362,51 @@ export default function Profile() {
               )}
               {sep}
               <SettingsRow icon={<IconLogOut />} label={t("profile.signOut")} onClick={signOut} />
+            </div>
+
+            {/* ── Confidentialité ──────────────────────────────────────────
+                Tout ce qui relève des droits de la personne au même endroit :
+                consulter, exporter, régler ce qui la suit, supprimer. Éclaté
+                sur trois écrans, un droit n'est un droit que sur le papier. */}
+            <div className="card overflow-hidden">
+              <CardHead icon={<IconShieldCheck />} label={t("privacy.section")} />
+
+              <SettingsRow icon={<IconCookie />} label={t("privacy.cookieSettings")}
+                description={t("privacy.cookieSettingsDesc")}
+                onClick={openConsentSettings} right={<IconChevronRight />} />
+              {sep}
+
+              {privacyAvailable && (
+                <>
+                  <SettingsRow icon={<IconBell />} label={t("privacy.pushReminders")}
+                    description={t("privacy.pushRemindersDesc")}
+                    right={<MiniSwitch checked={privacy.push_reminders !== false}
+                      onChange={value => setPushPreference("push_reminders", value)}
+                      label={t("privacy.pushReminders")} />} />
+                  {sep}
+                  <SettingsRow icon={<IconMegaphone />} label={t("privacy.pushAnnouncements")}
+                    description={t("privacy.pushAnnouncementsDesc")}
+                    right={<MiniSwitch checked={privacy.push_announcements !== false}
+                      onChange={value => setPushPreference("push_announcements", value)}
+                      label={t("privacy.pushAnnouncements")} />} />
+                  {sep}
+                </>
+              )}
+
+              <SettingsRow icon={<IconDownload />} label={t("privacy.exportData")}
+                description={t("privacy.exportDataDesc")}
+                onClick={exporting ? undefined : exportMyData}
+                right={exporting
+                  ? <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>…</span>
+                  : <IconChevronRight />} />
+              {sep}
+              <SettingsRow icon={<IconLegal />} href="/legal?doc=privacy"
+                label={t("privacy.yourRights")} description={t("privacy.yourRightsDesc")}
+                right={<IconChevronRight />} />
               {sep}
               {!deleteConfirm ? (
                 <SettingsRow danger icon={<IconTrash />} label={t("profile.deleteAccount")}
+                  description={t("privacy.deleteDesc")}
                   onClick={() => setDeleteConfirm(true)} />
               ) : (
                 <div className="px-5 py-4 space-y-3">

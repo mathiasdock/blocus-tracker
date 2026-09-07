@@ -1884,20 +1884,23 @@ export default function Admin() {
               </summary>
               <div style={{ borderTop: "1px solid var(--bt-border)" }}>
                   <section className="card p-5">
-                    <h2 className="text-base font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>Comptes supprimés <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({deletedAccounts.length})</span></h2>
+                    <h2 className="text-base font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>Comptes supprimés <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({deletedAccounts.length})</span></h2>
+                    {/* Journal volontairement anonyme (migration v45) : quelqu'un
+                        qui demande l'effacement de son compte ne peut pas voir
+                        son nom archivé à cette occasion. */}
+                    <p className="text-xs mb-4" style={{ color: "var(--bt-text-3)" }}>Journal anonyme — aucune donnée identifiante n&apos;est conservée après une suppression.</p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead><tr style={{ borderBottom: "1px solid var(--bt-border)" }}>{["Pseudo", "Nom", "Université", "Supprimé le"].map(h => <th key={h} className="pb-3 text-left" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-text-3)", paddingRight: 12 }}>{h}</th>)}</tr></thead>
+                        <thead><tr style={{ borderBottom: "1px solid var(--bt-border)" }}>{["Origine", "Ancienneté", "Supprimé le"].map(h => <th key={h} className="pb-3 text-left" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-text-3)", paddingRight: 12 }}>{h}</th>)}</tr></thead>
                         <tbody>
                           {deletedAccounts.map(da => (
                             <tr key={da.id} style={{ borderBottom: "1px solid var(--bt-subtle)" }}>
-                              <td className="py-3 pr-3 font-semibold" style={{ color: "var(--bt-text-1)" }}>@{da.pseudo || "—"}</td>
-                              <td className="py-3 pr-3" style={{ color: "var(--bt-text-2)" }}>{[da.first_name, da.last_name].filter(Boolean).join(" ") || "—"}</td>
-                              <td className="py-3 pr-3 max-w-[130px] truncate" style={{ color: "var(--bt-text-2)" }}>{da.university || "—"}</td>
+                              <td className="py-3 pr-3 font-semibold" style={{ color: "var(--bt-text-1)" }}>{da.deleted_kind === "admin" ? "Admin" : da.deleted_kind === "self" ? "Volontaire" : "—"}</td>
+                              <td className="py-3 pr-3" style={{ color: "var(--bt-text-2)" }}>{typeof da.account_age_months === "number" ? `${da.account_age_months} mois` : "—"}</td>
                               <td className="py-3 pr-3 whitespace-nowrap text-xs" style={{ color: "var(--bt-text-3)" }}>{new Date(da.deleted_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</td>
                             </tr>
                           ))}
-                          {deletedAccounts.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun compte supprimé.</td></tr>}
+                          {deletedAccounts.length === 0 && <tr><td colSpan={3} className="py-8 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun compte supprimé.</td></tr>}
                         </tbody>
                       </table>
                     </div>

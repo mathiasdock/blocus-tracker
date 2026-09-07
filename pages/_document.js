@@ -4,12 +4,12 @@ export default function Document() {
   return (
     <Html lang="fr">
       <Head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Space+Grotesk:wght@500;600;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* Polices : plus aucun appel a fonts.googleapis.com / fonts.gstatic.com.
+            Elles sont servies depuis /fonts (voir styles/globals.css et
+            public/fonts/README.md) — aucun tiers ne reçoit donc l'IP d'un
+            visiteur au simple chargement d'une page. */}
+        <link rel="preload" as="font" type="font/woff2" href="/fonts/bricolage-grotesque-latin.woff2" crossOrigin="anonymous" />
+        <link rel="preload" as="font" type="font/woff2" href="/fonts/space-grotesk-latin.woff2" crossOrigin="anonymous" />
         {/* PWA */}
         {/* PWA meta tags are in _app.js via next/head */}
         <meta name="format-detection" content="telephone=no" />

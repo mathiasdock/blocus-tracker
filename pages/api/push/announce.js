@@ -15,9 +15,12 @@
 //          "url":"/dashboard"}'
 import { getClientIp, requireJson, setBaseSecurityHeaders, timingSafeEqualText } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
-import { sendBroadcast } from "../../../lib/pushServer";
+import { createClient } from "@supabase/supabase-js";
+import { sendAnnouncement } from "../../../lib/pushServer";
 
 const CRON_SECRET = process.env.CRON_SECRET;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function authorized(req) {
   if (!CRON_SECRET) return false;
@@ -46,9 +49,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const r = await sendBroadcast({ title, body, url });
-    console.info("push/announce sent", { id: r.id, recipients: r.recipients });
-    return res.status(200).json({ ok: true, id: r.id, recipients: r.recipients });
+    // Les personnes ayant refusé les annonces sont retirées AVANT l'envoi
+    // (lib/pushServer.js → sendAnnouncement).
+    const admin = SUPABASE_URL && SERVICE_ROLE_KEY
+      ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      : null;
+    const r = await sendAnnouncement(admin, { title, body, url });
+    console.info("push/announce sent", { id: r.id || null, recipients: r.recipients, scope: r.scope, optedOut: r.optedOut ?? null });
+    return res.status(200).json({ ok: true, id: r.id || null, recipients: r.recipients, scope: r.scope });
   } catch (err) {
     console.error("push/announce error:", err?.message || err);
     return res.status(500).json({ error: "Broadcast failed" });

@@ -124,6 +124,24 @@ export default async function handler(req, res) {
       comeback.push(p.id);
     }
 
+    // ── Refus de rappels : appliqués ICI, cote serveur ────────────────────
+    // Un interrupteur qui ne changerait que l'affichage ne vaut rien : la
+    // liste des refus est retiree AVANT tout envoi. Le RPC renvoie uniquement
+    // les personnes ayant explicitement dit non ; une absence de ligne (compte
+    // cree avant la migration v44) vaut donc « pas de refus », jamais
+    // « exclu » — c'est le sens sur en cas d'echec de lecture.
+    const optedOut = new Set();
+    const { data: optOutRows, error: optOutError } = await admin
+      .rpc("push_opted_out_users", { p_channel: "reminders" });
+    if (optOutError) {
+      // Migration v44 pas encore passee : on continue avec le comportement
+      // d'avant plutot que d'annuler tous les rappels du jour.
+      console.warn("push/daily opt-out lookup unavailable", { code: optOutError.code || null });
+    } else {
+      for (const row of optOutRows || []) if (row?.user_id) optedOut.add(row.user_id);
+    }
+    const keep = (ids) => ids.filter((id) => !optedOut.has(id));
+
     // Nudge alterne etude / planning selon le jour (variete anti-lassitude).
     const planningDay = parseInt(today.replace(/-/g, ""), 10) % 2 === 0;
 
@@ -137,10 +155,23 @@ export default async function handler(req, res) {
       comeback: automations.comeback_day3,
     };
 
+    const targets = {
+      exam: keep(examList),
+      streak: keep(streakAtRisk),
+      nudge: keep(studyNudge),
+      comeback: keep(comeback),
+    };
+
     const summary = {
       date: today,
-      counts: { exam: examList.length, streak: streakAtRisk.length, nudge: studyNudge.length, comeback: comeback.length },
-      totalTargeted: examList.length + streakAtRisk.length + studyNudge.length + comeback.length,
+      counts: {
+        exam: targets.exam.length,
+        streak: targets.streak.length,
+        nudge: targets.nudge.length,
+        comeback: targets.comeback.length,
+      },
+      optedOut: optedOut.size,
+      totalTargeted: targets.exam.length + targets.streak.length + targets.nudge.length + targets.comeback.length,
     };
 
     if (dry) {
@@ -149,7 +180,7 @@ export default async function handler(req, res) {
 
     // Envoi batché, résilient (un groupe qui échoue n'annule pas les autres).
     const sent = {};
-    for (const [key, ids] of [["exam", examList], ["streak", streakAtRisk], ["nudge", studyNudge], ["comeback", comeback]]) {
+    for (const [key, ids] of Object.entries(targets)) {
       if (!ids.length) { sent[key] = { recipients: 0 }; continue; }
       // Une relance coupée depuis l'admin ne part pas, mais son décompte reste
       // visible dans le récapitulatif : on saurait ce qu'on se prive d'envoyer.

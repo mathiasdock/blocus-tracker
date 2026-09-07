@@ -7,11 +7,15 @@ import { TimerProvider } from "../contexts/TimerContext";
 import { NotificationProvider } from "../contexts/NotificationContext";
 import { ToastProvider } from "../contexts/ToastContext";
 import { I18nProvider, useI18n } from "../contexts/I18nContext";
+import { ConsentProvider, useConsent } from "../contexts/ConsentContext";
 import { supabase, isOfflineDev } from "../lib/supabaseClient";
 import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
-import { initOneSignal, loginUser } from "../lib/onesignal";
+import { disablePush, initOneSignal, loginUser } from "../lib/onesignal";
+import ConsentManager from "../components/ConsentManager";
+import LegalUpdateNotice from "../components/LegalUpdateNotice";
+import { recordConsentChoice } from "../lib/privacySettings";
 import SeoHead from "../components/SeoHead";
 import PageTransition from "../components/PageTransition";
 import { initSensoryFeedback } from "../lib/sensoryFeedback";
@@ -328,13 +332,28 @@ function ReferralCapture() {
 }
 
 // Ré-associe l'abonnement push à l'utilisateur uniquement s'il l'a déjà activé
-// (flag localStorage). N'init RIEN pour les utilisateurs qui n'ont jamais opt-in
-// → aucun coût de chargement du SDK OneSignal pour eux.
+// (flag localStorage) ET tant que le consentement « fonctionnel » tient. N'init
+// RIEN sinon → aucun chargement du SDK OneSignal, donc aucune donnée envoyée
+// chez un tiers, pour qui n'a rien demandé.
+//
+// Le retrait du consentement doit AGIR : quand la catégorie repasse à false, on
+// désinscrit vraiment l'appareil au lieu de se contenter de ne plus initialiser
+// (l'abonnement existant continuerait sinon de recevoir des notifications).
 function PushInit() {
   const { user } = useAuth();
+  const { allows, hydrated } = useConsent();
+  const functionalAllowed = allows("functional");
+
   useEffect(() => {
-    if (!user || typeof window === "undefined") return;
-    if (localStorage.getItem("bt_push_enabled") !== "1") return;
+    if (typeof window === "undefined" || !hydrated) return undefined;
+
+    if (!functionalAllowed) {
+      if (localStorage.getItem("bt_push_enabled") === "1") disablePush();
+      return undefined;
+    }
+    if (!user) return undefined;
+    if (localStorage.getItem("bt_push_enabled") !== "1") return undefined;
+
     let cancelled = false;
     (async () => {
       try {
@@ -343,7 +362,30 @@ function PushInit() {
       } catch (_) {}
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, functionalAllowed, hydrated]);
+  return null;
+}
+
+// Recopie le choix cookies/traceurs sur le COMPTE, pour qu'il suive la personne
+// d'un appareil à l'autre — et qu'il existe une trace de ce qui a été choisi.
+// Silencieux : la migration v44 peut ne pas être encore passée, et un miroir
+// indisponible ne doit jamais empêcher le choix local de s'appliquer.
+function ConsentSync() {
+  const { user } = useAuth();
+  const { consent, hydrated } = useConsent();
+  const lastSyncedRef = useRef(null);
+
+  useEffect(() => {
+    if (!user || !hydrated || !consent?.decidedAt) return;
+    // Un enregistrement produit deux mises à jour d'état (retour direct +
+    // événement inter-onglets) : sans cette signature, chaque choix partirait
+    // deux fois en base pour rien.
+    const signature = `${user.id}|${consent.version}|${consent.decidedAt}|${JSON.stringify(consent.categories)}`;
+    if (lastSyncedRef.current === signature) return;
+    lastSyncedRef.current = signature;
+    recordConsentChoice(supabase, user.id, consent);
+  }, [user, hydrated, consent]);
+
   return null;
 }
 
@@ -404,6 +446,7 @@ export default function App({ Component, pageProps }) {
   return (
     <AuthProvider>
       <I18nProvider>
+      <ConsentProvider>
       <TimerProvider>
       <NotificationProvider>
       <ToastProvider>
@@ -425,10 +468,14 @@ export default function App({ Component, pageProps }) {
         <GlobalLevelUpWatcher />
         <ReferralCapture />
         <PushInit />
+        <ConsentSync />
         <InstallBanner />
+        <ConsentManager />
+        <LegalUpdateNotice />
       </ToastProvider>
       </NotificationProvider>
       </TimerProvider>
+      </ConsentProvider>
       </I18nProvider>
     </AuthProvider>
   );

@@ -10,7 +10,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getBearerToken, getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
-import { getPushAudience, listRecentPushes, sendBroadcast, sendPushToUsers, cancelPush } from "../../../lib/pushServer";
+import { getPushAudience, listRecentPushes, sendAnnouncement, sendPushToUsers, cancelPush } from "../../../lib/pushServer";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -130,8 +130,10 @@ export default async function handler(req, res) {
 
   try {
     if (target.type === "all") {
-      const r = await sendBroadcast(opts);
-      return res.status(200).json({ ok: true, recipients: r.recipients ?? null, scope: "all" });
+      // « Tous » veut dire tous ceux qui n'ont pas dit non : le refus des
+      // annonces est appliqué ici, pas seulement affiché dans le profil.
+      const r = await sendAnnouncement(auth.admin, opts);
+      return res.status(200).json({ ok: true, recipients: r.recipients ?? null, scope: "all", optedOut: r.optedOut ?? null });
     }
 
     let userIds = [];

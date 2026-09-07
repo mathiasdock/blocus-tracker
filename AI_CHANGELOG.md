@@ -2,6 +2,114 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-07 - Minimisation : agregats, nom facultatif, champs promo supprimes
+
+Troisieme passe. Migrations v46 et v47 ecrites ET appliquees.
+
+PUBLICATIONS EXPIREES (v46). v45 vidait image_url/caption mais gardait la
+ligne, qui contient encore user_id et created_at : « ce compte a publie a
+cette heure ». Ce n'est pas anonyme. Nouvelle table user_activity_totals
+(deux entiers par compte, sans date ni contenu, RLS = sa propre ligne
+uniquement, alimentee par trigger a la CREATION et jamais decrementee). La
+ligne posts est desormais SUPPRIMEE a 24 h, likes et commentaires en cascade.
+award_badges_for_user lit les compteurs ; deux lignes changees, le reste
+identique. Verifie avant d'ecrire : get_gamification_levels ne compte pas les
+posts, award_badges ne revoque jamais un badge, le repli client fait l'union
+des badges persistes — l'XP historique ne peut donc pas baisser. Reprise :
+26 posts = 26 au compteur, 75 reactions = 75, 0 ecart.
+
+NOM FACULTATIF. profiles.last_name etait deja nullable (6 comptes sans nom) et
+tous les affichages etaient deja null-safe : seuls trois validateurs bloquaient
+(signup, AuthContext, onboarding). Retires. Champ marque « Optionnel »,
+suppression possible en vidant le champ dans le profil. Aucune migration.
+
+AGE : reste a 16 ans (decision de Mathias). Les documents expliquent desormais
+POURQUOI — l'age du consentement RGPD va de 13 a 16 ans selon l'Etat membre et
+le seuil belge de 13 ans ne gouverne pas un utilisateur allemand. Aucune
+verification d'age invasive.
+
+CHAMPS PROMO (v47). promo_emails / promo_emails_at / get_my_promo_emails() /
+get_promo_email_audience() / stamp_promo_email_consent() + trigger + index :
+supprimes apres accord. 0 opt-in, 0 horodatage, rien dans le depot.
+get_promo_email_audience renvoyait id+email+prenom de tous les comptes sans
+filtrer sur le consentement (service_role uniquement, donc aucune fuite).
+
+REDACTION. Plus de garantie inconditionnelle de suppression : « nettoyage
+programme quotidien, normalement sous 48 h », avec mention explicite qu'un
+passage peut echouer. Transferts hors UE : aucune affirmation non verifiable.
+
+## 2026-09-07 - Passe de coherence + migrations v44/v45 APPLIQUEES
+
+Deuxieme passe demandee par Mathias avant execution des migrations. Quatre
+corrections de fond, puis application en base (nouvelle regle : Claude applique
+lui-meme, voir CLAUDE.md regle 5).
+
+TRANSFERTS HORS UE : la politique affirmait que les clauses contractuelles types
+et le Data Privacy Framework etaient en place. Invérifiable depuis le depot,
+donc supprime. Le texte decrit desormais les mecanismes possibles et dit
+explicitement qu'il ne peut pas attester lequel s'applique. En revanche la
+region Supabase A ETE verifiee (eu-north-1, Stockholm) : la base est dans l'UE,
+c'est ecrit tel quel.
+
+RETENTION DU FEED : trois durees circulaient (24 h a l'affichage, 48 h dans
+l'outil admin, conservation illimitee en base). Une seule regle desormais : 24 h.
+Nouvelle route /api/cron/purge-posts (cron Vercel quotidien) qui supprime le
+FICHIER image puis vide image_url et caption. La ligne `posts` est CONSERVEE :
+elle sert de compteur a l'XP et aux badges (`influencer` = 10 publications),
+la supprimer ferait baisser le niveau de tout le monde. `image_url` devient
+donc nullable. storage-cleanup et son libelle passent a 24 h.
+
+CCPA : le texte laissait entendre que l'app y est soumise. Elle ne l'est
+probablement pas (seuils non atteints). La section distingue maintenant les
+droits offerts VOLONTAIREMENT a tout le monde et ceux qui s'appliqueraient par
+la loi. GPC reste honore mondialement.
+
+MIGRATIONS APPLIQUEES. Verification prealable du schema REEL : `deleted_accounts`
+avait derive du depot (colonne `original_id` et non `user_id`, pas de
+`deleted_by`, et stockage supplementaire de study_field/study_year). La v45
+ecrite d'apres le depot aurait echoue EN SILENCE. Reecrite puis appliquee en
+deux temps : v45a (structure) puis v45b (anonymisation de 27 lignes, toutes
+porteuses d'une identite complete) apres accord explicite. v44 : table
+user_privacy_settings + backfill de 246 lignes. Resultat verifie : 27 lignes de
+journal conservees, 0 encore identifiante.
+
+## 2026-09-07 - Audit de conformite vie privee (RGPD + lois americaines)
+
+Audit complet du depot puis mise en conformite. Aucune migration executee :
+`migration_v44_privacy_consent.sql` et `migration_v45_deletion_minimization.sql`
+sont a lancer a la main, dans cet ordre. Le code fonctionne AVANT comme APRES
+leur execution (detection de table absente puis repli).
+
+Trois ecarts reels corriges. 1) `self_delete_user()` recopiait pseudo, prenom,
+NOM et etablissement dans `deleted_accounts`, conservee sans limite : supprimer
+son compte archivait donc son identite, alors que la politique promettait
+l'effacement. Le journal devient anonyme (date, origine, anciennete en mois) et
+v45 anonymise l'historique deja ecrit. 2) La suppression ne touchait pas
+Supabase Storage : avatars, photos du feed et pieces jointes survivaient a la
+suppression du compte. `pages/api/account/delete.js` efface d'abord tous les
+fichiers sous `<user.id>/` dans les cinq buckets, puis appelle le meme RPC avec
+le jeton de la personne. 3) Les polices venaient de Google Fonts : chaque
+visiteur, meme non connecte, envoyait son IP a Google. Elles sont auto-hebergees
+dans `public/fonts` (memes noms de familles, donc tailwind.config.js et le rendu
+canvas de StudyRecap.js sont inchanges) et les hotes Google sortent de la CSP.
+
+Nouveau moteur de consentement (`lib/consent.js`, `contexts/ConsentContext.js`,
+`components/ConsentManager.js`) : refus par defaut partout, quatre categories,
+« Tout refuser » de meme poids visuel que « Tout accepter » (`.btn-neutral`),
+aucune case pre-cochee, signal GPC honore mondialement. Le SDK OneSignal ne se
+charge plus tant que la categorie « fonctionnel » n'est pas accordee, et son
+retrait desabonne reellement l'appareil (`disablePush`). Les refus de rappels et
+d'annonces sont appliques COTE SERVEUR (`push_opted_out_users`), pas seulement
+dans l'interface.
+
+Cote comptes : case CGU non pre-cochee a l'inscription avec version enregistree,
+rappel non bloquant de re-acceptation pour les comptes existants, carte
+« Confidentialite » dans le profil (preferences de traceurs, preferences de
+notifications, export JSON de ses donnees, droits, suppression). Les quatre
+documents legaux sont reecrits pour decrire ce que le code fait vraiment —
+notamment le fait que le service worker telecharge un fichier OneSignal des
+l'installation de la PWA, y compris sans notifications activees.
+
 ## 2026-08-07 - Inscription complete en deux etapes
 
 Ajustement demande par Mathias apres validation du design auth : la creation de

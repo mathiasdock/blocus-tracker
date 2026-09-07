@@ -195,7 +195,10 @@ export function AuthProvider({ children }) {
     const ref   = (referralCode || "").trim().toUpperCase() || null;
 
     if (clean.length < 3)   return { error: "Le pseudo doit faire au moins 3 caractères." };
-    if (!fn || !ln)          return { error: "Le prénom et le nom sont obligatoires." };
+    // Le NOM est facultatif (minimisation) : il est visible par tous les
+    // membres connectés, et le pseudo suffit à identifier quelqu'un dans
+    // l'app. Un champ laissé vide doit devenir NULL, pas une chaîne vide.
+    if (!fn)                 return { error: "Le prénom est obligatoire." };
     if (!uni)                return { error: "L'établissement est obligatoire." };
     if (password.length < 6) return { error: "Le mot de passe doit faire au moins 6 caractères." };
     if (!em)                 return { error: "L'adresse email est obligatoire." };
@@ -272,7 +275,7 @@ export function AuthProvider({ children }) {
           data: {
             pseudo: clean,
             first_name: fn,
-            last_name: ln,
+            last_name: ln || null,
             university: uni,
             study_field: field,
             study_year: year,
@@ -330,7 +333,7 @@ export function AuthProvider({ children }) {
       const { error: pErr } = await supabase
         .from("profiles")
         .upsert({
-          id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln,
+          id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln || null,
           university: uni, study_field: field, study_year: year,
           timezone: detectTimezone(),
         }, { onConflict: "id" });

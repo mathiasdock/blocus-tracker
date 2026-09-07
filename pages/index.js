@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import { useConsent } from "../contexts/ConsentContext";
 import { COUNTRIES } from "../lib/universities";
 import { HOME_FAQ, HOME_FAQ_EN } from "../lib/seo";
 import { getLandingContent } from "../lib/landingContent";
@@ -201,6 +202,7 @@ function LiveChrono({ label }) {
 export default function Home() {
   const { user, loading, profileStatus } = useAuth();
   const { lang } = useI18n();
+  const { openSettings: openConsentSettings } = useConsent();
   const router = useRouter();
 
   // Contenu de la langue courante (suit l'appareil) fusionné avec les champs
@@ -850,8 +852,13 @@ export default function Home() {
               </ul>
             </nav>
           </div>
-          <div className="mx-auto mt-10 flex max-w-6xl items-center justify-between gap-3 pt-6 text-xs" style={{ borderTop: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}>
+          <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-3 pt-6 text-xs" style={{ borderTop: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}>
             <span>© {new Date().getFullYear()} Blocus Tracker</span>
+            {/* Le bandeau s'affiche sur la landing : son panneau doit y rester
+                joignable ensuite, sans avoir à créer un compte pour y accéder. */}
+            <button type="button" onClick={openConsentSettings} className="min-h-11 transition-colors hover:underline">
+              {c.footer.cookieSettings}
+            </button>
             <span>{c.footer.credit}</span>
           </div>
       </footer>

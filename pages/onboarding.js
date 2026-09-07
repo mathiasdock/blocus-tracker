@@ -172,10 +172,6 @@ export default function Onboarding() {
         setIdentityError(t("signup.errFirstName"));
         return;
       }
-      if (!cleanLastName) {
-        setIdentityError(t("signup.errLastName"));
-        return;
-      }
       if (cleanPseudo.length < 3 || cleanPseudo.length > 30 || /\s/.test(cleanPseudo)) {
         setIdentityError(t("signup.errPseudo"));
         return;
@@ -233,7 +229,7 @@ export default function Onboarding() {
             id: user.id,
             pseudo: cleanPseudo,
             first_name: cleanFirstName,
-            last_name: cleanLastName,
+            last_name: cleanLastName || null,
             university: selectedUniversity,
             email: user.email,
             timezone,
@@ -450,7 +446,10 @@ export default function Onboarding() {
                         />
                       </div>
                       <div>
-                        <label className="label" htmlFor="onboarding-last-name">{t("profile.lastName")}</label>
+                        <div className="mb-1 flex items-center justify-between">
+                          <label className="label mb-0" htmlFor="onboarding-last-name">{t("profile.lastName")}</label>
+                          <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.optional")}</span>
+                        </div>
                         <input
                           id="onboarding-last-name"
                           className="input"

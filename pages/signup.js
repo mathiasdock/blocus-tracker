@@ -8,9 +8,13 @@ import UniPicker from "../components/UniPicker";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { STUDY_YEARS } from "../lib/studyYears";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
+import { recordLegalAcceptance } from "../lib/privacySettings";
+import { supabase } from "../lib/supabaseClient";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ACCOUNT_FIELDS = ["firstName", "lastName", "pseudo", "email", "password", "confirm"];
+// `lastName` n'y figure plus : le nom est facultatif (minimisation).
+const ACCOUNT_FIELDS = ["firstName", "pseudo", "email", "password", "confirm"];
 
 function FieldMessage({ id, error, helper }) {
   if (!error && !helper) return null;
@@ -47,6 +51,9 @@ export default function Signup() {
   const [touched, setTouched] = useState({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // JAMAIS pré-cochée. Un accord contractuel obtenu par défaut n'en est pas un,
+  // et une case déjà cochée est le dark pattern le plus banal qui soit.
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     if (loading || !user || signupInProgress.current) return;
@@ -66,7 +73,6 @@ export default function Signup() {
 
   const errors = {
     firstName: !firstName.trim() ? t("signup.errFirstName") : "",
-    lastName: !lastName.trim() ? t("signup.errLastName") : "",
     pseudo: pseudo.trim().length < 3 || /\s/.test(pseudo.trim())
       ? t("signup.errPseudo")
       : "",
@@ -116,6 +122,11 @@ export default function Signup() {
       document.getElementById("signup-university")?.focus();
       return;
     }
+    if (!acceptedTerms) {
+      setError(t("signup.errTerms"));
+      document.getElementById("signup-terms")?.focus();
+      return;
+    }
 
     let referralCode = null;
     try {
@@ -152,6 +163,18 @@ export default function Signup() {
           setError(t("signup.unavailable"));
         }
         return;
+      }
+
+      // Trace de l'acceptation : qui, quand, et QUELLE version. Sans la
+      // version, l'enregistrement ne prouve rien — on ne saurait pas à quel
+      // texte la personne a dit oui. Un échec ici (migration v44 pas encore
+      // passée, réseau) ne bloque pas l'inscription : le rappel de
+      // LegalUpdateNotice reprendra la main à la prochaine ouverture.
+      if (userId) {
+        await recordLegalAcceptance(supabase, userId, {
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+        });
       }
 
       try {
@@ -228,20 +251,20 @@ export default function Signup() {
                 </div>
 
                 <div>
-                  <label className="label" htmlFor="signup-lastName">{t("profile.lastName")}</label>
+                  <div className="mb-1 flex items-center justify-between">
+                    <label className="label mb-0" htmlFor="signup-lastName">{t("profile.lastName")}</label>
+                    <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.optional")}</span>
+                  </div>
                   <input
                     id="signup-lastName"
-                    className={`input ${touched.lastName && errors.lastName ? "input-error" : ""}`}
+                    className="input"
                     value={lastName}
                     onChange={event => { setLastName(event.target.value); clearServerError(); }}
-                    onBlur={() => touch("lastName")}
                     autoComplete="family-name"
                     maxLength={80}
-                    required
-                    aria-invalid={Boolean(touched.lastName && errors.lastName)}
-                    aria-describedby={touched.lastName && errors.lastName ? "signup-lastName-message" : undefined}
+                    aria-describedby="signup-lastName-message"
                   />
-                  <FieldMessage id="signup-lastName-message" error={touched.lastName ? errors.lastName : ""} />
+                  <FieldMessage id="signup-lastName-message" helper={t("signup.lastNameHint")} />
                 </div>
               </div>
 
@@ -430,6 +453,37 @@ export default function Signup() {
                 </div>
               )}
 
+              {/* Accord aux CGU (contractuel) + accusé de lecture de la
+                  politique de confidentialité. Les deux sont distincts à
+                  dessein : une politique de confidentialité s'informe, elle ne
+                  fonde aucune base légale à elle seule. Les deux documents
+                  s'ouvrent AVANT l'inscription, dans un nouvel onglet, pour ne
+                  pas perdre le formulaire à moitié rempli. */}
+              <label
+                htmlFor="signup-terms"
+                className="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-3"
+                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}
+              >
+                <input
+                  id="signup-terms"
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={event => { setAcceptedTerms(event.target.checked); clearServerError(); }}
+                  className="mt-0.5 h-[18px] w-[18px] shrink-0 cursor-pointer accent-[#14B885]"
+                  aria-describedby="signup-terms-help"
+                />
+                <span id="signup-terms-help" className="text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                  {t("signup.termsPre")}{" "}
+                  <Link href="/legal?doc=terms" target="_blank" rel="noopener" className="bt-accent-link font-semibold hover:underline">
+                    {t("signup.termsLink")}
+                  </Link>{" "}
+                  {t("signup.termsMid")}{" "}
+                  <Link href="/legal?doc=privacy" target="_blank" rel="noopener" className="bt-accent-link font-semibold hover:underline">
+                    {t("signup.privacyLink")}
+                  </Link>.
+                </span>
+              </label>
+
               {error && <div className="bt-form-alert" role="alert" aria-live="polite">{error}</div>}
 
               <div className="flex gap-3 pt-2">
@@ -446,11 +500,8 @@ export default function Signup() {
                 </button>
               </div>
 
-              <p className="text-center text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                {t("signup.legalPre")} {" "}
-                <Link href="/legal" className="bt-accent-link font-medium hover:underline">
-                  {t("signup.legalLink")}
-                </Link>.
+              <p className="text-center text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
+                {t("signup.noMarketing")}
               </p>
             </div>
           )}
