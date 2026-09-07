@@ -174,6 +174,9 @@ function CommunityLogo({ university, size = 36, rounded = 12, className = "" }) 
         <img
           src={university.logo}
           alt=""
+          width={size - 4}
+          height={size - 4}
+          decoding="async"
           className="object-contain"
           style={{ width: size - 4, height: size - 4 }}
           onError={() => setFailed(true)}
