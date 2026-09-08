@@ -15,6 +15,7 @@ import { formatMinutesShort, computeStreak } from "../lib/format";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { parseQuickObjective } from "../lib/planningQuickAdd";
+import { writeSessionGoal } from "../lib/sessionGoal";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 
@@ -30,6 +31,15 @@ const weekdaysShortFor = (lang) => (lang === "en" ? WEEKDAYS_SHORT_EN : WEEKDAYS
 const monthsFor        = (lang) => (lang === "en" ? MONTHS_EN : MONTHS_FR);
 const localeFor        = (lang) => (lang === "en" ? "en-GB" : "fr-FR");
 const HOURS  = Array.from({ length: 16 }, (_, i) => i + 7);
+
+// Largeur mini d'une colonne de jour dans la grille horaire. En dessous, un
+// titre d'objectif n'est plus lisible : sur téléphone la semaine défile
+// horizontalement plutôt que d'écraser 7 colonnes dans 390 px.
+const TIMEGRID_MIN_COL = 104;
+const TIMEGRID_GUTTER  = 52;
+// Voile accent sur la colonne du jour — assez léger pour rester lisible en
+// clair comme en sombre, d'où une rgba littérale plutôt qu'un token opaque.
+const TODAY_TINT = "rgba(20,184,133,0.06)";
 
 // ── Context ────────────────────────────────────────────────────
 const Ctx = createContext(null);
@@ -58,6 +68,15 @@ function addDays(dateStr, n) {
 // planning raisonne désormais en jour local — un jour de planning EST un jour
 // de calendrier local.
 function localToday() { return ymd(new Date()); }
+// Compte à rebours d'un examen. « J-15 » est une convention FRANÇAISE : en
+// anglais elle ne veut rien dire, et elle était écrite en dur. Le libellé passe
+// donc par i18n ("J-{n}" / "{n} days").
+function examCountdown(days, t) {
+  if (days === 0) return t("exam.today");
+  if (days === 1) return t("plan.tomorrow");
+  if (days < 0)   return t("exam.passed");
+  return t("plan.badgeDays").replace("{n}", String(days));
+}
 // Label court et humain d'une date pour l'aperçu de l'ajout rapide.
 function quickDateLabel(iso, lang, t) {
   const today = localToday();
@@ -85,17 +104,6 @@ function getWeekDays(dateStr) {
 function getHour(time) {
   if (!time) return null;
   return parseInt(time.split(":")[0], 10);
-}
-function getDayCellStyle(items, courseColor) {
-  const ids    = [...new Set(items.filter(o => o.course_id).map(o => o.course_id))];
-  const colors = ids.map(id => courseColor(id));
-  if (!colors.length) return {};
-  if (colors.length === 1) return { backgroundColor: colors[0] + "45" };
-  if (colors.length === 2)
-    return { background: `linear-gradient(135deg, ${colors[0]}55 50%, ${colors[1]}55 50%)` };
-  const pct   = 100 / colors.length;
-  const stops = colors.flatMap((c, i) => [`${c}55 ${i*pct}%`, `${c}55 ${(i+1)*pct}%`]);
-  return { background: `linear-gradient(to right, ${stops.join(",")})` };
 }
 
 // ── Recurrence helpers ───────────────────────────────────────────
@@ -134,6 +142,72 @@ function nextRecurrenceDate(o) {
   return null;
 }
 
+// ── Icons ─────────────────────────────────────────────────────
+const ic = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+const IconChevron = ({ dir = "left", size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+    <polyline points={dir === "left" ? "15 18 9 12 15 6" : "9 18 15 12 9 6"} />
+  </svg>
+);
+const IconPlay = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+);
+const IconPlus = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} strokeWidth="2.5" aria-hidden="true">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+const IconClose = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} strokeWidth="2.5" aria-hidden="true">
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+const IconEdit = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+);
+const IconCalendar = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+    <rect x="3" y="4" width="18" height="18" rx="2"/>
+    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+const IconCopy = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+    <rect x="9" y="9" width="13" height="13" rx="2"/>
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>
+);
+const IconClock = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+const IconSparkle = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 2.5l1.9 5.1 5.1 1.9-5.1 1.9L12 16.5l-1.9-5.1L5 9.5l5.1-1.9z"/>
+    <path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>
+  </svg>
+);
+
+// ── Field : libellé + contrôle ────────────────────────────────
+// Les formulaires n'avaient aucun libellé visible : on devinait à quoi
+// servaient « min », le sélecteur de cours ou la rangée L M M J V S D.
+function Field({ label, hint, htmlFor, children, className = "" }) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <label htmlFor={htmlFor} className="mb-1 block text-[11px] font-semibold uppercase tracking-wider"
+        style={{ color: "var(--bt-text-3)" }}>
+        {label}
+        {hint && <span className="ml-1 font-normal normal-case tracking-normal" style={{ color: "var(--bt-text-4)" }}>({hint})</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
 // ── RecurrencePicker ─────────────────────────────────────────────
 // Weekday multi-select (Lun→Dim, sourced from WEEKDAYS_SHORT so labels
 // stay in sync with the rest of the file) + optional end date. Selecting
@@ -151,10 +225,10 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
             <button key={dow} type="button" onClick={() => onToggle(dow)}
               aria-pressed={active}
               title={wd[(dow + 6) % 7]}
-              className="w-8 h-8 rounded-full text-[11px] font-bold transition-all shrink-0"
+              className="h-9 flex-1 rounded-[10px] text-[11px] font-bold transition-all"
               style={active
-                ? { backgroundColor: "#14B885", color: "#fff" }
-                : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
+                ? { backgroundColor: "var(--bt-action)", color: "#fff" }
+                : { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
               {wd[(dow + 6) % 7].slice(0, 1)}
             </button>
           );
@@ -162,8 +236,8 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
       </div>
       {weekdays.length > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("plan.recurrenceUntil")}</span>
-          <input type="date" className="input text-xs py-1 flex-1" min={minDate}
+          <span className="shrink-0 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.recurrenceUntil")}</span>
+          <input type="date" className="input flex-1 py-1 text-xs" min={minDate}
             value={until} onChange={e => onUntilChange(e.target.value)} />
         </div>
       )}
@@ -177,36 +251,99 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
 // fournit `value` (title/courseId/minutes/time/weekdays/until) +
 // `onChange(patch)` + `onSubmit`, et `onCancel` optionnel.
 const EMPTY_OBJECTIVE_FORM = { title: "", courseId: "", minutes: "", time: "", weekdays: [], until: "" };
-function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLabel, autoFocus, className = "space-y-2.5", style }) {
+function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLabel, autoFocus, title, className = "", style }) {
   const { courses, t } = usePlan();
   const weekdays = value.weekdays || [];
   return (
-    <form onSubmit={onSubmit} className={className} style={style}>
-      <input className="input text-sm" value={value.title} autoFocus={autoFocus}
-        onChange={e => onChange({ title: e.target.value })}
-        placeholder={t("plan.newObjective")} />
+    <form onSubmit={onSubmit} className={`space-y-3 ${className}`} style={style}>
+      {title && (
+        <p className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{title}</p>
+      )}
+      <Field label={t("plan.formObjective")}>
+        <input className="input text-sm" value={value.title} autoFocus={autoFocus}
+          onChange={e => onChange({ title: e.target.value })}
+          placeholder={t("plan.newObjective")} />
+      </Field>
       <div className="flex gap-2">
-        <select className="input text-sm flex-1" value={value.courseId}
-          onChange={e => onChange({ courseId: e.target.value })}>
-          <option value="">{t("plan.courseSelect")}</option>
-          {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <input className="input text-sm w-20" type="number" min={5} step={5} placeholder="min"
-          value={value.minutes} onChange={e => onChange({ minutes: e.target.value })} />
+        <Field label={t("plan.formCourse")} className="flex-1">
+          <select className="input text-sm" value={value.courseId}
+            onChange={e => onChange({ courseId: e.target.value })}>
+            <option value="">{t("plan.courseSelect")}</option>
+            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
+        <Field label={t("plan.formDuration")} className="w-24 shrink-0">
+          <input className="input text-sm" type="number" min={5} step={5} placeholder="min"
+            value={value.minutes} onChange={e => onChange({ minutes: e.target.value })} />
+        </Field>
       </div>
-      <input className="input text-sm" type="time" value={value.time}
-        onChange={e => onChange({ time: e.target.value })} />
-      <RecurrencePicker
-        weekdays={weekdays}
-        onToggle={dow => onChange({ weekdays: weekdays.includes(dow) ? weekdays.filter(d => d !== dow) : [...weekdays, dow] })}
-        until={value.until || ""}
-        onUntilChange={v => onChange({ until: v })}
-        minDate={minDate} />
-      <div className="flex gap-2">
-        <button type="submit" className="btn-primary flex-1 text-sm py-2">{submitLabel}</button>
+      <Field label={t("plan.formTime")} hint={t("plan.formOptional")}>
+        <input className="input text-sm" type="time" value={value.time}
+          onChange={e => onChange({ time: e.target.value })} />
+      </Field>
+      <Field label={t("plan.formRepeat")} hint={t("plan.formOptional")}>
+        <RecurrencePicker
+          weekdays={weekdays}
+          onToggle={dow => onChange({ weekdays: weekdays.includes(dow) ? weekdays.filter(d => d !== dow) : [...weekdays, dow] })}
+          until={value.until || ""}
+          onUntilChange={v => onChange({ until: v })}
+          minDate={minDate} />
+      </Field>
+      <div className="flex gap-2 pt-0.5">
+        <button type="submit" className="btn-primary flex-1 py-2 text-sm">{submitLabel}</button>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="btn-ghost flex-1 text-sm py-2">{t("common.cancel")}</button>
+          <button type="button" onClick={onCancel} className="btn-ghost flex-1 py-2 text-sm">{t("common.cancel")}</button>
         )}
+      </div>
+    </form>
+  );
+}
+
+// ── ExamForm ──────────────────────────────────────────────────
+// Ajout ET édition d'un examen (le même formulaire était écrit deux fois,
+// à l'identique, dans le modal — d'où deux occasions de diverger).
+// Le rouge n'est plus la couleur du formulaire : il identifie le TYPE
+// (liseré + pastille), l'action reste au vert de l'app. Un formulaire
+// entièrement rouge se lit comme une erreur, pas comme « examen ».
+const EMPTY_EXAM_FORM = { name: "", courseId: "", time: "", location: "" };
+function ExamForm({ value, onChange, onSubmit, onCancel, submitLabel, title, dateLabel }) {
+  const { courses, t } = usePlan();
+  return (
+    <form onSubmit={onSubmit} className="space-y-3 rounded-2xl p-4"
+      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
+        <p className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{title}</p>
+        {dateLabel && (
+          <span className="ml-auto truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{dateLabel}</span>
+        )}
+      </div>
+      <Field label={t("plan.formExamName")}>
+        <input className="input text-sm" value={value.name} required autoFocus
+          onChange={e => onChange({ name: e.target.value })}
+          placeholder={t("plan.examNamePlaceholder")} />
+      </Field>
+      <div className="flex gap-2">
+        <Field label={t("plan.formCourse")} className="flex-1">
+          <select className="input text-sm" value={value.courseId}
+            onChange={e => onChange({ courseId: e.target.value })}>
+            <option value="">{t("plan.courseSelect")}</option>
+            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
+        <Field label={t("plan.formTime")} className="w-28 shrink-0">
+          <input className="input text-sm" type="time" value={value.time}
+            onChange={e => onChange({ time: e.target.value })} />
+        </Field>
+      </div>
+      <Field label={t("plan.formLocation")} hint={t("plan.formOptional")}>
+        <input className="input text-sm" value={value.location}
+          onChange={e => onChange({ location: e.target.value })}
+          placeholder={t("plan.examLocationPlaceholder")} />
+      </Field>
+      <div className="flex gap-2 pt-0.5">
+        <button type="submit" className="btn-primary flex-1 py-2 text-sm">{submitLabel}</button>
+        <button type="button" onClick={onCancel} className="btn-ghost flex-1 py-2 text-sm">{t("common.cancel")}</button>
       </div>
     </form>
   );
@@ -223,27 +360,29 @@ function recurrenceBadgeLabel(o, t, lang) {
 }
 
 // ── ExamBadge ─────────────────────────────────────────────────
-// Badge J-X à 3 paliers de couleur (même palette que le badge examen du
-// Chrono/dashboard.js, pour rester cohérent visuellement entre les pages) :
-// rouge <= 0 j (aujourd'hui/passé), orange <= 7 j (urgent), vert au-delà.
+// Compte à rebours à 3 paliers (aujourd'hui/passé → rouge, ≤ 7 j → ambre,
+// au-delà → vert). Tokens et non hex en dur : les anciens #FEF2F2/#FEF3C7
+// restaient des pastilles blanchâtres illisibles en mode sombre.
 function ExamBadge({ days }) {
   const { t } = usePlan();
-  const bg    = days <= 0 ? "#FEF2F2" : days <= 7 ? "#FEF3C7" : "#EAFBF4";
-  const color = days <= 0 ? "#DC2626" : days <= 7 ? "#D97706" : "#0E8F68";
-  const label = days === 0 ? t("exam.today")
-    : days === 1 ? t("plan.tomorrow")
-    : days > 1  ? `J-${days}`
-    : t("exam.passed");
+  const tone = days <= 0
+    ? { backgroundColor: "var(--bt-danger-bg)", color: "var(--bt-danger)", border: "1px solid var(--bt-danger-border)" }
+    : days <= 7
+      ? { backgroundColor: "var(--bt-reward-bg)", color: "var(--bt-reward-text)", border: "1px solid var(--bt-reward-border)" }
+      : { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" };
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap"
-      style={{ backgroundColor: bg, color }}>
-      {label}
+    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums"
+      style={tone}>
+      {examCountdown(days, t)}
     </span>
   );
 }
 
 // ── RevisionChecklists ────────────────────────────────────────
-function RevisionChecklists() {
+// Avancement des révisions par cours. Rangées compactes : le cours, son
+// compteur, sa barre. Les cadres individuels d'avant faisaient trois bordures
+// empilées (carte + rangée + barre) pour une seule information.
+function RevisionChecklists({ className = "" }) {
   const { courses, t } = usePlan();
   const { user } = useAuth();
   const [counts, setCounts]         = useState({}); // courseId -> { done, total }
@@ -269,36 +408,28 @@ function RevisionChecklists() {
   if (!courses.length) return null;
 
   return (
-    <div className="card p-5 mt-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wider mb-3"
-        style={{ color: "var(--bt-text-4)" }}>
+    <section className={`card p-4 sm:p-5 ${className}`}>
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
         {t("checklist.sectionTitle")}
       </p>
-      <ul className="space-y-2">
+      <ul className="space-y-2.5">
         {courses.map(c => {
           const cnt = counts[c.id] || { done: 0, total: 0 };
           const pct = cnt.total ? Math.round(cnt.done / cnt.total * 100) : 0;
           return (
             <li key={c.id}>
               <button onClick={() => setOpenCourse(c)}
-                className="w-full text-left rounded-2xl px-3.5 py-3 transition-colors flex items-center gap-3"
-                style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)" }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-surface)"}>
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
-                    <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>
-                      {cnt.total === 0
-                        ? t("checklist.none")
-                        : `${cnt.done}/${cnt.total} ${t("checklist.tasks")} · ${pct}%`}
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                    <div className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${pct}%`, backgroundColor: c.color }} />
-                  </div>
+                className="bt-plan-revision-row w-full rounded-xl px-2 py-1.5 text-left transition-colors">
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
+                  <span className="shrink-0 text-xs font-semibold tabular-nums" style={{ color: cnt.total ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>
+                    {cnt.total === 0 ? t("checklist.none") : `${cnt.done}/${cnt.total}`}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                  <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
+                    style={{ transform: `scaleX(${pct / 100})`, backgroundColor: c.color }} />
                 </div>
               </button>
             </li>
@@ -314,24 +445,24 @@ function RevisionChecklists() {
           onChanged={loadCounts}
         />
       )}
-    </div>
+    </section>
   );
 }
 
 // ── TodayCard ─────────────────────────────────────────────────
 // Résumé permanent de la journée en cours — toujours visible, avant le
 // calendrier, quelle que soit la date actuellement sélectionnée/naviguée.
-// Surface ink (même langage que le hero chrono du dashboard et la carte
-// percentile des stats) : c'est le "moment de marque" du planning.
+// Surface ink (même langage que « Aujourd'hui » du Chrono) : c'est le
+// moment de marque du planning.
 // Intègre la bande "À préparer cette semaine" (strictement demain → J+6,
-// jamais aujourd'hui : le haut de la carte couvre déjà le jour même —
-// l'ancienne carte séparée répétait les objectifs du jour deux fois).
-function TodayCard() {
+// jamais aujourd'hui : le haut de la carte couvre déjà le jour même).
+function TodayCard({ className = "" }) {
   const { byDate, examsByDate, exams, objectives, toggle, courseColor, courseName, launchTimer, openDay, lang, t } = usePlan();
   const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
   const doneCount       = todayObjectives.filter(o => o.done).length;
+  const isEmptyToday    = todayObjectives.length === 0 && todayExams.length === 0;
 
   const weekEnd = addDays(today, 6);
   const weekAhead = [
@@ -349,128 +480,165 @@ function TodayCard() {
     .sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
   const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
 
-  const locale = lang === "en" ? "en-GB" : "fr-FR";
-  const dateLabel = dateFromYmd(today).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
+  // Premier objectif du jour encore à faire ET rattaché à un cours : c'est
+  // celui que « Commencer à réviser » lance (le chrono a besoin d'un cours).
+  const nextUp = todayObjectives.find(o => !o.done && o.course_id);
+
+  const dateLabel = dateFromYmd(today).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="card-ink card-lift px-5 py-4 mb-5 cursor-pointer" onClick={() => openDay(today)}>
-      <div className="flex items-center justify-between mb-3.5">
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
-          {t("plan.todayCardEyebrow")}
-        </p>
-        <span className="text-xs capitalize" style={{ color: "var(--bt-ink-muted)" }}>{dateLabel}</span>
-      </div>
-
-      <div className="flex items-center gap-6 flex-wrap mb-3.5">
-        <div>
-          <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
-            <AnimatedNumber value={doneCount} />/<AnimatedNumber value={todayObjectives.length} />
-          </p>
-          <p className="text-xs mt-1" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardObjectives")}</p>
+    <section className={`card-ink bt-grain p-5 ${className}`}>
+      <div className="relative z-10">
+        <div className="mb-4 flex items-baseline justify-between gap-3">
+          <h2 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
+            {t("plan.todayCardEyebrow")}
+          </h2>
+          <button onClick={() => openDay(today)}
+            className="truncate text-xs capitalize underline-offset-2 transition-colors hover:underline"
+            style={{ color: "var(--bt-ink-muted)" }}>
+            {dateLabel}
+          </button>
         </div>
-        {todayExams.length > 0 ? (
-          <div>
-            <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "#FCA5A5", letterSpacing: "-0.02em" }}>
-              <AnimatedNumber value={todayExams.length} />
-            </p>
-            <p className="text-xs mt-1" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardExamsToday")}</p>
-          </div>
-        ) : nextExam ? (
-          <div className="min-w-0">
-            <p className="font-num font-bold tabular-nums leading-none" style={{ fontSize: "1.9rem", color: "var(--bt-ink-text)", letterSpacing: "-0.02em" }}>
-              <AnimatedNumber value={nextExamDays} prefix="J-" />
-            </p>
-            <p className="text-xs mt-1 truncate max-w-[160px]" style={{ color: "var(--bt-ink-muted)" }}>{nextExam.name}</p>
-          </div>
-        ) : null}
-      </div>
 
-      {todayObjectives.length > 0 ? (
-        <div className="space-y-1.5" onClick={e => e.stopPropagation()}>
-          {todayObjectives.slice(0, 3).map(o => (
-            <div key={o.id} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
-                className="bt-task-check bt-task-check--ink w-3.5 h-3.5 shrink-0" />
-              {o.course_id && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />}
-              <span className={`bt-strike ${o.done ? "is-done" : ""} flex-1 min-w-0 truncate`} style={{ color: "var(--bt-ink-text)", opacity: o.done ? 0.5 : 1 }}>
-                {o.title || courseName(o.course_id) || "—"}
-              </span>
-              {!o.done && o.course_id && (
-                <button onClick={() => launchTimer(o.course_id)} title={t("plan.launchTimer")}
-                  className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors"
-                  style={{ color: "var(--bt-ink-muted)" }}
-                  onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-ink-text)"; e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.10)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-ink-muted)"; e.currentTarget.style.backgroundColor = "transparent"; }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                </button>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-num text-[2rem] font-extrabold leading-none tabular-nums tracking-[-0.03em]" style={{ color: "var(--bt-ink-text)" }}>
+              <AnimatedNumber value={doneCount} />/<AnimatedNumber value={todayObjectives.length} />
+            </p>
+            <p className="mt-1 text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardObjectives")}</p>
+          </div>
+
+          {todayExams.length > 0 ? (
+            <div className="min-w-0 text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
+                {t("plan.todayCardExamsToday")}
+              </p>
+              <p className="mt-1 truncate text-sm font-bold" style={{ color: "#FCA5A5" }}>
+                {todayExams.map(e => e.name).join(" · ")}
+              </p>
+            </div>
+          ) : nextExam ? (
+            <div className="min-w-0 text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
+                {t("plan.nextExam")}
+              </p>
+              <p className="mt-1 truncate text-sm font-bold" style={{ color: "var(--bt-ink-text)" }}>{nextExam.name}</p>
+              <p className="text-xs tabular-nums" style={{ color: "#FCA5A5" }}>{examCountdown(nextExamDays, t)}</p>
+            </div>
+          ) : null}
+        </div>
+
+        {isEmptyToday ? (
+          <div className="mt-4">
+            <p className="text-sm font-semibold" style={{ color: "var(--bt-ink-text)" }}>{t("plan.nothingToday")}</p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.nothingTodayHint")}</p>
+            <button onClick={() => openDay(today)}
+              className="bt-plan-ink-btn mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold">
+              <IconPlus size={13} />
+              {t("plan.dayAddObj")}
+            </button>
+          </div>
+        ) : (
+          <>
+            {todayObjectives.length > 0 && (
+              <ul className="mt-4 space-y-2">
+                {todayObjectives.slice(0, 3).map(o => (
+                  <li key={o.id} className="flex items-center gap-2.5 text-sm">
+                    <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
+                      aria-label={o.title || courseName(o.course_id) || "—"}
+                      className="bt-task-check bt-task-check--ink h-4 w-4 shrink-0" />
+                    {o.course_id && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(o.course_id) }} />}
+                    {/* La barre de rature vit sur un inline-block : posée sur
+                        le conteneur flex-1, elle s'étirait sur toute la
+                        largeur libre et barrait aussi le vide après le texte. */}
+                    <span className="min-w-0 flex-1" style={{ color: "var(--bt-ink-text)", opacity: o.done ? 0.5 : 1 }}>
+                      <span className={`bt-strike ${o.done ? "is-done" : ""} inline-block max-w-full truncate align-bottom`}>
+                        {o.title || courseName(o.course_id) || "—"}
+                      </span>
+                    </span>
+                    {o.target_minutes > 0 && (
+                      <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>{o.target_minutes} min</span>
+                    )}
+                  </li>
+                ))}
+                {todayObjectives.length > 3 && (
+                  <li>
+                    <button onClick={() => openDay(today)} className="pl-6 text-xs underline-offset-2 hover:underline"
+                      style={{ color: "var(--bt-ink-muted)" }}>
+                      +{todayObjectives.length - 3} {t("plan.todayCardMore")}
+                    </button>
+                  </li>
+                )}
+              </ul>
+            )}
+
+            {/* Pont vers le Chrono : le cours ET la durée de l'objectif sont
+                déjà posés à l'arrivée — plus besoin de les resaisir. */}
+            {nextUp && (
+              <button onClick={() => launchTimer(nextUp.course_id, nextUp.target_minutes, nextUp.title)}
+                className="bt-plan-ink-btn mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold">
+                <IconPlay size={12} />
+                {t("plan.startStudying")}
+              </button>
+            )}
+          </>
+        )}
+
+        {weekAhead.length > 0 && (
+          <div className="mt-4 border-t pt-3.5" style={{ borderColor: "var(--bt-ink-border)" }}>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
+              {t("plan.weekAheadTitle")}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {weekAhead.slice(0, WEEK_AHEAD_MAX).map(item => {
+                const days = daysUntil(item.date);
+                const dayLabel = days === 1 ? t("plan.tomorrow")
+                  : weekdaysShortFor(lang)[(dateFromYmd(item.date).getDay() + 6) % 7];
+                const isExam = item.kind === "exam";
+                return (
+                  <button key={item.id} onClick={() => openDay(item.date)}
+                    className="flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-2 text-xs transition-colors"
+                    style={isExam
+                      ? { backgroundColor: "rgba(252,165,165,0.12)", border: "1px solid rgba(252,165,165,0.30)" }
+                      : { backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)" }}>
+                    {item.courseId && (
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(item.courseId) }} />
+                    )}
+                    <span className="max-w-[140px] truncate font-medium"
+                      style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-text)" }}>
+                      {isExam ? `${t("plan.examTag")} · ${item.name}` : item.name}
+                    </span>
+                    <span className="shrink-0 font-bold tabular-nums" style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-muted)" }}>
+                      {isExam ? examCountdown(days, t) : dayLabel}
+                    </span>
+                  </button>
+                );
+              })}
+              {weekAhead.length > WEEK_AHEAD_MAX && (
+                <span className="flex items-center px-2 py-1.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>
+                  +{weekAhead.length - WEEK_AHEAD_MAX}
+                </span>
               )}
             </div>
-          ))}
-          {todayObjectives.length > 3 && (
-            <p className="text-xs pl-6" style={{ color: "var(--bt-ink-muted)" }}>
-              +{todayObjectives.length - 3} {t("plan.todayCardMore")}
-            </p>
-          )}
-        </div>
-      ) : (
-        <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.nothing")}</p>
-      )}
-
-      {weekAhead.length > 0 && (
-        <div className="mt-3.5 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.10)" }} onClick={e => e.stopPropagation()}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--bt-ink-muted)" }}>
-            {t("plan.weekAheadTitle")}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {weekAhead.slice(0, WEEK_AHEAD_MAX).map(item => {
-              const days = daysUntil(item.date);
-              const dayLabel = days === 1 ? t("plan.tomorrow")
-                : weekdaysShortFor(lang)[(dateFromYmd(item.date).getDay() + 6) % 7];
-              const isExam = item.kind === "exam";
-              return (
-                <button key={item.id} onClick={() => openDay(item.date)}
-                  className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full text-xs transition-colors"
-                  style={isExam
-                    ? { backgroundColor: "rgba(252,165,165,0.12)", border: "1px solid rgba(252,165,165,0.30)" }
-                    : { backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)" }}>
-                  {item.courseId && (
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: courseColor(item.courseId) }} />
-                  )}
-                  <span className="font-medium truncate max-w-[140px]"
-                    style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-text)" }}>
-                    {isExam ? `${t("plan.examTag")} · ${item.name}` : item.name}
-                  </span>
-                  <span className="font-bold shrink-0" style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-muted)" }}>
-                    {isExam ? `J-${days}` : dayLabel}
-                  </span>
-                </button>
-              );
-            })}
-            {weekAhead.length > WEEK_AHEAD_MAX && (
-              <span className="flex items-center px-2 py-1.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>
-                +{weekAhead.length - WEEK_AHEAD_MAX}
-              </span>
-            )}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </section>
   );
 }
 
 // ── DayDetailModal ────────────────────────────────────────────
 // Surface UNIQUE de gestion d'un jour : consulter, ajouter, modifier,
-// reporter, supprimer objectifs et examens, lancer le chrono. (Avant, un
-// panneau latéral dupliquait tout ça avec d'autres formulaires — supprimé.)
+// reporter, supprimer objectifs et examens, lancer le chrono.
 function DayDetailModal() {
-  const { modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions, courses,
+  const { modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions,
           courseColor, courseName, toggle, remove, postpone, launchTimer,
           addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, duplicateDay, lang, t } = usePlan();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm]         = useState(EMPTY_OBJECTIVE_FORM);
   const [showAddExamForm, setShowAddExamForm] = useState(false);
-  const [examForm, setExamForm]               = useState({ name: "", courseId: "", time: "", location: "" });
+  const [examForm, setExamForm]               = useState(EMPTY_EXAM_FORM);
   const [dupOpen, setDupOpen]                 = useState(false);
 
   // Inline edit state
@@ -478,7 +646,7 @@ function DayDetailModal() {
   const [editForm, setEditForm]         = useState({});
   const [postponingId, setPostponingId] = useState(null);
   const [editingExamId, setEditingExamId] = useState(null);
-  const [examEditForm, setExamEditForm]   = useState({ name: "", courseId: "", time: "", location: "" });
+  const [examEditForm, setExamEditForm]   = useState(EMPTY_EXAM_FORM);
 
   // À chaque ouverture / changement de jour : repartir d'un état propre.
   // Si on arrive depuis un créneau horaire de la grille (modalPrefillTime),
@@ -488,12 +656,21 @@ function DayDetailModal() {
     setShowAddForm(!!modalPrefillTime);
     setAddForm({ ...EMPTY_OBJECTIVE_FORM, time: modalPrefillTime || "" });
     setShowAddExamForm(false);
-    setExamForm({ name: "", courseId: "", time: "", location: "" });
+    setExamForm(EMPTY_EXAM_FORM);
     setEditingObjId(null);
     setPostponingId(null);
     setEditingExamId(null);
     setDupOpen(false);
   }, [modalDate, modalPrefillTime]);
+
+  // Échap ferme la fiche — un bottom sheet sans sortie clavier est une
+  // impasse pour qui ne peut pas viser la croix.
+  useEffect(() => {
+    if (!modalDate) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setModalDate(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [modalDate, setModalDate]);
 
   function startInlineEdit(o) {
     setEditingObjId(o.id);
@@ -528,7 +705,6 @@ function DayDetailModal() {
 
   if (!modalDate) return null;
 
-  const locale     = lang === "en" ? "en-GB" : "fr-FR";
   const d          = dateFromYmd(modalDate);
   const today      = localToday();
   const tomorrow   = tomorrowISO();
@@ -542,6 +718,9 @@ function DayDetailModal() {
     .filter(s => s.started_at.slice(0, 10) === modalDate)
     .reduce((a, s) => a + s.duration_seconds, 0);
   const totalTargetMin = objectives.reduce((a, o) => a + (o.target_minutes || 0), 0);
+  const studiedPct = totalTargetMin > 0
+    ? Math.min(100, Math.round(totalStudiedSecs / 60 / totalTargetMin * 100))
+    : null;
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -562,9 +741,11 @@ function DayDetailModal() {
       exam_time: examForm.time     || null,
       location:  examForm.location || null,
     });
-    setExamForm({ name: "", courseId: "", time: "", location: "" });
+    setExamForm(EMPTY_EXAM_FORM);
     setShowAddExamForm(false);
   }
+
+  const dayTitle = d.toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <>
@@ -573,8 +754,9 @@ function DayDetailModal() {
         onClick={() => setModalDate(null)} />
 
       {/* Card — bottom sheet on mobile, centered on sm+ */}
-      <div className="fixed z-50 bottom-0 inset-x-0 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4 pointer-events-none">
-        <div className="pointer-events-auto rounded-t-[28px] sm:rounded-[24px] sm:max-w-lg sm:w-full"
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+        <div role="dialog" aria-modal="true" aria-label={dayTitle}
+          className="pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]"
           style={{
             backgroundColor: "var(--bt-surface)",
             border: "1px solid var(--bt-border)",
@@ -584,22 +766,22 @@ function DayDetailModal() {
           }}>
 
           {/* Drag handle (mobile only) */}
-          <div className="flex justify-center pt-3 pb-1 sm:hidden">
-            <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
+          <div className="flex justify-center pb-1 pt-3 sm:hidden">
+            <div className="h-1 w-10 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
           </div>
 
-          <div className="px-5 pt-2 pb-8">
+          <div className="px-5 pb-8 pt-2">
 
             {/* ── Header ── */}
-            <div className="flex items-start justify-between mb-4">
+            <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold capitalize leading-tight" style={{ color: "var(--bt-text-1)" }}>
-                  {d.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
+                  {dayTitle}
                 </h2>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   {isToday && (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                      style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
                       {t("common.today")}
                     </span>
                   )}
@@ -609,177 +791,100 @@ function DayDetailModal() {
                     </span>
                   )}
                   {objectives.length > 0 && (
-                    <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>
+                    <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
                       {doneCount} {t("plan.dayObjectiveOf")} {objectives.length} {t("plan.dayObjectives").toLowerCase()}
                     </span>
                   )}
-                  {exams.length > 0 && (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "#FEF2F2", color: "#DC2626" }}>
-                      {exams.length} {t("plan.dayExams").toLowerCase()}
-                    </span>
-                  )}
                 </div>
               </div>
-              <button onClick={() => setModalDate(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-xl shrink-0 ml-3 transition-colors"
-                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}
-                onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-border)"}
-                onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
+              <button onClick={() => setModalDate(null)} aria-label={t("common.close")}
+                className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors"
+                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                <IconClose />
               </button>
             </div>
 
-            {/* ── Time studied ── */}
-            {totalStudiedSecs > 0 && (
-              <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl"
-                style={{ backgroundColor: "#EAFBF4", border: "1px solid #C6EED9" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E8F68" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <div className="flex-1">
-                  <p className="text-xs font-medium" style={{ color: "#0E8F68" }}>{t("plan.dayStudied")}</p>
-                  <p className="text-base font-bold leading-tight" style={{ color: "#0E8F68" }}>
-                    {formatMinutesShort(totalStudiedSecs)}
-                  </p>
-                </div>
-                {totalTargetMin > 0 && (
-                  <div className="text-right">
-                    <p className="text-xs" style={{ color: "#0E8F68" }}>/ {totalTargetMin} min</p>
-                    <p className="text-xs font-bold" style={{ color: "#0E8F68" }}>
-                      {Math.min(100, Math.round(totalStudiedSecs / 60 / totalTargetMin * 100))}%
-                    </p>
-                  </div>
-                )}
+            {/* ── Temps étudié — toujours visible : c'est le lien vivant
+                 entre le planning et le Chrono, y compris à 0. ── */}
+            <div className="mb-4 flex items-center gap-3 rounded-2xl px-4 py-3"
+              style={{ backgroundColor: "var(--bt-mint-surface)", border: "1px solid var(--bt-accent-border)" }}>
+              <span style={{ color: "var(--bt-accent-text)" }}><IconClock size={18} /></span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-accent-text)" }}>
+                  {t("plan.dayStudied")}
+                </p>
+                <p className="font-num text-base font-bold leading-tight tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
+                  {formatMinutesShort(totalStudiedSecs)}
+                </p>
               </div>
-            )}
-
-            {/* ── Exams — affichage + ajout, toujours visible (symétrique
-                 avec la section "Ajouter un objectif" plus bas) ── */}
-            <div className="mb-4">
-              {exams.length > 0 && (
-                <>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-4)" }}>
-                    {t("plan.dayExams")}
-                  </p>
-                  <div className="space-y-2 mb-2">
-                    {exams.map(ex => {
-                      const days = daysUntil(ex.exam_date);
-                      if (editingExamId === ex.id) {
-                        return (
-                          <form key={ex.id} onSubmit={handleExamEditSave} className="space-y-2 p-3 rounded-2xl"
-                            style={{ backgroundColor: "#FEF2F2", border: "1px solid #DC2626" }}>
-                            <input className="input text-sm" value={examEditForm.name} required autoFocus
-                              onChange={e => setExamEditForm(f => ({ ...f, name: e.target.value }))}
-                              placeholder={t("plan.examNamePlaceholder")} />
-                            <div className="flex gap-2">
-                              <select className="input text-sm flex-1" value={examEditForm.courseId}
-                                onChange={e => setExamEditForm(f => ({ ...f, courseId: e.target.value }))}>
-                                <option value="">{t("plan.courseSelect")}</option>
-                                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                              </select>
-                              <input className="input w-24 text-sm" type="time" value={examEditForm.time}
-                                onChange={e => setExamEditForm(f => ({ ...f, time: e.target.value }))} />
-                            </div>
-                            <input className="input text-sm" value={examEditForm.location}
-                              onChange={e => setExamEditForm(f => ({ ...f, location: e.target.value }))}
-                              placeholder={t("plan.examLocationPlaceholder")} />
-                            <div className="flex gap-2">
-                              <button type="submit" className="flex-1 py-1.5 rounded-xl text-xs font-semibold"
-                                style={{ backgroundColor: "#DC2626", color: "#fff" }}>
-                                {t("common.save")}
-                              </button>
-                              <button type="button" onClick={() => setEditingExamId(null)} className="btn-ghost text-xs flex-1">{t("common.cancel")}</button>
-                            </div>
-                          </form>
-                        );
-                      }
-                      return (
-                        <div key={ex.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-                          style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
-                          {ex.course_id && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: courseColor(ex.course_id) }} />}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate" style={{ color: "#991B1B" }}>{ex.name}</p>
-                            {(ex.exam_time || ex.location) && (
-                              <p className="text-xs mt-0.5" style={{ color: "#B91C1C" }}>{[ex.exam_time, ex.location].filter(Boolean).join(" · ")}</p>
-                            )}
-                          </div>
-                          <ExamBadge days={days} />
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <button onClick={() => startExamEdit(ex)} title={t("plan.dayEdit")} style={{ color: "#FCA5A5" }}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg"
-                              onMouseEnter={ev => ev.currentTarget.style.color = "#DC2626"}
-                              onMouseLeave={ev => ev.currentTarget.style.color = "#FCA5A5"}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                              </svg>
-                            </button>
-                            <button onClick={() => removeExam(ex.id)} title={t("common.delete")} style={{ color: "#FCA5A5" }}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg"
-                              onMouseEnter={ev => ev.currentTarget.style.color = "#DC2626"}
-                              onMouseLeave={ev => ev.currentTarget.style.color = "#FCA5A5"}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-              {!showAddExamForm ? (
-                <button onClick={() => setShowAddExamForm(true)}
-                  className="w-full py-2.5 rounded-2xl text-sm font-medium flex items-center justify-center gap-1.5 transition-all"
-                  style={{ border: "1.5px dashed #FECACA", color: "#DC2626" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  {t("plan.dayAddExam")}
-                </button>
-              ) : (
-                <form onSubmit={handleAddExam} className="space-y-2 p-3 rounded-2xl"
-                  style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
-                  <input className="input text-sm" value={examForm.name} required autoFocus
-                    onChange={e => setExamForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder={t("plan.examNamePlaceholder")} />
-                  <div className="flex gap-2">
-                    <select className="input text-sm flex-1" value={examForm.courseId}
-                      onChange={e => setExamForm(f => ({ ...f, courseId: e.target.value }))}>
-                      <option value="">{t("plan.courseSelect")}</option>
-                      {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <input className="input w-24 text-sm" type="time" value={examForm.time}
-                      onChange={e => setExamForm(f => ({ ...f, time: e.target.value }))} />
-                  </div>
-                  <input className="input text-sm" value={examForm.location}
-                    onChange={e => setExamForm(f => ({ ...f, location: e.target.value }))}
-                    placeholder={t("plan.examLocationPlaceholder")} />
-                  <div className="flex gap-2">
-                    <button type="submit" className="flex-1 py-1.5 rounded-xl text-xs font-semibold"
-                      style={{ backgroundColor: "#DC2626", color: "#fff" }}>
-                      {t("plan.examSubmit")}
-                    </button>
-                    <button type="button" onClick={() => setShowAddExamForm(false)} className="btn-ghost text-xs flex-1">{t("common.cancel")}</button>
-                  </div>
-                </form>
+              {totalTargetMin > 0 && (
+                <div className="shrink-0 text-right">
+                  <p className="text-xs tabular-nums" style={{ color: "var(--bt-accent-text)" }}>/ {totalTargetMin} min</p>
+                  <p className="text-xs font-bold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>{studiedPct}%</p>
+                </div>
               )}
             </div>
 
-            {/* ── Objectives ── */}
-            <div className="mb-4">
-              {objectives.length > 0 && (
-                <p className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-4)" }}>
-                  {t("plan.dayObjectives")}
+            {/* ── Examens ── */}
+            {exams.length > 0 && (
+              <div className="mb-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+                  {t("plan.dayExams")}
                 </p>
-              )}
-              {objectives.length === 0 && exams.length === 0 && (
-                <p className="text-sm text-center py-8" style={{ color: "var(--bt-text-4)" }}>
-                  {t("plan.dayNoContent")}
+                <div className="space-y-2">
+                  {exams.map(ex => {
+                    if (editingExamId === ex.id) {
+                      return (
+                        <ExamForm key={ex.id}
+                          value={examEditForm}
+                          onChange={patch => setExamEditForm(f => ({ ...f, ...patch }))}
+                          onSubmit={handleExamEditSave}
+                          onCancel={() => setEditingExamId(null)}
+                          submitLabel={t("common.save")}
+                          title={t("plan.dayEdit")} />
+                      );
+                    }
+                    return (
+                      <div key={ex.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                        style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
+                        {ex.course_id && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(ex.course_id) }} />}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{ex.name}</p>
+                          {(ex.exam_time || ex.location) && (
+                            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-3)" }}>
+                              {[ex.exam_time, ex.location].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                        <ExamBadge days={daysUntil(ex.exam_date)} />
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          <button onClick={() => startExamEdit(ex)} title={t("plan.dayEdit")} aria-label={t("plan.dayEdit")}
+                            className="bt-plan-icon-btn flex h-8 w-8 items-center justify-center rounded-lg">
+                            <IconEdit />
+                          </button>
+                          <button onClick={() => removeExam(ex.id)} title={t("common.delete")} aria-label={t("common.delete")}
+                            className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-8 w-8 items-center justify-center rounded-lg">
+                            <IconClose size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── Objectifs ── */}
+            <div className="mb-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+                {t("plan.dayPlans")}
+              </p>
+              {/* Sur un jour d'examen sans objectif, la section « Prévu »
+                  restait un titre suivi de rien. Elle parle des objectifs :
+                  son vide se mesure aux objectifs seuls, pas aux examens. */}
+              {objectives.length === 0 && (
+                <p className="py-3 text-sm" style={{ color: "var(--bt-text-3)" }}>
+                  {t("plan.dayNothingPlanned")}
                 </p>
               )}
               <div className="space-y-2">
@@ -790,70 +895,74 @@ function DayDetailModal() {
                     : 0;
                   const recurLabel  = recurrenceBadgeLabel(o, t, lang);
                   const statusLabel = o.done ? t("plan.dayDone") : isPast ? t("plan.dayOverdue") : t("plan.dayTodo");
-                  const statusColor = o.done ? "#0E8F68" : isPast ? "#DC2626" : "var(--bt-text-3)";
-                  const statusBg    = o.done ? "#EAFBF4"  : isPast ? "#FEF2F2"  : "var(--bt-subtle)";
+                  const statusTone  = o.done
+                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }
+                    : isPast
+                      ? { backgroundColor: "var(--bt-danger-bg)", color: "var(--bt-danger)" }
+                      : { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-3)" };
                   const isEditing   = editingObjId === o.id;
 
                   return (
-                    <div key={o.id} className="rounded-2xl overflow-hidden"
-                      style={{ border: `1px solid ${isEditing ? "#14B885" : "var(--bt-border)"}`, transition: "border-color 0.15s" }}>
+                    <div key={o.id} className="overflow-hidden rounded-2xl"
+                      style={{ border: `1px solid ${isEditing ? "var(--bt-accent)" : "var(--bt-border)"}`, transition: "border-color 0.15s" }}>
 
                       {/* ── View mode ── */}
                       {!isEditing && (
                         <>
-                        <div className="flex items-start gap-3 px-4 py-3"
-                          style={{ backgroundColor: "var(--bt-subtle)" }}>
+                        <div className="flex items-start gap-3 px-4 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
                           <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
-                            className="bt-task-check w-4 h-4 mt-0.5 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {o.course_id && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: courseColor(o.course_id) }} />}
-                              <p className={`bt-strike ${o.done ? "is-done" : ""} text-sm font-medium flex-1 min-w-0`}
+                            aria-label={o.title || courseName(o.course_id) || "—"}
+                            className="bt-task-check mt-0.5 h-4 w-4 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            {/* Le titre garde sa ligne entière. La pastille
+                                d'état partageait cette ligne avec quatre
+                                boutons d'action : à 375 px il ne restait
+                                qu'une centaine de pixels et « Relire les
+                                fiches » se lisait « Relire l… ». */}
+                            <div className="flex items-center gap-2">
+                              {o.course_id && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: courseColor(o.course_id) }} />}
+                              <p className="min-w-0 flex-1 text-sm font-medium"
                                 style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-1)" }}>
-                                {o.title || courseName(o.course_id) || "—"}
+                                <span className={`bt-strike ${o.done ? "is-done" : ""} inline-block max-w-full truncate align-bottom`}>
+                                  {o.title || courseName(o.course_id) || "—"}
+                                </span>
                               </p>
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
-                                style={{ backgroundColor: statusBg, color: statusColor }}>
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={statusTone}>
                                 {statusLabel}
                               </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                               {o.course_id && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{courseName(o.course_id)}</span>}
-                              {o.scheduled_time && <span className="text-xs font-medium" style={{ color: "var(--bt-text-3)" }}>· {o.scheduled_time}</span>}
-                              {o.target_minutes > 0 && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>· {o.target_minutes} min</span>}
+                              {o.scheduled_time && <span className="text-xs font-medium tabular-nums" style={{ color: "var(--bt-text-3)" }}>· {o.scheduled_time}</span>}
+                              {o.target_minutes > 0 && <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>· {o.target_minutes} min</span>}
                               {recurLabel && <span className="text-xs font-semibold" style={{ color: "var(--bt-text-4)" }}>· ↻ {recurLabel}</span>}
-                              {realSecs > 0 && <span className="text-xs font-semibold" style={{ color: "#0E8F68" }}>· {formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
+                              {realSecs > 0 && <span className="text-xs font-semibold" style={{ color: "var(--bt-accent-text)" }}>· {formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
                             </div>
                             {o.target_minutes > 0 && realSecs > 0 && (
-                              <div className="mt-1.5 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--bt-border)" }}>
-                                <div className="h-full rounded-full" style={{
-                                  width: `${Math.min(100, Math.round(realSecs / 60 / o.target_minutes * 100))}%`,
-                                  backgroundColor: "#14B885", transition: "width 0.3s ease-out",
+                              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-border)" }}>
+                                <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none" style={{
+                                  transform: `scaleX(${Math.min(100, Math.round(realSecs / 60 / o.target_minutes * 100)) / 100})`,
+                                  backgroundColor: "var(--bt-accent)",
                                 }} />
                               </div>
                             )}
                           </div>
                           {/* Actions */}
-                          <div className="flex items-center gap-0.5 shrink-0">
+                          <div className="flex shrink-0 items-center gap-0.5">
                             {!o.done && isToday && o.course_id && (
-                              <button onClick={() => launchTimer(o.course_id)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg"
-                                style={{ color: "var(--bt-text-4)" }} title={t("plan.launchTimer")}
-                                onMouseEnter={e => e.currentTarget.style.color = "#14B885"}
-                                onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                  <polygon points="5 3 19 12 5 21 5 3"/>
-                                </svg>
+                              <button onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}
+                                className="bt-plan-icon-btn bt-plan-icon-btn--accent flex h-8 w-8 items-center justify-center rounded-lg"
+                                title={t("plan.launchTimer")} aria-label={t("plan.launchTimer")}>
+                                <IconPlay />
                               </button>
                             )}
                             {!o.done && (
                               <button onClick={() => setPostponingId(p => p === o.id ? null : o.id)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg"
-                                style={{ color: postponingId === o.id ? "#D97706" : "var(--bt-text-4)" }}
-                                title={t("plan.postponeTooltip")}
-                                onMouseEnter={e => e.currentTarget.style.color = "#D97706"}
-                                onMouseLeave={e => e.currentTarget.style.color = postponingId === o.id ? "#D97706" : "var(--bt-text-4)"}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                className="bt-plan-icon-btn flex h-8 w-8 items-center justify-center rounded-lg"
+                                style={postponingId === o.id ? { color: "var(--bt-warning)" } : undefined}
+                                title={t("plan.postponeTooltip")} aria-label={t("plan.postponeTooltip")}
+                                aria-expanded={postponingId === o.id}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" {...ic} aria-hidden="true">
                                   <rect x="3" y="4" width="18" height="18" rx="2"/>
                                   <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                                   <line x1="3" y1="10" x2="21" y2="10"/>
@@ -862,23 +971,14 @@ function DayDetailModal() {
                               </button>
                             )}
                             <button onClick={() => startInlineEdit(o)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg"
-                              style={{ color: "var(--bt-text-4)" }} title={t("plan.dayEdit")}
-                              onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
-                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                              </svg>
+                              className="bt-plan-icon-btn flex h-8 w-8 items-center justify-center rounded-lg"
+                              title={t("plan.dayEdit")} aria-label={t("plan.dayEdit")}>
+                              <IconEdit />
                             </button>
                             <button onClick={() => remove(o.id)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg"
-                              style={{ color: "var(--bt-text-4)" }}
-                              onMouseEnter={e => e.currentTarget.style.color = "#DC2626"}
-                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
+                              className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-8 w-8 items-center justify-center rounded-lg"
+                              title={t("common.delete")} aria-label={t("common.delete")}>
+                              <IconClose size={12} />
                             </button>
                           </div>
                         </div>
@@ -887,11 +987,11 @@ function DayDetailModal() {
                         {postponingId === o.id && !o.done && (
                           <div className="flex items-center gap-2 px-4 pb-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
                             <button onClick={() => { postpone(o.id, tomorrow); setPostponingId(null); }}
-                              className="text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0"
+                              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold"
                               style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-1)" }}>
                               {t("plan.dayPostpone")}
                             </button>
-                            <input type="date" className="input text-xs py-1.5 flex-1" min={tomorrow}
+                            <input type="date" className="input flex-1 py-1.5 text-xs" min={tomorrow}
                               aria-label={t("plan.postponeOtherDate")}
                               onChange={e => {
                                 if (e.target.value && e.target.value >= tomorrow) {
@@ -906,9 +1006,8 @@ function DayDetailModal() {
 
                       {/* ── Inline edit mode ── */}
                       {isEditing && (
-                        <div style={{ backgroundColor: "var(--bt-surface)" }}>
+                        <div className="px-4 py-3" style={{ backgroundColor: "var(--bt-surface)" }}>
                           <ObjectiveForm
-                            className="px-4 py-3 space-y-2.5"
                             value={editForm}
                             onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
                             onSubmit={handleInlineSave}
@@ -924,31 +1023,49 @@ function DayDetailModal() {
               </div>
             </div>
 
-            {/* ── Add objective ── */}
-            {!isPast && (
-              !showAddForm ? (
-                <button onClick={() => setShowAddForm(true)}
-                  className="w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
-                  style={{ border: "1.5px dashed var(--bt-border)", color: "var(--bt-text-3)" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#14B885"; e.currentTarget.style.color = "#14B885"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--bt-border)"; e.currentTarget.style.color = "var(--bt-text-3)"; }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  {t("plan.dayAddObj")}
+            {/* ── Ajouter : deux actions compactes côte à côte. Les grands
+                 rectangles pointillés d'avant mangeaient un tiers de la fiche
+                 pour deux boutons. ── */}
+            {!showAddForm && !showAddExamForm && (
+              <div className="flex gap-2">
+                {!isPast && (
+                  <button onClick={() => setShowAddForm(true)}
+                    className="btn-ghost flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm font-semibold">
+                    <IconPlus size={13} />
+                    {t("plan.addObjectiveShort")}
+                  </button>
+                )}
+                <button onClick={() => setShowAddExamForm(true)}
+                  className="btn-ghost flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm font-semibold">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
+                  {t("plan.addExamShort")}
                 </button>
-              ) : (
-                <ObjectiveForm
-                  className="space-y-2.5 p-4 rounded-2xl"
-                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}
-                  value={addForm}
-                  onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
-                  onSubmit={handleAdd}
-                  onCancel={() => setShowAddForm(false)}
-                  minDate={modalDate}
-                  submitLabel={t("common.add")}
-                  autoFocus />
-              )
+              </div>
+            )}
+
+            {showAddForm && !isPast && (
+              <ObjectiveForm
+                className="rounded-2xl p-4"
+                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}
+                title={t("plan.newObjectiveTitle")}
+                value={addForm}
+                onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
+                onSubmit={handleAdd}
+                onCancel={() => setShowAddForm(false)}
+                minDate={modalDate}
+                submitLabel={t("common.add")}
+                autoFocus />
+            )}
+
+            {showAddExamForm && (
+              <ExamForm
+                value={examForm}
+                onChange={patch => setExamForm(f => ({ ...f, ...patch }))}
+                onSubmit={handleAddExam}
+                onCancel={() => setShowAddExamForm(false)}
+                submitLabel={t("plan.examSubmit")}
+                title={t("plan.newExamTitle")}
+                dateLabel={dayTitle} />
             )}
 
             {/* ── Dupliquer ce jour : recopie tous ses objectifs vers une autre
@@ -957,21 +1074,15 @@ function DayDetailModal() {
               <div className="mt-3">
                 {!dupOpen ? (
                   <button onClick={() => setDupOpen(true)}
-                    className="w-full py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
-                    style={{ color: "var(--bt-text-3)" }}
-                    onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
-                    onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
+                    className="bt-plan-quiet-btn flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-medium">
+                    <IconCopy size={12} />
                     {t("plan.duplicateDay")}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 p-2.5 rounded-xl"
+                  <div className="flex items-center gap-2 rounded-xl p-2.5"
                     style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                    <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("plan.duplicateDayTo")}</span>
-                    <input type="date" className="input text-xs py-1.5 flex-1" min={today}
+                    <span className="shrink-0 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.duplicateDayTo")}</span>
+                    <input type="date" className="input flex-1 py-1.5 text-xs" min={today}
                       aria-label={t("plan.duplicateDayTo")}
                       onChange={async e => {
                         if (e.target.value && e.target.value !== modalDate) {
@@ -979,7 +1090,7 @@ function DayDetailModal() {
                           setDupOpen(false);
                         }
                       }} />
-                    <button type="button" onClick={() => setDupOpen(false)} className="btn-ghost text-xs px-2 py-1">{t("common.cancel")}</button>
+                    <button type="button" onClick={() => setDupOpen(false)} className="btn-ghost px-2 py-1 text-xs">{t("common.cancel")}</button>
                   </div>
                 )}
               </div>
@@ -991,13 +1102,34 @@ function DayDetailModal() {
   );
 }
 
+// ── CalendarLegend ────────────────────────────────────────────
+function CalendarLegend() {
+  const { t } = usePlan();
+  const items = [
+    { label: t("plan.legendObjective"), node: <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bt-text-3)" }} /> },
+    { label: t("plan.legendExam"),      node: <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} /> },
+    { label: t("common.today"),         node: <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--bt-accent)" }} /> },
+  ];
+  return (
+    <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 no-print">
+      {items.map(i => (
+        <li key={i.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--bt-text-3)" }}>
+          {i.node}{i.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // ── MonthView ─────────────────────────────────────────────────
+// Une case = au plus DEUX couches visuelles : son fond d'état (week-end ou
+// sélection) et ses marqueurs. Avant, un même jour pouvait cumuler un lavis
+// de couleur de cours, un voile rouge d'examen, une teinte week-end, un voile
+// de passé et une diagonale : la couleur ne voulait plus rien dire.
 function MonthView() {
-  const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, lang } = usePlan();
+  const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
   const today = localToday();
-
-  // Split into 6 rows of 7
   const weeks = Array.from({ length: 6 }, (_, i) => grid.slice(i * 7, i * 7 + 7));
 
   return (
@@ -1006,11 +1138,8 @@ function MonthView() {
       <div className="grid grid-cols-7 border-b" style={{ borderColor: "var(--bt-border)" }}>
         {weekdaysShortFor(lang).map((d, i) => (
           <div key={d}
-            className="py-3 text-center text-xs font-semibold uppercase tracking-wider"
-            style={{
-              color: i >= 5 ? "var(--bt-accent-dark)" : "var(--bt-text-3)",
-              backgroundColor: i >= 5 ? "var(--bt-accent-bg)" : "transparent",
-            }}>
+            className="py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: i >= 5 ? "var(--bt-text-3)" : "var(--bt-text-2)" }}>
             {d}
           </div>
         ))}
@@ -1019,95 +1148,80 @@ function MonthView() {
       {/* Week rows */}
       <div>
         {weeks.map((week, wi) => (
-          <div key={wi}
-            className="grid grid-cols-7"
+          <div key={wi} className="grid grid-cols-7"
             style={{ borderBottom: wi < 5 ? "1px solid var(--bt-border)" : "none" }}>
-            {week.map(d => {
+            {week.map((d, di) => {
               const key       = ymd(d);
               const inMonth   = d.getMonth() === cursor.month;
               const isToday   = key === today;
               const isSel     = key === selectedDate;
-              const isPast    = key < today && inMonth && !isToday;
+              const isPast    = key < today;
               const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-              const items     = byDate[key]     || [];
+              const items     = byDate[key]      || [];
               const examItems = examsByDate[key] || [];
 
-              const bgStyle = getDayCellStyle(items, courseColor);
-              if (examItems.length && !bgStyle.background && !bgStyle.backgroundColor) {
-                bgStyle.backgroundColor = "rgba(220,38,38,0.06)";
-              }
-              if (isWeekend && !bgStyle.background && !bgStyle.backgroundColor) {
-                bgStyle.backgroundColor = "var(--bt-accent-bg)";
-              }
+              // Une seule décision de fond, dans cet ordre de priorité.
+              const background = isSel ? "var(--bt-mint-strong)"
+                : isWeekend ? "var(--bt-subtle)"
+                : "transparent";
+
+              const label = `${d.getDate()} — ${items.length} ${t("plan.legendObjective")}, ${examItems.length} ${t("plan.legendExam")}`;
 
               return (
                 <button key={key} onClick={() => { if (inMonth) openDay(key); else setSelectedDate(key); }}
-                  className="min-h-[82px] p-2 text-left transition-colors relative"
+                  aria-label={label} aria-current={isToday ? "date" : undefined}
+                  className="bt-plan-day-cell relative min-h-[84px] p-1.5 text-left sm:p-2"
                   style={{
-                    ...bgStyle,
-                    borderRight: "1px solid var(--bt-border)",
-                    outline: isSel ? "2px solid #14B885" : "none",
-                    outlineOffset: "-2px",
-                    opacity: inMonth ? 1 : 0.3,
+                    background,
+                    borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
+                    boxShadow: isSel ? "inset 0 0 0 2px var(--bt-accent)" : "none",
+                    opacity: inMonth ? (isPast && !isToday ? 0.62 : 1) : 0.3,
                   }}>
-                  {/* Past day — diagonal line */}
-                  {isPast && (
-                    <>
-                      <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundColor: "rgba(168,160,154,0.07)" }} />
-                      <svg viewBox="0 0 100 100" preserveAspectRatio="none"
-                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
-                        <line x1="100" y1="0" x2="0" y2="100" stroke="#A8A09A" strokeWidth="1.2" opacity="0.22" />
-                      </svg>
-                    </>
-                  )}
-
                   {/* Day number */}
-                  <span className="relative inline-flex w-6 h-6 items-center justify-center rounded-full text-xs font-bold mb-1"
+                  <span className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full font-num text-xs font-bold tabular-nums"
                     style={isToday
-                      ? { backgroundColor: "#14B885", color: "#fff" }
-                      : isSel
-                      ? { backgroundColor: "rgba(20,184,133,0.15)", color: "#0E8F68" }
-                      : { color: isPast ? "var(--bt-text-3)" : "var(--bt-text-1)" }}>
+                      ? { backgroundColor: "var(--bt-accent)", color: "#fff" }
+                      : { color: isWeekend ? "var(--bt-text-3)" : "var(--bt-text-1)" }}>
                     {d.getDate()}
                   </span>
 
-                  {/* Events — mobile: dots only (cells too narrow for legible text) */}
-                  <div className="flex sm:hidden flex-wrap gap-1">
-                    {items.slice(0, 4).map(o => (
-                      <span key={o.id} className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.35 : 1 }} />
-                    ))}
+                  {/* Marqueurs — mobile : pastilles (aucun texte ne rentre) */}
+                  <div className="flex flex-wrap gap-1 sm:hidden">
                     {examItems.slice(0, 2).map(e => (
-                      <span key={e.id} className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ backgroundColor: "#DC2626" }} />
+                      <span key={e.id} className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
+                    ))}
+                    {items.slice(0, 4).map(o => (
+                      <span key={o.id} className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.3 : 1 }} />
                     ))}
                     {(items.length + examItems.length) > 6 && (
-                      <span className="text-[9px] leading-none" style={{ color: "var(--bt-text-4)" }}>
+                      <span className="text-[9px] leading-none tabular-nums" style={{ color: "var(--bt-text-4)" }}>
                         +{items.length + examItems.length - 6}
                       </span>
                     )}
                   </div>
 
-                  {/* Events — sm+: full titles, room for text */}
-                  <div className="hidden sm:block space-y-0.5">
+                  {/* Marqueurs — sm+ : titres. L'examen passe en premier. */}
+                  <div className="hidden space-y-0.5 sm:block">
+                    {examItems.slice(0, 1).map(e => (
+                      <div key={e.id} className="flex items-center gap-1 truncate" title={e.name}>
+                        <span className="h-1.5 w-1.5 flex-none shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
+                        <span className="truncate text-[10px] font-semibold leading-tight" style={{ color: "var(--bt-danger)" }}>{e.name}</span>
+                      </div>
+                    ))}
                     {items.slice(0, 2).map(o => (
-                      <div key={o.id} className="flex items-center gap-1 truncate" title={o.title}>
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0 flex-none"
-                          style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.35 : 1 }} />
-                        <span className="text-[10px] truncate leading-tight"
+                      <div key={o.id} className="flex items-center gap-1 truncate" title={o.title || courseName(o.course_id) || ""}>
+                        <span className="h-1.5 w-1.5 flex-none shrink-0 rounded-full"
+                          style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.3 : 1 }} />
+                        <span className="truncate text-[10px] leading-tight"
                           style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-2)",
                             textDecoration: o.done ? "line-through" : "none" }}>
-                          {o.title}
+                          {o.title || courseName(o.course_id) || "—"}
                         </span>
                       </div>
                     ))}
-                    {examItems.slice(0, 1).map(e => (
-                      <div key={e.id} className="flex items-center gap-1 truncate" title={e.name}>
-                        <span className="w-1.5 h-1.5 rounded-sm shrink-0 flex-none" style={{ backgroundColor: "#DC2626" }} />
-                        <span className="text-[10px] truncate font-semibold leading-tight" style={{ color: "#DC2626" }}>{e.name}</span>
-                      </div>
-                    ))}
                     {(items.length + examItems.length) > 3 && (
-                      <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>
+                      <span className="text-[10px] tabular-nums" style={{ color: "var(--bt-text-4)" }}>
                         +{items.length + examItems.length - 3}
                       </span>
                     )}
@@ -1123,10 +1237,16 @@ function MonthView() {
 }
 
 // ── TimeGrid ──────────────────────────────────────────────────
+// Semaine et jour partagent la même grille horaire. Sur téléphone, sept
+// colonnes dans 390 px donnaient ~45 px par jour : illisible dès qu'un
+// objectif porte un titre. La grille garde donc une largeur mini par colonne
+// et défile horizontalement quand l'écran est trop étroit.
 function TimeGrid({ days }) {
-  const { byDate, examsByDate, selectedDate, courseColor, openDay, t, lang } = usePlan();
+  const { byDate, examsByDate, selectedDate, courseColor, courseName, openDay, t, lang } = usePlan();
   const today = localToday();
-  const TODAY_TINT = "rgba(20,184,133,0.06)"; // voile accent — lisible sur light ET dark
+  const multi = days.length > 1;
+  const gridMinWidth = multi ? TIMEGRID_GUTTER + days.length * TIMEGRID_MIN_COL : 0;
+  const columns = `${TIMEGRID_GUTTER}px repeat(${days.length}, minmax(0, 1fr))`;
 
   // Clic sur un créneau : ouvre la fiche du jour, formulaire d'ajout
   // pré-rempli sur l'heure cliquée (une seule surface d'ajout : le modal).
@@ -1135,124 +1255,133 @@ function TimeGrid({ days }) {
   }
 
   return (
-    <div className="card overflow-hidden flex flex-col">
-      {/* En-tête jours — sticky */}
-      <div className="grid sticky top-0 z-20"
-        style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)`, backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)" }}>
-        <div style={{ borderRight: "1px solid var(--bt-border)" }} />
-        {days.map((d, i) => {
-          const key     = ymd(d);
-          const isToday = key === today;
-          const isSel   = key === selectedDate;
-          return (
-            <button key={key} onClick={() => openDay(key)}
-              className="py-2 text-center transition-colors"
-              style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isSel ? "var(--bt-accent-bg)" : "transparent" }}
-              onMouseEnter={e => { if (!isSel) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-              onMouseLeave={e => { if (!isSel) e.currentTarget.style.backgroundColor = "transparent"; }}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}</p>
-              <span className="mt-0.5 inline-flex w-7 h-7 items-center justify-center rounded-full text-sm font-num font-bold tabular-nums"
-                style={isToday ? { backgroundColor: "#14B885", color: "#fff" }
-                  : isSel ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }
-                  : { color: "var(--bt-text-1)" }}>
-                {d.getDate()}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+    <>
+      <section className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: gridMinWidth || undefined }}>
 
-      {/* Ligne "toute la journée" (objectifs sans heure + examens) */}
-      <div className="grid min-h-[36px]"
-        style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)`, backgroundColor: "var(--bt-subtle)", borderBottom: "1px solid var(--bt-border)" }}>
-        <div className="flex items-center justify-center px-1" style={{ borderRight: "1px solid var(--bt-border)" }}>
-          <span className="text-[10px] font-medium" style={{ color: "var(--bt-text-3)" }}>{t("plan.allDayShort")}</span>
-        </div>
-        {days.map(d => {
-          const key       = ymd(d);
-          const items     = (byDate[key] || []).filter(o => !o.scheduled_time);
-          const examItems = examsByDate[key] || [];
-          return (
-            <div key={key} className="p-0.5 space-y-0.5 cursor-pointer transition-colors"
-              style={{ borderRight: "1px solid var(--bt-border)" }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = "var(--bt-border)"; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; }}
-              onClick={() => handleSlotClick(key, null)}>
-              {items.map(o => (
-                <div key={o.id} className="text-[11px] rounded px-1.5 py-0.5 truncate text-white font-medium"
-                  style={{ backgroundColor: courseColor(o.course_id) }}
-                  title={o.title}
-                  onClick={e => { e.stopPropagation(); openDay(key); }}>
-                  {o.title}
-                </div>
-              ))}
-              {examItems.map(e => (
-                <div key={e.id} className="text-[11px] rounded px-1.5 py-0.5 truncate font-bold"
-                  style={{ backgroundColor: "#DC2626", color: "#fff" }}
-                  title={e.name}
-                  onClick={ev => { ev.stopPropagation(); openDay(key); }}>
-                  {t("plan.examTag")} : {e.name}
+            {/* En-tête jours */}
+            <div className="grid" style={{ gridTemplateColumns: columns, borderBottom: "1px solid var(--bt-border)" }}>
+              <div style={{ borderRight: "1px solid var(--bt-border)" }} />
+              {days.map(d => {
+                const key     = ymd(d);
+                const isToday = key === today;
+                const isSel   = key === selectedDate;
+                return (
+                  <button key={key} onClick={() => openDay(key)}
+                    className="bt-plan-day-head py-2 text-center transition-colors"
+                    aria-current={isToday ? "date" : undefined}
+                    style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isSel ? "var(--bt-mint-strong)" : "transparent" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>
+                      {weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}
+                    </p>
+                    <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full font-num text-sm font-bold tabular-nums"
+                      style={isToday ? { backgroundColor: "var(--bt-accent)", color: "#fff" } : { color: "var(--bt-text-1)" }}>
+                      {d.getDate()}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Ligne "toute la journée" (objectifs sans heure + examens) */}
+            <div className="grid min-h-[38px]"
+              style={{ gridTemplateColumns: columns, backgroundColor: "var(--bt-subtle)", borderBottom: "1px solid var(--bt-border)" }}>
+              <div className="flex items-center justify-center px-1" style={{ borderRight: "1px solid var(--bt-border)" }}>
+                <span className="text-[10px] font-medium" style={{ color: "var(--bt-text-3)" }}>{t("plan.allDayShort")}</span>
+              </div>
+              {days.map(d => {
+                const key       = ymd(d);
+                const items     = (byDate[key] || []).filter(o => !o.scheduled_time);
+                const examItems = examsByDate[key] || [];
+                return (
+                  <div key={key} className="bt-plan-slot cursor-pointer space-y-0.5 p-1"
+                    style={{ borderRight: "1px solid var(--bt-border)" }}
+                    onClick={() => handleSlotClick(key, null)}>
+                    {examItems.map(e => (
+                      <div key={e.id} className="truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold"
+                        style={{ backgroundColor: "var(--bt-danger-solid)", color: "#fff" }}
+                        title={e.name}
+                        onClick={ev => { ev.stopPropagation(); openDay(key); }}>
+                        {e.name}
+                      </div>
+                    ))}
+                    {items.map(o => (
+                      <div key={o.id} className="truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white"
+                        style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.45 : 1 }}
+                        title={o.title || courseName(o.course_id) || ""}
+                        onClick={e => { e.stopPropagation(); openDay(key); }}>
+                        {o.title || courseName(o.course_id) || "—"}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Grille horaire */}
+            <div className="overflow-y-auto" style={{ maxHeight: 520 }}>
+              {HOURS.map(h => (
+                <div key={h} className="grid"
+                  style={{ gridTemplateColumns: columns, minHeight: 64, borderBottom: "1px solid var(--bt-border)" }}>
+                  <div className="shrink-0 px-2 pt-1.5" style={{ borderRight: "1px solid var(--bt-border)" }}>
+                    <span className="font-num text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>{String(h).padStart(2,"0")}h</span>
+                  </div>
+                  {days.map(d => {
+                    const key      = ymd(d);
+                    const isToday  = key === today;
+                    const slotObjs = (byDate[key] || []).filter(o => getHour(o.scheduled_time) === h);
+                    return (
+                      <div key={key} className="bt-plan-slot cursor-pointer p-1"
+                        style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isToday ? TODAY_TINT : "transparent" }}
+                        onClick={() => handleSlotClick(key, h)}>
+                        {slotObjs.map(o => (
+                          <div key={o.id}
+                            className="mb-0.5 cursor-pointer truncate rounded-md px-1.5 py-1 text-[11px] font-medium text-white hover:brightness-90"
+                            style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.45 : 1 }}
+                            title={o.title || courseName(o.course_id) || ""}
+                            onClick={e => { e.stopPropagation(); openDay(key); }}>
+                            <span className="block truncate">{o.title || courseName(o.course_id) || "—"}</span>
+                            {o.target_minutes > 0 && (
+                              <span className="font-num text-[10px] tabular-nums opacity-80">{o.target_minutes} min</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
-          );
-        })}
-      </div>
-
-      {/* Grille horaire */}
-      <div className="overflow-y-auto" style={{ maxHeight: 520 }}>
-        {HOURS.map(h => (
-          <div key={h} className="grid"
-            style={{ gridTemplateColumns: `52px repeat(${days.length}, 1fr)`, minHeight: 64, borderBottom: "1px solid var(--bt-border)" }}>
-            <div className="px-2 pt-1.5 shrink-0" style={{ borderRight: "1px solid var(--bt-border)" }}>
-              <span className="text-xs font-num tabular-nums" style={{ color: "var(--bt-text-3)" }}>{String(h).padStart(2,"0")}h</span>
-            </div>
-            {days.map(d => {
-              const key      = ymd(d);
-              const isToday  = key === today;
-              const slotObjs = (byDate[key] || []).filter(o => getHour(o.scheduled_time) === h);
-              return (
-                <div key={key}
-                  className="p-0.5 cursor-pointer transition-colors"
-                  style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isToday ? TODAY_TINT : "transparent" }}
-                  onMouseEnter={e => { if (!isToday) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = isToday ? TODAY_TINT : "transparent"; }}
-                  onClick={() => handleSlotClick(key, h)}>
-                  {slotObjs.map(o => (
-                    <div key={o.id}
-                      className="text-[11px] rounded px-1.5 py-1 mb-0.5 text-white font-medium cursor-pointer hover:brightness-90 truncate"
-                      style={{ backgroundColor: courseColor(o.course_id) }}
-                      title={o.title}
-                      onClick={e => { e.stopPropagation(); openDay(key); }}>
-                      <span className="block truncate">{o.title}</span>
-                      <span className="opacity-80 text-[10px] font-num tabular-nums">{o.target_minutes} min</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
           </div>
-        ))}
-      </div>
-    </div>
+        </div>
+      </section>
+      {multi && (
+        <p className="mt-2 px-1 text-[11px] no-print xl:hidden" style={{ color: "var(--bt-text-4)" }}>
+          {t("plan.weekScrollHint")}
+        </p>
+      )}
+    </>
   );
 }
 
 // ── QuickAddBar ───────────────────────────────────────────────
 // Barre d'ajout rapide en langage naturel : « Bio 2h demain 14h » → objectif.
-// Aperçu live de ce qui sera créé (le parsing est faillible → l'utilisateur
-// voit et corrige avant de valider). 100 % client (lib/planningQuickAdd).
+// C'est la voie la plus rapide pour remplir un planning, mais rien ne le
+// disait : un champ nu, sans titre, ressemblait à une recherche. Aperçu live
+// de ce qui sera créé (le parsing est faillible → l'utilisateur voit et
+// corrige avant de valider). 100 % client (lib/planningQuickAdd).
 function QuickAddChip({ children, accent }) {
   return (
-    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+    <span className="rounded-full px-2 py-0.5 text-[11px] font-medium"
       style={accent
-        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
+        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }
         : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
       {children}
     </span>
   );
 }
-function QuickAddBar() {
+function QuickAddBar({ className = "" }) {
   const { courses, addObjectiveForDate, courseName, lang, t } = usePlan();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1274,24 +1403,33 @@ function QuickAddBar() {
   }
 
   return (
-    <form onSubmit={submit} className="mb-4 no-print">
-      <div className="flex items-center gap-2 rounded-2xl px-3 py-2"
-        style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14B885" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-          <path d="M5 3v4M3 5h4M6 17v4M4 19h4" /><path d="M13 3l3.5 7.5L24 14l-7.5 3.5L13 25l-3.5-7.5L2 14l7.5-3.5z" transform="scale(0.62) translate(4 2)" />
-        </svg>
+    <form onSubmit={submit} className={`card p-4 no-print ${className}`}>
+      <div className="mb-2.5 flex items-center gap-1.5">
+        <span style={{ color: "var(--bt-accent)" }}><IconSparkle /></span>
+        <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.quickAddTitle")}</h2>
+        <span className="ml-auto hidden truncate text-[11px] sm:block" style={{ color: "var(--bt-text-4)" }}>
+          {t("plan.quickAddHint")}
+        </span>
+      </div>
+
+      {/* Empilé sur téléphone : côte à côte, le champ tombait sous ~200 px et
+          l'exemple du placeholder était coupé en plein milieu — or c'est lui
+          qui apprend la syntaxe. Le 16 px reste obligatoire (en dessous, iOS
+          zoome sur le champ au focus). */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <input value={text} onChange={e => setText(e.target.value)}
-          placeholder={t("plan.quickAddPlaceholder")} aria-label={t("plan.quickAddPlaceholder")}
-          className="flex-1 bg-transparent text-sm outline-none min-w-0" style={{ color: "var(--bt-text-1)" }} />
+          placeholder={t("plan.quickAddPlaceholder")} aria-label={t("plan.quickAddTitle")}
+          className="input min-w-0 flex-1 text-base sm:text-sm" />
         <button type="submit" disabled={!canAdd || busy}
-          className="btn-primary text-xs px-3 py-1.5 shrink-0"
-          style={{ opacity: canAdd && !busy ? 1 : 0.45, cursor: canAdd && !busy ? "pointer" : "default" }}>
+          className={`${canAdd && !busy ? "btn-primary" : "btn-ghost"} min-h-11 w-full shrink-0 px-4 text-sm font-semibold sm:w-auto`}
+          style={!canAdd || busy ? { opacity: 0.6, cursor: "default" } : undefined}>
           {t("common.add")}
         </button>
       </div>
+
       {trimmed && parsed && (
-        <div className="flex flex-wrap items-center gap-1.5 mt-2 px-1">
-          <span className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddPreview")}</span>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className="shrink-0 text-[10px] uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddPreview")}</span>
           {parsed.courseId
             ? <QuickAddChip accent>{courseName(parsed.courseId)}</QuickAddChip>
             : parsed.title
@@ -1307,6 +1445,88 @@ function QuickAddBar() {
   );
 }
 
+// ── PlanToolbar ───────────────────────────────────────────────
+// Le mois d'abord, la navigation ensuite, les vues en dessous. Avant, six
+// boutons de même poids se disputaient une seule rangée qui repassait à la
+// ligne dès 390 px, et le mois — la seule info à lire — s'y perdait.
+function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, onViewChange, actions, actionsBadge, className = "" }) {
+  const { t } = usePlan();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  return (
+    <div className={className}>
+      <div className="flex items-center gap-2">
+        <h1 className="font-display min-w-0 flex-1 truncate text-xl font-bold capitalize sm:text-2xl"
+          style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
+          {periodLabel}
+        </h1>
+
+        <div className="flex shrink-0 items-center gap-1 no-print">
+          <button onClick={onPrev} aria-label={t("plan.prevPeriod")}
+            className="bt-plan-nav-btn flex h-9 w-9 items-center justify-center rounded-xl">
+            <IconChevron dir="left" />
+          </button>
+          <button onClick={onNext} aria-label={t("plan.nextPeriod")}
+            className="bt-plan-nav-btn flex h-9 w-9 items-center justify-center rounded-xl">
+            <IconChevron dir="right" />
+          </button>
+          {showToday && (
+            <button onClick={onToday} className="btn-ghost ml-1 px-3 py-1.5 text-xs font-semibold">
+              {t("common.today")}
+            </button>
+          )}
+
+          <div className="relative ml-1">
+            <button onClick={() => setMenuOpen(v => !v)}
+              aria-label={t("plan.planningActions")} aria-expanded={menuOpen} aria-haspopup="menu"
+              className="bt-plan-nav-btn relative flex h-9 w-9 items-center justify-center rounded-xl">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
+              </svg>
+              {actionsBadge && (
+                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: "var(--bt-accent)" }} />
+              )}
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
+                <div role="menu" className="absolute right-0 top-full z-30 mt-1.5 min-w-[230px] overflow-hidden rounded-2xl"
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
+                  <div className="flex flex-col gap-0.5 p-1.5" onClick={() => setMenuOpen(false)}>
+                    {actions}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 no-print">
+        <SegmentedGlide
+          className="w-full sm:w-auto sm:inline-flex"
+          buttonClassName="flex-1 sm:flex-none px-4 py-2 text-xs"
+          options={[
+            { value: "day", label: t("plan.day") },
+            { value: "week", label: t("plan.week") },
+            { value: "month", label: t("plan.month") },
+          ]}
+          value={view}
+          onChange={onViewChange}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────
 export default function Planning() {
   const { user, profile, refreshProfile } = useAuth();
@@ -1314,11 +1534,10 @@ export default function Planning() {
   const { toast } = useToast();
   const router = useRouter();
   const {
-    courseId: timerCourseId, setCourseId: setTimerCourseId,
+    courseId: timerCourseId, setCourseId: setTimerCourseId, setNote: setTimerNote,
     running: timerRunning, elapsed: timerElapsed, pause: pauseTimer, reset: resetTimer,
   } = useTimer();
   const [view, setView]             = useState("month");
-  const [showMoreActions, setShowMoreActions] = useState(false);
   // Premier chargement des donnees de la page. Tant qu'il n'est pas termine on
   // affiche un squelette : sinon la page rend des zeros et des listes vides,
   // que les gens lisent comme un bug et non comme un chargement.
@@ -1423,12 +1642,13 @@ export default function Planning() {
     }
   }
 
-  // Pont planning -> chrono : lance le chrono du dashboard pré-rempli avec
-  // ce cours. Si une session est deja en cours (ou du temps non enregistre
-  // en pause) sur un AUTRE cours, on confirme avant d'ecraser (meme logique
-  // que confirmDiscardIfWorking sur le dashboard : on ne perd jamais du
-  // temps silencieusement).
-  function launchTimer(cId) {
+  // Pont planning -> chrono : lance le chrono du dashboard pré-rempli avec ce
+  // cours, la durée visée de l'objectif et son titre en note — on arrive prêt
+  // à démarrer, sans resaisir ce qui était déjà planifié. Si une session est
+  // deja en cours (ou du temps non enregistre en pause) sur un AUTRE cours, on
+  // confirme avant d'ecraser (meme logique que confirmDiscardIfWorking sur le
+  // dashboard : on ne perd jamais du temps silencieusement).
+  function launchTimer(cId, targetMinutes, title) {
     if (!cId) return;
     if ((timerRunning || timerElapsed > 0) && timerCourseId !== cId) {
       if (!window.confirm(t("plan.confirmSwitchCourse"))) return;
@@ -1436,6 +1656,10 @@ export default function Planning() {
       resetTimer();
     }
     setTimerCourseId(cId);
+    // Uniquement si l'objectif porte réellement ces informations : sans ça on
+    // écraserait la note ou la durée que la personne venait de choisir.
+    if (Number(targetMinutes) > 0) writeSessionGoal(Number(targetMinutes));
+    if (title && title.trim() && !timerRunning && timerElapsed === 0) setTimerNote(title.trim());
     router.push("/dashboard");
   }
 
@@ -1583,6 +1807,7 @@ export default function Planning() {
 
   const today = localToday();
   const todayObjectives = byDate[today] || [];
+  const todayExams      = examsByDate[today] || [];
   const nextExam = exams
     .filter(e => e.exam_date >= today)
     .sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0] || null;
@@ -1595,11 +1820,19 @@ export default function Planning() {
     : false;
   const todayMinutes = todayObjectives.reduce((sum, o) => sum + (Number(o.target_minutes) || 0), 0);
   const missingExamPreparation = nextExam && nextExamDays > 0 && nextExamDays <= 7 && !hasPreparationForNextExam;
+  // La mascotte doit dire la même chose que la carte du jour. Elle annonçait
+  // « planning prêt, tu sais quoi faire aujourd'hui » alors que la carte
+  // affichait « rien de prévu » — il suffisait d'un objectif posé un autre
+  // jour. D'où l'état `todayEmpty`, évalué avant `ready`.
   const planningCoachKind = missingExamPreparation
     ? "exam"
     : (todayObjectives.length >= 5 || todayMinutes >= 240)
       ? "heavy"
-      : (objectives.length === 0 && exams.length === 0) ? "empty" : "ready";
+      : (objectives.length === 0 && exams.length === 0)
+        ? "empty"
+        : (todayObjectives.length === 0 && todayExams.length === 0)
+          ? "todayEmpty"
+          : "ready";
   const planningCoachMessage = planningCoachKind === "exam"
     ? t("coach.planning.exam").replace("{days}", String(nextExamDays))
     : t(`coach.planning.${planningCoachKind}`);
@@ -1609,13 +1842,20 @@ export default function Planning() {
 
   function shiftDays(n) { const d = dateFromYmd(selectedDate); d.setDate(d.getDate() + n); setSelectedDate(ymd(d)); }
   function shiftMonth(delta) { setCursor(c => { const d = new Date(c.year, c.month + delta, 1); return { year: d.getFullYear(), month: d.getMonth() }; }); }
-  function goToday() { const t = localToday(); setSelectedDate(t); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
+  function goToday() { const now = localToday(); setSelectedDate(now); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
   function handlePrev() { if (view==="day") shiftDays(-1); else if (view==="week") shiftDays(-7); else shiftMonth(-1); }
   function handleNext() { if (view==="day") shiftDays(1);  else if (view==="week") shiftDays(7);  else shiftMonth(1); }
 
+  // « Aujourd'hui » ne sert qu'à revenir : inutile quand on y est déjà.
+  const isOnToday = view === "day"
+    ? selectedDate === today
+    : view === "week"
+      ? getWeekDays(selectedDate).map(ymd).includes(today)
+      : cursor.year === dateFromYmd(today).getFullYear() && cursor.month === dateFromYmd(today).getMonth();
+
   function periodLabel() {
     const months = monthsFor(lang);
-    if (view === "day") return dateFromYmd(selectedDate).toLocaleDateString(localeFor(lang), { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    if (view === "day") return dateFromYmd(selectedDate).toLocaleDateString(localeFor(lang), { weekday:"long", day:"numeric", month:"long" });
     if (view === "week") {
       const days = getWeekDays(selectedDate), f = days[0], l = days[6];
       return f.getMonth() === l.getMonth()
@@ -1625,42 +1865,33 @@ export default function Planning() {
     return `${months[cursor.month]} ${cursor.year}`;
   }
 
-  // Partage / duplication / export : rendus soit inline dans la barre d'outils
-  // (desktop), soit empilés dans le menu « … » (mobile). Une seule définition
-  // pour les deux, une simple fonction et non un composant : pas de remontage.
-  const secondaryActions = () => (
+  // Actions globales du planning — toutes dans le menu « … », quelle que soit
+  // la largeur. Elles étaient inline sur desktop et encombraient la barre sans
+  // qu'aucune ne mérite d'être toujours visible.
+  const secondaryActions = (
     <>
       <button onClick={togglePlanningPublic} disabled={togglingShare}
-        role="switch" aria-checked={!!profile?.planning_public} title={t("plan.public")}
-        className="btn-ghost text-xs px-3 py-2.5 flex items-center gap-1.5 no-print w-full lg:w-auto justify-start lg:justify-center"
+        role="switch" aria-checked={!!profile?.planning_public}
+        className="bt-plan-menu-item flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm"
         style={{ opacity: togglingShare ? 0.6 : 1, cursor: togglingShare ? "wait" : "pointer" }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
+        <svg width="15" height="15" viewBox="0 0 24 24" {...ic} strokeWidth="1.8" className="shrink-0" aria-hidden="true">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
         </svg>
-        {profile?.planning_public ? t("plan.shareShared") : t("plan.sharePrivate")}
-        <span className="w-1.5 h-1.5 rounded-full shrink-0"
-          style={{ backgroundColor: profile?.planning_public ? "#14B885" : "var(--bt-text-4)" }} />
+        <span className="min-w-0 flex-1 truncate">{t("plan.public")}</span>
+        <span className="shrink-0 text-[11px] font-bold"
+          style={{ color: profile?.planning_public ? "var(--bt-accent-text)" : "var(--bt-text-4)" }}>
+          {profile?.planning_public ? t("plan.shareShared") : t("plan.sharePrivate")}
+        </span>
       </button>
       <button onClick={duplicateWeek} title={t("plan.duplicateWeekHint")}
-        className="btn-ghost text-xs px-3 py-2.5 flex items-center gap-1.5 no-print w-full lg:w-auto justify-start lg:justify-center">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2"/>
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-        </svg>
-        {t("plan.duplicateWeek")}
+        className="bt-plan-menu-item flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm">
+        <span className="shrink-0"><IconCopy /></span>
+        <span className="min-w-0 flex-1 truncate">{t("plan.duplicateWeek")}</span>
       </button>
       <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
-        className="btn-ghost text-xs px-3 py-2.5 flex items-center gap-1.5 no-print w-full lg:w-auto justify-start lg:justify-center">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-          <path d="M12 14v4"/>
-          <path d="m10 16 2 2 2-2"/>
-        </svg>
-        {t("plan.exportCalendar")}
+        className="bt-plan-menu-item flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm">
+        <span className="shrink-0"><IconCalendar /></span>
+        <span className="min-w-0 flex-1 truncate">{t("plan.exportCalendar")}</span>
       </button>
     </>
   );
@@ -1679,72 +1910,49 @@ export default function Planning() {
     <Ctx.Provider value={ctxValue}>
       <style>{`@media print { aside, nav, header, footer, .no-print { display: none !important; } body { background: white !important; } .card { box-shadow: none !important; } }`}</style>
       <Layout>
-        <div className="bt-stagger">
-        {/* Barre d'outils unique : navigation + période à gauche, vue et
-            actions secondaires (partage, export) à droite. */}
-        <div className="flex flex-wrap items-center gap-2 mb-5">
-          <div className="flex items-center gap-1">
-            <button onClick={handlePrev} className="btn-ghost px-2.5 py-1.5 text-lg leading-none">‹</button>
-            <button onClick={handleNext} className="btn-ghost px-2.5 py-1.5 text-lg leading-none">›</button>
+        {/* Une colonne par défaut, deux à partir de xl. Le seuil est xl et non
+            lg : à 1024 px la barre latérale de navigation (232 px) plus une
+            colonne de contexte de 320 px ne laissaient que ~380 px au
+            calendrier, soit des cases de 54 px où le titre d'un objectif ne
+            rentre pas. Entre 1024 et 1280 px la page reste donc sur une
+            colonne large, ce qui s'y lit mieux.
+            Les deux enveloppes sont `display:contents` sous xl : les 6 blocs
+            redeviennent enfants directs de la pile, et `order-*` fixe l'ordre
+            mobile une bonne fois (l'ordre du DOM sert la colonne desktop). */}
+        <div className="flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start xl:gap-5">
+          <div className="contents xl:flex xl:flex-col xl:gap-5">
+            <PlanToolbar
+              className="order-1"
+              periodLabel={periodLabel()}
+              onPrev={handlePrev} onNext={handleNext} onToday={goToday} showToday={!isOnToday}
+              view={view} onViewChange={changeView}
+              actions={secondaryActions} actionsBadge={!!profile?.planning_public} />
+
+            <QuickAddBar className="order-2" />
+
+            {/* Keyed on the view so switching mois/semaine/jour plays a soft fade.
+                Calendrier pleine largeur : le détail d'un jour vit dans le modal. */}
+            <div key={view} className="bt-tab-fade order-5 min-w-0">
+              {view === "month" && <MonthView />}
+              {view === "week"  && <TimeGrid days={getWeekDays(selectedDate)} />}
+              {view === "day"   && <TimeGrid days={[dateFromYmd(selectedDate)]} />}
+              <CalendarLegend />
+            </div>
           </div>
-          <button onClick={goToday} className="btn-ghost text-xs px-3 py-1.5">{t("common.today")}</button>
-          <h2 className="font-display text-lg capitalize flex-1 min-w-[150px]" style={{ color: "var(--bt-text-1)" }}>{periodLabel()}</h2>
-          {/* Glissière à ressort : le pouce glisse entre Jour/Semaine/Mois */}
-          <SegmentedGlide
-            options={[
-              { value: "day", label: t("plan.day") },
-              { value: "week", label: t("plan.week") },
-              { value: "month", label: t("plan.month") },
-            ]}
-            value={view}
-            onChange={changeView}
-          />
 
-          {/* Actions secondaires : inline à partir de lg, sinon dans un menu « … ».
-              À 390 px elles occupaient deux rangées entières à elles seules. */}
-          <div className="relative lg:hidden no-print">
-            <button onClick={() => setShowMoreActions(v => !v)}
-              aria-label={t("plan.moreActions")} aria-expanded={showMoreActions}
-              className="btn-ghost px-3 py-2 text-sm leading-none">…</button>
-            {showMoreActions && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setShowMoreActions(false)} />
-                <div className="absolute right-0 top-full mt-1 z-30 rounded-2xl overflow-hidden min-w-[210px]"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 28px var(--bt-shadow)" }}>
-                  <div className="flex flex-col p-1" onClick={() => setShowMoreActions(false)}>
-                    {secondaryActions()}
-                  </div>
-                </div>
-              </>
-            )}
+          <div className="contents xl:flex xl:flex-col xl:gap-5">
+            <TodayCard className="order-3" />
+
+            <MascotCoach
+              id={planningCoachId}
+              message={planningCoachMessage}
+              streak={computeStreak(sessions, frozenDays)}
+              persistence="day"
+              className="order-4"
+            />
+
+            <RevisionChecklists className="order-6" />
           </div>
-          <div className="hidden lg:flex items-center gap-2">
-            {secondaryActions()}
-          </div>
-        </div>
-
-        <QuickAddBar />
-
-        <TodayCard />
-
-        <MascotCoach
-          id={planningCoachId}
-          message={planningCoachMessage}
-          streak={computeStreak(sessions, frozenDays)}
-          persistence="day"
-          className="mb-5 max-w-2xl"
-        />
-
-        {/* Keyed on the view so switching mois/semaine/jour plays a soft fade.
-            Calendrier pleine largeur : le détail d'un jour vit dans le modal,
-            plus de panneau latéral en doublon. */}
-        <div key={view} className="bt-tab-fade">
-          {view === "month" && <MonthView />}
-          {view === "week"  && <TimeGrid days={getWeekDays(selectedDate)} />}
-          {view === "day"   && <TimeGrid days={[dateFromYmd(selectedDate)]} />}
-        </div>
-
-        <RevisionChecklists />
         </div>
       </Layout>
 

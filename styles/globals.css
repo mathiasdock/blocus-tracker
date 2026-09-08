@@ -1542,3 +1542,79 @@ details.bt-acc[open]::details-content { block-size: auto; }
   }
   .card-lift, .card-lift:hover { transform: none !important; transition: none !important; }
 }
+
+/* ── Planning ────────────────────────────────────────────────────────────
+   Etats d'interaction de la page planning. Ils vivaient en `onMouseEnter` /
+   `onMouseLeave` dans le JSX : un hover écrit en JavaScript ne connaît ni le
+   clavier, ni le tactile, ni `prefers-reduced-motion`, et il repeignait le
+   style inline à chaque survol. En CSS, la meme regle sert au focus clavier
+   et se desactive toute seule sur les ecrans tactiles. */
+
+/* Boutons d'icone des listes (modifier, supprimer, reporter, lancer). */
+.bt-plan-icon-btn {
+  color: var(--bt-text-3);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-icon-btn:hover { color: var(--bt-text-1); background-color: var(--bt-border); }
+  .bt-plan-icon-btn--danger:hover { color: var(--bt-danger); background-color: var(--bt-danger-bg); }
+  .bt-plan-icon-btn--accent:hover { color: var(--bt-accent-text); background-color: var(--bt-accent-bg); }
+}
+
+/* Fleches de navigation et bouton « … » de la barre d'outils. */
+.bt-plan-nav-btn {
+  color: var(--bt-text-2);
+  background-color: var(--bt-subtle);
+  border: 1px solid var(--bt-border);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-nav-btn:hover { background-color: var(--bt-border); color: var(--bt-text-1); }
+}
+
+/* Entrees du menu d'actions globales. */
+.bt-plan-menu-item {
+  color: var(--bt-text-1);
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-menu-item:hover:not(:disabled) { background-color: var(--bt-subtle); }
+}
+
+/* Action discrete (dupliquer ce jour) — presente sans peser. */
+.bt-plan-quiet-btn {
+  color: var(--bt-text-3);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-quiet-btn:hover { color: var(--bt-text-1); background-color: var(--bt-subtle); }
+}
+
+/* Rangee de revision par cours. */
+.bt-plan-revision-row { transition: background-color 0.15s ease; }
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-revision-row:hover { background-color: var(--bt-subtle); }
+}
+
+/* Cases du calendrier et creneaux de la grille horaire. Le survol reste un
+   voile neutre : la couleur d'un jour appartient a son contenu (cours,
+   examen, aujourd'hui), jamais au pointeur. */
+.bt-plan-day-cell, .bt-plan-day-head, .bt-plan-slot { transition: background-color 0.15s ease; }
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-day-cell:hover, .bt-plan-day-head:hover, .bt-plan-slot:hover {
+    background-color: var(--bt-subtle);
+  }
+}
+
+/* Boutons poses sur une surface ink (carte du jour) : le vert vif n'y passe
+   pas le contraste, on reste sur un voile blanc translucide. */
+.bt-plan-ink-btn {
+  color: var(--bt-ink-text);
+  background-color: rgba(255, 255, 255, 0.11);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  transition: background-color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-ink-btn:hover { background-color: rgba(255, 255, 255, 0.18); }
+}

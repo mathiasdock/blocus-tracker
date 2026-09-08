@@ -9,6 +9,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
 import { useWakeLock } from "../lib/useWakeLock";
@@ -536,20 +537,16 @@ export default function Dashboard() {
     };
   }, [focusMode]);
 
-  // Objectif de session : restaure le dernier choix.
+  // Objectif de session : restaure le dernier choix (ou celui que le planning
+  // vient de poser en lançant « Commencer à réviser » sur un objectif daté).
   useEffect(() => {
-    try {
-      const v = localStorage.getItem("bt_session_goal_v1");
-      if (v) setSessionGoalMin(parseInt(v, 10) || null);
-    } catch {}
+    const v = readSessionGoal();
+    if (v) setSessionGoalMin(v);
   }, []);
 
   function pickSessionGoal(min) {
     setSessionGoalMin(min);
-    try {
-      if (min) localStorage.setItem("bt_session_goal_v1", String(min));
-      else localStorage.removeItem("bt_session_goal_v1");
-    } catch {}
+    writeSessionGoal(min);
   }
 
   // ── Suivi de la pause ──────────────────────────────────────────
@@ -1007,6 +1004,16 @@ export default function Dashboard() {
   // session > mode libre (null → les blocs poussent sans fin).
   const pomoTargetSecs = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
   const sessionGoalSecs = !pomodoro && sessionGoalMin ? sessionGoalMin * 60 : null;
+  // Paliers proposés + la durée exacte venue du planning si elle n'en fait pas
+  // partie : sans ça, arriver depuis un objectif de 40 min posait bien la cible
+  // mais n'allumait aucune pastille — l'objectif semblait ignoré.
+  const sessionGoalChoices = useMemo(() => {
+    const base = [[25, "25 min"], [45, "45 min"], [60, "1 h"], [90, "1 h 30"], [120, "2 h"]];
+    const extra = sessionGoalMin && !base.some(([m]) => m === sessionGoalMin)
+      ? [[sessionGoalMin, `${sessionGoalMin} min`]]
+      : [];
+    return [...base, ...extra].sort((a, b) => a[0] - b[0]).concat([[null, "∞"]]);
+  }, [sessionGoalMin]);
   const blockGoalSecs = pomodoro ? pomoTargetSecs : sessionGoalSecs;
   // Marée du mode focus : monte vers l'objectif ; en libre, ambiance basse
   // et constante (aucune "fin" à suggérer).
@@ -1397,7 +1404,7 @@ export default function Dashboard() {
                 {t("dash.sessionGoalLabel")}
               </p>
               <div className="flex flex-wrap justify-center gap-1.5">
-                {[[25, "25 min"], [45, "45 min"], [60, "1 h"], [90, "1 h 30"], [120, "2 h"], [null, "∞"]].map(([m, label]) => (
+                {sessionGoalChoices.map(([m, label]) => (
                   <button key={label} type="button" onClick={() => pickSessionGoal(m)}
                     title={m === null ? t("dash.noGoal") : undefined}
                     aria-pressed={sessionGoalMin === m}
