@@ -206,7 +206,7 @@ export default function SessionCompleteCard({
                   <div className="w-full rounded-full overflow-hidden"
                     style={{ height: 6, backgroundColor: "rgba(255,255,255,0.14)" }}>
                     <div className="bt-session-bar h-full rounded-full"
-                      style={{ width: `${barPct}%`, backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
+                      style={{ transform: `scaleX(${barPct / 100})`, transformOrigin: "left", backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
                   </div>
                 </div>
               )}

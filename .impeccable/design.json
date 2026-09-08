@@ -1,0 +1,431 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T01:17:00Z",
+  "title": "Design System: Blocus Tracker",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Warm Canvas",
+        "canonical": "#FAF9F7",
+        "tonalRamp": ["oklch(15% 0.012 55)", "oklch(27% 0.012 55)", "oklch(39% 0.012 55)", "oklch(51% 0.012 55)", "oklch(63% 0.011 55)", "oklch(75% 0.009 55)", "oklch(87% 0.006 55)", "oklch(95% 0.004 55)"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Warm Surface",
+        "canonical": "#FFFDFB",
+        "tonalRamp": ["oklch(15% 0.009 55)", "oklch(27% 0.009 55)", "oklch(39% 0.009 55)", "oklch(51% 0.008 55)", "oklch(63% 0.007 55)", "oklch(75% 0.006 55)", "oklch(87% 0.004 55)", "oklch(95% 0.002 55)"]
+      },
+      "surface-subtle": {
+        "role": "neutral",
+        "displayName": "Quiet Surface",
+        "canonical": "#F7F3EF",
+        "tonalRamp": ["oklch(15% 0.014 55)", "oklch(27% 0.014 55)", "oklch(39% 0.014 55)", "oklch(51% 0.013 55)", "oklch(63% 0.012 55)", "oklch(75% 0.010 55)", "oklch(87% 0.007 55)", "oklch(95% 0.004 55)"]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Quiet Border",
+        "canonical": "#E8E2DC",
+        "tonalRamp": ["oklch(15% 0.018 55)", "oklch(27% 0.018 55)", "oklch(39% 0.017 55)", "oklch(51% 0.016 55)", "oklch(63% 0.014 55)", "oklch(75% 0.011 55)", "oklch(87% 0.008 55)", "oklch(95% 0.004 55)"]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Warm Near-Black",
+        "canonical": "#1F1A17",
+        "tonalRamp": ["oklch(15% 0.015 50)", "oklch(27% 0.015 50)", "oklch(39% 0.014 50)", "oklch(51% 0.013 50)", "oklch(63% 0.011 50)", "oklch(75% 0.009 50)", "oklch(87% 0.006 50)", "oklch(95% 0.003 50)"]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Warm Muted Text",
+        "canonical": "#7C746E",
+        "tonalRamp": ["oklch(15% 0.013 50)", "oklch(27% 0.013 50)", "oklch(39% 0.012 50)", "oklch(51% 0.011 50)", "oklch(63% 0.010 50)", "oklch(75% 0.008 50)", "oklch(87% 0.005 50)", "oklch(95% 0.003 50)"]
+      },
+      "text-tertiary": {
+        "role": "neutral",
+        "displayName": "Warm Faint Text",
+        "canonical": "#A8A09A",
+        "tonalRamp": ["oklch(15% 0.011 50)", "oklch(27% 0.011 50)", "oklch(39% 0.010 50)", "oklch(51% 0.009 50)", "oklch(63% 0.008 50)", "oklch(75% 0.006 50)", "oklch(87% 0.004 50)", "oklch(95% 0.002 50)"]
+      },
+      "text-disabled": {
+        "role": "neutral",
+        "displayName": "Disabled Text",
+        "canonical": "#C4BCB6",
+        "tonalRamp": ["oklch(15% 0.010 50)", "oklch(27% 0.010 50)", "oklch(39% 0.009 50)", "oklch(51% 0.008 50)", "oklch(63% 0.007 50)", "oklch(75% 0.005 50)", "oklch(87% 0.003 50)", "oklch(95% 0.002 50)"]
+      },
+      "study-green": {
+        "role": "primary",
+        "displayName": "Study Green",
+        "canonical": "#14B885",
+        "tonalRamp": ["oklch(15% 0.055 162)", "oklch(27% 0.090 162)", "oklch(39% 0.120 162)", "oklch(51% 0.145 162)", "oklch(63% 0.150 162)", "oklch(75% 0.115 162)", "oklch(87% 0.065 162)", "oklch(95% 0.025 162)"]
+      },
+      "study-green-deep": {
+        "role": "primary",
+        "displayName": "Deep Study Green",
+        "canonical": "#0E8F68",
+        "tonalRamp": ["oklch(15% 0.050 164)", "oklch(27% 0.078 164)", "oklch(39% 0.100 164)", "oklch(51% 0.115 164)", "oklch(63% 0.112 164)", "oklch(75% 0.088 164)", "oklch(87% 0.052 164)", "oklch(95% 0.022 164)"]
+      },
+      "action-green": {
+        "role": "primary",
+        "displayName": "Readable Action Green",
+        "canonical": "#087454",
+        "tonalRamp": ["oklch(15% 0.045 164)", "oklch(27% 0.068 164)", "oklch(39% 0.088 164)", "oklch(51% 0.102 164)", "oklch(63% 0.098 164)", "oklch(75% 0.078 164)", "oklch(87% 0.047 164)", "oklch(95% 0.020 164)"]
+      },
+      "action-green-deep": {
+        "role": "primary",
+        "displayName": "Deep Action Green",
+        "canonical": "#065F46",
+        "tonalRamp": ["oklch(15% 0.040 164)", "oklch(27% 0.060 164)", "oklch(39% 0.078 164)", "oklch(51% 0.090 164)", "oklch(63% 0.086 164)", "oklch(75% 0.068 164)", "oklch(87% 0.041 164)", "oklch(95% 0.018 164)"]
+      },
+      "mint-surface": {
+        "role": "primary",
+        "displayName": "Mint Surface",
+        "canonical": "#EAFBF4",
+        "tonalRamp": ["oklch(15% 0.020 162)", "oklch(27% 0.032 162)", "oklch(39% 0.043 162)", "oklch(51% 0.050 162)", "oklch(63% 0.047 162)", "oklch(75% 0.038 162)", "oklch(87% 0.024 162)", "oklch(95% 0.012 162)"]
+      },
+      "mint-border": {
+        "role": "primary",
+        "displayName": "Mint Border",
+        "canonical": "#C6EED9",
+        "tonalRamp": ["oklch(15% 0.025 162)", "oklch(27% 0.039 162)", "oklch(39% 0.052 162)", "oklch(51% 0.061 162)", "oklch(63% 0.058 162)", "oklch(75% 0.046 162)", "oklch(87% 0.029 162)", "oklch(95% 0.014 162)"]
+      },
+      "brand-ink": {
+        "role": "secondary",
+        "displayName": "Brand Ink",
+        "canonical": "#0B2E23",
+        "tonalRamp": ["oklch(15% 0.030 165)", "oklch(27% 0.045 165)", "oklch(39% 0.058 165)", "oklch(51% 0.066 165)", "oklch(63% 0.062 165)", "oklch(75% 0.049 165)", "oklch(87% 0.030 165)", "oklch(95% 0.014 165)"]
+      },
+      "brand-ink-soft": {
+        "role": "secondary",
+        "displayName": "Soft Brand Ink",
+        "canonical": "#114134",
+        "tonalRamp": ["oklch(15% 0.034 165)", "oklch(27% 0.051 165)", "oklch(39% 0.065 165)", "oklch(51% 0.074 165)", "oklch(63% 0.070 165)", "oklch(75% 0.055 165)", "oklch(87% 0.034 165)", "oklch(95% 0.016 165)"]
+      },
+      "ink-text": {
+        "role": "secondary",
+        "displayName": "Ink High-Contrast Text",
+        "canonical": "#F2FBF7",
+        "tonalRamp": ["oklch(15% 0.016 162)", "oklch(27% 0.025 162)", "oklch(39% 0.034 162)", "oklch(51% 0.040 162)", "oklch(63% 0.038 162)", "oklch(75% 0.030 162)", "oklch(87% 0.019 162)", "oklch(95% 0.009 162)"]
+      },
+      "ink-muted": {
+        "role": "secondary",
+        "displayName": "Ink Muted Text",
+        "canonical": "#8FD4B8",
+        "tonalRamp": ["oklch(15% 0.030 162)", "oklch(27% 0.047 162)", "oklch(39% 0.062 162)", "oklch(51% 0.072 162)", "oklch(63% 0.068 162)", "oklch(75% 0.054 162)", "oklch(87% 0.034 162)", "oklch(95% 0.016 162)"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger Red",
+        "canonical": "#B83E3E",
+        "tonalRamp": ["oklch(15% 0.055 25)", "oklch(27% 0.090 25)", "oklch(39% 0.120 25)", "oklch(51% 0.142 25)", "oklch(63% 0.138 25)", "oklch(75% 0.105 25)", "oklch(87% 0.060 25)", "oklch(95% 0.025 25)"]
+      },
+      "danger-solid": {
+        "role": "tertiary",
+        "displayName": "Solid Danger Red",
+        "canonical": "#C43D3D",
+        "tonalRamp": ["oklch(15% 0.060 25)", "oklch(27% 0.098 25)", "oklch(39% 0.130 25)", "oklch(51% 0.152 25)", "oklch(63% 0.147 25)", "oklch(75% 0.112 25)", "oklch(87% 0.064 25)", "oklch(95% 0.027 25)"]
+      },
+      "danger-surface": {
+        "role": "tertiary",
+        "displayName": "Danger Surface",
+        "canonical": "#FFF1F0",
+        "tonalRamp": ["oklch(15% 0.020 25)", "oklch(27% 0.032 25)", "oklch(39% 0.043 25)", "oklch(51% 0.050 25)", "oklch(63% 0.047 25)", "oklch(75% 0.037 25)", "oklch(87% 0.023 25)", "oklch(95% 0.011 25)"]
+      },
+      "danger-border": {
+        "role": "tertiary",
+        "displayName": "Danger Border",
+        "canonical": "#F2C9C6",
+        "tonalRamp": ["oklch(15% 0.028 25)", "oklch(27% 0.044 25)", "oklch(39% 0.058 25)", "oklch(51% 0.068 25)", "oklch(63% 0.064 25)", "oklch(75% 0.050 25)", "oklch(87% 0.032 25)", "oklch(95% 0.015 25)"]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Warning Amber",
+        "canonical": "#8A5A10",
+        "tonalRamp": ["oklch(15% 0.045 70)", "oklch(27% 0.072 70)", "oklch(39% 0.095 70)", "oklch(51% 0.112 70)", "oklch(63% 0.108 70)", "oklch(75% 0.084 70)", "oklch(87% 0.050 70)", "oklch(95% 0.021 70)"]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "Pure White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(27% 0 0)", "oklch(39% 0 0)", "oklch(51% 0 0)", "oklch(63% 0 0)", "oklch(75% 0 0)", "oklch(87% 0 0)", "oklch(95% 0 0)"]
+      },
+      "dark-canvas": {
+        "role": "neutral",
+        "displayName": "Night Canvas",
+        "canonical": "#12100E",
+        "tonalRamp": ["oklch(15% 0.012 55)", "oklch(27% 0.012 55)", "oklch(39% 0.012 55)", "oklch(51% 0.011 55)", "oklch(63% 0.010 55)", "oklch(75% 0.008 55)", "oklch(87% 0.005 55)", "oklch(95% 0.003 55)"]
+      },
+      "dark-surface": {
+        "role": "neutral",
+        "displayName": "Night Surface",
+        "canonical": "#1A1715",
+        "tonalRamp": ["oklch(15% 0.013 55)", "oklch(27% 0.013 55)", "oklch(39% 0.012 55)", "oklch(51% 0.011 55)", "oklch(63% 0.010 55)", "oklch(75% 0.008 55)", "oklch(87% 0.005 55)", "oklch(95% 0.003 55)"]
+      },
+      "dark-surface-subtle": {
+        "role": "neutral",
+        "displayName": "Night Quiet Surface",
+        "canonical": "#222120",
+        "tonalRamp": ["oklch(15% 0.010 55)", "oklch(27% 0.010 55)", "oklch(39% 0.009 55)", "oklch(51% 0.008 55)", "oklch(63% 0.007 55)", "oklch(75% 0.006 55)", "oklch(87% 0.004 55)", "oklch(95% 0.002 55)"]
+      },
+      "dark-border": {
+        "role": "neutral",
+        "displayName": "Night Quiet Border",
+        "canonical": "#2C2622",
+        "tonalRamp": ["oklch(15% 0.016 55)", "oklch(27% 0.016 55)", "oklch(39% 0.015 55)", "oklch(51% 0.014 55)", "oklch(63% 0.012 55)", "oklch(75% 0.010 55)", "oklch(87% 0.006 55)", "oklch(95% 0.003 55)"]
+      },
+      "dark-text-primary": {
+        "role": "neutral",
+        "displayName": "Night Primary Text",
+        "canonical": "#F0EDE8",
+        "tonalRamp": ["oklch(15% 0.012 55)", "oklch(27% 0.012 55)", "oklch(39% 0.011 55)", "oklch(51% 0.010 55)", "oklch(63% 0.009 55)", "oklch(75% 0.007 55)", "oklch(87% 0.005 55)", "oklch(95% 0.002 55)"]
+      },
+      "dark-text-secondary": {
+        "role": "neutral",
+        "displayName": "Night Secondary Text",
+        "canonical": "#A8A09A",
+        "tonalRamp": ["oklch(15% 0.011 50)", "oklch(27% 0.011 50)", "oklch(39% 0.010 50)", "oklch(51% 0.009 50)", "oklch(63% 0.008 50)", "oklch(75% 0.006 50)", "oklch(87% 0.004 50)", "oklch(95% 0.002 50)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Brand Display",
+        "purpose": "Wordmark and rare brand-led statements only."
+      },
+      "headline": {
+        "displayName": "Interface Headline",
+        "purpose": "Compact card and section titles."
+      },
+      "body": {
+        "displayName": "Interface Body",
+        "purpose": "Primary reading and control copy throughout the app."
+      },
+      "label": {
+        "displayName": "Operational Label",
+        "purpose": "Terse modes, fields, statuses, and micro-headings."
+      },
+      "numeric": {
+        "displayName": "Tabular Numeric",
+        "purpose": "Timers, XP, streaks, counts, dates, and percentages."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-card",
+        "value": "0 4px 24px var(--bt-shadow)",
+        "purpose": "Low, broad separation for standard cards."
+      },
+      {
+        "name": "interactive-lift",
+        "value": "0 12px 34px var(--bt-shadow)",
+        "purpose": "Fine-pointer hover state paired with translateY(-2px)."
+      },
+      {
+        "name": "floating-menu",
+        "value": "0 14px 38px var(--bt-shadow)",
+        "purpose": "Disclosure menus and compact floating layers."
+      },
+      {
+        "name": "sheet-dialog",
+        "value": "0 18px 60px rgba(31,26,23,0.22)",
+        "purpose": "Bottom sheets and centered dialogs over a scrim."
+      },
+      {
+        "name": "ink-moment",
+        "value": "0 16px 44px rgba(9,38,29,0.30)",
+        "purpose": "Brand Ink progress and completion surfaces."
+      },
+      {
+        "name": "primary-action",
+        "value": "0 2px 10px rgba(8,116,84,0.28)",
+        "purpose": "Readable emphasis beneath primary actions."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "transform 0.12s ease",
+        "purpose": "Immediate scale feedback for buttons and tappable controls."
+      },
+      {
+        "name": "interactive",
+        "value": "0.15s cubic-bezier(0.22,1,0.36,1)",
+        "purpose": "Short control, row, and menu-item state changes."
+      },
+      {
+        "name": "rise",
+        "value": "0.24s cubic-bezier(0.16,1,0.3,1)",
+        "purpose": "Page content and small state-entry transitions."
+      },
+      {
+        "name": "sheet-in",
+        "value": "0.22s cubic-bezier(0.16,1,0.3,1)",
+        "purpose": "Functional bottom-sheet or dialog entry."
+      },
+      {
+        "name": "progress",
+        "value": "transform 0.3s ease",
+        "purpose": "Stable left-origin progress updates."
+      },
+      {
+        "name": "progress-celebratory",
+        "value": "transform 0.8s cubic-bezier(0.22,1,0.36,1)",
+        "purpose": "Held progress fill in a session-completion moment."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "380px"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ],
+    "components": [
+      {
+        "name": "Primary Button",
+        "kind": "button",
+        "refersTo": "button-primary",
+        "description": "The clearest action on a surface, using the readable dark-green action pair.",
+        "html": "<button class=\"ds-btn-primary\" type=\"button\">Start studying</button>",
+        "css": ".ds-btn-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 18px; border: 0; border-radius: 14px; background: linear-gradient(165deg, var(--bt-action, #087454), var(--bt-action-deep, #065F46) 115%); color: #fff; box-shadow: 0 2px 10px rgba(8,116,84,0.28); font-family: 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease, transform 0.12s ease; } .ds-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(31,26,23,0.10); } .ds-btn-primary:active { transform: scale(0.97); } .ds-btn-primary:focus-visible { outline: 2px solid var(--bt-accent, #14B885); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; } @media (prefers-reduced-motion: reduce) { .ds-btn-primary { transition: none; } .ds-btn-primary:hover, .ds-btn-primary:active { transform: none; } }"
+      },
+      {
+        "name": "Ghost Button",
+        "kind": "button",
+        "refersTo": "button-ghost",
+        "description": "A nearby secondary action that stays quiet without disappearing.",
+        "html": "<button class=\"ds-btn-ghost\" type=\"button\">Cancel</button>",
+        "css": ".ds-btn-ghost { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 18px; border: 1px solid var(--bt-border, #E8E2DC); border-radius: 14px; background: var(--bt-subtle, #F7F3EF); color: var(--bt-text-1, #1F1A17); font-family: 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.14s ease, box-shadow 0.14s ease, transform 0.12s ease; } .ds-btn-ghost:hover { background: var(--bt-border, #E8E2DC); transform: translateY(-1px); } .ds-btn-ghost:active { transform: scale(0.97); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--bt-accent, #14B885); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-btn-ghost { transition: none; } .ds-btn-ghost:hover, .ds-btn-ghost:active { transform: none; } }"
+      },
+      {
+        "name": "Text Field",
+        "kind": "input",
+        "refersTo": "input",
+        "description": "A warm surfaced field with a clear green focus halo.",
+        "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Course name</span><input class=\"ds-field-input\" placeholder=\"Microeconomics\" /></label>",
+        "css": ".ds-field { display: grid; gap: 5px; color: var(--bt-text-2, #7C746E); font-family: 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; } .ds-field-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; } .ds-field-input { min-height: 44px; width: 100%; padding: 10px 14px; border: 1px solid var(--bt-border, #E8E2DC); border-radius: 14px; outline: none; background: var(--bt-surface, #FFFDFB); color: var(--bt-text-1, #1F1A17); font: 400 14px/1.5 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-field-input::placeholder { color: var(--bt-text-3, #A8A09A); } .ds-field-input:focus { border-color: var(--bt-accent, #14B885); box-shadow: 0 0 0 4px rgba(20,184,133,0.12); } .ds-field-input:focus-visible { outline: 2px solid var(--bt-accent, #14B885); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-field-input { transition: none; } }"
+      },
+      {
+        "name": "Surface Card",
+        "kind": "card",
+        "refersTo": "card",
+        "description": "The default warm work surface for routine content and controls.",
+        "html": "<section class=\"ds-card\"><h3 class=\"ds-card-title\">Today’s sessions</h3><p class=\"ds-card-copy\">Your recorded study sessions appear here.</p></section>",
+        "css": ".ds-card { padding: 20px; border: 1px solid var(--bt-border, #E8E2DC); border-radius: 20px; background: var(--bt-surface, #FFFDFB); box-shadow: 0 4px 24px rgba(31,26,23,0.055); color: var(--bt-text-1, #1F1A17); font-family: 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; } .ds-card-title { margin: 0; font-size: 18px; line-height: 1.4; font-weight: 700; letter-spacing: -0.015em; } .ds-card-copy { margin: 6px 0 0; color: var(--bt-text-2, #7C746E); font-size: 14px; line-height: 1.5; }"
+      },
+      {
+        "name": "Ink Progress Card",
+        "kind": "custom",
+        "refersTo": "card-ink",
+        "description": "An earned dark-green moment for important progress or completion.",
+        "html": "<section class=\"ds-ink-card\"><p class=\"ds-ink-kicker\">Today’s progress</p><strong class=\"ds-ink-value\">1 h 35</strong><div class=\"ds-ink-track\"><span></span></div></section>",
+        "css": ".ds-ink-card { position: relative; overflow: hidden; padding: 20px; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; background: radial-gradient(120% 100% at 88% -12%, rgba(20,184,133,0.38), transparent 55%), linear-gradient(178deg, var(--bt-ink-soft, #114134), var(--bt-ink, #0B2E23) 70%); box-shadow: 0 16px 44px rgba(9,38,29,0.30); color: var(--bt-ink-text, #F2FBF7); font-family: 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; } .ds-ink-card::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(130% 140% at 50% 0%, transparent 45%, rgba(0,0,0,0.28) 100%); opacity: 0.5; } .ds-ink-card > * { position: relative; z-index: 1; } .ds-ink-kicker { margin: 0; color: var(--bt-ink-muted, #8FD4B8); font-size: 12px; } .ds-ink-value { display: block; margin-top: 20px; font-size: 41px; line-height: 1; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; } .ds-ink-track { height: 10px; margin-top: 12px; overflow: hidden; border-radius: 9999px; background: rgba(255,255,255,0.14); } .ds-ink-track span { display: block; width: 62%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #14B885, #2BD9A4); }"
+      },
+      {
+        "name": "Segmented Control",
+        "kind": "custom",
+        "description": "A quiet pill track with one clearly elevated active mode.",
+        "html": "<div class=\"ds-segmented\" role=\"group\" aria-label=\"Timer mode\"><button class=\"ds-segment is-active\" aria-pressed=\"true\">Free</button><button class=\"ds-segment\" aria-pressed=\"false\">Pomodoro</button></div>",
+        "css": ".ds-segmented { display: inline-flex; min-height: 44px; padding: 2px; border: 1px solid var(--bt-border, #E8E2DC); border-radius: 9999px; background: var(--bt-subtle, #F7F3EF); font-family: 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; } .ds-segment { min-height: 40px; padding: 0 14px; border: 0; border-radius: 9999px; background: transparent; color: var(--bt-text-3, #A8A09A); font-size: 12px; font-weight: 600; cursor: pointer; transition: transform 0.15s cubic-bezier(0.22,1,0.36,1), color 0.15s ease, background-color 0.15s ease; } .ds-segment.is-active { background: var(--bt-surface, #FFFDFB); color: var(--bt-text-1, #1F1A17); box-shadow: 0 1px 4px rgba(31,26,23,0.055); } .ds-segment:active { transform: scale(0.97); } .ds-segment:focus-visible { outline: 2px solid var(--bt-accent, #14B885); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-segment { transition: none; } .ds-segment:active { transform: none; } }"
+      },
+      {
+        "name": "Active Navigation Item",
+        "kind": "nav",
+        "description": "A quiet active route with mint fill, green text, and a slim green rail.",
+        "html": "<a class=\"ds-nav-item is-active\" href=\"#\"><span class=\"ds-nav-icon\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l2.5 2.5M9.5 3h5M12 3v2\"/></svg></span><span>Timer</span></a>",
+        "css": ".ds-nav-item { position: relative; display: flex; min-height: 44px; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 16px; color: var(--bt-text-2, #7C746E); text-decoration: none; font: 500 14px/1.25 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease; } .ds-nav-item.is-active { background: var(--bt-accent-bg, #EAFBF4); color: var(--bt-accent-dark, #0E8F68); font-weight: 600; } .ds-nav-item.is-active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 9999px; background: var(--bt-accent, #14B885); } .ds-nav-icon, .ds-nav-icon svg { width: 18px; height: 18px; } .ds-nav-item:hover { background: var(--bt-subtle, #F7F3EF); } .ds-nav-item:active { transform: scale(0.97); } .ds-nav-item:focus-visible { outline: 2px solid var(--bt-accent, #14B885); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-nav-item { transition: none; } .ds-nav-item:active { transform: none; } }"
+      },
+      {
+        "name": "Task Checkbox",
+        "kind": "custom",
+        "description": "A native checkbox with a rounded green completion state and visible check.",
+        "html": "<label class=\"ds-task\"><input class=\"ds-task-check\" type=\"checkbox\" checked /><span>Review chapter notes</span></label>",
+        "css": ".ds-task { display: flex; min-height: 44px; align-items: center; gap: 10px; color: var(--bt-text-1, #1F1A17); font: 500 14px/1.4 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; } .ds-task-check { appearance: none; width: 20px; height: 20px; display: inline-grid; place-items: center; flex: 0 0 auto; border: 1.5px solid var(--bt-text-4, #C4BCB6); border-radius: 6px; background: transparent; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease; } .ds-task-check::after { content: ''; width: 64%; height: 64%; background: #fff; clip-path: polygon(14% 44%, 0 59%, 42% 100%, 100% 19%, 84% 5%, 40% 65%); transform: scale(0); transition: transform 0.2s cubic-bezier(0.16,1,0.3,1); } .ds-task-check:checked { border-color: var(--bt-accent, #14B885); background: var(--bt-accent, #14B885); } .ds-task-check:checked::after { transform: scale(1); } .ds-task-check:focus-visible { outline: 2px solid var(--bt-accent, #14B885); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-task-check, .ds-task-check::after { transition: none; } }"
+      },
+      {
+        "name": "Status Chip",
+        "kind": "chip",
+        "description": "A compact semantic count or status that remains secondary to the main action.",
+        "html": "<span class=\"ds-status-chip\">3 / 4</span>",
+        "css": ".ds-status-chip { min-height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 9999px; background: var(--bt-accent-bg, #EAFBF4); color: var(--bt-accent-dark, #0E8F68); font: 700 12px/1 'Nunito Sans', 'Avenir Next', 'Segoe UI', sans-serif; font-variant-numeric: tabular-nums; }"
+      }
+    ],
+    "narrative": {
+      "northStar": "The Focused Study Desk",
+      "overview": "Blocus Tracker feels like a prepared study desk: warm, calm, and ready for work. Paper-like off-white surfaces, quiet warm-gray borders, and direct green signals keep repeated daily use comfortable, while typography and spacing favor quick scanning over decorative display.\n\nThe system earns intensity instead of spreading it everywhere. Deep green ink surfaces and authored radial light mark high-value focus, progress, and completion moments; ordinary management stays on restrained cards. Motion is brief, tactile, and state-driven, and secondary correction or management actions appear through progressive disclosure so the main task remains obvious.",
+      "keyCharacteristics": [
+        "Warm, paper-like surfaces with quiet borders.",
+        "Dark green ink surfaces reserved for high-value focus and achievement moments.",
+        "Readable, mobile-first controls with at least 44px targets.",
+        "Short, tactile transform/opacity motion with reduced-motion equivalents.",
+        "Progressive disclosure keeps correction and management actions nearby but secondary."
+      ],
+      "rules": [
+        {
+          "name": "The Green Signal Rule",
+          "body": "Use bright Study Green to communicate progress or a meaningful active state; use the darker Action Green pair for readable controls.",
+          "section": "colors"
+        },
+        {
+          "name": "The Ink Is Earned Rule",
+          "body": "Reserve Brand Ink for high-value focus, progress, and completion moments, never for routine content cards.",
+          "section": "colors"
+        },
+        {
+          "name": "The One Interface Voice Rule",
+          "body": "Nunito Sans is the default; Quicksand appears only when the brand itself is speaking.",
+          "section": "typography"
+        },
+        {
+          "name": "The Stable Number Rule",
+          "body": "Time, XP, streaks, counts, dates, and percentages use tabular numerals so changing values do not shift their layout.",
+          "section": "typography"
+        },
+        {
+          "name": "The 44-Pixel Rule",
+          "body": "Every primary control, field, segmented option, and icon-only action reaches at least 44px on touch layouts.",
+          "section": "layout"
+        },
+        {
+          "name": "The Quiet Lift Rule",
+          "body": "Resting surfaces stay calm; elevation increases only for interaction or true layer changes.",
+          "section": "elevation"
+        },
+        {
+          "name": "The Tonal Depth Rule",
+          "body": "Build atmosphere with authored gradients and radial light, never with generic grain overlays.",
+          "section": "elevation"
+        }
+      ],
+      "dos": [
+        "Do use the warm semantic surface stack before adding elevation.",
+        "Do keep primary actions in the dark Action Green pair and progress indicators in bright Study Green.",
+        "Do reserve dark ink surfaces for focus, meaningful progress, and completion.",
+        "Do use tabular numerals for any value that updates or aligns with another value.",
+        "Do preserve keyboard focus, 44px touch targets, safe areas, dark mode, and reduced-motion behavior.",
+        "Do reveal correction, deletion, and detailed management actions progressively."
+      ],
+      "donts": [
+        "Don't spread Brand Ink across ordinary management cards or use it as a generic dark panel.",
+        "Don't add generic grain, noise, or decorative texture; depth comes from tonal radial light and restrained shadow.",
+        "Don't use Quicksand as the general interface font.",
+        "Don't use bright green for dense text when the darker green role is available.",
+        "Don't let course colors carry status meaning or replace labels, icons, and semantic feedback.",
+        "Don't animate layout properties or leave motion running when reduced motion is requested."
+      ]
+    }
+  }
+}

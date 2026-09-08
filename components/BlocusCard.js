@@ -10,12 +10,12 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import {
   fetchBlocus, createBlocus, archiveBlocus,
-  computeProgress, suggestFromExams, MAX_GOAL_HOURS,
+  computeProgress, suggestFromExams,
 } from "../lib/blocus";
 
 const fmtH = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
 
-export default function BlocusCard({ sessions, exams, onChange }) {
+export default function BlocusCard({ sessions, exams, onChange, className = "" }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [state, setState] = useState({ loading: true, supported: true, current: null });
@@ -38,7 +38,7 @@ export default function BlocusCard({ sessions, exams, onChange }) {
 
   async function submit() {
     setBusy(true);
-    const res = await createBlocus(supabase, user.id, form);
+    const res = await createBlocus(supabase, user.id, { ...form, goal_hours: null });
     setBusy(false);
     if (res.ok) { setForm(null); refresh(); }
   }
@@ -53,8 +53,8 @@ export default function BlocusCard({ sessions, exams, onChange }) {
   // ── Formulaire de création ────────────────────────────────────────────
   if (form) {
     return (
-      <section className="card p-5 min-w-0">
-        <h2 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: "var(--bt-text-3)" }}>
+      <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
+        <h2 className="mb-1 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
           {t("blocus.title")}
         </h2>
         <p className="text-xs mb-4" style={{ color: "var(--bt-text-3)" }}>
@@ -63,22 +63,15 @@ export default function BlocusCard({ sessions, exams, onChange }) {
             : t("blocus.noExams")}
         </p>
         <div className="flex flex-col gap-3">
-          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
-            <span className="w-8 shrink-0">{t("blocus.from")}</span>
-            <input type="date" className="input flex-1 min-w-0" value={form.start_date}
+          <label className="text-sm font-semibold" style={{ color: "var(--bt-text-2)" }}>
+            <span className="block pb-1.5">{t("blocus.from")}</span>
+            <input type="date" className="input min-h-11" value={form.start_date}
               onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
           </label>
-          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
-            <span className="w-8 shrink-0">{t("blocus.to")}</span>
-            <input type="date" className="input flex-1 min-w-0" min={form.start_date} value={form.end_date}
+          <label className="text-sm font-semibold" style={{ color: "var(--bt-text-2)" }}>
+            <span className="block pb-1.5">{t("blocus.to")}</span>
+            <input type="date" className="input min-h-11" min={form.start_date} value={form.end_date}
               onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
-          </label>
-          <label className="flex items-center gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
-            <span className="shrink-0">{t("blocus.goal")}</span>
-            <input type="number" min="1" max={MAX_GOAL_HOURS} className="input w-24"
-              value={form.goal_hours}
-              onChange={(e) => setForm({ ...form, goal_hours: e.target.value })} />
-            <span className="shrink-0">{t("blocus.goalUnit")}</span>
           </label>
         </div>
         <div className="flex gap-2 mt-4">
@@ -97,8 +90,8 @@ export default function BlocusCard({ sessions, exams, onChange }) {
   // ── Aucune période déclarée ───────────────────────────────────────────
   if (!state.current) {
     return (
-      <section className="card p-5 min-w-0">
-        <h2 className="text-sm font-bold uppercase tracking-wider mb-2" style={{ color: "var(--bt-text-3)" }}>
+      <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
+        <h2 className="mb-1 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
           {t("blocus.title")}
         </h2>
         <p className="text-sm mb-4" style={{ color: "var(--bt-text-3)" }}>{t("blocus.none")}</p>
@@ -113,8 +106,8 @@ export default function BlocusCard({ sessions, exams, onChange }) {
   // ── Période terminée : bilan ──────────────────────────────────────────
   if (progress.phase === "ended") {
     return (
-      <section className="card p-5 min-w-0">
-        <h2 className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: "var(--bt-text-3)" }}>
+      <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
+        <h2 className="mb-3 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
           {t("blocus.endedTitle")}
         </h2>
         <p className="font-display text-2xl font-bold" style={{ color: "var(--bt-text-1)" }}>
@@ -146,9 +139,9 @@ export default function BlocusCard({ sessions, exams, onChange }) {
       : t("blocus.daysLeft").replace("{n}", String(progress.daysLeft));
 
   return (
-    <section className="card p-5 min-w-0">
+    <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+        <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
           {t("blocus.title")}
         </h2>
         <span className="font-num tabular-nums text-[11px] font-bold px-2 py-1 rounded-full"
@@ -168,9 +161,9 @@ export default function BlocusCard({ sessions, exams, onChange }) {
       {progress.pct !== null && (
         <div className="mt-3" style={{ height: 8, borderRadius: 99, overflow: "hidden", backgroundColor: "var(--bt-subtle)" }}>
           <div style={{
-            height: "100%", borderRadius: 99, width: `${progress.pct}%`,
+            height: "100%", borderRadius: 99, transform: `scaleX(${progress.pct / 100})`, transformOrigin: "left",
             background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)",
-            transition: "width 0.4s ease-out",
+            transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
           }} />
         </div>
       )}

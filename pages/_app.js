@@ -424,16 +424,18 @@ function InstallBanner() {
           </p>
         </div>
         <button onClick={install} style={{
-          backgroundColor: "#14B885", color: "#fff", border: "none",
-          borderRadius: 10, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+          backgroundColor: "#087454", color: "#fff", border: "none",
+          borderRadius: 10, padding: "8px 16px", minHeight: 44, fontSize: 13, fontWeight: 600, cursor: "pointer",
         }}>
           Installer
         </button>
         <button onClick={() => setPrompt(null)} aria-label="Fermer" style={{
           color: "#A8A09A", background: "none", border: "none",
-          cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4,
+          cursor: "pointer", width: 44, height: 44, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
         }}>
-          ✕
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
         </button>
       </div>
     </div>

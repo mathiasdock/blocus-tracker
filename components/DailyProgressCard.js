@@ -21,13 +21,13 @@ import { todayISO } from "../lib/format";
 
 function MissionRow({ label, xp, done }) {
   return (
-    <li className="flex items-center gap-2.5">
+    <li className="flex min-h-9 items-center gap-3">
       <span
         className={done ? "bt-check-pop" : ""}
         style={{
-          width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+          width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
-          backgroundColor: done ? "#14B885" : "var(--bt-subtle)",
+          backgroundColor: done ? "var(--bt-action)" : "var(--bt-subtle)",
           border: done ? "none" : "1px solid var(--bt-border)",
         }}
       >
@@ -38,19 +38,19 @@ function MissionRow({ label, xp, done }) {
           </svg>
         )}
       </span>
-      <span className="flex-1 text-[13px] leading-snug"
+      <span className="flex-1 text-sm leading-snug"
         style={{ color: done ? "var(--bt-text-3)" : "var(--bt-text-2)", textDecoration: done ? "line-through" : "none" }}>
         {label}
       </span>
-      <span className="font-num tabular-nums text-[11px] font-bold shrink-0"
+      <span className="font-num shrink-0 text-xs font-bold tabular-nums"
         style={{ color: done ? "var(--bt-text-4)" : "var(--bt-accent-dark)" }}>
-        +{xp}
+        +{xp} XP
       </span>
     </li>
   );
 }
 
-export default function DailyProgressCard({ todayStats }) {
+export default function DailyProgressCard({ todayStats, className = "" }) {
   const { user } = useAuth();
   const { t } = useI18n();
   const [levelInfo, setLevelInfo] = useState(null);
@@ -82,71 +82,59 @@ export default function DailyProgressCard({ todayStats }) {
   ).map(m => ({ key: m.key, xp: m.xp, done: m.done }));
   const missions = serverMissions || fallbackMissions;
 
-  if (!user || !levelInfo?.current) return null;
+  if (!user) return null;
 
-  const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
+  const current = levelInfo?.current || null;
+  const next = levelInfo?.next || null;
+  const progressXP = levelInfo?.progressXP || 0;
+  const rangeXP = levelInfo?.rangeXP || 0;
+  const progressPct = levelInfo?.progressPct || 0;
+  const totalXP = levelInfo?.totalXP || 0;
   const doneCount = missions.filter(m => m.done).length;
 
   return (
-    <section className="card p-5 min-w-0">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-          {t("xp.cardTitle")}
-        </h2>
-        <span className="font-num tabular-nums text-[11px] font-bold px-2 py-1 rounded-full"
+    <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("xp.missions")}</h2>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("xp.missionsHelp")}</p>
+        </div>
+        <span className="font-num inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-bold tabular-nums"
           style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
-          {totalXP} {t("xp.xpLabel")}
+          {doneCount}/{missions.length}
         </span>
       </div>
 
-      {/* Niveau + barre de progression */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex flex-col items-center justify-center shrink-0"
-          style={{
-            width: 44, height: 44, borderRadius: 14,
-            background: "linear-gradient(165deg, #14B885, #0E8F68 115%)",
-            boxShadow: "0 3px 14px rgba(20,184,133,0.40)",
-          }}>
-          <span style={{ fontSize: 8, fontWeight: 600, color: "rgba(255,255,255,0.72)", lineHeight: 1 }}>
-            {t("xp.level")}
-          </span>
-          <span className="font-num tabular-nums" style={{ fontSize: 19, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>
-            {current.level}
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-display truncate" style={{ fontSize: 15, fontWeight: 700, color: "var(--bt-text-1)" }}>
-            {t(current.titleKey)}
-          </p>
-          <p className="tabular-nums text-[11px] mt-0.5" style={{ color: "var(--bt-text-3)" }}>
-            {next ? `${progressXP} / ${rangeXP} ${t("xp.xpLabel")}` : t("xp.maxLevel")}
-          </p>
-        </div>
-      </div>
-      <div style={{ height: 8, borderRadius: 99, overflow: "hidden", backgroundColor: "var(--bt-subtle)" }}>
-        <div style={{
-          height: "100%", borderRadius: 99, width: `${progressPct}%`,
-          background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)",
-          transition: "width 0.4s ease-out",
-        }} />
-      </div>
-
-      {/* Missions du jour */}
-      <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-            {t("xp.missions")}
-          </h3>
-          <span className="font-num tabular-nums text-[11px] font-semibold" style={{ color: "var(--bt-text-3)" }}>
-            {doneCount}/{missions.length}
-          </span>
-        </div>
-        <ul className="flex flex-col gap-2.5">
+      <div className="mt-4">
+        <ul className="flex flex-col gap-2">
           {missions.map((m, i) => (
             <MissionRow key={`${m.key}-${i}`} label={t(m.key)} xp={m.xp} done={m.done} />
           ))}
         </ul>
       </div>
+
+      {current && (
+        <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--bt-border)" }}>
+          <div className="flex items-center gap-3">
+            <span className="font-num inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-xl px-2 text-sm font-extrabold tabular-nums"
+              style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+              {t("xp.level")} {current.level}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="truncate text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t(current.titleKey)}</p>
+                <p className="font-num shrink-0 text-xs font-semibold tabular-nums" style={{ color: "var(--bt-text-3)" }}>
+                  {next ? `${progressXP}/${rangeXP} ${t("xp.xpLabel")}` : t("xp.maxLevel")}
+                </p>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full" role="progressbar" aria-label={t("xp.cardTitle")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPct} style={{ backgroundColor: "var(--bt-subtle)" }}>
+                <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none" style={{ transform: `scaleX(${progressPct / 100})`, backgroundColor: "var(--bt-accent)" }} />
+              </div>
+            </div>
+          </div>
+          <p className="sr-only">{totalXP} {t("xp.xpLabel")}</p>
+        </div>
+      )}
     </section>
   );
 }

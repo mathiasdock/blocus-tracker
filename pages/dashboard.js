@@ -15,7 +15,6 @@ import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey } from "../lib/streakFreezes";
 import StreakFreezeOffer from "../components/StreakFreezeOffer";
-import Flame from "../components/Flame";
 import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
@@ -27,6 +26,9 @@ import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
 import SessionCompleteCard from "../components/SessionCompleteCard";
 import DailyProgressCard from "../components/DailyProgressCard";
+import TodayProgressCard from "../components/TodayProgressCard";
+import TodaySessionsCard from "../components/TodaySessionsCard";
+import DashboardCoursesCard from "../components/DashboardCoursesCard";
 import BlocusCard from "../components/BlocusCard";
 import PushOptInPrompt from "../components/PushOptInPrompt";
 import { toRanges } from "../lib/blocus";
@@ -120,7 +122,7 @@ function Block({ state, fraction = 0, focus }) {
   if (state === "active") {
     return (
       <span className="bt-block-active" style={{ ...base, backgroundColor: focus ? "rgba(20,184,133,0.16)" : "var(--bt-accent-bg)" }}>
-        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: GREEN, transition: "width 0.9s linear" }} />
+        <span style={{ position: "absolute", inset: 0, backgroundColor: GREEN, transform: `scaleX(${Math.max(0.07, fraction)})`, transformOrigin: "left", transition: "transform 0.9s linear" }} />
       </span>
     );
   }
@@ -327,10 +329,6 @@ export default function Dashboard() {
   const [courseEditorBusy, setCourseEditorBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle"|"saving"|"success"|"error"
   const savingRef = useRef(false);
-  const [editingSessionId, setEditingSessionId] = useState(null);
-  const [editMinutes, setEditMinutes] = useState("");
-  const [editCourseId, setEditCourseId] = useState(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [completionToast, setCompletionToast] = useState(null);
   // Amis pour l'envoi depuis le récapitulatif. `null` = pas encore chargés ;
   // on ne les charge qu'au clic sur "Envoyer à un ami", pas à chaque fin de
@@ -363,13 +361,22 @@ export default function Dashboard() {
   const applyDashboardData = useCallback((data) => {
     const c = data.courses || [];
     setCourses(c);
-    setCourseId(current => current || c[0]?.id || "");
+    setCourseId(current => c.some((course) => course.id === current) ? current : c[0]?.id || "");
     setSessions(data.sessions || []);
     setRecentSessions(data.recentSessions || []);
     setStreak(computeStreak(data.recentSessions || []));
     setBestStreak(computeBestStreak(data.recentSessions || []));
     setTodayObjectives(data.objectives || []);
   }, [setCourseId]);
+
+  // Le TimerProvider hydrate son dernier cours indépendamment des données du
+  // dashboard. Si ce cours a depuis été supprimé, ou si le jeu de données a
+  // changé (mode invité), on retombe sur un cours réellement disponible au
+  // lieu d'afficher un tiret impossible à sélectionner.
+  useEffect(() => {
+    if (!courses.length) return;
+    if (!courses.some((course) => course.id === courseId)) setCourseId(courses[0].id);
+  }, [courses, courseId, setCourseId]);
 
   const clearDashboardCache = useCallback(() => {
     if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
@@ -856,34 +863,37 @@ export default function Dashboard() {
     setSessions(prev => prev.filter(s => s.id !== id));
   }
 
-  async function updateSession(session) {
-    const newMins = parseInt(editMinutes, 10);
+  async function updateSession(session, { minutes, courseId: nextCourseId }) {
+    const newMins = parseInt(minutes, 10);
     const maxMins = Math.floor(session.duration_seconds / 60);
-    if (isNaN(newMins) || newMins < 1 || newMins > maxMins) return;
+    if (isNaN(newMins) || newMins < 1 || newMins > Math.max(1, maxMins)) return false;
     const newSecs = newMins * 60;
     clearDashboardCache();
     if (isGuest) {
       const nextSessions = sessions.map(s => s.id === session.id
-        ? { ...s, duration_seconds: newSecs, course_id: editCourseId || null }
+        ? { ...s, duration_seconds: newSecs, course_id: nextCourseId || null }
         : s
       );
       setSessions(nextSessions);
       writeGuestDashboardData({ courses, sessions: nextSessions, recentSessions: nextSessions, objectives: todayObjectives });
-      setEditingSessionId(null);
-      return;
+      return true;
     }
     const endedAt = session.ended_at ? new Date(session.ended_at) : new Date();
     const adjustedStartedAt = new Date(endedAt.getTime() - newSecs * 1000).toISOString();
-    await supabase.from("sessions").update({
+    const { error } = await supabase.from("sessions").update({
       duration_seconds: newSecs,
-      course_id: editCourseId || null,
+      course_id: nextCourseId || null,
       started_at: adjustedStartedAt,
     }).eq("id", session.id);
+    if (error) {
+      toast(t("dash.saveError"), "error");
+      return false;
+    }
     setSessions(prev => prev.map(s => s.id === session.id
-      ? { ...s, duration_seconds: newSecs, course_id: editCourseId || null, started_at: adjustedStartedAt }
+      ? { ...s, duration_seconds: newSecs, course_id: nextCourseId || null, started_at: adjustedStartedAt }
       : s
     ));
-    setEditingSessionId(null);
+    return true;
   }
 
   function openCourseEditor(course = null) {
@@ -1119,12 +1129,6 @@ export default function Dashboard() {
         : null;
   const showGuestIntro = isGuest && !running && elapsed === 0;
 
-  const perCourse = courses.map((c) => ({
-    ...c,
-    secs: sessions
-      .filter((s) => s.course_id === c.id)
-      .reduce((a, s) => a + s.duration_seconds, 0),
-  }));
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
 
   // Anti-effacement accidentel : demande confirmation si une session > 60s est
@@ -1155,40 +1159,12 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-10" onClick={() => setShowCourseMenu(false)} />
       )}
 
-      {showGuestIntro && (
-        <section className="mb-5 overflow-hidden rounded-2xl px-4 py-4 sm:px-5"
-          style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-          <div className="flex items-end gap-3 sm:items-center">
-            <Mascot streak={12} size={76} className="h-[70px] w-[70px] shrink-0" ariaLabel="Mascotte de Blocus Tracker" />
-            <div className="relative min-w-0 flex-1 rounded-2xl px-4 py-3"
-              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
-              <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
-                style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
-              <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.discoveryTitle")}</p>
-              <p className="relative mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                {t("guest.discoveryText")}
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2 sm:ml-[82px]">
-            <Link href="/planning" className="btn-ghost px-3 py-2 text-xs">{t("guest.viewPlanning")}</Link>
-            <Link href="/stats" className="btn-ghost px-3 py-2 text-xs">{t("guest.viewStats")}</Link>
-            <Link href="/feed" className="btn-ghost px-3 py-2 text-xs">{t("guest.discoverSocial")}</Link>
-            <span className="hidden flex-1 sm:block" />
-            <Link href="/signup" className="btn-primary px-3 py-2 text-xs">{t("guest.keepProgress")}</Link>
-            <Link href="/login" className="px-2 py-2 text-xs font-semibold" style={{ color: "var(--bt-accent-dark)" }}>
-              {t("guest.signIn")}
-            </Link>
-          </div>
-        </section>
-      )}
+      <h1 className="sr-only">{t("dash.title")}</h1>
 
-      {/* Étirement de la ligne UNIQUEMENT s'il y a un second bloc (Sessions
-          du jour / À faire) pour remplir la colonne gauche : sinon (rien à
-          afficher là), on reste en hauteur naturelle pour ne pas étirer la
-          carte Chrono dans le vide comme le faisait l'ancien alignement. */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 min-w-0 bt-stagger"
-        style={{ alignItems: (sessions.length > 0 || todayObjectives.length > 0) ? "stretch" : "start" }}>
+      {/* Mobile suit l'urgence quotidienne. Desktop assemble un vrai poste de
+          travail : action et historique à gauche, motivation et résultat à
+          droite, réglages durables sous les deux colonnes. */}
+      <div className="bt-dashboard-grid grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.75fr)]">
 
         {/* ══════════════════════════════════════════
             COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
@@ -1200,8 +1176,8 @@ export default function Dashboard() {
             « Aujourd'hui » se retrouvait un écran plus bas. Les rangs lg: sont
             donnés en clair plutôt que remis à zéro : `lg:order-none` ne
             l'emportait pas de façon fiable sur le rang mobile. */}
-        <div className="contents lg:flex lg:flex-col lg:gap-5 lg:col-span-2 min-w-0">
-        <section className="order-1 lg:order-1 card relative min-w-0 transition-all duration-300 overflow-hidden"
+        <div className="contents min-w-0 lg:flex lg:flex-col lg:gap-5">
+        <section className="bt-dashboard-timer order-1 lg:order-1 card relative min-w-0 overflow-hidden"
           style={{
             backgroundColor: isPaused ? "rgba(239,68,68,0.13)" : "var(--bt-surface)",
             borderColor:     isPaused ? "rgba(239,68,68,0.60)" : "var(--bt-border)",
@@ -1219,112 +1195,83 @@ export default function Dashboard() {
             }} />
 
           {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
-          <div className="flex flex-wrap items-center gap-2 px-5 pt-5 sm:px-6 sm:pt-6 relative z-20">
-            {/* Sélecteur de cours */}
-            <div className="relative min-w-0">
-              {courses.length === 0 ? (
-                <span className="inline-flex items-center px-3 py-2 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px dashed var(--bt-border)", color: "var(--bt-text-3)" }}>
-                  {t("dash.addCourseHint")}
-                </span>
-              ) : (
-                <button
-                  onClick={() => !running && setShowCourseMenu(s => !s)}
-                  disabled={running}
-                  className="inline-flex items-center gap-2 pl-3 pr-2.5 py-2 rounded-full text-sm font-medium transition-all max-w-full"
-                  style={{
-                    backgroundColor: "var(--bt-subtle)",
-                    border: `1px solid ${showCourseMenu ? "#14B885" : "var(--bt-border)"}`,
-                    boxShadow: showCourseMenu ? "0 0 0 3px rgba(20,184,133,0.12)" : "none",
-                    color: courseId ? "var(--bt-text-1)" : "var(--bt-text-3)",
-                  }}>
-                  {courseId && (
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: courses.find(c => c.id === courseId)?.color }} />
-                  )}
-                  <span className="truncate max-w-[130px] sm:max-w-[200px]">
-                    {courseId ? courseName(courseId) : t("dash.selectCourse")}
-                  </span>
-                  {!running && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                      style={{ transform: showCourseMenu ? "rotate(180deg)" : "none", transition: "transform 0.2s", opacity: 0.6 }}>
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                  )}
-                </button>
-              )}
+          <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-5 pt-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:px-6 sm:pt-6">
+            <div className="col-span-2 flex min-w-0 items-center gap-2 sm:col-span-1">
+              <div className="relative min-w-0 flex-1">
+                {courses.length === 0 ? (
+                  <button type="button" onClick={() => openCourseEditor()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
+                    {t("dash.addCourseHint")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => !running && setShowCourseMenu((value) => !value)}
+                    disabled={running}
+                    className="bt-dashboard-control flex min-h-11 max-w-full items-center gap-2 rounded-xl px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{
+                      width: "100%",
+                      backgroundColor: "var(--bt-subtle)",
+                      border: `1px solid ${showCourseMenu ? "var(--bt-accent)" : "var(--bt-border)"}`,
+                      boxShadow: showCourseMenu ? "0 0 0 3px rgba(20,184,133,0.12)" : "none",
+                      color: courseId ? "var(--bt-text-1)" : "var(--bt-text-3)",
+                    }}
+                    aria-haspopup="listbox"
+                    aria-expanded={showCourseMenu}
+                  >
+                    {courseId && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courses.find((item) => item.id === courseId)?.color }} aria-hidden="true" />}
+                    <span className="min-w-0 flex-1 truncate text-left">{courseId ? courseName(courseId) : t("dash.selectCourse")}</span>
+                    {!running && (
+                      <svg className={`shrink-0 transition-transform duration-200 motion-reduce:transition-none ${showCourseMenu ? "rotate-180" : ""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    )}
+                  </button>
+                )}
 
-              {/* Menu déroulant des cours */}
-              {showCourseMenu && !running && (
-                <div className="absolute top-full left-0 mt-1.5 w-72 max-w-[78vw] rounded-2xl z-30 overflow-hidden"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 32px var(--bt-shadow)" }}>
-                  {courses.map((c, i) => (
-                    <button key={c.id}
-                      onClick={() => { setCourseId(c.id); setShowCourseMenu(false); }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
-                      style={{ borderBottom: i < courses.length - 1 ? "1px solid var(--bt-border)" : "none" }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                      <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
-                      {courseId === c.id && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14B885" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {showCourseMenu && !running && (
+                  <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl py-1" role="listbox" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
+                    {courses.map((course) => (
+                      <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
+                        <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
+                        {courseId === course.id && (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--bt-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m20 6-11 11-5-5" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {(() => {
+                const selectedCourse = courses.find((item) => item.id === courseId);
+                if (!selectedCourse?.exam_date) return null;
+                const days = daysUntilExam(selectedCourse.exam_date);
+                return (
+                  <span className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: days <= 0 ? "var(--bt-danger-bg)" : days <= 7 ? "#FEF3C7" : "var(--bt-accent-bg)", color: days <= 0 ? "var(--bt-danger)" : days <= 7 ? "#A85E00" : "var(--bt-accent-text)" }}>
+                    {days === 0 ? t("exam.today") : days < 0 ? t("exam.passed") : `J-${days}`}
+                  </span>
+                );
+              })()}
             </div>
 
-            {/* Badge examen du cours actif */}
-            {(() => {
-              const c = courses.find(x => x.id === courseId);
-              if (!c?.exam_date) return null;
-              const d = daysUntilExam(c.exam_date);
-              return (
-                <span className="text-[11px] px-2.5 py-1 rounded-full font-bold shrink-0 whitespace-nowrap" style={{
-                  backgroundColor: d <= 0 ? "#FEF2F2" : d <= 7 ? "#FEF3C7" : "#EAFBF4",
-                  color: d <= 0 ? "#DC2626" : d <= 7 ? "#D97706" : "#0E8F68",
-                }}>
-                  {d === 0 ? t("exam.today") : d < 0 ? t("exam.passed") : `J-${d}`}
-                </span>
-              );
-            })()}
-
-            <div className="flex-1" />
-
-            {/* Segmented Libre / Pomodoro */}
-            <div className="flex rounded-full p-0.5 gap-0.5 shrink-0"
-              style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              <button
-                onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }}
-                className="bt-tap px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
-                style={!pomodoro
-                  ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
-                  : { color: "var(--bt-text-3)" }}>
+            <div className="flex min-h-11 shrink-0 rounded-full p-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+              <button type="button" onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={!pomodoro ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" } : { color: "var(--bt-text-3)" }} aria-pressed={!pomodoro}>
                 {t("dash.free")}
               </button>
-              <button
-                onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }}
-                className="bt-tap px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
-                style={pomodoro
-                  ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" }
-                  : { color: "var(--bt-text-3)" }}>
+              <button type="button" onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={pomodoro ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" } : { color: "var(--bt-text-3)" }} aria-pressed={pomodoro}>
                 Pomodoro
               </button>
             </div>
 
-            {/* Plein écran → mode focus */}
-            <button onClick={() => setFocusMode(true)} title={t("dash.focusMode")} aria-label={t("dash.focusMode")}
-              className="bt-tap w-9 h-9 flex items-center justify-center rounded-full shrink-0 transition-colors"
-              style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}
-              onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-text-1)"; }}
-              onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-3)"; }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            <button type="button" onClick={() => setFocusMode(true)} className="bt-dashboard-control flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
+                <circle cx="12" cy="12" r="2.5" />
               </svg>
+              <span>{t("dash.focusShort")}</span>
             </button>
           </div>
 
@@ -1338,9 +1285,9 @@ export default function Dashboard() {
                   {POMO_WORK_OPTIONS.map(m => (
                     <button key={m} type="button"
                       onClick={() => { setPomoWorkMin(m); pomoHandled.current = false; }}
-                      className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+                      className="bt-dashboard-control min-h-11 rounded-full px-3 text-xs font-semibold"
                       style={pomoWorkMin === m
-                        ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 2px 6px rgba(20,184,133,0.25)" }
+                        ? { backgroundColor: "var(--bt-action)", color: "#fff", boxShadow: "0 2px 6px rgba(8,116,84,0.25)" }
                         : { backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
                       {m} min
                     </button>
@@ -1353,9 +1300,9 @@ export default function Dashboard() {
                   {POMO_BREAK_OPTIONS.map(m => (
                     <button key={m} type="button"
                       onClick={() => setPomoBreakMin(m)}
-                      className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+                      className="bt-dashboard-control min-h-11 rounded-full px-3 text-xs font-semibold"
                       style={pomoBreakMin === m
-                        ? { backgroundColor: "#0ea5e9", color: "#fff" }
+                        ? { backgroundColor: "#075E80", color: "#fff" }
                         : { backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
                       {m} min
                     </button>
@@ -1366,7 +1313,7 @@ export default function Dashboard() {
           )}
 
           {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
-          <div className="px-5 sm:px-6 pt-9 sm:pt-11 pb-1 text-center">
+          <div className="px-5 pb-1 pt-8 text-center sm:px-6 sm:pt-10">
             {pomodoro && (
               <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-5"
                 style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
@@ -1388,14 +1335,20 @@ export default function Dashboard() {
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
               color={isPaused && !pomodoro ? PAUSE_ACCENT : "var(--bt-text-1)"} />
 
-            <div className="mt-8 mx-auto w-full max-w-[440px]">
+            <div className="mx-auto mt-7 w-full max-w-[440px]">
+              <div className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
+                <span>{t("dash.sessionBlocks")}</span>
+                <span className="font-num shrink-0 font-semibold tabular-nums">
+                  {t("dash.blocksValidated").replace("{n}", String(blkValidated))}
+                </span>
+              </div>
               <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} />
             </div>
 
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
                 accomplissement. Pendant le travail normal, la ligne reste
                 textuelle pour ne pas distraire. */}
-            <div className={`${showGuestIntro ? "h-5 mt-5" : "min-h-[92px] mt-4"} flex items-center justify-center`}>
+            <div className={`${showGuestIntro ? "h-4 mt-4" : "min-h-[72px] mt-3"} flex items-center justify-center`}>
               {timerCoach && !focusMode && !showGuestIntro ? (
                 <MascotCoach
                   id={timerCoach.id}
@@ -1404,7 +1357,7 @@ export default function Dashboard() {
                   persistence={timerCoach.persistence}
                   live={timerCoach.live}
                   className="w-full max-w-md"
-                  size={72}
+                  size={56}
                 />
               ) : !timerCoach && liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
@@ -1426,9 +1379,9 @@ export default function Dashboard() {
                   <button key={label} type="button" onClick={() => pickSessionGoal(m)}
                     title={m === null ? t("dash.noGoal") : undefined}
                     aria-pressed={sessionGoalMin === m}
-                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all bt-press"
+                    className="bt-dashboard-control min-h-11 min-w-11 rounded-full px-3.5 text-xs font-semibold"
                     style={sessionGoalMin === m
-                      ? { backgroundColor: "#14B885", color: "#fff", boxShadow: "0 2px 8px rgba(20,184,133,0.25)" }
+                      ? { backgroundColor: "var(--bt-action)", color: "#fff", boxShadow: "0 2px 8px rgba(8,116,84,0.25)" }
                       : { backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
                     {label}
                   </button>
@@ -1440,8 +1393,10 @@ export default function Dashboard() {
           {/* ── Note — champ discret, souligné au focus seulement ── */}
           {(!pomodoro || pomoPhase === "work") && (
             <div className="px-5 sm:px-6 mt-4">
+              <label htmlFor="dashboard-session-note" className="sr-only">{t("dash.noteLabel")}</label>
               <input
-                className="block w-full max-w-xs mx-auto text-center text-sm bg-transparent outline-none py-1.5"
+                id="dashboard-session-note"
+                className="mx-auto block min-h-11 w-full max-w-xs bg-transparent py-2 text-center text-sm outline-none"
                 style={{ color: "var(--bt-text-1)", borderBottom: "1px solid transparent", transition: "border-color 0.2s" }}
                 onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--bt-border)"; }}
                 onBlur={e => { e.currentTarget.style.borderBottomColor = "transparent"; }}
@@ -1464,11 +1419,11 @@ export default function Dashboard() {
               <div className="flex flex-col xs:flex-row items-stretch justify-center gap-2.5 max-w-md mx-auto">
                 {!running ? (
                   <button
-                    className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
+                    className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
                     style={{
-                      backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)",
+                      backgroundImage: "linear-gradient(165deg, var(--bt-action), var(--bt-action-deep) 115%)",
                       color: "#fff",
-                      boxShadow: "0 4px 16px rgba(20,184,133,0.30)",
+                      boxShadow: "0 4px 16px rgba(8,116,84,0.30)",
                       opacity: (!courseId && !pomodoro) ? 0.45 : 1,
                     }}
                     onClick={() => { startWithFeedback(); setFocusMode(true); }}
@@ -1480,7 +1435,7 @@ export default function Dashboard() {
                   </button>
                 ) : (
                   <button
-                    className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
+                    className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
                     style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}
                     onClick={pauseWithFeedback}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -1491,9 +1446,9 @@ export default function Dashboard() {
                 )}
                 {(elapsed >= 1 || saveStatus !== "idle") && (
                   <button
-                    className="flex-1 py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 bt-press"
+                    className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
                     style={{
-                      backgroundColor: saveStatus === "success" ? "#14B885"
+                      backgroundColor: saveStatus === "success" ? "var(--bt-action)"
                         : saveStatus === "error" ? "#ef4444"
                         : "var(--bt-text-1)",
                       color: saveStatus === "success" || saveStatus === "error" ? "#fff" : "var(--bt-surface)",
@@ -1524,181 +1479,76 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Sessions du jour / À faire — flex-1 À PARTIR DE lg seulement : à
-            ce breakpoint la carte partage une ligne de grille avec la
-            colonne Aujourd'hui/Mes cours et doit s'étirer pour l'égaler
-            (contenu débordant → la LISTE défile, la carte n'excède jamais
-            cette hauteur). En dessous de lg (mono-colonne, pas de colonne à
-            égaler), un flex-basis fixe non conditionnel créerait un vide
-            artificiel — d'où le préfixe lg: sur la classe flex ci-dessous. */}
-        {sessions.length > 0 && (
-          <section className="order-3 lg:order-2 card p-5 flex flex-col min-h-0 lg:[flex:1_1_260px]">
-            <h2 className="text-sm font-bold uppercase tracking-wider mb-4 shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("dash.todaySessions")}</h2>
-            <ul className="divide-y flex-1 min-h-0 overflow-y-auto" style={{ borderColor: "var(--bt-border)" }}>
-              {sessions.map((s) => {
-                const maxMins = Math.floor(s.duration_seconds / 60);
-                const isEditing = editingSessionId === s.id;
-                return (
-                  <li key={s.id} className="py-2.5 flex items-center gap-2 text-sm">
-                    {isEditing ? (
-                      /* ── Inline editor ── */
-                      <div className="flex-1 flex flex-col gap-2">
-                        {/* Course selector */}
-                        <select
-                          value={editCourseId ?? ""}
-                          onChange={e => setEditCourseId(e.target.value || null)}
-                          style={{
-                            width: "100%",
-                            padding: "3px 8px",
-                            fontSize: 13,
-                            borderRadius: 8,
-                            border: "1px solid var(--bt-border)",
-                            backgroundColor: "var(--bt-surface)",
-                            color: "var(--bt-text-1)",
-                            outline: "none",
-                          }}>
-                          <option value="">{t("dash.noCourse")}</option>
-                          {courses.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                        {/* Duration row */}
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min={1}
-                            max={maxMins}
-                            value={editMinutes}
-                            onChange={e => setEditMinutes(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter") updateSession(s);
-                              if (e.key === "Escape") setEditingSessionId(null);
-                            }}
-                            autoFocus
-                            style={{
-                              width: 52,
-                              padding: "2px 6px",
-                              fontSize: 13,
-                              textAlign: "center",
-                              borderRadius: 8,
-                              border: "1px solid var(--bt-border)",
-                              backgroundColor: "var(--bt-surface)",
-                              color: "var(--bt-text-1)",
-                              outline: "none",
-                            }}
-                          />
-                          <span className="text-xs tabular-nums flex-1" style={{ color: "var(--bt-text-3)" }}>
-                            / {maxMins} min
-                          </span>
-                          {/* Confirm */}
-                          <button
-                            onClick={() => updateSession(s)}
-                            title={t("common.save")}
-                            className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                            style={{ color: "#14B885" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "#0E8F68"}
-                            onMouseLeave={e => e.currentTarget.style.color = "#14B885"}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                          </button>
-                          {/* Cancel */}
-                          <button
-                            onClick={() => setEditingSessionId(null)}
-                            title={t("common.cancel")}
-                            className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                            style={{ color: "var(--bt-text-3)" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* ── Normal view ── */
-                      <>
-                        <span className="flex-1 min-w-0">
-                          <span className="font-medium" style={{ color: "var(--bt-text-1)" }}>{courseName(s.course_id)}</span>
-                          {s.note && <span style={{ color: "#A8A09A" }}> — {s.note}</span>}
-                        </span>
-                        <span className="shrink-0 tabular-nums" style={{ color: "var(--bt-text-2)" }}>
-                          {formatMinutesShort(s.duration_seconds)}
-                        </span>
-                        {/* Edit */}
-                        <button
-                          onClick={() => { setEditingSessionId(s.id); setEditMinutes(String(maxMins)); setEditCourseId(s.course_id); }}
-                          title={t("dash.editSession")}
-                          className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                          style={{ color: "var(--bt-text-4)" }}
-                          onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-2)"}
-                          onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-                          </svg>
-                        </button>
-                        {/* Delete — double confirmation */}
-                        {confirmDeleteId === s.id ? (
-                          <>
-                            <button
-                              onClick={() => { deleteSession(s.id); setConfirmDeleteId(null); }}
-                              title={t("common.delete")}
-                              className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                              style={{ color: "#ef4444" }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => setConfirmDeleteId(null)}
-                              title={t("common.cancel")}
-                              className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                              style={{ color: "var(--bt-text-3)" }}
-                              onMouseEnter={e => e.currentTarget.style.color = "var(--bt-text-1)"}
-                              onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-3)"}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDeleteId(s.id)}
-                            title={t("common.delete")}
-                            className="bt-tap shrink-0 transition-colors px-1.5 inline-flex items-center justify-center"
-                            style={{ color: "var(--bt-text-4)" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                            </svg>
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+        {showGuestIntro && (
+          <section className="order-2 overflow-hidden rounded-2xl px-4 py-4 sm:px-5 lg:order-2"
+            style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+            <div className="flex items-end gap-3 sm:items-center">
+              <Mascot streak={12} size={64} className="h-14 w-14 shrink-0" ariaLabel="Mascotte de Blocus Tracker" />
+              <div className="relative min-w-0 flex-1 rounded-2xl px-4 py-3"
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
+                <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
+                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
+                <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.discoveryTitle")}</p>
+                <p className="relative mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                  {t("guest.discoveryText")}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 sm:ml-[68px]">
+              <Link href="/planning" className="btn-ghost min-h-11 px-3 py-2 text-xs">{t("guest.viewPlanning")}</Link>
+              <Link href="/stats" className="btn-ghost min-h-11 px-3 py-2 text-xs">{t("guest.viewStats")}</Link>
+              <Link href="/feed" className="btn-ghost min-h-11 px-3 py-2 text-xs">{t("guest.discoverSocial")}</Link>
+              <span className="hidden flex-1 sm:block" />
+              <Link href="/signup" className="btn-primary min-h-11 px-3 py-2 text-xs">{t("guest.keepProgress")}</Link>
+              <Link href="/login" className="inline-flex min-h-11 items-center px-2 py-2 text-xs font-semibold" style={{ color: "var(--bt-accent-text)" }}>
+                {t("guest.signIn")}
+              </Link>
+            </div>
           </section>
         )}
 
+        <TodaySessionsCard
+          className="order-4 lg:order-3"
+          sessions={sessions}
+          courses={courses}
+          onUpdate={updateSession}
+          onDelete={deleteSession}
+        />
+
         {todayObjectives.length > 0 && (
-          <section className="order-4 lg:order-3 card p-5 flex flex-col min-h-0 lg:[flex:1_1_200px]">
-            <h2 className="text-sm font-bold uppercase tracking-wider mb-4 shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("dash.todo")}</h2>
-            <ul className="space-y-2 flex-1 min-h-0 overflow-y-auto">
+          <section className="order-5 card flex min-h-0 flex-col p-5 sm:p-6 lg:order-4">
+            <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+              <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("dash.todo")}</h2>
+              <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
+                {todayObjectives.filter((item) => item.done).length}/{todayObjectives.length}
+              </span>
+            </div>
+            <ul className="divide-y" style={{ borderColor: "var(--bt-border)" }}>
               {todayObjectives.map((o) => {
                 const course = courses.find((c) => c.id === o.course_id);
                 return (
                   <li key={o.id}
-                    className="flex items-center gap-3 text-sm rounded-2xl px-3.5 py-3 transition-colors"
-                    style={{
-                      border: "1px solid var(--bt-border)",
-                      backgroundColor: o.done ? "var(--bt-subtle)" : "var(--bt-surface)",
-                    }}>
-                    <input type="checkbox" checked={o.done} onChange={() => toggleObjective(o)}
-                      className="bt-task-check w-4 h-4 shrink-0" />
+                    className="flex min-h-[64px] items-center gap-2 py-2.5 text-sm">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={o.done}
+                      aria-label={`${o.title} — ${o.done ? t("checklist.markUndone") : t("checklist.markDone")}`}
+                      onClick={() => toggleObjective(o)}
+                      className="bt-dashboard-control flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                    >
+                      <span
+                        className={`flex h-5 w-5 items-center justify-center rounded-md ${o.done ? "bt-check-pop" : ""}`}
+                        style={{ backgroundColor: o.done ? "var(--bt-action)" : "var(--bt-surface)", border: `1px solid ${o.done ? "var(--bt-action)" : "var(--bt-border)"}` }}
+                        aria-hidden="true"
+                      >
+                        {o.done && (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m5 12 4 4L19 6" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <p className={`bt-strike ${o.done ? "is-done" : ""} truncate`} style={{
                         color: o.done ? "var(--bt-text-3)" : "var(--bt-text-1)",
@@ -1724,214 +1574,43 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* ── Blocus + Progression, en 2-up sous le chrono ──────────────
-            Empilées dans le rail de droite, ces deux cartes portaient la
-            colonne à 1265 px face à 648 px à gauche : ~600 px de vide sous le
-            chrono. Placées ici, elles comblent ce vide les jours sans session,
-            et passent sous les listes du jour dès qu'il y en a — l'ordre de
-            lecture après une session reste « ce que je viens de faire »
-            d'abord. `items-start` : sans lui, la plus courte des deux
-            s'étirerait sur la hauteur de l'autre et se creuserait du vide. */}
-        <div className="order-5 lg:order-4 grid grid-cols-1 lg:grid-cols-2 gap-5 items-start min-w-0">
-          <BlocusCard
-            sessions={recentSessions}
-            exams={courses.filter(c => c.exam_date)}
-            onChange={handleBlocusLoaded}
-          />
-          <DailyProgressCard todayStats={missionStats} />
-        </div>
         </div>
 
         {/* ══════════════════════════════════════════
-            SIDE — Aujourd'hui + Mes cours
+            SIDE — Missions + progression du jour
         ══════════════════════════════════════════ */}
-        <div className="contents lg:block lg:space-y-5 min-w-0">
+        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-5">
+          <DailyProgressCard className="order-2 lg:order-none" todayStats={missionStats} />
+          <TodayProgressCard
+            className="order-3 lg:order-none"
+            totalToday={totalToday}
+            goalPct={goalPct}
+            weekSecs={weekSecs}
+            streak={streak}
+            bestStreak={bestStreak}
+            streakPaused={streakPaused}
+            freezeInfo={freezeInfo}
+          />
+        </aside>
 
-          {/* ── Aujourd'hui — surface ink signature ── */}
-          <section className="order-2 card-ink bt-grain p-5 min-w-0 relative">
-          <div className="relative z-10">
-            {/* La mascotte vit désormais autour du chrono. Ici, la série reste
-                lisible comme une donnée, sans deuxième personnage concurrent. */}
-            {/* Série + gels : une vraie rangée en flux, plus une pastille collée
-                en absolu dans le coin. Les deux pastilles partagent la même
-                forme et la même taille, et le stock reste visible même à 0
-                (sinon on ne découvre jamais que le filet existe). */}
-            {streak > 0 && (
-              <div className="mb-3 flex flex-wrap items-center justify-end gap-1.5">
-                {freezeInfo?.supported && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                    title={t("streak.freezeStock")} aria-label={`${t("streak.stockLabel")} : ${t("streak.stockCount").replace("{n}", String(freezeInfo.stock))}`}
-                    style={{
-                      backgroundColor: freezeInfo.stock > 0 ? "rgba(56,189,248,0.16)" : "rgba(255,255,255,0.07)",
-                      border: `1px solid ${freezeInfo.stock > 0 ? "rgba(56,189,248,0.34)" : "rgba(255,255,255,0.10)"}`,
-                    }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke={freezeInfo.stock > 0 ? "#7DD3FC" : "rgba(255,255,255,0.35)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
-                    </svg>
-                    <span className="text-[11px] font-bold font-num tabular-nums"
-                      style={{ color: freezeInfo.stock > 0 ? "#BAE6FD" : "rgba(255,255,255,0.45)" }}>
-                      {freezeInfo.stock}/2
-                    </span>
-                  </span>
-                )}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                  <Flame size={12} style={{ color: streakPaused ? "rgba(251,191,36,0.45)" : "#FBBF24" }} />
-                  <span className="text-[11px] font-bold font-num tabular-nums" style={{ color: "#fff" }}>
-                    <AnimatedNumber value={streak} suffix={` ${t("dash.streak")}`} />
-                  </span>
-                </span>
-                {/* Hors blocus, la série ne court plus : le dire, sinon un
-                    compteur figé passe pour un bug. */}
-                {streakPaused && (
-                  <span className="text-[10px] w-full text-right" style={{ color: "var(--bt-ink-muted)" }}>
-                    {t("blocus.paused")}
-                  </span>
-                )}
-              </div>
-            )}
-            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "var(--bt-accent)" }}>
-              {t("dash.today")}
-            </p>
-            <div className="font-num font-bold tabular-nums mb-3"
-              style={{ fontSize: "clamp(2rem,6vw,2.5rem)", color: "var(--bt-ink-text)", lineHeight: 1.1, letterSpacing: "-0.02em" }}>
-              <AnimatedNumber value={totalToday} format={formatMinutesShort} />
-            </div>
-            <div className="mb-4">
-              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: "var(--bt-ink-muted)" }}>
-                <span>{t("dash.goal")}</span>
-                <span className="font-bold tabular-nums"><AnimatedNumber value={goalPct} suffix="%" /></span>
-              </div>
-              <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
-                <div className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${goalPct}%`, backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
-              </div>
-            </div>
-            <ul className="space-y-2">
-              {perCourse.filter((c) => c.secs > 0).map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-2 text-sm overflow-hidden">
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                    <span className="truncate min-w-0" style={{ color: "var(--bt-ink-muted)" }}>{c.name}</span>
-                  </span>
-                  <span className="shrink-0 tabular-nums font-semibold" style={{ color: "var(--bt-ink-text)" }}>
-                    <AnimatedNumber value={c.secs} format={formatMinutesShort} />
-                  </span>
-                </li>
-              ))}
-              {totalToday === 0 && (
-                <li className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.noSession")}</li>
-              )}
-            </ul>
-
-            {/* Records — repères à battre, calculés sur les 90 derniers jours */}
-            {(bestDaySecs > 0 || weekSecs > 0) && (
-              <div className="mt-4 pt-4 grid grid-cols-2 gap-x-4 gap-y-3"
-                style={{ borderTop: "1px solid var(--bt-ink-border)" }}>
-                {[
-                  { label: t("dash.recBestDay"), value: bestDaySecs, format: formatMinutesShort },
-                  { label: t("dash.recLongest"), value: longestSessionSecs, format: formatMinutesShort },
-                  { label: t("dash.recWeek"), value: weekSecs, format: formatMinutesShort },
-                  { label: t("dash.recBestStreak"), value: bestStreak, suffix: ` ${t("dash.daysShort")}` },
-                ].map(({ label, value, format, suffix }) => (
-                  <div key={label}>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
-                      style={{ color: "var(--bt-ink-muted)", opacity: 0.8 }}>{label}</p>
-                    <p className="font-num font-bold tabular-nums text-base" style={{ color: "var(--bt-ink-text)" }}>
-                      <AnimatedNumber value={value} format={format} suffix={suffix} />
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          </section>
-
-          {/* ── Mes cours ── */}
-          <section className="order-6 card p-5 min-w-0">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <h2 className="text-base font-bold"
-                style={{ color: "var(--bt-text-1)" }}>{t("dash.myCourses")}</h2>
-              <button
-                type="button"
-                onClick={() => openCourseEditor()}
-                className="bt-tap flex min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition-colors hover:bg-[var(--bt-accent-bg)]"
-                style={{ color: "var(--bt-accent-text)" }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                {t("common.add")}
-              </button>
-            </div>
-
-            {courses.length === 0 ? (
-              <p className="py-5 text-center text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                {t("courseEditor.empty")}
-              </p>
-            ) : (
-            <ul className="-mx-1">
-              {courses.map((c) => {
-                const examDays = daysUntilExam(c.exam_date);
-                const count = checklistCounts[c.id] || { done: 0, total: 0 };
-                const examStatus = !c.exam_date
-                  ? ""
-                  : examDays === 0
-                    ? t("exam.today")
-                    : examDays < 0
-                      ? t("exam.passed")
-                      : `J-${examDays}`;
-                return (
-                  <li key={c.id}
-                    className="flex items-stretch gap-1 border-b border-[var(--bt-border)] last:border-b-0">
-                    <button
-                      type="button"
-                      onClick={() => isGuest ? toast(t("courseEditor.checklistAccountRequired"), "info") : setChecklistCourse(c)}
-                      className="group flex min-h-[68px] min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-2.5 text-left transition-colors hover:bg-[var(--bt-subtle)]"
-                      aria-label={`${t("courseEditor.openChecklist")} — ${c.name}, ${count.done}/${count.total}`}
-                    >
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} aria-hidden="true" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block break-words text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
-                        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs" style={{ color: "var(--bt-text-2)" }}>
-                          {c.exam_date && (
-                            <>
-                              <span
-                                className="font-medium"
-                                style={{ color: examDays <= 0 ? "var(--bt-danger)" : examDays <= 7 ? "var(--bt-warning)" : "var(--bt-text-2)" }}
-                              >
-                                {t("exam.setDate")} {examStatus}
-                              </span>
-                              <span aria-hidden="true">·</span>
-                            </>
-                          )}
-                          <span>{t("courseEditor.checklistShort")} {count.done}/{count.total}</span>
-                        </span>
-                      </span>
-                      <svg className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--bt-text-3)" }}>
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openCourseEditor(c)}
-                      className="bt-tap my-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-[var(--bt-subtle)]"
-                      style={{ color: "var(--bt-text-2)" }}
-                      aria-label={`${t("courseEditor.edit")} ${c.name}`}
-                      title={`${t("courseEditor.edit")} ${c.name}`}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                      </svg>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            )}
-          </section>
+        <div className="order-6 grid min-w-0 gap-5 lg:col-span-2 lg:grid-cols-2">
+          <DashboardCoursesCard
+            courses={courses}
+            checklistCounts={checklistCounts}
+            onAdd={() => openCourseEditor()}
+            onOpen={(course) => {
+              if (isGuest) {
+                openCourseEditor(course);
+                return;
+              }
+              setChecklistCourse(course);
+            }}
+          />
+          <BlocusCard
+            sessions={recentSessions}
+            exams={courses.filter((course) => course.exam_date)}
+            onChange={handleBlocusLoaded}
+          />
         </div>
       </div>
 
@@ -1954,6 +1633,11 @@ export default function Dashboard() {
           userId={user.id}
           onClose={() => setChecklistCourse(null)}
           onChanged={loadChecklistCounts}
+          onEdit={() => {
+            const course = checklistCourse;
+            setChecklistCourse(null);
+            openCourseEditor(course);
+          }}
         />
       )}
 

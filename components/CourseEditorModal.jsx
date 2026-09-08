@@ -205,7 +205,7 @@ export default function CourseEditorModal({ course, colors, busy, onClose, onSav
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="bt-course-editor-panel flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-[24px] focus:outline-none sm:max-w-md sm:rounded-2xl"
+        className="bt-dashboard-readable bt-course-editor-panel flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-[24px] focus:outline-none sm:max-w-md sm:rounded-2xl"
         style={{ backgroundColor: "var(--bt-surface)", boxShadow: "0 18px 60px rgba(31,26,23,0.22)" }}
         role="dialog"
         aria-modal="true"
