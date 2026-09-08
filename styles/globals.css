@@ -1597,14 +1597,35 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-plan-revision-row:hover { background-color: var(--bt-subtle); }
 }
 
-/* Cases du calendrier et creneaux de la grille horaire. Le survol reste un
-   voile neutre : la couleur d'un jour appartient a son contenu (cours,
-   examen, aujourd'hui), jamais au pointeur. */
-.bt-plan-day-cell, .bt-plan-day-head, .bt-plan-slot { transition: background-color 0.15s ease; }
+/* Cases du calendrier et creneaux de la grille horaire. */
+.bt-plan-day-cell, .bt-plan-day-head, .bt-plan-slot {
+  background-color: transparent;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Fond d'une case du mois. Le JS choisit UNE valeur de `data-fill` : les
+   regles ci-dessous sont donc exclusives, jamais empilees. L'alpha du lavis
+   de cours vit ici et non en JS, parce qu'il differe selon le theme — la
+   meme couleur doit rester un souffle sur le creme et rester perceptible
+   sur le sombre. Le triplet r,g,b arrive par --bt-day-tint. */
+.bt-plan-day-cell[data-fill="weekend"]  { background-color: var(--bt-subtle); }
+.bt-plan-day-cell[data-fill="multi"]    { background-color: var(--bt-mint-surface); }
+.bt-plan-day-cell[data-fill="course"]   { background-color: rgba(var(--bt-day-tint), 0.16); }
+.dark .bt-plan-day-cell[data-fill="course"] { background-color: rgba(var(--bt-day-tint), 0.28); }
+
+/* Selection = contour, pas aplat : elle se superpose ainsi a la couleur du
+   cours au lieu de l'effacer. Le fond mint ne sert que si la journee n'a
+   rien a montrer par elle-meme. */
+.bt-plan-day-cell[data-selected="1"]:not([data-fill]) { background-color: var(--bt-mint-strong); }
+.bt-plan-day-cell[data-selected="1"] { box-shadow: inset 0 0 0 2px var(--bt-accent); }
+
+/* Survol : un lisere, pas un aplat. Repeindre le fond effacait la couleur du
+   cours au passage de la souris — l'information disparaissait pile au moment
+   ou on la visait. */
 @media (hover: hover) and (pointer: fine) {
-  .bt-plan-day-cell:hover, .bt-plan-day-head:hover, .bt-plan-slot:hover {
-    background-color: var(--bt-subtle);
-  }
+  .bt-plan-day-head:hover, .bt-plan-slot:hover { background-color: var(--bt-subtle); }
+  .bt-plan-day-cell:hover { box-shadow: inset 0 0 0 2px var(--bt-accent-border); }
+  .bt-plan-day-cell[data-selected="1"]:hover { box-shadow: inset 0 0 0 2px var(--bt-accent); }
 }
 
 /* Boutons poses sur une surface ink (carte du jour) : le vert vif n'y passe

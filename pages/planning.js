@@ -105,6 +105,27 @@ function getHour(time) {
   if (!time) return null;
   return parseInt(time.split(":")[0], 10);
 }
+// « #14b8a6 » → « 20, 184, 166 ». Le triplet part en variable CSS, et c'est la
+// feuille de style qui choisit l'alpha : le même lavis doit rester très pâle
+// sur fond crème et rester perceptible sur fond sombre. Renvoie null si la
+// couleur n'est pas un hex (couleur nommée, valeur vide) — l'appelant retombe
+// alors sur un fond neutre plutôt que d'afficher n'importe quoi.
+function rgbTriplet(hex) {
+  const m = String(hex || "").trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].split("").map(c => c + c).join("") : m[1];
+  const n = parseInt(h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+// Majuscule à la PREMIÈRE lettre seulement, à l'affichage. `capitalize` en CSS
+// capitalise chaque mot : « mardi 8 septembre » devenait « Mardi 8 Septembre »,
+// or un mois ne prend pas de majuscule en français. Et sur un nom saisi par
+// l'utilisateur, ça abîmerait « examen d'IFRS » en « Examen D'IFRS ». La valeur
+// enregistrée n'est jamais modifiée : c'est une transformation de rendu.
+function sentenceCase(s) {
+  const str = String(s || "");
+  return str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+}
 
 // ── Recurrence helpers ───────────────────────────────────────────
 // Weekdays stored as JS getDay() values (0=Dim..6=Sam), same convention
@@ -160,6 +181,14 @@ const IconPlus = ({ size = 14 }) => (
 const IconClose = ({ size = 13 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" {...ic} strokeWidth="2.5" aria-hidden="true">
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+const IconTrash = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+    <path d="M10 11v6M14 11v6"/>
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
   </svg>
 );
 const IconEdit = ({ size = 12 }) => (
@@ -494,9 +523,9 @@ function TodayCard({ className = "" }) {
             {t("plan.todayCardEyebrow")}
           </h2>
           <button onClick={() => openDay(today)}
-            className="truncate text-xs capitalize underline-offset-2 transition-colors hover:underline"
+            className="truncate text-xs underline-offset-2 transition-colors hover:underline"
             style={{ color: "var(--bt-ink-muted)" }}>
-            {dateLabel}
+            {sentenceCase(dateLabel)}
           </button>
         </div>
 
@@ -514,7 +543,7 @@ function TodayCard({ className = "" }) {
                 {t("plan.todayCardExamsToday")}
               </p>
               <p className="mt-1 truncate text-sm font-bold" style={{ color: "#FCA5A5" }}>
-                {todayExams.map(e => e.name).join(" · ")}
+                {todayExams.map(e => sentenceCase(e.name)).join(" · ")}
               </p>
             </div>
           ) : nextExam ? (
@@ -522,7 +551,7 @@ function TodayCard({ className = "" }) {
               <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
                 {t("plan.nextExam")}
               </p>
-              <p className="mt-1 truncate text-sm font-bold" style={{ color: "var(--bt-ink-text)" }}>{nextExam.name}</p>
+              <p className="mt-1 truncate text-sm font-bold" style={{ color: "var(--bt-ink-text)" }}>{sentenceCase(nextExam.name)}</p>
               <p className="text-xs tabular-nums" style={{ color: "#FCA5A5" }}>{examCountdown(nextExamDays, t)}</p>
             </div>
           ) : null}
@@ -745,7 +774,7 @@ function DayDetailModal() {
     setShowAddExamForm(false);
   }
 
-  const dayTitle = d.toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" });
+  const dayTitle = sentenceCase(d.toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" }));
 
   return (
     <>
@@ -775,7 +804,7 @@ function DayDetailModal() {
             {/* ── Header ── */}
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-bold capitalize leading-tight" style={{ color: "var(--bt-text-1)" }}>
+                <h2 className="text-lg font-bold leading-tight" style={{ color: "var(--bt-text-1)" }}>
                   {dayTitle}
                 </h2>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -864,7 +893,7 @@ function DayDetailModal() {
                           </button>
                           <button onClick={() => removeExam(ex.id)} title={t("common.delete")} aria-label={t("common.delete")}
                             className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-8 w-8 items-center justify-center rounded-lg">
-                            <IconClose size={12} />
+                            <IconTrash />
                           </button>
                         </div>
                       </div>
@@ -975,10 +1004,14 @@ function DayDetailModal() {
                               title={t("plan.dayEdit")} aria-label={t("plan.dayEdit")}>
                               <IconEdit />
                             </button>
+                            {/* Corbeille et non croix : dans une fiche qui se
+                                ferme aussi par une croix, la même icône
+                                voulait dire « fermer » ici et « supprimer
+                                définitivement » là. */}
                             <button onClick={() => remove(o.id)}
                               className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-8 w-8 items-center justify-center rounded-lg"
                               title={t("common.delete")} aria-label={t("common.delete")}>
-                              <IconClose size={12} />
+                              <IconTrash />
                             </button>
                           </div>
                         </div>
@@ -1104,9 +1137,24 @@ function DayDetailModal() {
 
 // ── CalendarLegend ────────────────────────────────────────────
 function CalendarLegend() {
-  const { t } = usePlan();
+  const { courses, t } = usePlan();
+  // Un objectif n'a pas de couleur à lui : il porte celle de son cours. Une
+  // seule pastille grise l'annonçait donc à tort. On montre les vraies
+  // couleurs de SES cours — la légende devient un mini-index lisible.
+  const swatches = courses.slice(0, 3).map(c => c.color).filter(Boolean);
+  const objectiveNode = swatches.length ? (
+    <span className="flex items-center -space-x-1">
+      {swatches.map((c, i) => (
+        <span key={i} className="h-2.5 w-2.5 rounded-full"
+          style={{ backgroundColor: c, boxShadow: "0 0 0 1.5px var(--bt-surface)", zIndex: swatches.length - i }} />
+      ))}
+    </span>
+  ) : (
+    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bt-text-3)" }} />
+  );
+
   const items = [
-    { label: t("plan.legendObjective"), node: <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bt-text-3)" }} /> },
+    { label: t("plan.legendObjective"), node: objectiveNode },
     { label: t("plan.legendExam"),      node: <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} /> },
     { label: t("common.today"),         node: <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--bt-accent)" }} /> },
   ];
@@ -1160,21 +1208,34 @@ function MonthView() {
               const items     = byDate[key]      || [];
               const examItems = examsByDate[key] || [];
 
-              // Une seule décision de fond, dans cet ordre de priorité.
-              const background = isSel ? "var(--bt-mint-strong)"
-                : isWeekend ? "var(--bt-subtle)"
-                : "transparent";
+              // Couleurs des cours réellement présents ce jour-là (une par
+              // cours, pas une par objectif : trois objectifs du même cours
+              // sont UNE information de couleur, pas trois).
+              const dayCourseIds = [...new Set(items.filter(o => o.course_id).map(o => o.course_id))];
+              const dayColors    = dayCourseIds.map(id => courseColor(id));
+              const hasUncoursed = items.some(o => !o.course_id);
+              const soloTint     = dayColors.length === 1 && !hasUncoursed ? rgbTriplet(dayColors[0]) : null;
+
+              // UNE seule source de fond par case — jamais deux règles CSS qui
+              // se disputent la même cellule. La sélection n'en fait PAS partie :
+              // elle s'exprime par le contour vert, pas par un aplat. Sinon le
+              // jour sélectionné — aujourd'hui par défaut — était le seul à ne
+              // jamais montrer la couleur de son cours.
+              const fill = soloTint ? "course"   // un seul cours → sa couleur, très diluée
+                : items.length ? "multi"         // plusieurs cours (ou sans cours) → neutre, les pastilles disent lesquels
+                : isWeekend ? "weekend"
+                : null;
 
               const label = `${d.getDate()} — ${items.length} ${t("plan.legendObjective")}, ${examItems.length} ${t("plan.legendExam")}`;
 
               return (
                 <button key={key} onClick={() => { if (inMonth) openDay(key); else setSelectedDate(key); }}
                   aria-label={label} aria-current={isToday ? "date" : undefined}
+                  data-fill={fill || undefined} data-selected={isSel ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[84px] p-1.5 text-left sm:p-2"
                   style={{
-                    background,
+                    "--bt-day-tint": soloTint || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
-                    boxShadow: isSel ? "inset 0 0 0 2px var(--bt-accent)" : "none",
                     opacity: inMonth ? (isPast && !isToday ? 0.62 : 1) : 0.3,
                   }}>
                   {/* Day number */}
@@ -1185,18 +1246,23 @@ function MonthView() {
                     {d.getDate()}
                   </span>
 
-                  {/* Marqueurs — mobile : pastilles (aucun texte ne rentre) */}
+                  {/* Marqueurs — mobile : pastilles (aucun texte ne rentre).
+                      Une pastille par COURS, pas par objectif : le fond dit
+                      « il y a quelque chose », les pastilles disent « de quels
+                      cours ». Répéter la même couleur n'ajoutait rien. */}
                   <div className="flex flex-wrap gap-1 sm:hidden">
                     {examItems.slice(0, 2).map(e => (
                       <span key={e.id} className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
                     ))}
-                    {items.slice(0, 4).map(o => (
-                      <span key={o.id} className="h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.3 : 1 }} />
+                    {dayColors.slice(0, 4).map((c, i) => (
+                      <span key={i} className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: c }} />
                     ))}
-                    {(items.length + examItems.length) > 6 && (
+                    {hasUncoursed && (
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-text-3)" }} />
+                    )}
+                    {dayColors.length > 4 && (
                       <span className="text-[9px] leading-none tabular-nums" style={{ color: "var(--bt-text-4)" }}>
-                        +{items.length + examItems.length - 6}
+                        +{dayColors.length - 4}
                       </span>
                     )}
                   </div>
@@ -1463,9 +1529,9 @@ function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, on
   return (
     <div className={className}>
       <div className="flex items-center gap-2">
-        <h1 className="font-display min-w-0 flex-1 truncate text-xl font-bold capitalize sm:text-2xl"
+        <h1 className="font-display min-w-0 flex-1 truncate text-xl font-bold sm:text-2xl"
           style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
-          {periodLabel}
+          {sentenceCase(periodLabel)}
         </h1>
 
         <div className="flex shrink-0 items-center gap-1 no-print">
