@@ -97,7 +97,7 @@ export default function MascotCoach({
         <button
           type="button"
           onClick={dismiss}
-          className="self-start shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-base leading-none transition-colors"
+          className="self-start -mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base leading-none transition-colors"
           style={{ color: isInk ? "var(--bt-ink-muted)" : "var(--bt-text-3)" }}
           aria-label={t("coach.close")}
           title={t("coach.close")}

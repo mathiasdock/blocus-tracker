@@ -93,12 +93,12 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
   const locale = lang === "en" ? "en-US" : "fr-BE";
 
   return (
-    <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
+    <section className={`card min-w-0 p-4 sm:p-5 ${className}`}>
       {menuId && <button type="button" className="fixed inset-0 z-20 cursor-default" onClick={() => setMenuId(null)} aria-label={t("common.close")} />}
 
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("dash.todaySessions")}</h2>
-        <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
+        <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
           {sessions.length}
         </span>
       </div>
@@ -113,13 +113,13 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
       )}
 
       {sessions.length === 0 ? (
-        <div className="py-7 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)" }}>
+        <div className="mt-3 flex items-center gap-3 rounded-2xl px-3 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M9.5 3h5M12 3v2" />
             </svg>
           </div>
-          <p className="mt-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</p>
+          <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</p>
         </div>
       ) : (
         <ul className="mt-3 divide-y" style={{ borderColor: "var(--bt-border)" }}>

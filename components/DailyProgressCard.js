@@ -19,31 +19,31 @@ import { loadUserLevelMap } from "../lib/userLevels";
 import { getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import { todayISO } from "../lib/format";
 
-function MissionRow({ label, xp, done }) {
+function MissionRow({ label, xp, done, social = false }) {
   return (
-    <li className="flex min-h-9 items-center gap-3">
+    <li className={`flex min-h-9 items-center gap-3 ${social ? "bt-dashboard-reward rounded-xl px-2.5 py-2" : ""}`}>
       <span
         className={done ? "bt-check-pop" : ""}
         style={{
           width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
-          backgroundColor: done ? "var(--bt-action)" : "var(--bt-subtle)",
-          border: done ? "none" : "1px solid var(--bt-border)",
+          backgroundColor: done ? "var(--bt-accent)" : social ? "var(--bt-surface)" : "var(--bt-subtle)",
+          border: done ? "none" : `1px solid ${social ? "var(--bt-reward-border)" : "var(--bt-border)"}`,
         }}
       >
         {done && (
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff"
-            strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--bt-on-accent)"
+            strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         )}
       </span>
       <span className="flex-1 text-sm leading-snug"
-        style={{ color: done ? "var(--bt-text-3)" : "var(--bt-text-2)", textDecoration: done ? "line-through" : "none" }}>
+        style={{ color: done ? "var(--bt-text-3)" : social ? "var(--bt-reward-text)" : "var(--bt-text-2)", textDecoration: done ? "line-through" : "none" }}>
         {label}
       </span>
-      <span className="font-num shrink-0 text-xs font-bold tabular-nums"
-        style={{ color: done ? "var(--bt-text-4)" : "var(--bt-accent-dark)" }}>
+      <span className={`font-num shrink-0 font-bold tabular-nums ${social ? "rounded-full px-2 py-1 text-[10px]" : "text-xs"}`}
+        style={{ color: done ? "var(--bt-text-4)" : social ? "var(--bt-reward-text)" : "var(--bt-accent-text)", backgroundColor: social ? "var(--bt-surface)" : "transparent" }}>
         +{xp} XP
       </span>
     </li>
@@ -91,9 +91,11 @@ export default function DailyProgressCard({ todayStats, className = "" }) {
   const progressPct = levelInfo?.progressPct || 0;
   const totalXP = levelInfo?.totalXP || 0;
   const doneCount = missions.filter(m => m.done).length;
+  const studyMissions = missions.filter(m => m.key !== "xp.m_referral");
+  const socialMissions = missions.filter(m => m.key === "xp.m_referral");
 
   return (
-    <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
+    <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("xp.missions")}</h2>
@@ -105,16 +107,28 @@ export default function DailyProgressCard({ todayStats, className = "" }) {
         </span>
       </div>
 
-      <div className="mt-4">
-        <ul className="flex flex-col gap-2">
-          {missions.map((m, i) => (
+      <div className="mt-3">
+        <ul className="flex flex-col gap-1.5">
+          {studyMissions.map((m, i) => (
             <MissionRow key={`${m.key}-${i}`} label={t(m.key)} xp={m.xp} done={m.done} />
           ))}
         </ul>
+        {socialMissions.length > 0 && (
+          <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--bt-accent-border)" }}>
+            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: "var(--bt-reward-text)" }}>
+              {t("xp.communityBonus")}
+            </p>
+            <ul>
+              {socialMissions.map((m, i) => (
+                <MissionRow key={`${m.key}-${i}`} label={t(m.key)} xp={m.xp} done={m.done} social />
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {current && (
-        <div className="mt-5 border-t pt-4" style={{ borderColor: "var(--bt-border)" }}>
+        <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--bt-accent-border)" }}>
           <div className="flex items-center gap-3">
             <span className="font-num inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-xl px-2 text-sm font-extrabold tabular-nums"
               style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>

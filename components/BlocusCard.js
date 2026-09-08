@@ -1,8 +1,6 @@
-// Carte « Mon blocus » — la campagne bornée, sur le dashboard.
-//
-// Trois états : aucune période (proposition de création), période en cours
-// (compte à rebours, heures / objectif, rythme à tenir), période terminée
-// (bilan à ranger). Voir lib/blocus.js et migration_v40.
+// La période d'étude comme saison bornée : deux dates suffisent. Les anciennes
+// valeurs d'objectif horaire peuvent encore exister en base, mais cette surface
+// ne les expose plus et les nouvelles périodes enregistrent toujours null.
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
@@ -15,12 +13,65 @@ import {
 
 const fmtH = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
 
+function periodDays(start, end) {
+  if (!start || !end || end < start) return 0;
+  return Math.round((new Date(`${end}T00:00:00`) - new Date(`${start}T00:00:00`)) / 86400000) + 1;
+}
+
+function formatDate(value, locale) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function CalendarIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="17" rx="3" />
+      <path d="M8 2v4M16 2v4M3 9h18" />
+    </svg>
+  );
+}
+
+function RangeArrow() {
+  return (
+    <svg width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 7h17M15 3l4 4-4 4" />
+    </svg>
+  );
+}
+
+function DurationBadge({ days, t }) {
+  if (!days) return null;
+  const label = days === 1 ? t("blocus.durationOne") : t("blocus.duration").replace("{n}", String(days));
+  return (
+    <span className="font-num inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
+      <CalendarIcon size={13} />
+      {label}
+    </span>
+  );
+}
+
+function PeriodTimeline({ start, end, locale, days, t }) {
+  return (
+    <div className="mt-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-2xl px-3 py-3.5" style={{ backgroundColor: "var(--bt-accent-bg)" }}>
+        <p className="min-w-0 text-center font-num text-sm font-bold capitalize tabular-nums" style={{ color: "var(--bt-text-1)" }}>{formatDate(start, locale)}</p>
+        <span style={{ color: "var(--bt-accent-text)" }}><RangeArrow /></span>
+        <p className="min-w-0 text-center font-num text-sm font-bold capitalize tabular-nums" style={{ color: "var(--bt-text-1)" }}>{formatDate(end, locale)}</p>
+      </div>
+      <div className="mt-2 flex justify-center"><DurationBadge days={days} t={t} /></div>
+    </div>
+  );
+}
+
 export default function BlocusCard({ sessions, exams, onChange, className = "" }) {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [state, setState] = useState({ loading: true, supported: true, current: null });
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
+  const locale = lang === "en" ? "en-US" : "fr-BE";
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -50,36 +101,46 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
     refresh();
   }
 
-  // ── Formulaire de création ────────────────────────────────────────────
   if (form) {
+    const days = periodDays(form.start_date, form.end_date);
     return (
-      <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
-        <h2 className="mb-1 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
-          {t("blocus.title")}
-        </h2>
-        <p className="text-xs mb-4" style={{ color: "var(--bt-text-3)" }}>
-          {form.examCount > 0
-            ? t("blocus.fromExams").replace("{n}", String(form.examCount))
-            : t("blocus.noExams")}
-        </p>
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-semibold" style={{ color: "var(--bt-text-2)" }}>
-            <span className="block pb-1.5">{t("blocus.from")}</span>
-            <input type="date" className="input min-h-11" value={form.start_date}
-              onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+      <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
+            <CalendarIcon />
+          </span>
+          <div className="min-w-0">
+            <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.title")}</h2>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-2)" }}>
+              {form.examCount > 0
+                ? t("blocus.fromExams").replace("{n}", String(form.examCount))
+                : t("blocus.noExams")}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+          <label className="min-w-0 text-xs font-bold" style={{ color: "var(--bt-text-2)" }}>
+            <span className="mb-1.5 block">{t("blocus.from")}</span>
+            <input type="date" className="input min-h-11 min-w-0 px-2 text-sm" value={form.start_date}
+              onChange={(event) => setForm({ ...form, start_date: event.target.value })} />
           </label>
-          <label className="text-sm font-semibold" style={{ color: "var(--bt-text-2)" }}>
-            <span className="block pb-1.5">{t("blocus.to")}</span>
-            <input type="date" className="input min-h-11" min={form.start_date} value={form.end_date}
-              onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
+          <span className="flex h-11 items-center" style={{ color: "var(--bt-accent-text)" }}><RangeArrow /></span>
+          <label className="min-w-0 text-xs font-bold" style={{ color: "var(--bt-text-2)" }}>
+            <span className="mb-1.5 block">{t("blocus.to")}</span>
+            <input type="date" className="input min-h-11 min-w-0 px-2 text-sm" min={form.start_date} value={form.end_date}
+              onChange={(event) => setForm({ ...form, end_date: event.target.value })} />
           </label>
         </div>
-        <div className="flex gap-2 mt-4">
-          <button className="btn-primary flex-1 py-2 text-sm bt-press" disabled={busy || form.end_date < form.start_date}
+
+        <div className="mt-3 flex justify-center"><DurationBadge days={days} t={t} /></div>
+
+        <div className="mt-4 flex gap-2">
+          <button className="btn-primary flex-1 py-2 text-sm" disabled={busy || !days}
             onClick={submit}>
             {t("blocus.confirm")}
           </button>
-          <button className="btn-ghost px-4 py-2 text-sm" onClick={() => setForm(null)}>
+          <button className="btn-ghost px-4 py-2 text-sm" disabled={busy} onClick={() => setForm(null)}>
             {t("blocus.cancel")}
           </button>
         </div>
@@ -87,15 +148,19 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
     );
   }
 
-  // ── Aucune période déclarée ───────────────────────────────────────────
   if (!state.current) {
     return (
-      <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
-        <h2 className="mb-1 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
-          {t("blocus.title")}
-        </h2>
-        <p className="text-sm mb-4" style={{ color: "var(--bt-text-3)" }}>{t("blocus.none")}</p>
-        <button className="btn-primary w-full py-2.5 text-sm bt-press"
+      <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
+            <CalendarIcon />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.title")}</h2>
+            <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.none")}</p>
+          </div>
+        </div>
+        <button className="btn-primary mt-4 w-full py-2.5 text-sm"
           onClick={() => setForm(suggestFromExams(exams))}>
           {t("blocus.start")}
         </button>
@@ -103,34 +168,25 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
     );
   }
 
-  // ── Période terminée : bilan ──────────────────────────────────────────
+  const days = progress.daysTotal;
+
   if (progress.phase === "ended") {
     return (
-      <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
-        <h2 className="mb-3 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
-          {t("blocus.endedTitle")}
-        </h2>
-        <p className="font-display text-2xl font-bold" style={{ color: "var(--bt-text-1)" }}>
+      <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
+        <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.endedTitle")}</h2>
+        <PeriodTimeline start={state.current.start_date} end={state.current.end_date} locale={locale} days={days} t={t} />
+        <p className="mt-4 font-display text-2xl font-bold" style={{ color: "var(--bt-text-1)" }}>
           {t(progress.activeDays === 1 ? "blocus.recapOne" : "blocus.recap")
             .replace("{h}", String(fmtH(progress.hoursDone)))
             .replace("{days}", String(progress.activeDays))}
         </p>
-        {/* « Objectif atteint à 0 % » sonnerait comme un reproche : sous les
-            100 %, on énonce la part faite, et à zéro on se tait. */}
-        {progress.pct > 0 && (
-          <p className="text-sm mt-1" style={{ color: "var(--bt-accent-dark)" }}>
-            {t(progress.pct >= 100 ? "blocus.recapGoal" : "blocus.recapPartial")
-              .replace("{pct}", String(progress.pct))}
-          </p>
-        )}
-        <button className="btn-ghost w-full py-2 text-sm mt-4" disabled={busy} onClick={archive}>
+        <button className="btn-ghost mt-4 w-full py-2 text-sm" disabled={busy} onClick={archive}>
           {t("blocus.archive")}
         </button>
       </section>
     );
   }
 
-  // ── À venir / en cours ────────────────────────────────────────────────
   const upcoming = progress.phase === "upcoming";
   const countdown = upcoming
     ? t("blocus.startsIn").replace("{n}", String(progress.daysLeft))
@@ -139,48 +195,26 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
       : t("blocus.daysLeft").replace("{n}", String(progress.daysLeft));
 
   return (
-    <section className={`card min-w-0 p-5 sm:p-6 ${className}`}>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
-          {t("blocus.title")}
-        </h2>
-        <span className="font-num tabular-nums text-[11px] font-bold px-2 py-1 rounded-full"
-          style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+    <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.title")}</h2>
+        <span className="font-num shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
           {countdown}
         </span>
       </div>
 
-      <p className="font-display text-2xl font-bold" style={{ color: "var(--bt-text-1)" }}>
-        {progress.goalHours > 0
-          ? t("blocus.done")
-              .replace("{h}", String(fmtH(progress.hoursDone)))
-              .replace("{goal}", String(progress.goalHours))
-          : t("blocus.doneNoGoal").replace("{h}", String(fmtH(progress.hoursDone)))}
-      </p>
+      <PeriodTimeline start={state.current.start_date} end={state.current.end_date} locale={locale} days={days} t={t} />
 
-      {progress.pct !== null && (
-        <div className="mt-3" style={{ height: 8, borderRadius: 99, overflow: "hidden", backgroundColor: "var(--bt-subtle)" }}>
-          <div style={{
-            height: "100%", borderRadius: 99, transform: `scaleX(${progress.pct / 100})`, transformOrigin: "left",
-            background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)",
-            transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
-          }} />
+      <div className="mt-4 grid grid-cols-2 gap-4 border-t pt-4" style={{ borderColor: "var(--bt-accent-border)" }}>
+        <div>
+          <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("blocus.studied")}</p>
+          <p className="mt-0.5 font-num text-xl font-extrabold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{fmtH(progress.hoursDone)} h</p>
         </div>
-      )}
-
-      {progress.goalHours > 0 && (
-        <p className="text-xs mt-2" style={{ color: "var(--bt-text-3)" }}>
-          {progress.paceNeeded <= 0
-            ? t("blocus.paceDone")
-            : t("blocus.pace").replace("{h}", String(fmtH(progress.paceNeeded)))}
-        </p>
-      )}
-
-      <p className="text-xs mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}>
-        {t("blocus.activeDays")
-          .replace("{n}", String(progress.activeDays))
-          .replace("{total}", String(progress.daysTotal))}
-      </p>
+        <div>
+          <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("blocus.studyDays")}</p>
+          <p className="mt-0.5 font-num text-xl font-extrabold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{progress.activeDays}/{days}</p>
+        </div>
+      </div>
     </section>
   );
 }

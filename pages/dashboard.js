@@ -101,8 +101,8 @@ function buildBlockLayout({ elapsed, goalSecs, running, paused, max }) {
 }
 
 // Un bloc individuel. `fraction` remplit le bloc en cours (0→1).
-function Block({ state, fraction = 0, focus }) {
-  const GREEN = "#14B885";
+function Block({ state, fraction = 0, focus, groupStart = false }) {
+  const GREEN = "var(--bt-accent)";
   const base = {
     flex: 1,
     minWidth: focus ? 8 : 5,
@@ -111,13 +111,14 @@ function Block({ state, fraction = 0, focus }) {
     borderRadius: focus ? 6 : 4,
     position: "relative",
     overflow: "hidden",
+    marginLeft: groupStart ? (focus ? 7 : 5) : 0,
     transition: "background-color 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease",
   };
   if (state === "done") {
     return <span style={{ ...base, backgroundColor: GREEN, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }} />;
   }
   if (state === "bonus") {
-    return <span style={{ ...base, backgroundImage: "linear-gradient(155deg,#2BD9A4,#14B885)", boxShadow: "0 0 10px rgba(43,217,164,0.45)" }} />;
+    return <span style={{ ...base, backgroundImage: "linear-gradient(155deg,var(--bt-accent-hover),var(--bt-accent))", boxShadow: "0 0 10px rgba(20,184,133,0.32)" }} />;
   }
   if (state === "active") {
     return (
@@ -129,7 +130,7 @@ function Block({ state, fraction = 0, focus }) {
   if (state === "paused") {
     return (
       <span className="bt-block-paused" style={{ ...base, backgroundColor: focus ? "rgba(239,68,68,0.18)" : "rgba(239,68,68,0.12)" }}>
-        <span style={{ position: "absolute", inset: 0, width: `${Math.max(7, fraction * 100)}%`, backgroundColor: PAUSE_ACCENT, opacity: 0.9 }} />
+        <span style={{ position: "absolute", inset: 0, backgroundColor: PAUSE_ACCENT, opacity: 0.9, transform: `scaleX(${Math.max(0.07, fraction)})`, transformOrigin: "left" }} />
       </span>
     );
   }
@@ -146,7 +147,7 @@ function BlocusBlocks({ elapsed, running, paused, goalSecs, focus = false }) {
   return (
     <div className="flex items-center justify-center gap-[5px] w-full" style={{ minHeight: focus ? 22 : 14 }} aria-hidden="true">
       {head.map((s, i) => (
-        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} />
+        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} groupStart={i > 0 && i % 4 === 0} />
       ))}
       {overflow > 0 && (
         <span className="font-num tabular-nums shrink-0 px-1" style={{ fontSize: focus ? 13 : 11, fontWeight: 700, color: focus ? "rgba(255,255,255,0.6)" : "var(--bt-text-3)" }}>
@@ -1164,7 +1165,7 @@ export default function Dashboard() {
       {/* Mobile suit l'urgence quotidienne. Desktop assemble un vrai poste de
           travail : action et historique à gauche, motivation et résultat à
           droite, réglages durables sous les deux colonnes. */}
-      <div className="bt-dashboard-grid grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.75fr)]">
+      <div className="bt-dashboard-grid grid min-w-0 grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)] lg:gap-6">
 
         {/* ══════════════════════════════════════════
             COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
@@ -1176,10 +1177,11 @@ export default function Dashboard() {
             « Aujourd'hui » se retrouvait un écran plus bas. Les rangs lg: sont
             donnés en clair plutôt que remis à zéro : `lg:order-none` ne
             l'emportait pas de façon fiable sur le rang mobile. */}
-        <div className="contents min-w-0 lg:flex lg:flex-col lg:gap-5">
+        <div className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
         <section className="bt-dashboard-timer order-1 lg:order-1 card relative min-w-0 overflow-hidden"
           style={{
             backgroundColor: isPaused ? "rgba(239,68,68,0.13)" : "var(--bt-surface)",
+            backgroundImage: isPaused ? "none" : "radial-gradient(90% 75% at 50% 100%, var(--bt-timer-wash), transparent 72%), linear-gradient(180deg, var(--bt-surface), var(--bt-timer-base))",
             borderColor:     isPaused ? "rgba(239,68,68,0.60)" : "var(--bt-border)",
             boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.22)" : "0 4px 32px var(--bt-shadow)",
           }}>
@@ -1195,7 +1197,7 @@ export default function Dashboard() {
             }} />
 
           {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
-          <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-5 pt-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:px-6 sm:pt-6">
+          <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:px-6 sm:pt-5">
             <div className="col-span-2 flex min-w-0 items-center gap-2 sm:col-span-1">
               <div className="relative min-w-0 flex-1">
                 {courses.length === 0 ? (
@@ -1258,15 +1260,15 @@ export default function Dashboard() {
             </div>
 
             <div className="flex min-h-11 shrink-0 rounded-full p-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              <button type="button" onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={!pomodoro ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" } : { color: "var(--bt-text-3)" }} aria-pressed={!pomodoro}>
+              <button type="button" onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={!pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={!pomodoro}>
                 {t("dash.free")}
               </button>
-              <button type="button" onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={pomodoro ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 4px var(--bt-shadow)" } : { color: "var(--bt-text-3)" }} aria-pressed={pomodoro}>
+              <button type="button" onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={pomodoro}>
                 Pomodoro
               </button>
             </div>
 
-            <button type="button" onClick={() => setFocusMode(true)} className="bt-dashboard-control flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
+            <button type="button" onClick={() => setFocusMode(true)} className="bt-dashboard-control flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-accent-text)" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
                 <circle cx="12" cy="12" r="2.5" />
@@ -1277,7 +1279,7 @@ export default function Dashboard() {
 
           {/* ── Pomodoro settings ── */}
           {pomodoro && !running && (
-            <div className="mx-6 mt-4 space-y-3 rounded-2xl p-4"
+            <div className="mx-4 mt-3 space-y-3 rounded-2xl p-3.5 sm:mx-6 sm:mt-4 sm:p-4"
               style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>{t("dash.workDuration")}</p>
@@ -1287,7 +1289,7 @@ export default function Dashboard() {
                       onClick={() => { setPomoWorkMin(m); pomoHandled.current = false; }}
                       className="bt-dashboard-control min-h-11 rounded-full px-3 text-xs font-semibold"
                       style={pomoWorkMin === m
-                        ? { backgroundColor: "var(--bt-action)", color: "#fff", boxShadow: "0 2px 6px rgba(8,116,84,0.25)" }
+                        ? { backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent)", color: "var(--bt-accent-text)" }
                         : { backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
                       {m} min
                     </button>
@@ -1313,16 +1315,16 @@ export default function Dashboard() {
           )}
 
           {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
-          <div className="px-5 pb-1 pt-8 text-center sm:px-6 sm:pt-10">
+          <div className="px-4 pb-1 pt-5 text-center sm:px-6 sm:pt-8">
             {pomodoro && (
-              <div className="text-[11px] font-bold uppercase tracking-[0.18em] mb-5"
-                style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
+              <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]"
+                style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "#075E80" }}>
                 {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
               </div>
             )}
             {isPaused && !pomodoro && (
-              <div className="mb-5 flex justify-center">
+              <div className="mb-3 flex justify-center">
                 <span className="bt-pause-pulse inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1.5 rounded-full"
                   style={{ color: "#FFFFFF", backgroundColor: "#DC2626", border: "1px solid #DC2626" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
@@ -1335,9 +1337,14 @@ export default function Dashboard() {
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
               color={isPaused && !pomodoro ? PAUSE_ACCENT : "var(--bt-text-1)"} />
 
-            <div className="mx-auto mt-7 w-full max-w-[440px]">
+            <div className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
               <div className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
-                <span>{t("dash.sessionBlocks")}</span>
+                <span className="flex items-center gap-2">
+                  <span>{t("dash.sessionBlocks")}</span>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
+                    {t("dash.blockUnit")}
+                  </span>
+                </span>
                 <span className="font-num shrink-0 font-semibold tabular-nums">
                   {t("dash.blocksValidated").replace("{n}", String(blkValidated))}
                 </span>
@@ -1348,7 +1355,7 @@ export default function Dashboard() {
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
                 accomplissement. Pendant le travail normal, la ligne reste
                 textuelle pour ne pas distraire. */}
-            <div className={`${showGuestIntro ? "h-4 mt-4" : "min-h-[72px] mt-3"} flex items-center justify-center`}>
+            <div className={`${showGuestIntro ? "h-2 mt-2" : "min-h-[58px] mt-2"} flex items-center justify-center`}>
               {timerCoach && !focusMode && !showGuestIntro ? (
                 <MascotCoach
                   id={timerCoach.id}
@@ -1357,7 +1364,7 @@ export default function Dashboard() {
                   persistence={timerCoach.persistence}
                   live={timerCoach.live}
                   className="w-full max-w-md"
-                  size={56}
+                  size={48}
                 />
               ) : !timerCoach && liveMessage ? (
                 <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
@@ -1370,8 +1377,8 @@ export default function Dashboard() {
 
           {/* ── Objectif de session — poser l'intention avant de démarrer ── */}
           {!pomodoro && !running && elapsed === 0 && (
-            <div className="px-5 sm:px-6 mt-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-center mb-2.5" style={{ color: "var(--bt-text-4)" }}>
+            <div className="mt-2 px-4 sm:px-6">
+              <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
                 {t("dash.sessionGoalLabel")}
               </p>
               <div className="flex flex-wrap justify-center gap-1.5">
@@ -1381,7 +1388,7 @@ export default function Dashboard() {
                     aria-pressed={sessionGoalMin === m}
                     className="bt-dashboard-control min-h-11 min-w-11 rounded-full px-3.5 text-xs font-semibold"
                     style={sessionGoalMin === m
-                      ? { backgroundColor: "var(--bt-action)", color: "#fff", boxShadow: "0 2px 8px rgba(8,116,84,0.25)" }
+                      ? { backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent)", color: "var(--bt-accent-text)", boxShadow: "0 2px 8px rgba(20,184,133,0.12)" }
                       : { backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
                     {label}
                   </button>
@@ -1392,7 +1399,7 @@ export default function Dashboard() {
 
           {/* ── Note — champ discret, souligné au focus seulement ── */}
           {(!pomodoro || pomoPhase === "work") && (
-            <div className="px-5 sm:px-6 mt-4">
+            <div className="mt-3 px-4 sm:px-6">
               <label htmlFor="dashboard-session-note" className="sr-only">{t("dash.noteLabel")}</label>
               <input
                 id="dashboard-session-note"
@@ -1407,7 +1414,7 @@ export default function Dashboard() {
           )}
 
           {/* ── Actions ── */}
-          <div className="px-5 sm:px-6 pt-6 pb-5 sm:pb-6">
+          <div className="px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
             {pomoPhase === "break" && pomodoro ? (
               <div className="max-w-md mx-auto">
                 <button className="btn-ghost w-full py-3 text-sm"
@@ -1419,11 +1426,8 @@ export default function Dashboard() {
               <div className="flex flex-col xs:flex-row items-stretch justify-center gap-2.5 max-w-md mx-auto">
                 {!running ? (
                   <button
-                    className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
+                    className="bt-dashboard-control bt-dashboard-primary flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-extrabold"
                     style={{
-                      backgroundImage: "linear-gradient(165deg, var(--bt-action), var(--bt-action-deep) 115%)",
-                      color: "#fff",
-                      boxShadow: "0 4px 16px rgba(8,116,84,0.30)",
                       opacity: (!courseId && !pomodoro) ? 0.45 : 1,
                     }}
                     onClick={() => { startWithFeedback(); setFocusMode(true); }}
@@ -1475,7 +1479,7 @@ export default function Dashboard() {
                 )}
               </div>
             )}
-            <p className="text-[11px] text-center mt-4" style={{ color: "var(--bt-text-4)" }}>{t("dash.subtitle")}</p>
+            <p className="mt-3 hidden text-center text-[11px] sm:block" style={{ color: "var(--bt-text-4)" }}>{t("dash.subtitle")}</p>
           </div>
         </section>
 
@@ -1516,7 +1520,7 @@ export default function Dashboard() {
         />
 
         {todayObjectives.length > 0 && (
-          <section className="order-5 card flex min-h-0 flex-col p-5 sm:p-6 lg:order-4">
+          <section className="order-5 card flex min-h-0 flex-col p-4 sm:p-5 lg:order-4">
             <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
               <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("dash.todo")}</h2>
               <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
@@ -1579,7 +1583,7 @@ export default function Dashboard() {
         {/* ══════════════════════════════════════════
             SIDE — Missions + progression du jour
         ══════════════════════════════════════════ */}
-        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-5">
+        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
           <DailyProgressCard className="order-2 lg:order-none" todayStats={missionStats} />
           <TodayProgressCard
             className="order-3 lg:order-none"
@@ -1593,7 +1597,7 @@ export default function Dashboard() {
           />
         </aside>
 
-        <div className="order-6 grid min-w-0 gap-5 lg:col-span-2 lg:grid-cols-2">
+        <div className="order-6 grid min-w-0 gap-4 sm:gap-5 lg:col-span-2 lg:grid-cols-2 lg:gap-6">
           <DashboardCoursesCard
             courses={courses}
             checklistCounts={checklistCounts}

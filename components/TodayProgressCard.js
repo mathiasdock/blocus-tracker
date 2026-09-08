@@ -31,17 +31,12 @@ export default function TodayProgressCard({
   const blockPct = Math.min(100, (blocks / DAILY_BLOCK_GOAL) * 100);
 
   return (
-    <section className={`card-ink bt-grain min-w-0 p-5 sm:p-6 ${className}`}>
+    <section className={`card-ink bt-grain min-w-0 p-4 sm:p-5 ${className}`}>
       <div className="relative z-10">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>
-              {t("dash.todayProgress")}
-            </h2>
-            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>
-              {t("dash.todayProgressHelp")}
-            </p>
-          </div>
+          <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>
+            {t("dash.todayProgress")}
+          </h2>
 
           {(streak > 0 || freezeInfo?.supported) && (
             <div className="flex shrink-0 items-center gap-1.5">
@@ -65,7 +60,7 @@ export default function TodayProgressCard({
               {streak > 0 && (
                 <span
                   className="inline-flex min-h-7 items-center gap-1.5 rounded-full px-2 text-xs font-bold"
-                  style={{ backgroundColor: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}
+                  style={{ backgroundColor: "rgba(251,191,36,0.14)", border: "1px solid rgba(251,191,36,0.28)", color: "#FFF7D6" }}
                 >
                   <Flame size={12} style={{ color: streakPaused ? "rgba(251,191,36,0.48)" : "#FBBF24" }} />
                   <span className="font-num tabular-nums"><AnimatedNumber value={streak} /></span>
@@ -75,8 +70,8 @@ export default function TodayProgressCard({
           )}
         </div>
 
-        <div className="mt-6 flex items-end justify-between gap-4">
-          <p className="font-num text-[2.55rem] font-extrabold leading-none tracking-[-0.035em] tabular-nums sm:text-5xl" style={{ color: "var(--bt-ink-text)" }}>
+        <div className="mt-4 flex items-end justify-between gap-4">
+          <p className="font-num text-[2.35rem] font-extrabold leading-none tracking-[-0.035em] tabular-nums sm:text-[2.75rem]" style={{ color: "var(--bt-ink-text)" }}>
             <AnimatedNumber value={totalToday} format={formatMinutesShort} />
           </p>
           <p className="pb-1 text-right text-xs font-semibold tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
@@ -85,7 +80,7 @@ export default function TodayProgressCard({
         </div>
 
         <div
-          className="mt-3 h-2.5 overflow-hidden rounded-full"
+          className="mt-2.5 h-2 overflow-hidden rounded-full"
           role="progressbar"
           aria-label={t("dash.goal")}
           aria-valuemin={0}
@@ -99,8 +94,8 @@ export default function TodayProgressCard({
           />
         </div>
 
-        <div className="mt-5 flex items-center gap-3" style={{ color: "var(--bt-ink-text)" }}>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.10)" }}>
+        <div className="mt-4 flex items-center gap-3" style={{ color: "var(--bt-ink-text)" }}>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.10)" }}>
             <BlocksIcon />
           </span>
           <div className="min-w-0 flex-1">
@@ -113,16 +108,16 @@ export default function TodayProgressCard({
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-4 border-t pt-4" style={{ borderColor: "var(--bt-ink-border)" }}>
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3" style={{ borderColor: "var(--bt-ink-border)" }}>
           <div>
             <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.recWeek")}</p>
-            <p className="mt-1 font-num text-lg font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
+            <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
               <AnimatedNumber value={weekSecs} format={formatMinutesShort} />
             </p>
           </div>
           <div>
             <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.recBestStreak")}</p>
-            <p className="mt-1 font-num text-lg font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
+            <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
               <AnimatedNumber value={bestStreak} suffix={` ${t("dash.daysShort")}`} />
             </p>
           </div>

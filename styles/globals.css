@@ -76,12 +76,19 @@ html {
   --bt-text-3:        #A8A09A;
   --bt-text-4:        #C4BCB6;
   --bt-accent:        #14B885;
+  --bt-accent-hover:  #10A878;
   --bt-accent-dark:   #0E8F68;
   --bt-accent-text:   #087454;
+  --bt-on-accent:     #082B21;
   --bt-action:        #087454;
   --bt-action-deep:   #065F46;
   --bt-accent-bg:     #EAFBF4;
   --bt-accent-border: #C6EED9;
+  --bt-mint-surface:  #F1FBF6;
+  --bt-mint-strong:   #E2F7ED;
+  --bt-reward-bg:     #FFF4D8;
+  --bt-reward-border: #F1D79D;
+  --bt-reward-text:   #79500F;
   --bt-danger:        #B83E3E;
   --bt-danger-solid:  #C43D3D;
   --bt-danger-bg:     #FFF1F0;
@@ -117,6 +124,13 @@ html {
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
   --bt-accent-text:   #54D3A9;
+  --bt-accent-hover:  #20C996;
+  --bt-on-accent:     #06271D;
+  --bt-mint-surface:  #15231E;
+  --bt-mint-strong:   #193128;
+  --bt-reward-bg:     #302815;
+  --bt-reward-border: #5C4820;
+  --bt-reward-text:   #F0C675;
   --bt-danger:        #F29A9A;
   --bt-danger-solid:  #C84D4D;
   --bt-danger-bg:     #321A19;
@@ -234,10 +248,51 @@ html {
     --bt-text-4: var(--bt-text-2);
     --bt-accent-dark: var(--bt-accent-text);
   }
+  .bt-dashboard-grid {
+    --bt-timer-wash: rgba(20, 184, 133, 0.13);
+    --bt-timer-base: var(--bt-mint-surface);
+  }
+  .dark .bt-dashboard-grid {
+    --bt-timer-wash: rgba(20, 184, 133, 0.12);
+  }
   .bt-dashboard-grid input::placeholder,
   .bt-dashboard-readable input::placeholder {
     color: var(--bt-text-2);
     opacity: 1;
+  }
+
+  /* Le vert historique reste le signal d'action du dashboard. Le texte ink,
+     plutôt que blanc, garde les grands CTA conformes sur #14B885. */
+  .bt-dashboard-grid .btn-primary,
+  .bt-dashboard-primary {
+    background-color: var(--bt-accent);
+    background-image: none;
+    color: var(--bt-on-accent);
+    box-shadow: 0 5px 16px rgba(20, 184, 133, 0.25);
+  }
+  .bt-dashboard-grid .btn-primary:hover:not(:disabled),
+  .bt-dashboard-primary:hover:not(:disabled) {
+    background-color: var(--bt-accent-hover);
+    background-image: none;
+    box-shadow: 0 7px 20px rgba(20, 184, 133, 0.30);
+  }
+
+  /* Une même famille mint anime les surfaces secondaires sans attribuer une
+     couleur différente à chaque carte. */
+  .bt-dashboard-card-mint {
+    background:
+      radial-gradient(90% 110% at 100% 0%, var(--bt-mint-strong), transparent 58%),
+      var(--bt-mint-surface);
+    border-color: var(--bt-accent-border);
+  }
+  .bt-dashboard-title-accent {
+    font-family: 'Quicksand', 'Avenir Next', ui-rounded, ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  .bt-dashboard-reward {
+    background-color: var(--bt-reward-bg);
+    border: 1px solid var(--bt-reward-border);
+    color: var(--bt-reward-text);
   }
 
   /* ── Buttons ──────────────────────────────────────────────── */
