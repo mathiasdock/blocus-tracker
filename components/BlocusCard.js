@@ -33,6 +33,17 @@ function CalendarIcon({ size = 18 }) {
   );
 }
 
+function PeriodHeading({ children }) {
+  return (
+    <h2 className="bt-dashboard-title-accent flex items-center gap-2 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
+      <span className="shrink-0" style={{ color: "var(--bt-accent-text)" }}>
+        <CalendarIcon size={18} />
+      </span>
+      <span>{children}</span>
+    </h2>
+  );
+}
+
 function RangeArrow() {
   return (
     <svg width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -105,18 +116,13 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
     const days = periodDays(form.start_date, form.end_date);
     return (
       <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
-            <CalendarIcon />
-          </span>
-          <div className="min-w-0">
-            <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.title")}</h2>
-            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-2)" }}>
-              {form.examCount > 0
-                ? t("blocus.fromExams").replace("{n}", String(form.examCount))
-                : t("blocus.noExams")}
-            </p>
-          </div>
+        <div className="min-w-0">
+          <PeriodHeading>{t("blocus.title")}</PeriodHeading>
+          <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>
+            {form.examCount > 0
+              ? t("blocus.fromExams").replace("{n}", String(form.examCount))
+              : t("blocus.noExams")}
+          </p>
         </div>
 
         <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
@@ -151,14 +157,9 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
   if (!state.current) {
     return (
       <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
-            <CalendarIcon />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.title")}</h2>
-            <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.none")}</p>
-          </div>
+        <div className="min-w-0">
+          <PeriodHeading>{t("blocus.title")}</PeriodHeading>
+          <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.none")}</p>
         </div>
         <button className="btn-primary mt-4 w-full py-2.5 text-sm"
           onClick={() => setForm(suggestFromExams(exams))}>
@@ -173,7 +174,7 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
   if (progress.phase === "ended") {
     return (
       <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
-        <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.endedTitle")}</h2>
+        <PeriodHeading>{t("blocus.endedTitle")}</PeriodHeading>
         <PeriodTimeline start={state.current.start_date} end={state.current.end_date} locale={locale} days={days} t={t} />
         <p className="mt-4 font-display text-2xl font-bold" style={{ color: "var(--bt-text-1)" }}>
           {t(progress.activeDays === 1 ? "blocus.recapOne" : "blocus.recap")
@@ -197,7 +198,7 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
   return (
     <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("blocus.title")}</h2>
+        <PeriodHeading>{t("blocus.title")}</PeriodHeading>
         <span className="font-num shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
           {countdown}
         </span>
