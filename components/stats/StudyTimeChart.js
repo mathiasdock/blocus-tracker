@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid, ReferenceLine, ResponsiveContainer,
 } from "recharts";
+import FilterMenu from "../FilterMenu";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
 import { bucketLongLabel } from "../../lib/statsPeriod";
@@ -96,7 +97,11 @@ function BucketDetail({ bucket, lang }) {
   );
 }
 
-export default function StudyTimeChart({ series, goalMinutes = 0, periodLabel, className = "" }) {
+export default function StudyTimeChart({
+  series, goalMinutes = 0, periodLabel,
+  period, periodOptions, onPeriodChange,
+  className = "",
+}) {
   const { t, lang } = useI18n();
   const [selectedIso, setSelectedIso] = useState(null);
   const [expanded, setExpanded] = useState(false);
@@ -109,17 +114,26 @@ export default function StudyTimeChart({ series, goalMinutes = 0, periodLabel, c
   const totalSecs = data.reduce((a, d) => a + d.secs, 0);
   const hasData = totalSecs > 0;
 
+  // Le filtre vit DANS l'en-tête de la carte, à côté de son titre : c'est ce
+  // qui dit sans ambiguïté qu'il ne commande que ce graphique. Le total suit
+  // la période choisie, il est donc placé juste sous elle.
   const header = (
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
         <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.studyTimeTitle")}</h2>
         <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{periodLabel}</p>
       </div>
-      <p className="shrink-0 text-right">
-        <span className="font-num text-lg font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <FilterMenu
+          value={period}
+          options={periodOptions}
+          onChange={onPeriodChange}
+          ariaLabel={t("stats.periodFilterLabel")}
+        />
+        <span className="font-num text-lg font-bold leading-none tabular-nums" style={{ color: "var(--bt-text-1)" }}>
           {formatMinutesShort(totalSecs)}
         </span>
-      </p>
+      </div>
     </div>
   );
 

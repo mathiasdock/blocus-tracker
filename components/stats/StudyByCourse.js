@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { RankBadge } from "../Leaderboard";
+import FilterMenu from "../FilterMenu";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
 
@@ -9,17 +10,45 @@ import { formatMinutesShort } from "../../lib/format";
 // Avant : « Podium des cours » (30 j, top 3, barres) et « Répartition par
 // cours » (camembert, bascule semaine/mois, replié dans l'analyse avancée)
 // répondaient à la même question avec deux périodes différentes et deux
-// classements différents. Ici, un seul classement, la période globale de la
-// page, et le camembert en second rideau — il complète le classement, il ne
-// le double pas.
-export default function StudyByCourse({ rows, totalSecs, periodLabel, className = "" }) {
+// classements différents. Ici, un seul classement, sa propre période affichée
+// dans l'en-tête, et le camembert en second rideau — il complète le classement,
+// il ne le double pas.
+export default function StudyByCourse({
+  rows, totalSecs, periodLabel,
+  period, periodOptions, onPeriodChange,
+  className = "",
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+
+  // Sa propre période, indépendante du graphique : on peut vouloir la tendance
+  // du temps sur l'année ET la répartition des cours de la semaine en cours.
+  const head = (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.byCourseTitle")}</h2>
+        <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{periodLabel}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <FilterMenu
+          value={period}
+          options={periodOptions}
+          onChange={onPeriodChange}
+          ariaLabel={t("stats.periodFilterLabel")}
+        />
+        {rows.length > 0 && (
+          <span className="font-num text-lg font-bold leading-none tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+            {formatMinutesShort(totalSecs)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 
   if (!rows.length) {
     return (
       <section className={`card p-4 sm:p-5 ${className}`}>
-        <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.byCourseTitle")}</h2>
+        {head}
         <p className="py-6 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.chartNoData")}</p>
       </section>
     );
@@ -33,15 +62,7 @@ export default function StudyByCourse({ rows, totalSecs, periodLabel, className 
 
   return (
     <section className={`card p-4 sm:p-5 ${className}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.byCourseTitle")}</h2>
-          <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{periodLabel}</p>
-        </div>
-        <span className="shrink-0 font-num text-lg font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-          {formatMinutesShort(totalSecs)}
-        </span>
-      </div>
+      {head}
 
       <ul className="mt-4 space-y-3">
         {rows.slice(0, open ? rows.length : 3).map((r, i) => (

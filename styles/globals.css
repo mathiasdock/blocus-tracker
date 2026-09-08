@@ -1674,3 +1674,33 @@ details.bt-acc[open]::details-content { block-size: auto; }
   border: 1px dashed var(--bt-border);
   color: var(--bt-text-4);
 }
+
+/* ── Filtre compact (menu deroulant des en-tetes de section) ───────────────
+   Un bouton qui porte la valeur courante, un menu ouvert a la demande. Les
+   etats vivent en CSS et non en onMouseEnter : le focus clavier y a droit
+   autant que la souris, et le tactile n'herite pas d'un survol collant. */
+.bt-filter-btn {
+  color: var(--bt-text-2);
+  background-color: var(--bt-subtle);
+  border: 1px solid var(--bt-border);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-filter-btn:hover { background-color: var(--bt-border); color: var(--bt-text-1); }
+}
+.bt-filter-btn[aria-expanded="true"] {
+  background-color: var(--bt-accent-bg);
+  border-color: var(--bt-accent-border);
+  color: var(--bt-accent-text);
+}
+
+.bt-filter-item {
+  color: var(--bt-text-1);
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-filter-item:hover { background-color: var(--bt-subtle); }
+}

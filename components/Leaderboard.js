@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, displayName, lastNDates, todayISO } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
 import AnimatedNumber from "./AnimatedNumber";
+import FilterMenu from "./FilterMenu";
 import Flame from "./Flame";
 
 // ── RankBadge ────────────────────────────────────────────────
@@ -39,57 +40,35 @@ export function RankBadge({ rank }) {
   );
 }
 
-// ── Styles partagés des contrôles (même langage que le reste des Stats) ──
-const segWrap = { display: "inline-flex", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 24, padding: 3, flexShrink: 0 };
-const segBtn = (active) => ({
-  borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: active ? 600 : 400,
-  border: "none", cursor: "pointer", transition: "all 0.15s",
-  backgroundColor: active ? "#14B885" : "transparent",
-  color: active ? "#fff" : "var(--bt-text-3)",
-  boxShadow: active ? "0 1px 4px rgba(20,184,133,0.30)" : "none",
-});
-const chipBtn = (active) => ({
-  borderRadius: 20, padding: "5px 12px", fontSize: 12, fontWeight: active ? 600 : 400,
-  border: "1px solid", cursor: "pointer", transition: "all 0.15s",
-  backgroundColor: active ? "#EAFBF4" : "transparent",
-  color: active ? "#0E8F68" : "var(--bt-text-3)",
-  borderColor: active ? "#C6EED9" : "var(--bt-border)",
-  flexShrink: 0,
-});
-
-function Segmented({ options, value, onChange }) {
-  return (
-    <div style={segWrap}>
-      {options.map(opt => (
-        <button key={opt.val} className="bt-tap" onClick={() => onChange(opt.val)} style={segBtn(value === opt.val)}>
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ── Leaderboard ──────────────────────────────────────────────
-// Classement de la page Stats. Métriques : temps / série / régularité ;
-// portée Public / Amis ; filtres Mon école / Ma filière / Mon année ;
-// période Jour / Semaine / Mois. Tout est servi par get_leaderboard_v2
-// (migration v27). Tant que la migration n'a pas été exécutée en prod, on
-// retombe automatiquement sur l'ancien comportement (get_public_leaderboard
-// + calcul amis côté client) avec les anciens contrôles uniquement.
-// `compact` : aperçu (podium + ma ligne, sans filtres) sur la page Stats, où
-// le classement est une fonctionnalité SOCIALE qui ne doit pas peser autant
-// que les statistiques personnelles. Un bouton déplie la version complète.
-// La logique de chargement, les filtres et les métriques sont inchangés :
-// seul l'affichage est réduit tant que `compact` est vrai.
+// Classement de la page Stats, servi par get_leaderboard_v2 (migration v27).
+// Tant que la migration n'est pas passée en prod, repli automatique sur
+// get_public_leaderboard + calcul amis côté client.
+//
+// Trois menus compacts remplacent deux rangées d'onglets : l'audience (« je
+// regarde qui ? »), la période (« sur quand ? ») et le classement (temps,
+// série, régularité). En onglets, ces trois dimensions faisaient onze boutons
+// permanents sur trois lignes — plus haut que le podium lui-même sur un
+// téléphone.
+//
+// `compact` : aperçu (podium + ma ligne + bouton pour tout voir). Les filtres
+// restent visibles en aperçu : sans eux, on ne sait pas ce qu'on lit.
+// La requête et les métriques sont inchangées ; seule la liste est réduite.
 export default function Leaderboard({ user, profile, onViewUser, compact = false }) {
   const { t } = useI18n();
   const [showAll, setShowAll] = useState(!compact);
   const isCompact = compact && !showAll;
 
-  const [mode,   setMode]   = useState("public"); // public | friends
-  const [period, setPeriod] = useState("day");    // day | week | month
-  const [metric, setMetric] = useState("time");   // time | streak | regularity
-  const [fUni,   setFUni]   = useState(false);
+  // « Je regarde qui ? » — une seule question, une seule valeur. Avant, la
+  // reponse se lisait sur DEUX controles a la fois (onglet Public/Amis + puce
+  // « Ma fac ») : « Public + Ma fac » et « Amis + Ma fac » etaient deux etats
+  // distincts que rien n'annoncait. Le couple (mode, fUni) reste derive ici,
+  // pour ne rien changer a la requete.
+  const [audience, setAudience] = useState("global"); // global | friends | uni
+  const [period, setPeriod] = useState("day");        // day | week | month
+  const [metric, setMetric] = useState("time");       // time | streak | regularity
+  const mode = audience === "friends" ? "friends" : "public";
+  const fUni = audience === "uni";
   // Conserves a false : la RPC get_leaderboard_v2 accepte toujours ces deux
   // parametres, on les lui passe simplement neutres.
   const fField = false;
@@ -107,6 +86,14 @@ export default function Leaderboard({ user, profile, onViewUser, compact = false
     setMetric(m);
     if (m === "regularity" && period === "day") setPeriod("week");
   }
+
+  // L'audience choisie peut cesser d'exister (dernier ami retiré, université
+  // effacée du profil). Sans ce repli, on interrogeait « ma fac » avec une
+  // université nulle et la liste se vidait sans explication.
+  useEffect(() => {
+    if (audience === "friends" && !friendIds.length) setAudience("global");
+    if (audience === "uni" && !profile?.university) setAudience("global");
+  }, [audience, friendIds.length, profile?.university]);
 
   // Amis acceptés — sert à afficher l'onglet Amis et au repli legacy.
   useEffect(() => {
@@ -214,21 +201,28 @@ export default function Leaderboard({ user, profile, onViewUser, compact = false
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [user, profile, mode, period, metric, fUni, fField, fYear, v2Available, friendIds]);
+  }, [user, profile, mode, audience, period, metric, fUni, fField, fYear, v2Available, friendIds]);
 
   // ── Libellés ───────────────────────────────────────────────
+  // « Jour / Semaine / Mois » mentait : la RPC compte des fenêtres GLISSANTES
+  // (migration v27 : 'week' = CURRENT_DATE - 6 j, 'month' = CURRENT_DATE - 29 j).
+  // « Semaine » se lisait comme la semaine calendaire en cours. Les libellés
+  // disent maintenant ce que la requête fait vraiment.
   const periodDays = period === "month" ? 30 : 7;
   const metricLabel = metric === "streak" ? t("stats.metricStreak")
     : metric === "regularity" ? t("stats.metricRegularity")
     : t("stats.metricTime");
-  const periodLabel = period === "day" ? t("stats.day") : period === "month" ? t("stats.month") : t("stats.week");
+  const periodLabel = period === "day" ? t("stats.lbToday")
+    : period === "month" ? t("stats.lbLast30")
+    : t("stats.lbLast7");
+  const audienceLabel = audience === "friends" ? t("stats.audienceFriends")
+    : audience === "uni" ? t("stats.audienceUni")
+    : t("stats.audienceGlobal");
 
-  const subtitle = v2Available
-    ? [mode === "public" ? "Top 50" : null, metricLabel, metric === "streak" ? null : periodLabel]
-        .filter(Boolean).join(" · ")
-    : (mode === "public"
-        ? (period === "day" ? t("stats.publicLeaderSubDay") : t("stats.publicLeaderSub"))
-        : (period === "day" ? t("common.today") : t("stats.last7days")));
+  const subtitle = [
+    audienceLabel,
+    metric === "streak" ? metricLabel : periodLabel,
+  ].filter(Boolean).join(" · ");
 
   // Valeur affichée à droite de chaque ligne, selon la métrique active.
   function ValueCell({ row, rank }) {
@@ -259,10 +253,25 @@ export default function Leaderboard({ user, profile, onViewUser, compact = false
     );
   }
 
+  // Deux questions, deux menus : « je regarde qui ? », « sur quelle période ? ».
+  // Les options indisponibles ne sont pas grisées, elles n'existent pas : pas
+  // d'onglet « Amis » sans ami, pas de « Ma fac » sans université déclarée.
+  const audienceOptions = [
+    { value: "global", label: t("stats.audienceGlobal") },
+    ...(friendIds.length ? [{ value: "friends", label: t("stats.audienceFriends") }] : []),
+    ...(profile?.university ? [{ value: "uni", label: t("stats.audienceUni") }] : []),
+  ];
   const periodOptions = [
-    ...(metric === "regularity" ? [] : [{ val: "day", label: t("stats.day") }]),
-    { val: "week", label: t("stats.week") },
-    ...(v2Available ? [{ val: "month", label: t("stats.month") }] : []),
+    // La régularité se mesure sur plusieurs jours : « aujourd'hui » n'a pas
+    // de sens ici, l'option disparaît au lieu de produire un 0/1.
+    ...(metric === "regularity" ? [] : [{ value: "day", label: t("stats.lbToday") }]),
+    { value: "week", label: t("stats.lbLast7") },
+    ...(v2Available ? [{ value: "month", label: t("stats.lbLast30") }] : []),
+  ];
+  const metricOptions = [
+    { value: "time", label: t("stats.metricTime") },
+    { value: "streak", label: t("stats.metricStreak") },
+    { value: "regularity", label: t("stats.metricRegularity") },
   ];
 
   // En aperçu : le podium, puis ma ligne si je n'y suis pas déjà — c'est la
@@ -276,66 +285,42 @@ export default function Leaderboard({ user, profile, onViewUser, compact = false
     : rows.map((row, i) => ({ row, rank: i + 1 }));
 
   return (
-    <section className={`card p-5 ${compact ? "" : "mt-6"}`}>
-      {/* Titre + sous-titre dynamique */}
-      <div className="mb-3">
-        <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
-          {mode === "friends" ? t("stats.leaderTitle") : t("stats.publicLeaderTitle")}
-        </h2>
-        <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{subtitle}</p>
-      </div>
-
-      {/* Ligne 1 : portée + période */}
-      <div className={`flex items-center gap-2 mb-2 flex-wrap ${isCompact ? "hidden" : ""}`}>
-        <Segmented
-          value={mode} onChange={setMode}
-          options={[
-            { val: "public", label: t("stats.filterPublic") },
-            ...(friendIds.length ? [{ val: "friends", label: t("stats.filterFriends") }] : []),
-          ]} />
-        {(!v2Available || metric !== "streak") && (
-          <div style={{ marginLeft: "auto" }}>
-            <Segmented value={period} onChange={setPeriod} options={periodOptions} />
-          </div>
-        )}
-      </div>
-
-      {/* Ligne 2 (v2) : métrique + filtres de profil */}
-      {v2Available && !isCompact && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <Segmented
-            value={metric} onChange={pickMetric}
-            options={[
-              { val: "time",       label: t("stats.metricTime") },
-              { val: "streak",     label: t("stats.metricStreak") },
-              { val: "regularity", label: t("stats.metricRegularity") },
-            ]} />
-          {profile?.university && (
-            <button onClick={() => setFUni(f => !f)} className="bt-tap flex items-center gap-1.5" style={chipBtn(fUni)}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-              </svg>
-              {t("stats.filterMyUni")}
-            </button>
-          )}
-          {/* Filtres « Ma filiere » et « Mon annee » retires : six controles sur
-              trois rangees pour une seule ligne de resultat, et ces deux-la
-              decoupaient la cohorte au point de ne plus rien comparer.
-              Reste « Ma fac », le seul decoupage qui parle a un etudiant. */}
+    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"}`}>
+      {/* Titre + les deux filtres, dans le même en-tête. Ils y restent même en
+          aperçu : savoir QUI on regarde et SUR QUELLE PÉRIODE fait partie de
+          la lecture du classement, ce n'est pas un réglage avancé. */}
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>
+            {t("stats.publicLeaderTitle")}
+          </h2>
+          <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{subtitle}</p>
         </div>
-      )}
-      {!v2Available && !isCompact && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          {profile?.university && (
-            <button onClick={() => setFUni(f => !f)} className="bt-tap flex items-center gap-1.5" style={chipBtn(fUni)}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-              </svg>
-              {t("stats.filterMyUni")}
-            </button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          <FilterMenu
+            value={audience}
+            options={audienceOptions}
+            onChange={setAudience}
+            ariaLabel={t("stats.audienceFilterLabel")}
+          />
+          {(!v2Available || metric !== "streak") && (
+            <FilterMenu
+              value={period}
+              options={periodOptions}
+              onChange={setPeriod}
+              ariaLabel={t("stats.periodFilterLabel")}
+            />
+          )}
+          {v2Available && (
+            <FilterMenu
+              value={metric}
+              options={metricOptions}
+              onChange={pickMetric}
+              ariaLabel={t("stats.metricFilterLabel")}
+            />
           )}
         </div>
-      )}
+      </div>
 
       {/* Liste */}
       <div className="[&::-webkit-scrollbar]:hidden"

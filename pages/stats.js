@@ -7,7 +7,6 @@ import UserProfileModal from "../components/UserProfileModal";
 import Leaderboard from "../components/Leaderboard";
 import MascotCoach from "../components/MascotCoach";
 import AnimatedNumber from "../components/AnimatedNumber";
-import SegmentedGlide from "../components/SegmentedGlide";
 import StatsHero from "../components/stats/StatsHero";
 import StudyByCourse from "../components/stats/StudyByCourse";
 import ConsistencyCard from "../components/stats/ConsistencyCard";
@@ -20,20 +19,42 @@ import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
 import { computeInsights } from "../lib/statsInsights";
 import { pickInsight } from "../lib/statsInsightLine";
-import { fetchBlocus, toRanges } from "../lib/blocus";
 import {
-  resolvePeriod, buildTimeSeries, courseBreakdown, activeDaysIn,
+  PERIOD_KEYS, resolvePeriod, buildTimeSeries, courseBreakdown, activeDaysIn,
 } from "../lib/statsPeriod";
 
 // Recharts ne sert qu'ici et pèse lourd : chargé à la demande, comme avant.
 const StudyTimeChart = dynamic(() => import("../components/stats/StudyTimeChart"), { ssr: false });
 
 const DAILY_GOAL_SECS = 7200; // 2 h — même objectif que le Chrono
-const PERIOD_STORAGE_KEY = "bt_stats_period";
+const CHART_PERIOD_KEY = "bt_stats_period_chart";
+const COURSE_PERIOD_KEY = "bt_stats_period_course";
+// Fenêtre fixe de la régularité : un mois est la bonne focale pour juger d'une
+// habitude, et la heatmap couvre déjà l'année juste en dessous. Elle est
+// annoncée en clair dans la carte plutôt que pilotée par un filtre de plus.
+const CONSISTENCY_PERIOD = "30";
 // En dessous de ce nombre d'étudiants comparables, un percentile ne veut rien
 // dire : « Top 50 % — 2e sur 2 » est un fait mathématique et une information
 // nulle. Sous le seuil, la carte disparaît au lieu de mentir poliment.
 const MIN_COHORT_FOR_PERCENTILE = 8;
+
+// Période d'une section, mémorisée. Le premier rendu part toujours de « 7
+// derniers jours » : lire localStorage pendant le rendu ferait diverger le HTML
+// serveur du HTML client (erreur d'hydratation), d'où la relecture en effet.
+function usePersistedPeriod(storageKey, fallback = "7") {
+  const [value, setValue] = useState(fallback);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved && PERIOD_KEYS.includes(saved)) setValue(saved);
+    } catch {}
+  }, [storageKey]);
+  const set = useCallback((v) => {
+    setValue(v);
+    try { localStorage.setItem(storageKey, v); } catch {}
+  }, [storageKey]);
+  return [value, set];
+}
 
 // Jour de semaine ISO (0 = lundi) → nom localisé, première lettre en majuscule.
 function weekdayName(isoIndex, lang) {
@@ -53,25 +74,17 @@ export default function Stats() {
   const [courses, setCourses] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]);
-  const [blocusRanges, setBlocusRanges] = useState([]);
   const [comparison, setComparison] = useState(undefined); // undefined=chargement, null=indispo
   const [myRank, setMyRank] = useState(null);
   const [viewUserId, setViewUserId] = useState(null);
 
-  // ── Période globale ────────────────────────────────────────────
-  // Un seul réglage pilote le graphique, la répartition par cours et la
-  // régularité. Mémorisé : on revient sur la fenêtre qu'on regarde d'habitude.
-  const [periodKey, setPeriodKey] = useState("7");
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(PERIOD_STORAGE_KEY);
-      if (saved && ["7", "30", "blocus", "all"].includes(saved)) setPeriodKey(saved);
-    } catch {}
-  }, []);
-  const changePeriod = useCallback((k) => {
-    setPeriodKey(k);
-    try { localStorage.setItem(PERIOD_STORAGE_KEY, k); } catch {}
-  }, []);
+  // ── Périodes locales ───────────────────────────────────────────
+  // Chaque section porte la sienne, dans son propre en-tête. Le réglage global
+  // posé entre le héros et le graphique ne disait pas ce qu'il commandait : on
+  // ne savait pas s'il valait aussi pour la heatmap, la comparaison ou le
+  // classement. Les deux choix sont mémorisés séparément.
+  const [chartPeriod, setChartPeriod] = usePersistedPeriod(CHART_PERIOD_KEY);
+  const [coursePeriod, setCoursePeriod] = usePersistedPeriod(COURSE_PERIOD_KEY);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -99,16 +112,6 @@ export default function Stats() {
     return () => { alive = false; };
   }, [user, sessions]);
 
-  // Périodes de blocus — alimentent l'option « Mon blocus » du filtre.
-  useEffect(() => {
-    if (!user) return;
-    let alive = true;
-    fetchBlocus(supabase, user.id).then((res) => {
-      if (alive && res?.supported) setBlocusRanges(toRanges(res.periods || []));
-    }).catch(() => {});
-    return () => { alive = false; };
-  }, [user]);
-
   // Percentile (RPC ; absente tant que la migration n'est pas passée).
   useEffect(() => {
     if (!user) return;
@@ -127,29 +130,33 @@ export default function Stats() {
     })();
   }, [user]);
 
-  // ── Dérivés de la période ──────────────────────────────────────
-  const hasBlocus = blocusRanges.length > 0;
-  const effectiveKey = periodKey === "blocus" && !hasBlocus ? "30" : periodKey;
-  const range = useMemo(
-    () => resolvePeriod(effectiveKey, { sessions, blocusRanges }),
-    [effectiveKey, sessions, blocusRanges]
-  );
-  const series = useMemo(() => buildTimeSeries(sessions, range, lang), [sessions, range, lang]);
-  const breakdown = useMemo(() => courseBreakdown(sessions, courses, range), [sessions, courses, range]);
-  const activeDays = useMemo(() => activeDaysIn(sessions, range), [sessions, range]);
+  // ── Dérivés : une plage par section ────────────────────────────
+  const chartRange = useMemo(() => resolvePeriod(chartPeriod, { sessions }), [chartPeriod, sessions]);
+  const courseRange = useMemo(() => resolvePeriod(coursePeriod, { sessions }), [coursePeriod, sessions]);
+  const consistencyRange = useMemo(() => resolvePeriod(CONSISTENCY_PERIOD, { sessions }), [sessions]);
 
+  const series = useMemo(() => buildTimeSeries(sessions, chartRange, lang), [sessions, chartRange, lang]);
+  const breakdown = useMemo(() => courseBreakdown(sessions, courses, courseRange), [sessions, courses, courseRange]);
+  const activeDays = useMemo(() => activeDaysIn(sessions, consistencyRange), [sessions, consistencyRange]);
+
+  // Libellés explicites : « 7 jours » ne disait pas si la fenêtre était
+  // glissante ou calendaire. « 30 derniers jours » et « Ce mois-ci » sont deux
+  // périodes différentes et ne se confondent plus.
   const periodOptions = [
-    { value: "7", label: t("stats.period7") },
-    { value: "30", label: t("stats.period30") },
-    ...(hasBlocus ? [{ value: "blocus", label: t("stats.periodBlocus") }] : []),
+    { value: "7", label: t("stats.periodLast7") },
+    { value: "30", label: t("stats.periodLast30") },
+    { value: "month", label: t("stats.periodThisMonth") },
+    { value: "year", label: t("stats.periodThisYear") },
     { value: "all", label: t("stats.periodAll") },
   ];
 
   const fmtDay = (iso) =>
     new Date(iso + "T12:00:00").toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { day: "numeric", month: "short" });
-  const periodLabel = effectiveKey === "7" ? t("stats.periodLast7")
-    : effectiveKey === "30" ? t("stats.periodLast30")
-    : effectiveKey === "all" ? t("stats.periodAllSince").replace("{from}", fmtDay(range.fromISO))
+  // Sous le titre : la plage réelle en dates. Le menu dit l'intention
+  // (« Ce mois-ci »), cette ligne dit ce qui est effectivement compté.
+  const rangeLabel = (key, range) => key === "7" ? t("stats.periodLast7")
+    : key === "30" ? t("stats.periodLast30")
+    : key === "all" ? t("stats.periodAllSince").replace("{from}", fmtDay(range.fromISO))
     : t("stats.periodRange").replace("{from}", fmtDay(range.fromISO)).replace("{to}", fmtDay(range.toISO));
 
   // ── Chiffres du héros (indépendants du filtre : c'est « maintenant ») ──
@@ -236,42 +243,39 @@ export default function Stats() {
         // le seuil est xl et non lg pour la même raison que sur le Planning :
         // à 1024 px la barre de navigation ne laisse pas assez au graphique.
         <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start xl:gap-5">
-          {/* Héros et filtre traversent les deux colonnes : ils commandent
-              toute la page, ils ne peuvent pas vivre dans un rail de 340 px. */}
+          {/* Le héros traverse les deux colonnes : il résume la page entière,
+              il ne peut pas vivre dans un rail de 340 px. Plus de filtre
+              global sous lui — chaque section porte le sien. */}
           <StatsHero
             className="order-1 xl:col-span-2"
             todaySecs={todaySecs} goalSecs={DAILY_GOAL_SECS}
             weekSecs={weekSecs} streak={streak}
           />
 
-          <div className="order-2 no-print xl:col-span-2">
-            <SegmentedGlide
-              className="w-full sm:w-auto sm:inline-flex"
-              buttonClassName="flex-1 sm:flex-none px-4 py-2 text-xs"
-              options={periodOptions}
-              value={effectiveKey}
-              onChange={changePeriod}
-            />
-          </div>
-
           {/* Colonne large : ce qui a besoin de place (graphique, barres par
               cours, heatmap sur 53 semaines).
-              `xl:order-3` est indispensable : sous xl l'enveloppe est en
+              `xl:order-2` est indispensable : sous xl l'enveloppe est en
               `display:contents` et n'a pas de boîte, mais à partir de xl elle
               en reprend une — avec l'ordre par défaut 0, donc AVANT le héros
               (ordre 1). Les deux colonnes remontaient ainsi en haut de page. */}
-          <div className="contents xl:order-3 xl:flex xl:flex-col xl:gap-5">
+          <div className="contents xl:order-2 xl:flex xl:flex-col xl:gap-5">
             <StudyTimeChart
-              className="order-3"
+              className="order-2"
               series={series}
               goalMinutes={DAILY_GOAL_SECS / 60}
-              periodLabel={periodLabel}
+              periodLabel={rangeLabel(chartPeriod, chartRange)}
+              period={chartPeriod}
+              periodOptions={periodOptions}
+              onPeriodChange={setChartPeriod}
             />
             <StudyByCourse
-              className="order-5"
+              className="order-4"
               rows={breakdown.rows}
               totalSecs={breakdown.totalSecs}
-              periodLabel={periodLabel}
+              periodLabel={rangeLabel(coursePeriod, courseRange)}
+              period={coursePeriod}
+              periodOptions={periodOptions}
+              onPeriodChange={setCoursePeriod}
             />
             <ConsistencyCard
               className="order-6"
@@ -279,15 +283,17 @@ export default function Stats() {
               streak={streak}
               bestStreak={bestStreak}
               activeDays={activeDays}
-              periodDays={range.days}
-              periodLabel={periodLabel}
+              periodDays={consistencyRange.days}
+              periodLabel={t("stats.consistencyWindow")}
             />
           </div>
 
-          {/* Rail de contexte : plus court, se lit d'un coup d'œil. */}
-          <div className="contents xl:order-3 xl:flex xl:flex-col xl:gap-5">
+          {/* Rail de contexte : plus court, se lit d'un coup d'œil. Le
+              classement y monte juste après la répartition par cours — il est
+              consulté souvent, il n'a pas à finir sous la heatmap. */}
+          <div className="contents xl:order-2 xl:flex xl:flex-col xl:gap-5">
             {insightText && (
-              <div className="order-4">
+              <div className="order-3">
                 <MascotCoach
                   id={`stats-insight-${insight.key}-${todayISOLocal}`}
                   message={insightText}
@@ -296,6 +302,10 @@ export default function Stats() {
                 />
               </div>
             )}
+
+            <div className="order-5">
+              <Leaderboard user={user} profile={profile} onViewUser={setViewUserId} compact />
+            </div>
 
             {percentile !== null && (
               <section className="card-ink bt-grain order-7 p-5">
@@ -317,14 +327,10 @@ export default function Stats() {
             )}
 
             {comparison && <CompareCard className="order-8" comparison={comparison} />}
-
-            <div className="order-9">
-              <Leaderboard user={user} profile={profile} onViewUser={setViewUserId} compact />
-            </div>
           </div>
 
           <AdvancedAnalytics
-            className="order-10 xl:col-span-2"
+            className="order-9 xl:col-span-2"
             insights={insights}
             allTimeSecs={allTimeSecs}
           />
