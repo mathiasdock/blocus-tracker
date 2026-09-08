@@ -76,8 +76,15 @@ function Segmented({ options, value, onChange }) {
 // (migration v27). Tant que la migration n'a pas été exécutée en prod, on
 // retombe automatiquement sur l'ancien comportement (get_public_leaderboard
 // + calcul amis côté client) avec les anciens contrôles uniquement.
-export default function Leaderboard({ user, profile, onViewUser }) {
+// `compact` : aperçu (podium + ma ligne, sans filtres) sur la page Stats, où
+// le classement est une fonctionnalité SOCIALE qui ne doit pas peser autant
+// que les statistiques personnelles. Un bouton déplie la version complète.
+// La logique de chargement, les filtres et les métriques sont inchangés :
+// seul l'affichage est réduit tant que `compact` est vrai.
+export default function Leaderboard({ user, profile, onViewUser, compact = false }) {
   const { t } = useI18n();
+  const [showAll, setShowAll] = useState(!compact);
+  const isCompact = compact && !showAll;
 
   const [mode,   setMode]   = useState("public"); // public | friends
   const [period, setPeriod] = useState("day");    // day | week | month
@@ -258,8 +265,18 @@ export default function Leaderboard({ user, profile, onViewUser }) {
     ...(v2Available ? [{ val: "month", label: t("stats.month") }] : []),
   ];
 
+  // En aperçu : le podium, puis ma ligne si je n'y suis pas déjà — c'est la
+  // seule chose qu'on cherche vraiment dans un classement qu'on ne déplie pas.
+  const myIndex = rows.findIndex(r => r.user_id === user?.id);
+  const visibleRows = isCompact
+    ? [
+        ...rows.slice(0, 3).map((row, i) => ({ row, rank: i + 1 })),
+        ...(myIndex >= 3 ? [{ row: rows[myIndex], rank: myIndex + 1 }] : []),
+      ]
+    : rows.map((row, i) => ({ row, rank: i + 1 }));
+
   return (
-    <section className="card p-5 mt-6">
+    <section className={`card p-5 ${compact ? "" : "mt-6"}`}>
       {/* Titre + sous-titre dynamique */}
       <div className="mb-3">
         <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>
@@ -269,7 +286,7 @@ export default function Leaderboard({ user, profile, onViewUser }) {
       </div>
 
       {/* Ligne 1 : portée + période */}
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
+      <div className={`flex items-center gap-2 mb-2 flex-wrap ${isCompact ? "hidden" : ""}`}>
         <Segmented
           value={mode} onChange={setMode}
           options={[
@@ -284,7 +301,7 @@ export default function Leaderboard({ user, profile, onViewUser }) {
       </div>
 
       {/* Ligne 2 (v2) : métrique + filtres de profil */}
-      {v2Available && (
+      {v2Available && !isCompact && (
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <Segmented
             value={metric} onChange={pickMetric}
@@ -307,7 +324,7 @@ export default function Leaderboard({ user, profile, onViewUser }) {
               Reste « Ma fac », le seul decoupage qui parle a un etudiant. */}
         </div>
       )}
-      {!v2Available && (
+      {!v2Available && !isCompact && (
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           {profile?.university && (
             <button onClick={() => setFUni(f => !f)} className="bt-tap flex items-center gap-1.5" style={chipBtn(fUni)}>
@@ -321,12 +338,14 @@ export default function Leaderboard({ user, profile, onViewUser }) {
       )}
 
       {/* Liste */}
-      <div className="[&::-webkit-scrollbar]:hidden" style={{ maxHeight: "480px", overflowY: "auto", scrollbarWidth: "none" }}>
+      <div className="[&::-webkit-scrollbar]:hidden"
+        style={isCompact ? undefined : { maxHeight: "480px", overflowY: "auto", scrollbarWidth: "none" }}>
         {loading ? (
-          <div className="py-1"><SkeletonList rows={6} avatar={32} lines={1} /></div>
+          <div className="py-1"><SkeletonList rows={isCompact ? 3 : 6} avatar={32} lines={1} /></div>
         ) : (
           <ul className="space-y-1.5">
-            {rows.map((row, i) => {
+            {visibleRows.map(({ row, rank: i0 }) => {
+              const i = i0 - 1;
               const isMe = row.user_id === user?.id;
               return (
                 <li key={row.user_id}
@@ -358,6 +377,13 @@ export default function Leaderboard({ user, profile, onViewUser }) {
           </ul>
         )}
       </div>
+
+      {isCompact && rows.length > 3 && (
+        <button onClick={() => setShowAll(true)}
+          className="bt-stats-quiet-btn mt-3 w-full rounded-xl py-2 text-xs font-semibold">
+          {t("stats.viewFullLeaderboard")}
+        </button>
+      )}
     </section>
   );
 }

@@ -1639,3 +1639,38 @@ details.bt-acc[open]::details-content { block-size: auto; }
 @media (hover: hover) and (pointer: fine) {
   .bt-plan-ink-btn:hover { background-color: rgba(255, 255, 255, 0.18); }
 }
+
+/* ── Statistiques ────────────────────────────────────────────────────────
+   Memes principes que la page Planning : les etats d'interaction vivent en
+   CSS (le clavier et le tactile y ont droit aussi), pas en onMouseEnter. */
+
+/* Action discrete : « Voir le detail », « Voir tout le classement ». */
+.bt-stats-quiet-btn {
+  color: var(--bt-text-2);
+  background-color: var(--bt-subtle);
+  border: 1px solid var(--bt-border);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-stats-quiet-btn:hover { background-color: var(--bt-border); color: var(--bt-text-1); }
+}
+
+/* En-tete depliant de l'analyse avancee. */
+.bt-stats-disclosure { cursor: pointer; transition: background-color 0.15s ease; }
+@media (hover: hover) and (pointer: fine) {
+  .bt-stats-disclosure:hover { background-color: var(--bt-subtle); }
+}
+
+/* Badges : l'ecart entre obtenu et verrouille passe par le FOND et la
+   bordure, pas par la seule opacite — a 40 % d'opacite, un badge verrouille
+   restait lisible comme un badge obtenu un peu terne. */
+.bt-stats-badge {
+  background-color: var(--bt-accent-bg);
+  border: 1px solid var(--bt-accent-border);
+  color: var(--bt-accent-text);
+}
+.bt-stats-badge-locked {
+  background-color: var(--bt-subtle);
+  border: 1px dashed var(--bt-border);
+  color: var(--bt-text-4);
+}
