@@ -1202,7 +1202,7 @@ export default function Dashboard() {
               <div className="relative min-w-0 flex-1">
                 {courses.length === 0 ? (
                   <button type="button" onClick={() => openCourseEditor()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
-                    {t("dash.addCourseHint")}
+                    {t("courseEditor.addTitle")}
                   </button>
                 ) : (
                   <button
@@ -1231,18 +1231,33 @@ export default function Dashboard() {
                 )}
 
                 {showCourseMenu && !running && (
-                  <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl py-1" role="listbox" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
-                    {courses.map((course) => (
-                      <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
-                        <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
-                        {courseId === course.id && (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--bt-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="m20 6-11 11-5-5" />
-                          </svg>
-                        )}
+                  <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
+                    <div className="max-h-64 overflow-y-auto py-1" role="listbox" aria-label={t("dash.selectCourse")}>
+                      {courses.map((course) => (
+                        <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
+                          <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
+                          {courseId === course.id && (
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--bt-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="m20 6-11 11-5-5" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="border-t p-1" style={{ borderColor: "var(--bt-border)" }}>
+                      <button
+                        type="button"
+                        onClick={() => { setShowCourseMenu(false); openCourseEditor(); }}
+                        className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold"
+                        style={{ color: "var(--bt-accent-text)" }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                        {t("courseEditor.addTitle")}
                       </button>
-                    ))}
+                    </div>
                   </div>
                 )}
               </div>
