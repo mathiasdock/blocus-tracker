@@ -25,6 +25,7 @@ import MascotCoach from "../components/MascotCoach";
 import AmbientSoundControl from "../components/AmbientSoundControl";
 import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
+import FilterMenu from "../components/FilterMenu";
 import SessionCompleteCard from "../components/SessionCompleteCard";
 import DailyProgressCard from "../components/DailyProgressCard";
 import TodayProgressCard from "../components/TodayProgressCard";
@@ -180,7 +181,7 @@ function RollChar({ ch }) {
 
 // Chiffres du chrono — heures:minutes en héros, secondes dé-emphasées
 // (plus petites, atténuées) : la lecture premium façon minuteur Apple.
-function TimerDigits({ seconds, color, size = "clamp(3.6rem, 11vw, 6rem)" }) {
+function TimerDigits({ seconds, color, size = "clamp(4.5rem, 21vw, 7rem)" }) {
   const [hh, mm, ss] = formatDuration(seconds).split(":");
   const showHours = hh !== "00";
   const main = showHours ? `${hh}:${mm}` : mm;
@@ -536,6 +537,24 @@ export default function Dashboard() {
       document.removeEventListener("keydown", handler);
     };
   }, [focusMode]);
+
+  // Bascule Libre/Pomodoro. Regroupe la logique des deux anciens boutons sans
+  // la changer : garde-fou anti-perte de session, remise a zero du cycle, et
+  // reinitialisation du drapeau pomodoro seulement dans ce sens.
+  function pickMode(next) {
+    const wantPomodoro = next === "pomodoro";
+    if (wantPomodoro === pomodoro) return;
+    if (!confirmDiscardIfWorking()) return;
+    setPomodoro(wantPomodoro);
+    if (running || elapsed > 0) { pause(); reset(); }
+    setPomoPhase("work");
+    setPomoCount(0);
+    if (wantPomodoro) pomoHandled.current = false;
+  }
+
+  // La note ne s'affiche qu'a la demande : un champ toujours ouvert occupait
+  // une ligne avant chaque session pour une saisie rare.
+  const [noteOpen, setNoteOpen] = useState(false);
 
   // Objectif de session : restaure le dernier choix (ou celui que le planning
   // vient de poser en lançant « Commencer à réviser » sur un objectif daté).
@@ -1204,8 +1223,8 @@ export default function Dashboard() {
             }} />
 
           {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
-          <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:px-6 sm:pt-5">
-            <div className="col-span-2 flex min-w-0 items-center gap-2 sm:col-span-1">
+          <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
+            <div className="flex min-w-0 items-center gap-2">
               <div className="relative min-w-0 flex-1">
                 {courses.length === 0 ? (
                   <button type="button" onClick={() => openCourseEditor()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
@@ -1286,15 +1305,6 @@ export default function Dashboard() {
                 la rangee. Et les deux options se partagent la largeur — placees
                 dans une colonne `1fr`, elles restaient collees a gauche en
                 laissant un tiers de rail vide. */}
-            <div className="flex min-h-11 min-w-0 rounded-xl p-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              <button type="button" onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }} className="bt-dashboard-segment min-h-11 flex-1 rounded-[10px] px-3.5 text-xs font-semibold" style={!pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={!pomodoro}>
-                {t("dash.free")}
-              </button>
-              <button type="button" onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }} className="bt-dashboard-segment min-h-11 flex-1 rounded-[10px] px-3.5 text-xs font-semibold" style={pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={pomodoro}>
-                Pomodoro
-              </button>
-            </div>
-
             <button type="button" onClick={() => setFocusMode(true)} className="bt-dashboard-control flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-accent-text)" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
@@ -1303,43 +1313,6 @@ export default function Dashboard() {
               <span>{t("dash.focusShort")}</span>
             </button>
           </div>
-
-          {/* ── Pomodoro settings ── */}
-          {pomodoro && !running && (
-            <div className="mx-4 mt-3 space-y-3 rounded-2xl p-3.5 sm:mx-6 sm:mt-4 sm:p-4"
-              style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>{t("dash.workDuration")}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {POMO_WORK_OPTIONS.map(m => (
-                    <button key={m} type="button"
-                      onClick={() => { setPomoWorkMin(m); pomoHandled.current = false; }}
-                      className="bt-dashboard-control min-h-11 rounded-full px-3 text-xs font-semibold"
-                      style={pomoWorkMin === m
-                        ? { backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent)", color: "var(--bt-accent-text)" }
-                        : { backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
-                      {m} min
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--bt-text-3)" }}>{t("dash.breakDuration")}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {POMO_BREAK_OPTIONS.map(m => (
-                    <button key={m} type="button"
-                      onClick={() => setPomoBreakMin(m)}
-                      className="bt-dashboard-control min-h-11 rounded-full px-3 text-xs font-semibold"
-                      style={pomoBreakMin === m
-                        ? { backgroundColor: "#075E80", color: "#fff" }
-                        : { backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
-                      {m} min
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
           <div className="px-4 pb-1 pt-5 text-center sm:px-6 sm:pt-8">
@@ -1364,6 +1337,7 @@ export default function Dashboard() {
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
               color={isPaused && !pomodoro ? PAUSE_ACCENT : "var(--bt-text-1)"} />
 
+            {(running || elapsed > 0) && (
             <div className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
               <div className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
                 <span className="flex items-center gap-2">
@@ -1378,6 +1352,7 @@ export default function Dashboard() {
               </div>
               <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} />
             </div>
+            )}
 
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
                 accomplissement. Pendant le travail normal, la ligne reste
@@ -1402,34 +1377,72 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ── Objectif de session — poser l'intention avant de démarrer ── */}
-          {!pomodoro && !running && elapsed === 0 && (
-            <div className="mt-2 px-4 sm:px-6">
-              <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-                {t("dash.sessionGoalLabel")}
-              </p>
-              <div className="flex flex-wrap justify-center gap-1.5">
-                {sessionGoalChoices.map(([m, label]) => (
-                  <button key={label} type="button" onClick={() => pickSessionGoal(m)}
-                    title={m === null ? t("dash.noGoal") : undefined}
-                    aria-pressed={sessionGoalMin === m}
-                    className="bt-dashboard-control min-h-11 min-w-11 rounded-full px-3.5 text-xs font-semibold"
-                    style={sessionGoalMin === m
-                      ? { backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent)", color: "var(--bt-accent-text)", boxShadow: "0 2px 8px rgba(20,184,133,0.12)" }
-                      : { backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)" }}>
-                    {label}
+          {/* ── Reglages de session — compacts, entre le chrono et l'action ──
+               Avant : six pastilles d'objectif + une bascule Libre/Pomodoro
+               dans le bandeau + un champ note toujours ouvert, soit neuf
+               controles a franchir avant « Demarrer ». Meme fonctions, meme
+               valeurs, mais reduites a trois libelles qui disent deja leur
+               etat. Rien n'est retire : tout est a un tap. */}
+          {!running && elapsed === 0 && (
+            <div className="mt-3 px-4 sm:px-6">
+              <div className="mx-auto flex max-w-md flex-wrap items-center justify-center gap-2">
+                <FilterMenu
+                  value={pomodoro ? "pomodoro" : "free"}
+                  options={[{ value: "free", label: t("dash.free") }, { value: "pomodoro", label: "Pomodoro" }]}
+                  onChange={pickMode}
+                  ariaLabel={t("dash.modeLabel")}
+                  align="left"
+                />
+                {!pomodoro && (
+                  <FilterMenu
+                    value={sessionGoalMin == null ? "none" : String(sessionGoalMin)}
+                    options={sessionGoalChoices.map(([m, label]) => ({
+                      value: m == null ? "none" : String(m),
+                      label: m == null ? t("dash.noGoal") : label,
+                    }))}
+                    onChange={(v) => pickSessionGoal(v === "none" ? null : Number(v))}
+                    ariaLabel={t("dash.sessionGoalLabel")}
+                    align="left"
+                  />
+                )}
+                {pomodoro && (
+                  <>
+                    <FilterMenu
+                      value={String(pomoWorkMin)}
+                      options={POMO_WORK_OPTIONS.map((m) => ({ value: String(m), label: `${m} min` }))}
+                      onChange={(v) => { setPomoWorkMin(Number(v)); pomoHandled.current = false; }}
+                      ariaLabel={t("dash.workDuration")}
+                      align="left"
+                    />
+                    <FilterMenu
+                      value={String(pomoBreakMin)}
+                      options={POMO_BREAK_OPTIONS.map((m) => ({ value: String(m), label: `${m} min` }))}
+                      onChange={(v) => setPomoBreakMin(Number(v))}
+                      ariaLabel={t("dash.breakDuration")}
+                      align="left"
+                    />
+                  </>
+                )}
+                {(!pomodoro || pomoPhase === "work") && !noteOpen && !note && (
+                  <button type="button" onClick={() => setNoteOpen(true)}
+                    className="bt-filter-btn inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    {t("dash.noteLabel")}
                   </button>
-                ))}
+                )}
               </div>
             </div>
           )}
 
           {/* ── Note — champ discret, souligné au focus seulement ── */}
-          {(!pomodoro || pomoPhase === "work") && (
+          {(!pomodoro || pomoPhase === "work") && (noteOpen || note || running || elapsed > 0) && (
             <div className="mt-3 px-4 sm:px-6">
               <label htmlFor="dashboard-session-note" className="sr-only">{t("dash.noteLabel")}</label>
               <input
                 id="dashboard-session-note"
+                autoFocus={noteOpen && !note}
                 className="mx-auto block min-h-11 w-full max-w-xs bg-transparent py-2 text-center text-sm outline-none"
                 style={{ color: "var(--bt-text-1)", borderBottom: "1px solid transparent", transition: "border-color 0.2s" }}
                 onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--bt-border)"; }}
