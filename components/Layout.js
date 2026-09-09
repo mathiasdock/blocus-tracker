@@ -292,11 +292,11 @@ function NotificationPanel({
       style={{
         top: "calc(58px + env(safe-area-inset-top))",
         backgroundColor: "var(--bt-surface)",
-        border: "1px solid var(--bt-border)",
+        border: "1px solid var(--bt-hairline)",
         boxShadow: "0 24px 60px var(--bt-shadow)",
       }}>
       <div className="flex items-center justify-between px-4 py-3.5"
-        style={{ borderBottom: "1px solid var(--bt-border)" }}>
+        style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
         <div className="flex items-center gap-2.5">
           <span className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
@@ -333,7 +333,7 @@ function NotificationPanel({
         ) : (
           <ul>
             {items.map((item, idx) => {
-              const bordered = idx > 0 ? { borderTop: "1px solid var(--bt-border)" } : {};
+              const bordered = idx > 0 ? { borderTop: "1px solid var(--bt-hairline)" } : {};
               const ts = when(item);
 
               if (item.type === "announcement") {
@@ -482,9 +482,9 @@ function GuestLockedPanel({ pathname }) {
             <div className="relative flex items-end gap-2">
               <Mascot streak={12} size={132} className="h-32 w-32" />
               <div className="relative mb-16 max-w-[170px] rounded-2xl px-3.5 py-3 text-xs leading-relaxed"
-                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-2)", boxShadow: "0 12px 28px var(--bt-shadow)" }}>
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", color: "var(--bt-text-2)", boxShadow: "0 12px 28px var(--bt-shadow)" }}>
                 <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
-                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
+                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-hairline)", borderLeft: "1px solid var(--bt-hairline)" }} />
                 <span className="relative">{t("guest.tooltip")}</span>
               </div>
             </div>
@@ -497,7 +497,7 @@ function GuestLockedPanel({ pathname }) {
             <ul className="mt-5 grid gap-2 sm:grid-cols-3">
               {page.features.map((feature) => (
                 <li key={feature} className="rounded-xl px-3 py-2.5 text-xs font-semibold"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
                   {t(feature)}
                 </li>
               ))}
@@ -630,7 +630,7 @@ export default function Layout({ children }) {
         style={{
           color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
           backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-          border: "1px solid var(--bt-border)",
+          border: "1px solid var(--bt-hairline)",
         }}
         aria-label={t("nav.notifications")}>
         <IconBell size={18} />
@@ -649,7 +649,7 @@ export default function Layout({ children }) {
 
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-5 shrink-0"
-          style={{ borderBottom: "1px solid var(--bt-border)" }}>
+          style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
           <Link href="/dashboard"
             className="font-display font-bold text-xl tracking-tight select-none"
             style={{ color: "var(--bt-text-1)" }}>
@@ -689,7 +689,7 @@ export default function Layout({ children }) {
         </nav>
 
         {/* Profile block */}
-        <div className="shrink-0 p-3" style={{ borderTop: "1px solid var(--bt-border)" }}>
+        <div className="shrink-0 p-3" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
           {isGuest ? (
             <div className="space-y-2">
               <Link href="/signup" className="btn-primary w-full text-sm py-2.5">
@@ -782,7 +782,7 @@ export default function Layout({ children }) {
                   style={{
                     color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
                     backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-                    border: "1px solid var(--bt-border)",
+                    border: "1px solid var(--bt-hairline)",
                   }}
                   aria-label={t("nav.notifications")}>
                   <IconBell size={18} />

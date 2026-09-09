@@ -74,7 +74,7 @@ export default function LegalUpdateNotice() {
         className="mx-auto w-full max-w-xl rounded-2xl p-4"
         style={{
           backgroundColor: "var(--bt-surface)",
-          border: "1px solid var(--bt-border)",
+          border: "1px solid var(--bt-hairline)",
           boxShadow: "0 14px 44px rgba(31,26,23,0.18)",
         }}
         role="region"

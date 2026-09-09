@@ -715,7 +715,7 @@ function PushRow({ t, user }) {
         <div className="px-5 pb-4 -mt-1">
           <button type="button" onClick={copyDiagnostics}
             className="text-xs px-3 py-1.5 rounded-lg font-medium"
-            style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+            style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
             {diagCopied ? t("push.diagCopied") : t("push.copyDiag")}
           </button>
         </div>
@@ -782,7 +782,7 @@ function BadgeSheet({ badge, earned, t, onClose }) {
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
+                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-hairline)" }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   {t("badge.locked")}
                 </span>

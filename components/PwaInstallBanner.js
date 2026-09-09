@@ -76,7 +76,7 @@ export default function PwaInstallBanner() {
         className="w-full max-w-sm rounded-3xl shadow-2xl"
         style={{
           backgroundColor: "var(--bt-surface)",
-          border: "1px solid var(--bt-border)",
+          border: "1px solid var(--bt-hairline)",
           // Le contenu a grandi (bénéfices + étapes + illustration) : sur un
           // petit iPhone il dépasserait l'écran sans cette limite.
           maxHeight: "86vh",

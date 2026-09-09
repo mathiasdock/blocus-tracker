@@ -341,7 +341,7 @@ function Field({ label, value, onChange, min, max }) {
         type="number" value={value} min={min} max={max}
         onChange={e => onChange(Math.max(min, Math.min(max, parseInt(e.target.value, 10) || 0)))}
         className="rounded-lg px-2.5 py-1.5 text-sm font-num tabular-nums"
-        style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-1)" }}
+        style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)", color: "var(--bt-text-1)" }}
       />
     </label>
   );

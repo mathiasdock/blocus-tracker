@@ -326,7 +326,7 @@ export default function CourseEditorModal({ course, colors, busy, onClose, onSav
             )}
 
             {course && (
-              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                 {!confirmDelete ? (
                   <button
                     type="button"
@@ -378,7 +378,7 @@ export default function CourseEditorModal({ course, colors, busy, onClose, onSav
           {!confirmDelete && (
             <div
               className="flex shrink-0 gap-2 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-5"
-              style={{ backgroundColor: "var(--bt-surface)", borderTop: "1px solid var(--bt-border)" }}
+              style={{ backgroundColor: "var(--bt-surface)", borderTop: "1px solid var(--bt-hairline)" }}
             >
               <button type="button" onClick={requestClose} disabled={busy} className="btn-ghost min-h-11 flex-1">
                 {t("common.cancel")}

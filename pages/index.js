@@ -85,7 +85,7 @@ function IconChevron({ size = 15 }) {
 function BrowserFrame({ src, alt, width, height, priority = false, className = "" }) {
   return (
     <div className={`overflow-hidden rounded-[20px] sm:rounded-[24px] ${className}`}
-      style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)", boxShadow: "0 24px 70px var(--bt-shadow)" }}>
+      style={{ border: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-surface)", boxShadow: "0 24px 70px var(--bt-shadow)" }}>
       <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid var(--bt-border)" }}>
         <span className="flex gap-1.5" aria-hidden="true">
           {["#F87171", "#FBBF24", "#34D399"].map((c) => (
@@ -445,7 +445,7 @@ export default function Home() {
           <dl className="mx-auto grid max-w-4xl grid-cols-2 gap-y-8 sm:grid-cols-4" data-reveal>
             {stats.map((s, i) => (
               <div key={s.label} className="px-4 text-center sm:text-left"
-                style={i > 0 ? { borderLeft: "1px solid var(--bt-border)" } : {}}>
+                style={i > 0 ? { borderLeft: "1px solid var(--bt-hairline)" } : {}}>
                 <dd className="font-num text-3xl font-bold tabular-nums sm:text-4xl"
                   aria-label={`${s.target.toLocaleString("fr-FR")}${s.suffix} ${s.label}`}
                   style={{ color: "var(--bt-text-1)" }}>
@@ -538,7 +538,7 @@ export default function Home() {
               {/* L'encart classement dérive à contre-sens du grand cadre → profondeur */}
               <div className="bt-plx absolute -bottom-8 -left-3 w-[46%] sm:-left-8" style={{ "--plx": "-12px" }}>
                 <div className="overflow-hidden rounded-xl"
-                  style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 44px var(--bt-shadow)", transform: "rotate(-2deg)" }}>
+                  style={{ border: "1px solid var(--bt-hairline)", boxShadow: "0 18px 44px var(--bt-shadow)", transform: "rotate(-2deg)" }}>
                   <Image src={SHOT("classement-desktop")} alt={c.statsSection.overlayAlt} width={1100} height={623}
                     sizes="(min-width: 1024px) 260px, 45vw" className="h-auto w-full" />
                 </div>
@@ -568,7 +568,7 @@ export default function Home() {
                 ].map((fig, i) => (
                   <figure key={fig.shot} data-reveal="zoom" style={{ "--rv-delay": `${i * 0.08}s` }}>
                     <div className="bt-plx" style={{ "--plx": `${i === 0 ? 12 : -12}px` }}>
-                      <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-border)", boxShadow: "0 18px 50px var(--bt-shadow)" }}>
+                      <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-hairline)", boxShadow: "0 18px 50px var(--bt-shadow)" }}>
                         <Image src={SHOT(fig.shot)} alt={fig.alt} width={1400} height={793}
                           sizes="(min-width: 1024px) 520px, 100vw" className="h-auto w-full" />
                       </div>
@@ -588,7 +588,7 @@ export default function Home() {
                 <div className="bt-marquee-track gap-3 pr-3">
                   {[...SCHOOL_LOGOS, ...SCHOOL_LOGOS].map((u, i) => (
                     <span key={`${u.id}-${i}`} className="inline-flex items-center gap-2.5 rounded-full py-2 pl-3 pr-4"
-                      style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }} aria-hidden={i >= SCHOOL_LOGOS.length}>
+                      style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }} aria-hidden={i >= SCHOOL_LOGOS.length}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={u.logo} alt="" loading="lazy" className="h-6 w-6 object-contain" />
                       <span className="whitespace-nowrap text-sm font-medium" style={{ color: "var(--bt-text-2)" }}>{u.name}</span>
@@ -649,7 +649,7 @@ export default function Home() {
             </div>
 
             <div id="product-tour-panel" role="tabpanel" className="bt-spot mt-5 grid overflow-hidden rounded-[28px] lg:grid-cols-[0.72fr_1.28fr]"
-              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 20px 60px var(--bt-shadow)" }}>
+              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 20px 60px var(--bt-shadow)" }}>
               <div className="flex min-w-0 flex-col p-6 sm:p-9 lg:p-10" aria-live="polite">
                 <div className="flex items-end gap-3">
                   <Mascot streak={activeArea.id === "progression" ? 30 : 12} size={92} className="h-20 w-20 shrink-0" />
@@ -689,7 +689,7 @@ export default function Home() {
               </div>
 
               <div className="flex min-h-[360px] items-center justify-center overflow-hidden p-5 sm:min-h-[520px] sm:p-8"
-                style={{ backgroundColor: "var(--bt-subtle)", borderLeft: "1px solid var(--bt-border)" }}>
+                style={{ backgroundColor: "var(--bt-subtle)" }}>
                 <div key={`shot-${activeArea.id}`} className="bt-tab-fade w-full">
                   {activeArea.frame === "phone" ? (
                     <div className="mx-auto w-[210px] sm:w-[250px]">
@@ -727,7 +727,7 @@ export default function Home() {
             <ol className="mt-10 grid gap-x-8 gap-y-0 md:grid-cols-2">
               {studyFlow.map((step, i) => (
                 <li key={step.number} className="bt-spot grid grid-cols-[auto_1fr] gap-4 py-7"
-                  style={{ borderTop: "1px solid var(--bt-border)", "--rv-delay": `${(i % 2) * 0.07}s` }} data-reveal>
+                  style={{ borderTop: "1px solid var(--bt-hairline)", "--rv-delay": `${(i % 2) * 0.07}s` }} data-reveal>
                   <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{step.number}</span>
                   <div>
                     <h3 className="text-xl" style={{ color: "var(--bt-text-1)" }}>{step.title}</h3>
@@ -744,7 +744,7 @@ export default function Home() {
             <div className="mt-7 grid gap-3 sm:grid-cols-2" data-reveal>
               {extraGuides.map((guide) => (
                 <Link key={guide.href} href={guide.href} className="group bt-spot flex items-center justify-between gap-5 rounded-2xl p-5 transition-colors"
-                  style={{ backgroundColor: "var(--bt-bg)", border: "1px solid var(--bt-border)" }}>
+                  style={{ backgroundColor: "var(--bt-bg)", border: "1px solid var(--bt-hairline)" }}>
                   <span>
                     <span className="block text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>{guide.title}</span>
                     <span className="mt-1 block text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{guide.text}</span>
@@ -777,7 +777,7 @@ export default function Home() {
             <div className="space-y-3" data-reveal style={{ "--rv-delay": "0.08s" }}>
               {faq.map((item) => (
                 <details key={item.q} className="group bt-acc rounded-2xl px-5"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-semibold [&::-webkit-details-marker]:hidden"
                     style={{ color: "var(--bt-text-1)" }}>
                     {item.q}
@@ -852,7 +852,7 @@ export default function Home() {
               </ul>
             </nav>
           </div>
-          <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-3 pt-6 text-xs" style={{ borderTop: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}>
+          <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-3 pt-6 text-xs" style={{ borderTop: "1px solid var(--bt-hairline)", color: "var(--bt-text-3)" }}>
             <span>© {new Date().getFullYear()} Blocus Tracker</span>
             {/* Le bandeau s'affiche sur la landing : son panneau doit y rester
                 joignable ensuite, sans avoir à créer un compte pour y accéder. */}

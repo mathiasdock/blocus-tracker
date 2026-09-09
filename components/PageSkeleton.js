@@ -153,7 +153,7 @@ export default function PageSkeleton({ pathname = "/dashboard" }) {
         <div className="space-y-3">{Array.from({ length: 8 }).map((_, i) => <SkeletonBar key={i} width={i % 3 === 0 ? "82%" : "100%"} height={38} style={{ borderRadius: 12 }} />)}</div>
         <div className="mt-auto flex items-center gap-3"><SkeletonCircle size={34} /><div className="flex-1 space-y-2"><SkeletonBar width="80%" height={10} /><SkeletonBar width="55%" height={8} /></div></div>
       </aside>
-      <header className="lg:hidden h-12 px-4 flex items-center justify-between sticky top-0" style={{ backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-border)" }}>
+      <header className="lg:hidden h-12 px-4 flex items-center justify-between sticky top-0" style={{ backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-hairline)" }}>
         <SkeletonBar width="130px" height={18} /><SkeletonCircle size={30} />
       </header>
       <div className="lg:ml-[232px]">

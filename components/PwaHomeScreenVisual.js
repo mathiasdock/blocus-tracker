@@ -22,13 +22,13 @@ export default function PwaHomeScreenVisual() {
   return (
     <div
       className="rounded-2xl overflow-hidden select-none"
-      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}
+      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}
       role="img"
       aria-label={t("pwa.visualAlt")}
     >
       {/* Barre de titre : le site en cours de partage */}
       <div className="flex items-center gap-2.5 px-3 py-2.5"
-        style={{ borderBottom: "1px solid var(--bt-border)" }}>
+        style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
         <span className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center"
           style={{ backgroundColor: "#14B885" }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff"

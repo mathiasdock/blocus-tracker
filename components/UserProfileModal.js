@@ -168,14 +168,14 @@ export default function UserProfileModal({ userId, onClose }) {
 
             {/* Aggregate stats */}
             {stats && (Number(stats.total_seconds) > 0) && (
-              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                 <p className="label mb-2">{t("modal.statsTitle")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: t("profile.totalHours"), value: formatMinutesShort(Number(stats.total_seconds)) },
                     { label: t("profile.hours30d"),   value: formatMinutesShort(Number(stats.seconds_30d)) },
                   ].map((s, i) => (
-                    <div key={i} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                    <div key={i} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
                       <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
                       <p className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
                     </div>
@@ -186,7 +186,7 @@ export default function UserProfileModal({ userId, onClose }) {
 
             {/* Cours */}
             {courses.length > 0 && (
-              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                 <p className="label mb-2">{t("friends.courses")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {courses.map((c) => (
@@ -202,7 +202,7 @@ export default function UserProfileModal({ userId, onClose }) {
 
             {/* Planning */}
             {planning && (
-              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                 <p className="label mb-2">{t("friends.upcoming")}</p>
                 {planning.length === 0 ? (
                   <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.nothing")}</p>

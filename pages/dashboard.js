@@ -1279,7 +1279,7 @@ export default function Dashboard() {
                 )}
 
                 {showCourseMenu && !running && (
-                  <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
+                  <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
                     <div className="max-h-64 overflow-y-auto py-1" role="listbox" aria-label={t("dash.selectCourse")}>
                       {courses.map((course) => (
                         <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
@@ -1502,7 +1502,7 @@ export default function Dashboard() {
                 ) : (
                   <button
                     className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
-                    style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}
+                    style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-hairline)" }}
                     onClick={pauseWithFeedback}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                       <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
@@ -1551,9 +1551,9 @@ export default function Dashboard() {
             <div className="flex items-end gap-3 sm:items-center">
               <Mascot streak={12} size={64} className="h-14 w-14 shrink-0" ariaLabel="Mascotte de Blocus Tracker" />
               <div className="relative min-w-0 flex-1 rounded-2xl px-4 py-3"
-                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
+                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
                 <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
-                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-border)", borderLeft: "1px solid var(--bt-border)" }} />
+                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-hairline)", borderLeft: "1px solid var(--bt-hairline)" }} />
                 <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.discoveryTitle")}</p>
                 <p className="relative mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                   {t("guest.discoveryText")}

@@ -59,7 +59,7 @@ function TargetOption({ active, title, detail, onClick }) {
 /** Aperçu de la notification telle qu'elle apparaîtra sur l'appareil. */
 function Preview({ title, message }) {
   return (
-    <div className="rounded-2xl p-3.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+    <div className="rounded-2xl p-3.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
       <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--bt-text-4)" }}>
         Aperçu
       </p>

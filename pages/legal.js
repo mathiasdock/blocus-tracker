@@ -41,7 +41,7 @@ export default function Legal() {
         <div className="[&::-webkit-scrollbar]:hidden -mx-1 px-1 mb-5"
           style={{ overflowX: "auto", scrollbarWidth: "none" }}>
           <div className="inline-flex gap-1 rounded-2xl p-1"
-            style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+            style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
             {LEGAL_DOCS.map(d => {
               const isActive = d.id === active;
               return (

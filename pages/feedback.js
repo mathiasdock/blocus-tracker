@@ -200,7 +200,7 @@ export default function FeedbackPage() {
         {isAdmin && (
           <section className="card overflow-hidden">
             <div className="px-5 py-4 flex items-center justify-between gap-3"
-              style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
               <div>
                 <h2 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>
                   {t("feedback.adminTitle")}
@@ -226,7 +226,7 @@ export default function FeedbackPage() {
                   const author = profiles[row.user_id];
                   return (
                     <li key={row.id} className="px-5 py-4 space-y-3"
-                      style={idx > 0 ? { borderTop: "1px solid var(--bt-border)" } : {}}>
+                      style={idx > 0 ? { borderTop: "1px solid var(--bt-hairline)" } : {}}>
                       <div className="flex items-start gap-3">
                         <Avatar url={author?.avatar_url} pseudo={displayName(author)} size={36} />
                         <div className="min-w-0 flex-1">
@@ -236,7 +236,7 @@ export default function FeedbackPage() {
                               {t(`feedback.type.${row.type}`)}
                             </span>
                             <span className="text-xs font-semibold rounded-full px-2 py-0.5"
-                              style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                              style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
                               {t(`feedback.status.${row.status}`)}
                             </span>
                             <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>

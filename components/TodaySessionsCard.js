@@ -158,7 +158,7 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
                 </div>
 
                 {menuId === session.id && (
-                  <div className="bt-dashboard-menu absolute right-0 top-14 z-30 w-48 overflow-hidden rounded-2xl py-1" role="menu" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
+                  <div className="bt-dashboard-menu absolute right-0 top-14 z-30 w-48 overflow-hidden rounded-2xl py-1" role="menu" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
                     <button type="button" role="menuitem" onClick={() => beginEdit(session)} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
                       <IconEdit /> {t("courseEditor.edit")}
                     </button>
@@ -169,7 +169,7 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
                 )}
 
                 {isEditing && (
-                  <div className="mt-3 grid gap-3 rounded-2xl p-3 sm:grid-cols-[minmax(0,1fr)_112px]" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                  <div className="mt-3 grid gap-3 rounded-2xl p-3 sm:grid-cols-[minmax(0,1fr)_112px]" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
                     <label className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>
                       {t("dash.sessionCourse")}
                       <select className="input mt-1 min-h-11" value={editCourseId} onChange={(event) => setEditCourseId(event.target.value)}>

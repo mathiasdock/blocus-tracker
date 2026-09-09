@@ -52,7 +52,7 @@ function Switch({ checked, disabled, onChange, label, describedBy }) {
 function CategoryRow({ id, title, description, checked, locked, lockedLabel, onChange }) {
   const descId = `${id}-desc`;
   return (
-    <div className="flex items-start gap-3 py-3.5" style={{ borderTop: "1px solid var(--bt-border)" }}>
+    <div className="flex items-start gap-3 py-3.5" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{title}</p>
         <p id={descId} className="mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{description}</p>
@@ -174,7 +174,7 @@ export function ConsentSettingsPanel({ open, onClose }) {
             </div>
           )}
           <CategoryList draft={draft} setDraft={setDraft} gpc={gpc} t={t} />
-          <p className="py-3 text-xs leading-relaxed" style={{ borderTop: "1px solid var(--bt-border)", color: "var(--bt-text-3)" }}>
+          <p className="py-3 text-xs leading-relaxed" style={{ borderTop: "1px solid var(--bt-hairline)", color: "var(--bt-text-3)" }}>
             {t("consent.noSaleNotice")}{" "}
             <Link href="/legal?doc=cookies" className="bt-accent-link font-medium underline underline-offset-2" onClick={onClose}>
               {t("consent.cookiePolicyLink")}
@@ -183,7 +183,7 @@ export function ConsentSettingsPanel({ open, onClose }) {
         </div>
 
         <div className="shrink-0 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-5"
-          style={{ borderTop: "1px solid var(--bt-border)" }}>
+          style={{ borderTop: "1px solid var(--bt-hairline)" }}>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button type="button" className="btn-neutral flex-1 min-h-11" onClick={() => apply({ ...DENY_ALL })}>
               {t("consent.rejectAll")}
@@ -219,7 +219,7 @@ export default function ConsentManager() {
             className="mx-auto w-full max-w-2xl rounded-2xl p-4 sm:p-5"
             style={{
               backgroundColor: "var(--bt-surface)",
-              border: "1px solid var(--bt-border)",
+              border: "1px solid var(--bt-hairline)",
               boxShadow: "0 14px 44px rgba(31,26,23,0.18)",
             }}
           >

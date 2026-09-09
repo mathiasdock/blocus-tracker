@@ -134,7 +134,7 @@ function buildEgressAlerts(data, t) {
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ borderRadius: 12, border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)", boxShadow: "0 4px 16px var(--bt-shadow)", padding: "8px 11px" }}>
+    <div style={{ borderRadius: 12, border: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-surface)", boxShadow: "0 4px 16px var(--bt-shadow)", padding: "8px 11px" }}>
       <p className="text-[11px] font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>{label}</p>
       {payload.map((p, i) => (
         <p key={i} className="text-[11px] tabular-nums" style={{ color: "var(--bt-text-2)" }}>
@@ -149,7 +149,7 @@ function ChartTooltip({ active, payload, label, unit }) {
 /* ── UI primitives ─────────────────────────────────────────── */
 function StatCard({ label, value, accent, sub, dot, delta }) {
   return (
-    <div className="rounded-2xl p-3.5 min-w-0" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+    <div className="rounded-2xl p-3.5 min-w-0" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
       <div className="flex items-center gap-1.5">
         <span className="font-num font-bold tabular-nums leading-none truncate" style={{ fontSize: "1.5rem", color: accent || "var(--bt-text-1)", letterSpacing: "-0.02em" }}>{value}</span>
         {dot && <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ backgroundColor: "#22c55e" }} />}
@@ -186,7 +186,7 @@ const STATUS_COLOR = { ok: "#14B885", warn: "#F59E0B", down: "#EF4444", idle: "#
 function HealthPill({ label, value, status, hint }) {
   const color = STATUS_COLOR[status] || STATUS_COLOR.idle;
   return (
-    <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)" }}>
+    <div className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
       <div className="flex items-center gap-2 mb-1.5">
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}66` }} />
         <span className="text-xs font-semibold uppercase tracking-wide truncate" style={{ color: "var(--bt-text-3)" }}>{label}</span>
@@ -366,7 +366,7 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
             })}
           </div>
 
-          <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid var(--bt-border)" }}>
+          <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid var(--bt-hairline)" }}>
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
@@ -403,7 +403,7 @@ function EgressGuardPanel({ data, loading, error, onRefresh, t }) {
             {data.heavy.top.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("admin.egressNoHeavyFiles")}</p>
             ) : (
-              <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid var(--bt-border)" }}>
+              <div className="overflow-x-auto rounded-2xl" style={{ border: "1px solid var(--bt-hairline)" }}>
                 <table className="w-full text-sm">
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
@@ -490,7 +490,7 @@ function StorageCleanupPanel({
       )}
 
       {!data ? (
-        <div className="rounded-2xl p-4 text-sm" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
+        <div className="rounded-2xl p-4 text-sm" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-hairline)" }}>
           {t("admin.cleanupEmpty")}
         </div>
       ) : (
@@ -518,7 +518,7 @@ function StorageCleanupPanel({
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl max-h-[420px]" style={{ border: "1px solid var(--bt-border)" }}>
+          <div className="overflow-x-auto rounded-2xl max-h-[420px]" style={{ border: "1px solid var(--bt-hairline)" }}>
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
@@ -586,7 +586,7 @@ const ACTIVITY_META = {
 function ActivityRow({ ev }) {
   const meta = ACTIVITY_META[ev.kind] || ACTIVITY_META.session;
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderTop: "1px solid var(--bt-border)" }}>
+    <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
       <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${meta.color}1a`, color: meta.color }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{meta.icon}</svg>
       </span>
@@ -644,7 +644,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
         onFocus={() => setOpen(true)} />
       {open && results && (
         <div className="absolute z-40 mt-1.5 left-0 right-0 rounded-2xl overflow-hidden max-h-[70vh] overflow-y-auto"
-          style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 12px 40px var(--bt-shadow)" }}>
+          style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 12px 40px var(--bt-shadow)" }}>
           {results.empty && <p className="px-4 py-4 text-sm" style={{ color: "var(--bt-text-3)" }}>Aucun résultat pour « {q} »</p>}
           {results.u.length > 0 && (
             <div>
@@ -852,7 +852,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
       <div className="card w-full sm:max-w-2xl h-full sm:h-auto sm:max-h-[92vh] overflow-y-auto p-0" onClick={e => e.stopPropagation()}>
         {/* Header */}
         {/* paddingTop inclut env(safe-area-inset-top) pour que la croix reste sous la barre de statut iOS, pas dessous */}
-        <div className="p-6 pb-4" style={{ borderBottom: "1px solid var(--bt-border)", paddingTop: "calc(1.5rem + env(safe-area-inset-top))" }}>
+        <div className="p-6 pb-4" style={{ borderBottom: "1px solid var(--bt-hairline)", paddingTop: "calc(1.5rem + env(safe-area-inset-top))" }}>
           <div className="flex items-start gap-4">
             <Avatar url={user.avatar_url} pseudo={user.pseudo} size={64} />
             <div className="flex-1 min-w-0">
@@ -882,7 +882,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
               { label: "Amis", value: friendCount ?? "—" },
               { label: "Parrainages", value: referrals.length },
             ].map(s => (
-              <div key={s.label} className="rounded-2xl p-3 text-center" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+              <div key={s.label} className="rounded-2xl p-3 text-center" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
                 <p className="text-lg font-num font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
                 <p className="text-[10px] mt-0.5 uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
               </div>
@@ -939,7 +939,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
         </div>
 
         {/* Actions */}
-        <div className="sticky bottom-0 p-4 flex flex-wrap gap-2" style={{ borderTop: "1px solid var(--bt-border)", backgroundColor: "var(--bt-surface)" }}>
+        <div className="sticky bottom-0 p-4 flex flex-wrap gap-2" style={{ borderTop: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-surface)" }}>
           <button onClick={onEdit} className="btn-primary flex-1 min-w-[100px]">Éditer</button>
           <button onClick={() => onMessage(user)} className="btn flex-1 min-w-[100px]" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}>Message</button>
           {!isSelf && !user.is_admin && (
@@ -1844,7 +1844,7 @@ export default function Admin() {
               <summary className="px-5 py-3.5 cursor-pointer text-sm font-semibold select-none" style={{ color: "var(--bt-text-1)" }}>
                 {`Suggestions des membres (${feedback.length})`}
               </summary>
-              <div style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <div style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                   <section className="card p-5">
                     <h2 className="text-base font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>Suggestions <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({feedback.length})</span></h2>
                     {feedback.length === 0 ? <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>Aucune suggestion.</p> : (
@@ -1882,7 +1882,7 @@ export default function Admin() {
               <summary className="px-5 py-3.5 cursor-pointer text-sm font-semibold select-none" style={{ color: "var(--bt-text-1)" }}>
                 {`Comptes supprimés (${deletedAccounts.length})`}
               </summary>
-              <div style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <div style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                   <section className="card p-5">
                     <h2 className="text-base font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>Comptes supprimés <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({deletedAccounts.length})</span></h2>
                     {/* Journal volontairement anonyme (migration v45) : quelqu'un
@@ -1970,7 +1970,7 @@ export default function Admin() {
                       Une annonce s'affiche <strong>dans l'app</strong>, en bandeau, quand le membre l'ouvre.
                       Contrairement à une notification push, elle ne fait pas sonner le téléphone.
                     </p>
-                    <form onSubmit={createAnnouncement} className="space-y-3 mb-6 pb-6" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+                    <form onSubmit={createAnnouncement} className="space-y-3 mb-6 pb-6" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
                       <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--bt-text-3)" }}>{t("admin.annFormTitle")}</p>
                       <div><label className="label">{t("admin.annTitleLabel")}</label><input className="input" maxLength={120} value={annForm.title} onChange={e => setAnnForm(f => ({ ...f, title: e.target.value }))} placeholder={t("admin.annTitlePlaceholder")} /></div>
                       <div><label className="label">{t("admin.annMessageLabel")}</label><textarea className="input" rows={2} maxLength={500} value={annForm.message} onChange={e => setAnnForm(f => ({ ...f, message: e.target.value }))} placeholder={t("admin.annMessagePlaceholder")} /></div>

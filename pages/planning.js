@@ -340,7 +340,7 @@ function ExamForm({ value, onChange, onSubmit, onCancel, submitLabel, title, dat
   const { courses, t } = usePlan();
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-2xl p-4"
-      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
+      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
       <div className="flex items-center gap-2">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
         <p className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{title}</p>
@@ -789,7 +789,7 @@ function DayDetailModal() {
           className="pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]"
           style={{
             backgroundColor: "var(--bt-surface)",
-            border: "1px solid var(--bt-border)",
+            border: "1px solid var(--bt-hairline)",
             boxShadow: "0 -8px 48px rgba(0,0,0,0.18), 0 2px 16px rgba(0,0,0,0.08)",
             maxHeight: "88vh",
             overflowY: "auto",
@@ -829,7 +829,7 @@ function DayDetailModal() {
               </div>
               <button onClick={() => setModalDate(null)} aria-label={t("common.close")}
                 className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors"
-                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
                 <IconClose />
               </button>
             </div>
@@ -876,7 +876,7 @@ function DayDetailModal() {
                     }
                     return (
                       <div key={ex.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                        style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
+                        style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
                         {ex.course_id && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(ex.course_id) }} />}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{ex.name}</p>
@@ -1022,7 +1022,7 @@ function DayDetailModal() {
                           <div className="flex items-center gap-2 px-4 pb-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
                             <button onClick={() => { postpone(o.id, tomorrow); setPostponingId(null); }}
                               className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", color: "var(--bt-text-1)" }}>
+                              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", color: "var(--bt-text-1)" }}>
                               {t("plan.dayPostpone")}
                             </button>
                             <input type="date" className="input flex-1 py-1.5 text-xs" min={tomorrow}
@@ -1080,7 +1080,7 @@ function DayDetailModal() {
             {showAddForm && !isPast && (
               <ObjectiveForm
                 className="rounded-2xl p-4"
-                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}
+                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}
                 title={t("plan.newObjectiveTitle")}
                 value={addForm}
                 onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
@@ -1114,7 +1114,7 @@ function DayDetailModal() {
                   </button>
                 ) : (
                   <div className="flex items-center gap-2 rounded-xl p-2.5"
-                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
                     <span className="shrink-0 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.duplicateDayTo")}</span>
                     <input type="date" className="input flex-1 py-1.5 text-xs" min={today}
                       aria-label={t("plan.duplicateDayTo")}
@@ -1565,7 +1565,7 @@ function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, on
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
                 <div role="menu" className="absolute right-0 top-full z-30 mt-1.5 min-w-[230px] overflow-hidden rounded-2xl"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
                   <div className="flex flex-col gap-0.5 p-1.5" onClick={() => setMenuOpen(false)}>
                     {actions}
                   </div>

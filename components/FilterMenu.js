@@ -154,7 +154,7 @@ export default function FilterMenu({
             maxHeight: "min(60vh, 24rem)",
             overflowY: "auto",
             backgroundColor: "var(--bt-surface)",
-            border: "1px solid var(--bt-border)",
+            border: "1px solid var(--bt-hairline)",
             boxShadow: "var(--bt-elev-3)",
           }}
         >

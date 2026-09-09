@@ -462,7 +462,7 @@ export default function Signup() {
               <label
                 htmlFor="signup-terms"
                 className="flex cursor-pointer items-start gap-3 rounded-xl px-3 py-3"
-                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}
+                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}
               >
                 <input
                   id="signup-terms"

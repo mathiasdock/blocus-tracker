@@ -92,7 +92,7 @@ function Row({ item, onSaved }) {
       </button>
 
       {open && (
-        <div className="px-3.5 pb-3.5 space-y-3" style={{ borderTop: "1px solid var(--bt-border)", paddingTop: 12 }}>
+        <div className="px-3.5 pb-3.5 space-y-3" style={{ borderTop: "1px solid var(--bt-hairline)", paddingTop: 12 }}>
           {item.vars.length > 0 && (
             <p className="text-[11px] leading-snug" style={{ color: "var(--bt-text-3)" }}>
               Garde {item.vars.join(", ")} dans le message : remplacé à l'envoi par le prénom réel.

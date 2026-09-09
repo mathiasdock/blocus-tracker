@@ -232,6 +232,8 @@ In dark mode shadows are nearly invisible, so the same tokens shift strategy: el
 
 ### Named Rules
 
+**The Hairline Exception.** Softening a divider to the hairline applies to lines that *separate*: rows inside a card, a panel's own edge, a box sitting on a filled surface. It does **not** apply to lines that *afford*: a button's edge, a segmented track, the inactive half of a control. There the border is the affordance, and a hairline reads as decoration the user cannot press. Nor does it apply to lines that *structure*: a calendar grid, a data table's rows, a full-bleed section boundary, the sidebar's edge — those carry meaning and keep their weight.
+
 **The No-Frame Rule.** A card does not carry a border and a shadow at the same time. In light mode the shadow does the work and the border is removed; in dark mode a hairline replaces the shadow. Carrying both is the web-dashboard signature this system exists to remove.
 
 **The Earned Container Rule.** A card is for meaningful grouping, never for holding content. When a section only needs separation, use `.card-plain` and let whitespace, type, and a heading do it. Nested cards are always wrong; use `.card-inset` for a recessed region inside a card.
