@@ -707,8 +707,9 @@ export default function Communautes() {
 
   return (
     <Layout>
-      <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("comm.title")}</h1>
-      <p className="text-sm mb-4" style={{ color: "var(--bt-text-2)" }}>{t("comm.subtitle")}</p>
+      {/* Voir pages/feed.js : sur téléphone l'onglet du haut est le titre. */}
+      <h1 className="bt-page-title sr-only lg:not-sr-only">{t("comm.title")}</h1>
+      <p className="mt-1 mb-4 hidden text-sm lg:block" style={{ color: "var(--bt-text-2)" }}>{t("comm.subtitle")}</p>
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-4 bt-rise">
         {/* ── Sidebar — recherche + Ton école + annuaire par pays ── */}

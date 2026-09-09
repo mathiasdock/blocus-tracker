@@ -13,14 +13,25 @@ import { createPortal } from "react-dom";
 // Le menu se ferme sur Échap, au clic dehors et après un choix ; le focus
 // revient au bouton, sinon on se retrouve en haut du document après chaque
 // changement de filtre.
+// Deux usages, un seul mécanisme de placement. Par défaut c'est un sélecteur
+// de valeur (`options` + `value`). Avec `actions`, c'est un menu de
+// commandes — le « … » d'un en-tête de conversation, par exemple. Le portail,
+// le repli dans la fenêtre, la fermeture sur Échap / clic dehors / défilement
+// sont les mêmes : dupliquer cette logique pour un second menu, c'est
+// s'assurer qu'un des deux finira par sortir de l'écran quelque part.
 export default function FilterMenu({
   value,
-  options,          // [{ value, label }]
+  options = [],     // [{ value, label }] — mode sélecteur
+  actions,          // [{ key, label, onSelect, danger }] — mode commandes
+  trigger,          // remplace le bouton-valeur (ex. un « … »)
+  triggerClassName = "",
   onChange,
   ariaLabel,
   align = "right",  // bord sur lequel le menu s'aligne
   className = "",
 }) {
+  const isActions = Array.isArray(actions) && actions.length > 0;
+  const items = isActions ? actions : options;
   const [open, setOpen] = useState(false);
   // Le menu est rendu dans un PORTAIL, pas dans le flux du bouton : la carte
   // du Chrono est en `overflow-hidden` (son dégradé en dépend), ce qui
@@ -87,12 +98,18 @@ export default function FilterMenu({
       top = above >= margin ? above : Math.max(margin, window.innerHeight - h - margin);
     }
     setCoords({ top, left });
-  }, [open, align, options.length]);
+  }, [open, align, items.length]);
 
   function pick(v) {
-    onChange(v);
+    if (onChange) onChange(v);
     setOpen(false);
     btnRef.current?.focus();
+  }
+
+  function run(action) {
+    setOpen(false);
+    btnRef.current?.focus();
+    action.onSelect?.();
   }
 
   return (
@@ -101,25 +118,31 @@ export default function FilterMenu({
         ref={btnRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
+        aria-haspopup={isActions ? "menu" : "listbox"}
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        aria-label={ariaLabel ? `${ariaLabel} : ${current?.label}` : undefined}
-        className="bt-filter-btn inline-flex min-h-8 max-w-full items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold"
+        aria-label={isActions ? ariaLabel : (ariaLabel ? `${ariaLabel} : ${current?.label}` : undefined)}
+        className={isActions
+          ? triggerClassName
+          : "bt-filter-btn inline-flex min-h-8 max-w-full items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold"}
       >
-        <span className="truncate">{current?.label}</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-          className="shrink-0" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.18s" }}>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        {isActions ? trigger : (
+          <>
+            <span className="truncate">{current?.label}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+              className="shrink-0" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.18s" }}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </>
+        )}
       </button>
 
       {open && mounted && createPortal(
         <div
           ref={menuRef}
           id={menuId}
-          role="listbox"
+          role={isActions ? "menu" : "listbox"}
           aria-label={ariaLabel}
           className="min-w-[9.5rem] overflow-hidden rounded-xl p-1"
           style={{
@@ -135,7 +158,7 @@ export default function FilterMenu({
             boxShadow: "var(--bt-elev-3)",
           }}
         >
-          {options.map((o) => {
+          {!isActions && options.map((o) => {
             const active = o.value === value;
             return (
               <button
@@ -159,6 +182,19 @@ export default function FilterMenu({
               </button>
             );
           })}
+          {isActions && actions.map((a) => (
+            <button
+              key={a.key || a.label}
+              type="button"
+              role="menuitem"
+              onClick={() => run(a)}
+              className="bt-filter-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium"
+              style={a.danger ? { color: "var(--bt-danger)" } : undefined}
+            >
+              {a.icon && <span className="shrink-0">{a.icon}</span>}
+              <span className="min-w-0 flex-1 truncate">{a.label}</span>
+            </button>
+          ))}
         </div>,
         document.body
       )}

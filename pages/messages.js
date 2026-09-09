@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import FilterMenu from "../components/FilterMenu";
 import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
@@ -44,6 +45,25 @@ const CHAT_ACCEPT = [
 
 function attachmentCacheKey(bucket, ref) {
   return `${bucket}|${ref}`;
+}
+
+function IconBack() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5.5 8.5 12l6.5 6.5" />
+    </svg>
+  );
+}
+
+function IconMore() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="5.5" cy="12" r="1.7" />
+      <circle cx="12" cy="12" r="1.7" />
+      <circle cx="18.5" cy="12" r="1.7" />
+    </svg>
+  );
 }
 
 function IconPaperclip({ size = 15 }) {
@@ -1207,16 +1227,27 @@ export default function Messages() {
   // par la barre flottante, qui n'est pas la meme selon la taille d'ecran et
   // la safe-area. Un nombre fige ici ne pouvait pas suivre.
   const chatOpen = mobileView === "chat";
+
+  // Plein écran sur téléphone. Le nettoyage au démontage n'est pas une
+  // précaution de style : sans lui, quitter la page depuis une conversation
+  // laisserait la barre de navigation masquée sur tout le reste de l'app.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (chatOpen) root.classList.add("bt-chat-fullscreen");
+    else root.classList.remove("bt-chat-fullscreen");
+    return () => root.classList.remove("bt-chat-fullscreen");
+  }, [chatOpen]);
   const panelClass = `bt-social-panel${chatOpen ? " bt-social-panel--chat" : ""}`;
 
   return (
     <Layout>
-      {/* Titre efface pendant une conversation sur telephone : on l'a deja lu,
-          et il coutait un cinquieme de l'ecran a chaque message echange. */}
-      <div className={chatOpen ? "hidden lg:block" : ""}>
-        <h1 className="bt-page-title">{t("social.title")}</h1>
-        <p className="mt-1 mb-4 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("social.subtitle")}</p>
-      </div>
+      {/* Sur téléphone, l'onglet du haut dit déjà « Social » : réécrire le
+          même mot juste en dessous coûtait deux lignes pour rien. Le titre
+          reste dans le document pour les lecteurs d'écran et les moteurs, et
+          redevient visible en desktop, où la navigation est une colonne
+          latérale et non un onglet. */}
+      <h1 className="bt-page-title sr-only lg:not-sr-only">{t("social.title")}</h1>
+      <p className="mt-1 mb-4 hidden text-sm lg:block" style={{ color: "var(--bt-text-2)" }}>{t("social.subtitle")}</p>
 
       <div className="grid gap-4 lg:grid-cols-3 bt-rise">
 
@@ -1552,7 +1583,11 @@ export default function Messages() {
             <section className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
               <div className="flex items-center gap-3 px-4 py-3 shrink-0"
                 style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
-                <button onClick={() => setMobileView("list")} className="lg:hidden btn-ghost px-2 py-1 text-sm">‹</button>
+                <button onClick={() => setMobileView("list")}
+                  aria-label={t("common.back")}
+                  className="bt-feed-icon-btn lg:hidden shrink-0">
+                  <IconBack />
+                </button>
                 {activeFriend && (
                   <>
                     <button onClick={() => openProfile(activeFriend.profile.id)} className="shrink-0 relative">
@@ -1569,14 +1604,18 @@ export default function Messages() {
                         {isStudyingLive(activeFriend.profile.studying_since) && <span style={{ color: "var(--bt-accent-dark)" }}> · {t("social.onlineNow")}</span>}
                       </p>
                     </button>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => openProfile(activeFriend.profile.id)} className="btn-ghost text-xs px-2.5 py-1.5 hidden sm:inline-flex">
-                        {t("social.viewProfileButton")}
-                      </button>
-                      <button onClick={() => router.push("/dashboard")} className="btn-ghost text-xs px-2.5 py-1.5">
-                        {t("groups.startChrono")}
-                      </button>
-                    </div>
+                    {/* Deux boutons libellés mangeaient la largeur de
+                        l'en-tête et écrasaient le retour. Les mêmes actions,
+                        dans un menu qui ne prend que la place d'une icône. */}
+                    <FilterMenu
+                      ariaLabel={t("social.conversationActions")}
+                      triggerClassName="bt-feed-icon-btn shrink-0"
+                      trigger={<IconMore />}
+                      actions={[
+                        { key: "profile", label: t("social.viewProfileButton"), onSelect: () => openProfile(activeFriend.profile.id) },
+                        { key: "chrono", label: t("groups.startChrono"), onSelect: () => router.push("/dashboard") },
+                      ]}
+                    />
                   </>
                 )}
               </div>
@@ -1659,13 +1698,11 @@ export default function Messages() {
               <div className="px-3 py-2.5 flex items-center gap-3 shrink-0"
                 style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
 
-                {/* Retour mobile */}
+                {/* Retour mobile — seule sortie de l'écran en plein écran. */}
                 <button onClick={() => setMobileView("list")}
-                  className="lg:hidden shrink-0 w-7 h-7 flex items-center justify-center rounded-xl transition-colors"
-                  style={{ color: "var(--bt-text-2)", backgroundColor: "var(--bt-subtle)" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <polyline points="15 18 9 12 15 6"/>
-                  </svg>
+                  aria-label={t("common.back")}
+                  className="bt-feed-icon-btn lg:hidden shrink-0">
+                  <IconBack />
                 </button>
 
                 {/* Nom + avatar */}
@@ -1687,31 +1724,21 @@ export default function Messages() {
                   </div>
                 </button>
 
-                {/* Infos — explicite, distinct de l'action chrono */}
-                <button onClick={() => { setShowGroupInfo(true); setInviteQuery(""); setInviteResults([]); }}
-                  className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors hidden sm:inline-flex"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
-                  {t("social.infoButton")}
-                </button>
-
-                {/* Bouton chrono (action principale) */}
-                {!groupChrono && (
-                  <button
-                    onClick={() => setShowChronoStart(v => !v)}
-                    className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
-                    style={{
-                      backgroundColor: showChronoStart ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-                      color: showChronoStart ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
-                      border: "1px solid var(--bt-hairline)",
-                    }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 3h5M12 3v2"/>
-                    </svg>
-                    <span className="hidden sm:inline">{t("groups.startChrono")}</span>
-                    <span className="sm:hidden">Chrono</span>
-                  </button>
-                )}
+                {/* Mêmes actions, dans un menu : deux boutons libellés
+                    prenaient la largeur de l'en-tête et écrasaient le retour. */}
+                <FilterMenu
+                  ariaLabel={t("social.conversationActions")}
+                  triggerClassName="bt-feed-icon-btn shrink-0"
+                  trigger={<IconMore />}
+                  actions={[
+                    { key: "info", label: t("social.infoButton"),
+                      onSelect: () => { setShowGroupInfo(true); setInviteQuery(""); setInviteResults([]); } },
+                    ...(groupChrono ? [] : [{
+                      key: "chrono", label: t("groups.startChrono"),
+                      onSelect: () => setShowChronoStart(v => !v),
+                    }]),
+                  ]}
+                />
               </div>
 
               {/* ── Panneau démarrer chrono ───────────────────────── */}

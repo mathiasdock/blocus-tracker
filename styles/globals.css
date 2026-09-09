@@ -2065,3 +2065,30 @@ details.bt-acc[open]::details-content { block-size: auto; }
   outline: 2px solid var(--bt-accent);
   outline-offset: -2px;
 }
+
+/* ── Conversation plein écran (téléphone) ──────────────────────
+   Ouvrir une conversation, c'est entrer dedans. Tout le reste — l'en-tête de
+   l'app, les onglets Activité/Social/Communautés, la barre du bas — parle
+   d'autre chose et ne sert qu'à en sortir ; or la conversation a déjà son
+   propre retour. Les garder revenait à écrire des messages dans le tiers
+   d'écran qu'ils laissaient.
+   La classe est posée sur <html> par pages/messages.js et retirée au retour
+   comme au démontage : rien ne doit pouvoir rester masqué après coup. */
+@media (max-width: 1023px) {
+  html.bt-chat-fullscreen [data-bt-appheader],
+  html.bt-chat-fullscreen [data-bt-subnav],
+  html.bt-chat-fullscreen .bt-nav { display: none; }
+
+  html.bt-chat-fullscreen main[data-bt-route-content] { padding: 0; }
+
+  html.bt-chat-fullscreen .bt-social-panel--chat {
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+    /* Les zones sûres sont en PADDING et non déduites de la hauteur : le
+       bandeau de l'encoche et l'indicateur d'accueil doivent rester peints
+       par la carte, sinon on voit deux bandes de fond différentes. */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

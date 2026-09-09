@@ -748,7 +748,7 @@ export default function Layout({ children }) {
       {/* ══ Top bar mobile ═══════════════════════════════════════ */}
       {/* paddingTop: env(safe-area-inset-top) pousse le contenu sous la
           barre de statut iOS (heure + batterie) pour qu'il ne soit pas caché */}
-      <header className="lg:hidden sticky top-0 z-30 backdrop-blur-sm"
+      <header data-bt-appheader className="lg:hidden sticky top-0 z-30 backdrop-blur-sm"
         style={{ backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-hairline)", paddingTop: "env(safe-area-inset-top)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}>
         <div className="h-12 flex items-center justify-between px-4">
           <Link href="/dashboard"
@@ -812,7 +812,7 @@ export default function Layout({ children }) {
 
         {/* Social sub-nav mobile */}
         {SOCIAL_PATHS.includes(router.pathname) && (
-          <div className="lg:hidden sticky z-20 flex"
+          <div data-bt-subnav className="lg:hidden sticky z-20 flex"
             style={{ top: "calc(48px + env(safe-area-inset-top))", backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-hairline)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}>
             {NAV_SOCIAL.map(n => {
               const active = router.pathname === n.href;
