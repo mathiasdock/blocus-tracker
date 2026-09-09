@@ -749,7 +749,7 @@ export default function Layout({ children }) {
       {/* paddingTop: env(safe-area-inset-top) pousse le contenu sous la
           barre de statut iOS (heure + batterie) pour qu'il ne soit pas caché */}
       <header className="lg:hidden sticky top-0 z-30 backdrop-blur-sm"
-        style={{ backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-border)", paddingTop: "env(safe-area-inset-top)" }}>
+        style={{ backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-hairline)", paddingTop: "env(safe-area-inset-top)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}>
         <div className="h-12 flex items-center justify-between px-4">
           <Link href="/dashboard"
             className="font-display font-bold text-lg tracking-tight select-none"
@@ -813,7 +813,7 @@ export default function Layout({ children }) {
         {/* Social sub-nav mobile */}
         {SOCIAL_PATHS.includes(router.pathname) && (
           <div className="lg:hidden sticky z-20 flex"
-            style={{ top: "calc(48px + env(safe-area-inset-top))", backgroundColor: "var(--bt-mobile-nav-bg)", borderBottom: "1px solid var(--bt-border)", backdropFilter: "blur(10px)" }}>
+            style={{ top: "calc(48px + env(safe-area-inset-top))", backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-hairline)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}>
             {NAV_SOCIAL.map(n => {
               const active = router.pathname === n.href;
               const badge  = badgeFor(n.href);
@@ -864,9 +864,13 @@ export default function Layout({ children }) {
 
       {/* ══ Bottom nav mobile — 5 onglets ════════════════════════ */}
       {/* Structure en deux couches pour le safe-area-inset-bottom (indicateur home iPhone) */}
-      <nav className="bt-mobile-nav lg:hidden fixed bottom-0 left-0 right-0 z-30"
-        style={{ backgroundColor: "var(--bt-mobile-nav-bg)", borderTop: "1px solid var(--bt-border)", backdropFilter: "blur(10px)" }}>
-        <div className="h-14 flex items-stretch">
+      {/* Barre FLOTTANTE : detachee des bords, translucide, le contenu defile
+          dessous. Avant, une barre pleine largeur collee en bas avec un filet
+          superieur — la forme d'un site web, pas d'une app. Le style vit en
+          CSS (.bt-nav*) : en inline il ne pouvait pas s'adapter au theme, au
+          mode contraste eleve ni a `prefers-reduced-transparency`. */}
+      <nav className="bt-nav lg:hidden" aria-label={t("nav.primary")}>
+        <div className="bt-nav-bar">
         {mobileNav.map(n => {
           const active = n.isSocial
             ? SOCIAL_PATHS.includes(router.pathname)
@@ -874,21 +878,17 @@ export default function Layout({ children }) {
           const badge = isGuest ? 0 : n.isSocial ? socialBadge : badgeFor(n.href);
           return (
             <Link key={n.href} href={n.href}
-              className="flex-1 flex flex-col items-center justify-center gap-1 transition-colors"
-              style={{ color: active ? "var(--bt-accent-dark)" : "var(--bt-text-3)" }}>
-              <div className="relative rounded-full px-3.5 py-0.5 transition-all duration-200"
-                style={{ backgroundColor: active ? "var(--bt-accent-bg)" : "transparent" }}>
+              aria-current={active ? "page" : undefined}
+              className={`bt-nav-item ${active ? "is-active" : ""}`}>
+              <span className="bt-nav-pill">
                 <NavIcon href={n.iconKey} size={22} />
                 {badge > 0 && <Badge count={badge} small />}
-              </div>
-              <span className="text-[10px] leading-none"
-                style={{ fontWeight: active ? 700 : 500 }}>{t(n.key)}</span>
+              </span>
+              <span className="bt-nav-label">{t(n.key)}</span>
             </Link>
           );
         })}
         </div>
-        {/* Spacer safe area pour l'indicateur home iPhone */}
-        <div style={{ height: "env(safe-area-inset-bottom)" }} />
       </nav>
 
       {!isGuest && notificationsOpen && (

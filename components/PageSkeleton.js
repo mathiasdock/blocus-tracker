@@ -161,8 +161,12 @@ export default function PageSkeleton({ pathname = "/dashboard" }) {
           {contentFor(pathname)}
         </main>
       </div>
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 h-14 px-5 flex items-center justify-around" style={{ backgroundColor: "var(--bt-mobile-nav-bg)", borderTop: "1px solid var(--bt-border)" }}>
-        {Array.from({ length: 5 }).map((_, i) => <SkeletonCircle key={i} size={26} />)}
+      {/* Meme barre flottante que Layout : sans ca, chaque chargement affichait
+          l'ancienne barre pleine largeur puis sautait a la nouvelle. */}
+      <nav className="bt-nav lg:hidden" aria-hidden="true">
+        <div className="bt-nav-bar items-center justify-around">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonCircle key={i} size={26} />)}
+        </div>
       </nav>
       <span className="sr-only">{t("loading.preparing")}</span>
     </div>

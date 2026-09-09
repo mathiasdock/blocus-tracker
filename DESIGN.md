@@ -2,10 +2,11 @@
 name: Blocus Tracker
 description: A calm study workspace that turns focused time into visible progress.
 colors:
-  canvas: "#FAF9F7"
+  canvas: "#F4F1EA"
   surface: "#FFFDFB"
-  surface-subtle: "#F7F3EF"
-  border: "#E8E2DC"
+  surface-subtle: "#F6F3EC"
+  border: "#E9E3DB"
+  hairline: "rgba(31,26,23,0.06)"
   text-primary: "#1F1A17"
   text-secondary: "#7C746E"
   text-tertiary: "#A8A09A"
@@ -205,25 +206,31 @@ Cards use 20px internal padding by default and 24px where the viewport allows. D
 
 ## Elevation & Depth
 
-Depth is a hybrid of tonal layering, quiet borders, and soft ambient shadows. Default cards sit only slightly above the canvas; interactive cards may lift 2px on fine-pointer hover. Menus, sheets, and notifications receive broader shadows because they cross layers. Brand Ink uses a directional radial glow plus a deep vertical gradient and vignette; it does not use generic texture or noise.
+Depth comes from **tonal separation plus a two-layer shadow**, not from outlining. The canvas is deliberately deeper than the surface so a card can read as raised with no border at all. Each elevation token carries a short contact shadow and a wide ambient one; a single-layer shadow reads as a flat halo, and a zero-offset glow is decoration, not depth.
 
-### Shadow Vocabulary
+In dark mode shadows are nearly invisible, so the same tokens shift strategy: elevation is carried by a lighter surface plus a faint hairline. The token names stay identical, so components never branch on theme.
 
-- **Ambient Card:** A broad, low-opacity shadow beneath standard cards.
-- **Interactive Lift:** A wider shadow paired with a 2px upward transform on fine-pointer hover.
-- **Floating Menu:** A compact high-layer shadow for disclosure menus.
-- **Sheet / Dialog:** The broadest structural shadow, paired with a dimmed scrim.
-- **Ink Moment:** A green-black ambient shadow that separates branded dark surfaces from the warm canvas.
+### Elevation Ladder
+
+| Token | Use |
+| --- | --- |
+| `--bt-elev-1` | Resting cards and panels. |
+| `--bt-elev-2` | Interactive lift on fine-pointer hover; floating menus. |
+| `--bt-elev-3` | Chrome that crosses layers: floating navigation, sheets, dialogs. |
 
 ### Named Rules
 
-**The Quiet Lift Rule.** Resting surfaces stay calm; elevation increases only for interaction or true layer changes.
+**The No-Frame Rule.** A card does not carry a border and a shadow at the same time. In light mode the shadow does the work and the border is removed; in dark mode a hairline replaces the shadow. Carrying both is the web-dashboard signature this system exists to remove.
+
+**The Earned Container Rule.** A card is for meaningful grouping, never for holding content. When a section only needs separation, use `.card-plain` and let whitespace, type, and a heading do it. Nested cards are always wrong; use `.card-inset` for a recessed region inside a card.
+
+**The Quiet Lift Rule.** Resting surfaces stay calm; elevation increases only for interaction or a true layer change.
 
 **The Tonal Depth Rule.** Build atmosphere with authored gradients and radial light, never with generic grain overlays.
 
 ## Shapes
 
-The form language is softly geometric. Standard cards use generous 20px corners, controls and fields use 14px corners, nested panels use 10–16px corners, and status chips or segmented controls use full pills. Checkboxes remain compact rounded squares, while course identity and status markers are circular. Bottom sheets use 24px top corners on mobile and settle into rounded dialogs on wider screens.
+The form language is softly geometric, and the scale is named rather than improvised per component: `--bt-r-inset` 12px, `--bt-r-control` 14px, `--bt-r-card` 22px, `--bt-r-sheet` 28px, plus full pills for status chips. A segmented control matches the radius of the controls beside it rather than defaulting to a pill — a lone pill in a row of rounded rectangles reads as a stray element. Checkboxes remain compact rounded squares, while course identity and status markers are circular. Bottom sheets use 24px top corners on mobile and settle into rounded dialogs on wider screens.
 
 Borders are thin and quiet. Dashed borders are reserved for an empty or add state; selected color swatches use a two-ring treatment so selection remains visible across light and dark swatches.
 
@@ -258,7 +265,11 @@ Borders are thin and quiet. Dashed borders are reserved for an empty or add stat
 
 ### Navigation
 
-Desktop navigation is a quiet vertical list on Warm Surface; the active item receives Mint Surface, dark green text, and a slim Study Green rail. Mobile navigation is a translucent Warm Surface bar with a quiet top border and safe-area spacer; the active icon sits on a Mint pill. Inactive items use tertiary text, and notification badges add both count and contrast.
+Desktop navigation is a quiet vertical list on Warm Surface; the active item receives Mint Surface, dark green text, and a slim Study Green rail.
+
+Mobile navigation is a **floating translucent bar** (`.bt-nav`), inset 12px from the edges and lifted above the home indicator, carrying `--bt-elev-3` and a bright top hairline that reads as light catching the material. Content scrolls underneath it rather than stopping at it. The active tab grows a Mint pill behind its icon from a 0.94 resting scale, so selection is felt without flashing. The bar becomes opaque under `prefers-reduced-transparency`, gains a solid contrasting border under `prefers-contrast: more`, and drops the scale transition under `prefers-reduced-motion`.
+
+Inactive items use tertiary text, and notification badges add both count and contrast.
 
 ### Progress & Selection
 
@@ -273,6 +284,7 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 ### Do:
 
 - **Do** use the warm semantic surface stack before adding elevation.
+- **Do** ask whether a section needs a container at all before reaching for `.card`.
 - **Do** keep primary actions in the dark Action Green pair and progress indicators in bright Study Green.
 - **Do** reserve dark ink surfaces for focus, meaningful progress, and completion.
 - **Do** use tabular numerals for any value that updates or aligns with another value.
@@ -281,6 +293,8 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 
 ### Don't:
 
+- **Don't** put a border and a shadow on the same surface.
+- **Don't** nest a card inside a card; use `.card-inset` or plain spacing.
 - **Don't** spread Brand Ink across ordinary management cards or use it as a generic dark panel.
 - **Don't** add generic grain, noise, or decorative texture; depth comes from tonal radial light and restrained shadow.
 - **Don't** use Quicksand as the general interface font.

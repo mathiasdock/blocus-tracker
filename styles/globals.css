@@ -67,10 +67,39 @@ html {
 
 /* ── CSS Custom Properties ──────────────────────────────────── */
 :root {
-  --bt-bg:            #FAF9F7;
+  /* Canevas volontairement plus profond que la surface. A #FAF9F7 contre
+     #FFFDFB, l'ecart etait de 2 % : une carte ne pouvait PAS paraitre posee
+     sur le fond, d'ou la bordure sur chaque carte pour la detourer — et
+     l'empilement de cadres qui faisait « tableau de bord web ». Avec un vrai
+     ecart tonal, l'ombre suffit et la bordure disparait. */
+  --bt-bg:            #F4F1EA;
   --bt-surface:       #FFFDFB;
-  --bt-subtle:        #F7F3EF;
-  --bt-border:        #E8E2DC;
+  --bt-subtle:        #F6F3EC;
+  --bt-border:        #E9E3DB;
+  /* Bordure de derniere necessite : la ou deux surfaces de meme valeur se
+     touchent. Beaucoup plus discrete que --bt-border, qui servait a detourer. */
+  --bt-hairline:      rgba(31,26,23,0.06);
+
+  /* ── Elevation ────────────────────────────────────────────────
+     Deux couches par niveau : un contact court et serre, puis une ombre
+     ambiante large et tres douce. Une seule couche donne le halo plat des
+     cartes generees ; deux couches donnent un objet pose sur une surface.
+     Chaque niveau a un decalage vertical reel — une ombre centree n'est pas
+     de la profondeur, c'est de la decoration. */
+  --bt-elev-1:        0 1px 2px rgba(38,32,26,0.04), 0 5px 14px -4px rgba(38,32,26,0.07);
+  --bt-elev-2:        0 2px 6px rgba(38,32,26,0.05), 0 14px 30px -10px rgba(38,32,26,0.11);
+  --bt-elev-3:        0 6px 12px rgba(38,32,26,0.07), 0 26px 56px -14px rgba(38,32,26,0.18);
+
+  /* ── Rayons ───────────────────────────────────────────────────
+     Une echelle nommee plutot que 12/14/16/20/24 disperses dans le JSX. */
+  --bt-r-inset:       12px;
+  --bt-r-control:     14px;
+  --bt-r-card:        22px;
+  --bt-r-sheet:       28px;
+
+  /* Materiau de la navigation flottante : translucide, pas opaque. */
+  --bt-nav-material:  rgba(255,253,251,0.72);
+  --bt-nav-hairline:  rgba(255,255,255,0.55);
   --bt-text-1:        #1F1A17;
   --bt-text-2:        #7C746E;
   --bt-text-3:        #A8A09A;
@@ -96,8 +125,8 @@ html {
   --bt-warning:       #8A5A10;
   --bt-shadow:        rgba(31,26,23,0.055);
   --bt-shimmer:       rgba(255,255,255,0.62);
-  --bt-mobile-bg:     rgba(255,253,251,0.95);
-  --bt-mobile-nav-bg: rgba(255,253,251,0.97);
+  --bt-mobile-bg:     rgba(255,253,251,0.80);
+  --bt-mobile-nav-bg: rgba(255,253,251,0.72);
   /* Surface "ink" — vert profond de la famille accent, réservé aux moments
      de marque (hero chrono, records). Jamais pour du contenu courant. */
   --bt-ink:           #0B2E23;
@@ -114,9 +143,18 @@ html {
 
 .dark {
   --bt-bg:            #12100E;
-  --bt-surface:       #1A1715;
-  --bt-subtle:        #222120;
+  --bt-surface:       #1F1B18;
+  --bt-subtle:        #262220;
   --bt-border:        #2C2622;
+  --bt-hairline:      rgba(255,255,255,0.07);
+  /* Sur fond sombre une ombre ne se voit pas : l'elevation passe par une
+     surface plus claire et un filet. Les memes noms restent utilisables
+     partout, seul leur contenu change. */
+  --bt-elev-1:        0 1px 2px rgba(0,0,0,0.30);
+  --bt-elev-2:        0 4px 14px rgba(0,0,0,0.38);
+  --bt-elev-3:        0 10px 34px rgba(0,0,0,0.52);
+  --bt-nav-material:  rgba(31,27,24,0.76);
+  --bt-nav-hairline:  rgba(255,255,255,0.08);
   --bt-text-1:        #F0EDE8;
   --bt-text-2:        #A8A09A;
   --bt-text-3:        #6B635D;
@@ -138,8 +176,8 @@ html {
   --bt-warning:       #F0C675;
   --bt-shadow:        rgba(0,0,0,0.18);
   --bt-shimmer:       rgba(255,255,255,0.06);
-  --bt-mobile-bg:     rgba(26,23,21,0.95);
-  --bt-mobile-nav-bg: rgba(26,23,21,0.97);
+  --bt-mobile-bg:     rgba(31,27,24,0.80);
+  --bt-mobile-nav-bg: rgba(31,27,24,0.76);
   --bt-ink:           #0A2A20;
   --bt-ink-soft:      #0F3A2C;
   --bt-ink-text:      #ECFAF4;
@@ -190,22 +228,46 @@ html {
 }
 
 @layer components {
-  /* ── Card ─────────────────────────────────────────────────── */
+  /* ── Card ───────────────────────────────────────────────────
+     PLUS DE BORDURE en clair. Une carte portait a la fois un filet ET une
+     ombre : c'est la signature du tableau de bord web, et empilee trois fois
+     de suite (page > carte > sous-carte) l'ecran devenait une pile de cadres.
+     Ici la carte est posee sur un canevas plus profond et c'est l'ombre qui
+     la souleve. En sombre l'ombre ne se voit pas : la surface plus claire et
+     un filet tres discret reprennent le travail. */
   .card {
     background-color: var(--bt-surface);
-    border: 1px solid var(--bt-border);
-    border-radius: 20px;
-    box-shadow: 0 4px 24px var(--bt-shadow);
+    border-radius: var(--bt-r-card);
+    box-shadow: var(--bt-elev-1);
+  }
+  .dark .card {
+    box-shadow: var(--bt-elev-1);
+    border: 1px solid var(--bt-hairline);
+  }
+
+  /* Groupe SANS cadre : le regroupement se lit a l'espacement et au titre,
+     pas a un rectangle. A utiliser quand une section n'a pas besoin d'etre
+     un objet pose — la majorite des cas. */
+  .card-plain {
+    background-color: transparent;
+    border-radius: var(--bt-r-card);
+  }
+
+  /* Zone en creux DANS une carte : elle laisse voir le canevas au travers
+     plutot que d'ajouter un cadre de plus. */
+  .card-inset {
+    background-color: var(--bt-subtle);
+    border-radius: var(--bt-r-inset);
   }
 
   /* Carte interactive — lift discret au hover (desktop pointer only) */
-  @media (hover: hover) {
+  @media (hover: hover) and (pointer: fine) {
     .card-lift {
-      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease;
     }
     .card-lift:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 34px var(--bt-shadow);
+      box-shadow: var(--bt-elev-2);
     }
   }
   .card-lift:active {
@@ -217,7 +279,7 @@ html {
   .card-ink {
     position: relative;
     overflow: hidden;
-    border-radius: 20px;
+    border-radius: var(--bt-r-card);
     border: 1px solid var(--bt-ink-border);
     background:
       radial-gradient(120% 100% at 88% -12%, rgba(20, 184, 133, 0.38), transparent 55%),
@@ -321,26 +383,28 @@ html {
   @media (hover: hover) and (pointer: fine) {
     .btn:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 0 6px 18px var(--bt-shadow);
     }
   }
 
   .btn-primary {
     @apply btn;
-    background-image: linear-gradient(165deg, var(--bt-action), var(--bt-action-deep) 115%);
+    background-color: var(--bt-action);
+    background-image: none;
     color: #fff;
-    box-shadow: 0 2px 10px rgba(8, 116, 84, 0.28);
+    /* Ombre teintee de l'action elle-meme : un bouton vert projette une ombre
+       verte, pas une ombre grise. Decalee vers le bas, jamais centree. */
+    box-shadow: 0 1px 2px rgba(6, 74, 54, 0.24), 0 6px 16px -6px rgba(8, 116, 84, 0.45);
   }
   .btn-primary:hover:not(:disabled) {
-    background-image: linear-gradient(165deg, #06694D, #054B37 115%);
-    box-shadow: 0 4px 14px rgba(8, 116, 84, 0.34);
+    background-color: #06694D;
+    box-shadow: 0 2px 4px rgba(6, 74, 54, 0.26), 0 10px 22px -8px rgba(8, 116, 84, 0.52);
   }
 
   .btn-ghost {
     @apply btn;
     background-color: var(--bt-subtle);
     color: var(--bt-text-1);
-    border: 1px solid var(--bt-border);
+    border: 1px solid transparent;
   }
   .btn-ghost:hover:not(:disabled) {
     background-color: var(--bt-border);
@@ -365,9 +429,10 @@ html {
   /* ── Inputs ───────────────────────────────────────────────── */
   .input {
     width: 100%;
-    border-radius: 14px;
+    border-radius: var(--bt-r-control);
     border: 1px solid var(--bt-border);
     background-color: var(--bt-surface);
+    caret-color: var(--bt-accent);
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
     outline: none;
@@ -375,8 +440,8 @@ html {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .input:focus {
-    border-color: #14B885;
-    box-shadow: 0 0 0 4px rgba(20, 184, 133, 0.12);
+    border-color: var(--bt-accent);
+    box-shadow: 0 0 0 3px rgba(20, 184, 133, 0.16);
   }
   .input::placeholder {
     color: var(--bt-text-3);
@@ -617,7 +682,7 @@ html {
    en bas. On peint donc le fond racine en vert ink et on masque le nav mobile. */
 html.bt-focus-active,
 html.bt-focus-active body { background-color: var(--bt-ink); }
-html.bt-focus-active .bt-mobile-nav { display: none; }
+html.bt-focus-active .bt-nav { display: none; }
 
 /* Badges — palier "débuts" et emplacement verrouillé.
    Définis ici plutôt qu'en style inline pour que le mode sombre puisse
@@ -1565,7 +1630,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
 .bt-plan-nav-btn {
   color: var(--bt-text-2);
   background-color: var(--bt-subtle);
-  border: 1px solid var(--bt-border);
+  border: 1px solid transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -1648,7 +1713,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
 .bt-stats-quiet-btn {
   color: var(--bt-text-2);
   background-color: var(--bt-subtle);
-  border: 1px solid var(--bt-border);
+  border: 1px solid transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -1682,7 +1747,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
 .bt-filter-btn {
   color: var(--bt-text-2);
   background-color: var(--bt-subtle);
-  border: 1px solid var(--bt-border);
+  border: 1px solid transparent;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -1727,4 +1792,101 @@ details.bt-acc[open]::details-content { block-size: auto; }
 .input[type="datetime-local"]::-webkit-date-and-time-value {
   text-align: left;
   min-height: 1.25em;
+}
+
+/* ══ Navigation flottante (mobile) ═══════════════════════════════════════
+   Une barre detachee, translucide, sous laquelle le contenu passe. Le
+   conteneur ne capte pas les taps (`pointer-events: none`) : seule la barre
+   le fait, donc les 12 px de marge laterale restent cliquables pour le
+   contenu qui se trouve dessous. */
+.bt-nav {
+  position: fixed;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
+  padding: 0 12px;
+  pointer-events: none;
+}
+.bt-nav-bar {
+  pointer-events: auto;
+  display: flex;
+  align-items: stretch;
+  height: 62px;
+  padding: 0 4px;
+  border-radius: 22px;
+  background-color: var(--bt-nav-material);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--bt-elev-3);
+  /* Filet clair sur l'arete haute : c'est la lumiere qui accroche le
+     materiau, pas un contour de detourage. */
+  border-top: 1px solid var(--bt-nav-hairline);
+}
+
+.bt-nav-item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--bt-text-3);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.bt-nav-item.is-active { color: var(--bt-accent-text); }
+
+/* La pastille de l'onglet actif grandit depuis l'icone plutot que d'apparaitre
+   d'un bloc : l'etat selectionne se remarque sans clignoter. */
+.bt-nav-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  background-color: transparent;
+  transform: scale(0.94);
+  transition: background-color 0.2s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.bt-nav-item.is-active .bt-nav-pill {
+  background-color: var(--bt-accent-bg);
+  transform: scale(1);
+}
+.bt-nav-item:active .bt-nav-pill { transform: scale(0.88); }
+
+.bt-nav-label {
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bt-nav-item.is-active .bt-nav-label { font-weight: 700; }
+
+/* Transparence refusee (reglage systeme) ou contraste eleve : materiau plein
+   et contour franc, sinon le texte passe sur le contenu qui defile dessous. */
+@media (prefers-reduced-transparency: reduce) {
+  .bt-nav-bar {
+    background-color: var(--bt-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .bt-nav-bar {
+    background-color: var(--bt-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1px solid var(--bt-text-2);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-nav-pill { transition: background-color 0.2s ease; transform: none !important; }
 }
