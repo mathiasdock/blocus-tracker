@@ -65,10 +65,13 @@ function IconSearch({ size = 15 }) {
   );
 }
 
-function IconBack({ size = 14 }) {
+// Meme dessin que le retour de la messagerie : les deux ecrans se suivent
+// dans la meme barre d'onglets, deux fleches differentes s'y verraient.
+function IconBack({ size = 22 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6"/>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5.5 8.5 12l6.5 6.5" />
     </svg>
   );
 }
@@ -92,7 +95,7 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, t }) {
     <div className="mt-2 rounded-xl px-3 py-2 text-xs"
       style={{
         backgroundColor: mine ? "rgba(255,255,255,0.14)" : "var(--bt-surface)",
-        border: mine ? "1px solid rgba(255,255,255,0.22)" : "1px solid var(--bt-border)",
+        border: mine ? "1px solid rgba(255,255,255,0.22)" : "1px solid var(--bt-hairline)",
         color: mine ? "rgba(255,255,255,0.86)" : "var(--bt-text-2)",
       }}>
       <p className="mb-2">{t("attachment.available")}</p>
@@ -164,7 +167,7 @@ function CommunityLogo({ university, size = 36, rounded = 12, className = "" }) 
     height: size,
     borderRadius: rounded,
     backgroundColor: "var(--bt-subtle)",
-    border: "1px solid var(--bt-border)",
+    border: "1px solid var(--bt-hairline)",
   };
 
   if (university?.logo && !failed) {
@@ -646,9 +649,21 @@ export default function Communautes() {
   const myUniMatches = !isSearching || (myUni && matchesQuery(myUni, COUNTRIES.find((c) => c.universities.some((u) => u.id === myCommunityId))?.name || ""));
   const noResults = isSearching && filteredCountries.length === 0 && !myUniMatches;
 
+  useEffect(() => {
+    const root = document.documentElement;
+    if (mobileView === "chat") root.classList.add("bt-chat-fullscreen");
+    else root.classList.remove("bt-chat-fullscreen");
+    return () => root.classList.remove("bt-chat-fullscreen");
+  }, [mobileView]);
+
   const chatVisible = mobileView === "list" ? "hidden lg:flex" : "flex";
   const listVisible = mobileView === "chat" ? "hidden lg:flex" : "flex";
-  const panelStyle = { height: "min(820px, calc(100dvh - 220px))" };
+  // Meme mecanique que pages/messages.js — voir la classe .bt-social-panel
+  // dans globals.css. Un espace communaute ouvert est une conversation : il
+  // merite l'ecran entier sur telephone, et rien d'autre a l'ecran ne sert
+  // qu'a en sortir alors qu'il a deja son propre retour.
+  const chatOpen = mobileView === "chat";
+  const panelClass = `bt-social-panel${chatOpen ? " bt-social-panel--chat" : ""}`;
   const stats = communityStats[active];
   // Read is open to every community now, but write (cmsg_insert RLS) still
   // requires membership — hide the compose affordances rather than let the
@@ -713,8 +728,8 @@ export default function Communautes() {
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-4 bt-rise">
         {/* ── Sidebar — recherche + Ton école + annuaire par pays ── */}
-        <aside className={`${listVisible} lg:col-span-1 card flex-col overflow-hidden`} style={panelStyle}>
-          <div className="p-3 shrink-0 relative" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+        <aside className={`${listVisible} lg:col-span-1 card flex-col overflow-hidden ${panelClass}`}>
+          <div className="p-3 shrink-0 relative" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
                 <IconSearch />
@@ -803,18 +818,17 @@ export default function Communautes() {
         </aside>
 
         {/* ── Community panel ─────────────────────────────────────── */}
-        <section className={`${chatVisible} lg:col-span-3 card flex-col overflow-hidden`} style={panelStyle}>
+        <section className={`${chatVisible} lg:col-span-3 card flex-col overflow-hidden ${panelClass}`}>
           {!activeMeta ? (
             <div className="flex-1 flex items-center justify-center text-sm" style={{ color: "var(--bt-text-3)" }}>…</div>
           ) : (
             <>
               {/* Header */}
-              <div className="px-4 py-3 flex items-center gap-3 shrink-0" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              <div className="px-4 py-3 flex items-center gap-3 shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
                 <button onClick={() => setMobileView("list")}
-                  className="lg:hidden shrink-0 w-7 h-7 flex items-center justify-center rounded-xl transition-colors"
-                  style={{ color: "var(--bt-text-2)", backgroundColor: "var(--bt-subtle)" }}
+                  className="bt-feed-icon-btn lg:hidden shrink-0"
                   aria-label={t("comm.back")}>
-                  <IconBack />
+                  <IconBack size={22} />
                 </button>
                 <CommunityLogo university={activeMeta} size={36} rounded={12} />
                 <div className="min-w-0 flex-1">
@@ -833,7 +847,7 @@ export default function Communautes() {
               </div>
 
               {/* Tabs */}
-              <div className="px-4 py-2.5 flex gap-2 overflow-x-auto shrink-0" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              <div className="px-4 py-2.5 flex gap-2 overflow-x-auto shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
                 {COMMUNITY_SPACES.map((space) => (
                   <button
                     key={space.id}
@@ -842,7 +856,7 @@ export default function Communautes() {
                     className="shrink-0 text-xs font-semibold rounded-full px-3 py-1.5 transition-colors"
                     style={communitySpace === space.id
                       ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
-                      : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                      : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
                     {t(space.labelKey)}{tabCounts[space.id] > 0 ? ` · ${tabCounts[space.id]}` : ""}
                   </button>
                 ))}
@@ -876,7 +890,7 @@ export default function Communautes() {
                         className="text-xs font-semibold flex items-center gap-1 mb-2" style={{ color: "var(--bt-accent-dark)" }}>
                         <IconBack size={11} /> {t("comm.spaceQuestions")}
                       </button>
-                      <div className="rounded-2xl p-3.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                      <div className="rounded-2xl p-3.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
                         <p className="text-sm font-semibold break-words" style={{ color: "var(--bt-text-1)" }}>
                           {parseCommunityContent(activeThread.content).text}
                         </p>
@@ -904,7 +918,7 @@ export default function Communautes() {
                       {!canPost ? (
                         <p className="text-xs text-center mb-3" style={{ color: "var(--bt-text-3)" }}>{t("comm.readOnlyNotice")}</p>
                       ) : showQuestionForm ? (
-                        <form onSubmit={submitQuestion} className="rounded-2xl p-3 mb-3" style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                        <form onSubmit={submitQuestion} className="rounded-2xl p-3 mb-3" style={{ border: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-subtle)" }}>
                           <textarea autoFocus rows={2} className="input w-full resize-none" placeholder={t("comm.questionTitlePlaceholder")}
                             maxLength={TEXT_LIMITS.communityMessage} value={questionTitle} onChange={(e) => setQuestionTitle(e.target.value)} />
                           <div className="flex justify-end gap-2 mt-2">
@@ -928,7 +942,7 @@ export default function Communautes() {
                             const replyCount = repliesFor(qm.id).length;
                             return (
                               <li key={qm.id} className="relative rounded-2xl transition-colors"
-                                style={{ border: "1px solid var(--bt-border)" }}
+                                style={{ border: "1px solid var(--bt-hairline)" }}
                                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = ""}>
                                 <button onClick={() => setActiveThreadId(qm.id)} className="w-full text-left p-3.5">
@@ -967,7 +981,7 @@ export default function Communautes() {
                     {!canPost ? (
                       <p className="text-xs text-center mb-3" style={{ color: "var(--bt-text-3)" }}>{t("comm.readOnlyNotice")}</p>
                     ) : showResourceForm ? (
-                      <form onSubmit={submitResource} className="rounded-2xl p-3 mb-3" style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                      <form onSubmit={submitResource} className="rounded-2xl p-3 mb-3" style={{ border: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-subtle)" }}>
                         <div className="flex items-center gap-2 mb-2">
                           <label className="btn-ghost cursor-pointer px-3 py-1.5 text-xs shrink-0 flex items-center gap-1.5">
                             <IconPaperclip size={13} />
@@ -1005,7 +1019,7 @@ export default function Communautes() {
                           const imageKey = `community:${rm.id}:${rm.attachment_url || ""}`;
                           const attachmentUrl = rm.attachment_url ? signedAttachmentUrl(rm.attachment_url) : "";
                           return (
-                            <li key={rm.id} className="rounded-2xl p-3.5" style={{ border: "1px solid var(--bt-border)" }}>
+                            <li key={rm.id} className="rounded-2xl p-3.5" style={{ border: "1px solid var(--bt-hairline)" }}>
                               <p className="text-xs mb-1.5" style={{ color: "var(--bt-text-3)" }}>
                                 {t("comm.by").replace("{name}", displayName(author))} · {timeAgo(rm.created_at, lang)}
                               </p>
@@ -1039,7 +1053,7 @@ export default function Communautes() {
                     {!canPost ? (
                       <p className="text-xs text-center mb-3" style={{ color: "var(--bt-text-3)" }}>{t("comm.readOnlyNotice")}</p>
                     ) : showExamForm ? (
-                      <form onSubmit={submitExam} className="rounded-2xl p-3 mb-3" style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                      <form onSubmit={submitExam} className="rounded-2xl p-3 mb-3" style={{ border: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-subtle)" }}>
                         <input className="input w-full mb-2" placeholder={t("comm.examNamePlaceholder")} maxLength={TEXT_LIMITS.communityMessage}
                           value={examName} onChange={(e) => setExamName(e.target.value)} />
                         <div className="flex items-center gap-2">
@@ -1067,7 +1081,7 @@ export default function Communautes() {
                           const parsed = parseCommunityContent(em.content);
                           const days = daysUntil(em.exam_date);
                           return (
-                            <li key={em.id} className="rounded-2xl p-3.5 flex items-center gap-3" style={{ border: "1px solid var(--bt-border)" }}>
+                            <li key={em.id} className="rounded-2xl p-3.5 flex items-center gap-3" style={{ border: "1px solid var(--bt-hairline)" }}>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold break-words" style={{ color: "var(--bt-text-1)" }}>{parsed.text}</p>
                                 <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>
@@ -1099,7 +1113,7 @@ export default function Communautes() {
                   school: RLS still allows read, but insert stays membership-only. */}
               {communitySpace === "salon" && !activeThreadId && (
                 canPost ? (
-                  <form onSubmit={sendSalon} className="p-3 flex items-center gap-2 shrink-0" style={{ borderTop: "1px solid var(--bt-border)" }}>
+                  <form onSubmit={sendSalon} className="p-3 flex items-center gap-2 shrink-0" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                     <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
                       <IconPaperclip />
                       <input ref={fileInputRef} type="file" accept={CHAT_ACCEPT} className="hidden" onChange={(e) => pickFile(e.currentTarget, setFile)} />
@@ -1113,7 +1127,7 @@ export default function Communautes() {
                     </button>
                   </form>
                 ) : (
-                  <p className="p-3 text-xs text-center shrink-0" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-border)" }}>
+                  <p className="p-3 text-xs text-center shrink-0" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-hairline)" }}>
                     {t("comm.readOnlyNotice")}
                   </p>
                 )
@@ -1121,7 +1135,7 @@ export default function Communautes() {
 
               {communitySpace === "questions" && activeThreadId && (
                 canPost ? (
-                  <form onSubmit={submitReply} className="p-3 flex items-center gap-2 shrink-0" style={{ borderTop: "1px solid var(--bt-border)" }}>
+                  <form onSubmit={submitReply} className="p-3 flex items-center gap-2 shrink-0" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                     <input className="input flex-1" placeholder={t("comm.replyPlaceholder")}
                       maxLength={TEXT_LIMITS.communityMessage}
                       value={replyText} onChange={(e) => setReplyText(e.target.value)} />
@@ -1130,7 +1144,7 @@ export default function Communautes() {
                     </button>
                   </form>
                 ) : (
-                  <p className="p-3 text-xs text-center shrink-0" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-border)" }}>
+                  <p className="p-3 text-xs text-center shrink-0" style={{ color: "var(--bt-text-3)", borderTop: "1px solid var(--bt-hairline)" }}>
                     {t("comm.readOnlyNotice")}
                   </p>
                 )
