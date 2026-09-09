@@ -54,7 +54,13 @@ export function RankBadge({ rank }) {
 // `compact` : aperçu (podium + ma ligne + bouton pour tout voir). Les filtres
 // restent visibles en aperçu : sans eux, on ne sait pas ce qu'on lit.
 // La requête et les métriques sont inchangées ; seule la liste est réduite.
-export default function Leaderboard({ user, profile, onViewUser, compact = false }) {
+export default function Leaderboard({
+  user,
+  profile,
+  onViewUser,
+  compact = false,
+  desktopTall = false,
+}) {
   const { t } = useI18n();
   const [showAll, setShowAll] = useState(!compact);
   const isCompact = compact && !showAll;
@@ -285,7 +291,7 @@ export default function Leaderboard({ user, profile, onViewUser, compact = false
     : rows.map((row, i) => ({ row, rank: i + 1 }));
 
   return (
-    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"}`}>
+    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"} ${desktopTall ? "xl:flex xl:min-h-[360px] xl:flex-col 2xl:min-h-[400px]" : ""}`}>
       {/* Titre + les deux filtres, dans le même en-tête. Ils y restent même en
           aperçu : savoir QUI on regarde et SUR QUELLE PÉRIODE fait partie de
           la lecture du classement, ce n'est pas un réglage avancé. */}
@@ -323,7 +329,7 @@ export default function Leaderboard({ user, profile, onViewUser, compact = false
       </div>
 
       {/* Liste */}
-      <div className="[&::-webkit-scrollbar]:hidden"
+      <div className={`[&::-webkit-scrollbar]:hidden ${desktopTall ? "xl:flex-1" : ""}`}
         style={isCompact ? undefined : { maxHeight: "480px", overflowY: "auto", scrollbarWidth: "none" }}>
         {loading ? (
           <div className="py-1"><SkeletonList rows={isCompact ? 3 : 6} avatar={32} lines={1} /></div>
@@ -365,7 +371,7 @@ export default function Leaderboard({ user, profile, onViewUser, compact = false
 
       {isCompact && rows.length > 3 && (
         <button onClick={() => setShowAll(true)}
-          className="bt-stats-quiet-btn mt-3 w-full rounded-xl py-2 text-xs font-semibold">
+          className={`bt-stats-quiet-btn mt-3 w-full rounded-xl py-2 text-xs font-semibold ${desktopTall ? "xl:mt-auto" : ""}`}>
           {t("stats.viewFullLeaderboard")}
         </button>
       )}

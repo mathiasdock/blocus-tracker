@@ -237,7 +237,10 @@ export default function Stats() {
         // occupent la colonne large, le contexte personnel passe à droite —
         // le seuil est xl et non lg pour la même raison que sur le Planning :
         // à 1024 px la barre de navigation ne laisse pas assez au graphique.
-        <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start xl:gap-5">
+        // Le rail gagne encore un peu de largeur sur les grands écrans : les
+        // filtres, noms et comparaisons y respirent sans réduire le graphique
+        // à une largeur inconfortable au premier breakpoint desktop.
+        <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
           {/* Le héros traverse les deux colonnes : il résume la page entière,
               il ne peut pas vivre dans un rail de 340 px. Plus de filtre
               global sous lui — chaque section porte le sien. */}
@@ -306,7 +309,13 @@ export default function Stats() {
             )}
 
             <div className="order-5">
-              <Leaderboard user={user} profile={profile} onViewUser={setViewUserId} compact />
+              <Leaderboard
+                user={user}
+                profile={profile}
+                onViewUser={setViewUserId}
+                compact
+                desktopTall
+              />
             </div>
 
             {percentile !== null && (
