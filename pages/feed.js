@@ -59,6 +59,43 @@ function normalizeEmojiReaction(value) {
   return emoji;
 }
 
+// ── Icônes ───────────────────────────────────────────────────
+// Même jeu que le reste de l'app : grille 24, tracé 1,9, 18 px par défaut.
+// Elles étaient jusqu'ici écrites à la main dans le JSX, chacune avec sa
+// taille et son épaisseur — trois épaisseurs différentes dans une seule carte.
+function Glyph({ size = 18, style, children }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>
+      {children}
+    </svg>
+  );
+}
+const IconCamera = () => <Glyph><path d="M21.4 18.6a2.2 2.2 0 0 1-2.2 2.2H4.8a2.2 2.2 0 0 1-2.2-2.2V8.8a2.2 2.2 0 0 1 2.2-2.2h3l1.6-2.8h5.2l1.6 2.8h3a2.2 2.2 0 0 1 2.2 2.2Z"/><circle cx="12" cy="13.4" r="3.4"/></Glyph>;
+const IconCheck = () => <Glyph><path d="m5 12.8 4.4 4.4L19 7.6"/></Glyph>;
+const IconGlobe = () => <Glyph size={14}><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4a13.4 13.4 0 0 1 0 17.2 13.4 13.4 0 0 1 0-17.2Z"/></Glyph>;
+const IconFriends = () => <Glyph size={14}><circle cx="9.4" cy="8.4" r="3.8"/><path d="M2.6 19.6a6.8 6.8 0 0 1 13.6 0"/><path d="M16.4 5.2a3.8 3.8 0 0 1 0 6.4M18 14a6.8 6.8 0 0 1 3.4 5.2"/></Glyph>;
+const IconSliders = () => <Glyph size={16}><path d="M4.4 21v-6.2M4.4 10.6V3M12 21v-8.6M12 8.2V3M19.6 21v-4.6M19.6 12.2V3"/><path d="M2 14.8h4.8M9.6 12.4h4.8M17.2 16.4H22"/></Glyph>;
+const IconChevronDown = ({ open }) => (
+  <Glyph size={17} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.22s cubic-bezier(0.22,1,0.36,1)" }}>
+    <path d="m6.6 9.4 5.4 5.2 5.4-5.2"/>
+  </Glyph>
+);
+const IconPencil = () => <Glyph size={16}><path d="M16.6 3.4a2.7 2.7 0 0 1 3.8 3.8L7.6 20 2.8 21.2 4 16.4Z"/></Glyph>;
+const IconTrash = () => <Glyph size={16}><path d="M3.8 6.2h16.4"/><path d="M18.4 6.2 17.3 20a1.6 1.6 0 0 1-1.6 1.4H8.3A1.6 1.6 0 0 1 6.7 20L5.6 6.2"/><path d="M10 10.6v6.2M14 10.6v6.2"/><path d="M9.2 6.2V4.4a1.6 1.6 0 0 1 1.6-1.6h2.4a1.6 1.6 0 0 1 1.6 1.6v1.8"/></Glyph>;
+const IconClose = () => <Glyph size={14}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8"/></Glyph>;
+// Ajouter une réaction : un visage souriant marqué d'un plus. Le rond en
+// pointillé qui servait avant se lisait comme un emplacement vide, pas comme
+// un bouton — et il en apparaissait un sur chaque post du fil.
+const IconAddReaction = () => (
+  <Glyph size={17}>
+    <path d="M20.6 11.2a8.6 8.6 0 1 1-7.8-7.76"/>
+    <path d="M8.6 14.2a4.6 4.6 0 0 0 6.8 0"/>
+    <path d="M9 9.4h.01M15 9.4h.01"/>
+    <path d="M18.4 2.6v4.8M21 5h-5.2"/>
+  </Glyph>
+);
+
 export default function Feed() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
@@ -376,32 +413,31 @@ export default function Feed() {
   return (
     <Layout>
       <div className="bt-stagger" style={{ maxWidth: 680, margin: "0 auto" }}>
-        <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("feed.title")}</h1>
-        <p className="text-sm mb-6" style={{ color: "var(--bt-text-2)" }}>{t("feed.subtitle")}</p>
+        <h1 className="bt-page-title">{t("feed.title")}</h1>
+        <p className="mt-1 mb-5 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("feed.subtitle")}</p>
 
-        {/* Post creation — collapsed prompt or expanded form */}
+        {/* ── Composer ─────────────────────────────────────────
+            Replié, il ne demande qu'une chose : est-ce que j'ai envie de
+            poster ? Tout le reste — photo, visibilité, aide — n'apparaît
+            qu'une fois qu'on a répondu oui. */}
         {!formOpen ? (
-          <div className="card p-4 mb-6 flex items-center gap-3 cursor-pointer transition-colors"
-            onClick={() => setFormOpen(true)}
+          <button type="button" onClick={() => setFormOpen(true)}
+            className="card mb-3 flex w-full items-center gap-3 p-3 text-left transition-colors"
             onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-surface)"}>
-            <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={36} />
-            <span className="flex-1 text-sm rounded-full px-4 py-2 select-none"
+            onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+            <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={38} />
+            <span className="flex-1 select-none rounded-full px-4 py-2.5 text-sm"
               style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)" }}>
               {t("feed.postPrompt")}
             </span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-              style={{ color: "var(--bt-text-3)", flexShrink: 0 }}>
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-          </div>
+            <span className="shrink-0 pr-1" style={{ color: "var(--bt-text-3)" }}>
+              <IconCamera />
+            </span>
+          </button>
         ) : (
-          <form onSubmit={createPost} className="card p-5 mb-6 space-y-3">
-            {/* Header with cancel */}
+          <form onSubmit={createPost} className="card mb-3 space-y-3 p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("feed.title")}</p>
+              <p className="bt-section-title">{t("feed.title")}</p>
               <button type="button"
                 onClick={() => { setFormOpen(false); setFile(null); setCaption(""); setVisibility("public"); }}
                 className="text-xs transition-colors"
@@ -412,14 +448,14 @@ export default function Feed() {
               </button>
             </div>
 
+            {/* Le pointillé disait « zone de dépôt vide » alors que c'est un
+                bouton : une surface en creux dit « appuie ici » sans crier. */}
             <button type="button" onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded-2xl text-sm font-medium py-3 px-4 transition-colors flex items-center justify-center gap-2"
-              style={{ border: "2px dashed var(--bt-border)", color: file ? "var(--bt-accent-dark)" : "var(--bt-text-2)", backgroundColor: file ? "var(--bt-accent-bg)" : "var(--bt-subtle)", borderColor: file ? "var(--bt-accent-border)" : "var(--bt-border)" }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                {file
-                  ? <><path d="M20 6 9 17l-5-5"/></>
-                  : <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></>}
-              </svg>
+              className="flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition-colors"
+              style={file
+                ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" }
+                : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", boxShadow: "inset 0 0 0 1px var(--bt-hairline)" }}>
+              {file ? <IconCheck /> : <IconCamera />}
               <span className="truncate">{file ? file.name : t("feed.choosePhoto")}</span>
             </button>
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden"
@@ -428,27 +464,17 @@ export default function Feed() {
               maxLength={TEXT_LIMITS.postCaption}
               value={caption} onChange={(e) => setCaption(e.target.value)} />
 
-            {/* Visibility toggle */}
             <div className="flex gap-2">
               {[
-                { val: "public",  label: t("feed.everyone"), icon: (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                  </svg>
-                )},
-                { val: "friends", label: t("feed.myFriends"), icon: (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
-                )},
+                { val: "public", label: t("feed.everyone"), icon: <IconGlobe /> },
+                { val: "friends", label: t("feed.myFriends"), icon: <IconFriends /> },
               ].map(opt => (
                 <button key={opt.val} type="button"
                   onClick={() => setVisibility(opt.val)}
-                  className="flex-1 text-xs py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-1.5"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all"
                   style={visibility === opt.val
-                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }
-                    : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" }
+                    : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
                   {opt.icon}{opt.label}
                 </button>
               ))}
@@ -463,63 +489,64 @@ export default function Feed() {
           </form>
         )}
 
-        <section className="card p-4 mb-6">
-          <button
-            type="button"
-            onClick={() => setShowAutoSettings(v => !v)}
-            className="w-full flex items-center justify-between text-left">
-            <span>
-              <span className="block text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                {t("feed.autoShareTitle")}
-              </span>
-              <span className="block text-xs" style={{ color: "var(--bt-text-3)" }}>
-                {t("feed.autoShareSubtitle")}
-              </span>
+        {/* ── Partage automatique ──────────────────────────────
+            C'était une carte pleine largeur posée en permanence entre le
+            composer et le premier post, pour un réglage qu'on ouvre au plus
+            une fois. Réduit à une bande discrète : toujours accessible,
+            jamais dans le passage. */}
+        <div className="mb-6 overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-subtle)" }}>
+          <button type="button" onClick={() => setShowAutoSettings(v => !v)}
+            aria-expanded={showAutoSettings}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="shrink-0" style={{ color: "var(--bt-text-3)" }}><IconSliders /></span>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" style={{ color: "var(--bt-text-2)" }}>
+              {t("feed.autoShareTitle")}
             </span>
-            <span className="text-xl leading-none" style={{ color: "var(--bt-text-3)" }}>
-              {showAutoSettings ? "−" : "+"}
+            <span className="shrink-0" style={{ color: "var(--bt-text-3)" }}>
+              <IconChevronDown open={showAutoSettings} />
             </span>
           </button>
           {showAutoSettings && (
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {[
-                ["session_completed", t("feed.autoSession")],
-                ["goal_completed", t("feed.autoGoal")],
-                ["record", t("feed.autoRecord")],
-                ["level_up", t("feed.autoLevel")],
-                ["streak", t("feed.autoStreak")],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => toggleAutoShare(key)}
-                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)" }}>
-                  <span>{label}</span>
-                  <span className="w-9 h-5 rounded-full p-0.5 transition-colors"
-                    style={{ backgroundColor: autoShare[key] ? "#14B885" : "var(--bt-border)" }}>
-                    <span className="block w-4 h-4 rounded-full bg-white transition-transform"
-                      style={{ transform: autoShare[key] ? "translateX(16px)" : "translateX(0)" }} />
-                  </span>
-                </button>
-              ))}
+            <div className="px-4 pb-4">
+              <p className="mb-3 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("feed.autoShareSubtitle")}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  ["session_completed", t("feed.autoSession")],
+                  ["goal_completed", t("feed.autoGoal")],
+                  ["record", t("feed.autoRecord")],
+                  ["level_up", t("feed.autoLevel")],
+                  ["streak", t("feed.autoStreak")],
+                ].map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => toggleAutoShare(key)}
+                    role="switch" aria-checked={!!autoShare[key]}
+                    className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm"
+                    style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)" }}>
+                    <span className="min-w-0 truncate">{label}</span>
+                    <span className="h-5 w-9 shrink-0 rounded-full p-0.5 transition-colors"
+                      style={{ backgroundColor: autoShare[key] ? "var(--bt-accent)" : "var(--bt-border)" }}>
+                      <span className="block h-4 w-4 rounded-full bg-white transition-transform"
+                        style={{ transform: autoShare[key] ? "translateX(16px)" : "translateX(0)" }} />
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-        </section>
+        </div>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* Pendant le chargement : des squelettes à la forme d'un post, pas
               l'état vide. L'état « rien à voir » ne s'affiche que lorsqu'on SAIT
               qu'il n'y a rien. */}
           {!feedLoaded && (
-            <div aria-hidden="true" className="space-y-5">
+            <div aria-hidden="true" className="space-y-4">
               {[0, 1].map(i => (
                 <div key={i} className="card p-4">
-                  <SkeletonRow avatar={38} lines={2} />
+                  <SkeletonRow avatar={40} lines={2} />
                   <SkeletonBar height={180} className="mt-4 rounded-2xl" />
-                  <div className="flex gap-2 mt-3">
-                    <SkeletonBar width={72} height={28} />
-                    <SkeletonBar width={72} height={28} />
+                  <div className="mt-3 flex gap-2">
+                    <SkeletonBar width={72} height={30} />
+                    <SkeletonBar width={72} height={30} />
                   </div>
                 </div>
               ))}
@@ -547,61 +574,57 @@ export default function Feed() {
             const sortedEmojis = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([e]) => e);
             const otherEmojis = sortedEmojis.filter((emoji) => emoji !== DEFAULT_REACTION_EMOJI);
             const postImageUrl = signedPostUrls[post.id] || "";
+            const mine = post.user_id === user.id;
+            const hasPhoto = !isTextOnlyActivity(post);
             return (
               <article key={post.id} className="card overflow-hidden">
-                <div className="flex items-center gap-3 p-4">
-                  <button onClick={() => openProfile(post.user_id)}
-                    className="flex items-center gap-3 flex-1 text-left">
-                    <Avatar url={author.avatar_url} pseudo={displayName(author)} size={38} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold inline-flex items-center gap-1.5 flex-wrap" style={{ color: "var(--bt-text-1)" }}>
-                          <span>{displayName(author)}</span>
-                          {authorLevels[post.user_id] && (
-                            <LevelPill level={authorLevels[post.user_id]} />
-                          )}
-                          <span className="font-normal" style={{ color: "var(--bt-text-3)" }}>@{author.pseudo}</span>
-                        </p>
-                        {post.visibility === "friends" ? (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-1"
-                            style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                            </svg>
-                            {t("feed.friendsBadge")}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-1"
-                            style={{ backgroundColor: "#EFF9FF", color: "#0369a1" }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                            </svg>
-                            {t("feed.publicBadge")}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{timeAgo(post.created_at, lang)}</p>
-                    </div>
+                {/* En-tête : une ligne pour la personne, une ligne pour le
+                    contexte. L'ancienne version empilait nom, niveau, pseudo,
+                    pastille de visibilité et heure — jusqu'à trois lignes de
+                    métadonnées pour un seul auteur, avec l'avatar tout seul
+                    dans le vide à gauche. */}
+                <div className="flex items-start gap-3 px-4 pt-4">
+                  <button onClick={() => openProfile(post.user_id)} className="shrink-0" aria-label={displayName(author)}>
+                    <Avatar url={author.avatar_url} pseudo={displayName(author)} size={40} />
                   </button>
-                  {(post.user_id === user.id || isAdmin) && (
-                    <div className="flex items-center gap-2.5">
-                      {post.user_id === user.id && (
-                        <button
+                  <div className="min-w-0 flex-1">
+                    <button onClick={() => openProfile(post.user_id)}
+                      className="flex min-w-0 max-w-full items-center gap-1.5 text-left">
+                      <span className="truncate text-[15px] font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                        {displayName(author)}
+                      </span>
+                      {authorLevels[post.user_id] && <LevelPill level={authorLevels[post.user_id]} />}
+                    </button>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs" style={{ color: "var(--bt-text-3)" }}>
+                      <span className="truncate">@{author.pseudo}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{timeAgo(post.created_at, lang)}</span>
+                      {/* Seul « amis uniquement » est signalé. « Public » est
+                          l'état par défaut : l'annoncer sur chaque post ajoutait
+                          une pastille colorée par carte pour zéro information. */}
+                      {post.visibility === "friends" && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="inline-flex items-center gap-1" style={{ color: "var(--bt-accent-text)" }}>
+                            <IconFriends />{t("feed.friendsBadge")}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  {(mine || isAdmin) && (
+                    <div className="flex shrink-0 items-center gap-1" aria-label={t("feed.postActions")}>
+                      {mine && (
+                        <button type="button" title={t("feed.editPost")} aria-label={t("feed.editPost")}
                           onClick={() => { setEditingPostId(post.id); setEditCaption(post.caption || ""); }}
-                          className="text-xs transition-colors"
-                          style={{ color: "#D0C9C3" }}
-                          onMouseEnter={e => e.currentTarget.style.color = "#14B885"}
-                          onMouseLeave={e => e.currentTarget.style.color = "#D0C9C3"}>
-                          {t("feed.editPost")}
+                          className="bt-feed-icon-btn">
+                          <IconPencil />
                         </button>
                       )}
-                      <button onClick={() => deletePost(post.id)}
-                        className="text-xs transition-colors"
-                        style={{ color: "#D0C9C3" }}
-                        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                        onMouseLeave={e => e.currentTarget.style.color = "#D0C9C3"}>
-                        {t("common.remove")}
+                      <button type="button" title={t("common.remove")} aria-label={t("common.remove")}
+                        onClick={() => deletePost(post.id)}
+                        className="bt-feed-icon-btn bt-feed-icon-btn--danger">
+                        <IconTrash />
                       </button>
                     </div>
                   )}
@@ -609,7 +632,7 @@ export default function Feed() {
 
                 {/* Inline caption editor (own posts only) */}
                 {editingPostId === post.id && (
-                  <div className="px-4 pb-3 space-y-2">
+                  <div className="space-y-2 px-4 pt-3">
                     <input
                       className="input"
                       placeholder={t("feed.editCaption")}
@@ -621,83 +644,61 @@ export default function Feed() {
                       }}
                     />
                     <div className="flex gap-2">
-                      <button onClick={() => updatePost(post.id, editCaption)} className="btn-primary flex-1 text-sm py-2">
+                      <button onClick={() => updatePost(post.id, editCaption)} className="btn-primary flex-1 py-2 text-sm">
                         {t("feed.saveEdit")}
                       </button>
-                      <button onClick={() => setEditingPostId(null)} className="btn-ghost text-sm py-2">
+                      <button onClick={() => setEditingPostId(null)} className="btn-ghost py-2 text-sm">
                         {t("common.cancel")}
                       </button>
                     </div>
                   </div>
                 )}
 
-                {!isTextOnlyActivity(post) ? (
+                {hasPhoto ? (
                   /* La photo se charge seule quand le post approche de l'ecran
                      (cf. components/FeedPhoto.js) : plus de bouton « voir la
                      photo », mais on ne paie toujours que ce qui est vu. */
-                  <FeedPhoto
-                    post={post}
-                    url={postImageUrl}
-                    signing={!!signingPhotos[post.id]}
-                    onNeedsUrl={revealPostPhoto}
-                    alt={post.caption || t("feed.photoAlt")}
-                    /* Double-tap = reaction par defaut, le geste attendu sur un
-                       feed. Ne fait rien si on a deja reagi : un double-tap ne
-                       doit jamais RETIRER une reaction par accident. */
-                    onDoubleTapLike={myReaction ? undefined : (pst) => react(pst, DEFAULT_REACTION_EMOJI)}
-                  />
-                ) : (
-                  <div className="px-4 pb-1">
-                    <div className="rounded-2xl px-4 py-4"
-                      style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-                      <p className="text-[11px] font-bold uppercase tracking-wide mb-1"
-                        style={{ color: "var(--bt-accent-dark)" }}>
-                        {t("feed.activityBadge")}
-                      </p>
-                      <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>
-                        {post.caption || t("feed.activityFallback")}
-                      </p>
-                    </div>
+                  <div className="mt-3">
+                    <FeedPhoto
+                      post={post}
+                      url={postImageUrl}
+                      signing={!!signingPhotos[post.id]}
+                      onNeedsUrl={revealPostPhoto}
+                      alt={post.caption || t("feed.photoAlt")}
+                      /* Double-tap = reaction par defaut, le geste attendu sur un
+                         feed. Ne fait rien si on a deja reagi : un double-tap ne
+                         doit jamais RETIRER une reaction par accident. */
+                      onDoubleTapLike={myReaction ? undefined : (pst) => react(pst, DEFAULT_REACTION_EMOJI)}
+                    />
                   </div>
+                ) : (
+                  /* Un post sans photo est un post de TEXTE, pas une « activité »
+                     générée par l'app : le bandeau menthe « ACTIVITÉ » étiquetait
+                     ainsi les mots de l'utilisateur comme s'ils venaient du
+                     système. Le texte devient le corps de la carte, en grand —
+                     c'est ce qui donne sa présence à un post sans image. */
+                  <p className="px-4 pt-3 text-[17px] leading-snug" style={{ color: "var(--bt-text-1)" }}>
+                    {post.caption || t("feed.activityFallback")}
+                  </p>
                 )}
 
-                <div className="p-4 space-y-3">
+                <div className="space-y-3 p-4">
                   {/* Reactions - long-press (600ms) opens the reactors panel */}
-                  <div className="flex items-center gap-1.5 flex-wrap"
+                  <div className="flex flex-wrap items-center gap-1.5"
                     onPointerDown={() => handlePressStart(post.id)}
                     onPointerUp={handlePressEnd}
                     onPointerLeave={handlePressEnd}>
-                    {(() => {
-                      const n = counts[DEFAULT_REACTION_EMOJI] || 0;
-                      const active = myReaction === DEFAULT_REACTION_EMOJI;
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => react(post, DEFAULT_REACTION_EMOJI)}
-                          className="text-sm flex items-center gap-1 rounded-full px-2.5 py-1 transition-all"
-                          style={active
-                            ? { backgroundColor: "#EAFBF4", border: "1px solid #C6EED9", color: "#0E8F68" }
-                            : { border: "1px solid #E8E2DC", color: "var(--bt-text-2)", backgroundColor: "transparent" }}
-                          title={t("feed.likeReaction")}
-                          aria-label={t("feed.likeReaction")}>
-                          <span>{DEFAULT_REACTION_EMOJI}</span>
-                          {n > 0 && <span className="text-xs tabular-nums font-medium">{n}</span>}
-                        </button>
-                      );
-                    })()}
-
-                    {otherEmojis.map((emoji) => {
+                    {[DEFAULT_REACTION_EMOJI, ...otherEmojis].map((emoji) => {
                       const n = counts[emoji] || 0;
                       const active = myReaction === emoji;
-                      const isHeart = emoji === LEGACY_FALLBACK_EMOJI;
                       return (
                         <button key={emoji} type="button" onClick={() => react(post, emoji)}
-                          className="text-sm flex items-center gap-1 rounded-full px-2.5 py-1 transition-all"
-                          style={active
-                            ? { backgroundColor: "#EAFBF4", border: "1px solid #C6EED9", color: "#0E8F68" }
-                            : { border: "1px solid #E8E2DC", color: "var(--bt-text-2)", backgroundColor: "transparent" }}>
-                          <span style={{ color: isHeart ? "#ef4444" : undefined }}>{emoji}</span>
-                          {n > 0 && <span className="text-xs tabular-nums font-medium">{n}</span>}
+                          className={`bt-feed-reaction${active ? " bt-feed-reaction--on" : ""}`}
+                          title={emoji === DEFAULT_REACTION_EMOJI ? t("feed.likeReaction") : undefined}
+                          aria-label={emoji === DEFAULT_REACTION_EMOJI ? t("feed.likeReaction") : `${t("feed.addReaction")} ${emoji}`}
+                          aria-pressed={active}>
+                          <span style={{ color: emoji === LEGACY_FALLBACK_EMOJI ? "var(--bt-danger-solid)" : undefined }}>{emoji}</span>
+                          {n > 0 && <span className="font-num text-xs font-semibold tabular-nums">{n}</span>}
                         </button>
                       );
                     })}
@@ -708,29 +709,27 @@ export default function Feed() {
                         setEmojiInputOpen(s => ({ ...s, [post.id]: !s[post.id] }));
                         setReactionError(errors => ({ ...errors, [post.id]: "" }));
                       }}
-                      className="text-sm flex items-center justify-center rounded-full transition-all"
-                      style={{ width: 32, height: 32, border: "1px dashed var(--bt-border)", color: "var(--bt-text-3)", backgroundColor: "transparent" }}
+                      className="bt-feed-reaction bt-feed-reaction--add"
                       title={t("feed.addReaction")}
-                      aria-label={t("feed.addReaction")}>
-                      +
+                      aria-label={t("feed.addReaction")}
+                      aria-expanded={!!emojiInputOpen[post.id]}>
+                      <IconAddReaction />
                     </button>
 
                     {emojiInputOpen[post.id] && (
-                      <div className="flex items-center gap-1.5 flex-wrap rounded-2xl px-2 py-1"
-                        style={{ border: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                      <div className="flex flex-wrap items-center gap-1 rounded-2xl px-2 py-1.5"
+                        style={{ backgroundColor: "var(--bt-subtle)" }}>
                         {EMOJI_REACTION_OPTIONS.map((emoji) => (
                           <button
                             key={emoji}
                             type="button"
                             onClick={() => react(post, emoji)}
-                            className="flex items-center justify-center rounded-full transition-all"
+                            className="flex items-center justify-center rounded-full transition-colors"
                             style={{
-                              width: 30,
-                              height: 30,
-                              backgroundColor: myReaction === emoji ? "#EAFBF4" : "transparent",
-                              color: myReaction === emoji ? "#0E8F68" : "var(--bt-text-1)",
-                              border: myReaction === emoji ? "1px solid #C6EED9" : "1px solid transparent",
+                              width: 32,
+                              height: 32,
                               fontSize: 17,
+                              backgroundColor: myReaction === emoji ? "var(--bt-accent-bg)" : "transparent",
                             }}
                             aria-label={`${t("feed.addReaction")} ${emoji}`}>
                             {emoji}
@@ -740,38 +739,36 @@ export default function Feed() {
                     )}
                   </div>
                   {reactionError[post.id] && (
-                    <p className="text-xs -mt-1" style={{ color: "#ef4444" }}>
+                    <p className="-mt-1 text-xs" style={{ color: "var(--bt-danger)" }}>
                       {reactionError[post.id]}
                     </p>
                   )}
 
-                  {/* Likers — clickable */}
+                  {/* Qui a réagi. Sans les émojis : ils sont déjà comptés dans
+                      les pastilles juste au-dessus, et les répéter ligne par
+                      ligne donnait deux fois la même information dans deux
+                      formats différents. Ici on ne garde que ce que les
+                      pastilles ne disent pas — les noms. */}
                   {post.likes.length > 0 && (() => {
-                    const likers = post.likes.slice(0, 5).filter(l => profiles[l.user_id]);
-                    return likers.length ? (
-                      <div className="flex flex-wrap gap-x-1 items-center -mt-1">
-                        {likers.map((l, i) => (
-                          <span key={l.id} className="text-xs" style={{ color: "var(--bt-text-3)" }}>
-                            {i > 0 && " · "}
-                            <button onClick={() => openProfile(l.user_id)}
-                              className="hover:underline"
-                              style={{ color: "var(--bt-text-3)" }}>
-                              {l.emoji || LEGACY_FALLBACK_EMOJI} {displayName(profiles[l.user_id])}
-                            </button>
-                          </span>
-                        ))}
-                        {post.likes.length > 5 && (
-                          <span className="text-xs" style={{ color: "var(--bt-text-3)" }}> +{post.likes.length - 5}</span>
-                        )}
-                      </div>
-                    ) : null;
+                    const named = post.likes.map(l => profiles[l.user_id]).filter(Boolean);
+                    if (!named.length) return null;
+                    const shown = named.slice(0, 3).map(p => displayName(p));
+                    const extra = named.length - shown.length;
+                    const names = extra > 0 ? `${shown.join(", ")} +${extra}` : shown.join(", ");
+                    return (
+                      <button type="button" onClick={() => setReactorsPanel(post.id)}
+                        className="-mt-1 block max-w-full truncate text-left text-xs transition-colors"
+                        style={{ color: "var(--bt-text-3)" }}>
+                        {t("feed.reactedBy").replace("{names}", names)}
+                      </button>
+                    );
                   })()}
 
                   {/* Legende — repliee au-dela de 3 lignes, comme sur un vrai
                       feed : une longue legende ne doit pas pousser les reactions
                       et les commentaires hors de l'ecran. Purement local, aucun
                       appel reseau. */}
-                  {post.caption && !isTextOnlyActivity(post) && (
+                  {post.caption && hasPhoto && (
                     <div>
                       <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>
                         <span
@@ -785,7 +782,7 @@ export default function Feed() {
                         <button
                           type="button"
                           onClick={() => setCaptionOpen(c => ({ ...c, [post.id]: !c[post.id] }))}
-                          className="text-xs font-semibold mt-0.5"
+                          className="mt-0.5 text-xs font-semibold"
                           style={{ color: "var(--bt-text-3)" }}>
                           {captionOpen[post.id] ? t("feed.captionLess") : t("feed.captionMore")}
                         </button>
@@ -794,44 +791,52 @@ export default function Feed() {
                   )}
 
                   {/* Comments — with delete button for own comments */}
-                  <ul className="space-y-1.5">
-                    {post.comments
-                      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-                      .map((c) => (
-                        <li key={c.id} className="text-sm flex items-start gap-1.5 group">
-                          <div className="flex-1 min-w-0">
-                            <button onClick={() => openProfile(c.user_id)}
-                              className="font-semibold hover:underline"
-                              style={{ color: "var(--bt-text-1)" }}>
-                              {displayName(who(c.user_id))}
-                            </button>{" "}
-                            <span style={{ color: "var(--bt-text-2)" }}>{c.content}</span>
-                          </div>
-                          {(c.user_id === user.id || isAdmin) && (
-                            <button
-                              onClick={() => deleteComment(c.id)}
-                              title={t("feed.deleteComment")}
-                              className="shrink-0 self-center transition-colors opacity-0 group-hover:opacity-100"
-                              style={{ color: "#D0C9C3" }}
-                              onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-                              onMouseLeave={e => e.currentTarget.style.color = "#D0C9C3"}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                  </ul>
+                  {post.comments.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {post.comments
+                        .slice()
+                        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                        .map((c) => (
+                          <li key={c.id} className="flex items-start gap-1.5 text-sm">
+                            <div className="min-w-0 flex-1">
+                              <button onClick={() => openProfile(c.user_id)}
+                                className="font-semibold hover:underline"
+                                style={{ color: "var(--bt-text-1)" }}>
+                                {displayName(who(c.user_id))}
+                              </button>{" "}
+                              <span style={{ color: "var(--bt-text-2)" }}>{c.content}</span>
+                            </div>
+                            {(c.user_id === user.id || isAdmin) && (
+                              /* Le bouton n'apparaissait qu'au SURVOL : sur
+                                 téléphone, où il n'y a pas de survol, on ne
+                                 pouvait donc jamais supprimer son commentaire.
+                                 Il est maintenant toujours là, en retrait. */
+                              <button
+                                onClick={() => deleteComment(c.id)}
+                                title={t("feed.deleteComment")}
+                                aria-label={t("feed.deleteComment")}
+                                className="bt-feed-icon-btn bt-feed-icon-btn--danger shrink-0">
+                                <IconClose />
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
 
                   {/* Comment input */}
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex items-center gap-2">
                     <input className="input" placeholder={t("feed.comment")}
                       maxLength={TEXT_LIMITS.comment}
                       value={commentDraft[post.id] || ""}
                       onChange={(e) => setCommentDraft((d) => ({ ...d, [post.id]: e.target.value }))}
                       onKeyDown={(e) => e.key === "Enter" && addComment(post)} />
-                    <button onClick={() => addComment(post)} className="btn-ghost shrink-0">{t("common.send")}</button>
+                    <button onClick={() => addComment(post)}
+                      disabled={!(commentDraft[post.id] || "").trim()}
+                      className="shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-40"
+                      style={{ color: "var(--bt-accent-dark)" }}>
+                      {t("common.send")}
+                    </button>
                   </div>
                 </div>
               </article>
@@ -854,24 +859,21 @@ export default function Feed() {
         return (
           <div
             className="fixed inset-0 z-50 flex items-end"
-            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }}
             onClick={() => setReactorsPanel(null)}>
             <div
-              className="w-full rounded-t-3xl p-5 overflow-y-auto"
-              style={{ backgroundColor: "var(--bt-surface)", maxHeight: "70vh" }}
+              className="w-full overflow-y-auto rounded-t-[28px] p-5"
+              style={{ backgroundColor: "var(--bt-surface)", maxHeight: "70vh", boxShadow: "var(--bt-elev-3)" }}
               onClick={e => e.stopPropagation()}>
-              {/* Handle */}
-              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ backgroundColor: "var(--bt-border)" }} />
-              <p className="text-sm font-semibold mb-4" style={{ color: "var(--bt-text-1)" }}>
-                {t("feed.reactions")}
-              </p>
+              <div className="mx-auto mb-5 h-1 w-10 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
+              <p className="bt-section-title mb-4">{t("feed.reactions")}</p>
               {sortedGroups.length === 0 ? (
-                <p className="text-sm text-center py-4" style={{ color: "var(--bt-text-3)" }}>—</p>
+                <p className="py-4 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>—</p>
               ) : sortedGroups.map(([emoji, likers]) => (
                 <div key={emoji} className="mb-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl" style={{ color: emoji === LEGACY_FALLBACK_EMOJI ? "#ef4444" : undefined }}>{emoji}</span>
-                    <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>{likers.length}</span>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-xl" style={{ color: emoji === LEGACY_FALLBACK_EMOJI ? "var(--bt-danger-solid)" : undefined }}>{emoji}</span>
+                    <span className="font-num text-xs font-semibold tabular-nums" style={{ color: "var(--bt-text-3)" }}>{likers.length}</span>
                   </div>
                   <div className="space-y-2.5">
                     {likers.map(l => {
@@ -889,7 +891,7 @@ export default function Feed() {
                   </div>
                 </div>
               ))}
-              <button onClick={() => setReactorsPanel(null)} className="btn-ghost w-full mt-2">
+              <button onClick={() => setReactorsPanel(null)} className="btn-ghost mt-2 w-full">
                 {t("common.close")}
               </button>
             </div>

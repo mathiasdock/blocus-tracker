@@ -1987,3 +1987,55 @@ details.bt-acc[open]::details-content { block-size: auto; }
 .dark .bt-badge-art { filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5)); }
 .bt-badge-art--locked { filter: grayscale(0.92) opacity(0.42); }
 .dark .bt-badge-art--locked { filter: grayscale(0.9) brightness(1.5) opacity(0.52); }
+
+/* ── Fil d'activité ────────────────────────────────────────────
+   Deux contrôles reviennent sur chaque post : les réactions et les actions de
+   l'auteur. Ils étaient écrits en style inline, avec des couleurs codées en
+   dur — de la menthe pâle et un gris clair qui, en mode sombre, donnaient des
+   pastilles délavées et des boutons invisibles. Ils vivent ici pour que le
+   thème les corrige, et pour qu'ils soient identiques d'un post à l'autre. */
+.bt-feed-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  color: var(--bt-text-2);
+  background-color: var(--bt-subtle);
+  box-shadow: inset 0 0 0 1px var(--bt-hairline);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+.dark .bt-feed-reaction { box-shadow: inset 0 0 0 1px var(--bt-border); }
+.bt-feed-reaction:active:not(:disabled) { transform: scale(0.94); }
+.bt-feed-reaction--on {
+  color: var(--bt-accent-text);
+  background-color: var(--bt-accent-bg);
+  box-shadow: inset 0 0 0 1px var(--bt-accent-border);
+}
+/* Le bouton « ajouter » n'a pas de compteur : il reste carré et se distingue
+   des pastilles qui, elles, portent un chiffre. */
+.bt-feed-reaction--add {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+  color: var(--bt-text-3);
+}
+.bt-feed-reaction--add:hover { color: var(--bt-text-1); }
+
+/* Actions de l'auteur. C'étaient deux liens texte minuscules en #D0C9C3 —
+   invisibles en clair, hors charte en sombre, et sous la cible tactile de
+   44 px. Ce sont maintenant de vrais boutons. */
+.bt-feed-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: var(--bt-text-3);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.bt-feed-icon-btn:hover { color: var(--bt-text-1); background-color: var(--bt-subtle); }
+.bt-feed-icon-btn--danger:hover { color: var(--bt-danger); background-color: var(--bt-danger-bg); }

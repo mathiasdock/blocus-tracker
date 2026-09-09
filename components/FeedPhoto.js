@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from "react";
 
 export default function FeedPhoto({ post, url, signing, onNeedsUrl, alt, onDoubleTapLike }) {
   const holderRef = useRef(null);
+  const imgRef = useRef(null);
   const askedRef = useRef(false);
   const lastTapRef = useRef(0);
   const [visible, setVisible] = useState(false); // fondu à l'arrivée
@@ -63,6 +64,29 @@ export default function FeedPhoto({ post, url, signing, onNeedsUrl, alt, onDoubl
     return () => io.disconnect();
   }, [post, url, onNeedsUrl]);
 
+  // La photo ne s'affiche qu'une fois chargée (fondu). Le déclencheur ne peut
+  // PAS être le seul `onLoad` de React : une image servie depuis le cache est
+  // décodée avant que le gestionnaire ne soit attaché, l'événement part dans
+  // le vide, et la photo reste à `opacity: 0` — invisible, sur un bloc qui
+  // occupe pourtant toute sa place. Ça se produit dès la deuxième fois qu'on
+  // croise le même post, donc pour à peu près tout le monde.
+  //
+  // On teste donc l'état RÉEL de l'image au moment où l'on s'y branche, et on
+  // n'écoute que si elle n'a pas déjà fini. Plus de course possible : soit
+  // elle est prête et on la révèle, soit elle ne l'est pas et l'écouteur est
+  // en place avant la fin du chargement.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return undefined;
+    if (img.complete && img.naturalWidth > 0) {
+      setVisible(true);
+      return undefined;
+    }
+    const reveal = () => setVisible(true);
+    img.addEventListener("load", reveal);
+    return () => img.removeEventListener("load", reveal);
+  }, [url]);
+
   return (
     <div ref={holderRef}
       onPointerUp={handleTap}
@@ -71,11 +95,11 @@ export default function FeedPhoto({ post, url, signing, onNeedsUrl, alt, onDoubl
       {url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={url}
           alt={alt}
           loading="lazy"
           decoding="async"
-          onLoad={() => setVisible(true)}
           className="w-full h-full object-cover bt-feed-photo"
           style={{ opacity: visible ? 1 : 0 }}
         />

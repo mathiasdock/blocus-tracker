@@ -1,0 +1,17 @@
+<!-- Image de remplacement du mode hors-ligne. Aucun rapport avec la
+     production : elle sert uniquement a verifier la mise en page d'un post
+     avec photo pendant le developpement. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Photo de demonstration">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#CFE3F7"/><stop offset="100%" stop-color="#F3EDE2"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#sky)"/>
+  <rect x="120" y="300" width="560" height="240" rx="14" fill="#E8DFD1"/>
+  <rect x="150" y="250" width="180" height="52" rx="8" fill="#B9C9D8"/>
+  <rect x="360" y="235" width="150" height="67" rx="8" fill="#A7BCCD"/>
+  <rect x="540" y="262" width="110" height="40" rx="8" fill="#C6D4E1"/>
+  <circle cx="628" cy="132" r="46" fill="#F2C96B"/>
+  <text x="400" y="440" text-anchor="middle" font-family="system-ui, sans-serif" font-size="34" fill="#8A7F72">demo offline</text>
+</svg>
