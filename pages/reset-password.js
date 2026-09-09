@@ -229,7 +229,7 @@ export default function ResetPassword() {
       <AuthBackground>
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <h1 className="font-display text-4xl text-stone-900">
+            <h1 className="font-display text-4xl text-[var(--bt-text-1)]">
               blocus<span className="text-accent">·</span>tracker
             </h1>
           </div>
@@ -258,20 +258,20 @@ export default function ResetPassword() {
     <AuthBackground>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="font-display text-4xl text-stone-900">
+          <h1 className="font-display text-4xl text-[var(--bt-text-1)]">
             blocus<span className="text-accent">·</span>tracker
           </h1>
-          <p className="text-stone-800 mt-2 text-sm font-medium">{t("auth.resetSubtitle")}</p>
+          <p className="text-[var(--bt-text-1)] mt-2 text-sm font-medium">{t("auth.resetSubtitle")}</p>
         </div>
 
         {success ? (
           <div className="card p-6 text-center space-y-3">
             <div className="text-4xl">✅</div>
-            <p className="text-sm text-stone-700">{t("auth.resetSuccess")}</p>
+            <p className="text-sm text-[var(--bt-text-2)]">{t("auth.resetSuccess")}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-stone-900">{t("auth.resetTitle")}</h2>
+            <h2 className="text-lg font-semibold text-[var(--bt-text-1)]">{t("auth.resetTitle")}</h2>
 
             {/* Nouveau mot de passe */}
             <div>
@@ -282,7 +282,7 @@ export default function ResetPassword() {
                   autoComplete="new-password" minLength={6} required />
                 <button type="button" tabIndex={-1}
                   onClick={() => setShowPwd(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--bt-text-4)] hover:text-[var(--bt-text-2)]">
                   <EyeIcon open={showPwd} />
                 </button>
               </div>
@@ -299,7 +299,7 @@ export default function ResetPassword() {
                   autoComplete="new-password" minLength={6} required />
                 <button type="button" tabIndex={-1}
                   onClick={() => setShowConfirm(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--bt-text-4)] hover:text-[var(--bt-text-2)]">
                   <EyeIcon open={showConfirm} />
                 </button>
               </div>

@@ -377,7 +377,7 @@ export default function Onboarding() {
 
   if (loading) {
     return (
-      <main className="min-h-dvh bg-stone-50 px-4 py-7 dark:bg-stone-950 sm:py-10">
+      <main className="min-h-dvh bg-[var(--bt-bg)] px-4 py-7 sm:py-10">
         <div className="mx-auto w-full max-w-md">
           <AuthBrand compact subtitle={t("onboarding.subtitle")} />
           <LoadingState label={t("loading.preparing")} />
@@ -388,7 +388,7 @@ export default function Onboarding() {
   if (!user) return null;
 
   return (
-    <main className="min-h-dvh bg-stone-50 px-4 py-7 dark:bg-stone-950 sm:py-10">
+    <main className="min-h-dvh bg-[var(--bt-bg)] px-4 py-7 sm:py-10">
       <div className="mx-auto w-full max-w-md">
         <AuthBrand
           compact
@@ -671,7 +671,7 @@ export default function Onboarding() {
                             type="button"
                             key={color}
                             onClick={() => setNewColor(color)}
-                            className={`bt-tap inline-flex w-9 items-center justify-center rounded-full border-2 transition-transform ${selected ? "scale-105 border-stone-700 dark:border-stone-100" : "border-transparent"}`}
+                            className={`bt-tap inline-flex w-9 items-center justify-center rounded-full border-2 transition-transform ${selected ? "scale-105 border-[var(--bt-text-1)]" : "border-transparent"}`}
                             style={{ backgroundColor: color }}
                             aria-label={`${t("onboarding.courses.color")} ${index + 1}`}
                             aria-pressed={selected}

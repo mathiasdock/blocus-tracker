@@ -55,7 +55,7 @@ export default function PasswordInput({
         <button
           type="button"
           onClick={() => setVisible(current => !current)}
-          className="bt-tap absolute right-1 top-1/2 inline-flex w-11 -translate-y-1/2 items-center justify-center rounded-xl transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
+          className="bt-tap absolute right-1 top-1/2 inline-flex w-11 -translate-y-1/2 items-center justify-center rounded-xl transition-colors hover:bg-[var(--bt-subtle)]"
           style={{ color: "var(--bt-text-2)" }}
           aria-label={visible ? hideLabel : showLabel}
           aria-pressed={visible}

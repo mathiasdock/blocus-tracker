@@ -152,7 +152,7 @@ export default function UniPicker({
             type="button"
             onMouseDown={event => event.preventDefault()}
             onClick={clear}
-            className="bt-tap inline-flex w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-stone-100 dark:hover:bg-stone-800"
+            className="bt-tap inline-flex w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--bt-subtle)]"
             style={{ color: "var(--bt-text-2)" }}
             aria-label={t("signup.clearUniversity")}
           >

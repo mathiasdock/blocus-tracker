@@ -312,6 +312,7 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 
 ### Don't:
 
+- **Don't** re-skin a utility class for dark mode (`.dark .bg-white { … }`). A utility means what it says; if a color must follow the theme it goes through a token. Overriding one silently repaints every deliberate use of it — that rule turned a white call-to-action into dark-green-on-black.
 - **Don't** put a border and a shadow on the same surface.
 - **Don't** nest a card inside a card; use `.card-inset` or plain spacing.
 - **Don't** spread Brand Ink across ordinary management cards or use it as a generic dark panel.
