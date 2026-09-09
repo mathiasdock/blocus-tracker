@@ -81,6 +81,9 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2
         style={{
           backgroundColor: mine ? "#fff" : "var(--bt-accent-bg)",
           border: mine ? "none" : "1px solid var(--bt-accent-border)",
+          // Litteral volontaire : ce bouton est pose sur un blanc FIXE, pas
+          // sur une surface de theme. Le tokeniser donnerait du menthe clair
+          // sur blanc en mode sombre — illisible.
           color: mine ? "#0E8F68" : "var(--bt-accent-dark)",
         }}>
         {t("attachment.viewImage")}
@@ -1162,12 +1165,12 @@ export default function Messages() {
   function chronoStatusChip(status) {
     if (status === "accepted")
       return {
-        bg: "#EAFBF4", color: "#0E8F68",
+        bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)",
         icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
       };
     if (status === "declined")
       return {
-        bg: "#FEF2F2", color: "#ef4444",
+        bg: "var(--bt-danger-bg)", color: "var(--bt-danger)",
         icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
       };
     return {
@@ -1200,22 +1203,30 @@ export default function Messages() {
     );
   }
 
-  const panelStyle = { height: "min(820px, calc(100dvh - 220px))" };
+  // La hauteur vit dans la feuille de style : elle depend de la place prise
+  // par la barre flottante, qui n'est pas la meme selon la taille d'ecran et
+  // la safe-area. Un nombre fige ici ne pouvait pas suivre.
+  const chatOpen = mobileView === "chat";
+  const panelClass = `bt-social-panel${chatOpen ? " bt-social-panel--chat" : ""}`;
 
   return (
     <Layout>
-      <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("social.title")}</h1>
-      <p className="text-sm mb-4" style={{ color: "var(--bt-text-2)" }}>{t("social.subtitle")}</p>
+      {/* Titre efface pendant une conversation sur telephone : on l'a deja lu,
+          et il coutait un cinquieme de l'ecran a chaque message echange. */}
+      <div className={chatOpen ? "hidden lg:block" : ""}>
+        <h1 className="bt-page-title">{t("social.title")}</h1>
+        <p className="mt-1 mb-4 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("social.subtitle")}</p>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-3 bt-rise">
 
         {/* ── Sidebar — recherche + demandes + liste unifiée + suggestions ── */}
         <aside className={`${mobileView === "chat" ? "hidden lg:block" : ""} lg:col-span-1`}>
-          <div className="card flex flex-col overflow-hidden" style={panelStyle}>
+          <div className={`card flex flex-col overflow-hidden ${panelClass}`}>
 
             {/* ── Recherche sociale — au centre de la colonne gauche ── */}
             <div className="p-3 shrink-0 relative" ref={socialSearchRef}
-              style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
               <div className="relative">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
                   className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
@@ -1236,7 +1247,7 @@ export default function Messages() {
               {/* Menu déroulant — conversations existantes + nouvelles personnes */}
               {socialResults && (
                 <div className="absolute left-3 right-3 mt-1.5 rounded-2xl z-30 overflow-hidden max-h-[65vh] overflow-y-auto"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-border)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
+                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
                   {searchingSocial ? (
                     <div className="px-2 py-2"><SkeletonList rows={3} avatar={30} lines={2} /></div>
                   ) : matchingConversations.length === 0 && socialResults.people.length === 0 ? (
@@ -1306,14 +1317,14 @@ export default function Messages() {
                       )}
                     </>
                   )}
-                  {socialMsg && <p className="px-4 py-2 text-xs" style={{ color: "#0E8F68", borderTop: "1px solid var(--bt-border)" }}>{socialMsg}</p>}
+                  {socialMsg && <p className="px-4 py-2 text-xs" style={{ color: "var(--bt-accent-dark)", borderTop: "1px solid var(--bt-hairline)" }}>{socialMsg}</p>}
                 </div>
               )}
             </div>
 
             {/* ── Demandes d'amis — ligne compacte, jamais une grosse carte ── */}
             {(incoming.length + outgoing.length) > 0 && (
-              <div className="shrink-0" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              <div className="shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
                 <button onClick={() => setShowRequests(v => !v)}
                   className="w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors"
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
@@ -1378,7 +1389,7 @@ export default function Messages() {
             )}
 
             {/* ── Filtres Tout / Privés / Groupes — glissière à ressort ── */}
-            <div className="p-2 shrink-0" style={{ borderBottom: "1px solid var(--bt-border)" }}>
+            <div className="p-2 shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
               <SegmentedGlide
                 options={[
                   { value: "all", label: t("social.filterAll") },
@@ -1402,9 +1413,17 @@ export default function Messages() {
                 <ul>
                   {filteredConversations.map((c) => (
                     <li key={c.key}
-                      className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      aria-current={c.isActive ? "true" : undefined}
+                      className="bt-social-row flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
                       style={c.isActive ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
                       onClick={() => (c.type === "dm" ? openDM(c.id) : openGroup(c.id))}
+                      onKeyDown={(ev) => {
+                        if (ev.key !== "Enter" && ev.key !== " ") return;
+                        ev.preventDefault();
+                        if (c.type === "dm") openDM(c.id); else openGroup(c.id);
+                      }}
                       onMouseEnter={e => { if (!c.isActive) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                       onMouseLeave={e => { if (!c.isActive) e.currentTarget.style.backgroundColor = ""; }}>
                       {c.type === "group"
@@ -1424,7 +1443,8 @@ export default function Messages() {
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {c.lastAt && <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{timeAgo(c.lastAt, lang)}</span>}
                         {c.unread > 0 && (
-                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold bg-red-500 text-white rounded-full px-1 leading-none">
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold text-white rounded-full px-1 leading-none"
+                            style={{ backgroundColor: "var(--bt-danger-solid)" }}>
                             {c.unread > 99 ? "99+" : c.unread}
                           </span>
                         )}
@@ -1436,10 +1456,10 @@ export default function Messages() {
             </div>
 
             {/* ── Créer un groupe ── */}
-            <div className="p-2.5 shrink-0" style={{ borderTop: "1px solid var(--bt-border)" }}>
+            <div className="p-2.5 shrink-0" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
               <button onClick={() => setShowCreate(true)}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl transition-colors"
-                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-border)" }}>
+                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-hairline)" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
@@ -1448,7 +1468,7 @@ export default function Messages() {
             </div>
 
             {/* ── Suggestions — discrètes, repliées par défaut ── */}
-            <div className="shrink-0 px-3 py-2.5" style={{ borderTop: "1px solid var(--bt-border)" }}>
+            <div className="shrink-0 px-3 py-2.5" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
               {!showSuggestions ? (
                 <button onClick={loadSuggestions} className="w-full text-xs font-medium py-1" style={{ color: "var(--bt-text-3)" }}>
                   {t("friends.seeSuggestions")}
@@ -1477,7 +1497,7 @@ export default function Messages() {
                               <Avatar url={s.avatar_url} pseudo={displayName(s)} size={28} />
                               <span className="flex-1 min-w-0">
                                 <span className="block truncate text-sm" style={{ color: "var(--bt-text-1)" }}>{displayName(s)}</span>
-                                {reason && <span className="block truncate text-[10px] font-semibold" style={{ color: "#14B885" }}>{reason}</span>}
+                                {reason && <span className="block truncate text-[10px] font-semibold" style={{ color: "var(--bt-accent)" }}>{reason}</span>}
                               </span>
                             </button>
                             <button onClick={() => addFriend(s.id)} className="btn-primary text-xs px-2.5 py-1 shrink-0">{t("friends.addBtn")}</button>
@@ -1494,7 +1514,7 @@ export default function Messages() {
 
         {/* ── Chat area ──────────────────────────────────────────── */}
         {activeType === null ? (
-          <div className={`${chatVisible} lg:col-span-2 card flex-col items-center justify-center text-center p-8`} style={panelStyle}>
+          <div className={`${chatVisible} lg:col-span-2 card flex-col items-center justify-center text-center p-8 ${panelClass}`}>
             <MascotCoach
               id="social-empty"
               message={t("coach.empty.social")}
@@ -1512,7 +1532,7 @@ export default function Messages() {
               </button>
             </div>
             {suggestions.length > 0 && (
-              <div className="w-full max-w-xs mt-5 pt-5" style={{ borderTop: "1px solid var(--bt-border)" }}>
+              <div className="w-full max-w-xs mt-5 pt-5" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                 <p className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: "var(--bt-text-4)" }}>
                   {t("social.suggestionsTitle")}
                 </p>
@@ -1529,9 +1549,9 @@ export default function Messages() {
             )}
           </div>
         ) : activeType === "dm" ? (
-            <section className={`${chatVisible} lg:col-span-2 card flex-col`} style={panelStyle}>
+            <section className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
               <div className="flex items-center gap-3 px-4 py-3 shrink-0"
-                style={{ borderBottom: "1px solid var(--bt-border)" }}>
+                style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
                 <button onClick={() => setMobileView("list")} className="lg:hidden btn-ghost px-2 py-1 text-sm">‹</button>
                 {activeFriend && (
                   <>
@@ -1539,14 +1559,14 @@ export default function Messages() {
                       <Avatar url={activeFriend.profile.avatar_url} pseudo={displayName(activeFriend.profile)} size={36} />
                       {isStudyingLive(activeFriend.profile.studying_since) && (
                         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: "#22c55e", border: "2px solid var(--bt-surface)" }} />
+                          style={{ backgroundColor: "var(--bt-accent)", border: "2px solid var(--bt-surface)" }} />
                       )}
                     </button>
                     <button onClick={() => openProfile(activeFriend.profile.id)} className="text-left flex-1 min-w-0">
                       <p className="font-medium text-sm truncate" style={{ color: "var(--bt-text-1)" }}>{displayName(activeFriend.profile)}</p>
                       <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
                         @{activeFriend.profile.pseudo}
-                        {isStudyingLive(activeFriend.profile.studying_since) && <span style={{ color: "#0E8F68" }}> · {t("social.onlineNow")}</span>}
+                        {isStudyingLive(activeFriend.profile.studying_since) && <span style={{ color: "var(--bt-accent-dark)" }}> · {t("social.onlineNow")}</span>}
                       </p>
                     </button>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -1576,7 +1596,7 @@ export default function Messages() {
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className="max-w-[75%] px-3.5 py-2.5 text-sm"
                         style={mine
-                          ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                          ? { backgroundColor: "var(--bt-accent)", color: "#fff", borderRadius: "18px 18px 6px 18px" }
                           : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                         {share
                           ? <SessionShareBubble share={share} mine={mine} t={t} />
@@ -1615,7 +1635,7 @@ export default function Messages() {
               </div>
 
               <form onSubmit={sendDM} className="p-3 flex items-center gap-2 shrink-0"
-                style={{ borderTop: "1px solid var(--bt-border)" }}>
+                style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                 <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
                   <IconPaperclip />
                   <input ref={dmFileRef} type="file"
@@ -1633,11 +1653,11 @@ export default function Messages() {
               </form>
             </section>
         ) : (
-            <section className={`${chatVisible} lg:col-span-2 card flex-col`} style={panelStyle}>
+            <section className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
 
               {/* ── Group header — clean & compact ────────────────── */}
               <div className="px-3 py-2.5 flex items-center gap-3 shrink-0"
-                style={{ borderBottom: "1px solid var(--bt-border)" }}>
+                style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
 
                 {/* Retour mobile */}
                 <button onClick={() => setMobileView("list")}
@@ -1670,7 +1690,7 @@ export default function Messages() {
                 {/* Infos — explicite, distinct de l'action chrono */}
                 <button onClick={() => { setShowGroupInfo(true); setInviteQuery(""); setInviteResults([]); }}
                   className="shrink-0 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors hidden sm:inline-flex"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
+                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
                   {t("social.infoButton")}
                 </button>
 
@@ -1680,9 +1700,9 @@ export default function Messages() {
                     onClick={() => setShowChronoStart(v => !v)}
                     className="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all"
                     style={{
-                      backgroundColor: showChronoStart ? "#EAFBF4" : "var(--bt-subtle)",
-                      color: showChronoStart ? "#0E8F68" : "var(--bt-text-2)",
-                      border: "1px solid var(--bt-border)",
+                      backgroundColor: showChronoStart ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
+                      color: showChronoStart ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
+                      border: "1px solid var(--bt-hairline)",
                     }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                       strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1696,7 +1716,7 @@ export default function Messages() {
 
               {/* ── Panneau démarrer chrono ───────────────────────── */}
               {showChronoStart && !groupChrono && (
-                <div className="px-4 py-3 shrink-0" style={{ borderBottom: "1px solid var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
+                <div className="px-4 py-3 shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-subtle)" }}>
                   <p className="text-sm font-semibold mb-2" style={{ color: "var(--bt-text-1)" }}>
                     {t("groups.newChrono")}
                   </p>
@@ -1721,7 +1741,7 @@ export default function Messages() {
               {groupChrono && (
                 <div className="px-4 py-3 shrink-0 transition-colors"
                   style={{
-                    borderBottom: "1px solid var(--bt-border)",
+                    borderBottom: "1px solid var(--bt-hairline)",
                     backgroundColor: groupChrono.status === "paused"
                       ? "rgba(239,68,68,0.08)"
                       : "var(--bt-accent-bg)",
@@ -1729,7 +1749,7 @@ export default function Messages() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5"
-                        style={{ color: groupChrono.status === "paused" ? "#ef4444" : "var(--bt-accent-dark)" }}>
+                        style={{ color: groupChrono.status === "paused" ? "var(--bt-danger)" : "var(--bt-accent-dark)" }}>
                         ⏱ {t("groups.chronoTitle")}
                         {groupChrono.note && <span className="font-normal ml-1 normal-case tracking-normal">— {groupChrono.note}</span>}
                       </p>
@@ -1741,11 +1761,11 @@ export default function Messages() {
                       )}
                       {groupChrono.status === "paused" && (
                         <div className="flex items-center gap-2">
-                          <p className="font-mono font-bold text-lg leading-none" style={{ color: "#ef4444" }}>
+                          <p className="font-mono font-bold text-lg leading-none" style={{ color: "var(--bt-danger)" }}>
                             {formatDuration(chronoElapsed)}
                           </p>
                           <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full"
-                            style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#ef4444" }}>
+                            style={{ backgroundColor: "var(--bt-danger-bg)", color: "var(--bt-danger)" }}>
                             {t("dash.pausedStatus")}
                           </span>
                         </div>
@@ -1776,7 +1796,7 @@ export default function Messages() {
                           {canFinishGroupChrono && (
                             <button onClick={finishGroupChrono}
                               className="text-xs px-2.5 py-1.5 rounded-xl font-semibold"
-                              style={{ backgroundColor: "#14B885", color: "#fff" }}>
+                              style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
                               {t("groups.chronoFinish")}
                             </button>
                           )}
@@ -1784,7 +1804,7 @@ export default function Messages() {
                             <button onClick={cancelGroupChrono}
                               className="text-xs transition-colors"
                               style={{ color: "var(--bt-text-4)" }}
-                              onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                              onMouseEnter={e => e.currentTarget.style.color = "var(--bt-danger)"}
                               onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
                               {t("groups.chronoCancel")}
                             </button>
@@ -1850,7 +1870,7 @@ export default function Messages() {
                         </span>
                         <div className="rounded-2xl px-3.5 py-2.5 text-sm"
                           style={mine
-                            ? { backgroundColor: "#14B885", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                            ? { backgroundColor: "var(--bt-accent)", color: "#fff", borderRadius: "18px 18px 6px 18px" }
                             : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                           {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                           {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
@@ -1866,7 +1886,7 @@ export default function Messages() {
                           {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
                             <a href={attachmentUrl} target="_blank" rel="noreferrer"
                               className="mt-2 inline-flex items-center gap-2 underline"
-                              style={{ color: mine ? "#fff" : "#0E8F68" }}>
+                              style={{ color: mine ? "#fff" : "var(--bt-accent-dark)" }}>
                               <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                             </a>
                           )}
@@ -1880,7 +1900,7 @@ export default function Messages() {
                           <button onClick={() => removeGroupMessage(m.id)}
                             className="text-[10px] mt-0.5 transition-colors"
                             style={{ color: "var(--bt-text-4)" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+                            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-danger)"}
                             onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
                             {t("common.remove")}
                           </button>
@@ -1893,7 +1913,7 @@ export default function Messages() {
               </div>
 
               <form onSubmit={sendGroup} className="p-3 flex items-center gap-2 shrink-0"
-                style={{ borderTop: "1px solid var(--bt-border)" }}>
+                style={{ borderTop: "1px solid var(--bt-hairline)" }}>
                 <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
                   <IconPaperclip />
                   <input ref={grpFileRef} type="file"
@@ -1927,7 +1947,7 @@ export default function Messages() {
 
             {/* Header modal */}
             <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0"
-              style={{ borderBottom: "1px solid var(--bt-border)" }}>
+              style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
               <h2 className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>
                 {t("groups.groupInfo")}
               </h2>
@@ -1999,7 +2019,7 @@ export default function Messages() {
                       </span>
                       {m.role === "admin" && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                          style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
+                          style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
                           admin
                         </span>
                       )}
@@ -2040,7 +2060,7 @@ export default function Messages() {
                         </span>
                         <button onClick={() => inviteUser(p.id)} disabled={inviting === p.id}
                           className="text-xs font-semibold px-3 py-1 rounded-xl shrink-0"
-                          style={{ backgroundColor: "#14B885", color: "#fff" }}>
+                          style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
                           {inviting === p.id ? "…" : t("groups.invite")}
                         </button>
                       </div>
@@ -2052,7 +2072,7 @@ export default function Messages() {
 
             {/* Footer actions */}
             <div className="flex gap-2 px-5 py-4 shrink-0"
-              style={{ borderTop: "1px solid var(--bt-border)" }}>
+              style={{ borderTop: "1px solid var(--bt-hairline)" }}>
               <button onClick={() => setShowGroupInfo(false)} className="btn-ghost flex-1 text-sm">
                 {t("common.close")}
               </button>
@@ -2060,18 +2080,18 @@ export default function Messages() {
                 <button
                   onClick={() => { setShowGroupInfo(false); deleteGroup(); }}
                   className="flex-1 text-sm rounded-2xl font-semibold transition-colors"
-                  style={{ backgroundColor: "#FEF2F2", color: "#ef4444", border: "1px solid #FECACA", padding: "8px 12px" }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "#FEE2E2"}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = "#FEF2F2"}>
+                  style={{ backgroundColor: "var(--bt-danger-bg)", color: "var(--bt-danger)", border: "1px solid var(--bt-danger-border)", padding: "8px 12px" }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-danger-border)"}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-danger-bg)"}>
                   {t("common.delete")}
                 </button>
               ) : (
                 <button
                   onClick={() => { setShowGroupInfo(false); leaveGroup(); }}
                   className="flex-1 text-sm rounded-2xl font-semibold transition-colors"
-                  style={{ backgroundColor: "#FEF2F2", color: "#ef4444", border: "1px solid #FECACA", padding: "8px 12px" }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "#FEE2E2"}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = "#FEF2F2"}>
+                  style={{ backgroundColor: "var(--bt-danger-bg)", color: "var(--bt-danger)", border: "1px solid var(--bt-danger-border)", padding: "8px 12px" }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-danger-border)"}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-danger-bg)"}>
                   {t("groups.leave")}
                 </button>
               )}
@@ -2123,7 +2143,7 @@ export default function Messages() {
                         </span>
                         <button onClick={() => inviteToNewGroup(p.id)}
                           className="text-xs font-semibold px-3 py-1 rounded-lg shrink-0"
-                          style={{ backgroundColor: "#14B885", color: "#fff" }}>
+                          style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
                           {t("groups.invite")}
                         </button>
                       </div>

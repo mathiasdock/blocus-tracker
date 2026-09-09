@@ -2039,3 +2039,29 @@ details.bt-acc[open]::details-content { block-size: auto; }
 }
 .bt-feed-icon-btn:hover { color: var(--bt-text-1); background-color: var(--bt-subtle); }
 .bt-feed-icon-btn--danger:hover { color: var(--bt-danger); background-color: var(--bt-danger-bg); }
+
+/* ── Place occupée par la barre flottante ──────────────────────
+   Une seule source pour la hauteur à réserver sous un écran plein. Les pages
+   qui calculent leur propre hauteur (la messagerie) la déduisaient avec un
+   nombre écrit à la main, choisi AVANT que la barre ne devienne flottante :
+   le champ de message passait donc sous la barre, et on ne pouvait plus le
+   viser. Trois nombres magiques finissent toujours par diverger d'un cran. */
+:root { --bt-nav-space: calc(72px + env(safe-area-inset-bottom)); }
+@media (min-width: 1024px) { :root { --bt-nav-space: 0px; } }
+
+/* ── Messagerie : hauteur des panneaux ─────────────────────────
+   La liste et la conversation occupent l'écran moins l'en-tête, le titre et
+   la barre. Quand une conversation est ouverte sur téléphone, le titre de
+   page s'efface : une conversation mérite l'écran entier, pas les deux tiers
+   qui restent sous un titre qu'on a déjà lu. */
+.bt-social-panel { height: min(820px, calc(100dvh - 200px - var(--bt-nav-space))); }
+@media (max-width: 1023px) {
+  .bt-social-panel--chat { height: calc(100dvh - 104px - var(--bt-nav-space)); }
+}
+/* Rangée de conversation : elle est atteignable au clavier (role + tabIndex
+   dans pages/messages.js), il lui faut donc un anneau de focus visible. Sans
+   lui, on tabule dans une liste sans jamais savoir où l'on est. */
+.bt-social-row:focus-visible {
+  outline: 2px solid var(--bt-accent);
+  outline-offset: -2px;
+}
