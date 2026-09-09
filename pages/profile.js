@@ -5,7 +5,7 @@ import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleto
 import UniPicker from "../components/UniPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
-import MascotCoach from "../components/MascotCoach";
+import MascotMoment from "../components/MascotMoment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import PwaHomeScreenVisual from "../components/PwaHomeScreenVisual";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
@@ -360,7 +360,7 @@ function StatTile({ label, value, sub }) {
 }
 
 // ── Progression (XP) — surface ink signature ─────────────────
-function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
+function XPCard({ levelInfo, missions, streak, moment, t }) {
   const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
   return (
     <div id="xp-card" className="card-ink bt-grain">
@@ -395,15 +395,16 @@ function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
           </div>
         </div>
 
-        <MascotCoach
-          id={coachId}
-          message={coachMessage}
-          streak={streak}
-          variant="embedded"
-          surface="ink"
-          persistence="day"
-          className="mb-4"
-        />
+        {moment && (
+          <MascotMoment
+            eventKey={moment.key}
+            message={moment.message}
+            mood={moment.mood}
+            frequency={moment.frequency}
+            streak={streak}
+            className="mb-4"
+          />
+        )}
 
         {/* Daily missions */}
         <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14 }}>
@@ -1276,13 +1277,14 @@ export default function Profile() {
   const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);
   const newBadge = newBadgeId ? BADGES.find(b => b.id === newBadgeId) : null;
   const xpRemaining = levelInfo.next ? Math.max(0, levelInfo.rangeXP - levelInfo.progressXP) : 0;
-  const profileCoachMessage = newBadge
-    ? t("coach.profile.badge").replace("{badge}", t(newBadge.labelKey))
-    : (todaySecs > 0 && streak > 0)
-      ? t("coach.profile.streak")
-      : levelInfo.next
-        ? t("coach.profile.nextLevel").replace("{xp}", String(xpRemaining))
-        : t("coach.profile.maxLevel");
+  const profileMoment = newBadge
+    ? { key: `badge-${newBadge.id}`, mood: "celebrating", frequency: "once",
+        message: t("mascot.badge").replace("{badge}", t(newBadge.labelKey)) }
+    : !levelInfo.next
+      ? { key: "level-max", mood: "celebrating", frequency: "once", message: t("mascot.maxLevel") }
+      : (todaySecs > 0 && streak > 0)
+        ? { key: "streak-safe", mood: "proud", frequency: "daily", message: t("mascot.streakSafe") }
+        : null;
 
   const missionDefs = getDailyMissionDefs(todayStr, user?.id);
   const fallbackMissions = evaluateMissions(missionDefs, {
@@ -1438,8 +1440,7 @@ export default function Profile() {
               levelInfo={levelInfo}
               missions={missions}
               streak={streak}
-              coachMessage={profileCoachMessage}
-              coachId={newBadge ? `profile-badge-${newBadge.id}` : "profile-progress"}
+              moment={profileMoment}
               t={t}
             />
             <BadgesCard earnedBadgeIds={earnedBadgeIds} onBadgeClick={setSelectedBadge} t={t} />

@@ -23,7 +23,7 @@ import PendingSessionsBanner from "../components/PendingSessionsBanner";
 import CourseChecklistModal from "../components/CourseChecklistModal";
 import CourseEditorModal from "../components/CourseEditorModal";
 import Mascot from "../components/Mascot";
-import MascotCoach from "../components/MascotCoach";
+import MascotMoment from "../components/MascotMoment";
 import AmbientSoundControl from "../components/AmbientSoundControl";
 import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -1165,17 +1165,15 @@ export default function Dashboard() {
     hapticBlockRef.current = milestone;
   }, [elapsed, running]);
 
-  const timerCoach = moment
-    ? { id: `timer-${moment.id}`, message: moment.text, persistence: false, live: true }
+  const timerMoment = moment ? { key: `timer-${moment.id}`, message: moment.text } : null;
+  // Ce que la mascotte ne dit plus, l'écran le dit en texte : l'état de pause
+  // et l'invitation à démarrer, qui n'ont jamais été des exploits.
+  const timerHint = timerMoment
+    ? null
     : isPaused
-      ? {
-          id: pauseSeconds >= 10 * 60 ? "timer-long-pause" : "timer-pause",
-          message: t(pauseSeconds >= 10 * 60 ? "coach.timer.longPause" : "coach.timer.pause"),
-          persistence: "session",
-          live: false,
-        }
+      ? t(pauseSeconds >= 10 * 60 ? "coach.timer.longPause" : "coach.timer.pause")
       : (!running && elapsed === 0)
-        ? { id: "timer-ready", message: t("coach.timer.ready"), persistence: "day", live: false }
+        ? t("coach.timer.ready")
         : null;
   const showGuestIntro = isGuest && !running && elapsed === 0;
 
@@ -1380,21 +1378,21 @@ export default function Dashboard() {
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
                 accomplissement. Pendant le travail normal, la ligne reste
                 textuelle pour ne pas distraire. */}
-            <div className={`${showGuestIntro ? "h-2 mt-2" : (timerCoach || liveMessage) ? "min-h-[58px] mt-4" : "mt-0"} flex items-center justify-center`}>
-              {timerCoach && !focusMode && !showGuestIntro ? (
-                <MascotCoach
-                  id={timerCoach.id}
-                  message={timerCoach.message}
+            <div className={`${showGuestIntro ? "h-2 mt-2" : (timerMoment || liveMessage || timerHint) ? "min-h-[58px] mt-4" : "mt-0"} flex items-center justify-center`}>
+              {timerMoment && !focusMode && !showGuestIntro ? (
+                <MascotMoment
+                  message={timerMoment.message}
+                  mood="proud"
+                  frequency="always"
                   streak={streak}
-                  persistence={timerCoach.persistence}
-                  live={timerCoach.live}
-                  className="w-full max-w-md"
-                  size={48}
+                  dismissible={false}
+                  size={42}
+                  live
                 />
-              ) : !timerCoach && liveMessage ? (
-                <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
+              ) : !timerMoment && (liveMessage || timerHint) ? (
+                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? PAUSE_ACCENT : "var(--bt-text-3)" }}>
-                  {liveMessage}
+                  {liveMessage || timerHint}
                 </p>
               ) : null}
             </div>
@@ -1770,21 +1768,20 @@ export default function Dashboard() {
             </div>
 
             <div className="min-h-[82px] mt-5 flex items-center justify-center">
-              {timerCoach ? (
-                <MascotCoach
-                  id={timerCoach.id}
-                  message={timerCoach.message}
+              {timerMoment ? (
+                <MascotMoment
+                  message={timerMoment.message}
+                  mood="proud"
+                  frequency="always"
                   streak={streak}
-                  persistence={timerCoach.persistence}
-                  live={timerCoach.live}
-                  surface="ink"
-                  className="w-full max-w-md"
-                  size={58}
+                  dismissible={false}
+                  size={52}
+                  live
                 />
-              ) : liveMessage ? (
-                <p key={liveMessage} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
+              ) : (liveMessage || timerHint) ? (
+                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
-                  {liveMessage}
+                  {liveMessage || timerHint}
                 </p>
               ) : null}
             </div>

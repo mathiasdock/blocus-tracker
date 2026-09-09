@@ -2071,3 +2071,148 @@ details.bt-acc[open]::details-content { block-size: auto; }
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* ── Mascotte : les présentations ──────────────────────────────
+   Elle n'avait qu'une seule forme — un rectangle menthe pleine largeur — et
+   cette forme revenait sur presque tous les écrans. Répétée, elle a fini par
+   se lire comme un bandeau d'information, donc comme quelque chose qu'on
+   saute. Voir components/MascotMoment.js pour le choix de la présentation. */
+
+/* Bulle : la largeur suit le TEXTE, jamais le conteneur. C'est ce détail,
+   plus que la couleur, qui la sépare d'un bandeau : un bandeau occupe la
+   ligne, une bulle occupe ce qu'elle a à dire. */
+.bt-mascot-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+.bt-mascot-bubble-art { flex-shrink: 0; display: flex; align-items: flex-end; }
+.bt-mascot-bubble-body {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border-radius: 16px;
+  background-color: var(--bt-accent-bg);
+  box-shadow: inset 0 0 0 1px var(--bt-accent-border);
+}
+/* La pointe de la bulle. Sans elle, l'objet redevient une pastille posée à
+   côté d'un dessin : c'est la pointe qui fait que le chien PARLE. */
+.bt-mascot-bubble-body::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%) rotate(45deg);
+  background-color: var(--bt-accent-bg);
+  box-shadow: inset 1px -1px 0 0 var(--bt-accent-border);
+}
+.bt-mascot-bubble-text {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--bt-text-1);
+}
+.bt-mascot-bubble--toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bt-nav-space) + 18px);
+  z-index: 45;
+  transform: translateX(-50%);
+  animation: bt-mascot-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bt-mascot-bubble--toast .bt-mascot-bubble-body {
+  background-color: var(--bt-surface);
+  box-shadow: inset 0 0 0 1px var(--bt-hairline), var(--bt-elev-3);
+}
+.bt-mascot-bubble--toast .bt-mascot-bubble-body::before {
+  background-color: var(--bt-surface);
+  box-shadow: inset 1px -1px 0 0 var(--bt-hairline);
+}
+
+/* Moment : le personnage DÉBORDE le haut de sa carte. C'est ce débordement
+   qui le sort de la grille — enfermé, il redevient une illustration parmi
+   d'autres. */
+.bt-mascot-moment {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 54px 20px 20px;
+  margin-top: 46px;
+  border-radius: var(--bt-r-card);
+  background-color: var(--bt-accent-bg);
+  text-align: center;
+}
+.bt-mascot-moment-art {
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.bt-mascot-moment-text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--bt-text-1);
+  text-wrap: balance;
+}
+
+/* Célébration : pleine présence. Aucun cadre — le moment se suffit. */
+.bt-mascot-celebration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.bt-mascot-celebration-art { animation: bt-mascot-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.bt-mascot-celebration-text {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  color: var(--bt-text-1);
+  text-wrap: balance;
+}
+
+.bt-mascot-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: var(--bt-text-3);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.bt-mascot-close:hover { color: var(--bt-text-1); background-color: var(--bt-subtle); }
+.bt-mascot-moment .bt-mascot-close { position: absolute; top: 8px; right: 8px; }
+
+.bt-mascot-cta {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--bt-accent-dark);
+  white-space: nowrap;
+}
+.bt-mascot-cta:hover { text-decoration: underline; }
+
+@keyframes bt-mascot-pop {
+  from { opacity: 0; transform: scale(0.86) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.bt-mascot-bubble--toast { transform: translateX(-50%); }
+@media (prefers-reduced-motion: reduce) {
+  .bt-mascot-celebration-art,
+  .bt-mascot-bubble--toast { animation: none !important; }
+}

@@ -33,6 +33,46 @@ export function mascotState(streak) {
   return "fired";
 }
 
+// ── Humeurs ─────────────────────────────────────────────────
+// L'appelant demande une HUMEUR (« fière », « inquiète »…), pas une pose.
+// Cette table est le seul endroit qui décide quelle pose la sert. Quatre
+// dessins existent aujourd'hui ; plusieurs humeurs en partagent donc un.
+//
+// C'est volontaire : inventer à la va-vite quatre poses de plus donnerait des
+// dessins tièdes que personne n'aurait envie de regarder deux fois — et une
+// mascotte qu'on ne regarde pas est exactement le problème qu'on corrige.
+// Quand un nouveau dessin arrive, il suffit de changer la ligne concernée ;
+// aucun appelant ne bouge.
+//
+//   humeur        pose actuelle   dessin propre à faire un jour
+//   neutral    →  content         —
+//   focused    →  content         oui (regard baissé, oreilles en avant)
+//   happy      →  happy           —
+//   proud      →  happy           oui (poitrail sorti)
+//   celebrating→  fired           —
+//   sleepy     →  asleep          —
+//   worried    →  content         oui (oreilles basses, museau plat)
+//   surprised  →  happy           oui (yeux ronds, oreilles hautes)
+export const MASCOT_MOODS = [
+  "neutral", "focused", "happy", "proud", "celebrating", "sleepy", "worried", "surprised",
+];
+
+const MOOD_TO_POSE = {
+  neutral: "content",
+  focused: "content",
+  happy: "happy",
+  proud: "happy",
+  celebrating: "fired",
+  sleepy: "asleep",
+  worried: "content",
+  surprised: "happy",
+};
+
+/** Pose à dessiner pour une humeur, avec repli sur l'état de série. */
+export function poseForMood(mood, streak) {
+  return MOOD_TO_POSE[mood] || mascotState(streak);
+}
+
 // Cle i18n de la legende d'etat (utilisee par les appelants qui veulent
 // afficher un petit texte sous la mascotte).
 export const MASCOT_CAPTION_KEY = {
@@ -42,11 +82,14 @@ export const MASCOT_CAPTION_KEY = {
   fired: "mascot.fired",
 };
 
-export default function Mascot({ streak = 0, size = 96, className = "", ariaLabel, animated = true }) {
-  const state = mascotState(streak);
+export default function Mascot({ streak = 0, mood, size = 96, className = "", ariaLabel, animated = true }) {
+  // `mood` prime sur `streak` : une mascotte qui félicite doit avoir l'air
+  // fière même si la série est à zéro. `streak` reste le repli pour les
+  // endroits qui montrent littéralement l'état de la série.
+  const state = mood ? poseForMood(mood, streak) : mascotState(streak);
   const awake = state !== "asleep";
   const excited = state === "happy" || state === "fired";
-  const mood = state === "asleep" ? "bt-m--asleep" : excited ? "bt-m--excited" : "bt-m--calm";
+  const animClass = state === "asleep" ? "bt-m--asleep" : excited ? "bt-m--excited" : "bt-m--calm";
 
   const tail = excited
     ? "M86 80 Q108 74 104 50 Q98 70 82 74 Z"
@@ -57,7 +100,7 @@ export default function Mascot({ streak = 0, size = 96, className = "", ariaLabe
   return (
     <svg width={size} height={size} viewBox="0 0 120 120" fill="none"
       role="img" aria-label={ariaLabel || "Mascotte"}
-      className={`bt-m ${animated ? "bt-m-anim" : ""} ${mood} ${className}`}
+      className={`bt-m ${animated ? "bt-m-anim" : ""} ${animClass} ${className}`}
       style={{ overflow: "visible" }}>
       <g className="bt-m-all">
         {/* Queue (derriere le corps) — remue, plus vite quand excite */}

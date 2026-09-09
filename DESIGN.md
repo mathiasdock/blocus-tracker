@@ -295,6 +295,18 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 
 **Grouped lists.** Settings that are opened a few times a year belong in a grouped list, not in an expanded card. A group is one surface holding rows of an icon pill, a label, the current state, and a chevron; the hairline starts after the pill so the eye follows the label column instead of being cut at every line. A folded row must still answer the question it was opened for — "Preferences · FR · Light" beats a bare "Preferences" — otherwise folding becomes hiding. What people check often, or urgently, stays unfolded: notification state is the standing example.
 
+## The Mascot
+
+The mascot is a character, not an illustration slot. It earns attention by being **rare**, and it loses it by being present.
+
+**The Event Rule.** The mascot appears for a *moment*, never for a state. Something happened — a block cleared, a badge unlocked, a record beaten, a streak saved, an exam closing in. A section being empty is not a moment; a page loading is not a moment. Every appearance carries an event key and a frequency (once / daily / session / always), and the system remembers what has been seen. "Always" is reserved for reactions to an action the person just took, where repeating *is* the point.
+
+**The Short-Copy Rule.** A mascot line is a reaction, not an explanation: "4 blocks already!", "New record!", "Your streak is safe." If an idea needs a paragraph, it is not the mascot's to deliver — the interface says it, in text, where it belongs.
+
+**The Shape Rule.** The mascot has five presentations — a speech bubble sized to its words, a moment that overflows its card, a full celebration, a silent companion beside a number, and a toast that fades. It must not always be the same full-width tinted rectangle: a banner shape repeated on every screen is read as a banner, and banners are skipped.
+
+**The Mood Rule.** The pose follows the context. Moods are named by the caller (proud, focused, celebrating, worried…) and mapped to artwork in one table, so a new drawing changes one line and no call site. Where a mood has no drawing yet, it borrows the closest one — deliberately, rather than shipping a weak pose to fill the grid.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -314,6 +326,7 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 
 ### Don't:
 
+- **Don't** show the mascot because a section is empty, or attach it to copy that never changes. A character that says the same line on every visit stops being a character.
 - **Don't** use an emoji as an interface icon. It ignores the theme's color, changes shape from one device to the next, arrives at the font's size, and inside a translated string it cannot be translated — every translator has to copy it. Emoji stay where they are the content itself, like a reaction someone chose.
 - **Don't** re-skin a utility class for dark mode (`.dark .bg-white { … }`). A utility means what it says; if a color must follow the theme it goes through a token. Overriding one silently repaints every deliberate use of it — that rule turned a white call-to-action into dark-green-on-black.
 - **Don't** put a border and a shadow on the same surface.

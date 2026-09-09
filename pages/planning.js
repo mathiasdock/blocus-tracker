@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import CourseChecklistModal from "../components/CourseChecklistModal";
-import MascotCoach from "../components/MascotCoach";
+import MascotMoment from "../components/MascotMoment";
 import SegmentedGlide from "../components/SegmentedGlide";
 import AnimatedNumber from "../components/AnimatedNumber";
 import { useAuth } from "../contexts/AuthContext";
@@ -1897,21 +1897,15 @@ export default function Planning() {
   // « planning prêt, tu sais quoi faire aujourd'hui » alors que la carte
   // affichait « rien de prévu » — il suffisait d'un objectif posé un autre
   // jour. D'où l'état `todayEmpty`, évalué avant `ready`.
-  const planningCoachKind = missingExamPreparation
-    ? "exam"
-    : (todayObjectives.length >= 5 || todayMinutes >= 240)
-      ? "heavy"
-      : (objectives.length === 0 && exams.length === 0)
-        ? "empty"
-        : (todayObjectives.length === 0 && todayExams.length === 0)
-          ? "todayEmpty"
-          : "ready";
-  const planningCoachMessage = planningCoachKind === "exam"
-    ? t("coach.planning.exam").replace("{days}", String(nextExamDays))
-    : t(`coach.planning.${planningCoachKind}`);
-  const planningCoachId = planningCoachKind === "exam"
-    ? `planning-exam-${nextExam.id}`
-    : `planning-${planningCoachKind}`;
+  // Un seul moment sur cette page : l'examen qui approche sans révision
+  // prévue. C'est une échéance qu'on peut avoir laissée passer, et il y a
+  // quelque chose à faire — les deux conditions d'une apparition.
+  const examMoment = missingExamPreparation && nextExam
+    ? {
+        key: `planning-exam-${nextExam.id}`,
+        message: t("mascot.exam").replace("{days}", String(nextExamDays)),
+      }
+    : null;
 
   function shiftDays(n) { const d = dateFromYmd(selectedDate); d.setDate(d.getDate() + n); setSelectedDate(ymd(d)); }
   function shiftMonth(delta) { setCursor(c => { const d = new Date(c.year, c.month + delta, 1); return { year: d.getFullYear(), month: d.getMonth() }; }); }
@@ -2016,13 +2010,15 @@ export default function Planning() {
           <div className="contents xl:flex xl:flex-col xl:gap-5">
             <TodayCard className="order-3" />
 
-            <MascotCoach
-              id={planningCoachId}
-              message={planningCoachMessage}
-              streak={computeStreak(sessions, frozenDays)}
-              persistence="day"
-              className="order-4"
-            />
+            {examMoment && (
+              <MascotMoment
+                eventKey={examMoment.key}
+                message={examMoment.message}
+                mood="focused"
+                frequency="daily"
+                className="order-4"
+              />
+            )}
 
             <RevisionChecklists className="order-6" />
           </div>

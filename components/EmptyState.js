@@ -5,7 +5,6 @@
 // couleur. Les aplats utilisent currentColor à faible opacité (lisibles clair
 // + sombre).
 
-import MascotCoach from "./MascotCoach";
 
 const S = { fill: "none", stroke: "currentColor", strokeWidth: 2.4, strokeLinecap: "round", strokeLinejoin: "round" };
 const DOT = { fill: "currentColor", stroke: "none" };
@@ -103,25 +102,12 @@ export default function EmptyState({
   action,
   size = 88,
   className = "",
-  coachMessage,
-  coachId,
-  streak = 0,
 }) {
   return (
     <div className={`flex flex-col items-center justify-center text-center py-12 px-6 ${className}`}>
-      {coachMessage ? (
-        <MascotCoach
-          id={coachId || `empty-${illustration}`}
-          message={coachMessage}
-          streak={streak}
-          persistence="session"
-          className="mb-4 w-full max-w-sm"
-        />
-      ) : (
-        <div style={{ width: size, height: size, color: "var(--bt-accent)" }} className="mb-4">
-          {emptyIllustrations[illustration] || emptyIllustrations.generic}
-        </div>
-      )}
+      <div style={{ width: size, height: size, color: "var(--bt-accent)" }} className="mb-4">
+        {emptyIllustrations[illustration] || emptyIllustrations.generic}
+      </div>
       {title && <p className="text-sm font-semibold mb-1" style={{ color: "var(--bt-text-2)" }}>{title}</p>}
       {subtitle && <p className="text-xs max-w-xs mx-auto leading-relaxed" style={{ color: "var(--bt-text-3)" }}>{subtitle}</p>}
       {action && <div className="mt-4">{action}</div>}

@@ -570,8 +570,6 @@ export default function Feed() {
                 illustration="feed"
                 title={t("feed.emptyTitle")}
                 subtitle={t("feed.emptyRecent")}
-                coachMessage={t("coach.empty.feed")}
-                coachId="feed-empty"
               />
             </div>
           )}

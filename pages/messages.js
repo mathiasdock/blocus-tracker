@@ -6,7 +6,6 @@ import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import SegmentedGlide from "../components/SegmentedGlide";
 import { SkeletonList } from "../components/Skeleton";
-import MascotCoach from "../components/MascotCoach";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useToast } from "../contexts/ToastContext";
@@ -1530,12 +1529,6 @@ export default function Messages() {
         {/* ── Chat area ──────────────────────────────────────────── */}
         {activeType === null ? (
           <div className={`${chatVisible} lg:col-span-2 card flex-col items-center justify-center text-center p-8 ${panelClass}`}>
-            <MascotCoach
-              id="social-empty"
-              message={t("coach.empty.social")}
-              persistence="session"
-              className="mb-4 w-full max-w-sm"
-            />
             <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--bt-text-1)" }}>{t("social.emptyTitle")}</h2>
             <p className="text-sm mb-5 max-w-xs" style={{ color: "var(--bt-text-3)" }}>{t("social.emptySubtitle")}</p>
             <div className="flex flex-wrap gap-2 justify-center mb-2">

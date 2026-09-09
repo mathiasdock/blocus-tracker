@@ -5,7 +5,7 @@ import Layout from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UserProfileModal from "../components/UserProfileModal";
 import Leaderboard from "../components/Leaderboard";
-import MascotCoach from "../components/MascotCoach";
+import MascotMoment from "../components/MascotMoment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import StatsHero from "../components/stats/StatsHero";
 import StudyByCourse from "../components/stats/StudyByCourse";
@@ -289,12 +289,19 @@ export default function Stats() {
           <div className="contents xl:order-2 xl:flex xl:flex-col xl:gap-5">
             {insightText && (
               <div className="order-3">
-                <MascotCoach
-                  id={`stats-insight-${insight.key}-${todayISOLocal}`}
-                  message={insightText}
-                  streak={streak}
-                  persistence="day"
-                />
+                {insight.key === "moreRegular" ? (
+                  <MascotMoment
+                    eventKey={`stats-regular-${todayISOLocal}`}
+                    message={insightText}
+                    mood="proud"
+                    frequency="daily"
+                    streak={streak}
+                  />
+                ) : (
+                  <p className="card p-4 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                    {insightText}
+                  </p>
+                )}
               </div>
             )}
 
