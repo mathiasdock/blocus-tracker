@@ -221,12 +221,7 @@ export default function Stats() {
 
   return (
     <Layout>
-      <div className="mb-4">
-        <h1 className="bt-page-title">
-          {t("stats.title")}
-        </h1>
-        <p className="mt-0.5 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("stats.pageIntro")}</p>
-      </div>
+      <h1 className="sr-only">{t("stats.title")}</h1>
 
       {empty ? (
         <section className="card flex flex-col items-center p-8 text-center sm:p-10">

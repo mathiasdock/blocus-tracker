@@ -306,6 +306,7 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 - **Do** use tabular numerals for any value that updates or aligns with another value.
 - **Do** preserve keyboard focus, 44px touch targets, safe areas, dark mode, and reduced-motion behavior.
 - **Do** reveal correction, deletion, and detailed management actions progressively.
+- **Do** keep the page title in the document and out of the layout when navigation already names the screen — the tab bar on a phone, the active sidebar entry on a desktop. Screen readers and search engines still need the heading; the reader does not need to be told twice.
 - **Do** collapse rarely used settings into grouped list rows, and show their current state on the folded row.
 - **Do** draw icons through the shared `Glyph` primitive and pass a size, never a hand-written stroke width — the stroke belongs to the size, and fourteen hand-picked values in circulation read as mixed typefaces.
 - **Do** let a settings icon stand on its own in the row, in neutral ink, at a size that reads without a container.

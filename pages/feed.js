@@ -408,10 +408,10 @@ export default function Feed() {
   return (
     <Layout>
       <div className="bt-stagger" style={{ maxWidth: 680, margin: "0 auto" }}>
-        {/* L'onglet du haut dit déjà « Activité » sur téléphone : le répéter
-            juste en dessous coûtait deux lignes pour zéro information. */}
-        <h1 className="bt-page-title sr-only lg:not-sr-only">{t("feed.title")}</h1>
-        <p className="mt-1 mb-5 hidden text-sm lg:block" style={{ color: "var(--bt-text-2)" }}>{t("feed.subtitle")}</p>
+        {/* La navigation dit déjà où l'on est : l'onglet du haut sur
+            téléphone, la rubrique active dans la colonne de gauche en
+            desktop. Le titre reste pour les lecteurs d'écran et les moteurs. */}
+        <h1 className="sr-only">{t("feed.title")}</h1>
 
         {/* ── Composer ─────────────────────────────────────────
             Replié, il ne demande qu'une chose : est-ce que j'ai envie de

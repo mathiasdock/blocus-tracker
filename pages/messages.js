@@ -1231,13 +1231,9 @@ export default function Messages() {
 
   return (
     <Layout>
-      {/* Sur téléphone, l'onglet du haut dit déjà « Social » : réécrire le
-          même mot juste en dessous coûtait deux lignes pour rien. Le titre
-          reste dans le document pour les lecteurs d'écran et les moteurs, et
-          redevient visible en desktop, où la navigation est une colonne
-          latérale et non un onglet. */}
-      <h1 className="bt-page-title sr-only lg:not-sr-only">{t("social.title")}</h1>
-      <p className="mt-1 mb-4 hidden text-sm lg:block" style={{ color: "var(--bt-text-2)" }}>{t("social.subtitle")}</p>
+      {/* Voir pages/feed.js : la navigation dit déjà où l'on est, sur les
+          deux tailles d'écran. */}
+      <h1 className="sr-only">{t("social.title")}</h1>
 
       <div className="grid gap-4 lg:grid-cols-3 bt-rise">
 
