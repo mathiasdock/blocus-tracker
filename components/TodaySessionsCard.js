@@ -115,11 +115,11 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
 
       {sessions.length === 0 ? (
         <div className="mt-3 flex items-center gap-3 rounded-2xl px-3 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
-            <Glyph size={20}>
-              <circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M9.5 3h5M12 3v2" />
+          <span className="flex w-8 shrink-0 items-center justify-center" style={{ color: "var(--bt-text-3)" }}>
+            <Glyph size={22}>
+              <circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5l3.25 1.9" />
             </Glyph>
-          </div>
+          </span>
           <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</p>
         </div>
       ) : (
