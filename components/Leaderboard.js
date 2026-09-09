@@ -53,7 +53,9 @@ export function RankBadge({ rank }) {
 //
 // `compact` : aperçu (podium + ma ligne + bouton pour tout voir). Les filtres
 // restent visibles en aperçu : sans eux, on ne sait pas ce qu'on lit.
-// La requête et les métriques sont inchangées ; seule la liste est réduite.
+// `desktopTall` transforme cet aperçu en rail complet à partir de xl : toutes
+// les lignes sont déjà rendues et défilent dans la carte, tandis que le mobile
+// conserve l'aperçu compact pour ne pas créer un long piège de scroll imbriqué.
 export default function Leaderboard({
   user,
   profile,
@@ -280,22 +282,27 @@ export default function Leaderboard({
     { value: "regularity", label: t("stats.metricRegularity") },
   ];
 
-  // En aperçu : le podium, puis ma ligne si je n'y suis pas déjà — c'est la
-  // seule chose qu'on cherche vraiment dans un classement qu'on ne déplie pas.
+  // En aperçu mobile : le podium, puis ma ligne si je n'y suis pas déjà.
+  // Le rail desktop rend toute la liste immédiatement ; les lignes qui ne font
+  // pas partie de cet aperçu restent simplement masquées sous xl.
   const myIndex = rows.findIndex(r => r.user_id === user?.id);
-  const visibleRows = isCompact
+  const compactRows = isCompact
     ? [
         ...rows.slice(0, 3).map((row, i) => ({ row, rank: i + 1 })),
         ...(myIndex >= 3 ? [{ row: rows[myIndex], rank: myIndex + 1 }] : []),
       ]
     : rows.map((row, i) => ({ row, rank: i + 1 }));
+  const compactRowIds = new Set(compactRows.map(({ row }) => row.user_id));
+  const visibleRows = desktopTall && isCompact
+    ? rows.map((row, i) => ({ row, rank: i + 1, desktopOnly: !compactRowIds.has(row.user_id) }))
+    : compactRows;
 
   return (
-    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"} ${desktopTall ? "xl:flex xl:min-h-[360px] xl:flex-col 2xl:min-h-[400px]" : ""}`}>
+    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"} ${desktopTall ? "xl:flex xl:h-[486px] xl:flex-col 2xl:h-[540px]" : ""}`}>
       {/* Titre + les deux filtres, dans le même en-tête. Ils y restent même en
           aperçu : savoir QUI on regarde et SUR QUELLE PÉRIODE fait partie de
           la lecture du classement, ce n'est pas un réglage avancé. */}
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+      <div className={`mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 ${desktopTall ? "xl:shrink-0" : ""}`}>
         <div className="min-w-0">
           <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>
             {t("stats.publicLeaderTitle")}
@@ -329,18 +336,21 @@ export default function Leaderboard({
       </div>
 
       {/* Liste */}
-      <div className={`[&::-webkit-scrollbar]:hidden ${desktopTall ? "xl:flex-1" : ""}`}
-        style={isCompact ? undefined : { maxHeight: "480px", overflowY: "auto", scrollbarWidth: "none" }}>
+      <div
+        className={`${desktopTall ? "xl:min-h-0 xl:flex-1 xl:overscroll-contain xl:overflow-y-auto xl:pr-1 xl:focus-visible:outline xl:focus-visible:outline-2 xl:focus-visible:outline-offset-2 xl:focus-visible:outline-[var(--bt-accent)]" : "[&::-webkit-scrollbar]:hidden"}`}
+        style={isCompact ? undefined : { maxHeight: "480px", overflowY: "auto", scrollbarWidth: desktopTall ? "thin" : "none" }}
+        tabIndex={desktopTall ? 0 : undefined}
+        aria-label={desktopTall ? t("stats.publicLeaderTitle") : undefined}>
         {loading ? (
           <div className="py-1"><SkeletonList rows={isCompact ? 3 : 6} avatar={32} lines={1} /></div>
         ) : (
           <ul className="space-y-1.5">
-            {visibleRows.map(({ row, rank: i0 }) => {
+            {visibleRows.map(({ row, rank: i0, desktopOnly = false }) => {
               const i = i0 - 1;
               const isMe = row.user_id === user?.id;
               return (
                 <li key={row.user_id}
-                  className="flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors"
+                  className={`${desktopOnly ? "hidden xl:flex" : "flex"} items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors`}
                   style={isMe ? { backgroundColor: "var(--bt-accent-bg)" } : { cursor: "pointer" }}
                   onClick={() => { if (!isMe) onViewUser(row.user_id); }}
                   onMouseEnter={e => { if (!isMe) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
@@ -371,7 +381,7 @@ export default function Leaderboard({
 
       {isCompact && rows.length > 3 && (
         <button onClick={() => setShowAll(true)}
-          className={`bt-stats-quiet-btn mt-3 w-full rounded-xl py-2 text-xs font-semibold ${desktopTall ? "xl:mt-auto" : ""}`}>
+          className={`bt-stats-quiet-btn mt-3 w-full rounded-xl py-2 text-xs font-semibold ${desktopTall ? "xl:hidden" : ""}`}>
           {t("stats.viewFullLeaderboard")}
         </button>
       )}
