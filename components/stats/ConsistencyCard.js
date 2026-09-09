@@ -1,5 +1,5 @@
 import StudyHeatmap from "../StudyHeatmap";
-import Flame from "../Flame";
+import StreakEmblem from "../StreakEmblem";
 import AnimatedNumber from "../AnimatedNumber";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
@@ -23,20 +23,35 @@ export default function ConsistencyCard({
   const activePct = periodDays > 0 ? Math.min(100, Math.round((activeDays / periodDays) * 100)) : 0;
 
   return (
-    <section className={`card p-4 sm:p-5 ${className}`}>
-      <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.consistencyTitle")}</h2>
+    // `overflow-visible` volontaire : l'emblème déborde la carte par la droite.
+    // Le `<main>` de Layout est en `overflow-x-clip`, donc aucun risque de
+    // barre de défilement horizontale sur téléphone.
+    <section className={`card relative overflow-visible p-4 sm:p-5 ${className}`}>
+      {/* Le moment visuel de la page. L'emblème est posé DERRIÈRE le texte et
+          déborde du coin : c'est ce débordement qui le sort de la grille de
+          cartes. Il ne capte pas les clics et reste hors de l'arbre
+          d'accessibilité — le chiffre juste à côté porte l'information. */}
+      <div className="pointer-events-none absolute -right-3 -top-5 select-none sm:-right-4"
+        aria-hidden="true">
+        <StreakEmblem days={streak} size={132} />
+      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold"
-          style={{ backgroundColor: "var(--bt-reward-bg)", border: "1px solid var(--bt-reward-border)", color: "var(--bt-reward-text)" }}>
-          <Flame size={14} style={{ color: "#F59E0B" }} />
-          <span className="font-num tabular-nums">
-            <AnimatedNumber value={streak} suffix={` ${t("stats.dayUnit")}`} />
-          </span>
-        </span>
-        <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
+      <h2 className="bt-section-title relative">{t("stats.consistencyTitle")}</h2>
+
+      {/* La série passe de la pastille de 13 px au rang de titre : c'est le
+          chiffre le plus chargé de sens de la page, il ne peut pas être son
+          plus petit élément. */}
+      <div className="relative mt-3">
+        <p className="font-num text-[2.6rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums"
+          style={{ color: "var(--bt-text-1)" }}>
+          <AnimatedNumber value={streak} />
+        </p>
+        <p className="mt-1 text-sm font-semibold" style={{ color: "var(--bt-text-2)" }}>
+          {streak === 1 ? t("stats.streakDayOne") : t("stats.streakDays")}
+        </p>
+        <p className="mt-0.5 text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
           {t("stats.streakRecord").replace("{n}", String(bestStreak)).replace("{unit}", t("stats.dayUnit"))}
-        </span>
+        </p>
       </div>
 
       <div className="mt-4">
