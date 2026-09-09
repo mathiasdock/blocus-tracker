@@ -101,7 +101,7 @@ html {
   --bt-nav-material:  rgba(255,253,251,0.72);
   --bt-nav-hairline:  rgba(255,255,255,0.55);
   --bt-nav-scrim-0:   rgba(244,241,234,0);
-  --bt-nav-scrim-1:   rgba(244,241,234,0.94);
+  --bt-nav-scrim-1:   rgba(244,241,234,0.52);
   --bt-text-1:        #1F1A17;
   --bt-text-2:        #7C746E;
   --bt-text-3:        #A8A09A;
@@ -158,7 +158,7 @@ html {
   --bt-nav-material:  rgba(31,27,24,0.76);
   --bt-nav-hairline:  rgba(255,255,255,0.08);
   --bt-nav-scrim-0:   rgba(18,16,14,0);
-  --bt-nav-scrim-1:   rgba(18,16,14,0.94);
+  --bt-nav-scrim-1:   rgba(18,16,14,0.56);
   --bt-text-1:        #F0EDE8;
   --bt-text-2:        #A8A09A;
   --bt-text-3:        #6B635D;
@@ -1821,9 +1821,9 @@ details.bt-acc[open]::details-content { block-size: auto; }
   bottom: calc(-1 * (env(safe-area-inset-bottom) + 4px));
   z-index: -1;
   pointer-events: none;
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  background: linear-gradient(to bottom, var(--bt-nav-scrim-0) 0%, var(--bt-nav-scrim-1) 62%);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  background: linear-gradient(to bottom, var(--bt-nav-scrim-0) 0%, var(--bt-nav-scrim-1) 78%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 26px);
   mask-image: linear-gradient(to bottom, transparent 0, #000 26px);
 }
