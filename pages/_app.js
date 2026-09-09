@@ -16,6 +16,7 @@ import { disablePush, initOneSignal, loginUser } from "../lib/onesignal";
 import ConsentManager from "../components/ConsentManager";
 import LegalUpdateNotice from "../components/LegalUpdateNotice";
 import { recordConsentChoice } from "../lib/privacySettings";
+import { autoSharePost } from "../lib/autoShare";
 import SeoHead from "../components/SeoHead";
 import PageTransition from "../components/PageTransition";
 import { initSensoryFeedback } from "../lib/sensoryFeedback";
@@ -94,6 +95,12 @@ async function loadCurrentStatus(userId) {
 
 function GlobalLevelUpWatcher() {
   const { user } = useAuth();
+  // Le partage automatique se greffe ICI et nulle part ailleurs pour le niveau
+  // et les paliers de série : ce veilleur sait déjà les détecter, et il porte
+  // surtout les REPÈRES qui empêchent de fêter (donc de publier) un palier
+  // déjà franchi au premier chargement. Refaire cette détection ailleurs, ce
+  // serait la refaire à moitié.
+  const { t } = useI18n();
   // Une seule célébration à l'écran à la fois ; les suivantes (ex. level-up ET
   // palier de série au même check) attendent dans la file.
   const [celebration, setCelebration] = useState(null);
@@ -187,6 +194,13 @@ function GlobalLevelUpWatcher() {
       if (currentLevel > previousLevelRef.current && currentLevel > storedLevel) {
         enqueueCelebration({ kind: "level", level: currentLevel, titleKey: current.titleKey });
         localStorage.setItem(storageKey, String(currentLevel));
+        autoSharePost(supabase, {
+          userId: user.id,
+          kind: "level_up",
+          caption: t("autoshare.level")
+            .replace("{level}", String(currentLevel))
+            .replace("{title}", current.titleKey ? t(current.titleKey) : ""),
+        });
       }
       previousLevelRef.current = Math.max(previousLevelRef.current, currentLevel);
 
@@ -194,6 +208,11 @@ function GlobalLevelUpWatcher() {
       if (reachedMilestone > (streakBaselineRef.current || 0) && reachedMilestone > storedStreak) {
         enqueueCelebration({ kind: "streak", days: reachedMilestone });
         localStorage.setItem(streakKey, String(reachedMilestone));
+        autoSharePost(supabase, {
+          userId: user.id,
+          kind: "streak",
+          caption: t("autoshare.streak").replace("{n}", String(reachedMilestone)),
+        });
       }
       streakBaselineRef.current = Math.max(streakBaselineRef.current || 0, reachedMilestone);
 
@@ -217,7 +236,7 @@ function GlobalLevelUpWatcher() {
         setTimeout(checkLevel, 0);
       }
     }
-  }, [user, enqueueCelebration]);
+  }, [user, enqueueCelebration, t]);
 
   const scheduleCheck = useCallback(() => {
     if (typeof window === "undefined") return;

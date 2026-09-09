@@ -17,6 +17,7 @@ import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { parseQuickObjective } from "../lib/planningQuickAdd";
 import { writeSessionGoal } from "../lib/sessionGoal";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { autoSharePost } from "../lib/autoShare";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 
 // ── Constants ─────────────────────────────────────────────────
@@ -1686,6 +1687,13 @@ export default function Planning() {
       notifyXPChanged();
       if (!o.done) {
         playSensoryCue("task");
+        // Au COCHAGE seulement. Le garde-fou d'un post par jour vit dans
+        // lib/autoShare : cocher dix objectifs d'affilée ne fait qu'un post.
+        autoSharePost(supabase, {
+          userId: user.id,
+          kind: "goal_completed",
+          caption: t("autoshare.goal").replace("{title}", data.title || ""),
+        });
         const nextDate = nextRecurrenceDate(o);
         if (nextDate) {
           const alreadyExists = objectives.some(x =>

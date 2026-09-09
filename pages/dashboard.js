@@ -9,6 +9,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { autoSharePost } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
@@ -516,6 +517,12 @@ export default function Dashboard() {
       if (data.done) {
         playSensoryCue("goal");
         triggerHaptic("goal");
+        // Au COCHAGE seulement : décocher n'est pas un évènement à annoncer.
+        autoSharePost(supabase, {
+          userId: user.id,
+          kind: "goal_completed",
+          caption: t("autoshare.goal").replace("{title}", data.title || ""),
+        });
       }
     }
   }
@@ -804,6 +811,21 @@ export default function Dashboard() {
     setTimeout(() => setSaveStatus("idle"), 2500);
 
     setCompletionToast(buildCompletionData({ seconds, goalPct: newGoalPct, xpGained, courseId, note }));
+
+    // Publie seulement APRÈS un enregistrement réussi : une session encore
+    // dans la file hors ligne n'existe pas côté serveur, l'annoncer serait
+    // annoncer quelque chose qui n'est pas là. Jamais la note personnelle —
+    // on la prend pour soi, pas pour la vitrine.
+    const sharedCourse = courses.find(c => c.id === courseId);
+    autoSharePost(supabase, {
+      userId: user.id,
+      kind: "session_completed",
+      caption: sharedCourse
+        ? t("autoshare.sessionCourse")
+            .replace("{duration}", formatMinutesShort(seconds))
+            .replace("{course}", sharedCourse.name)
+        : t("autoshare.session").replace("{duration}", formatMinutesShort(seconds)),
+    });
 
     // Refresh streak / goal counters in background
     load();

@@ -24,19 +24,21 @@ import EmptyState from "../components/EmptyState";
 import FeedPhoto from "../components/FeedPhoto";
 import { SkeletonRow, SkeletonBar } from "../components/Skeleton";
 import { playSensoryCue } from "../lib/sensoryFeedback";
+import {
+  AUTO_SHARE_EVENTS,
+  DEFAULT_AUTO_SHARE,
+  TEXT_ONLY_POST_IMAGE,
+  readAutoShare,
+  writeAutoShare,
+} from "../lib/autoShare";
 
 const DEFAULT_REACTION_EMOJI = "👍";
 const LEGACY_FALLBACK_EMOJI = "♥";
 const EMOJI_REACTION_OPTIONS = ["👍", "❤️", "😂", "🔥", "👏", "😮", "😢", "🤯", "💪", "✅"];
-const TEXT_ONLY_ACTIVITY_IMAGE = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-const AUTO_SHARE_STORAGE_KEY = "bt_social_auto_share_v1";
-const DEFAULT_AUTO_SHARE = {
-  session_completed: true,
-  goal_completed: true,
-  record: true,
-  level_up: true,
-  streak: true,
-};
+// La sentinelle et les préférences vivent dans lib/autoShare : un post publié
+// par l'app doit produire exactement la même donnée qu'un post écrit à la
+// main, et deux copies de la même constante finissent toujours par diverger.
+const TEXT_ONLY_ACTIVITY_IMAGE = TEXT_ONLY_POST_IMAGE;
 
 function isTextOnlyActivity(post) {
   return !post.image_url || post.image_url === TEXT_ONLY_ACTIVITY_IMAGE;
@@ -95,6 +97,17 @@ const IconAddReaction = () => (
     <path d="M18.4 2.6v4.8M21 5h-5.2"/>
   </Glyph>
 );
+
+// Un libellé par évènement RÉELLEMENT publiable (lib/autoShare). Construite
+// à partir de cette liste et pas d'un tableau écrit à la main : ajouter un
+// évènement là-bas sans l'afficher ici, ou l'inverse, deviendrait invisible.
+const AUTO_SHARE_LABEL_KEYS = {
+  session_completed: "feed.autoSession",
+  goal_completed: "feed.autoGoal",
+  level_up: "feed.autoLevel",
+  streak: "feed.autoStreak",
+};
+const AUTO_SHARE_LABELS = AUTO_SHARE_EVENTS.map((key) => [key, AUTO_SHARE_LABEL_KEYS[key]]);
 
 export default function Feed() {
   const { user, profile } = useAuth();
@@ -205,24 +218,13 @@ export default function Feed() {
     markSeen("feed");
   }, [load, markSeen]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const saved = window.localStorage.getItem(AUTO_SHARE_STORAGE_KEY);
-      if (saved) setAutoShare({ ...DEFAULT_AUTO_SHARE, ...JSON.parse(saved) });
-    } catch {
-      setAutoShare(DEFAULT_AUTO_SHARE);
-    }
-  }, []);
+  // Lecture et écriture passent par lib/autoShare : c'est le même module que
+  // celui qui publie, donc il ne peut pas y avoir de désaccord entre ce que
+  // l'écran affiche et ce que l'app fait.
+  useEffect(() => { setAutoShare(readAutoShare()); }, []);
 
-  function toggleAutoShare(key) {
-    setAutoShare((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(AUTO_SHARE_STORAGE_KEY, JSON.stringify(next));
-      }
-      return next;
-    });
+  function setAutoSharePref(patch) {
+    setAutoShare(writeAutoShare(patch));
   }
 
   async function createPost(e) {
@@ -508,25 +510,40 @@ export default function Feed() {
           </button>
           {showAutoSettings && (
             <div className="px-4 pb-4">
-              <p className="mb-3 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("feed.autoShareSubtitle")}</p>
+              <p className="mb-3 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("feed.autoShareHint")}</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  ["session_completed", t("feed.autoSession")],
-                  ["goal_completed", t("feed.autoGoal")],
-                  ["record", t("feed.autoRecord")],
-                  ["level_up", t("feed.autoLevel")],
-                  ["streak", t("feed.autoStreak")],
-                ].map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => toggleAutoShare(key)}
+                {AUTO_SHARE_LABELS.map(([key, labelKey]) => (
+                  <button key={key} type="button" onClick={() => setAutoSharePref({ [key]: !autoShare[key] })}
                     role="switch" aria-checked={!!autoShare[key]}
                     className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm"
                     style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)" }}>
-                    <span className="min-w-0 truncate">{label}</span>
+                    <span className="min-w-0 truncate">{t(labelKey)}</span>
                     <span className="h-5 w-9 shrink-0 rounded-full p-0.5 transition-colors"
                       style={{ backgroundColor: autoShare[key] ? "var(--bt-accent)" : "var(--bt-border)" }}>
                       <span className="block h-4 w-4 rounded-full bg-white transition-transform"
                         style={{ transform: autoShare[key] ? "translateX(16px)" : "translateX(0)" }} />
                     </span>
+                  </button>
+                ))}
+              </div>
+              {/* Un post automatique part sans qu'on le relise : à qui il va
+                  doit se décider ici, pas se subir. Par défaut, aux amis. */}
+              <div className="mt-3 flex items-center gap-2">
+                <span className="shrink-0 text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>
+                  {t("feed.autoShareVisibility")}
+                </span>
+                {[
+                  { val: "friends", label: t("feed.myFriends"), icon: <IconFriends /> },
+                  { val: "public", label: t("feed.everyone"), icon: <IconGlobe /> },
+                ].map(opt => (
+                  <button key={opt.val} type="button"
+                    onClick={() => setAutoSharePref({ visibility: opt.val })}
+                    aria-pressed={autoShare.visibility === opt.val}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold transition-all"
+                    style={autoShare.visibility === opt.val
+                      ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" }
+                      : { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)" }}>
+                    {opt.icon}{opt.label}
                   </button>
                 ))}
               </div>
@@ -602,13 +619,14 @@ export default function Feed() {
                       {/* Seul « amis uniquement » est signalé. « Public » est
                           l'état par défaut : l'annoncer sur chaque post ajoutait
                           une pastille colorée par carte pour zéro information. */}
+                      {/* Le point de séparation est DANS le même bloc que la
+                          mention : séparés, ils se coupaient en fin de ligne et
+                          laissaient un « · » orphelin pendu au bout. */}
                       {post.visibility === "friends" && (
-                        <>
+                        <span className="inline-flex items-center gap-1.5" style={{ color: "var(--bt-accent-text)" }}>
                           <span aria-hidden="true">·</span>
-                          <span className="inline-flex items-center gap-1" style={{ color: "var(--bt-accent-text)" }}>
-                            <IconFriends />{t("feed.friendsBadge")}
-                          </span>
-                        </>
+                          <IconFriends />{t("feed.friendsBadge")}
+                        </span>
                       )}
                     </p>
                   </div>
