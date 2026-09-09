@@ -722,13 +722,24 @@ function PushRow({ t, user }) {
 // qu'une couleur à elle : deux systèmes de couleur dans une fiche de 300 px,
 // c'est un de trop. « Commun » reste affiché — masquer le palier le plus bas
 // laisserait croire à un bug sur les deux tiers de la collection.
+const RARITY_LABEL_KEYS = {
+  discovery: "badge.rarityDiscovery",
+  common: "badge.rarityCommon",
+  rare: "badge.rarityRare",
+  epic: "badge.rarityEpic",
+  legendary: "badge.rarityLegendary",
+};
+
 function RarityChip({ id, t }) {
   const rarity = rarityOf(id);
   const hue = HUES[dominantHue(id)].mid;
-  const neutral = rarity === "common";
-  const label = rarity === "epic" ? t("badge.rarityEpic")
-    : rarity === "rare" ? t("badge.rarityRare")
-    : t("badge.rarityCommon");
+  // Seul le palier le plus bas reste en gris : à partir de « commun », la
+  // pastille prend la teinte de l'objet. C'est le premier signe, avant même
+  // le halo, qu'un badge pèse plus qu'un autre.
+  const neutral = rarity === "discovery";
+  const label = RARITY_LABEL_KEYS[rarity]
+    ? t(RARITY_LABEL_KEYS[rarity])
+    : t("badge.rarityDiscovery");
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
       style={{
@@ -1271,7 +1282,7 @@ export default function Profile() {
   const fallbackTotalXP = computeTotalXP({
     totalMinutes: profileTotalSecs / 60,
     completedObjectives: completedObjCount,
-    bestStreak: best, examCount, badgeCount: earnedBadgeIds.length,
+    bestStreak: best, examCount, badgeIds: earnedBadgeIds,
     bonusXP: profile?.bonus_xp || 0,
   });
   const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);

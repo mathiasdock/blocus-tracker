@@ -25,7 +25,10 @@ const LOCK_MIN_SIZE = 34;
 // Halo de rareté. Il est DERRIÈRE l'objet et ne le teinte pas : la rareté ne
 // doit pas modifier le dessin, sinon on retombe sur « difficile = plus
 // sombre », exactement ce qu'on vient d'enlever.
-const GLOW = { common: 0, rare: 0.22, epic: 0.42 };
+// Les deux paliers du bas n'ont AUCUN halo : si tout brille, plus rien ne
+// brille. Le halo commence à « rare » et se voit surtout par contraste avec
+// les badges voisins qui n'en ont pas.
+const GLOW = { discovery: 0, common: 0, rare: 0.22, epic: 0.42, legendary: 0.58 };
 
 function paintOf(part, uid) {
   const hue = HUES[part.c] || HUES.gold;
@@ -69,7 +72,7 @@ function Part({ p, uid }) {
 export default function BadgeIcon({ id, earned = false, size = 48, animate = false }) {
   const uid = useId().replace(/:/g, "");
   const parts = artFor(id);
-  const glow = earned ? GLOW[rarityOf(id)] : 0;
+  const glow = earned ? (GLOW[rarityOf(id)] ?? 0) : 0;
   const hue = HUES[dominantHue(id)].mid;
 
   // Un dégradé par teinte réellement utilisée en corps d'objet — pas un par

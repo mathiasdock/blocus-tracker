@@ -2,6 +2,61 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-09 - Recalibrage de l'economie d'XP (migration v48)
+
+Mesure d'abord, chiffres ensuite. Sur la base reelle, l'XP est a 78 % des
+minutes d'etude brutes ; badges 9 %, missions 5 %, parrainages 5 %, objectifs
+2 %, examens 1 %. Trois incoherences mesurees :
+
+PARRAINAGE. 300 XP par filleul, 600 les jours de mission — soit dix heures
+d'etude pour une invitation, alors que la carte annoncait 600 dans les deux
+cas. Deux comptes etaient niveau 4 et niveau 6 SANS avoir jamais etudie une
+minute. Mathias a tranche : le montant reste eleve (300, choix produit assume,
+faire venir des gens est la priorite) mais devient UNIQUE — plus de bonus
+invisible qui double la recompense selon un tirage.
+
+MISSIONS. Une journee parfaite valait jusqu'a 390 XP, soit 6 h 30 d'etude EN
+PLUS des heures reellement faites ; les missions de duree recomptaient des
+minutes deja creditees a 1 XP/min. Nouvelles regles : aucune mission au-dessus
+de 50 XP, journee parfaite plafonnee a 160 (min 85), duree la moins payee.
+
+BADGES. Les 22 valaient 50 XP, de « Premiere session » (94 % des comptes l'ont)
+a « 250 heures » (personne). Cinq paliers maintenant — 50 / 125 / 300 / 600 /
+1200 — indexes sur l'EFFORT et non sur la rarete observee : rejoindre un groupe
+ne concerne que 6 % des comptes mais prend trente secondes. Chaque famille
+double a chaque marche (10 h -> 125, 50 h -> 300, 100 h -> 600, 250 h -> 1200).
+Au passage, deux raretes affichees etaient fausses : marathon_day etait « rare »
+avec 50 % de detenteurs, team_spirit « commun » avec 6 %.
+
+ASYMETRIE QUI DECIDE DE TOUT. Missions (xp_ledger) et parrainages
+(profiles.bonus_xp) sont ENREGISTRES avec leur montant fige : les baisser
+n'affecte que l'avenir. Les badges sont RECALCULES a chaque affichage : baisser
+un badge reprendrait de l'XP deja acquis. D'ou le plancher a 50 sur les badges.
+Verifie sur les 132 comptes actifs AVANT et APRES application : 31 montent d'un
+niveau, 0 en perdent, pire variation d'XP = 0.
+
+NIVEAUX 21 A 30. Les vingt premiers seuils sont identiques (personne ne bouge),
+dix paliers s'ajoutent, l'ecart continuant de grandir de 100 XP par marche comme
+sur toute la courbe. Sommet a 45 000 XP. Le meilleur compte est a 17 605 XP
+(niveau 18) apres rebaremage, donc le nouveau sommet reste lointain. Dix titres
+FR + EN ; « Inarretable » renomme en « Imperturbable » car le badge streak_14
+portait deja ce nom.
+
+NON FAIT, VOLONTAIREMENT. (a) Garde-fou « un objectif ne compte que si on a
+etudie ce jour-la » : 24 objectifs concernes sur 280, mais il faudrait une
+correspondance de date au fuseau de l'utilisateur cote serveur ET cote client
+(sinon le profil et le classement afficheraient deux XP differents), au prix de
+requetes supplementaires que le garde-fou d'egress ne justifie pas pour 480 XP.
+(b) Plafond sur les examens : le maximum observe est exactement 15, et les
+examens s'accumulent legitimement sur plusieurs annees — un plafond punirait de
+vrais comptes pour bloquer un abus que personne ne pratique et qui pollue le
+planning du tricheur.
+
+Tables client et serveur comparees une a une apres application : badges et
+missions identiques des deux cotes. Verifie a l'ecran (build hors-ligne) :
+Decouverte +50, Commun +125, Rare +300, Legendaire +1200 sur les fiches, et les
+missions du jour affichent bien +25 / +40 / +30 / +300.
+
 ## 2026-09-07 - Minimisation : agregats, nom facultatif, champs promo supprimes
 
 Troisieme passe. Migrations v46 et v47 ecrites ET appliquees.
