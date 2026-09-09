@@ -2,6 +2,78 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-09 - Missions v2 : 3 quotidiennes + 1 Defi personnalise + hebdomadaires (v49)
+
+Mesure d'abord. La famille « Planning » etait assignee 356 fois pour 11
+reussites (m_obj1 3 %, m_obj2 1 %, m_newobj 5 %) et la mission de parrainage
+133 fois pour 0 reussite : deux creneaux sur quatre, tous les jours, pour tout
+le monde, ou il ne se passait rien. Le reste demandait la meme chose sous
+quatre emballages — etudier plus.
+
+RETIREES DU TIRAGE (choix de Mathias) : m_s25 (doublon de m_25m), m_obj1,
+m_obj2, m_newobj (fonctionnalite trop peu utilisee pour meriter un creneau
+quotidien), m_note (poussait a ecrire une note pour l'XP), m_referral
+(parrainer n'est pas un geste quotidien ; la recompense de 300 XP reste, versee
+par apply_referral). Leur bareme et leur branche d'evaluation sont CONSERVES :
+les lignes deja attribuees continuent de se valider, l'XP verse n'est pas
+touche. Les assignations du jour restent telles quelles, le nouveau systeme
+prend effet au prochain jour local de chaque compte.
+
+NOUVELLES : m_two_focused (2 sessions de 25 min), m_3courses, m_least_studied
+(cours le moins travaille des 7 jours, gele a l'attribution), m_exam_next,
+m_exam_week. m_2courses et m_3courses exigent desormais 15 min PAR COURS :
+deux minutes sur un second cours suffisaient, ce qui recompensait le clic.
+
+DEFI DU JOUR. Quatrieme creneau, choisi par SCORE d'a-propos, pas au hasard :
+examen proche (100 - jours x 8), serie a proteger (45 + serie x 4), cours
+neglige (40 + jours x 2), retour apres coupure (55 + absence), battre hier
+(50), battre sa moyenne des jours actifs (48), premier bloc (30). Penalite de
+12 si le meme defi est tombe la veille, sauf examen a 3 jours ou moins — la,
+insister est le bon comportement. Les parametres (cours, cible, minutes d'hier)
+sont GELES dans daily_mission_assignments.params : recalcules a l'affichage,
+ils changeraient de valeur en cours de journee.
+
+ANTI-REDONDANCE. Le defi est choisi en premier et reserve son axe ; les trois
+autres piochent ailleurs. Quand le defi porte sur le volume, le creneau volume
+laisse sa place a un second tirage contextuel. Sans cette regle : « 1 h
+d'etude / session de 50 min / protege ta serie / travaille ton examen » —
+une seule session cochait les quatre lignes.
+
+HEBDOMADAIRES (nouvelle table weekly_mission_assignments). w_hours 150,
+w_days 120, w_courses 90. Cibles derivees de la MEDIANE des quatre semaines
+precedentes majoree de 15 % (mediane et non moyenne : une semaine de blocus
+exceptionnelle ne doit pas fixer la barre des six suivantes), bornees
+[2 h, 20 h] / [2, 6] jours / [2, 4] cours. Sans historique : 3 h et 3 jours.
+w_courses sautee sous deux cours. Progression renvoyee en direct — pastilles
+pour les comptes, barre pour le temps.
+
+BAREME. Journee parfaite = 175 XP (45 + 40 + 40 + 50), soit un peu moins que
+les ~180 XP d'etude qu'il faut produire pour la reussir. C'est la regle qui
+empeche de farmer.
+
+MASCOTTE. Aucune presence permanente dans la carte. Trois evenements seulement :
+journee bouclee (4/4), defi de semaine remporte, et dernier quart avant de le
+remporter. Cle hebdomadaire datee, sinon « once » la taisait pour toujours.
+
+DEUX BUGS ATTRAPES EN VERIFIANT SUR LA VRAIE BASE, avant de brancher le client.
+(a) Les dix comptes les plus actifs recevaient tous « cours neglige », avec des
+ecarts de 92 a 108 jours : ces comptes ne negligent aucun cours, ils sont
+absents depuis la fin de l'annee scolaire. Fenetre bornee a 7-21 jours,
+reservee aux comptes actifs, score plafonne a 68 au lieu de 85. Resultat :
+cinq defis differents sur douze comptes. (b) `v_context_pool || 'm_2courses'`
+plantait — face a un text[] Postgres lit le litteral comme un TABLEAU. Sans ce
+test, plus aucune mission n'aurait ete distribuee.
+
+NETTOYAGE. 8 libelles i18n sans mission derriere supprimes (m_4h, m_6h,
+m_obj3, m_after20, m_photo, m_friend_sent, m_friend_accept, communityBonus) —
+verifie en base qu'aucun n'a jamais ete assigne. Et deux requetes Supabase par
+ouverture du profil retirees : elles n'alimentaient plus que des missions
+supprimees.
+
+Verifie a l'ecran en francais et en anglais : le defi affiche « Hier : 45 min.
+Fais mieux aujourd'hui », la barre hebdomadaire mesure 96,67 % pour 7h44 / 8h,
+les pastilles montrent 5/5 et 2/3, et aucune accolade {param} ne subsiste.
+
 ## 2026-09-09 - Recalibrage de l'economie d'XP (migration v48)
 
 Mesure d'abord, chiffres ensuite. Sur la base reelle, l'XP est a 78 % des

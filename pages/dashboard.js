@@ -595,18 +595,26 @@ export default function Dashboard() {
 
   // Repli local pour les missions du dashboard : sert uniquement quand le RPC
   // serveur n'est pas joignable (mode hors-ligne, migration pas encore passée).
-  const missionStats = useMemo(() => ({
-    todaySecs: sessions.reduce((a, s) => a + Number(s.duration_seconds || 0), 0),
-    todayMaxSessionSecs: sessions.length ? Math.max(...sessions.map(s => Number(s.duration_seconds || 0))) : 0,
-    todaySessionCount: sessions.length,
-    todayCoursesCount: new Set(sessions.map(s => s.course_id).filter(Boolean)).size,
-    todayDoneObj: todayObjectives.filter(o => o.done).length,
-    tomorrowObjCount: 0,
-    streak,
-    studiedBeforeNoon: sessions.some(s => new Date(s.started_at).getHours() < 12),
-    hasStudyNote: sessions.some(s => Boolean((s.note || "").trim())),
-    referredToday: false,
-  }), [sessions, todayObjectives, streak]);
+  const missionStats = useMemo(() => {
+    // Minutes par cours, pas simple présence : deux minutes sur un second
+    // cours validaient « étudie 2 cours différents », ce qui récompensait le
+    // clic plutôt que le travail.
+    const minutesOnCourse = {};
+    for (const s of sessions) {
+      if (!s.course_id) continue;
+      minutesOnCourse[s.course_id] = (minutesOnCourse[s.course_id] || 0) + Number(s.duration_seconds || 0) / 60;
+    }
+    return {
+      todaySecs: sessions.reduce((a, s) => a + Number(s.duration_seconds || 0), 0),
+      todayMaxSessionSecs: sessions.length ? Math.max(...sessions.map(s => Number(s.duration_seconds || 0))) : 0,
+      todaySessionCount: sessions.length,
+      todayFocusedCount: sessions.filter(s => Number(s.duration_seconds || 0) >= 1500).length,
+      todayCoursesCount: Object.values(minutesOnCourse).filter(m => m >= 15).length,
+      minutesOnCourse,
+      streak,
+      studiedBeforeNoon: sessions.some(s => new Date(s.started_at).getHours() < 12),
+    };
+  }, [sessions, streak]);
 
   const isPaused = !running && elapsed > 0;
   const [pausedAt, setPausedAt] = useState(null);

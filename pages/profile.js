@@ -16,7 +16,8 @@ import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
-import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
+import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions, fallbackWeeklyMissions } from "../lib/xp";
+import { missionText, weeklyText, weeklyProgressLabel, weeklyRatio } from "../lib/missionText";
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
 import Glyph from "../components/Glyph";
@@ -360,7 +361,101 @@ function StatTile({ label, value, sub }) {
 }
 
 // ── Progression (XP) — surface ink signature ─────────────────
-function XPCard({ levelInfo, missions, streak, moment, t }) {
+// Une ligne de mission : la même pastille que les cases à cocher de l'app, un
+// libellé, un montant. Rien de plus — c'est une liste, pas un tableau de bord.
+function MissionLine({ label, xp, done }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span className={done ? "bt-check-pop" : ""} style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: done ? "#14B885" : "rgba(255,255,255,0.14)" }}>
+        {done ? (
+          <Glyph size={10} strokeWidth={3.5} style={{ color: "white" }}><polyline points="20 6 9 17 4 12" /></Glyph>
+        ) : (
+          <span style={{ width: 6, height: 6, borderRadius: "50%", display: "block", backgroundColor: "rgba(255,255,255,0.30)" }} />
+        )}
+      </span>
+      <span style={{ fontSize: 13, flex: 1, color: done ? "var(--bt-ink-text)" : "var(--bt-ink-muted)", textDecoration: done ? "line-through" : "none" }}>
+        {label}
+      </span>
+      <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "#22E4A4" }}>+{xp} XP</span>
+    </div>
+  );
+}
+
+// Le Défi du jour.
+//
+// Il ne ressemble PAS aux trois autres, et c'est tout l'intérêt : une ligne de
+// plus dans la même liste se serait lue comme une quatrième corvée. Ici c'est
+// un bloc, avec un titre qui annonce la situation (« Examen dans 6 jours ») et
+// une seconde ligne qui porte la donnée personnelle (« Hier : 1 h 42 »).
+// Cette seconde ligne est ce qui sépare un défi d'une consigne.
+function ChallengeBlock({ challenge, t }) {
+  const { title, body } = missionText(t, challenge);
+  const done = Boolean(challenge.done);
+  return (
+    <div style={{
+      marginBottom: 16, padding: "13px 15px", borderRadius: 16,
+      backgroundColor: done ? "rgba(34,228,164,0.16)" : "rgba(34,228,164,0.09)",
+      boxShadow: `inset 0 0 0 1px rgba(34,228,164,${done ? 0.42 : 0.26})`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 7 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#22E4A4" }}>
+          <Glyph size={12} strokeWidth={2.4}><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8z" /></Glyph>
+          {t("xp.challengeLabel")}
+        </span>
+        <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 700, flexShrink: 0, color: "#22E4A4" }}>+{challenge.xp} XP</span>
+      </div>
+      <p className="font-display" style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.01em", color: "var(--bt-ink-text)", textDecoration: done ? "line-through" : "none" }}>
+        {title}
+      </p>
+      {body && (
+        <p style={{ fontSize: 12.5, lineHeight: 1.4, color: "var(--bt-ink-muted)", marginTop: 4 }}>{body}</p>
+      )}
+    </div>
+  );
+}
+
+// Une mission de la semaine.
+//
+// La progression est la raison d'être de ces missions : sept jours d'effort
+// qui n'afficheraient que « fait / pas fait » ne donneraient aucune raison de
+// revenir mercredi. Les comptes courts (jours, cours) prennent des points —
+// on les lit d'un coup d'œil, sans compter. Le temps prend une barre : « 6h24
+// sur 8h » ne se dessine pas en cinq pastilles.
+function WeeklyLine({ row, t }) {
+  const ratio = weeklyRatio(row);
+  const dotted = row.id === "w_days" || row.id === "w_courses";
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+        <span style={{ fontSize: 13, color: row.done ? "var(--bt-ink-text)" : "var(--bt-ink-muted)" }}>
+          {weeklyText(t, row)}
+        </span>
+        <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "#22E4A4" }}>+{row.xp} XP</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {dotted ? (
+          <span style={{ display: "flex", gap: 5, flex: 1 }} aria-hidden="true">
+            {Array.from({ length: row.target }, (_, i) => (
+              <span key={i} style={{
+                width: 9, height: 9, borderRadius: "50%",
+                backgroundColor: i < row.progress ? "#22E4A4" : "rgba(255,255,255,0.16)",
+              }} />
+            ))}
+          </span>
+        ) : (
+          <span style={{ flex: 1, height: 7, borderRadius: 99, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" }} aria-hidden="true">
+            <span style={{ display: "block", height: "100%", borderRadius: 99, width: `${ratio * 100}%`, background: "linear-gradient(90deg, #0EA571, #22E4A4)", transition: "width 0.3s ease-out" }} />
+          </span>
+        )}
+        <span className="font-num tabular-nums" style={{ fontSize: 11, flexShrink: 0, color: row.done ? "#22E4A4" : "var(--bt-ink-muted)" }}>
+          {weeklyProgressLabel(t, row)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function XPCard({ levelInfo, missions, challenge, weekly, streak, moment, t }) {
   const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
   return (
     <div id="xp-card" className="card-ink bt-grain">
@@ -406,29 +501,31 @@ function XPCard({ levelInfo, missions, streak, moment, t }) {
           />
         )}
 
-        {/* Daily missions */}
+        {challenge && <ChallengeBlock challenge={challenge} t={t} />}
+
+        {/* Missions du jour */}
         <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14 }}>
           <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 10 }}>
             {t("xp.missions")}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {missions.map((m, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span className={m.done ? "bt-check-pop" : ""} style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: m.done ? "#14B885" : "rgba(255,255,255,0.14)" }}>
-                  {m.done ? (
-                    <Glyph size={10} strokeWidth={3.5} style={{ color: "white" }}><polyline points="20 6 9 17 4 12" /></Glyph>
-                  ) : (
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", display: "block", backgroundColor: "rgba(255,255,255,0.30)" }} />
-                  )}
-                </span>
-                <span style={{ fontSize: 13, flex: 1, color: m.done ? "var(--bt-ink-text)" : "var(--bt-ink-muted)", textDecoration: m.done ? "line-through" : "none" }}>
-                  {t(m.key)}
-                </span>
-                <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "#22E4A4" }}>+{m.xp} XP</span>
-              </div>
+              <MissionLine key={m.id || i} label={missionText(t, m).title} xp={m.xp} done={m.done} />
             ))}
           </div>
         </div>
+
+        {/* Missions de la semaine */}
+        {weekly.length > 0 && (
+          <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14, marginTop: 14 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 12 }}>
+              {t("xp.weeklyTitle")}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {weekly.map((w, i) => <WeeklyLine key={w.id || i} row={w} t={t} />)}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -918,9 +1015,6 @@ export default function Profile() {
   const [showPwa, setShowPwa] = useState(false);
   const [examCount, setExamCount] = useState(0);
   const [completedObjCount, setCompletedObjCount] = useState(0);
-  const [todayDoneObj, setTodayDoneObj] = useState(0);
-  const [tomorrowObjCount, setTomorrowObjCount] = useState(0);
-  const [referredToday, setReferredToday] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState(null);
   // Feuille de détail ouverte : "activity" | "referral" | "prefs" | "account"
   // | "privacy". Une seule à la fois — deux surfaces modales empilées, c'est
@@ -928,6 +1022,8 @@ export default function Profile() {
   const [sheet, setSheet] = useState(null);
   const [newBadgeId, setNewBadgeId] = useState(null);
   const [serverMissions, setServerMissions] = useState(null);
+  const [serverWeekly, setServerWeekly] = useState(null);
+  const [courseCount, setCourseCount] = useState(0);
   const [canonicalLevelInfo, setCanonicalLevelInfo] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -987,15 +1083,11 @@ export default function Profile() {
     if (!user) return;
     async function loadBadges() {
       const today = todayISO();
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().slice(0, 10);
-
       const [
         sessionsRes, examRes, objRes, friendRes, activityTotalsRes, existingRes,
-        doneObjRes, todayDoneRes, groupRes,
-        commMsgRes, tomorrowObjRes, referralStatsRes, syncedBadgesRes,
-        missionsRes,
+        doneObjRes, groupRes,
+        commMsgRes, referralStatsRes, syncedBadgesRes,
+        missionsRes, weeklyRes, courseRes,
       ] = await Promise.all([
         supabase.from("sessions").select("started_at, duration_seconds, course_id, note").eq("user_id", user.id),
         supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", user.id),
@@ -1011,13 +1103,13 @@ export default function Profile() {
           .maybeSingle(),
         supabase.from("user_badges").select("badge_id").eq("user_id", user.id),
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("done", true),
-        supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("done", true).eq("scheduled_date", today),
         supabase.from("group_members").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("community_messages").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("scheduled_date", tomorrowStr),
         supabase.rpc("get_my_referral_stats"),
         supabase.rpc("sync_my_badges"),
         supabase.rpc("get_my_daily_missions"),
+        supabase.rpc("get_my_weekly_missions"),
+        supabase.from("courses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
 
       const sessions = sessionsRes.data || [];
@@ -1076,16 +1168,27 @@ export default function Profile() {
           key: m.label_key,
           xp: Number(m.xp || 0),
           done: Boolean(m.done),
+          // `kind` sépare le défi des trois autres, `params` porte le nom du
+          // cours et la cible gelés à l'attribution : sans eux, le défi ne
+          // pourrait pas s'écrire autrement qu'en consigne générique.
+          kind: m.kind || "daily",
+          params: m.params || {},
         })));
       }
+      if (Array.isArray(weeklyRes?.data)) {
+        setServerWeekly(weeklyRes.data.map(w => ({
+          id: w.mission_id,
+          key: w.label_key,
+          target: Number(w.target || 0),
+          progress: Number(w.progress || 0),
+          xp: Number(w.xp || 0),
+          done: Boolean(w.done),
+        })));
+      }
+      setCourseCount(courseRes?.count || 0);
       setSessionCount(sessions.length);
       setExamCount(examRes.count || 0);
       setCompletedObjCount(completedObj);
-      setTodayDoneObj(todayDoneRes.count || 0);
-      setTomorrowObjCount(tomorrowObjRes.count || 0);
-
-      const refList = referralStatsRes.data?.ok ? (referralStatsRes.data.list || []) : [];
-      setReferredToday(refList.some(r => (r.created_at || "").slice(0, 10) === today));
 
       clearUserLevelCache();
       const levelMap = await loadUserLevelMap(supabase, [user.id], {
@@ -1274,10 +1377,16 @@ export default function Profile() {
   const todaySecs = todaySessions.reduce((a, s) => a + s.duration_seconds, 0);
   const todayMaxSessionSecs = todaySessions.length ? Math.max(...todaySessions.map(s => s.duration_seconds)) : 0;
   const studiedBeforeNoon = todaySessions.some(s => new Date(s.started_at).getHours() < 12);
-  const todayCoursesSet = new Set(todaySessions.map(s => s.course_id).filter(Boolean));
-  const todayCoursesCount = todayCoursesSet.size;
+  // Minutes par cours, pas simple présence : deux minutes sur un second cours
+  // validaient « étudie 2 cours différents », ce qui récompensait le clic.
+  const minutesOnCourse = {};
+  for (const s of todaySessions) {
+    if (!s.course_id) continue;
+    minutesOnCourse[s.course_id] = (minutesOnCourse[s.course_id] || 0) + s.duration_seconds / 60;
+  }
+  const todayCoursesCount = Object.values(minutesOnCourse).filter(m => m >= 15).length;
+  const todayFocusedCount = todaySessions.filter(s => s.duration_seconds >= 1500).length;
   const todaySessionCount = todaySessions.length;
-  const hasStudyNote = todaySessions.some(s => Boolean((s.note || "").trim()));
 
   const fallbackTotalXP = computeTotalXP({
     totalMinutes: profileTotalSecs / 60,
@@ -1297,14 +1406,44 @@ export default function Profile() {
         ? { key: "streak-safe", mood: "proud", frequency: "daily", message: t("mascot.streakSafe") }
         : null;
 
-  const missionDefs = getDailyMissionDefs(todayStr, user?.id);
+  // Contexte du repli hors-ligne : ce que la page a déjà en mémoire suffit
+  // pour quatre des sept défis. Les deux qui demandent le nom d'un cours
+  // restent au serveur — voir lib/xp.js.
+  const dayMinutes = {};
+  for (const s of profileSessions) {
+    const day = (s.started_at || "").slice(0, 10);
+    if (day) dayMinutes[day] = (dayMinutes[day] || 0) + s.duration_seconds / 60;
+  }
+  const dayKey = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() - offset);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const last7 = Array.from({ length: 7 }, (_, i) => dayMinutes[dayKey(i + 1)] || 0).filter(m => m > 0);
+  const activeDayList = Object.keys(dayMinutes).filter(d => dayMinutes[d] > 0).sort();
+  const lastActive = activeDayList[activeDayList.length - 1];
+  const challengeCtx = {
+    streak,
+    yesterdayMin: Math.round(dayMinutes[dayKey(1)] || 0),
+    avgMin: last7.length ? Math.round(last7.reduce((a, b) => a + b, 0) / last7.length) : 0,
+    active7: last7.length,
+    daysSinceLast: lastActive
+      ? Math.round((new Date(dayKey(0)) - new Date(lastActive)) / 86400000)
+      : null,
+    totalSessions: profileSessions.length,
+    courseCount,
+  };
+
+  const missionDefs = getDailyMissionDefs(todayStr, user?.id, challengeCtx);
   const fallbackMissions = evaluateMissions(missionDefs, {
-    todaySecs, todayMaxSessionSecs, todayDoneObj, streak,
-    studiedBeforeNoon, tomorrowObjCount, todayCoursesCount,
-    todaySessionCount, hasStudyNote,
-    referredToday,
+    todaySecs, todayMaxSessionSecs, todayCoursesCount, todaySessionCount,
+    todayFocusedCount, studiedBeforeNoon, minutesOnCourse,
   });
-  const missions = serverMissions || fallbackMissions;
+  const allMissions = serverMissions || fallbackMissions;
+  const missions = allMissions.filter(m => m.kind !== "challenge");
+  const challenge = allMissions.find(m => m.kind === "challenge") || null;
+  const weekly = serverWeekly || fallbackWeeklyMissions(profileSessions, courseCount);
 
   // Classement : #N parmi les actifs de la semaine (RPC leaderboard).
   const rankValue = myRank
@@ -1450,6 +1589,8 @@ export default function Profile() {
             <XPCard
               levelInfo={levelInfo}
               missions={missions}
+              challenge={challenge}
+              weekly={weekly}
               streak={streak}
               moment={profileMoment}
               t={t}
