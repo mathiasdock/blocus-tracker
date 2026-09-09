@@ -181,7 +181,7 @@ function RollChar({ ch }) {
 
 // Chiffres du chrono — heures:minutes en héros, secondes dé-emphasées
 // (plus petites, atténuées) : la lecture premium façon minuteur Apple.
-function TimerDigits({ seconds, color, size = "clamp(4.5rem, 21vw, 7rem)" }) {
+function TimerDigits({ seconds, color, size = "clamp(4.9rem, 23vw, 7.5rem)" }) {
   const [hh, mm, ss] = formatDuration(seconds).split(":");
   const showHours = hh !== "00";
   const main = showHours ? `${hh}:${mm}` : mm;
@@ -1315,7 +1315,7 @@ export default function Dashboard() {
           </div>
 
           {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
-          <div className="px-4 pb-1 pt-5 text-center sm:px-6 sm:pt-8">
+          <div className="px-4 pb-3 pt-8 text-center sm:px-6 sm:pt-10">
             {pomodoro && (
               <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]"
                 style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "#075E80" }}>
@@ -1357,7 +1357,7 @@ export default function Dashboard() {
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
                 accomplissement. Pendant le travail normal, la ligne reste
                 textuelle pour ne pas distraire. */}
-            <div className={`${showGuestIntro ? "h-2 mt-2" : "min-h-[58px] mt-2"} flex items-center justify-center`}>
+            <div className={`${showGuestIntro ? "h-2 mt-2" : (timerCoach || liveMessage) ? "min-h-[58px] mt-4" : "mt-0"} flex items-center justify-center`}>
               {timerCoach && !focusMode && !showGuestIntro ? (
                 <MascotCoach
                   id={timerCoach.id}

@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // Contrôle de filtre compact : un bouton qui affiche la valeur courante, et
 // un menu qui ne s'ouvre qu'à la demande.
@@ -21,10 +22,19 @@ export default function FilterMenu({
   className = "",
 }) {
   const [open, setOpen] = useState(false);
+  // Le menu est rendu dans un PORTAIL, pas dans le flux du bouton : la carte
+  // du Chrono est en `overflow-hidden` (son dégradé en dépend), ce qui
+  // rognait la liste — on ne voyait que les deux premières durées. Un menu
+  // ancré en absolu est à la merci du premier parent qui coupe ; en portail,
+  // aucun ancêtre ne peut plus le tronquer.
+  const [coords, setCoords] = useState(null);
+  const [mounted, setMounted] = useState(false);
   const wrapRef = useRef(null);
   const btnRef = useRef(null);
   const menuRef = useRef(null);
   const menuId = useId();
+
+  useEffect(() => { setMounted(true); }, []);
 
   const current = options.find((o) => o.value === value) || options[0];
 
@@ -34,35 +44,50 @@ export default function FilterMenu({
       if (e.key === "Escape") { setOpen(false); btnRef.current?.focus(); }
     };
     const onPointer = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+      const inTrigger = wrapRef.current && wrapRef.current.contains(e.target);
+      const inMenu = menuRef.current && menuRef.current.contains(e.target);
+      if (!inTrigger && !inMenu) setOpen(false);
     };
+    // Le menu est positionné en coordonnées d'écran : il ne suit pas le
+    // défilement. On le referme plutôt que de le laisser flotter au mauvais
+    // endroit — c'est le comportement attendu d'un menu natif.
+    const onScroll = () => setOpen(false);
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("touchstart", onPointer);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("touchstart", onPointer);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
   }, [open]);
 
-  // Recadrage dans la fenêtre. Le menu s'aligne sur un bord du bouton, mais un
-  // bouton près du bord de l'écran projetait le menu en dehors : sur un
-  // téléphone, le premier filtre d'une rangée voyait sa colonne de coches
-  // coupée. On mesure la position réelle et on décale d'autant — écrit
-  // directement sur le nœud plutôt qu'en state, sinon le re-rendu remesurerait
-  // la position DÉJÀ décalée et le menu oscillerait.
+  // Placement en coordonnées d'écran, calculé à l'ouverture. Le menu s'aligne
+  // sur un bord du bouton puis est ramené dans la fenêtre : près d'un bord, il
+  // sortait de l'écran, et près du bas il passait sous la barre de navigation.
   useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const b = btnRef.current.getBoundingClientRect();
     const el = menuRef.current;
-    if (!open || !el) return;
-    el.style.transform = "none";
-    const r = el.getBoundingClientRect();
     const margin = 8;
-    let dx = 0;
-    if (r.left < margin) dx = margin - r.left;
-    else if (r.right > window.innerWidth - margin) dx = window.innerWidth - margin - r.right;
-    el.style.transform = dx ? `translateX(${dx}px)` : "none";
-  }, [open]);
+    const w = el ? el.offsetWidth : 160;
+    const h = el ? el.offsetHeight : 0;
+
+    let left = align === "right" ? b.right - w : b.left;
+    left = Math.min(Math.max(margin, left), window.innerWidth - w - margin);
+
+    // Sous le bouton par défaut ; au-dessus s'il n'y a pas la place.
+    let top = b.bottom + 6;
+    if (h && top + h > window.innerHeight - margin) {
+      const above = b.top - h - 6;
+      top = above >= margin ? above : Math.max(margin, window.innerHeight - h - margin);
+    }
+    setCoords({ top, left });
+  }, [open, align, options.length]);
 
   function pick(v) {
     onChange(v);
@@ -90,17 +115,24 @@ export default function FilterMenu({
         </svg>
       </button>
 
-      {open && (
+      {open && mounted && createPortal(
         <div
           ref={menuRef}
           id={menuId}
           role="listbox"
           aria-label={ariaLabel}
-          className={`absolute top-full z-30 mt-1 min-w-[9.5rem] overflow-hidden rounded-xl p-1 ${align === "right" ? "right-0" : "left-0"}`}
+          className="min-w-[9.5rem] overflow-hidden rounded-xl p-1"
           style={{
+            position: "fixed",
+            top: coords ? coords.top : -9999,
+            left: coords ? coords.left : -9999,
+            zIndex: 60,
+            visibility: coords ? "visible" : "hidden",
+            maxHeight: "min(60vh, 24rem)",
+            overflowY: "auto",
             backgroundColor: "var(--bt-surface)",
             border: "1px solid var(--bt-border)",
-            boxShadow: "0 12px 32px var(--bt-shadow)",
+            boxShadow: "var(--bt-elev-3)",
           }}
         >
           {options.map((o) => {
@@ -127,7 +159,8 @@ export default function FilterMenu({
               </button>
             );
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
