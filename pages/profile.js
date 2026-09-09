@@ -19,6 +19,7 @@ import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
+import { HUES, dominantHue, rarityOf, rgba } from "../lib/badgeArt";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal, collectPushDiagnostics } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
@@ -104,10 +105,10 @@ const YEARS = [
 // une même colonne, les icônes se lisaient comme des polices dépareillées.
 // Le dessin reste volontairement simple : à 18 px dans une pastille de 34,
 // tout détail sous 2 px se referme et fait une tache.
-function Glyph({ size = 18, style, children }) {
+function Glyph({ size = 22, style, children }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>
       {children}
     </svg>
   );
@@ -163,32 +164,39 @@ function SectionLabel({ children }) {
   return <p className="text-[13px] font-semibold leading-tight" style={{ color: "var(--bt-text-2)" }}>{children}</p>;
 }
 
-// Pastille d'icône. Le contour de la même famille que la teinte est ce qui
-// fait tenir le glyphe comme un objet posé sur la carte, plutôt que comme un
-// dessin qui flotte ; et la teinte donne à chaque rubrique un repère qu'on
-// attrape avant même d'avoir lu le libellé. Cinq familles fermées, pas une
-// couleur par rangée : la couleur CLASSE, elle ne décore pas.
-function IconBox({ fam = "util", danger, size = 34, children }) {
-  const bg   = danger ? "var(--bt-danger-bg)"     : `var(--bt-fam-${fam}-soft)`;
-  const fg   = danger ? "var(--bt-danger)"        : `var(--bt-fam-${fam}-ink)`;
-  const ring = danger ? "var(--bt-danger-border)" : `var(--bt-fam-${fam}-ring)`;
+// Icône de rangée. Elle est POSÉE dans la ligne, sans pastille ni fond : une
+// tuile pastel derrière chaque réglage donnait à la page l'air d'un tableau
+// de bord générique, et surtout mettait douze rubriques au même niveau de
+// cri — quand tout est signalé, plus rien ne l'est.
+//
+// L'icône seule porte le sens ; c'est le libellé qui la nomme. Trois tons,
+// pas douze couleurs :
+//   neutral — la règle. Encre foncée, contraste franc.
+//   accent  — le vert de marque, réservé à ce qui appartient au produit
+//             lui-même (les données d'étude). Un seul par écran.
+//   danger  — sortie et suppression, les deux gestes dont on ne revient pas
+//             tout seul.
+const ROW_ICON_COLOR = {
+  neutral: "var(--bt-text-1)",
+  accent: "var(--bt-accent-dark)",
+  danger: "var(--bt-danger)",
+};
+
+function RowIcon({ tone = "neutral", children }) {
   return (
-    <span className="flex items-center justify-center shrink-0"
-      style={{
-        width: size, height: size, borderRadius: Math.round(size * 0.32),
-        backgroundColor: bg, color: fg, boxShadow: `inset 0 0 0 1px ${ring}`,
-      }}>
+    <span className="flex shrink-0 items-center justify-center"
+      style={{ width: 26, color: ROW_ICON_COLOR[tone] || ROW_ICON_COLOR.neutral }}>
       {children}
     </span>
   );
 }
 
 // En-tête de carte standard : icône + libellé + contenu optionnel à droite.
-function CardHead({ icon, fam, label, right }) {
+function CardHead({ icon, tone, label, right }) {
   return (
     <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
       <div className="flex items-center gap-2.5 min-w-0">
-        {icon && <IconBox fam={fam} size={30}>{icon}</IconBox>}
+        {icon && <RowIcon tone={tone}>{icon}</RowIcon>}
         <SectionLabel>{label}</SectionLabel>
       </div>
       {right && <div className="shrink-0">{right}</div>}
@@ -200,16 +208,16 @@ function CardHead({ icon, fam, label, right }) {
 //  • onClick + right=<IconChevronDown> → se déplie sur place (accordéon)
 //  • href + right=<IconChevronRight>   → mène à une autre page
 //  • right=<contrôle>                  → s'ajuste sur place (toggle/segmented)
-function SettingsRow({ icon, fam = "util", label, description, right, onClick, href, danger }) {
+function SettingsRow({ icon, tone, label, description, right, onClick, href, danger }) {
   const inner = (
     // Le contrôle passe à la ligne plutôt que d'écraser le texte : sur 375 px,
     // un bouton large ne laissait qu'une centaine de pixels au libellé et à la
     // description, tous deux tronqués. « Autorisation accordée, mais
     // l'inscription a échoué » s'affichait « Autorisation a... » — le
     // diagnostic était à l'écran, illisible, et nous a coûté plusieurs essais.
-    <div className="flex flex-wrap items-center justify-between px-5 py-3.5 gap-3">
-      <div className="flex items-center gap-3 min-w-[55%] flex-1">
-        <IconBox fam={fam} danger={danger}>{icon}</IconBox>
+    <div className="flex flex-wrap items-center justify-between gap-3 px-[18px] py-4">
+      <div className="flex min-w-[55%] flex-1 items-center gap-3.5">
+        <RowIcon tone={danger ? "danger" : tone}>{icon}</RowIcon>
         <div className="min-w-0">
           <span className="block text-sm font-medium" style={{ color: danger ? "var(--bt-danger)" : "var(--bt-text-1)" }}>{label}</span>
           {description && <span className="block text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>{description}</span>}
@@ -240,13 +248,16 @@ function SettingsRow({ icon, fam = "util", label, description, right, onClick, h
 // visible, et `value` affiche l'état courant à droite. « Préférences › » ne
 // dit rien ; « Préférences · FR · Clair › » répond à la question qu'on venait
 // poser, sans ouvrir.
-function NavRow({ fam = "util", icon, label, description, value, onClick, href, danger, chevron = true }) {
+function NavRow({ tone, icon, label, description, value, onClick, href, danger, chevron = true }) {
+  // Un geste d'avertissement se signale entier : une icône rouge sous un
+  // libellé noir se lit comme une erreur de rendu, pas comme une mise en garde.
+  const alarm = danger || tone === "danger";
   const inner = (
     <>
-      <IconBox fam={fam} danger={danger}>{icon}</IconBox>
+      <RowIcon tone={alarm ? "danger" : tone}>{icon}</RowIcon>
       <span className="min-w-0 flex-1">
         <span className="block text-[15px] font-medium leading-tight"
-          style={{ color: danger ? "var(--bt-danger)" : "var(--bt-text-1)" }}>{label}</span>
+          style={{ color: alarm ? "var(--bt-danger)" : "var(--bt-text-1)" }}>{label}</span>
         {description && <span className="mt-0.5 block text-xs leading-snug" style={{ color: "var(--bt-text-3)" }}>{description}</span>}
       </span>
       {value && (
@@ -257,7 +268,7 @@ function NavRow({ fam = "util", icon, label, description, value, onClick, href, 
       {chevron && <IconChevronRight />}
     </>
   );
-  const cls = `bt-prof-row${danger ? " bt-prof-row--danger" : ""}`;
+  const cls = `bt-prof-row${alarm ? " bt-prof-row--danger" : ""}`;
   if (href) return <Link href={href} className={cls}>{inner}</Link>;
   return <button type="button" onClick={onClick} className={cls}>{inner}</button>;
 }
@@ -429,42 +440,47 @@ function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
   );
 }
 
-// ── Badges — le tableau de chasse ────────────────────────────
-// Deuxième grand objet visuel de la page après le niveau. Les emblèmes
-// portent maintenant la couleur de leur famille : vue de loin, la planche
-// raconte OÙ on progresse (temps d'étude, régularité, organisation, social)
-// avant même qu'on lise un libellé. Les emplacements verrouillés restent
-// neutres — c'est ce contraste qui donne envie d'aller les chercher.
+// ── Badges — la collection ───────────────────────────────────
+// Deuxième grand objet visuel de la page après le niveau. Chaque badge est un
+// OBJET distinct — flamme, coupe, cristal, sablier — et non plus la même
+// tuile déclinée en teintes : vue de loin, la planche se lit comme une
+// vitrine, pas comme un nuancier.
+//
+// Les emblèmes flottent sans conteneur et respirent : c'est l'espace autour,
+// pas un cadre, qui les sépare. Les verrouillés gardent leur dessin, désaturé
+// — on doit reconnaître ce qu'on va gagner avant de l'avoir gagné.
 function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
   const pct = BADGES.length ? Math.round((earnedBadgeIds.length / BADGES.length) * 100) : 0;
   return (
     <div className="card overflow-hidden">
-      <CardHead icon={<IconAward />} fam="streak" label={t("badge.title")}
+      <CardHead icon={<IconAward />} label={t("badge.title")}
         right={
           <span className="font-num text-xs font-bold tabular-nums px-2.5 py-1 rounded-full"
             style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
             <AnimatedNumber value={earnedBadgeIds.length} />/<AnimatedNumber value={BADGES.length} />
           </span>
         } />
-      <div className="px-5 pb-5">
-        <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
+      <div className="px-5 pb-6">
+        <div className="mb-5 h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
           <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
             style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-accent)" }} />
         </div>
-        <div className="flex flex-wrap gap-2.5">
+        {/* Grille et non enveloppe libre : à largeur variable, une rangée
+            orpheline de deux badges cassait la lecture en vitrine. Les
+            colonnes s'adaptent, l'espacement reste constant. */}
+        <div className="grid gap-x-2 gap-y-4"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(58px, 1fr))" }}>
           {BADGES.map(b => {
             const earned = earnedBadgeIds.includes(b.id);
             return (
-              // L'emblème porte lui-même sa surface : un second cadre autour
-              // empâtait la grille et écrasait la distinction acquis/verrouillé.
               <button key={b.id} onClick={() => onBadgeClick(b)}
                 title={t(b.labelKey)}
                 aria-label={t(b.labelKey)}
-                className="bt-press"
-                style={{ display: "flex", flexShrink: 0, cursor: "pointer", background: "none", border: "none", padding: 0, transition: "transform 0.12s" }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.10)"; }}
+                className="bt-press flex justify-center"
+                style={{ cursor: "pointer", background: "none", border: "none", padding: 0, transition: "transform 0.14s cubic-bezier(0.22,1,0.36,1)" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.12)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                <BadgeIcon id={b.id} earned={earned} size={44} />
+                <BadgeIcon id={b.id} earned={earned} size={52} />
               </button>
             );
           })}
@@ -689,7 +705,7 @@ function PushRow({ t, user }) {
 
   return (
     <>
-      <SettingsRow fam="streak" icon={<IconBell />} label={t("push.title")}
+      <SettingsRow icon={<IconBell />} label={t("push.title")}
         description={pushErrorMessage(t, failure?.reason, failure?.origin) || description}
         right={right} />
       {/* Le motif seul ne suffit pas à distinguer les causes possibles d'un
@@ -705,6 +721,31 @@ function PushRow({ t, user }) {
         </div>
       )}
     </>
+  );
+}
+
+// Étiquette de rareté. Elle emprunte la teinte dominante de l'objet plutôt
+// qu'une couleur à elle : deux systèmes de couleur dans une fiche de 300 px,
+// c'est un de trop. « Commun » reste affiché — masquer le palier le plus bas
+// laisserait croire à un bug sur les deux tiers de la collection.
+function RarityChip({ id, t }) {
+  const rarity = rarityOf(id);
+  const hue = HUES[dominantHue(id)].mid;
+  const neutral = rarity === "common";
+  const label = rarity === "epic" ? t("badge.rarityEpic")
+    : rarity === "rare" ? t("badge.rarityRare")
+    : t("badge.rarityCommon");
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+      style={{
+        backgroundColor: neutral ? "var(--bt-subtle)" : rgba(hue, 0.14),
+        color: neutral ? "var(--bt-text-3)" : undefined,
+        boxShadow: `inset 0 0 0 1px ${neutral ? "var(--bt-border)" : rgba(hue, 0.32)}`,
+      }}>
+      <span aria-hidden="true" className="block h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: neutral ? "var(--bt-text-4)" : hue }} />
+      <span style={neutral ? undefined : { color: "var(--bt-text-1)" }}>{label}</span>
+    </span>
   );
 }
 
@@ -724,11 +765,10 @@ function BadgeSheet({ badge, earned, t, onClose }) {
             <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
           </div>
           <div className="p-6 pt-4 sm:pt-6 text-center">
-            {/* L'emblème porte sa propre couleur de famille et son propre
-                contour : l'enfermer dans un second carré vert le contredisait
-                — dans la feuille, TOUS les badges redevenaient verts. */}
+            {/* Pas de cadre autour : l'objet EST le badge. L'enfermer dans un
+                carré teinté ramenait la tuile qu'on vient d'enlever. */}
             <div className={`mb-4 inline-flex ${earned ? "badge-shine" : ""}`}>
-              <BadgeIcon id={badge.id} earned={earned} size={88} />
+              <BadgeIcon id={badge.id} earned={earned} size={96} />
             </div>
             <h3 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
               {t(badge.labelKey)}
@@ -747,6 +787,7 @@ function BadgeSheet({ badge, earned, t, onClose }) {
                   {t("badge.locked")}
                 </span>
               )}
+              <RarityChip id={badge.id} t={t} />
               {badge.xp > 0 && (
                 <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full"
                   style={{ backgroundColor: "rgba(20,184,133,0.12)", color: "#14B885" }}>
@@ -1418,13 +1459,13 @@ export default function Profile() {
             {/* Ce qui appartient à l'utilisateur : son activité, ses filleuls,
                 sa voix. Trois portes, pas trois pavés dépliés. */}
             <NavGroup>
-              <NavRow fam="time" icon={<IconActivity />}
+              <NavRow tone="accent" icon={<IconActivity />}
                 label={t("profile.activitySection")} description={t("profile.activityRowDesc")}
                 onClick={() => setSheet("activity")} />
-              <NavRow fam="social" icon={<IconGift />}
+              <NavRow icon={<IconGift />}
                 label={t("referral.title")} description={t("referral.subtitle")}
                 onClick={() => setSheet("referral")} />
-              <NavRow fam="plan" icon={<IconFeedback />}
+              <NavRow icon={<IconFeedback />}
                 label={t("feedback.improveTitle")} href="/feedback" />
             </NavGroup>
 
@@ -1438,13 +1479,13 @@ export default function Profile() {
               {privacyAvailable && (
                 <>
                   {sep}
-                  <SettingsRow fam="time" icon={<IconBell />} label={t("privacy.pushReminders")}
+                  <SettingsRow icon={<IconBell />} label={t("privacy.pushReminders")}
                     description={t("privacy.pushRemindersDesc")}
                     right={<MiniSwitch checked={privacy.push_reminders !== false}
                       onChange={value => setPushPreference("push_reminders", value)}
                       label={t("privacy.pushReminders")} />} />
                   {sep}
-                  <SettingsRow fam="social" icon={<IconMegaphone />} label={t("privacy.pushAnnouncements")}
+                  <SettingsRow icon={<IconMegaphone />} label={t("privacy.pushAnnouncements")}
                     description={t("privacy.pushAnnouncementsDesc")}
                     right={<MiniSwitch checked={privacy.push_announcements !== false}
                       onChange={value => setPushPreference("push_announcements", value)}
@@ -1455,13 +1496,13 @@ export default function Profile() {
 
             {/* Réglages — ce qu'on ouvre trois fois par an. */}
             <NavGroup>
-              <NavRow fam="util" icon={<IconSliders />}
+              <NavRow icon={<IconSliders />}
                 label={t("profile.preferencesSection")} value={prefsSummary}
                 onClick={() => setSheet("prefs")} />
-              <NavRow fam="plan" icon={<IconUser />}
+              <NavRow icon={<IconUser />}
                 label={t("profile.accountSection")} value={profile?.email || undefined}
                 onClick={() => setSheet("account")} />
-              <NavRow fam="night" icon={<IconShieldCheck />}
+              <NavRow icon={<IconShieldCheck />}
                 label={t("privacy.section")}
                 onClick={() => setSheet("privacy")} />
             </NavGroup>
@@ -1469,13 +1510,13 @@ export default function Profile() {
             {/* Administration — visible uniquement pour les admins */}
             {profile?.is_admin && (
               <NavGroup>
-                <NavRow fam="util" icon={<IconShield />} label={t("profile.adminDashboard")} href="/admin" />
-                <NavRow fam="util" icon={<IconFeedback />} label={t("profile.suggestionInbox")} href="/feedback" />
+                <NavRow icon={<IconShield />} label={t("profile.adminDashboard")} href="/admin" />
+                <NavRow icon={<IconFeedback />} label={t("profile.suggestionInbox")} href="/feedback" />
               </NavGroup>
             )}
 
             <NavGroup>
-              <NavRow fam="util" icon={<IconLogOut />} label={t("profile.signOut")}
+              <NavRow tone="danger" icon={<IconLogOut />} label={t("profile.signOut")}
                 onClick={signOut} chevron={false} />
             </NavGroup>
           </div>
@@ -1506,12 +1547,12 @@ export default function Profile() {
 
       <DetailSheet open={sheet === "prefs"} title={t("profile.preferencesSection")}
         closeLabel={t("common.close")} onClose={closeSheet}>
-        <SettingsRow fam="plan" icon={<IconGlobe />} label={t("profile.language")} right={
+        <SettingsRow icon={<IconGlobe />} label={t("profile.language")} right={
           <Segmented value={langPref} onChange={changeLang}
             options={[{ value: "auto", label: t("profile.languageAuto") }, { value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
         } />
         {sep}
-        <SettingsRow fam="night" icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} right={
+        <SettingsRow icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} right={
           <Segmented value={theme} onChange={setTheme}
             options={[
               { value: "light", label: t("profile.themeLight") },
@@ -1520,13 +1561,13 @@ export default function Profile() {
             ]} />
         } />
         {sep}
-        <SettingsRow fam="time" icon={<IconVolume />} label={t("sensory.soundTitle")}
+        <SettingsRow icon={<IconVolume />} label={t("sensory.soundTitle")}
           description={t("sensory.soundDesc")}
           right={<MiniSwitch checked={sensoryPrefs.sound}
             onChange={enabled => setSensoryPreference("sound", enabled)}
             label={t("sensory.soundTitle")} />} />
         {sep}
-        <SettingsRow fam="time" icon={<IconVibration />} label={t("sensory.hapticsTitle")}
+        <SettingsRow icon={<IconVibration />} label={t("sensory.hapticsTitle")}
           description={t("sensory.hapticsDesc")}
           right={<MiniSwitch checked={sensoryPrefs.haptics}
             onChange={enabled => setSensoryPreference("haptics", enabled)}
@@ -1535,7 +1576,7 @@ export default function Profile() {
 
       <DetailSheet open={sheet === "account"} title={t("profile.accountSection")}
         closeLabel={t("common.close")} onClose={closeSheet}>
-        <SettingsRow fam="plan" icon={<IconMail />} label={t("profile.emailSection")}
+        <SettingsRow icon={<IconMail />} label={t("profile.emailSection")}
           description={profile?.email || undefined}
           onClick={() => setShowEmail(o => !o)} right={<IconChevronDown open={showEmail} />} />
         {showEmail && (
@@ -1551,7 +1592,7 @@ export default function Profile() {
           </div>
         )}
         {sep}
-        <SettingsRow fam="util" icon={<IconSmartphone />} label={t("pwa.profileSection")}
+        <SettingsRow icon={<IconSmartphone />} label={t("pwa.profileSection")}
           onClick={() => setShowPwa(s => !s)} right={<IconChevronDown open={showPwa} />} />
         {showPwa && (
           <div className="px-5 pb-4 pt-1 space-y-3">
@@ -1574,10 +1615,10 @@ export default function Profile() {
           </div>
         )}
         {sep}
-        <SettingsRow fam="util" icon={<IconLegal />} href="/legal"
+        <SettingsRow icon={<IconLegal />} href="/legal"
           label={t("legal.profileRow")} right={<IconChevronRight />} />
         {sep}
-        <SettingsRow fam="util" icon={<IconInfo />} label={t("profile.about")}
+        <SettingsRow icon={<IconInfo />} label={t("profile.about")}
           onClick={() => setShowAbout(s => !s)} right={<IconChevronDown open={showAbout} />} />
         {showAbout && (
           <div className="px-5 pb-4 pt-1 space-y-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
@@ -1592,18 +1633,18 @@ export default function Profile() {
           trois écrans, un droit n'est un droit que sur le papier. */}
       <DetailSheet open={sheet === "privacy"} title={t("privacy.section")}
         closeLabel={t("common.close")} onClose={closeSheet}>
-        <SettingsRow fam="night" icon={<IconCookie />} label={t("privacy.cookieSettings")}
+        <SettingsRow icon={<IconCookie />} label={t("privacy.cookieSettings")}
           description={t("privacy.cookieSettingsDesc")}
           onClick={() => { closeSheet(); openConsentSettings(); }} right={<IconChevronRight />} />
         {sep}
-        <SettingsRow fam="time" icon={<IconDownload />} label={t("privacy.exportData")}
+        <SettingsRow icon={<IconDownload />} label={t("privacy.exportData")}
           description={t("privacy.exportDataDesc")}
           onClick={exporting ? undefined : exportMyData}
           right={exporting
             ? <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>…</span>
             : <IconChevronRight />} />
         {sep}
-        <SettingsRow fam="plan" icon={<IconLegal />} href="/legal?doc=privacy"
+        <SettingsRow icon={<IconLegal />} href="/legal?doc=privacy"
           label={t("privacy.yourRights")} description={t("privacy.yourRightsDesc")}
           right={<IconChevronRight />} />
         {sep}

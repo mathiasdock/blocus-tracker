@@ -166,17 +166,19 @@ The palette combines warm editorial neutrals with an energetic study green and a
 - **Quiet Border:** The low-contrast structural line used to separate without hard framing.
 - **Warm Text Scale:** Near-black primary text steps down through secondary, tertiary, and disabled roles. In dark mode the same roles invert to warm near-white and warm gray.
 
-### Family Accents
+### Illustration Palette
 
-A closed set of five hues — Study Green, Streak Amber, Plan Blue, Social Violet, Night Indigo — plus a neutral Utility Slate. They exist for exactly two jobs: telling badge families apart, and giving profile sections a recognizable marker. Each family carries a tinted surface, an ink for glyphs on that tint, a fixed mid tone for solid fills, a deep tone for the rare tier, a bright glow for glyphs on that deep tone, and a hairline ring.
+Achievement badges are drawn objects, not tinted tiles, and they carry their own nine-hue illustration palette (mint, ember, gold, sky, violet, indigo, rose, paper, steel) defined in `lib/badgeArt.js`. Like the mascot's fur, it does **not** re-tint per theme: a drawn object keeps its colors or it stops being an object.
 
-This is a deliberate, bounded exception to the green-only rule. Green stays the product's color: it is the family of study time, so it still owns the center of the system. The others are wayfinding, never identity.
+This is a deliberate, bounded exception to the green-only rule, and it lives entirely inside badge artwork. Interface chrome — surfaces, text, states, icons — stays on the `--bt-*` tokens. Green remains the product's color and the hue of the study-time objects.
 
 ### Named Rules
 
-**The Family Accent Rule.** A family hue may color a badge emblem or a section icon pill, and nothing else. Never a content surface, never body text, never a status — success, warning, and danger keep their own semantic tokens. If a hue would be the only thing carrying meaning, it is the wrong tool.
+**The Illustration Boundary Rule.** The illustration palette may color a drawn badge object and nothing else. It never reaches a surface, a label, a status, or an interface icon. If a hue would be the only thing carrying meaning, it is the wrong tool.
 
-**The Two-Channel Reward Rule.** On a badge, hue says which family, finish says how rare: tinted surface, then solid fill, then deep surface with a luminous ring. One dimension carrying both readings collapses into a gradient where nothing stands out.
+**The Object, Not The Tile Rule.** A reward is identified by its shape — a flame, a cup, a crystal — never by the color of a container it sits in. Difficulty must not be expressed as the same shape going darker; rarity gets a soft halo behind the object and a word in its detail sheet, and nothing else.
+
+**The Locked-Is-Still-Legible Rule.** A locked achievement shows its own artwork, desaturated and softened, never a substitute gray glyph: people must recognize what they are working toward. Because the treatment is a filter over a drawn object, its strength belongs in the stylesheet, where dark mode can lift it.
 
 **The Green Signal Rule.** Use bright Study Green to communicate progress or a meaningful active state; use the darker Action Green pair for readable controls.
 
@@ -303,7 +305,8 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 - **Do** preserve keyboard focus, 44px touch targets, safe areas, dark mode, and reduced-motion behavior.
 - **Do** reveal correction, deletion, and detailed management actions progressively.
 - **Do** collapse rarely used settings into grouped list rows, and show their current state on the folded row.
-- **Do** let a family hue mark a badge or a section icon, and let finish — not saturation — carry rarity.
+- **Do** let a settings icon stand on its own in the row, in neutral ink, at a size that reads without a container.
+- **Do** give every achievement its own drawn object, and keep locked ones recognizable.
 
 ### Don't:
 
@@ -314,6 +317,7 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 - **Don't** use Quicksand as the general interface font.
 - **Don't** use bright green for dense text when the darker green role is available.
 - **Don't** let course colors carry status meaning or replace labels, icons, and semantic feedback.
-- **Don't** spend a family accent on a content surface, body text, or a status; they mark families, nothing else.
+- **Don't** put a colored pastel tile behind every settings icon; that is a dashboard template, not a product.
+- **Don't** express achievement difficulty as the same shape getting darker, or let the illustration palette leak into interface chrome.
 - **Don't** fold away what people open under pressure — notification state stays visible on the profile.
 - **Don't** animate layout properties or leave motion running when reduced motion is requested.

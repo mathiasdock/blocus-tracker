@@ -125,22 +125,6 @@ html {
   --bt-danger-bg:     #FFF1F0;
   --bt-danger-border: #F2C9C6;
   --bt-warning:       #8A5A10;
-  /* ── Accents de famille ────────────────────────────────────
-     Exception assumée à la règle « vert uniquement » (voir DESIGN.md) : ces
-     teintes servent UNIQUEMENT à distinguer les familles de badges et les
-     rubriques du profil. Jamais une surface de contenu, jamais du texte
-     courant, jamais un état (succès et erreur gardent leurs propres tokens).
-     Le vert reste la couleur du produit ; celles-ci sont des repères.
-     Par famille : plein · fond teinté · glyphe sur teinte · ton moyen (fixe,
-     pour le dégradé du palier « progression ») · fond du palier rare · glyphe
-     sur palier rare · filet. Seuls -soft, -ink et -ring changent en sombre :
-     ce sont les trois qui dépendent du fond. */
-  --bt-fam-time:   #14B885; --bt-fam-time-soft:   #E3F7EE; --bt-fam-time-ink:   #0B7A59; --bt-fam-time-mid: #0B7A59; --bt-fam-time-deep:   #06382A; --bt-fam-time-glow:   #3BE8B0; --bt-fam-time-ring:   rgba(20,184,133,0.22);
-  --bt-fam-streak: #EF8B23; --bt-fam-streak-soft: #FCEFDD; --bt-fam-streak-ink: #96560A; --bt-fam-streak-mid: #B4620C; --bt-fam-streak-deep: #43250A; --bt-fam-streak-glow: #FFC46B; --bt-fam-streak-ring: rgba(239,139,35,0.24);
-  --bt-fam-plan:   #4A83E8; --bt-fam-plan-soft:   #E6EFFD; --bt-fam-plan-ink:   #2856AF; --bt-fam-plan-mid: #2856AF; --bt-fam-plan-deep:   #142A50; --bt-fam-plan-glow:   #93C0FF; --bt-fam-plan-ring:   rgba(74,131,232,0.24);
-  --bt-fam-social: #9A6FE0; --bt-fam-social-soft: #F0EAFC; --bt-fam-social-ink: #683DB4; --bt-fam-social-mid: #683DB4; --bt-fam-social-deep: #2A1A4B; --bt-fam-social-glow: #D0B3FF; --bt-fam-social-ring: rgba(154,111,224,0.24);
-  --bt-fam-night:  #6B6ED6; --bt-fam-night-soft:  #EBECFA; --bt-fam-night-ink:  #4244A4; --bt-fam-night-mid: #4244A4; --bt-fam-night-deep:  #1D1E48; --bt-fam-night-glow:  #ADAFF5; --bt-fam-night-ring:  rgba(107,110,214,0.24);
-  --bt-fam-util:   #7C8B93; --bt-fam-util-soft:   #ECEFF0; --bt-fam-util-ink:   #4A585F; --bt-fam-util-mid: #4A585F; --bt-fam-util-deep:   #212B30; --bt-fam-util-glow:   #C2D1D8; --bt-fam-util-ring:   rgba(124,139,147,0.24);
   --bt-shadow:        rgba(31,26,23,0.055);
   --bt-shimmer:       rgba(255,255,255,0.62);
   --bt-mobile-bg:     rgba(255,253,251,0.80);
@@ -194,15 +178,6 @@ html {
   --bt-danger-bg:     #321A19;
   --bt-danger-border: #663532;
   --bt-warning:       #F0C675;
-  /* Accents de famille — seules les valeurs qui dépendent du fond changent.
-     Le plein et le fond « rare » gardent leur valeur : ils portent déjà leur
-     propre contraste sur les deux thèmes. */
-  --bt-fam-time-soft:   #0F2E24; --bt-fam-time-ink:   #4ED3A6; --bt-fam-time-ring:   rgba(20,184,133,0.30);
-  --bt-fam-streak-soft: #302109; --bt-fam-streak-ink: #F2AE5C; --bt-fam-streak-ring: rgba(239,139,35,0.32);
-  --bt-fam-plan-soft:   #16233A; --bt-fam-plan-ink:   #8DB7F7; --bt-fam-plan-ring:   rgba(74,131,232,0.32);
-  --bt-fam-social-soft: #241A3A; --bt-fam-social-ink: #C2A4F3; --bt-fam-social-ring: rgba(154,111,224,0.32);
-  --bt-fam-night-soft:  #1B1C36; --bt-fam-night-ink:  #A5A7F2; --bt-fam-night-ring:  rgba(107,110,214,0.32);
-  --bt-fam-util-soft:   #212729; --bt-fam-util-ink:   #A3B1B8; --bt-fam-util-ring:   rgba(124,139,147,0.32);
   --bt-shadow:        rgba(0,0,0,0.18);
   --bt-shimmer:       rgba(255,255,255,0.06);
   --bt-mobile-bg:     rgba(31,27,24,0.80);
@@ -713,16 +688,6 @@ html.bt-focus-active,
 html.bt-focus-active body { background-color: var(--bt-ink); }
 html.bt-focus-active .bt-nav { display: none; }
 
-/* Badges — emplacement verrouillé.
-   Les trois paliers acquis sont désormais construits en style inline à partir
-   des tokens de famille (voir components/BadgeIcon.jsx) : ce sont les tokens
-   qui portent la correction du mode sombre, plus la feuille de style. Reste
-   ici le seul état qui n'appartient à aucune famille — un emplacement vide. */
-.bt-badge-locked {
-  background: var(--bt-subtle);
-  border: 1px dashed var(--bt-border);
-  color: var(--bt-text-4);
-}
 
 /* Button press — quick scale + opacity tap */
 .bt-press { transition: transform 0.12s ease, box-shadow 0.12s ease; }
@@ -1979,16 +1944,16 @@ details.bt-acc[open]::details-content { block-size: auto; }
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 13px 16px;
+  padding: 15px 18px;
   text-align: left;
   transition: background-color 0.15s ease;
 }
 .bt-prof-row + .bt-prof-row::before {
   content: "";
   position: absolute;
-  left: 62px;
+  left: 58px;
   right: 0;
   top: 0;
   height: 1px;
@@ -2007,3 +1972,18 @@ details.bt-acc[open]::details-content { block-size: auto; }
   outline-offset: -2px;
   border-radius: var(--bt-r-inset);
 }
+
+/* ── Badges : matière de l'objet ───────────────────────────────
+   Le filtre passe par une classe et non par un style inline, pour la même
+   raison que d'habitude : ce qui dépend du FOND se corrige dans la feuille
+   de style. Un objet désaturé à 42 % se détache très bien sur une carte
+   claire et s'éteint complètement sur une carte sombre — il faut donc le
+   rallumer d'un cran en mode sombre, sinon « verrouillé » devient « absent »
+   et la collection perd la moitié de ses cases. */
+.bt-badge-art {
+  filter: drop-shadow(0 2px 3px rgba(24, 20, 18, 0.20));
+  transition: filter 0.2s ease;
+}
+.dark .bt-badge-art { filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5)); }
+.bt-badge-art--locked { filter: grayscale(0.92) opacity(0.42); }
+.dark .bt-badge-art--locked { filter: grayscale(0.9) brightness(1.5) opacity(0.52); }
