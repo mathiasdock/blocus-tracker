@@ -1529,8 +1529,7 @@ function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, on
   return (
     <div className={className}>
       <div className="flex items-center gap-2">
-        <h1 className="font-display min-w-0 flex-1 truncate text-xl font-bold sm:text-2xl"
-          style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
+        <h1 className="bt-page-title min-w-0 flex-1 truncate">
           {sentenceCase(periodLabel)}
         </h1>
 

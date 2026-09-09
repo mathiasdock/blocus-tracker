@@ -222,7 +222,7 @@ export default function Stats() {
   return (
     <Layout>
       <div className="mb-4">
-        <h1 className="font-display text-2xl font-bold" style={{ color: "var(--bt-text-1)", letterSpacing: "-0.02em" }}>
+        <h1 className="bt-page-title">
           {t("stats.title")}
         </h1>
         <p className="mt-0.5 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("stats.pageIntro")}</p>

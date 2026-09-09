@@ -221,13 +221,20 @@ function MiniSwitch({ checked, onChange, label }) {
 }
 
 // Tuile de statistique — même style dans le hero et la carte Activité.
+// En creux et sans filet : bordée, elle faisait du cadre dans du cadre à
+// l'intérieur d'une carte déjà posée. Le libellé quitte la petite capitale de
+// 10 px en gris clair — elle se lisait moins bien qu'un corps normal et
+// n'ajoutait aucune hiérarchie ; c'est le chiffre qui doit dominer, pas
+// l'étiquette qui crie.
 function StatTile({ label, value, sub }) {
   return (
-    <div className="rounded-2xl px-2 py-2.5 text-center min-w-0"
-      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-      <p className="font-num font-bold tabular-nums leading-none truncate" style={{ fontSize: "1.05rem", color: "var(--bt-text-1)", letterSpacing: "-0.01em" }}>{value}</p>
-      <p className="text-[10px] font-semibold uppercase tracking-wide mt-1 truncate" style={{ color: "var(--bt-text-3)" }} title={label}>{label}</p>
-      {sub && <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--bt-text-4)" }}>{sub}</p>}
+    <div className="card-inset min-w-0 px-1.5 py-3 text-center">
+      {/* Taille fluide : a 1,35 rem fixe, « 130h13 » ne tenait pas dans une
+          tuile de 96 px sur un iPhone et se coupait en « 130h… ». Le chiffre
+          reste le plus gros element de la tuile, mais il s'adapte a sa boite. */}
+      <p className="font-num truncate text-[clamp(1.05rem,4.9vw,1.35rem)] font-bold leading-none tracking-[-0.02em] tabular-nums" style={{ color: "var(--bt-text-1)" }}>{value}</p>
+      <p className="mt-1.5 truncate text-[11px] font-medium" style={{ color: "var(--bt-text-2)" }} title={label}>{label}</p>
+      {sub && <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--bt-text-4)" }}>{sub}</p>}
     </div>
   );
 }
