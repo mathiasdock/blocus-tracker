@@ -125,6 +125,22 @@ html {
   --bt-danger-bg:     #FFF1F0;
   --bt-danger-border: #F2C9C6;
   --bt-warning:       #8A5A10;
+  /* ── Accents de famille ────────────────────────────────────
+     Exception assumée à la règle « vert uniquement » (voir DESIGN.md) : ces
+     teintes servent UNIQUEMENT à distinguer les familles de badges et les
+     rubriques du profil. Jamais une surface de contenu, jamais du texte
+     courant, jamais un état (succès et erreur gardent leurs propres tokens).
+     Le vert reste la couleur du produit ; celles-ci sont des repères.
+     Par famille : plein · fond teinté · glyphe sur teinte · ton moyen (fixe,
+     pour le dégradé du palier « progression ») · fond du palier rare · glyphe
+     sur palier rare · filet. Seuls -soft, -ink et -ring changent en sombre :
+     ce sont les trois qui dépendent du fond. */
+  --bt-fam-time:   #14B885; --bt-fam-time-soft:   #E3F7EE; --bt-fam-time-ink:   #0B7A59; --bt-fam-time-mid: #0B7A59; --bt-fam-time-deep:   #06382A; --bt-fam-time-glow:   #3BE8B0; --bt-fam-time-ring:   rgba(20,184,133,0.22);
+  --bt-fam-streak: #EF8B23; --bt-fam-streak-soft: #FCEFDD; --bt-fam-streak-ink: #96560A; --bt-fam-streak-mid: #B4620C; --bt-fam-streak-deep: #43250A; --bt-fam-streak-glow: #FFC46B; --bt-fam-streak-ring: rgba(239,139,35,0.24);
+  --bt-fam-plan:   #4A83E8; --bt-fam-plan-soft:   #E6EFFD; --bt-fam-plan-ink:   #2856AF; --bt-fam-plan-mid: #2856AF; --bt-fam-plan-deep:   #142A50; --bt-fam-plan-glow:   #93C0FF; --bt-fam-plan-ring:   rgba(74,131,232,0.24);
+  --bt-fam-social: #9A6FE0; --bt-fam-social-soft: #F0EAFC; --bt-fam-social-ink: #683DB4; --bt-fam-social-mid: #683DB4; --bt-fam-social-deep: #2A1A4B; --bt-fam-social-glow: #D0B3FF; --bt-fam-social-ring: rgba(154,111,224,0.24);
+  --bt-fam-night:  #6B6ED6; --bt-fam-night-soft:  #EBECFA; --bt-fam-night-ink:  #4244A4; --bt-fam-night-mid: #4244A4; --bt-fam-night-deep:  #1D1E48; --bt-fam-night-glow:  #ADAFF5; --bt-fam-night-ring:  rgba(107,110,214,0.24);
+  --bt-fam-util:   #7C8B93; --bt-fam-util-soft:   #ECEFF0; --bt-fam-util-ink:   #4A585F; --bt-fam-util-mid: #4A585F; --bt-fam-util-deep:   #212B30; --bt-fam-util-glow:   #C2D1D8; --bt-fam-util-ring:   rgba(124,139,147,0.24);
   --bt-shadow:        rgba(31,26,23,0.055);
   --bt-shimmer:       rgba(255,255,255,0.62);
   --bt-mobile-bg:     rgba(255,253,251,0.80);
@@ -178,6 +194,15 @@ html {
   --bt-danger-bg:     #321A19;
   --bt-danger-border: #663532;
   --bt-warning:       #F0C675;
+  /* Accents de famille — seules les valeurs qui dépendent du fond changent.
+     Le plein et le fond « rare » gardent leur valeur : ils portent déjà leur
+     propre contraste sur les deux thèmes. */
+  --bt-fam-time-soft:   #0F2E24; --bt-fam-time-ink:   #4ED3A6; --bt-fam-time-ring:   rgba(20,184,133,0.30);
+  --bt-fam-streak-soft: #302109; --bt-fam-streak-ink: #F2AE5C; --bt-fam-streak-ring: rgba(239,139,35,0.32);
+  --bt-fam-plan-soft:   #16233A; --bt-fam-plan-ink:   #8DB7F7; --bt-fam-plan-ring:   rgba(74,131,232,0.32);
+  --bt-fam-social-soft: #241A3A; --bt-fam-social-ink: #C2A4F3; --bt-fam-social-ring: rgba(154,111,224,0.32);
+  --bt-fam-night-soft:  #1B1C36; --bt-fam-night-ink:  #A5A7F2; --bt-fam-night-ring:  rgba(107,110,214,0.32);
+  --bt-fam-util-soft:   #212729; --bt-fam-util-ink:   #A3B1B8; --bt-fam-util-ring:   rgba(124,139,147,0.32);
   --bt-shadow:        rgba(0,0,0,0.18);
   --bt-shimmer:       rgba(255,255,255,0.06);
   --bt-mobile-bg:     rgba(31,27,24,0.80);
@@ -688,19 +713,11 @@ html.bt-focus-active,
 html.bt-focus-active body { background-color: var(--bt-ink); }
 html.bt-focus-active .bt-nav { display: none; }
 
-/* Badges — palier "débuts" et emplacement verrouillé.
-   Définis ici plutôt qu'en style inline pour que le mode sombre puisse
-   remonter le glyphe : en clair, --bt-accent-dark sur fond menthe se lit très
-   bien ; en sombre (#0E8F68 sur #0D2B22) il se noyait dans son propre fond et
-   le palier devenait indistinct du palier rare. Les paliers "progression" et
-   "rare" gardent leurs dégradés en inline : ils tiennent dans les deux modes. */
-.bt-badge-starter {
-  background: var(--bt-accent-bg);
-  border: 1px solid var(--bt-accent-border);
-  color: var(--bt-accent-dark);
-}
-.dark .bt-badge-starter { color: #14B885; }
-
+/* Badges — emplacement verrouillé.
+   Les trois paliers acquis sont désormais construits en style inline à partir
+   des tokens de famille (voir components/BadgeIcon.jsx) : ce sont les tokens
+   qui portent la correction du mode sombre, plus la feuille de style. Reste
+   ici le seul état qui n'appartient à aucune famille — un emplacement vide. */
 .bt-badge-locked {
   background: var(--bt-subtle);
   border: 1px dashed var(--bt-border);
@@ -1949,4 +1966,44 @@ details.bt-acc[open]::details-content { block-size: auto; }
   line-height: 1.25;
   letter-spacing: 0.002em;
   color: var(--bt-text-2);
+}
+
+/* ── Profil : liste groupée ────────────────────────────────────
+   Le motif de navigation du profil. Une carte, des rangées, et un filet qui
+   commence APRÈS la pastille : l'œil descend la colonne des libellés au lieu
+   d'être coupé sur toute la largeur à chaque ligne. C'est ce décalage — et
+   rien d'autre — qui fait lire l'ensemble comme une liste plutôt que comme un
+   empilement de cartes. La page en avait quatorze ; elle en a maintenant
+   trois, et l'essentiel se voit sans dérouler. */
+.bt-prof-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+.bt-prof-row + .bt-prof-row::before {
+  content: "";
+  position: absolute;
+  left: 62px;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background-color: var(--bt-hairline);
+}
+.dark .bt-prof-row + .bt-prof-row::before { background-color: var(--bt-border); }
+/* Une rangée pleine largeur ne se met pas à l'échelle au doigt : à 350 px de
+   large, le rétrécissement se lit comme un glissement, pas comme un appui.
+   C'est le fond qui répond. */
+.bt-prof-row:hover:not(:disabled),
+.bt-prof-row:active:not(:disabled) { background-color: var(--bt-subtle); }
+.bt-prof-row--danger:hover:not(:disabled),
+.bt-prof-row--danger:active:not(:disabled) { background-color: var(--bt-danger-bg); }
+.bt-prof-row:focus-visible {
+  outline: 2px solid var(--bt-accent);
+  outline-offset: -2px;
+  border-radius: var(--bt-r-inset);
 }

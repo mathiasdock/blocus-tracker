@@ -166,7 +166,17 @@ The palette combines warm editorial neutrals with an energetic study green and a
 - **Quiet Border:** The low-contrast structural line used to separate without hard framing.
 - **Warm Text Scale:** Near-black primary text steps down through secondary, tertiary, and disabled roles. In dark mode the same roles invert to warm near-white and warm gray.
 
+### Family Accents
+
+A closed set of five hues — Study Green, Streak Amber, Plan Blue, Social Violet, Night Indigo — plus a neutral Utility Slate. They exist for exactly two jobs: telling badge families apart, and giving profile sections a recognizable marker. Each family carries a tinted surface, an ink for glyphs on that tint, a fixed mid tone for solid fills, a deep tone for the rare tier, a bright glow for glyphs on that deep tone, and a hairline ring.
+
+This is a deliberate, bounded exception to the green-only rule. Green stays the product's color: it is the family of study time, so it still owns the center of the system. The others are wayfinding, never identity.
+
 ### Named Rules
+
+**The Family Accent Rule.** A family hue may color a badge emblem or a section icon pill, and nothing else. Never a content surface, never body text, never a status — success, warning, and danger keep their own semantic tokens. If a hue would be the only thing carrying meaning, it is the wrong tool.
+
+**The Two-Channel Reward Rule.** On a badge, hue says which family, finish says how rare: tinted surface, then solid fill, then deep surface with a luminous ring. One dimension carrying both readings collapses into a gradient where nothing stands out.
 
 **The Green Signal Rule.** Use bright Study Green to communicate progress or a meaningful active state; use the darker Action Green pair for readable controls.
 
@@ -279,6 +289,8 @@ Progress tracks use recessed neutral or translucent ink tracks, full-pill clippi
 
 Editing opens as a bottom sheet on compact screens and a centered dialog from 640px upward. Dialogs trap focus, close on Escape, restore the opener, and separate destructive confirmation inside a Danger-tinted inset panel. Row-level edit and delete actions stay behind an overflow menu or a contextual editor until requested.
 
+**Grouped lists.** Settings that are opened a few times a year belong in a grouped list, not in an expanded card. A group is one surface holding rows of an icon pill, a label, the current state, and a chevron; the hairline starts after the pill so the eye follows the label column instead of being cut at every line. A folded row must still answer the question it was opened for — "Preferences · FR · Light" beats a bare "Preferences" — otherwise folding becomes hiding. What people check often, or urgently, stays unfolded: notification state is the standing example.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -290,6 +302,8 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 - **Do** use tabular numerals for any value that updates or aligns with another value.
 - **Do** preserve keyboard focus, 44px touch targets, safe areas, dark mode, and reduced-motion behavior.
 - **Do** reveal correction, deletion, and detailed management actions progressively.
+- **Do** collapse rarely used settings into grouped list rows, and show their current state on the folded row.
+- **Do** let a family hue mark a badge or a section icon, and let finish — not saturation — carry rarity.
 
 ### Don't:
 
@@ -300,4 +314,6 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 - **Don't** use Quicksand as the general interface font.
 - **Don't** use bright green for dense text when the darker green role is available.
 - **Don't** let course colors carry status meaning or replace labels, icons, and semantic feedback.
+- **Don't** spend a family accent on a content surface, body text, or a status; they mark families, nothing else.
+- **Don't** fold away what people open under pressure — notification state stays visible on the profile.
 - **Don't** animate layout properties or leave motion running when reduced motion is requested.

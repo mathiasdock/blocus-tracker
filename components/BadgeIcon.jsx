@@ -1,68 +1,75 @@
 // Emblèmes de badges.
 //
-// Refonte : la version précédente empilait quatre formes (bouclier / étoile /
-// trophée / flamme) sur treize teintes — or / bleu / rose / violet… — dans une
-// app par ailleurs strictement verte. La forme "flamme" rendait une goutte, les
-// glyphes étaient tracés à la main hors grille et mal centrés dans le bouclier,
-// et l'état verrouillé (grayscale + opacité 0,35) réduisait dix-neuf badges sur
-// vingt-deux à un mur de gris indistinct.
+// La version précédente tenait les vingt-deux badges dans une seule teinte —
+// le vert de marque — et faisait porter la rareté par la seule profondeur.
+// Vue en grille, la planche ressemblait à un dégradé : rien ne distinguait
+// « série de 30 jours » de « 250 heures », et la récompense n'avait plus l'air
+// d'une récompense.
 //
 // Principes ici :
+//   • La COULEUR dit la FAMILLE (temps d'étude, série, organisation, social,
+//     heures nocturnes), la FINITION dit la RARETÉ. Deux informations, deux
+//     canaux — au lieu d'une seule dimension surchargée.
+//   • Les teintes sortent d'une palette fermée de cinq familles, définie une
+//     fois dans globals.css et documentée comme exception à la règle « vert
+//     uniquement ». Le vert reste la famille du temps d'étude, donc du cœur du
+//     produit ; les autres sont des repères, pas une seconde identité.
 //   • UNE seule forme — le carré arrondi, déjà le langage du médaillon de
-//     niveau et des cartes. L'emblème EST le conteneur : plus de cadre dans un
-//     cadre comme dans la grille du profil.
-//   • Trois paliers, tous dans le vert de marque. La rareté se lit à la
-//     profondeur, pas à la teinte. Aucune couleur nouvelle.
-//   • Glyphes redessinés sur une grille 24 partagée, en tracé de 2 comme le
-//     reste des icônes de l'app — donc lisibles à 22 px comme à 72 px.
+//     niveau. L'emblème EST le conteneur : pas de cadre dans un cadre.
+//   • Chaque emblème porte un contour, et c'est lui qui monte d'un cran à
+//     chaque palier : filet discret → liseré clair → anneau lumineux.
+//   • Glyphes sur une grille 24 partagée, en tracé de 2 comme le reste des
+//     icônes — lisibles à 22 px comme à 72 px.
 //   • Verrouillé = emplacement vide assumé (surface neutre, glyphe estompé),
-//     pas une version délavée de l'acquis.
+//     pas une version délavée de l'acquis : sans couleur, la grille dit d'un
+//     coup d'œil ce qui reste à aller chercher.
 
 const TIERS = { starter: 1, progress: 2, rare: 3 };
 
 // Palier fondé sur la difficulté réelle mesurée en base, pas sur l'intuition.
+// Famille fondée sur ce que le badge récompense, pas sur son glyphe.
 const BADGE_VISUALS = {
-  first_session:    { glyph: "spark",    tier: TIERS.starter },
-  streak_3:         { glyph: "flame",    tier: TIERS.starter },
-  streak_7:         { glyph: "flame",    tier: TIERS.progress },
+  first_session:    { glyph: "spark",    tier: TIERS.starter,  fam: "time" },
+  streak_3:         { glyph: "flame",    tier: TIERS.starter,  fam: "streak" },
+  streak_7:         { glyph: "flame",    tier: TIERS.progress, fam: "streak" },
   // Palier rare assumé : 8 détenteurs seulement, et surtout la flamme change
   // ainsi de profondeur à chaque cran — sans quoi 7 et 14 étaient identiques.
-  streak_14:        { glyph: "flame",    tier: TIERS.rare },
-  streak_30:        { glyph: "crown",    tier: TIERS.rare },
-  hours_10:         { glyph: "book",     tier: TIERS.starter },
-  hours_50:         { glyph: "cap",      tier: TIERS.progress },
-  hours_100:        { glyph: "trophy",   tier: TIERS.progress },
+  streak_14:        { glyph: "flame",    tier: TIERS.rare,     fam: "streak" },
+  streak_30:        { glyph: "crown",    tier: TIERS.rare,     fam: "streak" },
+  hours_10:         { glyph: "book",     tier: TIERS.starter,  fam: "time" },
+  hours_50:         { glyph: "cap",      tier: TIERS.progress, fam: "time" },
+  hours_100:        { glyph: "trophy",   tier: TIERS.progress, fam: "time" },
   // Couronne réservée au sommet des séries : la réutiliser ici rendait les
   // deux badges indiscernables. Le gemme clôt l'échelle livre → toque → coupe.
-  hours_250:        { glyph: "gem",      tier: TIERS.rare },
-  marathon_day:     { glyph: "hourglass",tier: TIERS.progress },
-  planner:          { glyph: "calendar", tier: TIERS.starter },
-  strategist:       { glyph: "target",   tier: TIERS.progress },
-  blocus_architect: { glyph: "columns",  tier: TIERS.rare },
-  first_exam:       { glyph: "doc",      tier: TIERS.starter },
-  first_post:       { glyph: "camera",   tier: TIERS.starter },
-  influencer:       { glyph: "images",   tier: TIERS.rare },
-  first_friend:     { glyph: "userPlus", tier: TIERS.starter },
-  social:           { glyph: "users",    tier: TIERS.rare },
-  motivator:        { glyph: "heart",    tier: TIERS.rare },
-  team_spirit:      { glyph: "flag",     tier: TIERS.starter },
-  community_pillar: { glyph: "globe",    tier: TIERS.rare },
-  referrer:         { glyph: "share",    tier: TIERS.rare },
+  hours_250:        { glyph: "gem",      tier: TIERS.rare,     fam: "time" },
+  marathon_day:     { glyph: "hourglass",tier: TIERS.progress, fam: "time" },
+  planner:          { glyph: "calendar", tier: TIERS.starter,  fam: "plan" },
+  strategist:       { glyph: "target",   tier: TIERS.progress, fam: "plan" },
+  blocus_architect: { glyph: "columns",  tier: TIERS.rare,     fam: "plan" },
+  first_exam:       { glyph: "doc",      tier: TIERS.starter,  fam: "plan" },
+  first_post:       { glyph: "camera",   tier: TIERS.starter,  fam: "social" },
+  influencer:       { glyph: "images",   tier: TIERS.rare,     fam: "social" },
+  first_friend:     { glyph: "userPlus", tier: TIERS.starter,  fam: "social" },
+  social:           { glyph: "users",    tier: TIERS.rare,     fam: "social" },
+  motivator:        { glyph: "heart",    tier: TIERS.rare,     fam: "social" },
+  team_spirit:      { glyph: "flag",     tier: TIERS.starter,  fam: "social" },
+  community_pillar: { glyph: "globe",    tier: TIERS.rare,     fam: "social" },
+  referrer:         { glyph: "share",    tier: TIERS.rare,     fam: "social" },
 
   // Badges de la page Statistiques (lib/statsInsights.js). Ils avaient leur
   // propre rendu — carre mint plat + icone en trait fin — qui se lisait comme
   // un champ desactive, pas comme une recompense. Meme emblemes, meme langage
-  // de rarete que le profil. Les identifiants sont en camelCase la-bas et en
-  // snake_case ici : aucun risque de collision.
-  firstHour:        { glyph: "clock",    tier: TIERS.starter },
-  earlyBird:        { glyph: "sunrise",  tier: TIERS.starter },
-  afterMidnight:    { glyph: "moon",     tier: TIERS.starter },
-  streak7:          { glyph: "flame",    tier: TIERS.progress },
-  session3h:        { glyph: "bolt",     tier: TIERS.progress },
-  marathonDay:      { glyph: "hourglass",tier: TIERS.progress },
-  hours50:          { glyph: "cap",      tier: TIERS.progress },
-  hours100:         { glyph: "trophy",   tier: TIERS.rare },
-  goal10:           { glyph: "target",   tier: TIERS.rare },
+  // de rarete et de famille que le profil. Les identifiants sont en camelCase
+  // la-bas et en snake_case ici : aucun risque de collision.
+  firstHour:        { glyph: "clock",    tier: TIERS.starter,  fam: "time" },
+  earlyBird:        { glyph: "sunrise",  tier: TIERS.starter,  fam: "streak" },
+  afterMidnight:    { glyph: "moon",     tier: TIERS.starter,  fam: "night" },
+  streak7:          { glyph: "flame",    tier: TIERS.progress, fam: "streak" },
+  session3h:        { glyph: "bolt",     tier: TIERS.progress, fam: "night" },
+  marathonDay:      { glyph: "hourglass",tier: TIERS.progress, fam: "time" },
+  hours50:          { glyph: "cap",      tier: TIERS.progress, fam: "time" },
+  hours100:         { glyph: "trophy",   tier: TIERS.rare,     fam: "time" },
+  goal10:           { glyph: "target",   tier: TIERS.rare,     fam: "plan" },
 };
 
 // Tracés sur une grille 24×24, contour uniquement — même langage que les
@@ -173,32 +180,49 @@ const GLYPHS = {
     <path d="M3.4 19.4h17.2" />
   </>,
 };
-
-// Trois profondeurs de vert. La rareté se lit sans quitter la marque.
-// Les deux paliers qui dépendent des variables de thème passent par une classe
-// (voir globals.css) : le mode sombre doit pouvoir corriger leur glyphe.
-function tierStyle(tier) {
+// La rareté se lit à la FINITION, la famille à la TEINTE.
+//
+//   starter  — fond teinté, glyphe coloré, filet discret. L'objet est posé.
+//   progress — plein dégradé, glyphe blanc, liseré clair à l'intérieur.
+//              L'objet est massif.
+//   rare     — fond profond, glyphe lumineux, anneau de la couleur pleine et
+//              halo porté. L'objet éclaire.
+//
+// Chaque palier ajoute un cran de contour : c'est le contour, pas la
+// saturation, qui porte la hiérarchie — il reste lisible à 22 px, là où une
+// nuance de fond disparaît.
+function tierStyle(tier, fam) {
+  const c = s => `var(--bt-fam-${fam}${s})`;
   if (tier === TIERS.rare) {
     return {
       style: {
-        background: "linear-gradient(160deg, #0E8F68 0%, #08402F 70%, #071C15 100%)",
-        border: "1px solid rgba(34,228,164,0.45)",
-        color: "#22E4A4",
-        boxShadow: "0 3px 14px rgba(7,28,21,0.35)",
+        background: `linear-gradient(158deg, ${c("")} -35%, ${c("-deep")} 68%)`,
+        color: c("-glow"),
+        border: `1.5px solid ${c("")}`,
+        boxShadow: `0 3px 14px -3px ${c("-ring")}`,
       },
     };
   }
   if (tier === TIERS.progress) {
     return {
       style: {
-        background: "linear-gradient(160deg, #22E4A4 0%, #14B885 45%, #0E8F68 100%)",
-        border: "1px solid rgba(14,143,104,0.55)",
+        // `-mid` et non `-ink` : -ink s'éclaircit en mode sombre (c'est un
+        // ton de TEXTE sur teinte), et le dégradé passait alors menthe pâle
+        // sous un glyphe blanc. -mid ne dépend pas du thème.
+        background: `linear-gradient(158deg, ${c("")} 0%, ${c("-mid")} 118%)`,
         color: "#FFFFFF",
-        boxShadow: "0 3px 12px rgba(20,184,133,0.32)",
+        border: "1.5px solid rgba(255,255,255,0.30)",
+        boxShadow: `0 3px 12px -3px ${c("-ring")}`,
       },
     };
   }
-  return { className: "bt-badge-starter", style: {} };
+  return {
+    style: {
+      background: c("-soft"),
+      color: c("-ink"),
+      border: `1.5px solid ${c("-ring")}`,
+    },
+  };
 }
 
 const LOCKED = { className: "bt-badge-locked", style: {} };
@@ -211,8 +235,8 @@ const LOCKED = { className: "bt-badge-locked", style: {} };
  * @param {boolean} animate — brillance, pour un déblocage tout juste obtenu
  */
 export default function BadgeIcon({ id, earned = false, size = 36, animate = false }) {
-  const v = BADGE_VISUALS[id] || { glyph: "spark", tier: TIERS.starter };
-  const s = earned ? tierStyle(v.tier) : LOCKED;
+  const v = BADGE_VISUALS[id] || { glyph: "spark", tier: TIERS.starter, fam: "time" };
+  const s = earned ? tierStyle(v.tier, v.fam || "time") : LOCKED;
   const glyphSize = Math.round(size * 0.56);
 
   return (
@@ -226,6 +250,7 @@ export default function BadgeIcon({ id, earned = false, size = 36, animate = fal
         height: size,
         borderRadius: Math.max(6, Math.round(size * 0.3)),
         flexShrink: 0,
+        boxSizing: "border-box",
         transition: "transform 0.15s ease, box-shadow 0.15s ease",
         ...s.style,
       }}

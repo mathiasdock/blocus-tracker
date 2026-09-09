@@ -98,54 +98,97 @@ const YEARS = [
   "Doctorat", "Formation continue", "Autre",
 ];
 
-// ── Icons ────────────────────────────────────────────────────
-function IconGlobe() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>; }
-function IconMoon() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>; }
-function IconSmartphone() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>; }
-function IconVolume() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>; }
-function IconVibration() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 8v8M20 8v8M1 10v4M23 10v4"/></svg>; }
-function IconInfo() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>; }
-function IconLegal() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>; }
-function IconFeedback() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8M8 12h5"/></svg>; }
-function IconShield({ color }) { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>; }
-function IconLogOut() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
-function IconTrash() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>; }
-function IconCamera() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>; }
-function IconMail() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>; }
-function IconActivity() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>; }
-function IconUser() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
-function IconChevronDown({ open }) { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}><polyline points="6 9 12 15 18 9"/></svg>; }
-function IconShieldCheck() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v6c0 4.5-3 8.2-7 9-4-.8-7-4.5-7-9V6z"/><polyline points="9 12 11.2 14.2 15.5 9.9"/></svg>; }
-function IconCookie() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a9 9 0 1 0 9 9 4 4 0 0 1-4.5-2.2A4 4 0 0 1 12 3z"/><circle cx="9.5" cy="10" r="0.6" fill="currentColor"/><circle cx="14" cy="14.5" r="0.6" fill="currentColor"/><circle cx="9" cy="15" r="0.6" fill="currentColor"/></svg>; }
-function IconMegaphone() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10v4h3l6 4V6L6 10z"/><path d="M17 9a4 4 0 0 1 0 6"/><path d="M20 6.5a8 8 0 0 1 0 11"/></svg>; }
-function IconDownload() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>; }
-function IconChevronRight() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.35 }}><polyline points="9 18 15 12 9 6"/></svg>; }
-function IconLock() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>; }
-function IconAlert() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>; }
-function IconBell() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>; }
-function IconEdit() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>; }
-function IconAward() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>; }
-function IconSliders() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>; }
-function IconGift() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>; }
-function IconX() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
-function IconSun() { return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>; }
-
-// ── UI primitives (uniformes sur toute la page) ─────────────
-function SectionLabel({ children }) {
-  return <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{children}</p>;
+// ── Icônes ───────────────────────────────────────────────────
+// Un seul jeu : grille 24, tracé 1,9, extrémités rondes, 18 px par défaut.
+// La page mélangeait jusqu'ici sept épaisseurs et cinq tailles ; alignées dans
+// une même colonne, les icônes se lisaient comme des polices dépareillées.
+// Le dessin reste volontairement simple : à 18 px dans une pastille de 34,
+// tout détail sous 2 px se referme et fait une tache.
+function Glyph({ size = 18, style, children }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>
+      {children}
+    </svg>
+  );
 }
 
-function IconBox({ color, bg, children }) {
-  return <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: bg || "var(--bt-subtle)", color: color || "var(--bt-text-2)" }}>{children}</span>;
+const IconGlobe = () => <Glyph><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4a13.4 13.4 0 0 1 0 17.2 13.4 13.4 0 0 1 0-17.2Z"/></Glyph>;
+const IconMoon = () => <Glyph><path d="M20.4 13.6A8.6 8.6 0 1 1 10.4 3.6a6.8 6.8 0 0 0 10 10Z"/></Glyph>;
+const IconSun = () => <Glyph><circle cx="12" cy="12" r="4.4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4 6 6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6"/></Glyph>;
+const IconSmartphone = () => <Glyph><rect x="6.2" y="2.6" width="11.6" height="18.8" rx="2.8"/><path d="M10.6 5.8h2.8M12 18.2h.01"/></Glyph>;
+const IconVolume = () => <Glyph><path d="M11.4 4.6 6.6 8.8H3.2v6.4h3.4l4.8 4.2Z"/><path d="M15.4 9.2a4 4 0 0 1 0 5.6M18.2 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
+const IconVibration = () => <Glyph><rect x="8.4" y="3.2" width="7.2" height="17.6" rx="2.2"/><path d="M4.8 8.6v6.8M19.2 8.6v6.8M2 10.6v2.8M22 10.6v2.8"/></Glyph>;
+const IconInfo = () => <Glyph><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5M12 7.9h.01"/></Glyph>;
+const IconLegal = () => <Glyph><path d="M6.2 3.4h7.2l5 5v12.2H6.2Z"/><path d="M13.4 3.4v5h5"/><path d="M9.2 13.2h5.6M9.2 16.6h3.8"/></Glyph>;
+const IconFeedback = () => <Glyph><path d="M20.6 14.6a2.4 2.4 0 0 1-2.4 2.4H8.2l-4.8 3.6V5.8a2.4 2.4 0 0 1 2.4-2.4h12.4a2.4 2.4 0 0 1 2.4 2.4Z"/><path d="M8.2 8.6h7.6M8.2 12.2h4.8"/></Glyph>;
+const IconShield = () => <Glyph><path d="M12 3 19 6v6c0 4.6-3 8.3-7 9-4-.7-7-4.4-7-9V6Z"/></Glyph>;
+const IconShieldCheck = () => <Glyph><path d="M12 3 19 6v6c0 4.6-3 8.3-7 9-4-.7-7-4.4-7-9V6Z"/><path d="m9 12.1 2.2 2.2L15.4 10"/></Glyph>;
+const IconLogOut = () => <Glyph><path d="M9.6 20.6H5.4a2.2 2.2 0 0 1-2.2-2.2V5.6a2.2 2.2 0 0 1 2.2-2.2h4.2"/><path d="m16 16.6 4.6-4.6L16 7.4"/><path d="M20.6 12H9.4"/></Glyph>;
+const IconTrash = () => <Glyph><path d="M3.8 6.2h16.4"/><path d="M18.4 6.2 17.3 20a1.6 1.6 0 0 1-1.6 1.4H8.3A1.6 1.6 0 0 1 6.7 20L5.6 6.2"/><path d="M10 10.6v6.2M14 10.6v6.2"/><path d="M9.2 6.2V4.4a1.6 1.6 0 0 1 1.6-1.6h2.4a1.6 1.6 0 0 1 1.6 1.6v1.8"/></Glyph>;
+const IconCamera = () => <Glyph size={14}><path d="M21.4 18.6a2.2 2.2 0 0 1-2.2 2.2H4.8a2.2 2.2 0 0 1-2.2-2.2V8.8a2.2 2.2 0 0 1 2.2-2.2h3l1.6-2.8h5.2l1.6 2.8h3a2.2 2.2 0 0 1 2.2 2.2Z"/><circle cx="12" cy="13.4" r="3.4"/></Glyph>;
+const IconMail = () => <Glyph><rect x="2.8" y="4.8" width="18.4" height="14.4" rx="2.6"/><path d="m3.8 7.6 8.2 5.8 8.2-5.8"/></Glyph>;
+const IconActivity = () => <Glyph><path d="M2.8 12.4h3.6l2.6-7.6 4.4 14 2.6-6.4h5.2"/></Glyph>;
+const IconUser = () => <Glyph><circle cx="12" cy="8" r="4"/><path d="M4.6 20.4a7.4 7.4 0 0 1 14.8 0"/></Glyph>;
+const IconChevronDown = ({ open }) => (
+  <Glyph size={17} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.22s cubic-bezier(0.22,1,0.36,1)", flexShrink: 0 }}>
+    <path d="m6.6 9.4 5.4 5.2 5.4-5.2"/>
+  </Glyph>
+);
+// Le chevron de navigation n'est pas une icône de rubrique : il ne prend pas
+// la couleur de la ligne, il reste en gris de fond. Sinon deux signaux
+// visuels de même force se disputent la rangée.
+const IconChevronRight = () => (
+  <span style={{ display: "flex", flexShrink: 0, color: "var(--bt-text-4)" }}>
+    <Glyph size={17}><path d="m9.8 6.4 5.4 5.6-5.4 5.6"/></Glyph>
+  </span>
+);
+const IconCookie = () => <Glyph><path d="M12 3.4a8.6 8.6 0 1 0 8.6 8.6 3.8 3.8 0 0 1-4.3-2.1A3.8 3.8 0 0 1 12 3.4Z"/><path d="M9.4 10h.01M14.2 14.4h.01M9 15.2h.01"/></Glyph>;
+const IconMegaphone = () => <Glyph><path d="M3.4 9.6v4.8h3l6.6 4V5.6l-6.6 4Z"/><path d="M16.8 9.2a4 4 0 0 1 0 5.6M19.6 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
+const IconDownload = () => <Glyph><path d="M20.6 15.4v3.2a2.2 2.2 0 0 1-2.2 2.2H5.6a2.2 2.2 0 0 1-2.2-2.2v-3.2"/><path d="m7.6 10.6 4.4 4.4 4.4-4.4"/><path d="M12 15V3.4"/></Glyph>;
+const IconLock = () => <Glyph><rect x="4" y="10.6" width="16" height="10.4" rx="2.6"/><path d="M7.8 10.6V7.6a4.2 4.2 0 0 1 8.4 0v3"/></Glyph>;
+const IconAlert = () => <Glyph size={16}><path d="M10.5 4 2.6 17.8a1.7 1.7 0 0 0 1.5 2.6h15.8a1.7 1.7 0 0 0 1.5-2.6L13.5 4a1.7 1.7 0 0 0-3 0Z"/><path d="M12 9.6v4M12 16.9h.01"/></Glyph>;
+const IconBell = () => <Glyph><path d="M18 9.6a6 6 0 0 0-12 0c0 5.4-2.2 6.4-2.6 7a.6.6 0 0 0 .5.9h16.2a.6.6 0 0 0 .5-.9c-.4-.6-2.6-1.6-2.6-7Z"/><path d="M13.8 20.4a2 2 0 0 1-3.6 0"/></Glyph>;
+const IconEdit = () => <Glyph size={14}><path d="M16.6 3.4a2.7 2.7 0 0 1 3.8 3.8L7.6 20 2.8 21.2 4 16.4Z"/></Glyph>;
+const IconAward = () => <Glyph><circle cx="12" cy="9.2" r="6"/><path d="m8.4 14.4-1.2 7 4.8-2.6 4.8 2.6-1.2-7"/></Glyph>;
+const IconSliders = () => <Glyph><path d="M4.4 21v-6.2M4.4 10.6V3M12 21v-8.6M12 8.2V3M19.6 21v-4.6M19.6 12.2V3"/><path d="M2 14.8h4.8M9.6 12.4h4.8M17.2 16.4H22"/></Glyph>;
+const IconGift = () => <Glyph><path d="M20 11.6V21H4v-9.4"/><rect x="2.4" y="7.2" width="19.2" height="4.4" rx="1.4"/><path d="M12 21V7.2"/><path d="M12 7.2H7.8a2.4 2.4 0 0 1 0-4.8c3.2 0 4.2 4.8 4.2 4.8ZM12 7.2h4.2a2.4 2.4 0 0 0 0-4.8C13 2.4 12 7.2 12 7.2Z"/></Glyph>;
+const IconX = () => <Glyph size={17}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8"/></Glyph>;
+
+// ── UI primitives (uniformes sur toute la page) ─────────────
+// Titre de rubrique. La petite capitale grise de 10 px est abandonnée : à
+// cette taille, l'espacement des capitales RALENTIT la lecture — on croyait
+// gagner en hiérarchie, on perdait en lisibilité.
+function SectionLabel({ children }) {
+  return <p className="text-[13px] font-semibold leading-tight" style={{ color: "var(--bt-text-2)" }}>{children}</p>;
+}
+
+// Pastille d'icône. Le contour de la même famille que la teinte est ce qui
+// fait tenir le glyphe comme un objet posé sur la carte, plutôt que comme un
+// dessin qui flotte ; et la teinte donne à chaque rubrique un repère qu'on
+// attrape avant même d'avoir lu le libellé. Cinq familles fermées, pas une
+// couleur par rangée : la couleur CLASSE, elle ne décore pas.
+function IconBox({ fam = "util", danger, size = 34, children }) {
+  const bg   = danger ? "var(--bt-danger-bg)"     : `var(--bt-fam-${fam}-soft)`;
+  const fg   = danger ? "var(--bt-danger)"        : `var(--bt-fam-${fam}-ink)`;
+  const ring = danger ? "var(--bt-danger-border)" : `var(--bt-fam-${fam}-ring)`;
+  return (
+    <span className="flex items-center justify-center shrink-0"
+      style={{
+        width: size, height: size, borderRadius: Math.round(size * 0.32),
+        backgroundColor: bg, color: fg, boxShadow: `inset 0 0 0 1px ${ring}`,
+      }}>
+      {children}
+    </span>
+  );
 }
 
 // En-tête de carte standard : icône + libellé + contenu optionnel à droite.
-// Toutes les cartes de la page l'utilisent → même rythme visuel partout.
-function CardHead({ icon, label, right }) {
+function CardHead({ icon, fam, label, right }) {
   return (
     <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
       <div className="flex items-center gap-2.5 min-w-0">
-        {icon && <span style={{ color: "var(--bt-text-3)" }}>{icon}</span>}
+        {icon && <IconBox fam={fam} size={30}>{icon}</IconBox>}
         <SectionLabel>{label}</SectionLabel>
       </div>
       {right && <div className="shrink-0">{right}</div>}
@@ -153,14 +196,11 @@ function CardHead({ icon, label, right }) {
   );
 }
 
-// Rangée de réglage unifiée. Trois affordances distinctes et coherentes :
-//  • onClick + right=<IconChevronDown> → se deplie sur place (accordeon)
-//  • href + right=<IconChevronRight>  → mene a une autre page
-//  • right=<controle>                 → s'ajuste sur place (toggle/segmented)
-function SettingsRow({ icon, label, description, right, onClick, href, danger, accent }) {
-  const labelColor = danger ? "#DC2626" : accent ? "var(--bt-accent-dark)" : "var(--bt-text-1)";
-  const iconColor  = danger ? "#DC2626" : accent ? "var(--bt-accent-dark)" : "var(--bt-text-2)";
-  const iconBg     = danger ? "rgba(220,38,38,0.10)" : accent ? "var(--bt-accent-bg)" : "var(--bt-subtle)";
+// Rangée de réglage — le contrôle est DANS la rangée, on n'en sort pas.
+//  • onClick + right=<IconChevronDown> → se déplie sur place (accordéon)
+//  • href + right=<IconChevronRight>   → mène à une autre page
+//  • right=<contrôle>                  → s'ajuste sur place (toggle/segmented)
+function SettingsRow({ icon, fam = "util", label, description, right, onClick, href, danger }) {
   const inner = (
     // Le contrôle passe à la ligne plutôt que d'écraser le texte : sur 375 px,
     // un bouton large ne laissait qu'une centaine de pixels au libellé et à la
@@ -169,16 +209,16 @@ function SettingsRow({ icon, label, description, right, onClick, href, danger, a
     // diagnostic était à l'écran, illisible, et nous a coûté plusieurs essais.
     <div className="flex flex-wrap items-center justify-between px-5 py-3.5 gap-3">
       <div className="flex items-center gap-3 min-w-[55%] flex-1">
-        <IconBox color={iconColor} bg={iconBg}>{icon}</IconBox>
+        <IconBox fam={fam} danger={danger}>{icon}</IconBox>
         <div className="min-w-0">
-          <span className="block text-sm font-medium" style={{ color: labelColor }}>{label}</span>
+          <span className="block text-sm font-medium" style={{ color: danger ? "var(--bt-danger)" : "var(--bt-text-1)" }}>{label}</span>
           {description && <span className="block text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>{description}</span>}
         </div>
       </div>
       <div className="shrink-0">{right}</div>
     </div>
   );
-  const hoverBg = danger ? "#FEF2F2" : "var(--bt-subtle)";
+  const hoverBg = danger ? "var(--bt-danger-bg)" : "var(--bt-subtle)";
   if (href) return (
     <Link href={href} className="block transition-colors"
       onMouseEnter={e => e.currentTarget.style.backgroundColor = hoverBg}
@@ -190,6 +230,82 @@ function SettingsRow({ icon, label, description, right, onClick, href, danger, a
       onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>{inner}</button>
   );
   return inner;
+}
+
+// ── Liste groupée — la navigation du profil ──────────────────
+// La page montrait tout, tout le temps : quatorze cartes dépliées, dont onze
+// de réglages qu'on ouvre trois fois par an. Ce qui compte — qui je suis, où
+// j'en suis, ce que j'ai gagné — se retrouvait noyé au milieu du reste.
+// Ces rangées replient les réglages sans les cacher : le libellé reste
+// visible, et `value` affiche l'état courant à droite. « Préférences › » ne
+// dit rien ; « Préférences · FR · Clair › » répond à la question qu'on venait
+// poser, sans ouvrir.
+function NavRow({ fam = "util", icon, label, description, value, onClick, href, danger, chevron = true }) {
+  const inner = (
+    <>
+      <IconBox fam={fam} danger={danger}>{icon}</IconBox>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-medium leading-tight"
+          style={{ color: danger ? "var(--bt-danger)" : "var(--bt-text-1)" }}>{label}</span>
+        {description && <span className="mt-0.5 block text-xs leading-snug" style={{ color: "var(--bt-text-3)" }}>{description}</span>}
+      </span>
+      {value && (
+        <span className="shrink-0 truncate text-xs font-medium" style={{ color: "var(--bt-text-3)", maxWidth: 132 }} title={typeof value === "string" ? value : undefined}>
+          {value}
+        </span>
+      )}
+      {chevron && <IconChevronRight />}
+    </>
+  );
+  const cls = `bt-prof-row${danger ? " bt-prof-row--danger" : ""}`;
+  if (href) return <Link href={href} className={cls}>{inner}</Link>;
+  return <button type="button" onClick={onClick} className={cls}>{inner}</button>;
+}
+
+function NavGroup({ children }) {
+  return <div className="card overflow-hidden">{children}</div>;
+}
+
+// ── Feuille de détail ────────────────────────────────────────
+// Même matière que les autres surfaces modales de la page : poignée et bord
+// bas sur téléphone, carte centrée au-delà. C'est elle qui permet au profil de
+// ne plus tout déballer d'un coup SANS rien enterrer — une rangée, un titre,
+// le contenu entier, rien de tronqué. L'en-tête reste collé en haut : sur une
+// longue liste de réglages, on doit pouvoir refermer sans remonter.
+function DetailSheet({ open, title, closeLabel, onClose, children }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
+      <div className="fixed z-50 bottom-0 inset-x-0 sm:inset-0 sm:flex sm:items-center sm:justify-center" onClick={onClose}>
+        <div role="dialog" aria-modal="true" aria-label={title}
+          className="rounded-t-[28px] sm:rounded-[24px] sm:max-w-md w-full sm:mx-4"
+          style={{ backgroundColor: "var(--bt-surface)", maxHeight: "90vh", overflowY: "auto", boxShadow: "var(--bt-elev-3)" }}
+          onClick={e => e.stopPropagation()}>
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
+          </div>
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 pb-3 pt-3 sm:pt-5"
+            style={{ backgroundColor: "var(--bt-surface)" }}>
+            <h3 className="bt-section-title truncate">{title}</h3>
+            <button onClick={onClose} aria-label={closeLabel}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors"
+              style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }}>
+              <IconX />
+            </button>
+          </div>
+          <div className="pb-5">{children}</div>
+        </div>
+      </div>
+    </>
+  );
 }
 
 // Segmented control générique (langue, thème…) — le pattern de réglage
@@ -313,11 +429,17 @@ function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
   );
 }
 
-// ── Badges — carte claire, compteur + grille cliquable ───────
+// ── Badges — le tableau de chasse ────────────────────────────
+// Deuxième grand objet visuel de la page après le niveau. Les emblèmes
+// portent maintenant la couleur de leur famille : vue de loin, la planche
+// raconte OÙ on progresse (temps d'étude, régularité, organisation, social)
+// avant même qu'on lise un libellé. Les emplacements verrouillés restent
+// neutres — c'est ce contraste qui donne envie d'aller les chercher.
 function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
+  const pct = BADGES.length ? Math.round((earnedBadgeIds.length / BADGES.length) * 100) : 0;
   return (
     <div className="card overflow-hidden">
-      <CardHead icon={<IconAward />} label={t("badge.title")}
+      <CardHead icon={<IconAward />} fam="streak" label={t("badge.title")}
         right={
           <span className="font-num text-xs font-bold tabular-nums px-2.5 py-1 rounded-full"
             style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
@@ -325,7 +447,11 @@ function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
           </span>
         } />
       <div className="px-5 pb-5">
-        <div className="flex flex-wrap gap-2">
+        <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
+          <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
+            style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-accent)" }} />
+        </div>
+        <div className="flex flex-wrap gap-2.5">
           {BADGES.map(b => {
             const earned = earnedBadgeIds.includes(b.id);
             return (
@@ -338,7 +464,7 @@ function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
                 style={{ display: "flex", flexShrink: 0, cursor: "pointer", background: "none", border: "none", padding: 0, transition: "transform 0.12s" }}
                 onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.10)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                <BadgeIcon id={b.id} earned={earned} size={40} />
+                <BadgeIcon id={b.id} earned={earned} size={44} />
               </button>
             );
           })}
@@ -348,8 +474,11 @@ function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
   );
 }
 
-// ── Parrainage — version compacte (lien + compteur, sans pavé) ──
-function ReferralCard({ t, fallbackCode = "" }) {
+// ── Parrainage — contenu nu, posé dans une feuille de détail ──
+// Plus de carte ni d'en-tête : la feuille qui l'accueille porte déjà les deux.
+// Une carte dans une carte, c'était exactement le cadre-dans-le-cadre qu'on
+// enlève partout ailleurs.
+function ReferralBody({ t, fallbackCode = "" }) {
   const [stats, setStats] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showList, setShowList] = useState(false);
@@ -380,46 +509,44 @@ function ReferralCard({ t, fallbackCode = "" }) {
   }
 
   return (
-    <div className="card overflow-hidden">
-      <CardHead icon={<IconGift />} label={t("referral.title")}
-        right={
-          <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
-            {t("referral.signupsCount")} : <span className="font-num font-bold" style={{ color: "var(--bt-text-1)" }}><AnimatedNumber value={count} /></span>
-          </span>
-        } />
-      <div className="px-5 pb-4">
-        <p className="text-xs mb-3" style={{ color: "var(--bt-text-3)" }}>{t("referral.subtitle")}</p>
-        <div className="rounded-xl border flex items-stretch overflow-hidden"
-          style={{ borderColor: "var(--bt-border)", backgroundColor: "var(--bt-subtle)" }}>
-          <div className="flex-1 min-w-0 px-3 py-2.5 text-xs font-mono truncate"
+    <>
+      <div className="px-5">
+        <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("referral.subtitle")}</p>
+        <div className="mt-4 flex items-stretch overflow-hidden rounded-xl"
+          style={{ backgroundColor: "var(--bt-subtle)", boxShadow: "inset 0 0 0 1px var(--bt-hairline)" }}>
+          <div className="min-w-0 flex-1 truncate px-3 py-2.5 font-mono text-xs"
             style={{ color: "var(--bt-text-2)" }} title={shareLink}>
             {shareLink || "…"}
           </div>
           <button onClick={copy} disabled={!shareLink}
-            className="px-3.5 text-xs font-semibold whitespace-nowrap transition-colors"
-            style={{ backgroundColor: copied ? "#14B885" : "var(--bt-accent-dark)", color: "#fff" }}>
+            className="whitespace-nowrap px-3.5 text-xs font-semibold transition-colors"
+            style={{ backgroundColor: copied ? "var(--bt-accent)" : "var(--bt-accent-dark)", color: "#fff" }}>
             {copied ? t("referral.copied") : t("referral.copy")}
           </button>
         </div>
+        <p className="mt-3 text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
+          {t("referral.signupsCount")} :{" "}
+          <span className="font-num font-bold" style={{ color: "var(--bt-text-1)" }}><AnimatedNumber value={count} /></span>
+        </p>
       </div>
       {count > 0 && (
-        <div style={{ borderTop: "1px solid var(--bt-border)" }}>
+        <div className="mt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
           <button onClick={() => setShowList(o => !o)}
-            className="w-full flex items-center justify-between px-5 py-3 text-left transition-colors"
+            className="flex w-full items-center justify-between px-5 py-3 text-left transition-colors"
             onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
             onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+            <span className="text-[13px] font-semibold" style={{ color: "var(--bt-text-2)" }}>
               {t("referral.listTitle")}
             </span>
             <IconChevronDown open={showList} />
           </button>
           {showList && (
-            <ul className="px-5 pb-4 pt-1 space-y-2.5">
+            <ul className="space-y-2.5 px-5 pb-2 pt-1">
               {list.map((r, i) => (
                 <li key={i} className="flex items-center gap-3">
                   <Avatar url={r.avatar_url} pseudo={r.pseudo} size={32} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>@{r.pseudo}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>@{r.pseudo}</p>
                     <p className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>{new Date(r.created_at).toLocaleDateString()}</p>
                   </div>
                   <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>+{r.xp_awarded} XP</span>
@@ -429,7 +556,7 @@ function ReferralCard({ t, fallbackCode = "" }) {
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -562,7 +689,7 @@ function PushRow({ t, user }) {
 
   return (
     <>
-      <SettingsRow icon={<IconBell />} label={t("push.title")}
+      <SettingsRow fam="streak" icon={<IconBell />} label={t("push.title")}
         description={pushErrorMessage(t, failure?.reason, failure?.origin) || description}
         right={right} />
       {/* Le motif seul ne suffit pas à distinguer les causes possibles d'un
@@ -597,9 +724,11 @@ function BadgeSheet({ badge, earned, t, onClose }) {
             <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
           </div>
           <div className="p-6 pt-4 sm:pt-6 text-center">
-            <div className={`inline-flex items-center justify-center w-24 h-24 rounded-3xl mb-4 ${earned ? "badge-shine" : ""}`}
-              style={{ backgroundColor: earned ? "var(--bt-accent-bg)" : "var(--bt-subtle)", border: earned ? "1px solid var(--bt-accent-border)" : "1px solid var(--bt-border)" }}>
-              <BadgeIcon id={badge.id} earned={earned} size={72} />
+            {/* L'emblème porte sa propre couleur de famille et son propre
+                contour : l'enfermer dans un second carré vert le contredisait
+                — dans la feuille, TOUS les badges redevenaient verts. */}
+            <div className={`mb-4 inline-flex ${earned ? "badge-shine" : ""}`}>
+              <BadgeIcon id={badge.id} earned={earned} size={88} />
             </div>
             <h3 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
               {t(badge.labelKey)}
@@ -747,6 +876,10 @@ export default function Profile() {
   const [tomorrowObjCount, setTomorrowObjCount] = useState(0);
   const [referredToday, setReferredToday] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState(null);
+  // Feuille de détail ouverte : "activity" | "referral" | "prefs" | "account"
+  // | "privacy". Une seule à la fois — deux surfaces modales empilées, c'est
+  // un piège pour en sortir.
+  const [sheet, setSheet] = useState(null);
   const [newBadgeId, setNewBadgeId] = useState(null);
   const [serverMissions, setServerMissions] = useState(null);
   const [canonicalLevelInfo, setCanonicalLevelInfo] = useState(null);
@@ -1133,14 +1266,26 @@ export default function Profile() {
         : "—")
     : "…";
 
-  const sep = <div style={{ height: 1, backgroundColor: "var(--bt-border)" }} />;
+  const sep = <div style={{ height: 1, backgroundColor: "var(--bt-hairline)" }} />;
 
+  // Les trois chiffres qui répondent à « où j'en suis » restent sous les yeux.
+  // Les six autres — sessions, record, gels, moyennes — passent dans la
+  // feuille « Mon activité » : ils comptent, mais personne n'ouvre son profil
+  // pour les vérifier tous les jours, et à neuf tuiles côte à côte plus aucune
+  // ne ressortait.
   const heroStats = [
     { label: t("profile.statTotalTime"), value: <AnimatedNumber value={profileTotalSecs} format={formatMinutesShort} /> },
-    { label: t("profile.statSessions"), value: <AnimatedNumber value={sessionCount} /> },
     { label: t("profile.streakDays"), value: <AnimatedNumber value={streak} suffix={` ${t("dash.daysShort")}`} /> },
-    { label: t("profile.bestStreakDays"), value: <AnimatedNumber value={best} suffix={` ${t("dash.daysShort")}`} /> },
     { label: t("profile.statRank7d"), value: rankValue },
+  ];
+
+  const activityStats = [
+    { label: t("profile.hours30d"), value: <AnimatedNumber value={secs30d} format={formatMinutesShort} /> },
+    { label: t("profile.statAvgDay"), value: <AnimatedNumber value={avgDaySecs30} format={formatMinutesShort} /> },
+    { label: t("profile.statActiveDays"), value: <AnimatedNumber value={activeDays} /> },
+    { label: t("profile.statObjDone"), value: <AnimatedNumber value={completedObjCount} /> },
+    { label: t("profile.statSessions"), value: <AnimatedNumber value={sessionCount} /> },
+    { label: t("profile.bestStreakDays"), value: <AnimatedNumber value={best} suffix={` ${t("dash.daysShort")}`} /> },
     // Les gels n'étaient visibles NULLE PART sur le profil : on ne pouvait pas
     // savoir combien il en restait. Affiché dès que la fonctionnalité répond,
     // y compris à 0 (sinon on ne découvre jamais que ce filet existe).
@@ -1161,13 +1306,21 @@ export default function Profile() {
     }]),
   ];
 
+  const closeSheet = () => setSheet(null);
+  // L'état courant s'affiche sur la rangée fermée : c'est ce qui distingue
+  // « replié » de « caché ». On vient vérifier sa langue, on l'a sans ouvrir.
+  const prefsSummary = [
+    langPref === "auto" ? t("profile.languageAuto") : String(langPref).toUpperCase(),
+    theme === "dark" ? t("profile.themeDark") : theme === "system" ? t("profile.themeSystem") : t("profile.themeLight"),
+  ].join(" · ");
+
   if (!dataReady || forceSkeleton) return <Layout><PageContentSkeleton pathname="/profile" /></Layout>;
 
   return (
     <Layout>
       <div className="max-w-[1200px] mx-auto pb-10 bt-stagger">
 
-        {/* ══ HERO — identité (pleine largeur, horizontal en desktop) ══ */}
+        {/* ══ HERO — identité ══════════════════════════════════ */}
         <div className="card overflow-hidden">
           <div className="h-20 sm:h-24 relative overflow-hidden" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }} />
           <div className="px-5 sm:px-7 pb-5 sm:pb-6">
@@ -1208,7 +1361,7 @@ export default function Profile() {
               <div className="shrink-0 sm:pb-1">
                 <button onClick={() => { setMsg(""); setShowEditProfile(true); }}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-colors bt-press"
-                  style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", color: "var(--bt-text-1)" }}>
+                  style={{ backgroundColor: "var(--bt-subtle)", boxShadow: "inset 0 0 0 1px var(--bt-hairline)", color: "var(--bt-text-1)" }}>
                   <IconEdit />
                   {t("profile.editProfile")}
                 </button>
@@ -1216,11 +1369,11 @@ export default function Profile() {
             </div>
 
             {avatarMsg && (
-              <p className="text-xs mt-2.5 text-center sm:text-left" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-dark)" : "#DC2626" }}>{avatarMsg}</p>
+              <p className="text-xs mt-2.5 text-center sm:text-left" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-dark)" : "var(--bt-danger)" }}>{avatarMsg}</p>
             )}
 
-            {/* Rail de stats-clés — l'essentiel du profil chiffré d'un coup d'œil */}
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-5 pt-4" style={{ borderTop: "1px solid var(--bt-border)" }}>
+            {/* Rail de stats-clés — trois chiffres, pas neuf. */}
+            <div className="grid grid-cols-3 gap-2 mt-5 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
               {heroStats.map((s, i) => <StatTile key={i} label={s.label} value={s.value} sub={s.sub} />)}
             </div>
           </div>
@@ -1229,22 +1382,25 @@ export default function Profile() {
         {/* Locked warning */}
         {profile?.locked && (
           <div className="card p-4 mt-4 flex items-start gap-3"
-            style={{ borderColor: "rgba(220,38,38,0.35)", backgroundColor: "rgba(220,38,38,0.08)" }}>
-            <span className="shrink-0" style={{ color: "#DC2626" }}><IconLock /></span>
+            style={{ backgroundColor: "var(--bt-danger-bg)", boxShadow: "inset 0 0 0 1px var(--bt-danger-border)" }}>
+            <span className="shrink-0" style={{ color: "var(--bt-danger)" }}><IconLock /></span>
             <div>
-              <p className="text-sm font-medium" style={{ color: "#DC2626" }}>{t("profile.lockedTitle")}</p>
+              <p className="text-sm font-medium" style={{ color: "var(--bt-danger)" }}>{t("profile.lockedTitle")}</p>
               <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-2)" }}>{t("profile.lockedDesc")}</p>
             </div>
           </div>
         )}
 
-        {/* ══ GRILLE DESKTOP : contenu 2/3 + gamification 1/3 ══
-            Sur mobile, la colonne Progression vient en premier (ordre DOM),
-            sur desktop elle passe à droite. */}
+        {/* ══ GRILLE ═══════════════════════════════════════════
+            Deux natures de contenu, deux colonnes en desktop, un seul fil en
+            mobile : à gauche ce qu'on vient REGARDER (niveau, missions,
+            badges), à droite ce qu'on vient FAIRE (rangées de navigation et
+            réglages). L'ordre du DOM est déjà le bon ordre mobile — aucune
+            inversion d'ordre n'est nécessaire. */}
         <div className="mt-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:items-start">
 
-          {/* ── Colonne PROGRESSION (droite en desktop, 1ère en mobile) ── */}
-          <div className="space-y-4 lg:order-2">
+          {/* ── Colonne PROGRESSION ────────────────────────── */}
+          <div className="space-y-4 lg:col-span-2">
             <XPCard
               levelInfo={levelInfo}
               missions={missions}
@@ -1254,195 +1410,220 @@ export default function Profile() {
               t={t}
             />
             <BadgesCard earnedBadgeIds={earnedBadgeIds} onBadgeClick={setSelectedBadge} t={t} />
-            <ReferralCard t={t} fallbackCode={profile?.referral_code} />
           </div>
 
-          {/* ── Colonne CONTENU (gauche en desktop) ── */}
-          <div className="space-y-4 lg:col-span-2 lg:order-1">
+          {/* ── Colonne RUBRIQUES ──────────────────────────── */}
+          <div className="space-y-4">
 
-            {/* Activité — heatmap GitHub + tuiles */}
-            <div className="card overflow-hidden">
-              <CardHead icon={<IconActivity />} label={t("profile.activitySection")} />
-              <div className="px-5 pb-5">
-                {profileTotalSecs > 0 ? (
-                  <>
-                    <StudyHeatmap sessions={profileSessions} />
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-                      <StatTile label={t("profile.hours30d")} value={<AnimatedNumber value={secs30d} format={formatMinutesShort} />} />
-                      <StatTile label={t("profile.statAvgDay")} value={<AnimatedNumber value={avgDaySecs30} format={formatMinutesShort} />} />
-                      <StatTile label={t("profile.statActiveDays")} value={<AnimatedNumber value={activeDays} />} />
-                      <StatTile label={t("profile.statObjDone")} value={<AnimatedNumber value={completedObjCount} />} />
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
-                )}
-              </div>
-            </div>
+            {/* Ce qui appartient à l'utilisateur : son activité, ses filleuls,
+                sa voix. Trois portes, pas trois pavés dépliés. */}
+            <NavGroup>
+              <NavRow fam="time" icon={<IconActivity />}
+                label={t("profile.activitySection")} description={t("profile.activityRowDesc")}
+                onClick={() => setSheet("activity")} />
+              <NavRow fam="social" icon={<IconGift />}
+                label={t("referral.title")} description={t("referral.subtitle")}
+                onClick={() => setSheet("referral")} />
+              <NavRow fam="plan" icon={<IconFeedback />}
+                label={t("feedback.improveTitle")} href="/feedback" />
+            </NavGroup>
 
-            {/* Préférences — réglages en place, aucun texte superflu */}
+            {/* Notifications — jamais repliées. C'est le seul réglage qu'on
+                vient vérifier en urgence (« pourquoi je ne reçois rien ? ») :
+                le mettre derrière une rangée serait le rendre introuvable au
+                moment précis où il compte. */}
             <div className="card overflow-hidden">
-              <CardHead icon={<IconSliders />} label={t("profile.preferencesSection")} />
-              <SettingsRow icon={<IconGlobe />} label={t("profile.language")} right={
-                <Segmented value={langPref} onChange={changeLang}
-                  options={[{ value: "auto", label: t("profile.languageAuto") }, { value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
-              } />
-              {sep}
-              <SettingsRow icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} right={
-                <Segmented value={theme} onChange={setTheme}
-                  options={[
-                    { value: "light", label: t("profile.themeLight") },
-                    { value: "system", label: t("profile.themeSystem") },
-                    { value: "dark", label: t("profile.themeDark") },
-                  ]} />
-              } />
-              {sep}
-              <SettingsRow icon={<IconVolume />} label={t("sensory.soundTitle")}
-                description={t("sensory.soundDesc")}
-                right={<MiniSwitch checked={sensoryPrefs.sound}
-                  onChange={enabled => setSensoryPreference("sound", enabled)}
-                  label={t("sensory.soundTitle")} />} />
-              {sep}
-              <SettingsRow icon={<IconVibration />} label={t("sensory.hapticsTitle")}
-                description={t("sensory.hapticsDesc")}
-                right={<MiniSwitch checked={sensoryPrefs.haptics}
-                  onChange={enabled => setSensoryPreference("haptics", enabled)}
-                  label={t("sensory.hapticsTitle")} />} />
-              {sep}
+              <CardHead label={t("profile.notificationsSection")} />
               <PushRow t={t} user={user} />
-            </div>
-
-            {/* Compte — email, app, avis, légal, à propos + zone de sortie */}
-            <div className="card overflow-hidden">
-              <CardHead icon={<IconUser />} label={t("profile.accountSection")} />
-              <SettingsRow icon={<IconMail />} label={t("profile.emailSection")}
-                description={profile?.email || undefined}
-                onClick={() => setShowEmail(o => !o)} right={<IconChevronDown open={showEmail} />} />
-              {showEmail && (
-                <div className="px-5 pb-5 pt-1">
-                  <form onSubmit={saveEmail} className="space-y-2">
-                    <input className="input" type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} autoComplete="email" placeholder="ton@email.com" />
-                    <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("profile.emailHint")}</p>
-                    {emailMsg && <p className="text-xs" style={{ color: emailMsg === t("profile.emailSaved") ? "var(--bt-accent-dark)" : "#DC2626" }}>{emailMsg}</p>}
-                    <button className="btn-primary w-full" type="submit" disabled={emailBusy || !emailInput.trim() || emailInput === (profile?.email || "")}>
-                      {emailBusy ? t("profile.emailSaving") : t("profile.emailSave")}
-                    </button>
-                  </form>
-                </div>
-              )}
-              {sep}
-              <SettingsRow icon={<IconSmartphone />} label={t("pwa.profileSection")}
-                onClick={() => setShowPwa(s => !s)} right={<IconChevronDown open={showPwa} />} />
-              {showPwa && (
-                <div className="px-5 pb-4 pt-1 space-y-3">
-                  <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-                    <span className="shrink-0 mt-0.5" style={{ color: "#D97706" }}><IconAlert /></span>
-                    <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("pwa.safariNote")}</p>
-                  </div>
-                  <ol className="space-y-2">
-                    {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
-                        <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                  {/* Les étapes seules ne suffisent pas : « Sur l'écran d'accueil »
-                      est noyé dans un long menu iOS, personne ne le trouve. */}
-                  <PwaHomeScreenVisual />
-                </div>
-              )}
-              {sep}
-              <SettingsRow accent icon={<IconFeedback />} href="/feedback"
-                label={t("feedback.improveTitle")} right={<IconChevronRight />} />
-              {sep}
-              <SettingsRow icon={<IconLegal />} href="/legal"
-                label={t("legal.profileRow")} right={<IconChevronRight />} />
-              {sep}
-              <SettingsRow icon={<IconInfo />} label={t("profile.about")}
-                onClick={() => setShowAbout(s => !s)} right={<IconChevronDown open={showAbout} />} />
-              {showAbout && (
-                <div className="px-5 pb-4 pt-1 space-y-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                  <p><span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>blocus·tracker</span>{" "}{t("profile.aboutCreatedBy")}{" "}<span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>Mathias Dock</span>{", "}{t("profile.aboutRole")}</p>
-                  <p>{t("profile.aboutDesc")}</p>
-                </div>
-              )}
-              {sep}
-              <SettingsRow icon={<IconLogOut />} label={t("profile.signOut")} onClick={signOut} />
-            </div>
-
-            {/* ── Confidentialité ──────────────────────────────────────────
-                Tout ce qui relève des droits de la personne au même endroit :
-                consulter, exporter, régler ce qui la suit, supprimer. Éclaté
-                sur trois écrans, un droit n'est un droit que sur le papier. */}
-            <div className="card overflow-hidden">
-              <CardHead icon={<IconShieldCheck />} label={t("privacy.section")} />
-
-              <SettingsRow icon={<IconCookie />} label={t("privacy.cookieSettings")}
-                description={t("privacy.cookieSettingsDesc")}
-                onClick={openConsentSettings} right={<IconChevronRight />} />
-              {sep}
-
               {privacyAvailable && (
                 <>
-                  <SettingsRow icon={<IconBell />} label={t("privacy.pushReminders")}
+                  {sep}
+                  <SettingsRow fam="time" icon={<IconBell />} label={t("privacy.pushReminders")}
                     description={t("privacy.pushRemindersDesc")}
                     right={<MiniSwitch checked={privacy.push_reminders !== false}
                       onChange={value => setPushPreference("push_reminders", value)}
                       label={t("privacy.pushReminders")} />} />
                   {sep}
-                  <SettingsRow icon={<IconMegaphone />} label={t("privacy.pushAnnouncements")}
+                  <SettingsRow fam="social" icon={<IconMegaphone />} label={t("privacy.pushAnnouncements")}
                     description={t("privacy.pushAnnouncementsDesc")}
                     right={<MiniSwitch checked={privacy.push_announcements !== false}
                       onChange={value => setPushPreference("push_announcements", value)}
                       label={t("privacy.pushAnnouncements")} />} />
-                  {sep}
                 </>
-              )}
-
-              <SettingsRow icon={<IconDownload />} label={t("privacy.exportData")}
-                description={t("privacy.exportDataDesc")}
-                onClick={exporting ? undefined : exportMyData}
-                right={exporting
-                  ? <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>…</span>
-                  : <IconChevronRight />} />
-              {sep}
-              <SettingsRow icon={<IconLegal />} href="/legal?doc=privacy"
-                label={t("privacy.yourRights")} description={t("privacy.yourRightsDesc")}
-                right={<IconChevronRight />} />
-              {sep}
-              {!deleteConfirm ? (
-                <SettingsRow danger icon={<IconTrash />} label={t("profile.deleteAccount")}
-                  description={t("privacy.deleteDesc")}
-                  onClick={() => setDeleteConfirm(true)} />
-              ) : (
-                <div className="px-5 py-4 space-y-3">
-                  <p className="text-sm font-medium text-center" style={{ color: "#DC2626" }}>{t("profile.deleteWarning")}</p>
-                  <div className="flex gap-2">
-                    <button onClick={deleteAccount} disabled={deleting} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition" style={{ backgroundColor: "#DC2626", color: "#fff" }}>
-                      {deleting ? "…" : t("profile.confirmDelete")}
-                    </button>
-                    <button onClick={() => setDeleteConfirm(false)} className="btn-ghost flex-1 text-sm">{t("common.cancel")}</button>
-                  </div>
-                  {msg && <p className="text-xs text-center" style={{ color: "#DC2626" }}>{msg}</p>}
-                </div>
               )}
             </div>
 
+            {/* Réglages — ce qu'on ouvre trois fois par an. */}
+            <NavGroup>
+              <NavRow fam="util" icon={<IconSliders />}
+                label={t("profile.preferencesSection")} value={prefsSummary}
+                onClick={() => setSheet("prefs")} />
+              <NavRow fam="plan" icon={<IconUser />}
+                label={t("profile.accountSection")} value={profile?.email || undefined}
+                onClick={() => setSheet("account")} />
+              <NavRow fam="night" icon={<IconShieldCheck />}
+                label={t("privacy.section")}
+                onClick={() => setSheet("privacy")} />
+            </NavGroup>
+
             {/* Administration — visible uniquement pour les admins */}
             {profile?.is_admin && (
-              <div className="card overflow-hidden">
-                <CardHead icon={<IconShield color="var(--bt-text-3)" />} label={t("nav.admin")} />
-                <SettingsRow accent icon={<IconShield color="var(--bt-accent-dark)" />} href="/admin"
-                  label={t("profile.adminDashboard")} right={<IconChevronRight />} />
-                {sep}
-                <SettingsRow accent icon={<IconFeedback />} href="/feedback"
-                  label={t("profile.suggestionInbox")} right={<IconChevronRight />} />
-              </div>
+              <NavGroup>
+                <NavRow fam="util" icon={<IconShield />} label={t("profile.adminDashboard")} href="/admin" />
+                <NavRow fam="util" icon={<IconFeedback />} label={t("profile.suggestionInbox")} href="/feedback" />
+              </NavGroup>
             )}
+
+            <NavGroup>
+              <NavRow fam="util" icon={<IconLogOut />} label={t("profile.signOut")}
+                onClick={signOut} chevron={false} />
+            </NavGroup>
           </div>
         </div>
       </div>
+
+      {/* ══ Feuilles de détail ════════════════════════════════ */}
+      <DetailSheet open={sheet === "activity"} title={t("profile.activitySection")}
+        closeLabel={t("common.close")} onClose={closeSheet}>
+        <div className="px-5">
+          {profileTotalSecs > 0 ? (
+            <>
+              <StudyHeatmap sessions={profileSessions} />
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {activityStats.map((s, i) => <StatTile key={i} label={s.label} value={s.value} sub={s.sub} />)}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
+          )}
+        </div>
+      </DetailSheet>
+
+      <DetailSheet open={sheet === "referral"} title={t("referral.title")}
+        closeLabel={t("common.close")} onClose={closeSheet}>
+        <ReferralBody t={t} fallbackCode={profile?.referral_code} />
+      </DetailSheet>
+
+      <DetailSheet open={sheet === "prefs"} title={t("profile.preferencesSection")}
+        closeLabel={t("common.close")} onClose={closeSheet}>
+        <SettingsRow fam="plan" icon={<IconGlobe />} label={t("profile.language")} right={
+          <Segmented value={langPref} onChange={changeLang}
+            options={[{ value: "auto", label: t("profile.languageAuto") }, { value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
+        } />
+        {sep}
+        <SettingsRow fam="night" icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} right={
+          <Segmented value={theme} onChange={setTheme}
+            options={[
+              { value: "light", label: t("profile.themeLight") },
+              { value: "system", label: t("profile.themeSystem") },
+              { value: "dark", label: t("profile.themeDark") },
+            ]} />
+        } />
+        {sep}
+        <SettingsRow fam="time" icon={<IconVolume />} label={t("sensory.soundTitle")}
+          description={t("sensory.soundDesc")}
+          right={<MiniSwitch checked={sensoryPrefs.sound}
+            onChange={enabled => setSensoryPreference("sound", enabled)}
+            label={t("sensory.soundTitle")} />} />
+        {sep}
+        <SettingsRow fam="time" icon={<IconVibration />} label={t("sensory.hapticsTitle")}
+          description={t("sensory.hapticsDesc")}
+          right={<MiniSwitch checked={sensoryPrefs.haptics}
+            onChange={enabled => setSensoryPreference("haptics", enabled)}
+            label={t("sensory.hapticsTitle")} />} />
+      </DetailSheet>
+
+      <DetailSheet open={sheet === "account"} title={t("profile.accountSection")}
+        closeLabel={t("common.close")} onClose={closeSheet}>
+        <SettingsRow fam="plan" icon={<IconMail />} label={t("profile.emailSection")}
+          description={profile?.email || undefined}
+          onClick={() => setShowEmail(o => !o)} right={<IconChevronDown open={showEmail} />} />
+        {showEmail && (
+          <div className="px-5 pb-5 pt-1">
+            <form onSubmit={saveEmail} className="space-y-2">
+              <input className="input" type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} autoComplete="email" placeholder="ton@email.com" />
+              <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("profile.emailHint")}</p>
+              {emailMsg && <p className="text-xs" style={{ color: emailMsg === t("profile.emailSaved") ? "var(--bt-accent-dark)" : "var(--bt-danger)" }}>{emailMsg}</p>}
+              <button className="btn-primary w-full" type="submit" disabled={emailBusy || !emailInput.trim() || emailInput === (profile?.email || "")}>
+                {emailBusy ? t("profile.emailSaving") : t("profile.emailSave")}
+              </button>
+            </form>
+          </div>
+        )}
+        {sep}
+        <SettingsRow fam="util" icon={<IconSmartphone />} label={t("pwa.profileSection")}
+          onClick={() => setShowPwa(s => !s)} right={<IconChevronDown open={showPwa} />} />
+        {showPwa && (
+          <div className="px-5 pb-4 pt-1 space-y-3">
+            <div className="flex items-start gap-2 rounded-xl px-3 py-2"
+              style={{ backgroundColor: "var(--bt-reward-bg)", color: "var(--bt-reward-text)" }}>
+              <span className="shrink-0 mt-0.5"><IconAlert /></span>
+              <p className="text-xs">{t("pwa.safariNote")}</p>
+            </div>
+            <ol className="space-y-2">
+              {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
+                  <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+            {/* Les étapes seules ne suffisent pas : « Sur l'écran d'accueil »
+                est noyé dans un long menu iOS, personne ne le trouve. */}
+            <PwaHomeScreenVisual />
+          </div>
+        )}
+        {sep}
+        <SettingsRow fam="util" icon={<IconLegal />} href="/legal"
+          label={t("legal.profileRow")} right={<IconChevronRight />} />
+        {sep}
+        <SettingsRow fam="util" icon={<IconInfo />} label={t("profile.about")}
+          onClick={() => setShowAbout(s => !s)} right={<IconChevronDown open={showAbout} />} />
+        {showAbout && (
+          <div className="px-5 pb-4 pt-1 space-y-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+            <p><span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>blocus·tracker</span>{" "}{t("profile.aboutCreatedBy")}{" "}<span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>Mathias Dock</span>{", "}{t("profile.aboutRole")}</p>
+            <p>{t("profile.aboutDesc")}</p>
+          </div>
+        )}
+      </DetailSheet>
+
+      {/* Tout ce qui relève des droits de la personne au même endroit :
+          consulter, exporter, régler ce qui la suit, supprimer. Éclaté sur
+          trois écrans, un droit n'est un droit que sur le papier. */}
+      <DetailSheet open={sheet === "privacy"} title={t("privacy.section")}
+        closeLabel={t("common.close")} onClose={closeSheet}>
+        <SettingsRow fam="night" icon={<IconCookie />} label={t("privacy.cookieSettings")}
+          description={t("privacy.cookieSettingsDesc")}
+          onClick={() => { closeSheet(); openConsentSettings(); }} right={<IconChevronRight />} />
+        {sep}
+        <SettingsRow fam="time" icon={<IconDownload />} label={t("privacy.exportData")}
+          description={t("privacy.exportDataDesc")}
+          onClick={exporting ? undefined : exportMyData}
+          right={exporting
+            ? <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>…</span>
+            : <IconChevronRight />} />
+        {sep}
+        <SettingsRow fam="plan" icon={<IconLegal />} href="/legal?doc=privacy"
+          label={t("privacy.yourRights")} description={t("privacy.yourRightsDesc")}
+          right={<IconChevronRight />} />
+        {sep}
+        {!deleteConfirm ? (
+          <SettingsRow danger icon={<IconTrash />} label={t("profile.deleteAccount")}
+            description={t("privacy.deleteDesc")}
+            onClick={() => setDeleteConfirm(true)} />
+        ) : (
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-sm font-medium text-center" style={{ color: "var(--bt-danger)" }}>{t("profile.deleteWarning")}</p>
+            <div className="flex gap-2">
+              <button onClick={deleteAccount} disabled={deleting} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold transition" style={{ backgroundColor: "var(--bt-danger-solid)", color: "#fff" }}>
+                {deleting ? "…" : t("profile.confirmDelete")}
+              </button>
+              <button onClick={() => setDeleteConfirm(false)} className="btn-ghost flex-1 text-sm">{t("common.cancel")}</button>
+            </div>
+            {msg && <p className="text-xs text-center" style={{ color: "var(--bt-danger)" }}>{msg}</p>}
+          </div>
+        )}
+      </DetailSheet>
 
       {/* ══ Overlays ══════════════════════════════════════════ */}
       <BadgeSheet
