@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Glyph from "./Glyph";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -38,10 +39,10 @@ export default function LegacyEmailBanner() {
       style={{ backgroundColor: "#FEF3C7", border: "1px solid #FADF9A" }}>
       <span className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl"
         style={{ backgroundColor: "#FDE9AE", color: "#B45309" }} aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+        <Glyph size={18}>
           <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
           <path d="m3.5 6.5 8.5 6 8.5-6" />
-        </svg>
+        </Glyph>
       </span>
       <span className="flex-1 text-sm leading-snug" style={{ color: "#92400E" }}>
         <strong style={{ color: "#78350F" }}>{t("banner.emailTitle")}</strong> {t("banner.emailText")}

@@ -212,7 +212,7 @@ function ActionRow({ label, detail, count, tone = "neutral", onClick }) {
         <span className="block text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>{detail}</span>
       </span>
       <span className="inline-flex min-w-8 h-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: current.bg, color: current.color }}>{count}</span>
-      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--bt-text-4)" }}><path d="m9 18 6-6-6-6" /></svg>
+      <Glyph size={16} style={{ color: "var(--bt-text-4)" }}><path d="m9 18 6-6-6-6" /></Glyph>
     </button>
   );
 }
@@ -589,7 +589,7 @@ function ActivityRow({ ev }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
       <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${meta.color}1a`, color: meta.color }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{meta.icon}</svg>
+        <Glyph size={15}>{meta.icon}</Glyph>
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm truncate" style={{ color: "var(--bt-text-1)" }}>
@@ -635,7 +635,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
   return (
     <div ref={wrapRef} className="relative w-full sm:w-80">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        <Glyph size={15}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></Glyph>
       </span>
       <input
         className="input w-full" style={{ paddingLeft: "2.1rem" }}
@@ -1499,7 +1499,7 @@ export default function Admin() {
             <GlobalSearch users={users} announcements={announcements} feedback={feedback}
               onPickUser={u => setDetailUser(u)} onPickSection={s => setSection(s)} />
             <button type="button" onClick={refreshAdminData} disabled={refreshing} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold shrink-0 disabled:opacity-60" style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }} title={lastUpdated ? `Dernière actualisation : ${lastUpdated.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "Actualiser les données"}>
-              <svg aria-hidden="true" className={refreshing ? "motion-safe:animate-spin" : ""} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5" /></svg>
+              <Glyph size={16} className={refreshing ? "motion-safe:animate-spin" : ""}><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5" /></Glyph>
               <span className="hidden md:inline">{refreshing ? "Actualisation…" : "Actualiser"}</span>
             </button>
           </div>
@@ -1539,7 +1539,7 @@ export default function Admin() {
                     ) : attentionCount === 0 && insights ? (
                       <div className="flex items-center gap-3 py-5">
                         <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ backgroundColor: "var(--bt-accent-bg)", color: "#0E8F68" }}>
-                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>
+                          <Glyph size={18}><path d="m5 12 4 4L19 6" /></Glyph>
                         </span>
                         <div><p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>Rien d'urgent</p><p className="text-xs" style={{ color: "var(--bt-text-3)" }}>Aucun signal administratif ne demande une action.</p></div>
                       </div>
@@ -1757,7 +1757,7 @@ export default function Admin() {
                 <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
                   <h2 className="text-base font-semibold" style={{ color: "var(--bt-text-1)" }}>Membres <span className="text-sm font-normal" style={{ color: "var(--bt-text-3)" }}>({filtered.length})</span></h2>
                   <button type="button" onClick={exportMembersCsv} disabled={filtered.length === 0} className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold disabled:opacity-50" style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
-                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>
+                    <Glyph size={16}><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></Glyph>
                     Exporter CSV
                   </button>
                 </div>

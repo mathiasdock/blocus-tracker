@@ -13,6 +13,7 @@
 // incapable d'enregistrer.
 
 import { useCallback, useEffect, useState } from "react";
+import Glyph from "./Glyph";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -101,9 +102,9 @@ export default function LegalUpdateNotice() {
             className="bt-tap flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--bt-subtle)]"
             style={{ color: "var(--bt-text-3)" }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <Glyph size={15}>
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            </Glyph>
           </button>
         </div>
         <button

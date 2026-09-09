@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
 import { formatMinutesShort } from "../lib/format";
 
@@ -16,17 +17,17 @@ function IconMore() {
 
 function IconEdit() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={16}>
       <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z" />
-    </svg>
+    </Glyph>
   );
 }
 
 function IconTrash() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={16}>
       <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" />
-    </svg>
+    </Glyph>
   );
 }
 
@@ -105,9 +106,9 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
 
       {showHint && sessions.length > 0 && (
         <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs leading-relaxed" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
-          <svg className="mt-0.5 shrink-0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <Glyph size={15} className="mt-0.5 shrink-0">
             <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" />
-          </svg>
+          </Glyph>
           <p>{t("dash.sessionActionsHint")}</p>
         </div>
       )}
@@ -115,9 +116,9 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
       {sessions.length === 0 ? (
         <div className="mt-3 flex items-center gap-3 rounded-2xl px-3 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <Glyph size={20}>
               <circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M9.5 3h5M12 3v2" />
-            </svg>
+            </Glyph>
           </div>
           <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</p>
         </div>

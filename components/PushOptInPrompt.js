@@ -15,6 +15,7 @@
 // système : un rappel qu'on ne peut pas honorer serait pire que rien.
 
 import { useCallback, useEffect, useState } from "react";
+import Glyph from "./Glyph";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isIOS, isStandalone, isPushSupported, getAppId, enablePush, loginUser } from "../lib/onesignal";
@@ -104,18 +105,16 @@ export default function PushOptInPrompt() {
         <button type="button" onClick={() => close()} aria-label={t("pushPrompt.later")}
           className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center"
           style={{ color: "var(--bt-text-3)" }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" aria-hidden="true">
+          <Glyph size={15}>
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          </Glyph>
         </button>
 
         <span className="mx-auto flex items-center justify-center"
           style={{ width: 56, height: 56, borderRadius: 18, background: "linear-gradient(165deg, #14B885, #0E8F68 115%)" }}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.1"
-            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <Glyph size={26} strokeWidth={2.1} style={{ color: "#fff" }}>
             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
+          </Glyph>
         </span>
 
         <h2 id="push-prompt-title" className="font-display text-lg font-bold mt-4" style={{ color: "var(--bt-text-1)" }}>

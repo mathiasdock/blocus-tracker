@@ -415,7 +415,7 @@ function XPCard({ levelInfo, missions, streak, coachMessage, coachId, t }) {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span className={m.done ? "bt-check-pop" : ""} style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: m.done ? "#14B885" : "rgba(255,255,255,0.14)" }}>
                   {m.done ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    <Glyph size={10} strokeWidth={3.5} style={{ color: "white" }}><polyline points="20 6 9 17 4 12" /></Glyph>
                   ) : (
                     <span style={{ width: 6, height: 6, borderRadius: "50%", display: "block", backgroundColor: "rgba(255,255,255,0.30)" }} />
                   )}
@@ -680,7 +680,7 @@ function PushRow({ t, user }) {
     right = (
       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full"
         style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <Glyph size={11}><polyline points="20 6 9 17 4 12"/></Glyph>
         OK
       </span>
     );
@@ -770,13 +770,13 @@ function BadgeSheet({ badge, earned, t, onClose }) {
               {earned ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
                   style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <Glyph size={12}><polyline points="20 6 9 17 4 12"/></Glyph>
                   {t("badge.earnedStatus")}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
                   style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-hairline)" }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <Glyph size={11}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></Glyph>
                   {t("badge.locked")}
                 </span>
               )}
@@ -1327,10 +1327,9 @@ export default function Profile() {
       label: t("streak.stockLabel"),
       value: (
         <span className="inline-flex items-center gap-1.5">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke={freezeStock > 0 ? "#38BDF8" : "var(--bt-text-4)"} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <Glyph size={14} style={{ color: freezeStock > 0 ? "#38BDF8" : "var(--bt-text-4)" }}>
             <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
-          </svg>
+          </Glyph>
           <span className="font-num tabular-nums">{freezeStock}/2</span>
         </span>
       ),

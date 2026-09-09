@@ -1,18 +1,19 @@
 import { useState } from "react";
+import Glyph from "./Glyph";
 
 function EyeIcon({ hidden }) {
   return hidden ? (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={19}>
       <path d="M2 2l20 20" />
       <path d="M6.7 6.7C4.4 8.2 2.8 10.4 2 12c1.7 3.4 5.3 7 10 7 1.7 0 3.2-.5 4.5-1.2" />
       <path d="M10.7 10.7a2 2 0 002.6 2.6" />
       <path d="M9.8 5.2c.7-.1 1.4-.2 2.2-.2 4.7 0 8.3 3.6 10 7-.5 1-1.2 2-2.1 2.9" />
-    </svg>
+    </Glyph>
   ) : (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={19}>
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
       <circle cx="12" cy="12" r="3" />
-    </svg>
+    </Glyph>
   );
 }
 

@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
+import Glyph from "./Glyph";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import PwaHomeScreenVisual from "./PwaHomeScreenVisual";
 
 function ShareIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      style={{ display: "inline-block", verticalAlign: "text-bottom", margin: "0 2px" }}>
+    <Glyph size={13} style={{ display: "inline-block", verticalAlign: "text-bottom", margin: "0 2px" }}>
       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
       <polyline points="16 6 12 2 8 6"/>
       <line x1="12" y1="2" x2="12" y2="15"/>
-    </svg>
+    </Glyph>
   );
 }
 
@@ -89,11 +88,10 @@ export default function PwaInstallBanner() {
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
               style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <Glyph size={22}>
                 <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
                 <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
-              </svg>
+              </Glyph>
             </div>
             <div>
               <p className="font-semibold text-[15px] leading-tight" style={{ color: "var(--bt-text-1)" }}>
@@ -112,11 +110,10 @@ export default function PwaInstallBanner() {
             style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)" }}
             onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-border)"}
             onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.5" strokeLinecap="round">
+            <Glyph size={12}>
               <line x1="18" y1="6" x2="6" y2="18"/>
               <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            </Glyph>
           </button>
         </div>
 

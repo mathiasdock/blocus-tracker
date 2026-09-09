@@ -302,9 +302,9 @@ function NotificationPanel({
           className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
           style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }}
           aria-label={t("common.close")}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+          <Glyph size={13}>
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
+          </Glyph>
         </button>
       </div>
 
@@ -721,11 +721,11 @@ export default function Layout({ children }) {
                 style={{ color: "var(--bt-text-3)" }}
                 onMouseEnter={e => { e.currentTarget.style.color = "var(--bt-text-2)"; e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                 onMouseLeave={e => { e.currentTarget.style.color = "var(--bt-text-3)"; e.currentTarget.style.backgroundColor = ""; }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <Glyph size={12}>
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                   <polyline points="16 17 21 12 16 7"/>
                   <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
+                </Glyph>
                 {t("nav.quit")}
               </button>
             </>

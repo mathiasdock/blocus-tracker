@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
 
 const COLOR_LABEL_KEYS = [
@@ -46,40 +47,29 @@ function isLightColor(hex) {
 
 function IconX() {
   return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <Glyph size={17}>
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
+    </Glyph>
   );
 }
 
 function IconTrash() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={16}>
       <polyline points="3 6 5 6 21 6" />
       <path d="M19 6l-1 14H6L5 6" />
       <path d="M10 11v6M14 11v6" />
       <path d="M9 6V4h6v2" />
-    </svg>
+    </Glyph>
   );
 }
 
 function IconChevron({ expanded }) {
   return (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-    >
+    <Glyph size={15} className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}>
       <polyline points="6 9 12 15 18 9" />
-    </svg>
+    </Glyph>
   );
 }
 
@@ -297,9 +287,9 @@ export default function CourseEditorModal({ course, colors, busy, onClose, onSav
                         }}
                       >
                         {selected && (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={isLightColor(option) ? "#1F1A17" : "#FFFFFF"} strokeWidth="3.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <Glyph size={14} strokeWidth={3} style={{ color: isLightColor(option) ? "#1F1A17" : "#FFFFFF" }}>
                             <polyline points="20 6 9 17 4 12" />
-                          </svg>
+                          </Glyph>
                         )}
                       </span>
                     </button>

@@ -10,6 +10,7 @@
 // feu de la série), au même titre que l'ambre de la flamme.
 
 import { useEffect, useRef } from "react";
+import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
 import Flame from "./Flame";
 
@@ -19,10 +20,9 @@ const ICE_LINE = "rgba(56,189,248,0.34)";
 
 function IconSnowflake({ size = 22, color = ICE }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke={color} strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+    <Glyph size={size} style={{ color }}>
       <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.6 2.6M12 2l2.6 2.6M12 22l-2.6-2.6M12 22l2.6-2.6" />
-    </svg>
+    </Glyph>
   );
 }
 

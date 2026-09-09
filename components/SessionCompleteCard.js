@@ -14,6 +14,7 @@
 // ne perd jamais le contexte du moment qu'on est en train de fêter.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
 import { formatMinutesShort, displayName } from "../lib/format";
 import AnimatedNumber from "./AnimatedNumber";
@@ -28,28 +29,25 @@ const AUTO_CLOSE_MS = 10000;
 
 function IconCheck({ size = 15 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={size}>
       <polyline points="20 6 9 17 4 12" />
-    </svg>
+    </Glyph>
   );
 }
 
 function IconSend({ size = 15 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={size}>
       <path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4Z" />
-    </svg>
+    </Glyph>
   );
 }
 
 function IconBack({ size = 15 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={size}>
       <path d="M15 18l-6-6 6-6" />
-    </svg>
+    </Glyph>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import Glyph from "./Glyph";
 import { createPortal } from "react-dom";
 
 // Contrôle de filtre compact : un bouton qui affiche la valeur courante, et
@@ -129,11 +130,9 @@ export default function FilterMenu({
         {isActions ? trigger : (
           <>
             <span className="truncate">{current?.label}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-              className="shrink-0" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.18s" }}>
+            <Glyph size={12} className="shrink-0" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.18s" }}>
               <polyline points="6 9 12 15 18 9" />
-            </svg>
+            </Glyph>
           </>
         )}
       </button>
@@ -172,10 +171,9 @@ export default function FilterMenu({
               >
                 <span className="w-3 shrink-0">
                   {active && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                      strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <Glyph size={12}>
                       <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                    </Glyph>
                   )}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{o.label}</span>

@@ -729,7 +729,7 @@ export default function Communautes() {
                 <button onClick={() => setSearchQuery("")}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full"
                   style={{ color: "var(--bt-text-3)" }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <Glyph size={11}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Glyph>
                 </button>
               )}
             </div>
@@ -781,11 +781,9 @@ export default function Communautes() {
                             {countryBadge > 99 ? "99+" : countryBadge}
                           </span>
                         )}
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          className={`transition-transform ${isOpen ? "rotate-180" : ""}`} style={{ color: "var(--bt-text-4)" }}>
+                        <Glyph size={12} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} style={{ color: "var(--bt-text-4)" }}>
                           <path d="M6 9l6 6 6-6"/>
-                        </svg>
+                        </Glyph>
                       </button>
 
                       {isOpen && (

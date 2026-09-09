@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Glyph from "../components/Glyph";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -61,23 +62,23 @@ const SCHOOL_LOGOS = COUNTRIES.flatMap((c) => c.universities).filter((u) => u.lo
 
 function IconCheck({ size = 13 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={size}>
       <polyline points="20 6 9 17 4 12" />
-    </svg>
+    </Glyph>
   );
 }
 function IconArrow({ size = 16 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={size}>
       <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
+    </Glyph>
   );
 }
 function IconChevron({ size = 15 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={size}>
       <polyline points="6 9 12 15 18 9" />
-    </svg>
+    </Glyph>
   );
 }
 

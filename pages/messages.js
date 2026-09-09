@@ -1176,16 +1176,16 @@ export default function Messages() {
     if (status === "accepted")
       return {
         bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)",
-        icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+        icon: <Glyph size={10}><polyline points="20 6 9 17 4 12"/></Glyph>,
       };
     if (status === "declined")
       return {
         bg: "var(--bt-danger-bg)", color: "var(--bt-danger)",
-        icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+        icon: <Glyph size={10}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Glyph>,
       };
     return {
       bg: "var(--bt-subtle)", color: "var(--bt-text-3)",
-      icon: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>,
+      icon: <Glyph size={10}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></Glyph>,
     };
   }
 
@@ -1249,10 +1249,9 @@ export default function Messages() {
             <div className="p-3 shrink-0 relative" ref={socialSearchRef}
               style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
               <div className="relative">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
+                <Glyph size={15} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
+                </Glyph>
                 <input ref={socialSearchInputRef} className="input text-sm w-full" style={{ paddingLeft: "2.15rem" }}
                   placeholder={t("social.searchPlaceholder")}
                   value={socialQuery} onChange={e => searchSocial(e.target.value)} />
@@ -1260,7 +1259,7 @@ export default function Messages() {
                   <button onClick={() => { setSocialQuery(""); setSocialResults(null); }}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full"
                     style={{ color: "var(--bt-text-3)" }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <Glyph size={11}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Glyph>
                   </button>
                 )}
               </div>
@@ -1351,15 +1350,14 @@ export default function Messages() {
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
                   <span className="flex items-center gap-2 font-medium" style={{ color: "var(--bt-text-1)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--bt-accent-dark)" }}>
+                    <Glyph size={14} style={{ color: "var(--bt-accent-dark)" }}>
                       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M19 8v6"/>
-                    </svg>
+                    </Glyph>
                     {t("social.requestsCompact").replace("{n}", String(incoming.length + outgoing.length))}
                   </span>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                    style={{ color: "var(--bt-text-3)", transform: showRequests ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+                  <Glyph size={13} style={{ color: "var(--bt-text-3)", transform: showRequests ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                     <polyline points="6 9 12 15 18 9"/>
-                  </svg>
+                  </Glyph>
                 </button>
                 {showRequests && (
                   <div className="px-4 pb-3">
@@ -1481,9 +1479,9 @@ export default function Messages() {
               <button onClick={() => setShowCreate(true)}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl transition-colors"
                 style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-hairline)" }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <Glyph size={11}>
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
+                </Glyph>
                 {t("groups.create")}
               </button>
             </div>
@@ -1974,10 +1972,9 @@ export default function Messages() {
                 style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)" }}
                 onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-border)"}
                 onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2.5" strokeLinecap="round">
+                <Glyph size={11}>
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
+                </Glyph>
               </button>
             </div>
 
@@ -1992,11 +1989,10 @@ export default function Messages() {
                     <GroupAvatar group={activeGroup} size={72} />
                     <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white"
-                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <Glyph size={18} strokeWidth={2} style={{ color: "white" }}>
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                         <circle cx="12" cy="13" r="4"/>
-                      </svg>
+                      </Glyph>
                     </div>
                   </button>
                 ) : (

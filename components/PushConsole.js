@@ -9,6 +9,7 @@
 // server-only, ce composant ne connaît que des intentions.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 
 const MAX_TITLE = 60;
@@ -66,9 +67,9 @@ function Preview({ title, message }) {
       <div className="rounded-xl p-3 flex gap-3" style={{ backgroundColor: "var(--bt-surface)", boxShadow: "0 2px 10px var(--bt-shadow)" }}>
         <span className="shrink-0 rounded-lg flex items-center justify-center"
           style={{ width: 32, height: 32, background: "linear-gradient(165deg, #14B885, #0E8F68 115%)" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <Glyph size={16} strokeWidth={2.2} style={{ color: "#fff" }}>
             <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
+          </Glyph>
         </span>
         <div className="min-w-0">
           <p className="text-[13px] font-semibold leading-tight" style={{ color: "var(--bt-text-1)" }}>
@@ -279,9 +280,9 @@ export default function PushConsole({ users = [], universities = [] }) {
                       style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}
                       aria-label={`Retirer @${u.pseudo}`}>
                       @{u.pseudo}
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                      <Glyph size={10}>
                         <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
+                      </Glyph>
                     </button>
                   ))}
                 </div>

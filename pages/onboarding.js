@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Glyph from "../components/Glyph";
 import { useRouter } from "next/router";
 import AuthBrand from "../components/AuthBrand";
 import UniPicker from "../components/UniPicker";
@@ -11,17 +12,17 @@ import { STUDY_YEARS } from "../lib/studyYears";
 
 function PlusIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <Glyph size={18}>
       <path d="M12 5v14M5 12h14" />
-    </svg>
+    </Glyph>
   );
 }
 
 function CheckIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={13} strokeWidth={3}>
       <path d="M5 12l4 4L19 6" />
-    </svg>
+    </Glyph>
   );
 }
 

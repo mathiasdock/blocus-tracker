@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import Glyph from "../components/Glyph";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
@@ -1271,9 +1272,9 @@ export default function Dashboard() {
                     {courseId && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courses.find((item) => item.id === courseId)?.color }} aria-hidden="true" />}
                     <span className="min-w-0 flex-1 truncate text-left">{courseId ? courseName(courseId) : t("dash.selectCourse")}</span>
                     {!running && (
-                      <svg className={`shrink-0 transition-transform duration-200 motion-reduce:transition-none ${showCourseMenu ? "rotate-180" : ""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <Glyph size={14} className={`shrink-0 transition-transform duration-200 motion-reduce:transition-none ${showCourseMenu ? "rotate-180" : ""}`}>
                         <path d="m6 9 6 6 6-6" />
-                      </svg>
+                      </Glyph>
                     )}
                   </button>
                 )}
@@ -1286,9 +1287,9 @@ export default function Dashboard() {
                           <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} aria-hidden="true" />
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
                           {courseId === course.id && (
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--bt-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <Glyph size={15} strokeWidth={2.5} style={{ color: "var(--bt-accent)" }}>
                               <path d="m20 6-11 11-5-5" />
-                            </svg>
+                            </Glyph>
                           )}
                         </button>
                       ))}
@@ -1300,9 +1301,9 @@ export default function Dashboard() {
                         className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold"
                         style={{ color: "var(--bt-accent-text)" }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                        <Glyph size={16}>
                           <path d="M12 5v14M5 12h14" />
-                        </svg>
+                        </Glyph>
                         {t("courseEditor.addTitle")}
                       </button>
                     </div>
@@ -1328,10 +1329,10 @@ export default function Dashboard() {
                 dans une colonne `1fr`, elles restaient collees a gauche en
                 laissant un tiers de rail vide. */}
             <button type="button" onClick={() => setFocusMode(true)} className="bt-dashboard-control flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-accent-text)" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <Glyph size={16}>
                 <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
                 <circle cx="12" cy="12" r="2.5" />
-              </svg>
+              </Glyph>
               <span>{t("dash.focusShort")}</span>
             </button>
           </div>
@@ -1448,9 +1449,9 @@ export default function Dashboard() {
                 {(!pomodoro || pomoPhase === "work") && !noteOpen && !note && (
                   <button type="button" onClick={() => setNoteOpen(true)}
                     className="bt-filter-btn inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                    <Glyph size={12}>
                       <path d="M12 5v14M5 12h14" />
-                    </svg>
+                    </Glyph>
                     {t("dash.noteLabel")}
                   </button>
                 )}
@@ -1525,9 +1526,9 @@ export default function Dashboard() {
                     {saveStatus === "saving" ? (
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : saveStatus === "success" ? (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <Glyph size={13}>
                         <polyline points="20 6 9 17 4 12"/>
-                      </svg>
+                      </Glyph>
                     ) : (
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
                         <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -1609,9 +1610,9 @@ export default function Dashboard() {
                         aria-hidden="true"
                       >
                         {o.done && (
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <Glyph size={11} strokeWidth={3} style={{ color: "#fff" }}>
                             <path d="m5 12 4 4L19 6" />
-                          </svg>
+                          </Glyph>
                         )}
                       </span>
                     </button>
@@ -1844,9 +1845,9 @@ export default function Dashboard() {
             }}
             onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.8)"}
             onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <Glyph size={14}>
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            </Glyph>
             {t("dash.exitFocus")}
           </button>
 

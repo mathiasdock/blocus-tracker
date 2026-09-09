@@ -1,10 +1,11 @@
 import { useI18n } from "../contexts/I18nContext";
+import Glyph from "./Glyph";
 
 function IconChevron() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={16}>
       <path d="m9 18 6-6-6-6" />
-    </svg>
+    </Glyph>
   );
 }
 
@@ -24,9 +25,9 @@ export default function DashboardCoursesCard({ courses, checklistCounts, onAdd, 
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("dash.myCourses")}</h2>
         <button type="button" onClick={onAdd} className="bt-dashboard-control flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-accent-text)" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+          <Glyph size={16}>
             <path d="M12 5v14M5 12h14" />
-          </svg>
+          </Glyph>
           {t("common.add")}
         </button>
       </div>

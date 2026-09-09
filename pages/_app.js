@@ -1,4 +1,5 @@
 import "../styles/globals.css";
+import Glyph from "../components/Glyph";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -452,9 +453,9 @@ function InstallBanner() {
           color: "#A8A09A", background: "none", border: "none",
           cursor: "pointer", width: 44, height: 44, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
         }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <Glyph size={16}>
             <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
+          </Glyph>
         </button>
       </div>
     </div>

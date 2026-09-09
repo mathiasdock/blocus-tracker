@@ -3,6 +3,7 @@
 // ne les expose plus et les nouvelles périodes enregistrent toujours null.
 
 import { useCallback, useEffect, useState } from "react";
+import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -26,10 +27,10 @@ function formatDate(value, locale) {
 
 function CalendarIcon({ size = 18 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={size}>
       <rect x="3" y="4" width="18" height="17" rx="3" />
       <path d="M8 2v4M16 2v4M3 9h18" />
-    </svg>
+    </Glyph>
   );
 }
 

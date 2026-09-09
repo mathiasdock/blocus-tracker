@@ -17,6 +17,7 @@
 // demandé sans protéger personne.
 
 import { useEffect, useId, useRef, useState } from "react";
+import Glyph from "./Glyph";
 import Link from "next/link";
 import { useConsent } from "../contexts/ConsentContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -160,9 +161,9 @@ export function ConsentSettingsPanel({ open, onClose }) {
             className="bt-tap flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors hover:bg-[var(--bt-subtle)]"
             style={{ color: "var(--bt-text-2)" }}
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <Glyph size={17}>
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            </Glyph>
           </button>
         </div>
 

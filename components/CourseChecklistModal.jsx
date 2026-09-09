@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { useI18n } from "../contexts/I18nContext";
 
@@ -132,15 +133,15 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
             <div className="-mr-2 -mt-2 flex shrink-0 items-center gap-1">
               {onEdit && (
                 <button type="button" onClick={onEdit} className="bt-dashboard-control flex h-11 w-11 items-center justify-center rounded-xl" style={{ color: "var(--bt-text-2)" }} aria-label={t("courseEditor.edit")} title={t("courseEditor.edit")}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <Glyph size={16}>
                     <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z" />
-                  </svg>
+                  </Glyph>
                 </button>
               )}
               <button type="button" onClick={onClose} className="bt-dashboard-control flex h-11 w-11 items-center justify-center rounded-xl" style={{ color: "var(--bt-text-2)" }} aria-label={t("common.close")}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <Glyph size={17}>
                   <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
+                </Glyph>
               </button>
             </div>
           </div>
@@ -181,9 +182,9 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
                     aria-label={item.is_done ? t("checklist.markUndone") : t("checklist.markDone")} aria-pressed={item.is_done}>
                     <span className="flex h-5 w-5 items-center justify-center rounded-md" style={{ backgroundColor: item.is_done ? "var(--bt-action)" : "transparent", border: item.is_done ? "1px solid var(--bt-action)" : "1.5px solid var(--bt-border)" }}>
                       {item.is_done && (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <Glyph size={11} strokeWidth={3.5} style={{ color: "#fff" }}>
                           <polyline points="20 6 9 17 4 12"/>
-                        </svg>
+                        </Glyph>
                       )}
                     </span>
                   </button>
@@ -203,9 +204,9 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
                     className="bt-checklist-remove bt-dashboard-control -my-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl opacity-70 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                     style={{ color: "var(--bt-text-4)" }}
                     aria-label={t("common.remove")}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <Glyph size={13}>
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
+                    </Glyph>
                   </button>
                 </li>
               ))}

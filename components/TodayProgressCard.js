@@ -1,4 +1,5 @@
 import AnimatedNumber from "./AnimatedNumber";
+import Glyph from "./Glyph";
 import Flame from "./Flame";
 import { useI18n } from "../contexts/I18nContext";
 import { formatMinutesShort } from "../lib/format";
@@ -8,11 +9,11 @@ const DAILY_BLOCK_GOAL = 8;
 
 function BlocksIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+    <Glyph size={18}>
       <rect x="3" y="5" width="4" height="14" rx="1.5" />
       <rect x="10" y="5" width="4" height="14" rx="1.5" />
       <rect x="17" y="5" width="4" height="14" rx="1.5" />
-    </svg>
+    </Glyph>
   );
 }
 
@@ -51,9 +52,9 @@ export default function TodayProgressCard({
                     color: freezeInfo.stock > 0 ? "#BAE6FD" : "rgba(255,255,255,0.55)",
                   }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <Glyph size={12}>
                     <path d="M12 2v20M4 6l16 12M20 6 4 18M12 2 9.5 4.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5" />
-                  </svg>
+                  </Glyph>
                   <span className="font-num tabular-nums">{freezeInfo.stock}/2</span>
                 </span>
               )}

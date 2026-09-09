@@ -12,6 +12,7 @@
 // SQL de la migration v39 ne soit exécuté.
 
 import { useCallback, useEffect, useState } from "react";
+import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -32,10 +33,9 @@ function MissionRow({ label, xp, done, social = false }) {
         }}
       >
         {done && (
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--bt-on-accent)"
-            strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <Glyph size={9} strokeWidth={3.5} style={{ color: "var(--bt-on-accent)" }}>
             <polyline points="20 6 9 17 4 12" />
-          </svg>
+          </Glyph>
         )}
       </span>
       <span className="flex-1 text-sm leading-snug"

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
 import { AMBIENT_PRESETS, isAmbientSupported, startAmbient, stopAmbient, setAmbientVolume } from "../lib/ambientSound";
 
@@ -14,7 +15,7 @@ const LABEL_KEY = { white: "sound.white", brown: "sound.brown", pink: "sound.pin
 
 function IconSound({ on }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <Glyph size={16}>
       <path d="M11 5 6 9H2v6h4l5 4V5z" />
       {on ? (
         <>
@@ -24,7 +25,7 @@ function IconSound({ on }) {
       ) : (
         <path d="M22 9l-6 6M16 9l6 6" />
       )}
-    </svg>
+    </Glyph>
   );
 }
 
