@@ -48,6 +48,21 @@ const BADGE_VISUALS = {
   team_spirit:      { glyph: "flag",     tier: TIERS.starter },
   community_pillar: { glyph: "globe",    tier: TIERS.rare },
   referrer:         { glyph: "share",    tier: TIERS.rare },
+
+  // Badges de la page Statistiques (lib/statsInsights.js). Ils avaient leur
+  // propre rendu — carre mint plat + icone en trait fin — qui se lisait comme
+  // un champ desactive, pas comme une recompense. Meme emblemes, meme langage
+  // de rarete que le profil. Les identifiants sont en camelCase la-bas et en
+  // snake_case ici : aucun risque de collision.
+  firstHour:        { glyph: "clock",    tier: TIERS.starter },
+  earlyBird:        { glyph: "sunrise",  tier: TIERS.starter },
+  afterMidnight:    { glyph: "moon",     tier: TIERS.starter },
+  streak7:          { glyph: "flame",    tier: TIERS.progress },
+  session3h:        { glyph: "bolt",     tier: TIERS.progress },
+  marathonDay:      { glyph: "hourglass",tier: TIERS.progress },
+  hours50:          { glyph: "cap",      tier: TIERS.progress },
+  hours100:         { glyph: "trophy",   tier: TIERS.rare },
+  goal10:           { glyph: "target",   tier: TIERS.rare },
 };
 
 // Tracés sur une grille 24×24, contour uniquement — même langage que les
@@ -141,6 +156,21 @@ const GLYPHS = {
     <circle cx="6.4" cy="12" r="2.8" />
     <circle cx="17.6" cy="18.2" r="2.8" />
     <path d="M8.9 10.6 15.1 7.2M8.9 13.4l6.2 3.4" />
+  </>,
+  clock: <>
+    <circle cx="12" cy="12" r="8.4" />
+    <path d="M12 6.8V12l3.4 2" />
+  </>,
+  // L'eclair penche et se decroche : un chevron symetrique ne se lit pas
+  // comme de l'energie.
+  bolt: <path d="M13.4 2.6 4.8 13.4h5.6l-.8 8 8.6-10.8h-5.6Z" />,
+  moon: <path d="M20.6 13.4A8.6 8.6 0 1 1 10.6 3.4a6.8 6.8 0 0 0 10 10Z" />,
+  // Soleil coupe par l'horizon : un disque complet dirait « journee », pas
+  // « avant 7 h ».
+  sunrise: <>
+    <path d="M6.6 15.4a5.4 5.4 0 0 1 10.8 0" />
+    <path d="M2.8 15.4h2.2M19 15.4h2.2M12 4.2v2.4M6.1 6.9 7.7 8.5M17.9 6.9 16.3 8.5" />
+    <path d="M3.4 19.4h17.2" />
   </>,
 };
 

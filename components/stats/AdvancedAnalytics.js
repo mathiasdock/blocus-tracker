@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Flame from "../Flame";
+import BadgeIcon from "../BadgeIcon";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
 
@@ -39,32 +39,24 @@ function Row({ label, value }) {
   );
 }
 
-function Badge({ earned, label, children }) {
+// Un badge = l'emblème partagé (components/BadgeIcon) + son libellé. La page
+// Statistiques avait sa propre version : carré mint plat, icône en trait fin,
+// verrouillé rendu par un simple gris. Elle se lisait comme un champ désactivé
+// et ne distinguait ni la difficulté ni l'acquis. Le profil affiche déjà de
+// vrais emblèmes à trois paliers de rareté : c'est le même langage ici.
+function Badge({ id, earned, label }) {
   const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center gap-1.5 text-center">
-      <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${earned ? "bt-stats-badge" : "bt-stats-badge-locked"}`}>
-        {children}
-      </span>
-      <span className="text-[10px] leading-tight" style={{ color: earned ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>
+    <div className="flex flex-col items-center gap-2 text-center">
+      <BadgeIcon id={id} earned={earned} size={54} />
+      <span className="text-[11px] leading-tight"
+        style={{ color: earned ? "var(--bt-text-1)" : "var(--bt-text-4)", fontWeight: earned ? 600 : 400 }}>
         {label}
       </span>
       {!earned && <span className="sr-only">{t("stats.badgeLocked")}</span>}
     </div>
   );
 }
-
-const BADGE_ICONS = {
-  firstHour:     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>,
-  streak7:       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
-  session3h:     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
-  marathonDay:   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 6 2 6-2"/><path d="M12 10v4"/></svg>,
-  hours50:       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
-  hours100:      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>,
-  afterMidnight: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>,
-  earlyBird:     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>,
-  goal10:        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
-};
 
 export default function AdvancedAnalytics({ insights, allTimeSecs, className = "" }) {
   const { t, lang } = useI18n();
@@ -179,11 +171,9 @@ export default function AdvancedAnalytics({ insights, allTimeSecs, className = "
                 {t("stats.badgesEarned").replace("{n}", String(earned)).replace("{total}", String(badges.length))}
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9">
+            <div className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-5">
               {badges.map((b) => (
-                <Badge key={b.id} earned={!!insights.badges[b.id]} label={b.label}>
-                  {BADGE_ICONS[b.id]}
-                </Badge>
+                <Badge key={b.id} id={b.id} earned={!!insights.badges[b.id]} label={b.label} />
               ))}
             </div>
           </section>

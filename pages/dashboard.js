@@ -1281,11 +1281,16 @@ export default function Dashboard() {
               })()}
             </div>
 
-            <div className="flex min-h-11 shrink-0 rounded-full p-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
-              <button type="button" onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={!pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={!pomodoro}>
+            {/* Rayon aligne sur le selecteur de cours et le bouton Focus qui
+                l'encadrent : en pilule, ce rail etait la seule forme ronde de
+                la rangee. Et les deux options se partagent la largeur — placees
+                dans une colonne `1fr`, elles restaient collees a gauche en
+                laissant un tiers de rail vide. */}
+            <div className="flex min-h-11 min-w-0 rounded-xl p-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+              <button type="button" onClick={() => { if (!pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(false); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); }} className="bt-dashboard-segment min-h-11 flex-1 rounded-[10px] px-3.5 text-xs font-semibold" style={!pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={!pomodoro}>
                 {t("dash.free")}
               </button>
-              <button type="button" onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }} className="bt-dashboard-segment min-h-11 rounded-full px-3.5 text-xs font-semibold" style={pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={pomodoro}>
+              <button type="button" onClick={() => { if (pomodoro) return; if (!confirmDiscardIfWorking()) return; setPomodoro(true); if (running || elapsed > 0) { pause(); reset(); } setPomoPhase("work"); setPomoCount(0); pomoHandled.current = false; }} className="bt-dashboard-segment min-h-11 flex-1 rounded-[10px] px-3.5 text-xs font-semibold" style={pomodoro ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", boxShadow: "inset 0 0 0 1px var(--bt-accent-border)" } : { color: "var(--bt-text-3)" }} aria-pressed={pomodoro}>
                 Pomodoro
               </button>
             </div>

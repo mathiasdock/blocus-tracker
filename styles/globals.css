@@ -1704,3 +1704,27 @@ details.bt-acc[open]::details-content { block-size: auto; }
 @media (hover: hover) and (pointer: fine) {
   .bt-filter-item:hover { background-color: var(--bt-subtle); }
 }
+
+/* ── Champs date / heure ──────────────────────────────────────────────────
+   Sur iOS, `input[type="time"]` et `[type="date"]` se dimensionnent sur leur
+   contenu natif : le `width: 100%` de `.input` ne les empeche pas de depasser
+   leur carte, et le champ Heure du formulaire d'objectif sortait franchement
+   du cadre sur iPhone. `appearance: none` rend la boite au flux normal (le
+   selecteur natif s'ouvre toujours au tap), et max-width la borne pour de bon.
+   `min-width: 0` autorise en plus le retrecissement dans un parent flex. */
+.input[type="time"],
+.input[type="date"],
+.input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+/* Sans hauteur explicite, le champ vide s'affaisse une fois `appearance`
+   neutralisee (le contenu natif ne le remplit plus). */
+.input[type="time"]::-webkit-date-and-time-value,
+.input[type="date"]::-webkit-date-and-time-value,
+.input[type="datetime-local"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.25em;
+}
