@@ -12,144 +12,136 @@ import LegacyEmailBanner from "./LegacyEmailBanner";
 import Mascot from "./Mascot";
 import PageSkeleton from "./PageSkeleton";
 import { isOfflineDev } from "../lib/supabaseClient";
+import Glyph from "./Glyph";
 
-// ── SVG Icons ─────────────────────────────────────────────────
+// ── Icônes ─────────────────────────────────────────────────
+// Dessins seulement : grille, épaisseur et accessibilité viennent de
+// ./Glyph. Seul NotifGlyph reste en SVG direct — c'est une famille PLEINE,
+// pas tracée, et elle sert de pastille de type ; la mélanger au jeu au trait
+// reviendrait à lui faire dire la même chose qu'une icône d'action.
 
 function IconTimer({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <circle cx="12" cy="13" r="8"/>
       <path d="M12 9v4l2.5 2.5"/>
       <path d="M9.5 3h5M12 3v2"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconCalendar({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <rect x="3" y="4" width="18" height="18" rx="2"/>
       <path d="M16 2v4M8 2v4M3 10h18"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconChart({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <path d="M3 3v18h18"/>
       <path d="M7 16V11M12 16V7M17 16V4"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconChat({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconFriends({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
       <circle cx="9" cy="7" r="4"/>
       <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconCommunity({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <rect x="3" y="3" width="7" height="7" rx="1.5"/>
       <rect x="14" y="3" width="7" height="7" rx="1.5"/>
       <rect x="3" y="14" width="7" height="7" rx="1.5"/>
       <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconBell({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
       <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconFeed({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <rect x="3" y="3" width="18" height="18" rx="2"/>
       <circle cx="8.5" cy="8.5" r="1.5"/>
       <polyline points="21 15 16 10 5 21"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconAdmin({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconFeedback({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       <path d="M8 8h8M8 12h5"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconSocial({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <circle cx="18" cy="5" r="3"/>
       <circle cx="6" cy="12" r="3"/>
       <circle cx="18" cy="19" r="3"/>
       <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
       <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconHistory({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <circle cx="12" cy="12" r="9"/>
       <polyline points="12 7 12 12 15 15"/>
       <path d="M3.05 11a9 9 0 1 1 .5 4"/>
       <polyline points="3 15 3.05 11 7 11"/>
-    </svg>
+    </Glyph>
   );
 }
 
 function IconProfile({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <Glyph size={size}>
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
       <circle cx="12" cy="7" r="4"/>
-    </svg>
+    </Glyph>
   );
 }
 
@@ -241,11 +233,7 @@ function AnnGlyph({ name, size = 17 }) {
     info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-4.5M12 8h.02" /></>,
     alert: <><path d="M10.3 4 2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z" /><path d="M12 9.5v4M12 17.5h.02" /></>,
   };
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {paths[name]}
-    </svg>
-  );
+  return <Glyph size={size}>{paths[name]}</Glyph>;
 }
 
 // Avatar + pastille d'activité colorée dans le coin.
@@ -926,7 +914,7 @@ export default function Layout({ children }) {
           style={{ backgroundColor: "var(--bt-text-1)", boxShadow: "0 8px 28px var(--bt-shadow)" }}
           onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-border)"}
           onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-text-1)"}>
-          <span className="text-lg">💬</span>
+          <span className="shrink-0"><Glyph size={20}><path d="M20.6 14.6a2.4 2.4 0 0 1-2.4 2.4H8.2l-4.8 3.6V5.8a2.4 2.4 0 0 1 2.4-2.4h12.4a2.4 2.4 0 0 1 2.4 2.4Z"/></Glyph></span>
           <span className="text-left">
             <span className="block text-sm font-semibold">{t("msg.newMessage")}</span>
             <span className="block text-xs" style={{ color: "var(--bt-text-3)" }}>{t("msg.clickToOpen")}</span>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -72,7 +73,9 @@ export default function PendingSessionsBanner({ onSynced }) {
   return (
     <div className="card p-3 mb-3 flex items-center gap-3"
       style={{ borderColor: "var(--bt-border)" }}>
-      <span className="text-base shrink-0">⚠️</span>
+      <span className="shrink-0" style={{ color: "var(--bt-warning)" }}>
+        <Glyph size={18}><path d="M10.5 4 2.6 17.8a1.7 1.7 0 0 0 1.5 2.6h15.8a1.7 1.7 0 0 0 1.5-2.6L13.5 4a1.7 1.7 0 0 0-3 0Z"/><path d="M12 9.6v4M12 16.9h.01"/></Glyph>
+      </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{label}</p>
         <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>

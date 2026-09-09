@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Glyph from "./Glyph";
 import { Avatar } from "./Layout";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -229,7 +230,10 @@ export default function UserProfileModal({ userId, onClose }) {
             {userId !== user.id && (
               <div className="mt-5">
                 {relStatus === "accepted" ? (
-                  <p className="text-sm text-center" style={{ color: "#0E8F68" }}>{t("modal.alreadyFriends")} ✓</p>
+                  <p className="flex items-center justify-center gap-1.5 text-sm" style={{ color: "var(--bt-accent-dark)" }}>
+                    <Glyph size={15}><path d="m5 12.8 4.4 4.4L19 7.6"/></Glyph>
+                    {t("modal.alreadyFriends")}
+                  </p>
                 ) : relStatus === "pending" ? (
                   <p className="text-sm text-center" style={{ color: "var(--bt-text-3)" }}>{t("modal.pendingFriend")}</p>
                 ) : (

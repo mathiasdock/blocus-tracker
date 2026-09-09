@@ -14,6 +14,7 @@ import { useI18n } from "../contexts/I18nContext";
 import Mascot from "./Mascot";
 import Flame from "./Flame";
 import BadgeIcon from "./BadgeIcon";
+import Glyph from "./Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const CONFETTI_COLORS = ["#14B885", "#22E4A4", "#0E8F68", "#C6EED9"];
@@ -99,7 +100,7 @@ export default function Celebration({ data, onClose }) {
           className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-lg leading-none transition-colors"
           style={{ color: "var(--bt-text-3)" }}
         >
-          ✕
+          <Glyph size={16}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8"/></Glyph>
         </button>
 
         {/* Héros — mascotte pour la série, médaillon vert pour le niveau,

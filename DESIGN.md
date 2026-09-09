@@ -307,11 +307,13 @@ Editing opens as a bottom sheet on compact screens and a centered dialog from 64
 - **Do** preserve keyboard focus, 44px touch targets, safe areas, dark mode, and reduced-motion behavior.
 - **Do** reveal correction, deletion, and detailed management actions progressively.
 - **Do** collapse rarely used settings into grouped list rows, and show their current state on the folded row.
+- **Do** draw icons through the shared `Glyph` primitive and pass a size, never a hand-written stroke width — the stroke belongs to the size, and fourteen hand-picked values in circulation read as mixed typefaces.
 - **Do** let a settings icon stand on its own in the row, in neutral ink, at a size that reads without a container.
 - **Do** give every achievement its own drawn object, and keep locked ones recognizable.
 
 ### Don't:
 
+- **Don't** use an emoji as an interface icon. It ignores the theme's color, changes shape from one device to the next, arrives at the font's size, and inside a translated string it cannot be translated — every translator has to copy it. Emoji stay where they are the content itself, like a reaction someone chose.
 - **Don't** re-skin a utility class for dark mode (`.dark .bg-white { … }`). A utility means what it says; if a color must follow the theme it goes through a token. Overriding one silently repaints every deliberate use of it — that rule turned a white call-to-action into dark-green-on-black.
 - **Don't** put a border and a shadow on the same surface.
 - **Don't** nest a card inside a card; use `.card-inset` or plain spacing.

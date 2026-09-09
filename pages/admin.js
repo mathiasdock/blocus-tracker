@@ -8,6 +8,7 @@ import PushAutomations from "../components/PushAutomations";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import BadgeIcon from "../components/BadgeIcon";
+import Glyph from "../components/Glyph";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isOfflineDev, supabase } from "../lib/supabaseClient";
@@ -786,7 +787,7 @@ function SendMessageModal({ user, adminId, onClose }) {
         <h2 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>Message à @{user.pseudo}</h2>
         <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>Envoyé comme message privé depuis ton compte admin.</p>
         {done ? (
-          <p className="text-sm font-medium py-4 text-center" style={{ color: "var(--bt-accent-dark)" }}>Message envoyé ✓</p>
+          <p className="text-sm font-medium py-4 text-center" style={{ color: "var(--bt-accent-dark)" }}>Message envoyé</p>
         ) : (
           <form onSubmit={send} className="space-y-3">
             <textarea className="input" rows={4} maxLength={1000} autoFocus value={text}
@@ -868,7 +869,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
                 {[user.study_field, user.study_year, user.university].filter(Boolean).join(" · ") || "Profil incomplet"}
               </p>
             </div>
-            <button onClick={onClose} className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }}>✕</button>
+            <button onClick={onClose} className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }} aria-label="Fermer"><Glyph size={16}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8"/></Glyph></button>
           </div>
           {user.bio && <p className="text-sm italic mt-3 px-3 py-2 rounded-xl" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>« {user.bio} »</p>}
         </div>

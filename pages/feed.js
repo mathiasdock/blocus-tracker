@@ -23,6 +23,7 @@ import LevelPill from "../components/LevelPill";
 import EmptyState from "../components/EmptyState";
 import FeedPhoto from "../components/FeedPhoto";
 import { SkeletonRow, SkeletonBar } from "../components/Skeleton";
+import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 import {
   AUTO_SHARE_EVENTS,
@@ -65,14 +66,6 @@ function normalizeEmojiReaction(value) {
 // Même jeu que le reste de l'app : grille 24, tracé 1,9, 18 px par défaut.
 // Elles étaient jusqu'ici écrites à la main dans le JSX, chacune avec sa
 // taille et son épaisseur — trois épaisseurs différentes dans une seule carte.
-function Glyph({ size = 18, style, children }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>
-      {children}
-    </svg>
-  );
-}
 const IconCamera = () => <Glyph><path d="M21.4 18.6a2.2 2.2 0 0 1-2.2 2.2H4.8a2.2 2.2 0 0 1-2.2-2.2V8.8a2.2 2.2 0 0 1 2.2-2.2h3l1.6-2.8h5.2l1.6 2.8h3a2.2 2.2 0 0 1 2.2 2.2Z"/><circle cx="12" cy="13.4" r="3.4"/></Glyph>;
 const IconCheck = () => <Glyph><path d="m5 12.8 4.4 4.4L19 7.6"/></Glyph>;
 const IconGlobe = () => <Glyph size={14}><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4a13.4 13.4 0 0 1 0 17.2 13.4 13.4 0 0 1 0-17.2Z"/></Glyph>;

@@ -18,6 +18,7 @@ import { parseQuickObjective } from "../lib/planningQuickAdd";
 import { writeSessionGoal } from "../lib/sessionGoal";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost } from "../lib/autoShare";
+import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 
 // ── Constants ─────────────────────────────────────────────────
@@ -165,55 +166,54 @@ function nextRecurrenceDate(o) {
 }
 
 // ── Icons ─────────────────────────────────────────────────────
-const ic = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
 const IconChevron = ({ dir = "left", size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+  <Glyph size={size}>
     <polyline points={dir === "left" ? "15 18 9 12 15 6" : "9 18 15 12 9 6"} />
-  </svg>
+  </Glyph>
 );
 const IconPlay = ({ size = 12 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
 );
 const IconPlus = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} strokeWidth="2.5" aria-hidden="true">
+  <Glyph size={size}  strokeWidth={2.5}>
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
+  </Glyph>
 );
 const IconClose = ({ size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} strokeWidth="2.5" aria-hidden="true">
+  <Glyph size={size}  strokeWidth={2.5}>
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
+  </Glyph>
 );
 const IconTrash = ({ size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+  <Glyph size={size}>
     <polyline points="3 6 5 6 21 6"/>
     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
     <path d="M10 11v6M14 11v6"/>
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-  </svg>
+  </Glyph>
 );
 const IconEdit = ({ size = 12 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+  <Glyph size={size}>
     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-  </svg>
+  </Glyph>
 );
 const IconCalendar = ({ size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+  <Glyph size={size}>
     <rect x="3" y="4" width="18" height="18" rx="2"/>
     <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-  </svg>
+  </Glyph>
 );
 const IconCopy = ({ size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+  <Glyph size={size}>
     <rect x="9" y="9" width="13" height="13" rx="2"/>
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-  </svg>
+  </Glyph>
 );
 const IconClock = ({ size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" {...ic} aria-hidden="true">
+  <Glyph size={size}>
     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-  </svg>
+  </Glyph>
 );
 const IconSparkle = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -992,12 +992,12 @@ function DayDetailModal() {
                                 style={postponingId === o.id ? { color: "var(--bt-warning)" } : undefined}
                                 title={t("plan.postponeTooltip")} aria-label={t("plan.postponeTooltip")}
                                 aria-expanded={postponingId === o.id}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" {...ic} aria-hidden="true">
+                                <Glyph size={12}>
                                   <rect x="3" y="4" width="18" height="18" rx="2"/>
                                   <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                                   <line x1="3" y1="10" x2="21" y2="10"/>
                                   <path d="M16 14l2 2 4-4"/>
-                                </svg>
+                                </Glyph>
                               </button>
                             )}
                             <button onClick={() => startInlineEdit(o)}
@@ -1947,9 +1947,9 @@ export default function Planning() {
         role="switch" aria-checked={!!profile?.planning_public}
         className="bt-plan-menu-item flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm"
         style={{ opacity: togglingShare ? 0.6 : 1, cursor: togglingShare ? "wait" : "pointer" }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" {...ic} strokeWidth="1.8" className="shrink-0" aria-hidden="true">
+        <Glyph size={15}  strokeWidth={1.8} className="shrink-0">
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-        </svg>
+        </Glyph>
         <span className="min-w-0 flex-1 truncate">{t("plan.public")}</span>
         <span className="shrink-0 text-[11px] font-bold"
           style={{ color: profile?.planning_public ? "var(--bt-accent-text)" : "var(--bt-text-4)" }}>

@@ -19,6 +19,7 @@ import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
+import Glyph from "../components/Glyph";
 import { HUES, dominantHue, rarityOf, rgba } from "../lib/badgeArt";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal, collectPushDiagnostics } from "../lib/onesignal";
@@ -100,37 +101,29 @@ const YEARS = [
 ];
 
 // ── Icônes ───────────────────────────────────────────────────
-// Un seul jeu : grille 24, tracé 1,9, extrémités rondes, 18 px par défaut.
-// La page mélangeait jusqu'ici sept épaisseurs et cinq tailles ; alignées dans
-// une même colonne, les icônes se lisaient comme des polices dépareillées.
-// Le dessin reste volontairement simple : à 18 px dans une pastille de 34,
-// tout détail sous 2 px se referme et fait une tache.
-function Glyph({ size = 22, style, children }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={style}>
-      {children}
-    </svg>
-  );
-}
+// Dessins seulement : la grille, l'épaisseur et l'accessibilité viennent de
+// components/Glyph. Cette page en avait sa propre copie, comme deux autres
+// écrans — trois définitions du même objet, qui allaient diverger au premier
+// ajustement. Les rangées de réglages restent à 22 px : sorties de leur
+// pastille, les icônes ne peuvent plus compter sur un fond pour se faire voir.
 
-const IconGlobe = () => <Glyph><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4a13.4 13.4 0 0 1 0 17.2 13.4 13.4 0 0 1 0-17.2Z"/></Glyph>;
-const IconMoon = () => <Glyph><path d="M20.4 13.6A8.6 8.6 0 1 1 10.4 3.6a6.8 6.8 0 0 0 10 10Z"/></Glyph>;
-const IconSun = () => <Glyph><circle cx="12" cy="12" r="4.4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4 6 6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6"/></Glyph>;
-const IconSmartphone = () => <Glyph><rect x="6.2" y="2.6" width="11.6" height="18.8" rx="2.8"/><path d="M10.6 5.8h2.8M12 18.2h.01"/></Glyph>;
-const IconVolume = () => <Glyph><path d="M11.4 4.6 6.6 8.8H3.2v6.4h3.4l4.8 4.2Z"/><path d="M15.4 9.2a4 4 0 0 1 0 5.6M18.2 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
-const IconVibration = () => <Glyph><rect x="8.4" y="3.2" width="7.2" height="17.6" rx="2.2"/><path d="M4.8 8.6v6.8M19.2 8.6v6.8M2 10.6v2.8M22 10.6v2.8"/></Glyph>;
-const IconInfo = () => <Glyph><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5M12 7.9h.01"/></Glyph>;
-const IconLegal = () => <Glyph><path d="M6.2 3.4h7.2l5 5v12.2H6.2Z"/><path d="M13.4 3.4v5h5"/><path d="M9.2 13.2h5.6M9.2 16.6h3.8"/></Glyph>;
-const IconFeedback = () => <Glyph><path d="M20.6 14.6a2.4 2.4 0 0 1-2.4 2.4H8.2l-4.8 3.6V5.8a2.4 2.4 0 0 1 2.4-2.4h12.4a2.4 2.4 0 0 1 2.4 2.4Z"/><path d="M8.2 8.6h7.6M8.2 12.2h4.8"/></Glyph>;
-const IconShield = () => <Glyph><path d="M12 3 19 6v6c0 4.6-3 8.3-7 9-4-.7-7-4.4-7-9V6Z"/></Glyph>;
-const IconShieldCheck = () => <Glyph><path d="M12 3 19 6v6c0 4.6-3 8.3-7 9-4-.7-7-4.4-7-9V6Z"/><path d="m9 12.1 2.2 2.2L15.4 10"/></Glyph>;
-const IconLogOut = () => <Glyph><path d="M9.6 20.6H5.4a2.2 2.2 0 0 1-2.2-2.2V5.6a2.2 2.2 0 0 1 2.2-2.2h4.2"/><path d="m16 16.6 4.6-4.6L16 7.4"/><path d="M20.6 12H9.4"/></Glyph>;
-const IconTrash = () => <Glyph><path d="M3.8 6.2h16.4"/><path d="M18.4 6.2 17.3 20a1.6 1.6 0 0 1-1.6 1.4H8.3A1.6 1.6 0 0 1 6.7 20L5.6 6.2"/><path d="M10 10.6v6.2M14 10.6v6.2"/><path d="M9.2 6.2V4.4a1.6 1.6 0 0 1 1.6-1.6h2.4a1.6 1.6 0 0 1 1.6 1.6v1.8"/></Glyph>;
+const IconGlobe = () => <Glyph size={22}><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4a13.4 13.4 0 0 1 0 17.2 13.4 13.4 0 0 1 0-17.2Z"/></Glyph>;
+const IconMoon = () => <Glyph size={22}><path d="M20.4 13.6A8.6 8.6 0 1 1 10.4 3.6a6.8 6.8 0 0 0 10 10Z"/></Glyph>;
+const IconSun = () => <Glyph size={22}><circle cx="12" cy="12" r="4.4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4 6 6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6"/></Glyph>;
+const IconSmartphone = () => <Glyph size={22}><rect x="6.2" y="2.6" width="11.6" height="18.8" rx="2.8"/><path d="M10.6 5.8h2.8M12 18.2h.01"/></Glyph>;
+const IconVolume = () => <Glyph size={22}><path d="M11.4 4.6 6.6 8.8H3.2v6.4h3.4l4.8 4.2Z"/><path d="M15.4 9.2a4 4 0 0 1 0 5.6M18.2 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
+const IconVibration = () => <Glyph size={22}><rect x="8.4" y="3.2" width="7.2" height="17.6" rx="2.2"/><path d="M4.8 8.6v6.8M19.2 8.6v6.8M2 10.6v2.8M22 10.6v2.8"/></Glyph>;
+const IconInfo = () => <Glyph size={22}><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5M12 7.9h.01"/></Glyph>;
+const IconLegal = () => <Glyph size={22}><path d="M6.2 3.4h7.2l5 5v12.2H6.2Z"/><path d="M13.4 3.4v5h5"/><path d="M9.2 13.2h5.6M9.2 16.6h3.8"/></Glyph>;
+const IconFeedback = () => <Glyph size={22}><path d="M20.6 14.6a2.4 2.4 0 0 1-2.4 2.4H8.2l-4.8 3.6V5.8a2.4 2.4 0 0 1 2.4-2.4h12.4a2.4 2.4 0 0 1 2.4 2.4Z"/><path d="M8.2 8.6h7.6M8.2 12.2h4.8"/></Glyph>;
+const IconShield = () => <Glyph size={22}><path d="M12 3 19 6v6c0 4.6-3 8.3-7 9-4-.7-7-4.4-7-9V6Z"/></Glyph>;
+const IconShieldCheck = () => <Glyph size={22}><path d="M12 3 19 6v6c0 4.6-3 8.3-7 9-4-.7-7-4.4-7-9V6Z"/><path d="m9 12.1 2.2 2.2L15.4 10"/></Glyph>;
+const IconLogOut = () => <Glyph size={22}><path d="M9.6 20.6H5.4a2.2 2.2 0 0 1-2.2-2.2V5.6a2.2 2.2 0 0 1 2.2-2.2h4.2"/><path d="m16 16.6 4.6-4.6L16 7.4"/><path d="M20.6 12H9.4"/></Glyph>;
+const IconTrash = () => <Glyph size={22}><path d="M3.8 6.2h16.4"/><path d="M18.4 6.2 17.3 20a1.6 1.6 0 0 1-1.6 1.4H8.3A1.6 1.6 0 0 1 6.7 20L5.6 6.2"/><path d="M10 10.6v6.2M14 10.6v6.2"/><path d="M9.2 6.2V4.4a1.6 1.6 0 0 1 1.6-1.6h2.4a1.6 1.6 0 0 1 1.6 1.6v1.8"/></Glyph>;
 const IconCamera = () => <Glyph size={14}><path d="M21.4 18.6a2.2 2.2 0 0 1-2.2 2.2H4.8a2.2 2.2 0 0 1-2.2-2.2V8.8a2.2 2.2 0 0 1 2.2-2.2h3l1.6-2.8h5.2l1.6 2.8h3a2.2 2.2 0 0 1 2.2 2.2Z"/><circle cx="12" cy="13.4" r="3.4"/></Glyph>;
-const IconMail = () => <Glyph><rect x="2.8" y="4.8" width="18.4" height="14.4" rx="2.6"/><path d="m3.8 7.6 8.2 5.8 8.2-5.8"/></Glyph>;
-const IconActivity = () => <Glyph><path d="M2.8 12.4h3.6l2.6-7.6 4.4 14 2.6-6.4h5.2"/></Glyph>;
-const IconUser = () => <Glyph><circle cx="12" cy="8" r="4"/><path d="M4.6 20.4a7.4 7.4 0 0 1 14.8 0"/></Glyph>;
+const IconMail = () => <Glyph size={22}><rect x="2.8" y="4.8" width="18.4" height="14.4" rx="2.6"/><path d="m3.8 7.6 8.2 5.8 8.2-5.8"/></Glyph>;
+const IconActivity = () => <Glyph size={22}><path d="M2.8 12.4h3.6l2.6-7.6 4.4 14 2.6-6.4h5.2"/></Glyph>;
+const IconUser = () => <Glyph size={22}><circle cx="12" cy="8" r="4"/><path d="M4.6 20.4a7.4 7.4 0 0 1 14.8 0"/></Glyph>;
 const IconChevronDown = ({ open }) => (
   <Glyph size={17} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.22s cubic-bezier(0.22,1,0.36,1)", flexShrink: 0 }}>
     <path d="m6.6 9.4 5.4 5.2 5.4-5.2"/>
@@ -144,16 +137,16 @@ const IconChevronRight = () => (
     <Glyph size={17}><path d="m9.8 6.4 5.4 5.6-5.4 5.6"/></Glyph>
   </span>
 );
-const IconCookie = () => <Glyph><path d="M12 3.4a8.6 8.6 0 1 0 8.6 8.6 3.8 3.8 0 0 1-4.3-2.1A3.8 3.8 0 0 1 12 3.4Z"/><path d="M9.4 10h.01M14.2 14.4h.01M9 15.2h.01"/></Glyph>;
-const IconMegaphone = () => <Glyph><path d="M3.4 9.6v4.8h3l6.6 4V5.6l-6.6 4Z"/><path d="M16.8 9.2a4 4 0 0 1 0 5.6M19.6 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
-const IconDownload = () => <Glyph><path d="M20.6 15.4v3.2a2.2 2.2 0 0 1-2.2 2.2H5.6a2.2 2.2 0 0 1-2.2-2.2v-3.2"/><path d="m7.6 10.6 4.4 4.4 4.4-4.4"/><path d="M12 15V3.4"/></Glyph>;
-const IconLock = () => <Glyph><rect x="4" y="10.6" width="16" height="10.4" rx="2.6"/><path d="M7.8 10.6V7.6a4.2 4.2 0 0 1 8.4 0v3"/></Glyph>;
+const IconCookie = () => <Glyph size={22}><path d="M12 3.4a8.6 8.6 0 1 0 8.6 8.6 3.8 3.8 0 0 1-4.3-2.1A3.8 3.8 0 0 1 12 3.4Z"/><path d="M9.4 10h.01M14.2 14.4h.01M9 15.2h.01"/></Glyph>;
+const IconMegaphone = () => <Glyph size={22}><path d="M3.4 9.6v4.8h3l6.6 4V5.6l-6.6 4Z"/><path d="M16.8 9.2a4 4 0 0 1 0 5.6M19.6 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
+const IconDownload = () => <Glyph size={22}><path d="M20.6 15.4v3.2a2.2 2.2 0 0 1-2.2 2.2H5.6a2.2 2.2 0 0 1-2.2-2.2v-3.2"/><path d="m7.6 10.6 4.4 4.4 4.4-4.4"/><path d="M12 15V3.4"/></Glyph>;
+const IconLock = () => <Glyph size={22}><rect x="4" y="10.6" width="16" height="10.4" rx="2.6"/><path d="M7.8 10.6V7.6a4.2 4.2 0 0 1 8.4 0v3"/></Glyph>;
 const IconAlert = () => <Glyph size={16}><path d="M10.5 4 2.6 17.8a1.7 1.7 0 0 0 1.5 2.6h15.8a1.7 1.7 0 0 0 1.5-2.6L13.5 4a1.7 1.7 0 0 0-3 0Z"/><path d="M12 9.6v4M12 16.9h.01"/></Glyph>;
-const IconBell = () => <Glyph><path d="M18 9.6a6 6 0 0 0-12 0c0 5.4-2.2 6.4-2.6 7a.6.6 0 0 0 .5.9h16.2a.6.6 0 0 0 .5-.9c-.4-.6-2.6-1.6-2.6-7Z"/><path d="M13.8 20.4a2 2 0 0 1-3.6 0"/></Glyph>;
+const IconBell = () => <Glyph size={22}><path d="M18 9.6a6 6 0 0 0-12 0c0 5.4-2.2 6.4-2.6 7a.6.6 0 0 0 .5.9h16.2a.6.6 0 0 0 .5-.9c-.4-.6-2.6-1.6-2.6-7Z"/><path d="M13.8 20.4a2 2 0 0 1-3.6 0"/></Glyph>;
 const IconEdit = () => <Glyph size={14}><path d="M16.6 3.4a2.7 2.7 0 0 1 3.8 3.8L7.6 20 2.8 21.2 4 16.4Z"/></Glyph>;
-const IconAward = () => <Glyph><circle cx="12" cy="9.2" r="6"/><path d="m8.4 14.4-1.2 7 4.8-2.6 4.8 2.6-1.2-7"/></Glyph>;
-const IconSliders = () => <Glyph><path d="M4.4 21v-6.2M4.4 10.6V3M12 21v-8.6M12 8.2V3M19.6 21v-4.6M19.6 12.2V3"/><path d="M2 14.8h4.8M9.6 12.4h4.8M17.2 16.4H22"/></Glyph>;
-const IconGift = () => <Glyph><path d="M20 11.6V21H4v-9.4"/><rect x="2.4" y="7.2" width="19.2" height="4.4" rx="1.4"/><path d="M12 21V7.2"/><path d="M12 7.2H7.8a2.4 2.4 0 0 1 0-4.8c3.2 0 4.2 4.8 4.2 4.8ZM12 7.2h4.2a2.4 2.4 0 0 0 0-4.8C13 2.4 12 7.2 12 7.2Z"/></Glyph>;
+const IconAward = () => <Glyph size={22}><circle cx="12" cy="9.2" r="6"/><path d="m8.4 14.4-1.2 7 4.8-2.6 4.8 2.6-1.2-7"/></Glyph>;
+const IconSliders = () => <Glyph size={22}><path d="M4.4 21v-6.2M4.4 10.6V3M12 21v-8.6M12 8.2V3M19.6 21v-4.6M19.6 12.2V3"/><path d="M2 14.8h4.8M9.6 12.4h4.8M17.2 16.4H22"/></Glyph>;
+const IconGift = () => <Glyph size={22}><path d="M20 11.6V21H4v-9.4"/><rect x="2.4" y="7.2" width="19.2" height="4.4" rx="1.4"/><path d="M12 21V7.2"/><path d="M12 7.2H7.8a2.4 2.4 0 0 1 0-4.8c3.2 0 4.2 4.8 4.2 4.8ZM12 7.2h4.2a2.4 2.4 0 0 0 0-4.8C13 2.4 12 7.2 12 7.2Z"/></Glyph>;
 const IconX = () => <Glyph size={17}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8"/></Glyph>;
 
 // ── UI primitives (uniformes sur toute la page) ─────────────

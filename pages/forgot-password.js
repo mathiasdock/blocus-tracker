@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Link from "next/link";
+import Glyph from "../components/Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { classifyAuthError } from "../lib/authLogin.mjs";
 import { getSiteUrl } from "../lib/siteUrl";
@@ -53,10 +54,12 @@ export default function ForgotPassword() {
 
         {sent ? (
           <div className="card p-6 text-center space-y-4">
-            <div className="text-4xl">📬</div>
+            <div className="flex justify-center" style={{ color: "var(--bt-accent-dark)" }}>
+              <Glyph size={44}><rect x="2.8" y="4.8" width="18.4" height="14.4" rx="2.6"/><path d="m3.8 7.6 8.2 5.8 8.2-5.8"/></Glyph>
+            </div>
             <p className="text-sm text-[var(--bt-text-2)]">{t("auth.forgotSent")}</p>
             <Link href="/login" className="text-sm text-accent-dark font-medium">
-              {t("auth.forgotBack")}
+              <span className="inline-flex items-center gap-1"><Glyph size={13}><path d="M15 5.5 8.5 12l6.5 6.5"/></Glyph>{t("auth.forgotBack")}</span>
             </Link>
           </div>
         ) : (
@@ -79,7 +82,7 @@ export default function ForgotPassword() {
             </button>
             <div className="text-center">
               <Link href="/login" className="text-xs text-[var(--bt-text-4)] hover:text-accent-dark transition-colors">
-                {t("auth.forgotBack")}
+                <span className="inline-flex items-center gap-1"><Glyph size={13}><path d="M15 5.5 8.5 12l6.5 6.5"/></Glyph>{t("auth.forgotBack")}</span>
               </Link>
             </div>
           </form>

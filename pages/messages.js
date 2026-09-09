@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import FilterMenu from "../components/FilterMenu";
+import Glyph from "../components/Glyph";
 import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
@@ -47,32 +48,21 @@ function attachmentCacheKey(bucket, ref) {
   return `${bucket}|${ref}`;
 }
 
-function IconBack() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 5.5 8.5 12l6.5 6.5" />
-    </svg>
-  );
-}
+const IconBack = () => <Glyph size={22}><path d="M15 5.5 8.5 12l6.5 6.5" /></Glyph>;
 
-function IconMore() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <circle cx="5.5" cy="12" r="1.7" />
-      <circle cx="12" cy="12" r="1.7" />
-      <circle cx="18.5" cy="12" r="1.7" />
-    </svg>
-  );
-}
+const IconMore = () => (
+  <Glyph size={20}>
+    <circle cx="5.5" cy="12" r="1.7" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
+    <circle cx="18.5" cy="12" r="1.7" fill="currentColor" stroke="none" />
+  </Glyph>
+);
 
-function IconPaperclip({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.93a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
-    </svg>
-  );
-}
+const IconPaperclip = ({ size = 15 }) => (
+  <Glyph size={size}>
+    <path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.93a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+  </Glyph>
+);
 
 function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2 rounded-xl max-h-60 object-cover", t }) {
   if (loaded && src) {
@@ -106,7 +96,7 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2
           // sur blanc en mode sombre — illisible.
           color: mine ? "#0E8F68" : "var(--bt-accent-dark)",
         }}>
-        {t("attachment.viewImage")}
+        <span className="inline-flex items-center gap-1.5"><Glyph size={13}><rect x="3.2" y="5.6" width="17.6" height="13.4" rx="2.6"/><circle cx="12" cy="12.3" r="3.4"/></Glyph>{t("attachment.viewImage")}</span>
       </button>
     </div>
   );
@@ -2053,9 +2043,9 @@ export default function Messages() {
                       {(isAdmin || (amCreator && m.user_id !== user.id)) && (
                         <button
                           onClick={() => removeMember(m.user_id)}
-                          className="text-[10px] shrink-0 transition-colors hover:text-red-500"
-                          style={{ color: "var(--bt-text-4)" }}>
-                          ✕
+                          aria-label={t("common.remove")}
+                          className="bt-feed-icon-btn bt-feed-icon-btn--danger shrink-0">
+                          <Glyph size={14}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8"/></Glyph>
                         </button>
                       )}
                     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
+import Glyph from "../components/Glyph";
 import EmptyState from "../components/EmptyState";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
@@ -41,40 +42,27 @@ function attachmentCacheKey(ref) {
   return `community|${ref}`;
 }
 
-function IconPaperclip({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.93a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
-    </svg>
-  );
-}
+// Dessins seulement — grille, épaisseur et accessibilité viennent de
+// components/Glyph.
+const IconPaperclip = ({ size = 15 }) => (
+  <Glyph size={size}>
+    <path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.93a2 2 0 0 1-2.83-2.83l8.49-8.49"/>
+  </Glyph>
+);
 
-function IconPlus({ size = 11 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  );
-}
+const IconPlus = ({ size = 11 }) => (
+  <Glyph size={size}><path d="M12 5v14M5 12h14"/></Glyph>
+);
 
-function IconSearch({ size = 15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
-  );
-}
+const IconSearch = ({ size = 15 }) => (
+  <Glyph size={size}><circle cx="11" cy="11" r="7.6"/><path d="m20.4 20.4-4.2-4.2"/></Glyph>
+);
 
 // Meme dessin que le retour de la messagerie : les deux ecrans se suivent
 // dans la meme barre d'onglets, deux fleches differentes s'y verraient.
-function IconBack({ size = 22 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 5.5 8.5 12l6.5 6.5" />
-    </svg>
-  );
-}
+const IconBack = ({ size = 22 }) => (
+  <Glyph size={size}><path d="M15 5.5 8.5 12l6.5 6.5" /></Glyph>
+);
 
 function AttachmentImageGate({ src, alt, mine, loaded, onLoad, t }) {
   if (loaded && src) {
@@ -106,7 +94,7 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, t }) {
           border: mine ? "none" : "1px solid var(--bt-accent-border)",
           color: "var(--bt-accent-dark)",
         }}>
-        {t("attachment.viewImage")}
+        <span className="inline-flex items-center gap-1.5"><Glyph size={13}><rect x="3.2" y="5.6" width="17.6" height="13.4" rx="2.6"/><circle cx="12" cy="12.3" r="3.4"/></Glyph>{t("attachment.viewImage")}</span>
       </button>
     </div>
   );

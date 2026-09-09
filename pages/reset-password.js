@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import Glyph from "../components/Glyph";
 import {
   clearInitialAuthCallback,
   createIsolatedAuthClient,
@@ -234,7 +235,9 @@ export default function ResetPassword() {
             </h1>
           </div>
           <div className="card p-6 text-center space-y-4">
-            <div className="text-4xl">⚠️</div>
+            <div className="flex justify-center" style={{ color: "var(--bt-danger)" }}>
+              <Glyph size={44}><path d="M10.5 4 2.6 17.8a1.7 1.7 0 0 0 1.5 2.6h15.8a1.7 1.7 0 0 0 1.5-2.6L13.5 4a1.7 1.7 0 0 0-3 0Z"/><path d="M12 9.6v4M12 16.9h.01"/></Glyph>
+            </div>
             <p className="text-sm text-red-600">{t("auth.resetInvalid")}</p>
             <Link href="/forgot-password" className="text-sm text-accent-dark font-medium block">
               {t("auth.forgotBtn")}
@@ -266,7 +269,9 @@ export default function ResetPassword() {
 
         {success ? (
           <div className="card p-6 text-center space-y-3">
-            <div className="text-4xl">✅</div>
+            <div className="flex justify-center" style={{ color: "var(--bt-accent-dark)" }}>
+              <Glyph size={44}><circle cx="12" cy="12" r="9"/><path d="m8.2 12.2 2.6 2.6 5-5.2"/></Glyph>
+            </div>
             <p className="text-sm text-[var(--bt-text-2)]">{t("auth.resetSuccess")}</p>
           </div>
         ) : (
