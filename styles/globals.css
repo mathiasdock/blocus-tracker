@@ -2028,12 +2028,16 @@ details.bt-acc[open]::details-content { block-size: auto; }
 :root { --bt-nav-space: calc(72px + env(safe-area-inset-bottom)); }
 @media (min-width: 1024px) { :root { --bt-nav-space: 0px; } }
 
-/* ── Messagerie : hauteur des panneaux ─────────────────────────
-   La liste et la conversation occupent l'écran moins l'en-tête, le titre et
-   la barre. Quand une conversation est ouverte sur téléphone, le titre de
-   page s'efface : une conversation mérite l'écran entier, pas les deux tiers
-   qui restent sous un titre qu'on a déjà lu. */
+/* ── Messagerie et communautés : hauteur des panneaux ──────────
+   Sur desktop, le titre de page n'occupe plus de place : les panneaux peuvent
+   donc aller du padding supérieur jusqu'à l'espace réservé au footer. Les
+   132 px correspondent exactement à 28 px au-dessus, 40 px sous la carte et
+   64 px de footer. Sur téléphone, la liste conserve la place nécessaire à la
+   navigation flottante ; une conversation ouverte prend ensuite tout l'écran. */
 .bt-social-panel { height: min(820px, calc(100dvh - 200px - var(--bt-nav-space))); }
+@media (min-width: 1024px) {
+  .bt-social-panel { height: calc(100dvh - 132px); }
+}
 @media (max-width: 1023px) {
   .bt-social-panel--chat { height: calc(100dvh - 104px - var(--bt-nav-space)); }
 }
