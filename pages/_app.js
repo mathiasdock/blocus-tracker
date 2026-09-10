@@ -351,6 +351,38 @@ function ReferralCapture() {
   return null;
 }
 
+// An installed PWA can keep the JavaScript from the previous deployment in an
+// already-open window even after the new service worker has taken control. We
+// check only during the first seconds of launch and reload once if its
+// controller changes. This updates stale artwork without interrupting a study
+// session later in the day.
+function AppVersionRefresh() {
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return undefined;
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let reloading = false;
+
+    const onControllerChange = () => {
+      if (!hadController || reloading) return;
+      reloading = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    navigator.serviceWorker.getRegistration("/")
+      .then((registration) => registration?.update())
+      .catch(() => {});
+
+    const stopListening = window.setTimeout(() => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    }, 15000);
+    return () => {
+      window.clearTimeout(stopListening);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
+  }, []);
+  return null;
+}
+
 // Ré-associe l'abonnement push à l'utilisateur uniquement s'il l'a déjà activé
 // (flag localStorage) ET tant que le consentement « fonctionnel » tient. N'init
 // RIEN sinon → aucun chargement du SDK OneSignal, donc aucune donnée envoyée
@@ -488,6 +520,7 @@ export default function App({ Component, pageProps }) {
         <IncompleteProfileGuard />
         <Component {...pageProps} />
         <GlobalLevelUpWatcher />
+        <AppVersionRefresh />
         <ReferralCapture />
         <PushInit />
         <ConsentSync />

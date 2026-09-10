@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Head from "next/head";
 import Mascot, { MASCOT_MOODS } from "../../components/Mascot";
+import SessionCompleteCard from "../../components/SessionCompleteCard";
+import StudyRecap from "../../components/StudyRecap";
+import { useI18n } from "../../contexts/I18nContext";
 
 const LABELS = {
   neutral: "Au repos", focused: "Concentré", happy: "Heureux", proud: "Fier",
@@ -23,11 +26,17 @@ export function getServerSideProps() {
 }
 
 export default function MascotRehearsal() {
+  const { lang, t } = useI18n();
   const [mood, setMood] = useState("happy");
   const [replay, setReplay] = useState(0);
   const [animated, setAnimated] = useState(true);
   const [size, setSize] = useState(192);
   const [mounted, setMounted] = useState(true);
+  const [sessionCard, setSessionCard] = useState(false);
+  const demoSessions = useMemo(() => [{
+    id: "mascot-audit-session", course_id: "mascot-audit-course",
+    duration_seconds: 4 * 3600, started_at: new Date().toISOString(),
+  }], []);
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <Head><title>Mascotte — atelier local</title><meta name="robots" content="noindex" /></Head>
@@ -70,6 +79,25 @@ export default function MascotRehearsal() {
           </button>
         ))}
       </div>
+      <section className="mt-12 border-t pt-8" style={{ borderColor: "var(--bt-border)" }}>
+        <p className="text-xs uppercase tracking-widest text-accent font-bold">Audit des emplacements</p>
+        <h2 className="mt-2 text-2xl font-display font-bold">Les rendus réellement utilisés</h2>
+        <p className="mt-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
+          Ces aperçus utilisent les composants de production, pas une imitation de l’atelier.
+        </p>
+        <button className="btn-primary mt-5" onClick={() => setSessionCard(true)}>
+          Tester la notification de fin de session
+        </button>
+        <div className="mt-6">
+          <StudyRecap sessions={demoSessions} courses={[{ id: "mascot-audit-course", name: "Méthodologie" }]}
+            streak={12} profile={{ pseudo: "mathias" }} lang={lang} t={t} />
+        </div>
+      </section>
+      {sessionCard && (
+        <SessionCompleteCard
+          data={{ durationSecs: 2700, goalPct: 75, xpGained: 45, courseName: "Services Marketing", courseColor: "#EC4899" }}
+          streak={12} canShare={false} onClose={() => setSessionCard(false)} />
+      )}
     </main>
   );
 }
