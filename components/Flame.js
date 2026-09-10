@@ -7,8 +7,8 @@
 // Pour les emplacements ex-emoji (landing, celebration), passer une couleur
 // chaude via `style={{ color: "#F59E0B" }}`.
 //
-// Le vacillement continu (.bt-flame-body → bt-flame-flick) reprend le langage de
-// la flamme de la mascotte (bt-m-flick). Statique sous prefers-reduced-motion.
+// Le vacillement continu (.bt-flame-body → bt-flame-flick) reste indépendant
+// des gestes de la mascotte. Statique sous prefers-reduced-motion.
 
 import { memo } from "react";
 

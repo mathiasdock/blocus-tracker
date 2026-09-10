@@ -112,7 +112,7 @@ export default function Celebration({ data, onClose }) {
           </div>
         ) : isStreak ? (
           <div className="mx-auto flex items-center justify-center" style={{ width: 116, height: 116 }}>
-            <Mascot streak={data.days} size={116} ariaLabel={title} />
+            <Mascot streak={data.days} mood="celebrating" reactionKey={data.days} size={116} ariaLabel={title} />
           </div>
         ) : (
           <div

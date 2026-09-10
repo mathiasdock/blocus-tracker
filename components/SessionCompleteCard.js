@@ -143,7 +143,7 @@ export default function SessionCompleteCard({
           {/* ── En-tête : mascotte + cours + fermer ── */}
           <div className="flex items-start gap-3">
             <div className="bt-session-pop shrink-0" style={{ marginTop: -2 }}>
-              <Mascot streak={streak} size={52} ariaLabel={t("coach.timer.done")} />
+              <Mascot streak={streak} mood="proud" size={52} ariaLabel={t("coach.timer.done")} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5" style={{ color: "var(--bt-ink-text)" }}>

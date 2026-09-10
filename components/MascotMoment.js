@@ -88,7 +88,7 @@ export default function MascotMoment({
 
   const mascotSize = size || SIZES[presentation] || SIZES.bubble;
   const mascot = (
-    <Mascot streak={streak} mood={mood} size={mascotSize} animated={animated}
+    <Mascot streak={streak} mood={mood} size={mascotSize} animated={animated} reactionKey={eventKey || message}
       ariaLabel={t("mascot.label")} />
   );
 
@@ -113,7 +113,7 @@ export default function MascotMoment({
   if (presentation === "companion") {
     return (
       <span className={`inline-flex shrink-0 ${className}`} title={message} aria-label={message} role="img">
-        <Mascot streak={streak} mood={mood} size={mascotSize} animated={animated} ariaLabel={message} />
+        <Mascot streak={streak} mood={mood} size={mascotSize} animated={animated} reactionKey={eventKey || message} ariaLabel={message} />
       </span>
     );
   }
