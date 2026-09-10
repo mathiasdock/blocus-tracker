@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createMascotDirector, poseForMood, resolveMascotMood } from "../lib/mascotMotion.mjs";
 
 export { mascotState, poseForMood, MASCOT_MOODS } from "../lib/mascotMotion.mjs";
@@ -92,13 +92,17 @@ function Mouth({ emotion }) {
   return <path d="M80 75 L80 79 M69 79 Q74 85 80 79 Q86 85 91 78" stroke={DARK} strokeWidth="2.4" strokeLinecap="round" />;
 }
 
-export default function Mascot({
+const Mascot = forwardRef(function Mascot({
   streak = 0, mood, size = 96, className = "", ariaLabel, animated = true, reactionKey,
-}) {
+}, forwardedRef) {
   const svgRef = useRef(null);
   const directorRef = useRef(null);
   const state = poseForMood(mood, streak);
   const emotion = resolveMascotMood(mood, streak);
+
+  // StudyRecap serializes this exact SVG into its shareable canvas. Exposing
+  // the root avoids maintaining a second, inevitably stale mascot drawing.
+  useImperativeHandle(forwardedRef, () => svgRef.current);
 
   useEffect(() => {
     const director = createMascotDirector(svgRef.current);
@@ -202,4 +206,8 @@ export default function Mascot({
       </g>
     </svg>
   );
-}
+});
+
+Mascot.displayName = "Mascot";
+
+export default Mascot;

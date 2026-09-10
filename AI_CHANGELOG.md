@@ -2,6 +2,62 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-10 - Deux portes carrees sur le profil, deux vraies pages derriere
+
+La carte de progression et la carte des badges occupaient tout le haut du
+profil : deux paves deplies, aucun des deux ne tenant dans un ecran, qu'il
+fallait franchir avant d'atteindre le premier reglage. Ce sont maintenant deux
+TUILES CARREES cote a cote, et le contenu part sur sa propre route.
+
+/progression (nouvelle page). Le niveau sur encre de marque, les missions du
+jour et de la semaine, LES TRENTE PALIERS avec leur seuil et la mention « tu es
+ici », et « d'ou vient ton XP » — le detail des sept sources, trie et barre.
+Ce dernier bloc est ce que la carte ne pouvait pas porter faute de place.
+
+/badges (nouvelle page). La collection rangee par THEME : temps d'etude,
+regularite, objectifs et examens, entre amis, communaute. Un compteur par
+theme, ce qui repond a « qu'est-ce que je neglige ? » plutot qu'au seul
+« combien il m'en manque ? ». Le theme plutot que le palier : le palier dit ce
+qu'un badge vaut et le halo le porte deja sur l'objet, alors qu'aligner les
+cinq badges a 50 XP n'apprend rien sur quoi faire ensuite. lib/badgeGroups.js
+place tout badge inconnu dans un groupe « Autres » — un badge ajoute au
+catalogue et oublie dans le rangement doit rester visible, pas disparaitre.
+
+DES PAGES, PAS DES FEUILLES. Le detail ne s'ouvre plus par-dessus le profil :
+ce sont deux routes, avec un retour explicite (components/PageHeader.js). Une
+sous-page n'est nommee nulle part dans la navigation, elle porte donc son titre
+ET son chemin de retour — sur telephone la barre du bas ramene a l'onglet, pas
+a la page precedente.
+
+MIGRATION v50. get_gamification_levels renvoie desormais le detail des sources
+(study_xp, objective_xp, streak_xp, exam_xp, badge_xp, referral_xp) en plus du
+total. La fonction calculait deja chaque terme avant de les additionner ; les
+recalculer en JavaScript aurait demande de relire sessions, objectifs, examens
+et badges a chaque ouverture de page. Ajout purement additif. Le repli client
+de lib/userLevels.js produit le meme detail, pour que la page tienne hors-ligne
+et le jour ou le serveur ne repond pas.
+
+MENAGE. XPCard, BadgesCard, BadgeSheet, RarityChip et les trois composants de
+lignes de missions quittent pages/profile.js — 400 lignes de moins. Le profil
+ne charge plus les missions du tout : deux RPC et une requete `courses` en
+moins a chaque ouverture, puisque plus rien ne les lit la.
+
+TROIS DEFAUTS DE COMPOSITION ATTRAPES A LA MESURE.
+(a) `aspect-square` en pleine largeur donnait deux carres de 558 px sur un
+ecran de 1440. Les tuiles sont revenues dans la colonne de gauche : 270 px.
+(b) A 320 px, le libelle passait SOUS le chevron et repassait a la ligne, ce
+qui volait seize pixels a une tuile qui n'en a que cent dix d'utiles. `pr-6` et
+troncature.
+(c) Toujours a 320 px, un carre de quatre badges de 40 px debordait EN HAUTEUR.
+Deux compositions plutot qu'une taille moyenne : une rangee de trois petits
+sous 640 px, le carre de quatre au-dessus.
+
+Verifie a 320, 375, 900 et 1440 px : tuiles carrees a 134, 162 et 270 px,
+aucun debordement horizontal, les deux pages qui s'ouvrent et reviennent, le
+detail des sources qui s'affiche (temps etudie 8 007, badges 1 400, serie 70),
+les trente paliers, les cinq groupes de badges avec leur compteur (4/6, 3/4,
+2/4, 1/5, 0/3) et la fiche d'un badge qui s'ouvre.
+
 ## 2026-09-09 - La carte des sessions ne bouge plus : hauteur stable, defilement interne
 
 Deux symptomes opposes, une seule cause. Sans session du jour, la colonne

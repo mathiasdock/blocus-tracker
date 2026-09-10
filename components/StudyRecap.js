@@ -20,13 +20,6 @@ const BRAND_LOGO_SRC = "/app-icon.svg";
 
 let brandLogoPromise;
 
-const MASCOT = {
-  fur: "#E0A458",
-  cream: "#F8EACB",
-  dark: "#2E2018",
-  pink: "#EC9AAB",
-};
-
 function dateKey(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -126,91 +119,58 @@ function drawBrandMark(ctx, image, x, y) {
   ctx.restore();
 }
 
-function fillPath(ctx, path, color) {
-  ctx.fillStyle = color;
-  ctx.fill(new Path2D(path));
+function mascotPropsForRecap(mood) {
+  if (mood === "asleep") return { mood: "sleepy" };
+  if (mood === "content") return { mood: "neutral" };
+  if (mood === "fired") return { streak: 30 };
+  return { mood: "happy" };
 }
 
-function drawMascot(ctx, x, y, size, mood) {
-  const scale = size / 120;
-  const awake = mood !== "asleep";
-  const excited = mood === "happy" || mood === "fired";
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(scale, scale);
+/** Convert the real Mascot DOM into a self-contained image for Canvas.
+ * Resting transforms live in app CSS, so they are copied as inline computed
+ * styles before serialization. The exported PNG can never drift to old art. */
+function loadMascotImage(svg) {
+  if (!svg || typeof XMLSerializer === "undefined" || typeof Image === "undefined") {
+    return Promise.reject(new Error("missing_mascot_svg"));
+  }
+  const clone = svg.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", "160");
+  clone.setAttribute("height", "160");
+  clone.setAttribute("viewBox", "0 0 160 160");
+  clone.removeAttribute("class");
 
+  const sourceNodes = [svg, ...svg.querySelectorAll("*")];
+  const cloneNodes = [clone, ...clone.querySelectorAll("*")];
+  sourceNodes.forEach((source, index) => {
+    const target = cloneNodes[index];
+    if (!target) return;
+    const computed = window.getComputedStyle(source);
+    target.style.transform = computed.transform;
+    target.style.transformOrigin = computed.transformOrigin;
+    target.style.transformBox = computed.transformBox;
+    target.style.opacity = computed.opacity;
+    target.style.display = computed.display;
+  });
+
+  const markup = new XMLSerializer().serializeToString(clone);
+  const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml;charset=utf-8" }));
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error("mascot_svg_load_failed")); };
+    image.src = url;
+  });
+}
+
+function drawMascot(ctx, image, x, y, size) {
   // Pastille claire : la mascotte reste identifiable sans devenir dominante.
   ctx.fillStyle = "rgba(247,243,237,0.94)";
   ctx.beginPath();
-  ctx.arc(60, 60, 58, 0, Math.PI * 2);
+  ctx.arc(x + size / 2, y + size / 2, size * 0.48, 0, Math.PI * 2);
   ctx.fill();
-
-  const tail = excited
-    ? "M86 80 Q108 74 104 50 Q98 70 82 74 Z"
-    : mood === "asleep"
-      ? "M84 98 Q102 98 98 82 Q94 94 80 94 Z"
-      : "M86 88 Q104 82 99 62 Q96 78 81 82 Z";
-  fillPath(ctx, tail, MASCOT.fur);
-  fillPath(ctx, "M34 80 Q26 110 46 115 Q60 119 74 115 Q94 110 86 80 Q76 66 60 66 Q44 66 34 80 Z", MASCOT.fur);
-
-  ctx.fillStyle = MASCOT.cream;
-  ctx.beginPath(); ctx.ellipse(50, 113, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(70, 113, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
-
-  ctx.strokeStyle = GREEN;
-  ctx.lineWidth = 6;
-  ctx.lineCap = "round";
-  ctx.beginPath(); ctx.moveTo(42, 72); ctx.quadraticCurveTo(60, 84, 78, 72); ctx.stroke();
-  ctx.fillStyle = GREEN;
-  ctx.beginPath(); ctx.arc(60, 82, 4.5, 0, Math.PI * 2); ctx.fill();
-
-  if (awake) {
-    fillPath(ctx, "M37 32 L53 10 L62 34 Z", MASCOT.fur);
-    fillPath(ctx, "M43 30 L53 16 L58 32 Z", MASCOT.cream);
-    fillPath(ctx, "M83 32 L67 10 L58 34 Z", MASCOT.fur);
-    fillPath(ctx, "M77 30 L67 16 L62 32 Z", MASCOT.cream);
-  } else {
-    fillPath(ctx, "M38 40 Q26 46 30 64 Q40 56 44 46 Z", MASCOT.fur);
-    fillPath(ctx, "M82 40 Q94 46 90 64 Q80 56 76 46 Z", MASCOT.fur);
-  }
-
-  ctx.fillStyle = MASCOT.fur;
-  ctx.beginPath(); ctx.arc(60, 50, 27, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = MASCOT.cream;
-  ctx.beginPath(); ctx.ellipse(48, 39, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(72, 39, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(60, 58, 16, 13, 0, 0, Math.PI * 2); ctx.fill();
-
-  if (awake) {
-    ctx.fillStyle = MASCOT.dark;
-    ctx.beginPath(); ctx.arc(49, 48, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(71, 48, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.beginPath(); ctx.arc(47.8, 46.5, 1.3, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(69.8, 46.5, 1.3, 0, Math.PI * 2); ctx.fill();
-  } else {
-    ctx.strokeStyle = MASCOT.dark;
-    ctx.lineWidth = 2.2;
-    ctx.beginPath(); ctx.moveTo(45, 49); ctx.quadraticCurveTo(49, 52, 53, 49); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(67, 49); ctx.quadraticCurveTo(71, 52, 75, 49); ctx.stroke();
-  }
-  ctx.fillStyle = MASCOT.dark;
-  ctx.beginPath(); ctx.ellipse(60, 53, 4.5, 3.4, 0, 0, Math.PI * 2); ctx.fill();
-
-  if (excited) {
-    fillPath(ctx, "M53 61 Q60 73 67 61 Z", MASCOT.dark);
-    fillPath(ctx, "M57 65 Q60 74 63 65 Z", MASCOT.pink);
-  } else if (awake) {
-    ctx.strokeStyle = MASCOT.dark;
-    ctx.lineWidth = 1.8;
-    ctx.beginPath(); ctx.moveTo(54, 62); ctx.quadraticCurveTo(60, 67, 66, 62); ctx.stroke();
-  }
-
-  if (mood === "fired") {
-    fillPath(ctx, "M94 29 C87 22 92 15 101 8 C99 17 110 20 108 31 C107 39 98 42 92 36 C89 33 90 30 94 29 Z", AMBER);
-    fillPath(ctx, "M99 31 C96 27 99 23 102 20 C102 26 106 27 105 32 C104 36 100 36 98 34 Z", "#F97316");
-  }
-  ctx.restore();
+  if (image) ctx.drawImage(image, x, y, size, size);
 }
 
 function drawSpeechBubble(ctx, text, variant) {
@@ -370,7 +330,7 @@ function drawProgress(ctx, recap, copy) {
   ctx.fillText(recap.goalReached ? copy.storyGoalReached : copy.storyProgressLine, 158, 1600);
 }
 
-function drawStory(canvas, recap, copy, brandLogo) {
+function drawStory(canvas, recap, copy, brandLogo, mascotImage) {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   canvas.width = STORY_WIDTH;
@@ -431,7 +391,7 @@ function drawStory(canvas, recap, copy, brandLogo) {
   ctx.fillStyle = recap.variant === "record" ? AMBER : GREEN;
   ctx.fillRect(72, 326, 92, 8);
 
-  drawMascot(ctx, 824, 188, 168, recap.mascotMood);
+  drawMascot(ctx, mascotImage, 824, 188, 168);
   drawSpeechBubble(ctx, recap.statusText, recap.variant);
 
   ctx.fillStyle = MUTED;
@@ -632,6 +592,7 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
   const [exporting, setExporting] = useState(false);
   const [status, setStatus] = useState("");
   const canvasRef = useRef(null);
+  const mascotExportRef = useRef(null);
 
   const copy = useMemo(() => ({
     storyLabel: t("stats.recapStoryLabel"),
@@ -734,10 +695,15 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
         await document.fonts?.load('700 80px "Nunito Sans"');
         await document.fonts?.load('700 80px "Quicksand"');
       } catch (_) {}
-      if (active) drawStory(canvasRef.current, recap, copy, brandLogo);
+      try {
+        const mascotImage = await loadMascotImage(mascotExportRef.current);
+        if (active) drawStory(canvasRef.current, recap, copy, brandLogo, mascotImage);
+      } catch (_) {
+        if (active) setStatus(t("stats.recapError"));
+      }
     })();
     return () => { active = false; };
-  }, [open, recap, copy, brandLogo]);
+  }, [open, recap, copy, brandLogo, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -755,7 +721,8 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
     if (!canvasRef.current) throw new Error("missing_canvas");
     const logo = brandLogo || await loadBrandLogo();
     if (!logo) throw new Error("missing_brand_logo");
-    drawStory(canvasRef.current, recap, copy, logo);
+    const mascotImage = await loadMascotImage(mascotExportRef.current);
+    drawStory(canvasRef.current, recap, copy, logo, mascotImage);
     return canvasBlob(canvasRef.current);
   }
 
@@ -809,6 +776,9 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
 
   return (
     <>
+      <span aria-hidden="true" style={{ position: "fixed", left: -10000, top: 0, width: 160, height: 160, pointerEvents: "none" }}>
+        <Mascot ref={mascotExportRef} {...mascotPropsForRecap(recap.mascotMood)} size={160} animated={false} />
+      </span>
       <section className="card mb-4 overflow-hidden" aria-labelledby="study-recap-title">
         <div className="grid grid-cols-[1fr_112px] sm:grid-cols-[1fr_152px] min-h-[196px] sm:min-h-[222px]">
           <div className="p-5 sm:p-6 flex flex-col items-start justify-center min-w-0">

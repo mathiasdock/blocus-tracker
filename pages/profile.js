@@ -16,13 +16,12 @@ import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
-import { computeTotalXP, getLevelInfo, getDailyMissionDefs, evaluateMissions, fallbackWeeklyMissions } from "../lib/xp";
-import { missionText, weeklyText, weeklyProgressLabel, weeklyRatio } from "../lib/missionText";
+import { computeTotalXP, getLevelInfo } from "../lib/xp";
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import BadgeIcon from "../components/BadgeIcon";
 import Glyph from "../components/Glyph";
 import DetailSheet from "../components/DetailSheet";
-import { HUES, dominantHue, rarityOf, rgba } from "../lib/badgeArt";
+import { rarityOf } from "../lib/badgeArt";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal, collectPushDiagnostics } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
@@ -320,223 +319,105 @@ function StatTile({ label, value, sub }) {
 }
 
 // ── Progression (XP) — surface ink signature ─────────────────
-// Une ligne de mission : la même pastille que les cases à cocher de l'app, un
-// libellé, un montant. Rien de plus — c'est une liste, pas un tableau de bord.
-function MissionLine({ label, xp, done }) {
+// ── Les deux portes du profil ────────────────────────────────
+// Carrées, côte à côte, et différentes l'une de l'autre : deux tuiles de même
+// matière se confondraient au coin de l'œil, alors que ce sont deux endroits
+// qui ne racontent pas la même chose. Chacune répond d'un coup d'œil à « où
+// j'en suis », et le détail vit sur sa propre page — pas dans une surface
+// posée par-dessus le profil.
+
+const TIER_ORDER = { legendary: 4, epic: 3, rare: 2, common: 1, discovery: 0 };
+
+function TileShell({ href, ink = false, label, children }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <span className={done ? "bt-check-pop" : ""} style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, backgroundColor: done ? "#14B885" : "rgba(255,255,255,0.14)" }}>
-        {done ? (
-          <Glyph size={10} strokeWidth={3.5} style={{ color: "white" }}><polyline points="20 6 9 17 4 12" /></Glyph>
-        ) : (
-          <span style={{ width: 6, height: 6, borderRadius: "50%", display: "block", backgroundColor: "rgba(255,255,255,0.30)" }} />
-        )}
-      </span>
-      <span style={{ fontSize: 13, flex: 1, color: done ? "var(--bt-ink-text)" : "var(--bt-ink-muted)", textDecoration: done ? "line-through" : "none" }}>
+    <Link href={href}
+      className={`bt-press relative flex aspect-square flex-col overflow-hidden p-4 sm:p-5 ${ink ? "card-ink bt-grain" : "card"}`}>
+      {/* `pr-6` réserve la place du chevron : sans elle le libellé passait
+          dessous et repassait à la ligne, ce qui volait seize pixels de hauteur
+          à une tuile qui n'en a que cent dix d'utiles sur un écran de 320. */}
+      <span className="relative z-10 truncate pr-6 text-[10px] font-bold uppercase tracking-[0.08em]"
+        style={{ color: ink ? "var(--bt-ink-muted)" : "var(--bt-text-3)" }}>
         {label}
       </span>
-      <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "#22E4A4" }}>+{xp} XP</span>
-    </div>
+      <span className="relative z-10 flex min-h-0 flex-1 flex-col">{children}</span>
+      <Glyph size={16} className="absolute right-3.5 top-3.5 z-10"
+        style={{ color: ink ? "var(--bt-ink-muted)" : "var(--bt-text-4)" }}>
+        <polyline points="9 18 15 12 9 6" />
+      </Glyph>
+    </Link>
   );
 }
 
-// Le Défi du jour.
-//
-// Il ne ressemble PAS aux trois autres, et c'est tout l'intérêt : une ligne de
-// plus dans la même liste se serait lue comme une quatrième corvée. Ici c'est
-// un bloc, avec un titre qui annonce la situation (« Examen dans 6 jours ») et
-// une seconde ligne qui porte la donnée personnelle (« Hier : 1 h 42 »).
-// Cette seconde ligne est ce qui sépare un défi d'une consigne.
-function ChallengeBlock({ challenge, t }) {
-  const { title, body } = missionText(t, challenge);
-  const done = Boolean(challenge.done);
+function ProgressTile({ levelInfo, t }) {
+  const current = levelInfo.current;
   return (
-    <div style={{
-      marginBottom: 16, padding: "13px 15px", borderRadius: 16,
-      backgroundColor: done ? "rgba(34,228,164,0.16)" : "rgba(34,228,164,0.09)",
-      boxShadow: `inset 0 0 0 1px rgba(34,228,164,${done ? 0.42 : 0.26})`,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 7 }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#22E4A4" }}>
-          <Glyph size={12} strokeWidth={2.4}><path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8z" /></Glyph>
-          {t("xp.challengeLabel")}
+    <TileShell href="/progression" ink label={t("profile.tileProgress")}>
+      <span className="flex min-h-0 flex-1 flex-col justify-center">
+        <span className="font-num block text-[2rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums sm:text-[2.6rem]"
+          style={{ color: "var(--bt-ink-text)" }}>
+          <AnimatedNumber value={current.level} />
         </span>
-        <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 700, flexShrink: 0, color: "#22E4A4" }}>+{challenge.xp} XP</span>
-      </div>
-      <p className="font-display" style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.01em", color: "var(--bt-ink-text)", textDecoration: done ? "line-through" : "none" }}>
-        {title}
-      </p>
-      {body && (
-        <p style={{ fontSize: 12.5, lineHeight: 1.4, color: "var(--bt-ink-muted)", marginTop: 4 }}>{body}</p>
-      )}
-    </div>
-  );
-}
-
-// Une mission de la semaine.
-//
-// La progression est la raison d'être de ces missions : sept jours d'effort
-// qui n'afficheraient que « fait / pas fait » ne donneraient aucune raison de
-// revenir mercredi. Les comptes courts (jours, cours) prennent des points —
-// on les lit d'un coup d'œil, sans compter. Le temps prend une barre : « 6h24
-// sur 8h » ne se dessine pas en cinq pastilles.
-function WeeklyLine({ row, t }) {
-  const ratio = weeklyRatio(row);
-  const dotted = row.id === "w_days" || row.id === "w_courses";
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
-        <span style={{ fontSize: 13, color: row.done ? "var(--bt-ink-text)" : "var(--bt-ink-muted)" }}>
-          {weeklyText(t, row)}
+        <span className="mt-1.5 block truncate text-sm font-bold" style={{ color: "var(--bt-ink-text)" }}>
+          {t(current.titleKey)}
         </span>
-        <span className="font-num tabular-nums" style={{ fontSize: 11, fontWeight: 600, flexShrink: 0, color: "#22E4A4" }}>+{row.xp} XP</span>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {dotted ? (
-          <span style={{ display: "flex", gap: 5, flex: 1 }} aria-hidden="true">
-            {Array.from({ length: row.target }, (_, i) => (
-              <span key={i} style={{
-                width: 9, height: 9, borderRadius: "50%",
-                backgroundColor: i < row.progress ? "#22E4A4" : "rgba(255,255,255,0.16)",
-              }} />
-            ))}
-          </span>
-        ) : (
-          <span style={{ flex: 1, height: 7, borderRadius: 99, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" }} aria-hidden="true">
-            <span style={{ display: "block", height: "100%", borderRadius: 99, width: `${ratio * 100}%`, background: "linear-gradient(90deg, #0EA571, #22E4A4)", transition: "width 0.3s ease-out" }} />
-          </span>
-        )}
-        <span className="font-num tabular-nums" style={{ fontSize: 11, flexShrink: 0, color: row.done ? "#22E4A4" : "var(--bt-ink-muted)" }}>
-          {weeklyProgressLabel(t, row)}
+      </span>
+      <span className="block">
+        <span className="font-num mb-1.5 block text-[11px] tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
+          {levelInfo.next ? `${levelInfo.progressXP} / ${levelInfo.rangeXP} ${t("xp.xpLabel")}` : t("xp.maxLevel")}
         </span>
-      </div>
-    </div>
+        <span className="block h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.16)" }}>
+          <span className="block h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
+            style={{ transform: `scaleX(${(levelInfo.progressPct || 0) / 100})`, background: "linear-gradient(90deg, #0EA571, #22E4A4)" }} />
+        </span>
+      </span>
+    </TileShell>
   );
 }
 
-function XPCard({ levelInfo, missions, challenge, weekly, streak, moment, t }) {
-  const { current, next, progressXP, rangeXP, progressPct, totalXP } = levelInfo;
+function BadgesTile({ earnedBadgeIds, t }) {
+  const pct = BADGES.length ? earnedBadgeIds.length / BADGES.length : 0;
+  // Les six montrés ne sont pas les six premiers : on met devant ce qui a été
+  // gagné, et le plus rare d'abord. Un aperçu qui commence par « première
+  // session » ne donne envie d'ouvrir aucune vitrine.
+  const preview = [...BADGES]
+    .sort((a, b) => {
+      const ea = earnedBadgeIds.includes(a.id) ? 1 : 0;
+      const eb = earnedBadgeIds.includes(b.id) ? 1 : 0;
+      if (ea !== eb) return eb - ea;
+      return (TIER_ORDER[rarityOf(b.id)] || 0) - (TIER_ORDER[rarityOf(a.id)] || 0);
+    })
+    // Quatre et non six : à 320 px de large, une tuile carrée n'offre qu'une
+    // centaine de pixels utiles, et trois colonnes y débordaient. Un carré de
+    // quatre objets se compose mieux dans un carré, et reste lisible.
+    .slice(0, 4);
   return (
-    <div id="xp-card" className="card-ink bt-grain">
-      <div className="relative z-10" style={{ padding: 20 }}>
-
-        <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 14 }}>
-          {t("xp.cardTitle")}
-        </p>
-
-        {/* Level badge + title */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 18, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 20px rgba(20,184,133,0.50)", flexShrink: 0 }}>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.70)", lineHeight: 1 }}>{t("xp.level")}</span>
-            <AnimatedNumber value={current.level} style={{ fontSize: 26, fontWeight: 700, color: "#fff", lineHeight: 1.1 }} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p className="font-display" style={{ fontSize: 20, fontWeight: 700, color: "var(--bt-ink-text)", lineHeight: 1.2, letterSpacing: "-0.01em" }}>{t(current.titleKey)}</p>
-            <p className="tabular-nums" style={{ fontSize: 12, color: "var(--bt-ink-muted)", marginTop: 2 }}>
-              <AnimatedNumber value={totalXP} suffix={` ${t("xp.xpLabel")}`} />
-            </p>
-          </div>
-        </div>
-
-        {/* XP progress bar */}
-        <div style={{ marginBottom: 18 }}>
-          <div className="tabular-nums" style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--bt-ink-muted)", marginBottom: 6 }}>
-            <span>{next ? <><AnimatedNumber value={progressXP} /> / <AnimatedNumber value={rangeXP} suffix=" XP" /></> : t("xp.maxLevel")}</span>
-            {next && <span>{t("xp.nextLevel")} : {t(next.titleKey)}</span>}
-          </div>
-          <div style={{ height: 10, borderRadius: 99, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.14)" }}>
-            <div style={{ height: "100%", borderRadius: 99, width: `${progressPct}%`, background: "linear-gradient(90deg, #0EA571 0%, #14B885 55%, #22E4A4 100%)", boxShadow: "0 0 10px rgba(20,184,133,0.70)", transition: "width 0.3s ease-out" }} />
-          </div>
-        </div>
-
-        {moment && (
-          <MascotMoment
-            eventKey={moment.key}
-            message={moment.message}
-            mood={moment.mood}
-            frequency={moment.frequency}
-            streak={streak}
-            className="mb-4"
-          />
-        )}
-
-        {challenge && <ChallengeBlock challenge={challenge} t={t} />}
-
-        {/* Missions du jour */}
-        <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 10 }}>
-            {t("xp.missions")}
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {missions.map((m, i) => (
-              <MissionLine key={m.id || i} label={missionText(t, m).title} xp={m.xp} done={m.done} />
-            ))}
-          </div>
-        </div>
-
-        {/* Missions de la semaine */}
-        {weekly.length > 0 && (
-          <div style={{ borderTop: "1px solid var(--bt-ink-border)", paddingTop: 14, marginTop: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--bt-ink-muted)", marginBottom: 12 }}>
-              {t("xp.weeklyTitle")}
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {weekly.map((w, i) => <WeeklyLine key={w.id || i} row={w} t={t} />)}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Badges — la collection ───────────────────────────────────
-// Deuxième grand objet visuel de la page après le niveau. Chaque badge est un
-// OBJET distinct — flamme, coupe, cristal, sablier — et non plus la même
-// tuile déclinée en teintes : vue de loin, la planche se lit comme une
-// vitrine, pas comme un nuancier.
-//
-// Les emblèmes flottent sans conteneur et respirent : c'est l'espace autour,
-// pas un cadre, qui les sépare. Les verrouillés gardent leur dessin, désaturé
-// — on doit reconnaître ce qu'on va gagner avant de l'avoir gagné.
-function BadgesCard({ earnedBadgeIds, onBadgeClick, t }) {
-  const pct = BADGES.length ? Math.round((earnedBadgeIds.length / BADGES.length) * 100) : 0;
-  return (
-    <div className="card overflow-hidden">
-      <CardHead icon={<IconAward />} label={t("badge.title")}
-        right={
-          <span className="font-num text-xs font-bold tabular-nums px-2.5 py-1 rounded-full"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
-            <AnimatedNumber value={earnedBadgeIds.length} />/<AnimatedNumber value={BADGES.length} />
-          </span>
-        } />
-      <div className="px-5 pb-6">
-        <div className="mb-5 h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
-          <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
-            style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-accent)" }} />
-        </div>
-        {/* Grille et non enveloppe libre : à largeur variable, une rangée
-            orpheline de deux badges cassait la lecture en vitrine. Les
-            colonnes s'adaptent, l'espacement reste constant. */}
-        <div className="grid gap-x-2 gap-y-4"
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(58px, 1fr))" }}>
-          {BADGES.map(b => {
-            const earned = earnedBadgeIds.includes(b.id);
-            return (
-              <button key={b.id} onClick={() => onBadgeClick(b)}
-                title={t(b.labelKey)}
-                aria-label={t(b.labelKey)}
-                className="bt-press flex justify-center"
-                style={{ cursor: "pointer", background: "none", border: "none", padding: 0, transition: "transform 0.14s cubic-bezier(0.22,1,0.36,1)" }}
-                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.12)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                <BadgeIcon id={b.id} earned={earned} size={52} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+    <TileShell href="/badges" label={t("profile.tileBadges")}>
+      <span className="flex min-h-0 flex-1 items-center justify-center py-2">
+        {/* Deux compositions, pas une taille moyenne : dans un carré de 134 px
+            il reste une centaine de pixels utiles, et un carré de quatre objets
+            de 40 px y déborde EN HAUTEUR. Une rangée de trois plus petits tient
+            ; dès que la tuile respire, le carré de quatre se compose mieux. */}
+        <span className="flex gap-1.5 sm:hidden">
+          {preview.slice(0, 3).map(b => (
+            <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={30} />
+          ))}
+        </span>
+        <span className="hidden gap-2 sm:grid sm:grid-cols-2">
+          {preview.map(b => (
+            <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={40} />
+          ))}
+        </span>
+      </span>
+      <span className="block">
+        <span className="font-num mb-1.5 block text-[11px] font-semibold tabular-nums" style={{ color: "var(--bt-text-3)" }}>
+          <AnimatedNumber value={earnedBadgeIds.length} />/{BADGES.length}
+        </span>
+        <span className="block h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
+          <span className="block h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
+            style={{ transform: `scaleX(${pct})`, backgroundColor: "var(--bt-accent)" }} />
+        </span>
+      </span>
+    </TileShell>
   );
 }
 
@@ -774,106 +655,6 @@ function PushRow({ t, user }) {
   );
 }
 
-// Étiquette de rareté. Elle emprunte la teinte dominante de l'objet plutôt
-// qu'une couleur à elle : deux systèmes de couleur dans une fiche de 300 px,
-// c'est un de trop. « Commun » reste affiché — masquer le palier le plus bas
-// laisserait croire à un bug sur les deux tiers de la collection.
-const RARITY_LABEL_KEYS = {
-  discovery: "badge.rarityDiscovery",
-  common: "badge.rarityCommon",
-  rare: "badge.rarityRare",
-  epic: "badge.rarityEpic",
-  legendary: "badge.rarityLegendary",
-};
-
-function RarityChip({ id, t }) {
-  const rarity = rarityOf(id);
-  const hue = HUES[dominantHue(id)].mid;
-  // Seul le palier le plus bas reste en gris : à partir de « commun », la
-  // pastille prend la teinte de l'objet. C'est le premier signe, avant même
-  // le halo, qu'un badge pèse plus qu'un autre.
-  const neutral = rarity === "discovery";
-  const label = RARITY_LABEL_KEYS[rarity]
-    ? t(RARITY_LABEL_KEYS[rarity])
-    : t("badge.rarityDiscovery");
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-      style={{
-        backgroundColor: neutral ? "var(--bt-subtle)" : rgba(hue, 0.14),
-        color: neutral ? "var(--bt-text-3)" : undefined,
-        boxShadow: `inset 0 0 0 1px ${neutral ? "var(--bt-border)" : rgba(hue, 0.32)}`,
-      }}>
-      <span aria-hidden="true" className="block h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: neutral ? "var(--bt-text-4)" : hue }} />
-      <span style={neutral ? undefined : { color: "var(--bt-text-1)" }}>{label}</span>
-    </span>
-  );
-}
-
-// ── Badge detail bottom sheet ────────────────────────────────
-function BadgeSheet({ badge, earned, t, onClose }) {
-  if (!badge) return null;
-  return (
-    <>
-      <div className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <div className="fixed z-50 bottom-0 inset-x-0 sm:inset-0 sm:flex sm:items-center sm:justify-center"
-        onClick={onClose}>
-        <div className="rounded-t-[28px] sm:rounded-[24px] sm:max-w-xs w-full sm:mx-4"
-          style={{ backgroundColor: "var(--bt-surface)", maxHeight: "90vh", overflowY: "auto" }}
-          onClick={e => e.stopPropagation()}>
-          {/* Mobile drag handle */}
-          <div className="flex justify-center pt-3 pb-1 sm:hidden">
-            <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
-          </div>
-          <div className="p-6 pt-4 sm:pt-6 text-center">
-            {/* Pas de cadre autour : l'objet EST le badge. L'enfermer dans un
-                carré teinté ramenait la tuile qu'on vient d'enlever. */}
-            <div className={`mb-4 inline-flex ${earned ? "badge-shine" : ""}`}>
-              <BadgeIcon id={badge.id} earned={earned} size={96} />
-            </div>
-            <h3 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
-              {t(badge.labelKey)}
-            </h3>
-            <div className="mt-2 mb-4 flex flex-wrap items-center justify-center gap-2">
-              {earned ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
-                  <Glyph size={12}><polyline points="20 6 9 17 4 12"/></Glyph>
-                  {t("badge.earnedStatus")}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-hairline)" }}>
-                  <Glyph size={11}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></Glyph>
-                  {t("badge.locked")}
-                </span>
-              )}
-              <RarityChip id={badge.id} t={t} />
-              {badge.xp > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(20,184,133,0.12)", color: "#14B885" }}>
-                  {t("badge.xpReward")} : +{badge.xp} XP
-                </span>
-              )}
-            </div>
-            {!earned && (
-              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-4)" }}>
-                {t("badge.howToEarn")}
-              </p>
-            )}
-            <p className="text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-              {t(badge.descKey)}
-            </p>
-            <button onClick={onClose} className="btn-ghost w-full mt-5 text-sm">
-              {t("common.close")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
 // ── Modal d'édition du profil (infos personnelles) ───────────
 function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locked, t }) {
   if (!open) return null;
@@ -974,15 +755,11 @@ export default function Profile() {
   const [showPwa, setShowPwa] = useState(false);
   const [examCount, setExamCount] = useState(0);
   const [completedObjCount, setCompletedObjCount] = useState(0);
-  const [selectedBadge, setSelectedBadge] = useState(null);
   // Feuille de détail ouverte : "activity" | "referral" | "prefs" | "account"
   // | "privacy". Une seule à la fois — deux surfaces modales empilées, c'est
   // un piège pour en sortir.
   const [sheet, setSheet] = useState(null);
   const [newBadgeId, setNewBadgeId] = useState(null);
-  const [serverMissions, setServerMissions] = useState(null);
-  const [serverWeekly, setServerWeekly] = useState(null);
-  const [courseCount, setCourseCount] = useState(0);
   const [canonicalLevelInfo, setCanonicalLevelInfo] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -1046,7 +823,6 @@ export default function Profile() {
         sessionsRes, examRes, objRes, friendRes, activityTotalsRes, existingRes,
         doneObjRes, groupRes,
         commMsgRes, referralStatsRes, syncedBadgesRes,
-        missionsRes, weeklyRes, courseRes,
       ] = await Promise.all([
         supabase.from("sessions").select("started_at, duration_seconds, course_id, note").eq("user_id", user.id),
         supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", user.id),
@@ -1066,9 +842,6 @@ export default function Profile() {
         supabase.from("community_messages").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.rpc("get_my_referral_stats"),
         supabase.rpc("sync_my_badges"),
-        supabase.rpc("get_my_daily_missions"),
-        supabase.rpc("get_my_weekly_missions"),
-        supabase.from("courses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
 
       const sessions = sessionsRes.data || [];
@@ -1121,30 +894,6 @@ export default function Profile() {
       }
       setEarnedBadgeIds(allBadges);
 
-      if (Array.isArray(missionsRes.data) && missionsRes.data.length) {
-        setServerMissions(missionsRes.data.map(m => ({
-          id: m.mission_id,
-          key: m.label_key,
-          xp: Number(m.xp || 0),
-          done: Boolean(m.done),
-          // `kind` sépare le défi des trois autres, `params` porte le nom du
-          // cours et la cible gelés à l'attribution : sans eux, le défi ne
-          // pourrait pas s'écrire autrement qu'en consigne générique.
-          kind: m.kind || "daily",
-          params: m.params || {},
-        })));
-      }
-      if (Array.isArray(weeklyRes?.data)) {
-        setServerWeekly(weeklyRes.data.map(w => ({
-          id: w.mission_id,
-          key: w.label_key,
-          target: Number(w.target || 0),
-          progress: Number(w.progress || 0),
-          xp: Number(w.xp || 0),
-          done: Boolean(w.done),
-        })));
-      }
-      setCourseCount(courseRes?.count || 0);
       setSessionCount(sessions.length);
       setExamCount(examRes.count || 0);
       setCompletedObjCount(completedObj);
@@ -1334,19 +1083,6 @@ export default function Profile() {
   const todayStr = todayISO();
   const todaySessions = profileSessions.filter(s => s.started_at?.startsWith(todayStr));
   const todaySecs = todaySessions.reduce((a, s) => a + s.duration_seconds, 0);
-  const todayMaxSessionSecs = todaySessions.length ? Math.max(...todaySessions.map(s => s.duration_seconds)) : 0;
-  const studiedBeforeNoon = todaySessions.some(s => new Date(s.started_at).getHours() < 12);
-  // Minutes par cours, pas simple présence : deux minutes sur un second cours
-  // validaient « étudie 2 cours différents », ce qui récompensait le clic.
-  const minutesOnCourse = {};
-  for (const s of todaySessions) {
-    if (!s.course_id) continue;
-    minutesOnCourse[s.course_id] = (minutesOnCourse[s.course_id] || 0) + s.duration_seconds / 60;
-  }
-  const todayCoursesCount = Object.values(minutesOnCourse).filter(m => m >= 15).length;
-  const todayFocusedCount = todaySessions.filter(s => s.duration_seconds >= 1500).length;
-  const todaySessionCount = todaySessions.length;
-
   const fallbackTotalXP = computeTotalXP({
     totalMinutes: profileTotalSecs / 60,
     completedObjectives: completedObjCount,
@@ -1355,7 +1091,6 @@ export default function Profile() {
   });
   const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);
   const newBadge = newBadgeId ? BADGES.find(b => b.id === newBadgeId) : null;
-  const xpRemaining = levelInfo.next ? Math.max(0, levelInfo.rangeXP - levelInfo.progressXP) : 0;
   const profileMoment = newBadge
     ? { key: `badge-${newBadge.id}`, mood: "celebrating", frequency: "once",
         message: t("mascot.badge").replace("{badge}", t(newBadge.labelKey)) }
@@ -1364,45 +1099,6 @@ export default function Profile() {
       : (todaySecs > 0 && streak > 0)
         ? { key: "streak-safe", mood: "proud", frequency: "daily", message: t("mascot.streakSafe") }
         : null;
-
-  // Contexte du repli hors-ligne : ce que la page a déjà en mémoire suffit
-  // pour quatre des sept défis. Les deux qui demandent le nom d'un cours
-  // restent au serveur — voir lib/xp.js.
-  const dayMinutes = {};
-  for (const s of profileSessions) {
-    const day = (s.started_at || "").slice(0, 10);
-    if (day) dayMinutes[day] = (dayMinutes[day] || 0) + s.duration_seconds / 60;
-  }
-  const dayKey = (offset) => {
-    const d = new Date();
-    d.setDate(d.getDate() - offset);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  };
-  const last7 = Array.from({ length: 7 }, (_, i) => dayMinutes[dayKey(i + 1)] || 0).filter(m => m > 0);
-  const activeDayList = Object.keys(dayMinutes).filter(d => dayMinutes[d] > 0).sort();
-  const lastActive = activeDayList[activeDayList.length - 1];
-  const challengeCtx = {
-    streak,
-    yesterdayMin: Math.round(dayMinutes[dayKey(1)] || 0),
-    avgMin: last7.length ? Math.round(last7.reduce((a, b) => a + b, 0) / last7.length) : 0,
-    active7: last7.length,
-    daysSinceLast: lastActive
-      ? Math.round((new Date(dayKey(0)) - new Date(lastActive)) / 86400000)
-      : null,
-    totalSessions: profileSessions.length,
-    courseCount,
-  };
-
-  const missionDefs = getDailyMissionDefs(todayStr, user?.id, challengeCtx);
-  const fallbackMissions = evaluateMissions(missionDefs, {
-    todaySecs, todayMaxSessionSecs, todayCoursesCount, todaySessionCount,
-    todayFocusedCount, studiedBeforeNoon, minutesOnCourse,
-  });
-  const allMissions = serverMissions || fallbackMissions;
-  const missions = allMissions.filter(m => m.kind !== "challenge");
-  const challenge = allMissions.find(m => m.kind === "challenge") || null;
-  const weekly = serverWeekly || fallbackWeeklyMissions(profileSessions, courseCount);
 
   // Classement : #N parmi les actifs de la semaine (RPC leaderboard).
   const rankValue = myRank
@@ -1535,30 +1231,40 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ══ GRILLE ═══════════════════════════════════════════
-            Deux natures de contenu, deux colonnes en desktop, un seul fil en
-            mobile : à gauche ce qu'on vient REGARDER (niveau, missions,
-            badges), à droite ce qu'on vient FAIRE (rangées de navigation et
-            réglages). L'ordre du DOM est déjà le bon ordre mobile — aucune
-            inversion d'ordre n'est nécessaire. */}
-        <div className="mt-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:items-start">
+        {/* ══ RUBRIQUES ════════════════════════════════════════
+            Ce qu'on vient FAIRE. Deux colonnes dès qu'il y a la largeur, et le
+            partage est explicite plutôt que laissé au hasard du flux : à gauche
+            ce qui appartient à la personne et ce qu'elle vient vérifier, à
+            droite ce qu'elle vient régler. */}
+        <div className="mt-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start">
 
-          {/* ── Colonne PROGRESSION ────────────────────────── */}
-          <div className="space-y-4 lg:col-span-2">
-            <XPCard
-              levelInfo={levelInfo}
-              missions={missions}
-              challenge={challenge}
-              weekly={weekly}
-              streak={streak}
-              moment={profileMoment}
-              t={t}
-            />
-            <BadgesCard earnedBadgeIds={earnedBadgeIds} onBadgeClick={setSelectedBadge} t={t} />
-          </div>
-
-          {/* ── Colonne RUBRIQUES ──────────────────────────── */}
           <div className="space-y-4">
+            {/* ══ LES DEUX PORTES ══════════════════════════════════
+            La progression et la collection occupaient deux pavés dépliés qu'il
+            fallait franchir avant d'atteindre le premier réglage — et aucun des
+            deux ne tenait dans un écran. Ce sont maintenant deux tuiles carrées
+            qui disent l'essentiel d'un coup d'œil et mènent à leur page.
+
+            Chacune porte sa matière : la progression sur l'encre de marque,
+            réservée aux moments de progrès acquis ; la collection sur surface
+            claire, avec ses objets dessinés en guise d'identité. Deux portes
+            qui se ressemblent seraient deux portes qu'on confond. */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <ProgressTile levelInfo={levelInfo} t={t} />
+              <BadgesTile earnedBadgeIds={earnedBadgeIds} t={t} />
+            </div>
+
+            {profileMoment && (
+              <MascotMoment
+                eventKey={profileMoment.key}
+                message={profileMoment.message}
+                mood={profileMoment.mood}
+                frequency={profileMoment.frequency}
+                streak={streak}
+                className=""
+              />
+            )}
+
 
             {/* Ce qui appartient à l'utilisateur : son activité, ses filleuls,
                 sa voix. Trois portes, pas trois pavés dépliés. */}
@@ -1597,6 +1303,11 @@ export default function Profile() {
                 </>
               )}
             </div>
+
+          </div>
+
+          {/* ── Ce qu'on vient régler ──────────────────────── */}
+          <div className="space-y-4">
 
             {/* Réglages — ce qu'on ouvre trois fois par an. */}
             <NavGroup>
@@ -1771,12 +1482,6 @@ export default function Profile() {
       </DetailSheet>
 
       {/* ══ Overlays ══════════════════════════════════════════ */}
-      <BadgeSheet
-        badge={selectedBadge}
-        earned={selectedBadge ? earnedBadgeIds.includes(selectedBadge.id) : false}
-        t={t}
-        onClose={() => setSelectedBadge(null)}
-      />
       <EditProfileModal
         open={showEditProfile}
         onClose={() => setShowEditProfile(false)}
