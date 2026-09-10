@@ -14,6 +14,8 @@ import CompareCard from "../components/stats/CompareCard";
 import AdvancedAnalytics from "../components/stats/AdvancedAnalytics";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
+import { useToast } from "../contexts/ToastContext";
+import { clearClientCache } from "../lib/clientCache";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatMinutesShort, getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
@@ -67,6 +69,7 @@ function weekdayName(isoIndex, lang) {
 export default function Stats() {
   const { user, profile } = useAuth();
   const { t, lang } = useI18n();
+  const { toast } = useToast();
   // Premier chargement. Tant qu'il n'est pas fini on montre un squelette :
   // sinon la page affiche 0h00 partout, ce que les gens lisent comme un bug.
   const [ready, setReady] = useState(false);
@@ -77,6 +80,7 @@ export default function Stats() {
   const [comparison, setComparison] = useState(undefined); // undefined=chargement, null=indispo
   const [myRank, setMyRank] = useState(null);
   const [viewUserId, setViewUserId] = useState(null);
+  const [archiveBusyId, setArchiveBusyId] = useState(null);
 
   // ── Périodes locales ───────────────────────────────────────────
   // Chaque section porte la sienne, dans son propre en-tête. Le réglage global
@@ -103,6 +107,55 @@ export default function Stats() {
   }, [user]);
 
   useEffect(() => { load().finally(() => setReady(true)); }, [load]);
+
+  // ── Anciens cours ────────────────────────────────────────────
+  // Le temps compté ici est celui de TOUTE la vie du compte, pas de la période
+  // choisie plus haut : un cours du semestre passé n'a par définition aucune
+  // heure dans « 7 derniers jours », et l'afficher à 0 h ne dirait rien de ce
+  // qu'il a représenté.
+  const archivedRows = useMemo(() => {
+    const secsById = {};
+    sessions.forEach((session) => {
+      if (session.course_id) {
+        secsById[session.course_id] = (secsById[session.course_id] || 0) + (session.duration_seconds || 0);
+      }
+    });
+    return courses
+      .filter((course) => course.archived_at)
+      .map((course) => ({ id: course.id, name: course.name, secs: secsById[course.id] || 0 }))
+      .sort((a, b) => b.secs - a.secs || a.name.localeCompare(b.name));
+  }, [courses, sessions]);
+
+  async function restoreArchivedCourse(id) {
+    setArchiveBusyId(id);
+    const { error } = await supabase
+      .from("courses").update({ archived_at: null })
+      .eq("id", id).eq("user_id", user.id);
+    setArchiveBusyId(null);
+    if (error) { toast(t("courseEditor.restoreError"), "error"); return; }
+    // Le dashboard lit les cours depuis son propre cache : sans purge, le cours
+    // réactivé n'apparaîtrait dans le chrono qu'après expiration.
+    clearClientCache(`dashboard:${user.id}:`);
+    setCourses((prev) => prev.map((c) => c.id === id ? { ...c, archived_at: null } : c));
+    toast(t("courseEditor.restored"), "success");
+  }
+
+  // Suppression DÉFINITIVE. La contrainte est ON DELETE SET NULL : les sessions
+  // survivent et le total d'heures ne bouge pas — c'est le NOM qui disparaît,
+  // et c'est bien ce que le panneau de confirmation annonce.
+  async function deleteArchivedCourse(id) {
+    setArchiveBusyId(id);
+    const { data, error } = await supabase
+      .from("courses").delete()
+      .eq("id", id).eq("user_id", user.id)
+      .select("id").maybeSingle();
+    setArchiveBusyId(null);
+    if (error || !data) { toast(t("stats.archivedDeleteError"), "error"); return; }
+    clearClientCache(`dashboard:${user.id}:`);
+    setCourses((prev) => prev.filter((c) => c.id !== id));
+    setSessions((prev) => prev.map((s2) => s2.course_id === id ? { ...s2, course_id: null } : s2));
+    toast(t("stats.archivedDeleted"), "success");
+  }
 
   // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
   useEffect(() => {
@@ -346,6 +399,10 @@ export default function Stats() {
             className="order-9 xl:col-span-2"
             insights={insights}
             allTimeSecs={allTimeSecs}
+            archived={archivedRows}
+            archivedBusyId={archiveBusyId}
+            onRestoreCourse={restoreArchivedCourse}
+            onDeleteCourse={deleteArchivedCourse}
           />
         </div>
       )}

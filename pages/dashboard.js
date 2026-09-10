@@ -334,7 +334,6 @@ export default function Dashboard() {
   const [todayObjectives, setTodayObjectives] = useState([]);
   const [courseEditorOpen, setCourseEditorOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
-  const [editingCourseUsage, setEditingCourseUsage] = useState(null);
   const [courseEditorBusy, setCourseEditorBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle"|"saving"|"success"|"error"
   const savingRef = useRef(false);
@@ -384,7 +383,6 @@ export default function Dashboard() {
   // Les sélecteurs, eux, ne doivent proposer que ce qui est en cours : un cours
   // du semestre dernier n'a rien à faire dans la liste du chrono.
   const activeCourses = useMemo(() => courses.filter((c) => !c.archived_at), [courses]);
-  const archivedCourses = useMemo(() => courses.filter((c) => c.archived_at), [courses]);
 
   // Le TimerProvider hydrate son dernier cours indépendamment des données du
   // dashboard. Si ce cours a depuis été archivé ou supprimé, ou si le jeu de
@@ -1012,21 +1010,14 @@ export default function Dashboard() {
     return true;
   }
 
-  // Le compte de sessions décide du texte du bouton destructeur : « supprimer »
-  // pour un cours vierge, « archiver » pour un cours qui porte du travail. On le
-  // demande à l'ouverture (un COUNT en tête, sans corps de réponse) plutôt que
-  // d'écrire une formule vague qui couvrirait les deux cas sans en dire aucun.
   function openCourseEditor(course = null) {
     setEditingCourse(course);
-    setEditingCourseUsage(null);
     setCourseEditorOpen(true);
-    if (course) countCourseSessions(course.id).then(setEditingCourseUsage);
   }
 
   function closeCourseEditor() {
     setCourseEditorOpen(false);
     setEditingCourse(null);
-    setEditingCourseUsage(null);
   }
 
   async function saveCourse({ id, name, color, examDate }) {
@@ -1084,52 +1075,25 @@ export default function Dashboard() {
     }
   }
 
-  // Combien d'heures ce cours porte-t-il ? La question décide de tout : un cours
-  // qu'on a réellement travaillé ne se détruit pas, il s'archive.
-  const countCourseSessions = useCallback(async (id) => {
-    if (isGuest) return sessions.filter((session) => session.course_id === id).length;
-    const { count, error } = await supabase
-      .from("sessions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("course_id", id);
-    // En cas d'erreur on répond « il y a de l'historique » : archiver à tort est
-    // réparable d'un clic, supprimer à tort ne l'est pas.
-    if (error) return 1;
-    return count || 0;
-  }, [isGuest, sessions, user]);
-
-  // Fin de semestre : les cours changent, on veut les retirer de la liste. Mais
-  // supprimer la ligne emportait le nom et la couleur, et tout le temps passé
-  // dessus retombait dans un tas anonyme « Sans cours » — mesuré à 760 heures
-  // sur 16 comptes avant la v51. Un cours qui porte des sessions est donc
-  // ARCHIVÉ : il quitte les sélecteurs, il garde son identité.
+  // Retirer un cours de la liste ne le détruit JAMAIS : il part à l'archive.
   //
-  // Un cours vierge, lui, est bien supprimé : il n'y a pas d'histoire à sauver,
-  // et laisser traîner une faute de frappe dans l'archive n'aiderait personne.
+  // La version précédente ne l'archivait que s'il portait des sessions, et
+  // supprimait les cours vierges. C'était logique sur le papier et illisible en
+  // pratique : le même bouton faisait deux choses différentes selon un état que
+  // l'utilisateur ne voit pas, et personne ne s'arrête pour lire ce que veut
+  // dire « archiver ». Un seul geste, un seul résultat — et la suppression
+  // définitive existe, mais dans l'archive, là où on la cherche exprès.
   async function deleteCourse(id) {
     setCourseEditorBusy(true);
     try {
-      const used = await countCourseSessions(id);
-      const archiving = used > 0;
       const archivedAt = new Date().toISOString();
-
-      const nextCourses = archiving
-        ? courses.map((course) => course.id === id ? { ...course, archived_at: archivedAt } : course)
-        : courses.filter((course) => course.id !== id);
-      // Les sessions ne perdent leur cours que s'il disparaît vraiment.
-      const nextSessions = archiving
-        ? sessions
-        : sessions.map((session) => session.course_id === id ? { ...session, course_id: null } : session);
-      const nextObjectives = archiving
-        ? todayObjectives
-        : todayObjectives.map((objective) => objective.course_id === id ? { ...objective, course_id: null } : objective);
+      const nextCourses = courses.map((course) =>
+        course.id === id ? { ...course, archived_at: archivedAt } : course);
 
       if (!isGuest) {
-        const query = archiving
-          ? supabase.from("courses").update({ archived_at: archivedAt })
-          : supabase.from("courses").delete();
-        const { data, error } = await query
+        const { data, error } = await supabase
+          .from("courses")
+          .update({ archived_at: archivedAt })
           .eq("id", id)
           .eq("user_id", user.id)
           .select("id")
@@ -1139,50 +1103,19 @@ export default function Dashboard() {
       }
 
       setCourses(nextCourses);
-      setSessions(nextSessions);
-      setTodayObjectives(nextObjectives);
-      if (!archiving) {
-        setChecklistCounts((prev) => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      }
       if (courseId === id) {
         setCourseId(nextCourses.find((course) => !course.archived_at)?.id || "");
       }
       if (isGuest) {
-        writeGuestDashboardData({ courses: nextCourses, sessions: nextSessions, recentSessions, objectives: nextObjectives });
+        writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions, objectives: todayObjectives });
       }
-      toast(t(archiving ? "courseEditor.archived" : "courseEditor.deleted"), "success");
-      return { ok: true, archived: archiving };
+      toast(t("courseEditor.archived"), "success");
+      return { ok: true };
     } catch (_) {
       return { ok: false, message: t("courseEditor.deleteError") };
     } finally {
       setCourseEditorBusy(false);
     }
-  }
-
-  // Une archive dont on ne peut pas sortir est un piège : on range un cours par
-  // erreur, ou on reprend la matière au quadrimestre suivant.
-  async function restoreCourse(id) {
-    const nextCourses = courses.map((course) => course.id === id ? { ...course, archived_at: null } : course);
-    if (!isGuest) {
-      const { error } = await supabase
-        .from("courses")
-        .update({ archived_at: null })
-        .eq("id", id)
-        .eq("user_id", user.id);
-      if (error) {
-        toast(t("courseEditor.restoreError"), "error");
-        return;
-      }
-      clearDashboardCache();
-    } else {
-      writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions, objectives: todayObjectives });
-    }
-    setCourses(nextCourses);
-    toast(t("courseEditor.restored"), "success");
   }
 
   const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
@@ -1839,8 +1772,6 @@ export default function Dashboard() {
         <div className="order-6 grid min-w-0 gap-4 sm:gap-5 lg:col-span-2 lg:grid-cols-2 lg:gap-6">
           <DashboardCoursesCard
             courses={activeCourses}
-            archivedCourses={archivedCourses}
-            onRestore={restoreCourse}
             checklistCounts={checklistCounts}
             onAdd={() => openCourseEditor()}
             onOpen={(course) => {
@@ -1865,7 +1796,6 @@ export default function Dashboard() {
           course={editingCourse}
           colors={COLORS}
           busy={courseEditorBusy}
-          sessionCount={editingCourseUsage}
           onClose={closeCourseEditor}
           onSave={saveCourse}
           onDelete={deleteCourse}

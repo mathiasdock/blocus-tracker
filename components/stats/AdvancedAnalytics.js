@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Glyph from "../Glyph";
 import BadgeIcon from "../BadgeIcon";
+import ArchivedCourses from "./ArchivedCourses";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
 
@@ -59,7 +60,11 @@ function Badge({ id, earned, label }) {
   );
 }
 
-export default function AdvancedAnalytics({ insights, allTimeSecs, className = "" }) {
+export default function AdvancedAnalytics({
+  insights, allTimeSecs,
+  archived = [], archivedBusyId, onRestoreCourse, onDeleteCourse,
+  className = "",
+}) {
   const { t, lang } = useI18n();
   const [open, setOpen] = useState(false);
 
@@ -75,7 +80,11 @@ export default function AdvancedAnalytics({ insights, allTimeSecs, className = "
     });
   }
 
-  if (!insights?.hasData) return null;
+  const hasInsights = Boolean(insights?.hasData);
+  // Un compte sans session peut avoir retiré un cours mal orthographié : c'est
+  // exactement ce qu'on vient supprimer pour de bon ici. Le garde d'origine
+  // rendait la section — et donc l'archive — inatteignable dans ce cas.
+  if (!hasInsights && archived.length === 0) return null;
 
   const slots = [
     { key: "morning",   label: t("stats.slotMorning"),   color: "#F59E0B" },
@@ -95,7 +104,7 @@ export default function AdvancedAnalytics({ insights, allTimeSecs, className = "
     { id: "earlyBird",     label: t("stats.badgeEarly") },
     { id: "goal10",        label: t("stats.badgeGoal10") },
   ];
-  const earned = badges.filter((b) => insights.badges[b.id]).length;
+  const earned = badges.filter((b) => insights?.badges?.[b.id]).length;
 
   return (
     <div className={className}>
@@ -112,6 +121,7 @@ export default function AdvancedAnalytics({ insights, allTimeSecs, className = "
 
       {open && (
         <div className="mt-4 space-y-4">
+          {hasInsights && (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* ── Habitudes ── */}
             <section className="card p-4 sm:p-5">
@@ -160,8 +170,20 @@ export default function AdvancedAnalytics({ insights, allTimeSecs, className = "
               </div>
             </section>
           </div>
+          )}
+
+          {/* ── Anciens cours ──
+              Après les habitudes, avant les badges : c'est de l'historique
+              d'étude, pas une récompense. */}
+          <ArchivedCourses
+            rows={archived}
+            busyId={archivedBusyId}
+            onRestore={onRestoreCourse}
+            onDelete={onDeleteCourse}
+          />
 
           {/* ── Badges ── */}
+          {hasInsights && (
           <section className="card p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.badgesTitle")}</h3>
@@ -176,6 +198,7 @@ export default function AdvancedAnalytics({ insights, allTimeSecs, className = "
               ))}
             </div>
           </section>
+          )}
         </div>
       )}
     </div>
