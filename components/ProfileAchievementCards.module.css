@@ -1,0 +1,91 @@
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.card {
+  container-type: inline-size;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--bt-r-card);
+  box-shadow: var(--bt-elev-1);
+  isolation: isolate;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.card:focus-visible { outline: 3px solid var(--bt-accent); outline-offset: 4px; }
+.card:active { transform: scale(.98); }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; line-height: 1.4; }
+.arrow { flex-shrink: 0; opacity: .8; }
+
+.level {
+  color: var(--bt-ink-text);
+  background: radial-gradient(ellipse at 95% 40%, rgba(20,184,133,.21), transparent 70%), var(--bt-ink);
+}
+.level .heading { color: var(--bt-ink-muted); }
+.levelScene { position: relative; display: block; height: clamp(124px, 64cqw, 166px); margin-top: 8px; }
+.levelNumber { position: absolute; top: 12px; left: 0; display: flex; flex-direction: column; font-variant-numeric: tabular-nums; font-size: clamp(56px, 32cqw, 86px); font-weight: 800; line-height: .95; letter-spacing: -.04em; }
+.levelLabel { margin-bottom: 5px; font-size: 12px; font-weight: 600; line-height: 1.4; letter-spacing: 0; color: var(--bt-ink-muted); }
+.mascot { position: absolute; bottom: -4px; right: -16px; width: clamp(104px, 68cqw, 168px); aspect-ratio: 1; pointer-events: none; }
+.mascot > svg { position: relative; width: 100%; height: 100%; }
+.mascot > .mascotStage { position: absolute; inset: 0; overflow: visible; }
+.stageOrbit { stroke: var(--bt-ink-muted); stroke-width: 1; opacity: .17; stroke-dasharray: 3 6; transform: rotate(-18deg); transform-origin: 83px 82px; }
+.stageEdge { fill: var(--bt-ink-soft); stroke: var(--bt-accent); stroke-opacity: .28; stroke-width: 1; }
+.stageTop { fill: var(--bt-accent); fill-opacity: .18; stroke: var(--bt-ink-muted); stroke-opacity: .4; stroke-width: 1; }
+.stageSpark { fill: var(--bt-ink-muted); opacity: .72; }
+.stageSparkSmall { fill: var(--bt-ink-muted); opacity: .38; }
+.levelTitle { position: relative; font-size: clamp(14px, 7cqw, 19px); font-weight: 800; line-height: 1.25; margin: 7px 0 14px; overflow-wrap: anywhere; }
+.xp { display: block; margin-top: auto; }
+.xpLabels { display: flex; flex-wrap: wrap; gap: 2px 8px; justify-content: space-between; font-size: 11px; line-height: 1.4; font-variant-numeric: tabular-nums; color: var(--bt-ink-muted); margin-bottom: 7px; }
+.nextLevel { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; white-space: nowrap; }
+.track { position: relative; display: block; height: 7px; border-radius: 99px; overflow: hidden; background: rgba(255,255,255,.16); }
+.fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--bt-accent), #5DE0B5); transform-origin: left; }
+.trackTicks { position: absolute; inset: 0; display: flex; justify-content: space-evenly; pointer-events: none; }
+.trackTicks i { display: block; width: 2px; background: var(--bt-ink); opacity: .5; }
+
+.collection { background: var(--bt-surface); color: var(--bt-text-1); }
+.badgeScene { position: relative; display: block; flex: 1; min-height: clamp(150px, 88cqw, 211px); }
+.badgeObject { position: absolute; display: block; width: 47%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(var(--tilt)); transition: transform 220ms ease-out; }
+.badgeObject > span, .emptyObject > span { width: 100% !important; height: 100% !important; }
+.badgeObject svg, .emptyObject svg { width: 100%; height: 100%; }
+.badgeObject[data-slot="0"] { left: 49%; top: 52%; width: 62%; --tilt: -8deg; z-index: 3; }
+.badgeObject[data-slot="1"] { left: 22%; top: 26%; --tilt: -16deg; z-index: 1; }
+.badgeObject[data-slot="2"] { left: 82%; top: 31%; width: 45%; --tilt: 13deg; z-index: 2; }
+.badgeObject[data-slot="3"] { left: 19%; top: 76%; width: 44%; --tilt: -13deg; z-index: 4; }
+.badgeObject[data-slot="4"] { left: 81%; top: 78%; width: 48%; --tilt: 15deg; z-index: 5; }
+.badgeScene[data-count="1"] .badgeObject { left: 50%; top: 51%; width: 74%; }
+.badgeScene[data-count="2"] .badgeObject[data-slot="0"] { left: 37%; top: 59%; }
+.badgeScene[data-count="2"] .badgeObject[data-slot="1"] { left: 74%; top: 33%; width: 52%; }
+.badgeScene[data-count="3"] .badgeObject[data-slot="0"] { top: 65%; }
+.emptyObject { position: absolute; left: 50%; top: 50%; width: 58%; transform: translate(-50%, -50%) rotate(-8deg); }
+.emptyLabel { font-size: 12px; line-height: 1.4; margin: 0 0 10px; color: var(--bt-text-2); }
+.collectionFooter { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin-top: auto; }
+.count { color: var(--bt-text-2); font-size: 11px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.openCollection { font-size: 12px; font-weight: 700; color: var(--bt-accent-text); }
+
+/* At 320px the two cards have only 102px of content width. Stagger the
+   character below the numeral so a two-digit level always remains readable. */
+@container (max-width: 120px) {
+  .levelScene { height: 156px; }
+  .levelNumber { top: 0; font-size: 52px; }
+  .mascot { width: 100px; bottom: -14px; right: -12px; }
+  .levelTitle { margin-top: 14px; }
+}
+
+@media (min-width: 640px) {
+  .cards { gap: 16px; }
+  .card { padding: 20px; }
+  .heading { font-size: 14px; }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .card:hover { transform: translateY(-3px); box-shadow: var(--bt-elev-2); }
+  .collection:hover .badgeObject { transform: translate(-50%, -53%) rotate(calc(var(--tilt) * .65)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .badgeObject { transition: none; }
+  .card:active { transform: none; }
+}

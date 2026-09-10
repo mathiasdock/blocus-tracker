@@ -18,10 +18,9 @@ import { displayName, formatMinutesShort, computeStreak, computeBestStreak, toda
 import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
 import { computeTotalXP, getLevelInfo } from "../lib/xp";
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
-import BadgeIcon from "../components/BadgeIcon";
+import ProfileAchievementCards from "../components/ProfileAchievementCards";
 import Glyph from "../components/Glyph";
 import DetailSheet from "../components/DetailSheet";
-import { rarityOf } from "../lib/badgeArt";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal, collectPushDiagnostics } from "../lib/onesignal";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
@@ -315,125 +314,6 @@ function StatTile({ label, value, sub }) {
       <p className="mt-1.5 truncate text-[11px] font-medium" style={{ color: "var(--bt-text-2)" }} title={label}>{label}</p>
       {sub && <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--bt-text-4)" }}>{sub}</p>}
     </div>
-  );
-}
-
-// ── Progression (XP) — surface ink signature ─────────────────
-// ── Les deux portes du profil ────────────────────────────────
-// Carrées, côte à côte, et différentes l'une de l'autre : deux tuiles de même
-// matière se confondraient au coin de l'œil, alors que ce sont deux endroits
-// qui ne racontent pas la même chose. Chacune répond d'un coup d'œil à « où
-// j'en suis », et le détail vit sur sa propre page — pas dans une surface
-// posée par-dessus le profil.
-
-const TIER_ORDER = { legendary: 4, epic: 3, rare: 2, common: 1, discovery: 0 };
-
-function TileShell({ href, ink = false, label, children }) {
-  return (
-    <Link href={href}
-      className={`bt-press relative flex aspect-square flex-col overflow-hidden p-4 sm:p-5 ${ink ? "card-ink bt-grain" : "card"}`}>
-      {/* `pr-6` réserve la place du chevron : sans elle le libellé passait
-          dessous et repassait à la ligne, ce qui volait seize pixels de hauteur
-          à une tuile qui n'en a que cent dix d'utiles sur un écran de 320. */}
-      <span className="relative z-10 truncate pr-6 text-[10px] font-bold uppercase tracking-[0.08em]"
-        style={{ color: ink ? "var(--bt-ink-muted)" : "var(--bt-text-3)" }}>
-        {label}
-      </span>
-      <span className="relative z-10 flex min-h-0 flex-1 flex-col">{children}</span>
-      <Glyph size={16} className="absolute right-3.5 top-3.5 z-10"
-        style={{ color: ink ? "var(--bt-ink-muted)" : "var(--bt-text-4)" }}>
-        <polyline points="9 18 15 12 9 6" />
-      </Glyph>
-    </Link>
-  );
-}
-
-function ProgressTile({ levelInfo, t }) {
-  const current = levelInfo.current;
-  return (
-    <TileShell href="/progression" ink label={t("profile.tileProgress")}>
-      <span className="flex min-h-0 flex-1 flex-col justify-center">
-        <span className="font-num block text-[2rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums sm:text-[2.6rem]"
-          style={{ color: "var(--bt-ink-text)" }}>
-          <AnimatedNumber value={current.level} />
-        </span>
-        <span className="mt-1.5 block truncate text-sm font-bold" style={{ color: "var(--bt-ink-text)" }}>
-          {t(current.titleKey)}
-        </span>
-      </span>
-      <span className="block">
-        {/* Sur desktop la tuile fait deux cent soixante-dix pixels de cote :
-            un niveau et une barre y flottent dans du vide. Le palier suivant
-            n'apparait qu'a partir du moment ou il y a la place de le lire. */}
-        {levelInfo.next && (
-          <span className="mb-1.5 hidden truncate text-[11px] sm:block" style={{ color: "var(--bt-ink-muted)" }}>
-            {t("xp.nextLevel")} : {t(levelInfo.next.titleKey)}
-          </span>
-        )}
-        <span className="font-num mb-1.5 block text-[11px] tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
-          {levelInfo.next ? `${levelInfo.progressXP} / ${levelInfo.rangeXP} ${t("xp.xpLabel")}` : t("xp.maxLevel")}
-        </span>
-        <span className="block h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.16)" }}>
-          <span className="block h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
-            style={{ transform: `scaleX(${(levelInfo.progressPct || 0) / 100})`, background: "linear-gradient(90deg, #0EA571, #22E4A4)" }} />
-        </span>
-      </span>
-    </TileShell>
-  );
-}
-
-function BadgesTile({ earnedBadgeIds, t }) {
-  const pct = BADGES.length ? earnedBadgeIds.length / BADGES.length : 0;
-  // Les six montrés ne sont pas les six premiers : on met devant ce qui a été
-  // gagné, et le plus rare d'abord. Un aperçu qui commence par « première
-  // session » ne donne envie d'ouvrir aucune vitrine.
-  const preview = [...BADGES]
-    .sort((a, b) => {
-      const ea = earnedBadgeIds.includes(a.id) ? 1 : 0;
-      const eb = earnedBadgeIds.includes(b.id) ? 1 : 0;
-      if (ea !== eb) return eb - ea;
-      return (TIER_ORDER[rarityOf(b.id)] || 0) - (TIER_ORDER[rarityOf(a.id)] || 0);
-    })
-    // Six au maximum : l'aperçu se recompose selon la place réelle — trois en
-    // rangée sous 640 px, quatre en carré au-dessus, six en 3×2 sur desktop.
-    // Une seule taille pour les trois cas laissait soit un débordement, soit
-    // une vitrine a moitié vide.
-    .slice(0, 6);
-  return (
-    <TileShell href="/badges" label={t("profile.tileBadges")}>
-      <span className="flex min-h-0 flex-1 items-center justify-center py-2">
-        {/* Deux compositions, pas une taille moyenne : dans un carré de 134 px
-            il reste une centaine de pixels utiles, et un carré de quatre objets
-            de 40 px y déborde EN HAUTEUR. Une rangée de trois plus petits tient
-            ; dès que la tuile respire, le carré de quatre se compose mieux. */}
-        <span className="flex gap-1.5 sm:hidden">
-          {preview.slice(0, 3).map(b => (
-            <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={30} />
-          ))}
-        </span>
-        <span className="hidden gap-2 sm:grid sm:grid-cols-2 lg:hidden">
-          {preview.slice(0, 4).map(b => (
-            <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={40} />
-          ))}
-        </span>
-        {/* Six objets a partir de 1024 px : dans un carre de 270, quatre
-            vignettes de 40 laissaient une vitrine a moitie vide. */}
-        <span className="hidden gap-2.5 lg:grid lg:grid-cols-3">
-          {preview.map(b => (
-            <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={44} />
-          ))}
-        </span>
-      </span>
-      <span className="block">
-        <span className="font-num mb-1.5 block text-[11px] font-semibold tabular-nums" style={{ color: "var(--bt-text-3)" }}>
-          <AnimatedNumber value={earnedBadgeIds.length} />/{BADGES.length}
-        </span>
-        <span className="block h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
-          <span className="block h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
-            style={{ transform: `scaleX(${pct})`, backgroundColor: "var(--bt-accent)" }} />
-        </span>
-      </span>
-    </TileShell>
   );
 }
 
@@ -1265,10 +1145,7 @@ export default function Profile() {
             réservée aux moments de progrès acquis ; la collection sur surface
             claire, avec ses objets dessinés en guise d'identité. Deux portes
             qui se ressemblent seraient deux portes qu'on confond. */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <ProgressTile levelInfo={levelInfo} t={t} />
-              <BadgesTile earnedBadgeIds={earnedBadgeIds} t={t} />
-            </div>
+            <ProfileAchievementCards levelInfo={levelInfo} earnedBadgeIds={earnedBadgeIds} t={t} />
 
             {profileMoment && (
               <MascotMoment
