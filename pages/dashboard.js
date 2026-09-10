@@ -1279,7 +1279,7 @@ export default function Dashboard() {
       {/* Mobile suit l'urgence quotidienne. Desktop assemble un vrai poste de
           travail : action et historique à gauche, motivation et résultat à
           droite, réglages durables sous les deux colonnes. */}
-      <div className="bt-dashboard-grid grid min-w-0 grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)] lg:gap-6">
+      <div className="bt-dashboard-grid grid min-w-0 grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)] lg:items-stretch lg:gap-6">
 
         {/* ══════════════════════════════════════════
             COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
@@ -1657,7 +1657,13 @@ export default function Dashboard() {
         )}
 
         <TodaySessionsCard
-          className="order-4 lg:order-3"
+          // `basis-0` : la carte ne pèse rien dans le calcul de hauteur de la
+          // grille, donc vingt sessions ne poussent plus rien — elles défilent
+          // à l'intérieur. `flex-1` lui fait prendre toute la place restante,
+          // donc zéro session ne laisse plus de creux. Et le plancher est sur
+          // la CARTE, pas sur la zone : posé sur la zone, il laissait la carte
+          // se faire écraser à 82 px avec son contenu qui débordait dehors.
+          className="order-4 lg:order-3 lg:min-h-[11rem] lg:flex-1 lg:basis-0"
           sessions={sessions}
           courses={courses}
           onUpdate={updateSession}

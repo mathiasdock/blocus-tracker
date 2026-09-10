@@ -552,6 +552,17 @@ html {
 }
 
 /* ── Scrollbars ─────────────────────────────────────────────── */
+/* Zone qui défile À L'INTÉRIEUR d'une carte.
+   `overscroll-behavior: contain` empêche le chaînage : arrivé en bas de la
+   liste, la molette ne repart pas d'un coup dans la page — c'est ce saut qui
+   rend un panneau défilant désagréable. `scrollbar-gutter: stable` réserve la
+   gouttière en permanence, sinon la colonne se décale de 4 px au moment précis
+   où le contenu devient assez long pour défiler. */
+.bt-scroll-y {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 ::-webkit-scrollbar            { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track      { background: transparent; }
 ::-webkit-scrollbar-thumb      { background: var(--bt-scrollbar); border-radius: 99px; }

@@ -2,6 +2,46 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-09 - La carte des sessions ne bouge plus : hauteur stable, defilement interne
+
+Deux symptomes opposes, une seule cause. Sans session du jour, la colonne
+gauche s'arretait net et laissait un creux blanc avant la rangee « Mes cours ».
+Avec cinq sessions, la meme carte grandissait et decalait tout ce qui suivait.
+La grille alignait ses colonnes en haut (`items-start`) : la plus courte
+s'arretait ou son contenu finissait, et la plus longue poussait la rangee.
+
+CORRECTION. La grille etire ses colonnes a partir de 1024 px, et la carte des
+sessions devient l'element elastique de la colonne gauche : `flex-1` +
+`basis-0`. `basis-0` la rend invisible au calcul de hauteur de la rangee —
+vingt sessions ne poussent donc plus rien, elles defilent a l'interieur.
+`flex-1` lui fait prendre exactement la place restante — zero session ne laisse
+donc plus de creux. En-tete et indice restent fixes ; seule la liste defile.
+
+LE PLANCHER VA SUR LA CARTE, PAS SUR LA ZONE. Premiere tentative : plancher de
+136 px sur la zone defilante. La carte s'est retrouvee ecrasee a 82 px par la
+repartition flex, avec son contenu de 184 px qui debordait HORS de la boite
+arrondie. Le minimum doit porter sur l'element que le flex dimensionne.
+
+LE MENU « … » PASSE EN PORTAIL. Une liste qui defile dans une boite a
+`overflow: auto` rogne tout ce qui en sort : le menu ouvert sur une des
+dernieres lignes aurait ete coupe. Il est desormais pose sur le body en
+position fixe, ancre au bouton qui l'a ouvert, avec bascule au-dessus quand la
+place manque en dessous, et fermeture au defilement plutot qu'une derive.
+Meme mecanique que components/FilterMenu.js.
+
+Nouvelle classe `.bt-scroll-y` : `overscroll-behavior: contain` (arrive en bas
+de la liste, la molette ne repart pas d'un coup dans la page — c'est ce saut
+qui rend un panneau defilant desagreable) et `scrollbar-gutter: stable` (sinon
+la colonne se decale de 4 px au moment precis ou le contenu devient assez long
+pour defiler). La barre elle-meme etait deja tokenisee.
+
+VERIFIE PAR MESURE, PAS A L'OEIL.
+- 14 lignes ajoutees dans la zone : carte 176 px avant, 176 px apres ; colonnes
+  918/918 avant, 918/918 apres ; contenu 870 px, defilable, scrollTop 764
+  atteint, aucun debordement hors de la carte.
+- Sans la carte « A faire » (le cas de Mathias) : la carte des sessions passe
+  de 176 a 233 px, elle absorbe les 57 px liberes, colonnes 805/805, ecart 0.
+
 ## 2026-09-09 - Correction : densite responsive des objectifs, et journee regeneree
 
 Mathias a signale que le resultat precedent etait casse. Trois bugs reels, plus

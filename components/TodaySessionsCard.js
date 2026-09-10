@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
 import { formatMinutesShort } from "../lib/format";
@@ -93,11 +94,69 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
 
   const locale = lang === "en" ? "en-US" : "fr-BE";
 
-  return (
-    <section className={`card min-w-0 p-4 sm:p-5 ${className}`}>
-      {menuId && <button type="button" className="fixed inset-0 z-20 cursor-default" onClick={() => setMenuId(null)} aria-label={t("common.close")} />}
+  // Le menu « … » sort du flux dans un PORTAIL. La liste des sessions défile
+  // désormais à l'intérieur de la carte, et un menu en position absolue y
+  // serait tronqué par le bord dès qu'on l'ouvre sur une des dernières lignes.
+  // Il est donc posé sur le body, en position fixe, ancré au bouton qui l'a
+  // ouvert — et il se ferme au défilement plutôt que de dériver.
+  const [menuRect, setMenuRect] = useState(null);
+  const [portalReady, setPortalReady] = useState(false);
+  useEffect(() => { setPortalReady(true); }, []);
 
-      <div className="flex items-center justify-between gap-3">
+  function openMenu(id, event) {
+    if (menuId === id) { setMenuId(null); setMenuRect(null); return; }
+    const r = event.currentTarget.getBoundingClientRect();
+    setMenuRect({ top: r.bottom, bottom: r.top, right: window.innerWidth - r.right });
+    setMenuId(id);
+    acknowledgeHint();
+  }
+
+  useEffect(() => {
+    if (!menuId) return undefined;
+    const close = () => { setMenuId(null); setMenuRect(null); };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [menuId]);
+
+  const openSession = sessions.find((item) => item.id === menuId) || null;
+  // Assez de place en dessous ? Sinon le menu bascule au-dessus du bouton.
+  const flipUp = menuRect ? menuRect.top + 116 > window.innerHeight : false;
+
+  return (
+    <section className={`card min-w-0 p-4 sm:p-5 lg:flex lg:min-h-0 lg:flex-col ${className}`}>
+      {portalReady && menuId && menuRect && openSession && createPortal(
+        <>
+          <button type="button" className="fixed inset-0 cursor-default" style={{ zIndex: 60 }}
+            onClick={() => { setMenuId(null); setMenuRect(null); }} aria-label={t("common.close")} />
+          <div className="bt-dashboard-menu fixed w-48 overflow-hidden rounded-2xl py-1" role="menu"
+            style={{
+              zIndex: 61, right: menuRect.right,
+              top: flipUp ? undefined : menuRect.top + 6,
+              bottom: flipUp ? window.innerHeight - menuRect.bottom + 6 : undefined,
+              backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)",
+              boxShadow: "0 14px 38px var(--bt-shadow)",
+            }}>
+            <button type="button" role="menuitem" onClick={() => { beginEdit(openSession); setMenuRect(null); }}
+              className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-semibold"
+              style={{ color: "var(--bt-text-1)" }}>
+              <IconEdit /> {t("courseEditor.edit")}
+            </button>
+            <button type="button" role="menuitem"
+              onClick={() => { setConfirmDeleteId(openSession.id); setEditingId(null); setMenuId(null); setMenuRect(null); }}
+              className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-semibold"
+              style={{ color: "var(--bt-danger)" }}>
+              <IconTrash /> {t("common.delete")}
+            </button>
+          </div>
+        </>,
+        document.body,
+      )}
+
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("dash.todaySessions")}</h2>
         <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
           {sessions.length}
@@ -105,7 +164,7 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
       </div>
 
       {showHint && sessions.length > 0 && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs leading-relaxed" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
+        <div className="mt-3 flex shrink-0 items-start gap-2 rounded-xl px-3 py-2.5 text-xs leading-relaxed" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
           <Glyph size={15} className="mt-0.5 shrink-0">
             <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" />
           </Glyph>
@@ -113,6 +172,7 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
         </div>
       )}
 
+      <div className="bt-scroll-y lg:min-h-0 lg:flex-1 lg:basis-0 lg:overflow-y-auto">
       {sessions.length === 0 ? (
         <div className="mt-3 flex items-center gap-3 rounded-2xl px-3 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
           <span className="flex w-8 shrink-0 items-center justify-center" style={{ color: "var(--bt-text-3)" }}>
@@ -147,7 +207,7 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
                   </span>
                   <button
                     type="button"
-                    onClick={() => { setMenuId((value) => value === session.id ? null : session.id); acknowledgeHint(); }}
+                    onClick={(event) => openMenu(session.id, event)}
                     className="bt-dashboard-control relative z-30 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
                     style={{ color: "var(--bt-text-2)" }}
                     aria-label={t("dash.sessionActions")}
@@ -157,17 +217,6 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
                     <IconMore />
                   </button>
                 </div>
-
-                {menuId === session.id && (
-                  <div className="bt-dashboard-menu absolute right-0 top-14 z-30 w-48 overflow-hidden rounded-2xl py-1" role="menu" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
-                    <button type="button" role="menuitem" onClick={() => beginEdit(session)} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                      <IconEdit /> {t("courseEditor.edit")}
-                    </button>
-                    <button type="button" role="menuitem" onClick={() => { setConfirmDeleteId(session.id); setEditingId(null); setMenuId(null); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-semibold" style={{ color: "var(--bt-danger)" }}>
-                      <IconTrash /> {t("common.delete")}
-                    </button>
-                  </div>
-                )}
 
                 {isEditing && (
                   <div className="mt-3 grid gap-3 rounded-2xl p-3 sm:grid-cols-[minmax(0,1fr)_112px]" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
@@ -211,6 +260,7 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
           })}
         </ul>
       )}
+      </div>
     </section>
   );
 }
