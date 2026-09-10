@@ -480,8 +480,8 @@ export default function App({ Component, pageProps }) {
           <meta name="apple-mobile-web-app-title" content="Blocus" />
           <meta name="mobile-web-app-capable" content="yes" />
           <link rel="manifest" href="/manifest.json" />
-          <link rel="icon" type="image/png" href="/icon-192x192.png" />
-          <link rel="apple-touch-icon" href="/icon-192x192.png" />
+          <link rel="icon" type="image/png" sizes="64x64" href="/app-icon-v2-64x64.png" />
+          <link rel="apple-touch-icon" sizes="180x180" href="/app-icon-v2-180x180.png" />
         </Head>
         <SeoHead />
         <PageTransition />

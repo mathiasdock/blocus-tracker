@@ -3,7 +3,7 @@
 //
 // Rendu 100% vectoriel via sharp (librsvg) → PNG net à 1200×630.
 // On réutilise l'identité réelle de l'app : surface "ink" vert profond,
-// le vrai logo (public/icon.svg), les Blocus Blocks et la police de marque
+// le vrai logo (public/app-icon.svg), les Blocus Blocks et la police de marque
 // Quicksand (accent) + Nunito Sans (interface et chiffres). Les polices locales
 // sont embarquées en base64 dans le SVG (librsvg les honore) — aucune requête
 // réseau et aucune dépendance aux polices système.
@@ -17,26 +17,14 @@ const FONTS = {
   quicksand: path.join(LOCAL_FONTS, "quicksand-latin.woff2"),
 };
 
-// Tuile du VRAI logo de l'app (public/logo-source.png : chrono + livre ouvert).
-// On recadre l'icône (sans le texte "blocus/tracker" du bas), on la recentre
-// sur un carré vert de marque, puis on arrondit les coins → tuile app-icon.
-const LOGO_GREEN = { r: 16, g: 173, b: 132, alpha: 1 }; // #10AD84, échantillonné
+// Tuile du logo officiel, rendue directement depuis sa source vectorielle.
 async function makeLogoTile(size) {
-  const src = path.join(__dirname, "..", "public", "logo-source.png");
-  // Region généreuse contenant l'icone chrono+livre, SANS le texte du bas.
-  const region = await sharp(src).extract({ left: 120, top: 80, width: 1010, height: 760 }).png().toBuffer();
-  // Auto-recadrage sur le contenu : retire le vert uniforme tout autour de
-  // l'icone (plus robuste que des coords en dur, recentre parfaitement).
-  const icon = await sharp(region).trim().toBuffer();
-  const meta = await sharp(icon).metadata();
-  const side = Math.round(Math.max(meta.width, meta.height) / 0.62); // ~62% → marge respirante
-  const tile = await sharp({ create: { width: side, height: side, channels: 4, background: LOGO_GREEN } })
-    .composite([{ input: icon, gravity: "center" }])
-    .png().toBuffer();
+  const src = path.join(__dirname, "..", "public", "app-icon.svg");
+  const tile = await sharp(src).resize(size, size).png().toBuffer();
   const rounded = Buffer.from(
     `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${Math.round(size * 0.22)}" fill="#fff"/></svg>`
   );
-  return sharp(tile).resize(size, size).composite([{ input: rounded, blend: "dest-in" }]).png().toBuffer();
+  return sharp(tile).composite([{ input: rounded, blend: "dest-in" }]).png().toBuffer();
 }
 
 // Les Blocus Blocks — motif de marque (barres d'étude). done = plein, active =

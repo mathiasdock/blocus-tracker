@@ -16,8 +16,7 @@ const AMBER = "#F3B64A";
 const BLUE = "#8CB9FF";
 const TEXT = "#1F1A17";
 const BLOCK_SECONDS = 15 * 60;
-const BRAND_LOGO_SRC = "/logo-transparent.png";
-const BRAND_LOGO_CROP = { x: 170, y: 108, width: 684, height: 558 };
+const BRAND_LOGO_SRC = "/app-icon.svg";
 
 let brandLogoPromise;
 
@@ -119,27 +118,12 @@ function loadBrandLogo() {
 
 function drawBrandMark(ctx, image, x, y) {
   if (!image) return;
-  const width = 66;
-  const height = Math.round((width * BRAND_LOGO_CROP.height) / BRAND_LOGO_CROP.width);
-  const mask = ctx.canvas.ownerDocument.createElement("canvas");
-  mask.width = width;
-  mask.height = height;
-  const maskContext = mask.getContext("2d");
-  maskContext.drawImage(
-    image,
-    BRAND_LOGO_CROP.x,
-    BRAND_LOGO_CROP.y,
-    BRAND_LOGO_CROP.width,
-    BRAND_LOGO_CROP.height,
-    0,
-    0,
-    width,
-    height,
-  );
-  maskContext.globalCompositeOperation = "source-in";
-  maskContext.fillStyle = GREEN;
-  maskContext.fillRect(0, 0, width, height);
-  ctx.drawImage(mask, x, y, width, height);
+  const size = 66;
+  ctx.save();
+  roundedRect(ctx, x, y, size, size, 15);
+  ctx.clip();
+  ctx.drawImage(image, x, y, size, size);
+  ctx.restore();
 }
 
 function fillPath(ctx, path, color) {

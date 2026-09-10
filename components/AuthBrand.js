@@ -7,12 +7,12 @@ export default function AuthBrand({ subtitle, compact = false }) {
     <div className={`text-center ${compact ? "mb-6" : "mb-7"}`}>
       <div className="inline-flex items-center justify-center gap-2.5">
         <Image
-          src="/logo-transparent.png"
+          src="/app-icon.svg"
           alt=""
           width={logoSize}
           height={logoSize}
           priority
-          className="shrink-0 dark:invert"
+          className="shrink-0 rounded-[22%]"
         />
         <span
           className={`${compact ? "text-2xl" : "text-[2rem]"} font-display font-bold leading-none`}

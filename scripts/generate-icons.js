@@ -1,28 +1,36 @@
-// Génère icon-192x192.png et icon-512x512.png depuis public/logo-source.png
-// Supprime le fond blanc, étend au vert pour couvrir tout le carré (maskable PWA).
+// Génère toutes les icônes PNG depuis la source vectorielle unique.
 // node scripts/generate-icons.js
-const sharp   = require("sharp");
-const path    = require("path");
+const sharp = require("sharp");
+const path = require("path");
 
-const src    = path.join(__dirname, "..", "public", "logo-source.png");
+const src = path.join(__dirname, "..", "public", "app-icon.svg");
 const outDir = path.join(__dirname, "..", "public");
 
 async function run() {
-  // 1. Recadre : retire les pixels blancs en bordure
-  const trimmed = await sharp(src)
-    .trim({ background: "#ffffff", threshold: 25 })
-    .toBuffer();
-
-  // 2. Génère les deux tailles — fond vert plein pour couvrir les coins (maskable)
-  for (const size of [192, 512]) {
-    await sharp(trimmed)
-      .resize(size, size, { fit: "contain", background: "#10b981" })
+  for (const size of [64, 180, 192, 512]) {
+    const name = `app-icon-v2-${size}x${size}.png`;
+    await sharp(src)
+      .resize(size, size)
       .png()
-      .toFile(path.join(outDir, `icon-${size}x${size}.png`));
-    console.log(`✓ public/icon-${size}x${size}.png`);
+      .toFile(path.join(outDir, name));
+    console.log(`✓ public/${name}`);
   }
 
-  // 3. SVG de référence remplacé par la version PNG source (pour l'apple-touch-icon)
+  // Alias historiques conservés avec le nouveau visuel pour les installations
+  // existantes ; les nouvelles installations utilisent les URLs v2 ci-dessus.
+  for (const [name, size] of [
+    ["icon-192x192.png", 192],
+    ["icon-512x512.png", 512],
+    ["app-icon-1024.png", 1024],
+    ["logo-source.png", 1024],
+  ]) {
+    await sharp(src)
+      .resize(size, size)
+      .png()
+      .toFile(path.join(outDir, name));
+    console.log(`✓ public/${name}`);
+  }
+
   console.log("✓ Terminé — deploy avec : npx vercel --prod");
 }
 
