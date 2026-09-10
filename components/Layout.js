@@ -226,7 +226,8 @@ function NotifBadgeGlyph({ name, size = 11 }) {
   );
 }
 
-// Jetons d'annonce (contour, dans la couleur du type) : nouveauté / info / alerte.
+// Glyphes d'annonce au trait, posés seuls dans la rangée : nouveauté / info /
+// alerte. La forme porte le type ; la couleur ne vient que du parent.
 function AnnGlyph({ name, size = 17 }) {
   const paths = {
     sparkles: <path d="M12 3l1.9 4.9L19 9.8l-5.1 1.9L12 17l-1.9-5.3L5 9.8l5.1-1.9zM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8z" />,
@@ -328,19 +329,22 @@ function NotificationPanel({
                 // Annonces figées : clés i18n. Annonces BDD : texte littéral.
                 const annTitle = item.titleKey ? t(item.titleKey) : item.title;
                 const annBody  = item.bodyKey  ? t(item.bodyKey)  : item.body;
-                const s = {
-                  new:       { bg: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", glyph: "sparkles" },
-                  info:      { bg: "rgba(3,105,161,0.14)", color: "#0369a1", glyph: "info" },
-                  important: { bg: "rgba(220,38,38,0.12)", color: "#DC2626", glyph: "alert" },
-                }[item.annType || "info"] || { bg: "rgba(3,105,161,0.14)", color: "#0369a1", glyph: "info" };
+                // L'icône se tient seule dans la rangée, en encre : le type se
+                // lit à sa forme — étincelles, info, alerte — pas à une pastille
+                // de couleur derrière. Seule l'alerte garde une teinte, parce
+                // que c'est un statut et non une décoration.
+                const ann = {
+                  new:       { tone: "var(--bt-accent-dark)", glyph: "sparkles" },
+                  info:      { tone: "var(--bt-text-2)",      glyph: "info" },
+                  important: { tone: "var(--bt-danger)",      glyph: "alert" },
+                }[item.annType || "info"] || { tone: "var(--bt-text-2)", glyph: "info" };
                 return (
                   <li key={item.key} style={bordered}>
                     <button type="button"
                       onClick={() => { onDismissAnnouncement(item.id, item.href); onClose(); }}
                       className="w-full text-left flex items-start gap-3 px-4 py-3.5 transition-colors" {...rowHover}>
-                      <span className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: s.bg, color: s.color }}>
-                        <AnnGlyph name={s.glyph} />
+                      <span className="mt-0.5 flex w-6 shrink-0 justify-center" style={{ color: ann.tone }}>
+                        <AnnGlyph name={ann.glyph} size={19} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-start justify-between gap-2">
