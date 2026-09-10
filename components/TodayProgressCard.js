@@ -121,11 +121,18 @@ export default function TodayProgressCard({
               <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.recWeek")}</p>
               {weeklyGoalMin > 0 && (
                 <p className="font-num text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
-                  {formatMinutesShort(Math.min(weekSecs, weeklyGoalMin * 60))} / {formatMinutesShort(weeklyGoalMin * 60)}
+                  {t("dash.weekGoal").replace("{goal}", formatMinutesShort(weeklyGoalMin * 60))}
                 </p>
               )}
             </div>
-            {weeklyGoalMin > 0 ? (
+            {/* Le grand chiffre reste le TEMPS REELLEMENT ETUDIE. Le plafonner
+                à la cible — « 2h / 2h » quand on en a fait huit — remplaçait un
+                fait par un score et faisait disparaître le travail réel. La
+                barre porte l'objectif, le chiffre porte la vérité. */}
+            <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
+              <AnimatedNumber value={weekSecs} format={formatMinutesShort} />
+            </p>
+            {weeklyGoalMin > 0 && (
               <div className="mt-1.5 h-2 overflow-hidden rounded-full" role="progressbar"
                 aria-label={t("dash.recWeek")} aria-valuemin={0} aria-valuemax={100}
                 aria-valuenow={Math.round(Math.min(100, (weekSecs / (weeklyGoalMin * 60)) * 100))}
@@ -136,10 +143,6 @@ export default function TodayProgressCard({
                     backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)",
                   }} />
               </div>
-            ) : (
-              <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
-                <AnimatedNumber value={weekSecs} format={formatMinutesShort} />
-              </p>
             )}
           </div>
           <div>

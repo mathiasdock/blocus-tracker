@@ -2,6 +2,65 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-09 - Correction : densite responsive des objectifs, et journee regeneree
+
+Mathias a signale que le resultat precedent etait casse. Trois bugs reels, plus
+une erreur de direction.
+
+BUG 1 — LE RAIL COLLANT PASSAIT PAR-DESSUS LE CONTENU. `lg:sticky` sur l'aside
+faisait flotter les cartes Objectifs et Progression au-dessus de la rangee
+« Mes cours / Ma periode de blocus ». Retire : une fois le rail court, il n'y
+avait plus de trou a combler, donc plus de raison de coller quoi que ce soit.
+Chevauchement mesure apres correction : 0 px.
+
+BUG 2 — LA MASCOTTE FELICITAIT POUR RIEN. Le garde-fou « ne feter qu'une
+transition » semait sa reference au PREMIER rendu, quand la liste est encore
+vide parce que les donnees n'ont pas repondu. La premiere reponse reelle
+passait donc pour un exploit : « Weekly challenge complete! » a chaque
+ouverture, pour un defi acquis depuis lundi. On ne seme plus qu'a la premiere
+reponse non vide.
+
+BUG 3 — LE CHIFFRE DE LA SEMAINE AVAIT DISPARU. Le plafonnement de la
+progression, correct pour un libelle de mission, avait ete applique a la
+statistique : « Cette semaine 2h / 2h » la ou 8h30 avaient ete etudiees. Un
+fait remplace par un score. Le grand chiffre reprend le temps reellement
+etudie ; la barre porte l'objectif.
+
+ERREUR DE DIRECTION — LA DIVULGATION PROGRESSIVE EST UNE STRATEGIE DE PETIT
+ECRAN. Sur desktop il y a de la place : replier la liste derriere un chevron y
+gaspillait la colonne et ajoutait un clic pour lire quatre lignes, et la
+version repliee n'etait plus une carte mais un fragment. Pire, le detail
+s'ouvrait dans une MODALE — un voile noir sur toute l'application pour lire ses
+propres cases a cocher, exactement ce que le referentiel de craft refuse
+(« a modal for a task that needs neither interruption nor protected focus »).
+
+La liste est donc TOUJOURS depliee a partir de 1024 px, et repliable seulement
+en dessous, SUR PLACE. Le choix passe par des classes et non par une media
+query JavaScript : rien a hydrater, rien a faire clignoter. Le defi figure dans
+la liste comme n'importe quel objectif du jour, marque d'une etoile ; sa
+version actionnable reste contre le bouton Start.
+
+Mesures : carte 461 px depliee sur desktop, 142 px repliee sur mobile, 438 px
+depliee sur mobile. Colonnes desktop 870 px et 824 px — 46 px d'ecart, plus de
+trou. Aucune modale, aucun debordement horizontal.
+
+JOURNEE REGENEREE (v49_4). v49 laissait les missions deja attribuees telles
+quelles : en pratique ca donnait une journee entiere d'anciennes missions AUX
+ANCIENS MONTANTS (« Etudier 2 heures +80 XP »), sans Defi du jour, dans une
+interface refaite pour le nouveau systeme. Ca ne se lisait pas comme une
+transition mais comme une application cassee. La journee est regeneree quand
+elle vient de l'ancien systeme ET que rien n'y a ete valide — on ne retire
+jamais une case deja cochee, et le XP eventuel vit dans xp_ledger, intouche.
+
+DEUX DEFAUTS ATTRAPES A LA VERIFICATION. Le bouton de pli faisait 32 px, sous
+la regle des 44 px du systeme : zone de tap portee a 44 px avec marge negative,
+pastille visible maintenue a 32 (un rond de 44 a cote d'une puce de 28 aurait
+pese plus que le titre). Et les barres hebdomadaires repliees n'avaient pas de
+compteur — deux barres sans chiffre ne disent pas combien il en reste.
+
+Verifie en une passe groupee desktop + mobile : cible tactile 44x44, le tap du
+defi selectionne bien « Methodologie » dans le chrono, et rien ne chevauche.
+
 ## 2026-09-09 - Le chrono reprend la page : bande de defi + resume d'objectifs
 
 Mesure avant de toucher a quoi que ce soit. La carte des missions faisait

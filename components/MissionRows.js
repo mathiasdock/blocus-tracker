@@ -9,7 +9,7 @@ import { missionText, weeklyText, weeklyProgressLabel, weeklyRatio } from "../li
 // pour la carte encre sombre, parce que ce sont deux matières différentes et
 // non deux copies de la même.
 
-export function MissionRow({ row, t }) {
+export function MissionRow({ row, t, lead = false }) {
   const done = Boolean(row.done);
   return (
     <li className="flex min-h-9 items-center gap-3">
@@ -28,48 +28,22 @@ export function MissionRow({ row, t }) {
           </Glyph>
         )}
       </span>
-      <span className="flex-1 text-sm leading-snug"
+      <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm leading-snug"
         style={{ color: done ? "var(--bt-text-3)" : "var(--bt-text-2)", textDecoration: done ? "line-through" : "none" }}>
-        {missionText(t, row).title}
+        {/* L'étoile marque le Défi du jour : dans une liste de quatre lignes
+            identiques, c'est le seul signe qui dit « celui-là est pour toi ». */}
+        {lead && (
+          <Glyph size={13} strokeWidth={2.2} style={{ color: "var(--bt-accent-dark)", flexShrink: 0 }}>
+            <path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8z" />
+          </Glyph>
+        )}
+        <span className="min-w-0 flex-1 truncate">{missionText(t, row).title}</span>
       </span>
       <span className="font-num shrink-0 text-xs font-bold tabular-nums"
         style={{ color: done ? "var(--bt-text-4)" : "var(--bt-accent-text)" }}>
         +{row.xp} XP
       </span>
     </li>
-  );
-}
-
-// Le Défi du jour dans la feuille. Sur le chrono il a sa propre forme, collée
-// au bouton Start — voir components/ChallengeStrip.js.
-export function ChallengeRow({ challenge, t }) {
-  const { title, body } = missionText(t, challenge);
-  const done = Boolean(challenge.done);
-  return (
-    <div className="rounded-2xl px-3.5 py-3"
-      style={{
-        backgroundColor: "var(--bt-accent-bg)",
-        boxShadow: "inset 0 0 0 1px var(--bt-accent-border)",
-        opacity: done ? 0.75 : 1,
-      }}>
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em]"
-          style={{ color: "var(--bt-accent-dark)" }}>
-          <Glyph size={12} strokeWidth={2.4}>
-            <path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8z" />
-          </Glyph>
-          {t("xp.challengeLabel")}
-        </span>
-        <span className="font-num shrink-0 text-xs font-bold tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>
-          +{challenge.xp} XP
-        </span>
-      </div>
-      <p className="text-[15px] font-bold leading-snug"
-        style={{ color: "var(--bt-text-1)", textDecoration: done ? "line-through" : "none" }}>
-        {title}
-      </p>
-      {body && <p className="mt-0.5 text-xs leading-snug" style={{ color: "var(--bt-text-3)" }}>{body}</p>}
-    </div>
   );
 }
 

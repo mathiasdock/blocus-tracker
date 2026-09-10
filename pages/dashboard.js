@@ -1728,10 +1728,7 @@ export default function Dashboard() {
         {/* ══════════════════════════════════════════
             SIDE — Missions + progression du jour
         ══════════════════════════════════════════ */}
-        {/* Une fois court, le rail reste à l'écran pendant qu'on fait défiler
-            les cours et le planning — au lieu de laisser un trou de 274 px
-            sous le chrono, ce que faisait la carte de 774 px d'avant. */}
-        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-6 lg:self-start lg:sticky lg:top-6">
+        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
           <MissionSummary
             className="order-2 lg:order-none"
             missions={dailyMissions}

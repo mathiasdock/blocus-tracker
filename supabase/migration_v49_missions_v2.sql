@@ -396,6 +396,9 @@ AS $$
 DECLARE
   v_timezone text := COALESCE(public.gamification_timezone(p_user_id), 'Europe/Paris');
   v_date date := (now() AT TIME ZONE v_timezone)::date;
+  v_rows integer := 0;
+  v_has_challenge boolean := false;
+  v_has_done boolean := false;
   v_recent_seconds bigint := 0;
   v_recent_max integer := 0;
   v_course_count integer := 0;
@@ -413,11 +416,27 @@ DECLARE
   v_slot integer := 0;
   v_params jsonb;
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM public.daily_mission_assignments
-    WHERE user_id = p_user_id AND mission_date = v_date
-  ) THEN
-    RETURN;
+  -- Une journée déjà attribuée n'est pas forcément à garder. Celles qui
+  -- viennent de l'ancien système — aucune ligne de type 'challenge' — affichent
+  -- les anciennes missions AUX ANCIENS MONTANTS à côté d'une interface refaite
+  -- pour le nouveau : ça ne se lit pas comme une transition, ça se lit comme
+  -- une application cassée. On la régénère, mais seulement si rien n'y a été
+  -- validé : on ne retire jamais une case déjà cochée, et le XP éventuellement
+  -- versé vit de toute façon dans xp_ledger, qui n'est pas touché.
+  SELECT COUNT(*)::integer,
+         BOOL_OR(kind = 'challenge'),
+         BOOL_OR(completed_at IS NOT NULL)
+  INTO v_rows, v_has_challenge, v_has_done
+  FROM public.daily_mission_assignments
+  WHERE user_id = p_user_id AND mission_date = v_date;
+
+  IF v_rows > 0 THEN
+    IF COALESCE(v_has_challenge, false) = false AND COALESCE(v_has_done, false) = false THEN
+      DELETE FROM public.daily_mission_assignments
+      WHERE user_id = p_user_id AND mission_date = v_date;
+    ELSE
+      RETURN;
+    END IF;
   END IF;
 
   SELECT COALESCE(SUM(duration_seconds), 0), COALESCE(MAX(duration_seconds), 0)
