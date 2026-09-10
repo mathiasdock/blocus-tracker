@@ -2,6 +2,33 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-10 - La fixture hors-ligne cesse d etre plus permissive que la prod
+
+SUITE DIRECTE DE L ENTREE CI-DESSOUS. Le bug des badges etait corrige, la
+raison pour laquelle la verification locale ne l avait pas vu ne l etait pas.
+C est fait.
+
+CE QUI CHANGE DANS `lib/offlineSupabaseClient.js`. La classe de requete perd
+sa methode `catch`, et `rpc()` ne renvoie plus une vraie `Promise` mais un
+thenable (`OfflineThenable`, `then` seulement). Verifie contre le vrai
+supabase-js : `from(...).select(...)` comme `rpc(...)` y exposent `then`,
+et ni `catch` ni `finally`. La fixture a maintenant exactement cette surface.
+Le point important etait le second : `rpc()` renvoyait `Promise.resolve(...)`,
+donc retirer `catch` de la seule classe de requete aurait laisse passer une
+nouvelle fois le `supabase.rpc("x").catch(...)` qui a casse /badges.
+Verifie apres coup : le meme appel leve desormais le TypeError en local.
+
+AUCUN APPEL FAUTIF RESTANT DANS LE DEPOT. Balayage des 160 fichiers de
+`pages/ components/ lib/ contexts/ tests/ scripts/` : les trois `.catch()`
+poses sur un `rpc` (badges, progression, dashboard) utilisent tous le motif
+correct `.then(r => r).catch(...)`. Tous les autres `.catch()` et `.finally()`
+du projet sont sur de vraies Promises — fonctions `async`, `res.json()`,
+`Promise.all/race`, APIs navigateur. Rien a corriger, donc rien de corrige :
+le seul appel fautif qui ait existe est celui deja repare.
+
+`.claude/launch.json` : `autoPort` ajoute sur `blocus-offline`, le port 4321
+etant parfois pris par une autre session. 4321 reste le port prefere.
+
 ## 2026-09-10 - Badges reverrouilles : un `.catch` sur le mauvais objet
 
 BUG. La page /badges affichait 0/22, tout verrouille, alors que la base
