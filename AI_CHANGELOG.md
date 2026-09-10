@@ -2,6 +2,72 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-09 - Le chrono reprend la page : bande de defi + resume d'objectifs
+
+Mesure avant de toucher a quoi que ce soit. La carte des missions faisait
+774 px — plus haute que l'ecran (720 px). Le rail droit montait a 1069 px
+contre 795 px pour la colonne principale : 274 px de vide sous le chrono, dans
+la colonne ou l'oeil vit.
+
+LE VRAI CONSTAT, ET CE N'ETAIT PAS UNE HISTOIRE DE PIXELS. Le rail affichait
+8h30 DEUX FOIS : une fois en mission (« Etudier 2h cette semaine — 8h30 / 2h »),
+une fois en statistique (« Cette semaine 8h31 »), a 300 px d'ecart. Et trois
+systemes repondaient deja a « combien j'ai travaille aujourd'hui » : la barre
+« objectif 2h », le compteur « 0/8 blocs », et les missions de volume. La carte
+n'etait pas trop haute parce qu'elle contenait trop — elle redisait ce que la
+page disait deja. Compacter les lignes aurait traite le symptome.
+
+PRINCIPE APPLIQUE : une surface principale ne porte que ce qui change la
+PROCHAINE ACTION.
+
+LE DEFI REMONTE CONTRE LE BOUTON START (components/ChallengeStrip.js). C'est le
+seul objectif de la journee qui puisse changer ce qu'on est sur le point de
+faire : il nomme un cours et une duree, et le selecteur de cours est juste
+dessous. Un tap selectionne le cours du defi. Le tap n'est propose que si ce
+cours existe encore dans la liste — un bouton qui selectionne un cours supprime
+pour se faire corriger a la frame suivante vaut moins qu'une ligne de texte.
+
+LE RESTE DEVIENT UN OBJET QU'ON REGARDE (components/MissionSummary.js).
+Quatre pastilles pour la journee — celle du defi porte un anneau —, trois
+segments pour la semaine, une ligne de niveau. 136 px. Le deroule complet est a
+un tap, dans la feuille. C'est le geste des anneaux d'activite : un objet dense
+et lisible d'un coup d'oeil, le detail sur demande.
+
+LA DUPLICATION EST FUSIONNEE, PAS DEPLACEE. La mission w_hours ne s'ecrit plus
+comme une ligne : elle devient la cible de la statistique « cette semaine » qui
+existait deja dans la carte Aujourd'hui, avec sa barre. Un seul endroit ou lire
+ce chiffre, et il gagne enfin un objectif. Elle est retiree du resume et de la
+feuille du chrono (le profil, lui, la garde : il n'a pas de stat concurrente).
+
+DetailSheet sort de pages/profile.js vers components/ — le chrono en avait
+besoin, et recopier aurait donne deux feuilles qui divergent au premier
+ajustement de rayon. Les lignes de missions en surface claire partent dans
+components/MissionRows.js pour la meme raison. DailyProgressCard est supprimee.
+
+LE RAIL DEVIENT COLLANT. Une fois court, il reste a l'ecran pendant qu'on fait
+defiler cours et planning au lieu de laisser un trou.
+
+RESULTAT MESURE : carte 774 -> 136 px, rail 1069 -> 473 px, vide 274 -> 0.
+Sur mobile, le bloc qui suivait le chrono passe de 774 a 128 px.
+
+TROIS CORRECTIONS DE FOND AU PASSAGE.
+(a) La mascotte ne fete plus qu'une TRANSITION : une mission hebdomadaire deja
+remplie au premier rendu n'est pas un exploit qu'on vient d'accomplir, et elle
+felicitait a chaque ouverture depuis lundi. Et elle passe en bulle (46 px) au
+lieu de celebration (116 px) — 150 px pour une ligne de texte dans une carte,
+c'etait disproportionne.
+(b) Plancher hebdomadaire 2 h -> 4 h, et la semaine EN COURS entre dans le
+calcul de la cible. Constate sur un compte reel : « 2 h cette semaine » affiche
+a cote de 8h30 deja faites, parce que la mediane des quatre semaines
+precedentes tombait sous le plancher.
+(c) Progression plafonnee a la cible : « 8h30 / 2h » se lit comme une erreur de
+calcul, pas comme une reussite.
+
+Verifie a l'ecran en francais, sur desktop et en 375 px : la bande de defi en
+tete de la carte chrono, le resume a 136 px, la feuille qui deroule defi +
+3 missions + hebdomadaires, « Cette semaine 6h29 / 8h » avec sa barre a 81 %,
+aucun debordement horizontal, et la feuille du profil qui s'ouvre toujours.
+
 ## 2026-09-09 - Missions v2 : 3 quotidiennes + 1 Defi personnalise + hebdomadaires (v49)
 
 Mesure d'abord. La famille « Planning » etait assignee 356 fois pour 11

@@ -29,7 +29,10 @@ import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
 import FilterMenu from "../components/FilterMenu";
 import SessionCompleteCard from "../components/SessionCompleteCard";
-import DailyProgressCard from "../components/DailyProgressCard";
+import MissionSummary from "../components/MissionSummary";
+import ChallengeStrip from "../components/ChallengeStrip";
+import { loadUserLevelMap } from "../lib/userLevels";
+import { getDailyMissionDefs, evaluateMissions } from "../lib/xp";
 import TodayProgressCard from "../components/TodayProgressCard";
 import TodaySessionsCard from "../components/TodaySessionsCard";
 import DashboardCoursesCard from "../components/DashboardCoursesCard";
@@ -615,6 +618,62 @@ export default function Dashboard() {
       studiedBeforeNoon: sessions.some(s => new Date(s.started_at).getHours() < 12),
     };
   }, [sessions, streak]);
+
+  // Missions : le chargement est remonté ici parce que trois surfaces en
+  // dépendent désormais — la bande de défi contre le bouton Start, le résumé
+  // du rail droit, et l'objectif hebdomadaire de la carte « Aujourd'hui ».
+  // Le laisser dans un composant aurait obligé à le refaire dans les autres.
+  const [levelInfo, setLevelInfo] = useState(null);
+  const [serverMissions, setServerMissions] = useState(null);
+  const [serverWeekly, setServerWeekly] = useState(null);
+
+  const refreshMissions = useCallback(async () => {
+    if (!user) return;
+    const [levels, missionsRes, weeklyRes] = await Promise.all([
+      loadUserLevelMap(supabase, [user.id], { selfUserId: user.id }).catch(() => null),
+      supabase.rpc("get_my_daily_missions").then(r => r).catch(() => ({ data: null })),
+      supabase.rpc("get_my_weekly_missions").then(r => r).catch(() => ({ data: null })),
+    ]);
+    if (levels?.[user.id]) setLevelInfo(levels[user.id]);
+    if (Array.isArray(missionsRes?.data) && missionsRes.data.length) {
+      setServerMissions(missionsRes.data.map(m => ({
+        id: m.mission_id, key: m.label_key, xp: m.xp, done: m.done,
+        kind: m.kind || "daily", params: m.params || {},
+      })));
+    }
+    if (Array.isArray(weeklyRes?.data)) {
+      setServerWeekly(weeklyRes.data.map(w => ({
+        id: w.mission_id, key: w.label_key, target: Number(w.target || 0),
+        progress: Number(w.progress || 0), xp: Number(w.xp || 0), done: Boolean(w.done),
+      })));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    refreshMissions();
+    const onChange = () => refreshMissions();
+    window.addEventListener("bt-xp-changed", onChange);
+    return () => window.removeEventListener("bt-xp-changed", onChange);
+  }, [refreshMissions]);
+
+  // Repli le temps de l'aller-retour. Cette page ne lit que les sessions du
+  // JOUR : elle ne peut pas calculer un défi qui demande l'historique, et
+  // `pickFallbackChallenge` s'abstient plutôt que d'inventer.
+  const fallbackAll = useMemo(
+    () => evaluateMissions(
+      getDailyMissionDefs(todayISO(), user?.id, { streak: missionStats.streak }),
+      missionStats,
+    ),
+    [user?.id, missionStats],
+  );
+  const allMissions = serverMissions || fallbackAll;
+  const dailyMissions = allMissions.filter(m => m.kind !== "challenge");
+  const challenge = allMissions.find(m => m.kind === "challenge") || null;
+  // w_hours est retirée d'ici : elle s'affiche maintenant comme l'objectif de
+  // la stat « cette semaine » de la carte Aujourd'hui. La laisser aussi dans le
+  // résumé aurait recréé exactement la duplication qu'on vient d'enlever.
+  const weeklyGoalMin = (serverWeekly || []).find(w => w.id === "w_hours")?.target || 0;
+  const weeklyMissions = (serverWeekly || []).filter(w => w.id !== "w_hours");
 
   const isPaused = !running && elapsed > 0;
   const [pausedAt, setPausedAt] = useState(null);
@@ -1251,6 +1310,23 @@ export default function Dashboard() {
               transition: "opacity 1.5s ease",
             }} />
 
+          {/* Le Défi du jour, au-dessus du sélecteur de cours. C'est le seul
+              objectif de la journée qui puisse changer ce qu'on est sur le
+              point de faire : il nomme un cours et une durée, et le sélecteur
+              est juste dessous. Un tap arme la session sur le bon cours. */}
+          {challenge && !running && (
+            <div className="relative z-20 px-4 pt-4 sm:px-6 sm:pt-5">
+              {/* Le tap n'est proposé QUE si le cours du défi existe encore
+                  dans la liste : un bouton qui ne sélectionne rien, ou qui
+                  sélectionne un cours supprimé pour se faire corriger à la
+                  frame suivante, vaut moins qu'une simple ligne de texte. */}
+              <ChallengeStrip
+                challenge={challenge}
+                onPickCourse={courses.some(c => c.id === challenge?.params?.course_id) ? setCourseId : undefined}
+              />
+            </div>
+          )}
+
           {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
           <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
             <div className="flex min-w-0 items-center gap-2">
@@ -1652,13 +1728,24 @@ export default function Dashboard() {
         {/* ══════════════════════════════════════════
             SIDE — Missions + progression du jour
         ══════════════════════════════════════════ */}
-        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
-          <DailyProgressCard className="order-2 lg:order-none" todayStats={missionStats} />
+        {/* Une fois court, le rail reste à l'écran pendant qu'on fait défiler
+            les cours et le planning — au lieu de laisser un trou de 274 px
+            sous le chrono, ce que faisait la carte de 774 px d'avant. */}
+        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-6 lg:self-start lg:sticky lg:top-6">
+          <MissionSummary
+            className="order-2 lg:order-none"
+            missions={dailyMissions}
+            challenge={challenge}
+            weekly={weeklyMissions}
+            levelInfo={levelInfo}
+            streak={streak}
+          />
           <TodayProgressCard
             className="order-3 lg:order-none"
             totalToday={totalToday}
             goalPct={goalPct}
             weekSecs={weekSecs}
+            weeklyGoalMin={weeklyGoalMin}
             streak={streak}
             bestStreak={bestStreak}
             streakPaused={streakPaused}

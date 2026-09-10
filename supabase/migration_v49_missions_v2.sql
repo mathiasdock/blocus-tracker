@@ -742,6 +742,7 @@ DECLARE
   v_date date := (now() AT TIME ZONE v_timezone)::date;
   v_week date := public.gamification_week_start(v_date);
   v_med_min numeric; v_med_days numeric; v_med_courses numeric;
+  v_week_so_far integer := 0;
   v_course_count integer := 0;
   v_target_min integer; v_target_days integer; v_target_courses integer;
   v_slot integer := 0;
@@ -772,8 +773,23 @@ BEGIN
     GROUP BY 1
   ) w;
 
-  v_target_min := LEAST(1200, GREATEST(120,
-    (ROUND(COALESCE(v_med_min, 157) * 1.15 / 30.0) * 30)::integer));
+  -- La semaine EN COURS compte aussi. L'attribution se fait au premier
+  -- chargement de la semaine, qui n'est pas forcément lundi matin : sans ça,
+  -- quelqu'un qui ouvre l'app jeudi après trois grosses journées recevrait un
+  -- objectif déjà atteint. Constaté sur un compte réel : cible « 2 h » affichée
+  -- à côté de 8h30 déjà faites.
+  SELECT COALESCE((SUM(duration_seconds) / 60)::integer, 0) INTO v_week_so_far
+  FROM public.sessions
+  WHERE user_id = p_user_id
+    AND (started_at AT TIME ZONE v_timezone)::date BETWEEN v_week AND v_date;
+
+  -- 2 h par semaine, c'est vingt minutes par jour ouvré : un seuil de présence,
+  -- pas un défi. Plancher à 4 h.
+  v_target_min := LEAST(1200, GREATEST(
+    240,
+    (ROUND(COALESCE(v_med_min, 209) * 1.15 / 30.0) * 30)::integer,
+    (ROUND((v_week_so_far * 1.15) / 30.0) * 30)::integer
+  ));
   v_target_days := LEAST(6, GREATEST(2, COALESCE(ROUND(v_med_days), 2)::integer + 1));
   v_target_courses := LEAST(LEAST(4, v_course_count), GREATEST(2,
     COALESCE(ROUND(v_med_courses), 1)::integer + 1));

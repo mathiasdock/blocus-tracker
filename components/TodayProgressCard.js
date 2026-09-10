@@ -21,6 +21,12 @@ export default function TodayProgressCard({
   totalToday,
   goalPct,
   weekSecs,
+  // Cible hebdomadaire, venue de la mission w_hours. Cette carte affichait
+  // déjà « cette semaine : 8h31 » et la carte des missions affichait, trois
+  // cents pixels plus haut, « Étudier 2h cette semaine — 8h30 / 2h » : le même
+  // chiffre, deux fois, dans la même colonne. La mission ne s'écrit plus
+  // ailleurs — elle devient l'objectif de la stat qui existait déjà.
+  weeklyGoalMin = 0,
   streak,
   bestStreak,
   streakPaused,
@@ -110,11 +116,31 @@ export default function TodayProgressCard({
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3" style={{ borderColor: "var(--bt-ink-border)" }}>
-          <div>
-            <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.recWeek")}</p>
-            <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
-              <AnimatedNumber value={weekSecs} format={formatMinutesShort} />
-            </p>
+          <div className={weeklyGoalMin > 0 ? "col-span-2" : undefined}>
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.recWeek")}</p>
+              {weeklyGoalMin > 0 && (
+                <p className="font-num text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
+                  {formatMinutesShort(Math.min(weekSecs, weeklyGoalMin * 60))} / {formatMinutesShort(weeklyGoalMin * 60)}
+                </p>
+              )}
+            </div>
+            {weeklyGoalMin > 0 ? (
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full" role="progressbar"
+                aria-label={t("dash.recWeek")} aria-valuemin={0} aria-valuemax={100}
+                aria-valuenow={Math.round(Math.min(100, (weekSecs / (weeklyGoalMin * 60)) * 100))}
+                style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
+                <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
+                  style={{
+                    transform: `scaleX(${Math.min(1, weekSecs / (weeklyGoalMin * 60))})`,
+                    backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)",
+                  }} />
+              </div>
+            ) : (
+              <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
+                <AnimatedNumber value={weekSecs} format={formatMinutesShort} />
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("dash.recBestStreak")}</p>
