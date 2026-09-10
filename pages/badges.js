@@ -64,13 +64,28 @@ export default function BadgesPage() {
     // porte l'historique. Leur union suffit — inutile de rejouer ici le calcul
     // client, qui demanderait de relire sessions, objectifs, amis et
     // publications pour un résultat que la base connaît déjà.
-    const [syncRes, rowsRes] = await Promise.all([
-      supabase.rpc("sync_my_badges").catch(() => ({ data: null })),
-      supabase.from("user_badges").select("badge_id").eq("user_id", user.id),
-    ]);
-    const synced = Array.isArray(syncRes?.data) ? syncRes.data : [];
-    const stored = (rowsRes?.data || []).map(r => r.badge_id);
-    setEarnedIds([...new Set([...synced, ...stored])]);
+    //
+    // `.then(r => r)` AVANT `.catch` : le constructeur de requête de
+    // supabase-js expose `then` mais pas `catch`. Appeler `.catch` directement
+    // dessus lève un TypeError qui faisait échouer toute la fonction — et une
+    // collection de quinze badges s'affichait vide, tout verrouillé. Le client
+    // hors-ligne, lui, renvoie une vraie Promise : le repli avait donc un
+    // `catch` et la vérification locale ne pouvait pas voir le bug.
+    try {
+      const [syncRes, rowsRes] = await Promise.all([
+        supabase.rpc("sync_my_badges").then(r => r).catch(() => ({ data: null })),
+        supabase.from("user_badges").select("badge_id").eq("user_id", user.id)
+          .then(r => r).catch(() => ({ data: null })),
+      ]);
+      const synced = Array.isArray(syncRes?.data) ? syncRes.data : [];
+      const stored = Array.isArray(rowsRes?.data) ? rowsRes.data.map(r => r.badge_id) : [];
+      const ids = [...new Set([...synced, ...stored])];
+      // Un échec de lecture ne doit pas RESSEMBLER à une perte : plutôt que
+      // d'écraser la collection par une liste vide, on garde ce qu'on avait.
+      if (ids.length || (syncRes?.data && rowsRes?.data)) setEarnedIds(ids);
+    } catch (error) {
+      console.warn("Badge load failed:", error);
+    }
   }, [user]);
 
   useEffect(() => { load(); }, [load]);

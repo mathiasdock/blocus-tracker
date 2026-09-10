@@ -2,6 +2,61 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-10 - Badges reverrouilles : un `.catch` sur le mauvais objet
+
+BUG. La page /badges affichait 0/22, tout verrouille, alors que la base
+contenait bien les quinze badges de Mathias (521 lignes sur 132 comptes).
+La cause : `supabase.rpc("sync_my_badges").catch(...)`. Le constructeur de
+requete de supabase-js expose `then` mais PAS `catch` — l'appel levait un
+TypeError qui faisait echouer toute la fonction de chargement, et la
+collection restait vide. Partout ailleurs le projet ecrit
+`.then(r => r).catch(...)` ; c'est le seul endroit qui ne le faisait pas.
+
+POURQUOI LA VERIFICATION LOCALE NE L'A PAS VU. Le client hors-ligne renvoie
+une vraie `Promise`, qui a un `catch`. Le repli avalait donc l'erreur et la
+page s'affichait correctement en local. C'est le genre de divergence
+fixture/production qu'il faut garder en tete : une fixture plus permissive que
+le vrai client masque exactement les bugs qu'elle devrait reveler.
+
+Durci au passage : try/catch autour du chargement, et surtout on n'ECRASE plus
+la collection par une liste vide quand les deux lectures echouent — un echec de
+lecture ne doit pas ressembler a une perte de donnees.
+
+## 2026-09-10 - Composition de /progression et des tuiles du profil
+
+Scan mecanique du skill impeccable : propre. Les problemes etaient structurels.
+
+LE DETAIL DES SOURCES REJOINT LE HEROS. Il COMPOSE le nombre affiche juste
+au-dessus ; en carte separee il devenait la troisieme boite blanche identique
+d'une page qui en avait deja deux, et la proximite disait le contraire de la
+verite. Sur l'encre de marque, en deux colonnes des 640 px, on lit le total
+puis d'ou il vient sans changer de surface.
+
+DEUX COLONNES QUI SE TERMINENT ENSEMBLE. Missions et paliers sont deux listes
+de meme rang : `lg:items-stretch`, et la liste des paliers defile dans sa carte
+a toutes les tailles au lieu de pendre sous sa voisine. Mesure : 438 px chacune,
+ecart nul.
+
+`min-w-0` SUR LES COLONNES DE GRILLE. Un enfant de grille refuse par defaut de
+descendre sous sa largeur minimale : un libelle un peu long elargit la piste au
+lieu de se tronquer, et comme `main` porte `overflow-x-clip`, le surplus est
+COUPE au lieu de defiler — exactement le symptome signale sur mobile (« +50 X »,
+« 2h / 2 »). Non reproduit entre 320 et 390 px dans les deux langues sur la
+version corrigee, mais le mecanisme correspond et le garde-fou est gratuit.
+
+TUILES DU PROFIL. A 270 px de cote, un niveau et une barre flottaient dans du
+vide. L'apercu se recompose maintenant selon la place reelle — trois badges en
+rangee sous 640 px, quatre en carre au-dessus, six en 3x2 sur desktop — et le
+palier suivant apparait des qu'il y a la place de le lire. Mesure : 230 px de
+cote a 1280, remplies.
+
+Un defaut attrape a la verification : les seuils XP de la colonne des paliers
+passaient sous la gouttiere de defilement et se lisaient tronques (`pr-2`).
+
+Verifie a 390 et 1280 px en anglais : aucun debordement, heros a 359 px
+contenant les sources, colonnes a 438/438, tuiles a 230/230, cinq groupes de
+badges avec leurs compteurs (4/6, 3/4, 2/4, 1/5, 0/3).
+
 ## 2026-09-10 - Deux portes carrees sur le profil, deux vraies pages derriere
 
 La carte de progression et la carte des badges occupaient tout le haut du

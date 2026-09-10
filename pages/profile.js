@@ -362,6 +362,14 @@ function ProgressTile({ levelInfo, t }) {
         </span>
       </span>
       <span className="block">
+        {/* Sur desktop la tuile fait deux cent soixante-dix pixels de cote :
+            un niveau et une barre y flottent dans du vide. Le palier suivant
+            n'apparait qu'a partir du moment ou il y a la place de le lire. */}
+        {levelInfo.next && (
+          <span className="mb-1.5 hidden truncate text-[11px] sm:block" style={{ color: "var(--bt-ink-muted)" }}>
+            {t("xp.nextLevel")} : {t(levelInfo.next.titleKey)}
+          </span>
+        )}
         <span className="font-num mb-1.5 block text-[11px] tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
           {levelInfo.next ? `${levelInfo.progressXP} / ${levelInfo.rangeXP} ${t("xp.xpLabel")}` : t("xp.maxLevel")}
         </span>
@@ -386,10 +394,11 @@ function BadgesTile({ earnedBadgeIds, t }) {
       if (ea !== eb) return eb - ea;
       return (TIER_ORDER[rarityOf(b.id)] || 0) - (TIER_ORDER[rarityOf(a.id)] || 0);
     })
-    // Quatre et non six : à 320 px de large, une tuile carrée n'offre qu'une
-    // centaine de pixels utiles, et trois colonnes y débordaient. Un carré de
-    // quatre objets se compose mieux dans un carré, et reste lisible.
-    .slice(0, 4);
+    // Six au maximum : l'aperçu se recompose selon la place réelle — trois en
+    // rangée sous 640 px, quatre en carré au-dessus, six en 3×2 sur desktop.
+    // Une seule taille pour les trois cas laissait soit un débordement, soit
+    // une vitrine a moitié vide.
+    .slice(0, 6);
   return (
     <TileShell href="/badges" label={t("profile.tileBadges")}>
       <span className="flex min-h-0 flex-1 items-center justify-center py-2">
@@ -402,9 +411,16 @@ function BadgesTile({ earnedBadgeIds, t }) {
             <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={30} />
           ))}
         </span>
-        <span className="hidden gap-2 sm:grid sm:grid-cols-2">
-          {preview.map(b => (
+        <span className="hidden gap-2 sm:grid sm:grid-cols-2 lg:hidden">
+          {preview.slice(0, 4).map(b => (
             <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={40} />
+          ))}
+        </span>
+        {/* Six objets a partir de 1024 px : dans un carre de 270, quatre
+            vignettes de 40 laissaient une vitrine a moitie vide. */}
+        <span className="hidden gap-2.5 lg:grid lg:grid-cols-3">
+          {preview.map(b => (
+            <BadgeIcon key={b.id} id={b.id} earned={earnedBadgeIds.includes(b.id)} size={44} />
           ))}
         </span>
       </span>

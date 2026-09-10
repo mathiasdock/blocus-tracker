@@ -30,16 +30,16 @@ const SOURCES = [
 function SourceRow({ label, value, total }) {
   const share = total > 0 ? value / total : 0;
   return (
-    <li>
+    <li className="min-w-0">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm" style={{ color: "var(--bt-text-2)" }}>{label}</span>
-        <span className="font-num shrink-0 text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+        <span className="min-w-0 truncate text-[13px]" style={{ color: "var(--bt-ink-muted)" }}>{label}</span>
+        <span className="font-num shrink-0 text-[13px] font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
           {value.toLocaleString()}
         </span>
       </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }} aria-hidden="true">
+      <div className="mt-1.5 h-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.14)" }} aria-hidden="true">
         <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
-          style={{ transform: `scaleX(${share})`, backgroundColor: "var(--bt-accent)" }} />
+          style={{ transform: `scaleX(${share})`, background: "linear-gradient(90deg, #0EA571, #22E4A4)" }} />
       </div>
     </li>
   );
@@ -111,6 +111,10 @@ export default function ProgressionPage() {
   const breakdown = levelInfo?.breakdown || null;
   const challenge = missions.find(m => m.kind === "challenge") || null;
   const daily = missions.filter(m => m.kind !== "challenge");
+  const sources = !breakdown || totalXP <= 0 ? [] : SOURCES
+    .map(src => ({ ...src, value: Number(breakdown[src.key] || 0) }))
+    .filter(src => src.value > 0)
+    .sort((a, b) => b.value - a.value);
 
   return (
     <Layout>
@@ -147,15 +151,37 @@ export default function ProgressionPage() {
                   style={{ transform: `scaleX(${(levelInfo?.progressPct || 0) / 100})`, background: "linear-gradient(90deg, #0EA571, #22E4A4)" }} />
               </div>
             </div>
+
+            {/* Le detail des sources COMPOSE le nombre affiche juste au-dessus.
+                En carte separee, il devenait la troisieme boite blanche
+                identique d'une page qui en avait deja deux, et la proximite
+                disait le contraire de la verite. Ici on lit le total, puis
+                d'ou il vient — sans changer de surface. */}
+            {sources.length > 0 && (
+              <div className="mt-6 border-t pt-5" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+                <p className="mb-3.5 text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: "var(--bt-ink-muted)" }}>
+                  {t("prog.sources")}
+                </p>
+                <ul className="grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
+                  {sources.map(src => (
+                    <SourceRow key={src.key} label={t(src.labelKey)} value={src.value} total={totalXP} />
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
 
-        <div className="mt-4 grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-start">
+        {/* Deux listes, cote a cote et de meme rang : ce qui est en jeu
+            aujourd'hui, et ce qui reste a parcourir. `min-w-0` sur les colonnes
+            parce qu'un enfant de grille refuse par defaut de descendre sous sa
+            largeur minimale — un libelle un peu long elargit alors la piste au
+            lieu de se tronquer, et la carte deborde. `lg:items-stretch` pour
+            qu'elles se terminent ensemble au lieu de laisser un bas dechire. */}
+        <div className="mt-4 grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-stretch">
 
-          <div className="space-y-4 sm:space-y-5">
-            {/* Objectifs du jour et de la semaine — la même liste que le
-                chrono, ici pour mémoire plutôt que pour agir. */}
-            <section className="card p-4 sm:p-5">
+          <div className="flex min-w-0 flex-col">
+            <section className="card flex min-h-0 flex-1 flex-col p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("xp.missions")}</h2>
               <ul className="flex flex-col gap-1.5">
                 {challenge && <MissionRow row={challenge} t={t} lead />}
@@ -173,33 +199,22 @@ export default function ProgressionPage() {
               )}
             </section>
 
-            {breakdown && totalXP > 0 && (
-              <section className="card p-4 sm:p-5">
-                <h2 className="mb-4 text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("prog.sources")}</h2>
-                <ul className="flex flex-col gap-3">
-                  {SOURCES
-                    .map(src => ({ ...src, value: Number(breakdown[src.key] || 0) }))
-                    .filter(src => src.value > 0)
-                    .sort((a, b) => b.value - a.value)
-                    .map(src => (
-                      <SourceRow key={src.key} label={t(src.labelKey)} value={src.value} total={totalXP} />
-                    ))}
-                </ul>
-              </section>
-            )}
           </div>
 
-          {/* Les trente paliers. Sur téléphone la liste défile dans sa carte
-              plutôt que d'ajouter mille pixels à la page ; au-delà elle
-              s'ouvre en entier, il y a la hauteur pour. */}
-          <section className="card flex min-h-0 flex-col p-4 sm:p-5">
+          {/* Les trente paliers. La liste defile DANS sa carte a toutes les
+              tailles : sur telephone pour ne pas ajouter mille pixels a la
+              page, sur desktop pour que la colonne se termine a la meme
+              hauteur que les missions plutot que de pendre en dessous. */}
+          <section className="card flex min-w-0 min-h-0 flex-col p-4 sm:p-5">
             <div className="mb-3 flex items-center gap-2">
               <Glyph size={16} style={{ color: "var(--bt-text-3)" }}>
                 <path d="M4 20h4V10H4zM10 20h4V4h-4zM16 20h4v-7h-4z" />
               </Glyph>
               <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("prog.ladder")}</h2>
             </div>
-            <ul className="bt-scroll-y max-h-[26rem] overflow-y-auto lg:max-h-none lg:overflow-visible">
+            {/* `pr-2` degage le seuil de la gouttiere de defilement : colle au
+                bord, le nombre passait sous la barre et se lisait tronque. */}
+            <ul className="bt-scroll-y max-h-[26rem] min-h-0 flex-1 overflow-y-auto pr-2 lg:max-h-none lg:basis-0">
               {LEVELS.map(l => (
                 <LadderRow key={l.level} level={l} t={t}
                   current={l.level === current.level}
