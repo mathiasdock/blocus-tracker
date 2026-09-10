@@ -71,8 +71,21 @@ export default function StudyByCourse({
             <div className="min-w-0 flex-1">
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-2">
+                  {/* La pastille garde sa pleine couleur : c'est l'identité du
+                      cours, et l'atténuer pendant que sa barre reste pleine
+                      faisait dire deux choses contraires au même rang. La
+                      mention « archivé » suffit à situer le cours. */}
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: r.color }} />
                   <span className="truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>{nameOf(r)}</span>
+                  {/* Un cours archivé garde son nom et ses heures — c'est le
+                      but. La pastille dit seulement qu'il n'est plus au
+                      programme, pour qu'on ne le cherche pas dans le chrono. */}
+                  {r.archived && (
+                    <span className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none"
+                      style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)" }}>
+                      {t("stats.courseArchived")}
+                    </span>
+                  )}
                 </span>
                 <span className="shrink-0 font-num text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
                   {formatMinutesShort(r.secs)}
@@ -111,7 +124,10 @@ export default function StudyByCourse({
             {rows.map((r) => (
               <li key={r.id} className="flex items-center gap-2 text-sm">
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: pieColor(r) }} />
-                <span className="min-w-0 flex-1 truncate" style={{ color: "var(--bt-text-1)" }}>{nameOf(r)}</span>
+                <span className="min-w-0 flex-1 truncate" style={{ color: "var(--bt-text-1)" }}>
+                  {nameOf(r)}
+                  {r.archived && <span style={{ color: "var(--bt-text-3)" }}> · {t("stats.courseArchived")}</span>}
+                </span>
                 <span className="shrink-0 font-num text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
                   {formatMinutesShort(r.secs)} · {r.pct}%
                 </span>

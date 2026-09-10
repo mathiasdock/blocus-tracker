@@ -67,13 +67,23 @@ export default function Historique() {
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <select className="input w-auto text-sm" value={filterCourse}
             onChange={e => setFilterCourse(e.target.value)}>
-            <option value="">Tous les cours</option>
-            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <option value="">{t("hist.allCourses")}</option>
+            {/* L'archive est ICI volontairement : filtrer son historique sur un
+                cours du semestre passé est exactement ce qu'on vient y chercher.
+                Ailleurs (chrono, planning) elle est masquée — on n'y CHOISIT
+                plus un cours terminé, on le RELIT. */}
+            {courses.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.archived_at ? `${c.name} · ${t("stats.courseArchived")}` : c.name}
+              </option>
+            ))}
           </select>
           {sessions.length > 0 && (
-            <span className="text-sm" style={{ color: "#7C746E" }}>
-              {sessions.length} session{sessions.length > 1 ? "s" : ""}
-              {" "}· Total affiché : <strong style={{ color: "#1F1A17" }}>{formatMinutesShort(totalSecs)}</strong>
+            <span className="text-sm" style={{ color: "var(--bt-text-2)" }}>
+              {t(sessions.length > 1 ? "hist.countMany" : "hist.countOne").replace("{n}", String(sessions.length))}
+              {" · "}
+              {t("hist.shownTotal")}{" "}
+              <strong style={{ color: "var(--bt-text-1)" }}>{formatMinutesShort(totalSecs)}</strong>
             </span>
           )}
         </div>

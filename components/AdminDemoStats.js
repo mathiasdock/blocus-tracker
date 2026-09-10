@@ -134,7 +134,7 @@ export default function AdminDemoStats({ userId }) {
   const refresh = useCallback(async () => {
     if (!userId) return;
     const [{ data: cs }, { count }] = await Promise.all([
-      supabase.from("courses").select("id, name").eq("user_id", userId),
+      supabase.from("courses").select("id, name").eq("user_id", userId).is("archived_at", null),
       supabase.from("sessions").select("id", { count: "exact", head: true }).eq("user_id", userId),
     ]);
     setCourses(cs || []);

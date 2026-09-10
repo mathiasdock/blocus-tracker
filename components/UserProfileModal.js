@@ -42,7 +42,7 @@ export default function UserProfileModal({ userId, onClose }) {
         supabase.from("profiles")
           .select("id, pseudo, first_name, last_name, university, study_field, study_year, bio, avatar_url, lang, planning_public, studying_since, is_admin, locked, created_at")
           .eq("id", userId).maybeSingle(),
-        supabase.from("courses").select("id, user_id, name, color, exam_date").eq("user_id", userId).order("name"),
+        supabase.from("courses").select("id, user_id, name, color, exam_date").eq("user_id", userId).is("archived_at", null).order("name"),
         supabase.rpc("get_user_profile_stats", { p_user_id: userId }),
         loadUserLevelMap(supabase, [userId], { selfUserId: user?.id }),
       ]);

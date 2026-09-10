@@ -282,7 +282,7 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
 // `onChange(patch)` + `onSubmit`, et `onCancel` optionnel.
 const EMPTY_OBJECTIVE_FORM = { title: "", courseId: "", minutes: "", time: "", weekdays: [], until: "" };
 function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLabel, autoFocus, title, className = "", style }) {
-  const { courses, t } = usePlan();
+  const { activeCourses: courses, t } = usePlan();
   const weekdays = value.weekdays || [];
   return (
     <form onSubmit={onSubmit} className={`space-y-3 ${className}`} style={style}>
@@ -337,7 +337,7 @@ function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLab
 // entièrement rouge se lit comme une erreur, pas comme « examen ».
 const EMPTY_EXAM_FORM = { name: "", courseId: "", time: "", location: "" };
 function ExamForm({ value, onChange, onSubmit, onCancel, submitLabel, title, dateLabel }) {
-  const { courses, t } = usePlan();
+  const { activeCourses: courses, t } = usePlan();
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-2xl p-4"
       style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
@@ -413,7 +413,7 @@ function ExamBadge({ days }) {
 // compteur, sa barre. Les cadres individuels d'avant faisaient trois bordures
 // empilées (carte + rangée + barre) pour une seule information.
 function RevisionChecklists({ className = "" }) {
-  const { courses, t } = usePlan();
+  const { activeCourses: courses, t } = usePlan();
   const { user } = useAuth();
   const [counts, setCounts]         = useState({}); // courseId -> { done, total }
   const [openCourse, setOpenCourse] = useState(null);
@@ -1138,7 +1138,7 @@ function DayDetailModal() {
 
 // ── CalendarLegend ────────────────────────────────────────────
 function CalendarLegend() {
-  const { courses, t } = usePlan();
+  const { activeCourses: courses, t } = usePlan();
   // Un objectif n'a pas de couleur à lui : il porte celle de son cours. Une
   // seule pastille grise l'annonçait donc à tort. On montre les vraies
   // couleurs de SES cours — la légende devient un mini-index lisible.
@@ -1449,7 +1449,7 @@ function QuickAddChip({ children, accent }) {
   );
 }
 function QuickAddBar({ className = "" }) {
-  const { courses, addObjectiveForDate, courseName, lang, t } = usePlan();
+  const { activeCourses: courses, addObjectiveForDate, courseName, lang, t } = usePlan();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const trimmed = text.trim();
@@ -1859,6 +1859,9 @@ export default function Planning() {
     }
   }
 
+  // `courses` garde tout : un objectif posé sur un cours archivé doit conserver
+  // son nom et sa couleur. Seuls les CHOIX se limitent aux cours du semestre.
+  const activeCourses = courses.filter(c => !c.archived_at);
   const courseColor = id => courses.find(c => c.id === id)?.color || "#94a3b8";
   const courseName  = id => courses.find(c => c.id === id)?.name;
 
@@ -1964,7 +1967,7 @@ export default function Planning() {
   );
 
   const ctxValue = {
-    view, courses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
+    view, courses, activeCourses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
     launchTimer, duplicateDay, duplicateWeek,

@@ -334,6 +334,7 @@ export default function Dashboard() {
   const [todayObjectives, setTodayObjectives] = useState([]);
   const [courseEditorOpen, setCourseEditorOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
+  const [editingCourseUsage, setEditingCourseUsage] = useState(null);
   const [courseEditorBusy, setCourseEditorBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle"|"saving"|"success"|"error"
   const savingRef = useRef(false);
@@ -368,8 +369,9 @@ export default function Dashboard() {
 
   const applyDashboardData = useCallback((data) => {
     const c = data.courses || [];
+    const active = c.filter((course) => !course.archived_at);
     setCourses(c);
-    setCourseId(current => c.some((course) => course.id === current) ? current : c[0]?.id || "");
+    setCourseId(current => active.some((course) => course.id === current) ? current : active[0]?.id || "");
     setSessions(data.sessions || []);
     setRecentSessions(data.recentSessions || []);
     setStreak(computeStreak(data.recentSessions || []));
@@ -377,14 +379,21 @@ export default function Dashboard() {
     setTodayObjectives(data.objectives || []);
   }, [setCourseId]);
 
+  // `courses` reste la source unique — elle contient TOUT, y compris les cours
+  // archivés, parce que c'est elle qui donne son nom à une session passée.
+  // Les sélecteurs, eux, ne doivent proposer que ce qui est en cours : un cours
+  // du semestre dernier n'a rien à faire dans la liste du chrono.
+  const activeCourses = useMemo(() => courses.filter((c) => !c.archived_at), [courses]);
+  const archivedCourses = useMemo(() => courses.filter((c) => c.archived_at), [courses]);
+
   // Le TimerProvider hydrate son dernier cours indépendamment des données du
-  // dashboard. Si ce cours a depuis été supprimé, ou si le jeu de données a
-  // changé (mode invité), on retombe sur un cours réellement disponible au
-  // lieu d'afficher un tiret impossible à sélectionner.
+  // dashboard. Si ce cours a depuis été archivé ou supprimé, ou si le jeu de
+  // données a changé (mode invité), on retombe sur un cours réellement
+  // disponible au lieu d'afficher un tiret impossible à sélectionner.
   useEffect(() => {
-    if (!courses.length) return;
-    if (!courses.some((course) => course.id === courseId)) setCourseId(courses[0].id);
-  }, [courses, courseId, setCourseId]);
+    if (!activeCourses.length) return;
+    if (!activeCourses.some((course) => course.id === courseId)) setCourseId(activeCourses[0].id);
+  }, [activeCourses, courseId, setCourseId]);
 
   const clearDashboardCache = useCallback(() => {
     if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
@@ -1003,18 +1012,27 @@ export default function Dashboard() {
     return true;
   }
 
+  // Le compte de sessions décide du texte du bouton destructeur : « supprimer »
+  // pour un cours vierge, « archiver » pour un cours qui porte du travail. On le
+  // demande à l'ouverture (un COUNT en tête, sans corps de réponse) plutôt que
+  // d'écrire une formule vague qui couvrirait les deux cas sans en dire aucun.
   function openCourseEditor(course = null) {
     setEditingCourse(course);
+    setEditingCourseUsage(null);
     setCourseEditorOpen(true);
+    if (course) countCourseSessions(course.id).then(setEditingCourseUsage);
   }
 
   function closeCourseEditor() {
     setCourseEditorOpen(false);
     setEditingCourse(null);
+    setEditingCourseUsage(null);
   }
 
   async function saveCourse({ id, name, color, examDate }) {
-    const duplicate = courses.some((course) => course.id !== id && course.name.trim().toLowerCase() === name.toLowerCase());
+    // Comparé aux seuls cours actifs : reprendre le nom d'un cours archivé est
+    // le cas normal quand la même matière revient au quadrimestre suivant.
+    const duplicate = activeCourses.some((course) => course.id !== id && course.name.trim().toLowerCase() === name.toLowerCase());
     if (duplicate) return { ok: false, message: t("courseEditor.duplicate") };
 
     setCourseEditorBusy(true);
@@ -1066,17 +1084,52 @@ export default function Dashboard() {
     }
   }
 
+  // Combien d'heures ce cours porte-t-il ? La question décide de tout : un cours
+  // qu'on a réellement travaillé ne se détruit pas, il s'archive.
+  const countCourseSessions = useCallback(async (id) => {
+    if (isGuest) return sessions.filter((session) => session.course_id === id).length;
+    const { count, error } = await supabase
+      .from("sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("course_id", id);
+    // En cas d'erreur on répond « il y a de l'historique » : archiver à tort est
+    // réparable d'un clic, supprimer à tort ne l'est pas.
+    if (error) return 1;
+    return count || 0;
+  }, [isGuest, sessions, user]);
+
+  // Fin de semestre : les cours changent, on veut les retirer de la liste. Mais
+  // supprimer la ligne emportait le nom et la couleur, et tout le temps passé
+  // dessus retombait dans un tas anonyme « Sans cours » — mesuré à 760 heures
+  // sur 16 comptes avant la v51. Un cours qui porte des sessions est donc
+  // ARCHIVÉ : il quitte les sélecteurs, il garde son identité.
+  //
+  // Un cours vierge, lui, est bien supprimé : il n'y a pas d'histoire à sauver,
+  // et laisser traîner une faute de frappe dans l'archive n'aiderait personne.
   async function deleteCourse(id) {
     setCourseEditorBusy(true);
     try {
-      const nextCourses = courses.filter((course) => course.id !== id);
-      const nextSessions = sessions.map((session) => session.course_id === id ? { ...session, course_id: null } : session);
-      const nextObjectives = todayObjectives.map((objective) => objective.course_id === id ? { ...objective, course_id: null } : objective);
+      const used = await countCourseSessions(id);
+      const archiving = used > 0;
+      const archivedAt = new Date().toISOString();
+
+      const nextCourses = archiving
+        ? courses.map((course) => course.id === id ? { ...course, archived_at: archivedAt } : course)
+        : courses.filter((course) => course.id !== id);
+      // Les sessions ne perdent leur cours que s'il disparaît vraiment.
+      const nextSessions = archiving
+        ? sessions
+        : sessions.map((session) => session.course_id === id ? { ...session, course_id: null } : session);
+      const nextObjectives = archiving
+        ? todayObjectives
+        : todayObjectives.map((objective) => objective.course_id === id ? { ...objective, course_id: null } : objective);
 
       if (!isGuest) {
-        const { data, error } = await supabase
-          .from("courses")
-          .delete()
+        const query = archiving
+          ? supabase.from("courses").update({ archived_at: archivedAt })
+          : supabase.from("courses").delete();
+        const { data, error } = await query
           .eq("id", id)
           .eq("user_id", user.id)
           .select("id")
@@ -1088,22 +1141,48 @@ export default function Dashboard() {
       setCourses(nextCourses);
       setSessions(nextSessions);
       setTodayObjectives(nextObjectives);
-      setChecklistCounts((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      if (courseId === id) setCourseId(nextCourses[0]?.id || "");
+      if (!archiving) {
+        setChecklistCounts((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }
+      if (courseId === id) {
+        setCourseId(nextCourses.find((course) => !course.archived_at)?.id || "");
+      }
       if (isGuest) {
         writeGuestDashboardData({ courses: nextCourses, sessions: nextSessions, recentSessions, objectives: nextObjectives });
       }
-      toast(t("courseEditor.deleted"), "success");
-      return { ok: true };
+      toast(t(archiving ? "courseEditor.archived" : "courseEditor.deleted"), "success");
+      return { ok: true, archived: archiving };
     } catch (_) {
       return { ok: false, message: t("courseEditor.deleteError") };
     } finally {
       setCourseEditorBusy(false);
     }
+  }
+
+  // Une archive dont on ne peut pas sortir est un piège : on range un cours par
+  // erreur, ou on reprend la matière au quadrimestre suivant.
+  async function restoreCourse(id) {
+    const nextCourses = courses.map((course) => course.id === id ? { ...course, archived_at: null } : course);
+    if (!isGuest) {
+      const { error } = await supabase
+        .from("courses")
+        .update({ archived_at: null })
+        .eq("id", id)
+        .eq("user_id", user.id);
+      if (error) {
+        toast(t("courseEditor.restoreError"), "error");
+        return;
+      }
+      clearDashboardCache();
+    } else {
+      writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions, objectives: todayObjectives });
+    }
+    setCourses(nextCourses);
+    toast(t("courseEditor.restored"), "success");
   }
 
   const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
@@ -1322,7 +1401,7 @@ export default function Dashboard() {
                   frame suivante, vaut moins qu'une simple ligne de texte. */}
               <ChallengeStrip
                 challenge={challenge}
-                onPickCourse={courses.some(c => c.id === challenge?.params?.course_id) ? setCourseId : undefined}
+                onPickCourse={activeCourses.some(c => c.id === challenge?.params?.course_id) ? setCourseId : undefined}
               />
             </div>
           )}
@@ -1331,7 +1410,7 @@ export default function Dashboard() {
           <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
             <div className="flex min-w-0 items-center gap-2">
               <div className="relative min-w-0 flex-1">
-                {courses.length === 0 ? (
+                {activeCourses.length === 0 ? (
                   <button type="button" onClick={() => openCourseEditor()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
                     {t("courseEditor.addTitle")}
                   </button>
@@ -1364,7 +1443,7 @@ export default function Dashboard() {
                 {showCourseMenu && !running && (
                   <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
                     <div className="max-h-64 overflow-y-auto py-1" role="listbox" aria-label={t("dash.selectCourse")}>
-                      {courses.map((course) => (
+                      {activeCourses.map((course) => (
                         <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
                           <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} aria-hidden="true" />
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
@@ -1666,6 +1745,7 @@ export default function Dashboard() {
           className="order-4 lg:order-3 lg:min-h-[11rem] lg:flex-1 lg:basis-0"
           sessions={sessions}
           courses={courses}
+          selectableCourses={activeCourses}
           onUpdate={updateSession}
           onDelete={deleteSession}
         />
@@ -1758,7 +1838,9 @@ export default function Dashboard() {
 
         <div className="order-6 grid min-w-0 gap-4 sm:gap-5 lg:col-span-2 lg:grid-cols-2 lg:gap-6">
           <DashboardCoursesCard
-            courses={courses}
+            courses={activeCourses}
+            archivedCourses={archivedCourses}
+            onRestore={restoreCourse}
             checklistCounts={checklistCounts}
             onAdd={() => openCourseEditor()}
             onOpen={(course) => {
@@ -1771,7 +1853,7 @@ export default function Dashboard() {
           />
           <BlocusCard
             sessions={recentSessions}
-            exams={courses.filter((course) => course.exam_date)}
+            exams={activeCourses.filter((course) => course.exam_date)}
             onChange={handleBlocusLoaded}
           />
         </div>
@@ -1783,6 +1865,7 @@ export default function Dashboard() {
           course={editingCourse}
           colors={COLORS}
           busy={courseEditorBusy}
+          sessionCount={editingCourseUsage}
           onClose={closeCourseEditor}
           onSave={saveCourse}
           onDelete={deleteCourse}

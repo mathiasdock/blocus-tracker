@@ -41,7 +41,11 @@ function formatSessionRange(session, locale) {
   return `${format.format(started)}–${format.format(ended)}`;
 }
 
-export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelete, className = "" }) {
+// `courses` sert à NOMMER une session (elle peut porter un cours archivé, qui
+// doit garder son nom) ; `selectableCourses` sert à en CHOISIR un — l'archive
+// n'a rien à faire dans une liste de choix. Sans le second, on retombe sur le
+// premier : les autres appelants n'ont pas d'archive.
+export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, className = "" }) {
   const { t, lang } = useI18n();
   const [menuId, setMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -93,6 +97,12 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
   }
 
   const locale = lang === "en" ? "en-US" : "fr-BE";
+
+  // La liste proposée à l'édition : les cours actifs, plus celui que la session
+  // porte déjà s'il a été archivé entre-temps.
+  const pickable = selectableCourses || courses;
+  const optionsFor = (current) =>
+    current && !pickable.some((item) => item.id === current.id) ? [...pickable, current] : pickable;
 
   // Le menu « … » sort du flux dans un PORTAIL. La liste des sessions défile
   // désormais à l'intérieur de la carte, et un menu en position absolue y
@@ -224,7 +234,10 @@ export default function TodaySessionsCard({ sessions, courses, onUpdate, onDelet
                       {t("dash.sessionCourse")}
                       <select className="input mt-1 min-h-11" value={editCourseId} onChange={(event) => setEditCourseId(event.target.value)}>
                         <option value="">{t("dash.noCourse")}</option>
-                        {courses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                        {/* Le cours actuel de la session reste proposé même
+                            archivé : sinon rouvrir l'édition d'une vieille
+                            session la ferait basculer sur « aucun cours ». */}
+                        {optionsFor(course).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                       </select>
                     </label>
                     <label className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>

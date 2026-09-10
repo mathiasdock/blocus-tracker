@@ -54,6 +54,16 @@ function IconX() {
   );
 }
 
+function IconArchive() {
+  return (
+    <Glyph size={16}>
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+      <path d="M10 12h4" />
+    </Glyph>
+  );
+}
+
 function IconTrash() {
   return (
     <Glyph size={16}>
@@ -73,7 +83,14 @@ function IconChevron({ expanded }) {
   );
 }
 
-export default function CourseEditorModal({ course, colors, busy, onClose, onSave, onDelete }) {
+// `sessionCount` : combien d'heures ce cours porte-t-il ? Tant qu'on ne le sait
+// pas (null), on annonce l'archivage — c'est ce que fera le dashboard en cas de
+// doute, et promettre une suppression qu'on ne fera pas serait pire.
+export default function CourseEditorModal({ course, colors, busy, sessionCount, onClose, onSave, onDelete }) {
+  // Un cours travaillé ne se détruit pas : il s'archive, et l'action cesse donc
+  // d'être rouge. La couleur doit dire la conséquence, pas l'emplacement du
+  // bouton — teindre en danger un geste réversible apprend à ignorer le rouge.
+  const archives = sessionCount === null || sessionCount === undefined || sessionCount > 0;
   const { t } = useI18n();
   const dialogRef = useRef(null);
   const nameInputRef = useRef(null);
@@ -322,22 +339,26 @@ export default function CourseEditorModal({ course, colors, busy, onClose, onSav
                     type="button"
                     onClick={() => { setShowAllColors(false); setConfirmDelete(true); }}
                     disabled={busy}
-                    className="bt-tap flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold transition-colors hover:bg-[var(--bt-danger-bg)] disabled:opacity-50"
-                    style={{ color: "var(--bt-danger)" }}
+                    className={`bt-tap flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold transition-colors disabled:opacity-50 ${archives ? "hover:bg-[var(--bt-subtle)]" : "hover:bg-[var(--bt-danger-bg)]"}`}
+                    style={{ color: archives ? "var(--bt-text-2)" : "var(--bt-danger)" }}
                   >
-                    <IconTrash />
-                    {t("courseEditor.deleteCourse")}
+                    {archives ? <IconArchive /> : <IconTrash />}
+                    {t(archives ? "courseEditor.archiveCourse" : "courseEditor.deleteCourse")}
                   </button>
                 ) : (
                   <div
                     ref={deleteConfirmRef}
                     role="alert"
                     className="rounded-xl p-3"
-                    style={{ backgroundColor: "var(--bt-danger-bg)", border: "1px solid var(--bt-danger-border)" }}
+                    style={archives
+                      ? { backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }
+                      : { backgroundColor: "var(--bt-danger-bg)", border: "1px solid var(--bt-danger-border)" }}
                   >
-                    <p className="text-sm font-semibold" style={{ color: "var(--bt-danger)" }}>{t("courseEditor.deleteConfirmTitle")}</p>
+                    <p className="text-sm font-semibold" style={{ color: archives ? "var(--bt-text-1)" : "var(--bt-danger)" }}>
+                      {t(archives ? "courseEditor.archiveConfirmTitle" : "courseEditor.deleteConfirmTitle")}
+                    </p>
                     <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                      {t("courseEditor.deleteConfirmHelp")}
+                      {t(archives ? "courseEditor.archiveConfirmHelp" : "courseEditor.deleteConfirmHelp")}
                     </p>
                     <div className="mt-3 flex gap-2">
                       <button
@@ -353,10 +374,12 @@ export default function CourseEditorModal({ course, colors, busy, onClose, onSav
                         onClick={removeCourse}
                         disabled={busy}
                         className="btn min-h-11 flex-1 text-white disabled:opacity-50"
-                        style={{ backgroundColor: "var(--bt-danger-solid)" }}
+                        style={{ backgroundColor: archives ? "var(--bt-accent-dark)" : "var(--bt-danger-solid)" }}
                       >
                         {busy && <span className="bt-button-spinner" aria-hidden="true" />}
-                        {busy ? t("courseEditor.deleting") : t("common.delete")}
+                        {busy
+                          ? t(archives ? "courseEditor.archiving" : "courseEditor.deleting")
+                          : t(archives ? "courseEditor.archiveAction" : "common.delete")}
                       </button>
                     </div>
                   </div>

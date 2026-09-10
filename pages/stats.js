@@ -93,7 +93,9 @@ export default function Stats() {
     // de fenêtre à 370 jours : « Tout » doit pouvoir dire tout. Le total
     // all-time se déduit désormais de ces lignes — une requête de moins.
     const [{ data: c }, { data: s }] = await Promise.all([
-      supabase.from("courses").select("id, name, color").eq("user_id", user.id),
+      // Volontairement SANS filtre sur archived_at : un cours archivé est
+      // justement celui dont on veut retrouver les heures du semestre passé.
+      supabase.from("courses").select("id, name, color, archived_at").eq("user_id", user.id),
       supabase.from("sessions").select("course_id, duration_seconds, started_at").eq("user_id", user.id),
     ]);
     setCourses(c || []);

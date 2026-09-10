@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useI18n } from "../contexts/I18nContext";
 import Glyph from "./Glyph";
 
@@ -16,9 +17,12 @@ function formatExamDate(value, locale) {
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date);
 }
 
-export default function DashboardCoursesCard({ courses, checklistCounts, onAdd, onOpen, className = "" }) {
+export default function DashboardCoursesCard({
+  courses, archivedCourses = [], checklistCounts, onAdd, onOpen, onRestore, className = "",
+}) {
   const { t, lang } = useI18n();
   const locale = lang === "en" ? "en-US" : "fr-BE";
+  const [showArchive, setShowArchive] = useState(false);
 
   return (
     <section className={`card min-w-0 p-4 sm:p-5 ${className}`}>
@@ -64,6 +68,63 @@ export default function DashboardCoursesCard({ courses, checklistCounts, onAdd, 
             );
           })}
         </ul>
+      )}
+
+      {/* L'archive se replie : c'est une réserve, pas une liste de travail. Mais
+          elle est visible et réversible — sans ça, archiver serait juste une
+          suppression déguisée, avec la même angoisse de perdre son historique. */}
+      {archivedCourses.length > 0 && (
+        <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
+          <button
+            type="button"
+            onClick={() => setShowArchive((v) => !v)}
+            aria-expanded={showArchive}
+            className="bt-dashboard-control flex min-h-11 w-full items-center gap-2 rounded-xl px-1 text-sm font-semibold"
+            style={{ color: "var(--bt-text-2)" }}
+          >
+            <span
+              className="transition-transform duration-200 motion-reduce:transition-none"
+              style={{ transform: showArchive ? "rotate(90deg)" : "none", color: "var(--bt-text-3)" }}
+              aria-hidden="true"
+            >
+              <IconChevron />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-left">{t("dash.archivedCourses")}</span>
+            <span className="font-num shrink-0 text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
+              {archivedCourses.length}
+            </span>
+          </button>
+
+          {showArchive && (
+            <>
+              <p className="mt-1 px-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
+                {t("dash.archivedCoursesHelp")}
+              </p>
+              <ul className="mt-1">
+                {archivedCourses.map((course) => (
+                  <li key={course.id} className="flex min-h-12 items-center gap-3 px-1">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: course.color, opacity: 0.5 }}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm" style={{ color: "var(--bt-text-2)" }}>
+                      {course.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRestore?.(course.id)}
+                      className="bt-dashboard-control flex min-h-11 shrink-0 items-center rounded-xl px-3 text-xs font-semibold"
+                      style={{ color: "var(--bt-accent-text)" }}
+                    >
+                      {t("dash.restoreCourse")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
       )}
     </section>
   );
