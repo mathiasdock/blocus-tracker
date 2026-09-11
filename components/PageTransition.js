@@ -30,12 +30,28 @@ export default function PageTransition() {
     const reset = () => {
       clearFrames();
       root.classList.remove(...ROUTE_CLASSES);
+      root.style.removeProperty("--bt-route-exit-x");
+      root.style.removeProperty("--bt-route-enter-x");
+      root.style.removeProperty("--bt-route-y");
     };
 
     const start = (url, { shallow } = {}) => {
       if (shallow || routePath(url) === currentPath) return;
       clearFrames();
       transitioning = true;
+      const socialPaths = ["/feed", "/messages", "/communautes"];
+      const from = socialPaths.indexOf(currentPath);
+      const to = socialPaths.indexOf(routePath(url));
+      if (from >= 0 && to >= 0) {
+        const direction = Math.sign(to - from);
+        root.style.setProperty("--bt-route-exit-x", `${direction * -20}px`);
+        root.style.setProperty("--bt-route-enter-x", `${direction * 24}px`);
+        root.style.setProperty("--bt-route-y", "0px");
+      } else {
+        root.style.removeProperty("--bt-route-exit-x");
+        root.style.removeProperty("--bt-route-enter-x");
+        root.style.removeProperty("--bt-route-y");
+      }
       startedAt = performance.now();
       root.classList.remove("bt-route-entering", "bt-route-entered");
       root.classList.add("bt-route-leaving");

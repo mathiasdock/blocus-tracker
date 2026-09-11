@@ -13,6 +13,7 @@ import Mascot from "./Mascot";
 import PageSkeleton from "./PageSkeleton";
 import { isOfflineDev } from "../lib/supabaseClient";
 import Glyph from "./Glyph";
+import useSocialSwipe from "./useSocialSwipe";
 
 // ── Icônes ─────────────────────────────────────────────────
 // Dessins seulement : grille, épaisseur et accessibilité viennent de
@@ -534,6 +535,7 @@ export default function Layout({ children }) {
   const { t } = useI18n();
   const { openSettings: openConsentSettings } = useConsent();
   const router = useRouter();
+  const socialSurfaceRef = useSocialSwipe(router, SOCIAL_PATHS);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const isGuest = !user;
   const guestLocked = isGuest && !GUEST_PUBLIC_PATHS.includes(router.pathname);
@@ -800,23 +802,21 @@ export default function Layout({ children }) {
       </header>
 
       {/* ══ Contenu principal ════════════════════════════════════ */}
-      <div className="lg:ml-[232px]">
+      <div ref={socialSurfaceRef} className="lg:ml-[232px]">
 
         {/* Social sub-nav mobile */}
         {SOCIAL_PATHS.includes(router.pathname) && (
           <div data-bt-subnav className="lg:hidden sticky z-20 flex"
             style={{ top: "calc(48px + env(safe-area-inset-top))", backgroundColor: "var(--bt-mobile-bg)", borderBottom: "1px solid var(--bt-hairline)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)" }}>
+            <span aria-hidden="true" data-social-indicator className="bt-social-indicator" style={{ transform: `translateX(${SOCIAL_PATHS.indexOf(router.pathname) * 100}%)` }}><i /></span>
             {NAV_SOCIAL.map(n => {
               const active = router.pathname === n.href;
               const badge  = badgeFor(n.href);
               return (
                 <Link key={n.href} href={n.href}
+                  aria-current={active ? "page" : undefined}
                   className="relative flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium transition-colors"
                   style={{ color: active ? "var(--bt-accent-dark)" : "var(--bt-text-3)" }}>
-                  {active && (
-                    <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full"
-                      style={{ backgroundColor: "#14B885" }} />
-                  )}
                   {t(n.key)}
                   {badge > 0 && (
                     <span className="inline-flex items-center justify-center min-w-[14px] h-[14px] text-[9px] font-bold bg-red-500 text-white rounded-full px-0.5 leading-none">

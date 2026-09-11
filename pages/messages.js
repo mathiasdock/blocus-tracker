@@ -4,7 +4,7 @@ import Glyph from "../components/Glyph";
 import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
-import SegmentedGlide from "../components/SegmentedGlide";
+import InboxSheet from "../components/InboxSheet";
 import { SkeletonList } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
 import { useNotifications } from "../contexts/NotificationContext";
@@ -157,7 +157,7 @@ function computeChronoElapsed(session) {
 export default function Messages() {
   const router = useRouter();
   const { user, profile } = useAuth();
-  const { markSeen, groupCount, markGroupSeen } = useNotifications();
+  const { markSeen, groupCount, markGroupSeen, refreshNotifications } = useNotifications();
   const { toast } = useToast();
   const { t, lang }       = useI18n();
   const isAdmin = profile?.is_admin === true;
@@ -227,24 +227,17 @@ export default function Messages() {
 
   // ── Recherche sociale unifiée (amis, groupes, nouvelles personnes) ──
   const [socialQuery, setSocialQuery] = useState("");
+  const [inboxLoading, setInboxLoading] = useState(true);
   const [socialResults, setSocialResults] = useState(null); // null = pas de recherche active
   const [searchingSocial, setSearchingSocial] = useState(false);
   const socialSearchTimer = useRef(null);
+  const socialSearchVersion = useRef(0);
+  useEffect(() => () => { clearTimeout(socialSearchTimer.current); socialSearchVersion.current += 1; }, []);
   const socialSearchRef = useRef(null);
   const socialSearchInputRef = useRef(null);
 
-  // Ferme le menu déroulant de résultats au clic en dehors (même pattern
-  // que UniPicker / la recherche globale de l'admin).
-  useEffect(() => {
-    function handler(e) {
-      if (socialSearchRef.current && !socialSearchRef.current.contains(e.target)) setSocialResults(null);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   // ── Navigation ─────────────────────────────────────────────────
-  const [conversationFilter, setConversationFilter] = useState("all"); // "all" | "dm" | "group"
+  const [showCompose, setShowCompose] = useState(false);
   const [activeType, setActiveType] = useState(null); // null | "dm" | "group"
   const [mobileView, setMobileView] = useState("list");
   const [viewUserId, setViewUserId] = useState(null);
@@ -252,6 +245,8 @@ export default function Messages() {
 
   function openProfile(userId) {
     if (userId === user?.id) return;
+    setShowCompose(false);
+    setShowRequests(false);
     setViewUserId(userId);
   }
 
@@ -317,6 +312,15 @@ export default function Messages() {
       const other = m.sender_id === user.id ? m.receiver_id : m.sender_id;
       if (!lastBy[other]) lastBy[other] = m;
     });
+    // A busy thread can occupy the entire recent-message window. Resolve
+    // missing friends individually so an older conversation never disappears.
+    await Promise.all(friendIds.filter(id => !lastBy[id]).map(async id => {
+      const { data } = await supabase.from("private_messages")
+        .select("content, attachment_type, created_at")
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${user.id})`)
+        .order("created_at", { ascending: false }).limit(1);
+      if (data?.[0]) lastBy[id] = data[0];
+    }));
     const profMap = {};
     (profs || []).forEach(p => { profMap[p.id] = p; });
 
@@ -431,17 +435,22 @@ export default function Messages() {
     setSocialQuery(q);
     setSocialMsg("");
     clearTimeout(socialSearchTimer.current);
-    const needle = q.trim();
+    const version = ++socialSearchVersion.current;
+    const needle = q.trim().replace(/[(),%_]/g, " ").trim();
     if (!needle) { setSocialResults(null); setSearchingSocial(false); return; }
+    setSocialResults({ people: [], query: needle });
+    setSearchingSocial(true);
     socialSearchTimer.current = setTimeout(async () => {
       if (!user) return;
       setSearchingSocial(true);
-      const { data } = await supabase
+      try {
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, pseudo, first_name, last_name, avatar_url, university, studying_since")
         .or(`pseudo.ilike.%${needle}%,first_name.ilike.%${needle}%,last_name.ilike.%${needle}%`)
         .neq("id", user.id)
         .limit(20);
+      if (error) throw error;
       const people = data || [];
       const myFriendIds = myFriendIdSet();
       const myUni = (profile?.university || "").trim().toLowerCase();
@@ -450,8 +459,14 @@ export default function Messages() {
       const ranked = people
         .map((p) => ({ ...p, ...scoreCandidate(p, { friendsOf, activeSet, myFriendIds, myUni }), tier: searchTier(p, needleLower) }))
         .sort((a, b) => a.tier - b.tier || b.score - a.score);
+      if (version !== socialSearchVersion.current) return;
       setSearchingSocial(false);
       setSocialResults({ people: ranked, query: needle });
+      } catch {
+        if (version !== socialSearchVersion.current) return;
+        setSearchingSocial(false);
+        setSocialMsg(t("toast.genericError"));
+      }
     }, 280);
   }
 
@@ -522,9 +537,9 @@ export default function Messages() {
     await supabase.from("private_messages")
       .update({ read: true })
       .eq("sender_id", dmActiveId).eq("receiver_id", user.id).eq("read", false);
-    markSeen("messages");
+    refreshNotifications();
     loadFriends();
-  }, [dmActiveId, user, markSeen, loadFriends]);
+  }, [dmActiveId, user, refreshNotifications, loadFriends]);
 
   // ── Group loading ──────────────────────────────────────────────
   const loadGroups = useCallback(async () => {
@@ -545,6 +560,12 @@ export default function Messages() {
     const roleMap = Object.fromEntries(myMem.map(m => [m.group_id, m.role]));
     const lastBy = {};
     (lastMsgs || []).forEach(m => { if (!lastBy[m.group_id]) lastBy[m.group_id] = m; });
+    await Promise.all(ids.filter(id => !lastBy[id]).map(async id => {
+      const { data } = await supabase.from("group_messages")
+        .select("group_id, content, attachment_type, created_at")
+        .eq("group_id", id).order("created_at", { ascending: false }).limit(1);
+      if (data?.[0]) lastBy[id] = data[0];
+    }));
     const memberCountBy = {};
     (allMembers || []).forEach(m => { memberCountBy[m.group_id] = (memberCountBy[m.group_id] || 0) + 1; });
     setGroups((grps || []).map(g => ({
@@ -644,7 +665,11 @@ export default function Messages() {
   }, [grpActiveId, user]);
 
   // ── Effects ────────────────────────────────────────────────────
-  useEffect(() => { loadFriends(); markSeen("messages"); }, [loadFriends, markSeen]);
+  useEffect(() => {
+    let active = true;
+    Promise.all([loadFriends(), loadGroups()]).finally(() => { if (active) setInboxLoading(false); });
+    return () => { active = false; };
+  }, [loadFriends, loadGroups]);
   useEffect(() => { loadMessages(); }, [loadMessages]);
   useEffect(() => {
     let cancelled = false;
@@ -701,7 +726,13 @@ export default function Messages() {
 
     return () => { cancelled = true; };
   }, [messages, groupMessages, groups, signedAttachmentUrls]);
-  useEffect(() => { loadGroups(); }, [loadGroups]);
+  const groupUnreadKey = JSON.stringify(groupCount);
+  const previousGroupUnreadKey = useRef(groupUnreadKey);
+  useEffect(() => {
+    if (previousGroupUnreadKey.current === groupUnreadKey) return;
+    previousGroupUnreadKey.current = groupUnreadKey;
+    loadGroups();
+  }, [loadGroups, groupUnreadKey]);
   useEffect(() => {
     if (!grpActiveId) {
       setGroupMessages([]);
@@ -781,7 +812,17 @@ export default function Messages() {
   }, [loadMessages, dmActiveId]);
 
   // ── DM actions ─────────────────────────────────────────────────
+  function backToInbox() {
+    setMobileView("list");
+    setActiveType(null);
+    setDmActiveId(null);
+    setGrpActiveId(null);
+  }
+
   function openDM(friendId) {
+    setShowCompose(false);
+    setShowRequests(false);
+    setGrpActiveId(null);
     setDmActiveId(friendId);
     setActiveType("dm");
     setMobileView("chat");
@@ -839,6 +880,9 @@ export default function Messages() {
 
   // ── Group actions ──────────────────────────────────────────────
   function openGroup(groupId) {
+    setShowCompose(false);
+    setShowRequests(false);
+    setDmActiveId(null);
     setGrpActiveId(groupId);
     setActiveType("group");
     setMobileView("chat");
@@ -885,6 +929,7 @@ export default function Messages() {
     if (grpFileRef.current) grpFileRef.current.value = "";
     setGrpSending(false);
     loadGroupMessages();
+    loadGroups();
   }
 
   async function leaveGroup() {
@@ -1122,9 +1167,8 @@ export default function Messages() {
   const outgoing = friendLinks.filter((l) => l.status === "pending" && l.requester === user?.id);
 
   // ── Liste unifiée de conversations (privées + groupes) ──────────
-  // Un seul flux façon WhatsApp/Discord : non lus d'abord, puis plus récent.
-  // Chaque item porte son type ("dm"/"group") pour l'affichage du badge et
-  // le filtre Tout/Privés/Groupes.
+  // One inbox ordered by recent activity. Unread is a visual state, not a
+  // separate priority that pushes an older thread above a recent exchange.
   const conversations = [
     ...friends.map(({ profile: fp, unread, lastMsg }) => ({
       type: "dm",
@@ -1145,20 +1189,17 @@ export default function Messages() {
       name: g.name,
       pseudo: null,
       avatarUrl: g.photo_url,
-      subtitle: `${t("social.typeGroup")} · ${g.memberCount} ${g.memberCount > 1 ? t("msg.members") : t("msg.member")}`,
+      subtitle: g.lastMsg?.content || (g.lastMsg ? t("msg.file") : `${g.memberCount} ${t("msg.members")}`),
       unread: groupCount[g.id] || 0,
       lastAt: g.lastMsg?.created_at || g.created_at,
       isActive: activeType === "group" && grpActiveId === g.id,
     })),
   ].sort((a, b) => {
-    const aUnread = a.unread > 0, bUnread = b.unread > 0;
-    if (aUnread !== bUnread) return (bUnread ? 1 : 0) - (aUnread ? 1 : 0);
     return (b.lastAt || "").localeCompare(a.lastAt || "");
   });
 
-  const filteredConversations = conversations.filter((c) =>
-    conversationFilter === "all" ? true : c.type === conversationFilter
-  );
+  const inboxConversations = conversations.filter(c => c.type === "group" || c.lastAt);
+  const visibleConversations = socialQuery.trim() ? [] : inboxConversations;
 
   // Conversations existantes qui matchent la recherche en cours (section
   // "Conversations" du menu déroulant) — purement client, la liste est déjà
@@ -1233,132 +1274,11 @@ export default function Messages() {
       {/* Voir pages/feed.js : la navigation dit déjà où l'on est, sur les
           deux tailles d'écran. */}
       <h1 className="sr-only">{t("social.title")}</h1>
-
-      <div className="grid gap-4 lg:grid-cols-3 bt-rise">
-
-        {/* ── Sidebar — recherche + demandes + liste unifiée + suggestions ── */}
-        <aside className={`${mobileView === "chat" ? "hidden lg:block" : ""} lg:col-span-1`}>
-          <div className={`card flex flex-col overflow-hidden ${panelClass}`}>
-
-            {/* ── Recherche sociale — au centre de la colonne gauche ── */}
-            <div className="p-3 shrink-0 relative" ref={socialSearchRef}
-              style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
-              <div className="relative">
-                <Glyph size={15} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </Glyph>
-                <input ref={socialSearchInputRef} className="input text-sm w-full" style={{ paddingLeft: "2.15rem" }}
-                  placeholder={t("social.searchPlaceholder")}
-                  value={socialQuery} onChange={e => searchSocial(e.target.value)} />
-                {socialQuery && (
-                  <button onClick={() => { setSocialQuery(""); setSocialResults(null); }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full"
-                    style={{ color: "var(--bt-text-3)" }}>
-                    <Glyph size={11}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Glyph>
-                  </button>
-                )}
-              </div>
-
-              {/* Menu déroulant — conversations existantes + nouvelles personnes */}
-              {socialResults && (
-                <div className="absolute left-3 right-3 mt-1.5 rounded-2xl z-30 overflow-hidden max-h-[65vh] overflow-y-auto"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
-                  {searchingSocial ? (
-                    <div className="px-2 py-2"><SkeletonList rows={3} avatar={30} lines={2} /></div>
-                  ) : matchingConversations.length === 0 && socialResults.people.length === 0 ? (
-                    <p className="px-4 py-4 text-sm" style={{ color: "var(--bt-text-3)" }}>
-                      {t("social.searchNoResults").replace("{q}", socialResults.query)}
-                    </p>
-                  ) : (
-                    <>
-                      {matchingConversations.length > 0 && (
-                        <div>
-                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
-                            {t("social.searchConversations")}
-                          </p>
-                          {matchingConversations.map(c => (
-                            <button key={c.key}
-                              onClick={() => { c.type === "dm" ? openDM(c.id) : openGroup(c.id); setSocialQuery(""); setSocialResults(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors"
-                              onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                              onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                              {c.type === "group"
-                                ? <GroupAvatar group={{ photo_url: c.avatarUrl, name: c.name }} size={30} />
-                                : <Avatar url={c.avatarUrl} pseudo={c.name} size={30} />}
-                              <span className="flex-1 min-w-0">
-                                <span className="block text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
-                                <span className="block text-[11px] truncate" style={{ color: "var(--bt-text-3)" }}>{c.subtitle}</span>
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {socialResults.people.length > 0 && (
-                        <div>
-                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
-                            {t("social.searchPeople")}
-                          </p>
-                          {socialResults.people.map(p => {
-                            const rel = relationOf(p.id);
-                            const reasons = [];
-                            if (p.mutual > 0) reasons.push(p.mutual === 1 ? t("social.mutualOne") : t("social.mutualMany").replace("{n}", String(p.mutual)));
-                            else if (p.sameUni) reasons.push(t("social.sameUniversity"));
-                            return (
-                              <div key={p.id} className="flex items-center gap-2.5 px-4 py-2">
-                                <button onClick={() => openProfile(p.id)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
-                                  <Avatar url={p.avatar_url} pseudo={displayName(p)} size={30} />
-                                  <span className="flex-1 min-w-0">
-                                    <span className="block text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{displayName(p)}</span>
-                                    <span className="block text-[11px] truncate" style={{ color: "var(--bt-text-3)" }}>
-                                      {rel === "accepted" ? t("social.alreadyFriend") : reasons[0] ? reasons[0] : `@${p.pseudo}`}
-                                    </span>
-                                  </span>
-                                </button>
-                                {rel === "accepted" ? (
-                                  <button onClick={() => { openDM(p.id); setSocialQuery(""); setSocialResults(null); }} className="btn-ghost text-xs px-2.5 py-1 shrink-0">
-                                    {t("social.messageBtn")}
-                                  </button>
-                                ) : rel === "pending" ? (
-                                  <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("friends.pendingStatus")}</span>
-                                ) : (
-                                  <button onClick={() => addFriend(p.id)} className="btn-primary text-xs px-2.5 py-1 shrink-0">
-                                    {t("friends.addBtn")}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  )}
-                  {socialMsg && <p className="px-4 py-2 text-xs" style={{ color: "var(--bt-accent-dark)", borderTop: "1px solid var(--bt-hairline)" }}>{socialMsg}</p>}
-                </div>
-              )}
-            </div>
-
-            {/* ── Demandes d'amis — ligne compacte, jamais une grosse carte ── */}
-            {(incoming.length + outgoing.length) > 0 && (
-              <div className="shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
-                <button onClick={() => setShowRequests(v => !v)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors"
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
-                  <span className="flex items-center gap-2 font-medium" style={{ color: "var(--bt-text-1)" }}>
-                    <Glyph size={14} style={{ color: "var(--bt-accent-dark)" }}>
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M19 8v6"/>
-                    </Glyph>
-                    {t("social.requestsCompact").replace("{n}", String(incoming.length + outgoing.length))}
-                  </span>
-                  <Glyph size={13} style={{ color: "var(--bt-text-3)", transform: showRequests ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </Glyph>
-                </button>
-                {showRequests && (
-                  <div className="px-4 pb-3">
+      <InboxSheet open={showRequests} title={t("social.requestsTitle")} onClose={() => setShowRequests(false)} closeLabel={t("common.close")}>
+<div className="px-4 pb-3">
                     <div className="flex gap-1 mb-2.5 p-0.5 rounded-xl w-fit" style={{ backgroundColor: "var(--bt-subtle)" }}>
                       {[["received", `${t("social.requestsReceived")} (${incoming.length})`], ["sent", `${t("social.requestsSent")} (${outgoing.length})`]].map(([v, label]) => (
-                        <button key={v} onClick={() => setRequestsTab(v)}
+                        <button key={v} onClick={() => setRequestsTab(v)} aria-pressed={requestsTab === v}
                           className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
                           style={requestsTab === v ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 3px var(--bt-shadow)" } : { color: "var(--bt-text-3)" }}>
                           {label}
@@ -1398,89 +1318,14 @@ export default function Messages() {
                       </ul>
                     )}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* ── Filtres Tout / Privés / Groupes — glissière à ressort ── */}
-            <div className="p-2 shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
-              <SegmentedGlide
-                options={[
-                  { value: "all", label: t("social.filterAll") },
-                  { value: "dm", label: t("social.filterDm") },
-                  { value: "group", label: t("social.filterGroups") },
-                ]}
-                value={conversationFilter}
-                onChange={setConversationFilter}
-                tone="accent"
-                buttonClassName="flex-1 py-1.5 text-xs"
-              />
-            </div>
-
-            {/* ── Liste unifiée de conversations ── */}
-            <div className="overflow-y-auto flex-1">
-              {filteredConversations.length === 0 ? (
-                <p className="text-sm p-4" style={{ color: "var(--bt-text-3)" }}>
-                  {conversations.length === 0 ? t("social.noConversations") : t("social.noConversationsFiltered")}
-                </p>
-              ) : (
-                <ul>
-                  {filteredConversations.map((c) => (
-                    <li key={c.key}
-                      role="button"
-                      tabIndex={0}
-                      aria-current={c.isActive ? "true" : undefined}
-                      className="bt-social-row flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
-                      style={c.isActive ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
-                      onClick={() => (c.type === "dm" ? openDM(c.id) : openGroup(c.id))}
-                      onKeyDown={(ev) => {
-                        if (ev.key !== "Enter" && ev.key !== " ") return;
-                        ev.preventDefault();
-                        if (c.type === "dm") openDM(c.id); else openGroup(c.id);
-                      }}
-                      onMouseEnter={e => { if (!c.isActive) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
-                      onMouseLeave={e => { if (!c.isActive) e.currentTarget.style.backgroundColor = ""; }}>
-                      {c.type === "group"
-                        ? <GroupAvatar group={{ photo_url: c.avatarUrl, name: c.name }} size={38} />
-                        : (
-                          <button onClick={ev => { ev.stopPropagation(); openProfile(c.id); }} className="shrink-0">
-                            <Avatar url={c.avatarUrl} pseudo={c.name} size={38} />
-                          </button>
-                        )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</p>
-                        <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
-                          {c.type === "dm" && <span className="font-semibold" style={{ color: "var(--bt-text-4)" }}>{t("social.typePrivate")} · </span>}
-                          {c.subtitle}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        {c.lastAt && <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{timeAgo(c.lastAt, lang)}</span>}
-                        {c.unread > 0 && (
-                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold text-white rounded-full px-1 leading-none"
-                            style={{ backgroundColor: "var(--bt-danger-solid)" }}>
-                            {c.unread > 99 ? "99+" : c.unread}
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* ── Créer un groupe ── */}
-            <div className="p-2.5 shrink-0" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-              <button onClick={() => setShowCreate(true)}
-                className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl transition-colors"
-                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-hairline)" }}>
-                <Glyph size={11}>
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </Glyph>
-                {t("groups.create")}
-              </button>
-            </div>
-
+      </InboxSheet>
+      <InboxSheet open={showCompose} title={t("social.newMessage")} onClose={() => setShowCompose(false)} closeLabel={t("common.close")}>
+        <div className="px-4 pb-3 space-y-2">
+          <button className="btn-ghost w-full min-h-11 text-left" onClick={() => { setShowCompose(false); setShowCreate(true); }}>{t("groups.create")}</button>
+          <button className="btn-ghost w-full min-h-11 text-left" onClick={() => { setShowCompose(false); setTimeout(() => socialSearchInputRef.current?.focus(), 0); }}>{t("social.findPerson")}</button>
+        </div>
+        <p className="px-4 py-2 text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>{t("social.contacts")}</p>
+        {friends.map(({ profile: person }) => <button key={person.id} onClick={() => openDM(person.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--bt-subtle)]"><Avatar url={person.avatar_url} pseudo={displayName(person)} size={36} /><span className="text-sm font-semibold">{displayName(person)}</span></button>)}
             {/* ── Suggestions — discrètes, repliées par défaut ── */}
             <div className="shrink-0 px-3 py-2.5" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
               {!showSuggestions ? (
@@ -1523,6 +1368,185 @@ export default function Messages() {
                 </div>
               )}
             </div>
+        {socialMsg && <p role="status" className="px-4 py-2 text-sm">{socialMsg}</p>}
+      </InboxSheet>
+
+      <div className="grid gap-4 lg:grid-cols-3 bt-rise">
+
+        {/* ── Sidebar — recherche + demandes + liste unifiée + suggestions ── */}
+        <aside data-friends-inbox className={`bt-friends-inbox min-w-0 ${mobileView === "chat" ? "hidden lg:block" : ""} lg:col-span-1`}>
+          <div className={`card flex flex-col overflow-hidden ${panelClass}`}>
+
+            <div className="flex items-center justify-between px-4 pt-3 pb-1">
+              <h2 className="text-lg font-bold">{t("social.searchConversations")}</h2>
+              <button onClick={() => setShowCompose(true)} className="bt-feed-icon-btn min-w-11 min-h-11" aria-label={t("social.newMessage")} title={t("social.newMessage")}><Glyph size={20}><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7M16 3l5 5M10 14l-1 4 4-1L22 8a2 2 0 0 0-5-5Z" /></Glyph></button>
+            </div>
+            {/* Search threads locally, then people after a debounce. */}
+            <div className="p-3 shrink-0 relative overflow-y-auto" ref={socialSearchRef}
+              style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
+              <div className="relative">
+                <Glyph size={15} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--bt-text-4)" }}>
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </Glyph>
+                <input ref={socialSearchInputRef} className="input text-sm w-full" style={{ paddingLeft: "2.15rem" }}
+                  aria-label={t("social.searchPlaceholder")} placeholder={t("social.searchPlaceholder")}
+                  value={socialQuery} onChange={e => searchSocial(e.target.value)} />
+                {socialQuery && (
+                  <button onClick={() => searchSocial("")} aria-label={t("common.close")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full"
+                    style={{ color: "var(--bt-text-3)" }}>
+                    <Glyph size={11}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></Glyph>
+                  </button>
+                )}
+              </div>
+
+              {/* Menu déroulant — conversations existantes + nouvelles personnes */}
+              {socialResults && (
+                <div className="mt-2 overflow-y-auto max-h-[55dvh]"
+                  style={{ backgroundColor: "var(--bt-surface)" }}>
+                  {matchingConversations.length === 0 && socialResults.people.length === 0 && !searchingSocial ? (
+                    <p className="px-4 py-4 text-sm" style={{ color: "var(--bt-text-3)" }}>
+                      {t("social.searchNoResults").replace("{q}", socialResults.query)}
+                    </p>
+                  ) : (
+                    <>
+                      {matchingConversations.length > 0 && (
+                        <div>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
+                            {t("social.searchConversations")}
+                          </p>
+                          {matchingConversations.map(c => (
+                            <button key={c.key}
+                              onClick={() => { c.type === "dm" ? openDM(c.id) : openGroup(c.id); searchSocial(""); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2 text-left transition-colors"
+                              onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                              onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                              {c.type === "group"
+                                ? <GroupAvatar group={{ photo_url: c.avatarUrl, name: c.name }} size={30} />
+                                : <Avatar url={c.avatarUrl} pseudo={c.name} size={30} />}
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
+                                <span className="block text-[11px] truncate" style={{ color: "var(--bt-text-3)" }}>{c.subtitle}</span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {socialResults.people.length > 0 && (
+                        <div>
+                          <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>
+                            {t("social.searchPeople")}
+                          </p>
+                          {socialResults.people.map(p => {
+                            const rel = relationOf(p.id);
+                            const reasons = [];
+                            if (p.mutual > 0) reasons.push(p.mutual === 1 ? t("social.mutualOne") : t("social.mutualMany").replace("{n}", String(p.mutual)));
+                            else if (p.sameUni) reasons.push(t("social.sameUniversity"));
+                            return (
+                              <div key={p.id} className="flex items-center gap-2.5 px-4 py-2">
+                                <button onClick={() => openProfile(p.id)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+                                  <Avatar url={p.avatar_url} pseudo={displayName(p)} size={30} />
+                                  <span className="flex-1 min-w-0">
+                                    <span className="block text-sm font-medium truncate" style={{ color: "var(--bt-text-1)" }}>{displayName(p)}</span>
+                                    <span className="block text-[11px] truncate" style={{ color: "var(--bt-text-3)" }}>
+                                      {rel === "accepted" ? t("social.alreadyFriend") : reasons[0] ? reasons[0] : `@${p.pseudo}`}
+                                    </span>
+                                  </span>
+                                </button>
+                                {rel === "accepted" ? (
+                                  <button onClick={() => { openDM(p.id); searchSocial(""); }} className="btn-ghost text-xs px-2.5 py-1 shrink-0">
+                                    {t("social.messageBtn")}
+                                  </button>
+                                ) : rel === "pending" ? (
+                                  <span className="text-xs shrink-0" style={{ color: "var(--bt-text-3)" }}>{t("friends.pendingStatus")}</span>
+                                ) : (
+                                  <button onClick={() => addFriend(p.id)} className="btn-primary text-xs px-2.5 py-1 shrink-0">
+                                    {t("friends.addBtn")}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {searchingSocial && <div className="px-2 py-2"><SkeletonList rows={2} avatar={30} lines={1} /></div>}
+                  {socialMsg && <p className="px-4 py-2 text-xs" style={{ color: "var(--bt-accent-dark)", borderTop: "1px solid var(--bt-hairline)" }}>{socialMsg}</p>}
+                </div>
+              )}
+            </div>
+
+            {/* ── Demandes d'amis — ligne compacte, jamais une grosse carte ── */}
+            {(incoming.length + outgoing.length) > 0 && (
+              <div className="shrink-0" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
+                <button onClick={openRelations}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors"
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>
+                  <span className="flex items-center gap-2 font-medium" style={{ color: "var(--bt-text-1)" }}>
+                    <Glyph size={14} style={{ color: "var(--bt-accent-dark)" }}>
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M19 8v6"/>
+                    </Glyph>
+                    {t("social.requestsCompact").replace("{n}", String(incoming.length + outgoing.length))}
+                  </span>
+                  <Glyph size={13} style={{ color: "var(--bt-text-3)" }}>
+                    <polyline points="9 6 15 12 9 18"/>
+                  </Glyph>
+                </button>
+
+              </div>
+            )}
+
+            {/* ── Liste unifiée de conversations ── */}
+            <div className="overflow-y-auto flex-1">
+              {inboxLoading && !socialQuery ? <SkeletonList rows={5} avatar={42} lines={2} /> : visibleConversations.length === 0 ? (
+                <p className="text-sm p-4" style={{ color: "var(--bt-text-3)" }}>
+                  {socialQuery.trim() ? "" : t("social.noConversations")}
+                </p>
+              ) : (
+                <ul>
+                  {visibleConversations.map((c) => (
+                    <li key={c.key}
+                      role="button"
+                      tabIndex={0}
+                      aria-current={c.isActive ? "true" : undefined}
+                      className="bt-social-row flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
+                      style={c.isActive ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
+                      onClick={() => (c.type === "dm" ? openDM(c.id) : openGroup(c.id))}
+                      onKeyDown={(ev) => {
+                        if (ev.key !== "Enter" && ev.key !== " ") return;
+                        ev.preventDefault();
+                        if (c.type === "dm") openDM(c.id); else openGroup(c.id);
+                      }}
+                      onMouseEnter={e => { if (!c.isActive) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
+                      onMouseLeave={e => { if (!c.isActive) e.currentTarget.style.backgroundColor = ""; }}>
+                      {c.type === "group"
+                        ? <span className="relative shrink-0"><GroupAvatar group={{ photo_url: c.avatarUrl, name: c.name }} size={42} /><span className="absolute -bottom-1 -right-1 rounded-full p-0.5" style={{ background: "var(--bt-surface)", color: "var(--bt-accent-text)" }}><Glyph size={14}><circle cx="9" cy="8" r="3" /><path d="M2 20v-2a6 6 0 0 1 12 0v2m3-16a3 3 0 0 1 0 6m1 4a5 5 0 0 1 4 5" /></Glyph></span></span>
+                        : <Avatar url={c.avatarUrl} pseudo={c.name} size={42} />}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm truncate ${c.unread ? "font-extrabold" : "font-semibold"}`} style={{ color: "var(--bt-text-1)" }}>{c.name}</p>
+                        <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
+                          {c.type === "group" && <span className="font-semibold" style={{ color: "var(--bt-accent-text)" }}>{t("social.typeGroup")} · </span>}
+                          {c.subtitle}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {c.lastAt && <span className="text-[10px]" style={{ color: "var(--bt-text-4)" }}>{timeAgo(c.lastAt, lang)}</span>}
+                        {c.unread > 0 && (
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] text-[10px] font-bold text-white rounded-full px-1 leading-none"
+                            style={{ backgroundColor: "var(--bt-danger-solid)" }}>
+                            {c.unread > 99 ? "99+" : c.unread}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+
           </div>
         </aside>
 
@@ -1539,28 +1563,13 @@ export default function Messages() {
                 {t("social.emptyCtaCreateGroup")}
               </button>
             </div>
-            {suggestions.length > 0 && (
-              <div className="w-full max-w-xs mt-5 pt-5" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-                <p className="text-[11px] font-bold uppercase tracking-wider mb-2.5" style={{ color: "var(--bt-text-4)" }}>
-                  {t("social.suggestionsTitle")}
-                </p>
-                <div className="space-y-2">
-                  {suggestions.slice(0, 3).map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 text-sm">
-                      <Avatar url={s.avatar_url} pseudo={displayName(s)} size={28} />
-                      <span className="flex-1 min-w-0 truncate text-left" style={{ color: "var(--bt-text-1)" }}>{displayName(s)}</span>
-                      <button onClick={() => addFriend(s.id)} className="btn-primary text-xs px-2.5 py-1 shrink-0">{t("friends.addBtn")}</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
           </div>
         ) : activeType === "dm" ? (
             <section className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
               <div className="flex items-center gap-3 px-4 py-3 shrink-0"
                 style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
-                <button onClick={() => setMobileView("list")}
+                <button onClick={backToInbox}
                   aria-label={t("common.back")}
                   className="bt-feed-icon-btn lg:hidden shrink-0">
                   <IconBack />
@@ -1676,7 +1685,7 @@ export default function Messages() {
                 style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
 
                 {/* Retour mobile — seule sortie de l'écran en plein écran. */}
-                <button onClick={() => setMobileView("list")}
+                <button onClick={backToInbox}
                   aria-label={t("common.back")}
                   className="bt-feed-icon-btn lg:hidden shrink-0">
                   <IconBack />
@@ -2103,19 +2112,17 @@ export default function Messages() {
       )}
 
       {/* ── Modal créer un groupe ──────────────────────────────── */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(31,26,23,0.4)" }}
-          onClick={e => { if (e.target === e.currentTarget) closeCreateModal(); }}>
-          <div className="card p-6 w-full max-w-sm">
+      <InboxSheet open={showCreate} title={createStep === 1 ? t("groups.create") : t("msg.inviteFriends")} onClose={closeCreateModal} closeLabel={t("common.close")}>
+          <div className="px-4 pb-4">
             {createStep === 1 ? (
               <form onSubmit={createGroup} className="space-y-4">
-                <h2 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("groups.create")}</h2>
                 <input className="input" required autoFocus
+                  aria-label={t("groups.groupName")}
                   placeholder={t("groups.groupName")}
                   value={createForm.name}
                   onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))} />
                 <textarea className="input" rows={2}
+                  aria-label={t("groups.description")}
                   placeholder={t("groups.description")}
                   value={createForm.description}
                   onChange={e => setCreateForm(f => ({ ...f, description: e.target.value }))} />
@@ -2128,7 +2135,6 @@ export default function Messages() {
               </form>
             ) : (
               <div className="space-y-3">
-                <h2 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("msg.inviteFriends")}</h2>
                 <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("msg.inviteHint")}</p>
                 <input className="input text-sm" autoFocus
                   placeholder={t("groups.searchUser")}
@@ -2156,10 +2162,9 @@ export default function Messages() {
               </div>
             )}
           </div>
-        </div>
-      )}
+      </InboxSheet>
 
-      {viewUserId && <UserProfileModal userId={viewUserId} onClose={() => setViewUserId(null)} />}
+      {viewUserId && <div data-no-swipe><UserProfileModal userId={viewUserId} onClose={() => setViewUserId(null)} /></div>}
     </Layout>
   );
 }
