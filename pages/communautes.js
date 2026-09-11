@@ -711,7 +711,7 @@ export default function Communautes() {
       {/* Voir pages/feed.js : la navigation dit déjà où l'on est. */}
       <h1 className="sr-only">{t("comm.title")}</h1>
 
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-4 bt-rise">
+      <div className="bt-social-fill-grid grid gap-4 grid-cols-1 lg:grid-cols-4 bt-rise">
         {/* ── Sidebar — recherche + Ton école + annuaire par pays ── */}
         <aside className={`${listVisible} lg:col-span-1 card flex-col overflow-hidden ${panelClass}`}>
           <div className="p-3 shrink-0 relative" style={{ borderBottom: "1px solid var(--bt-hairline)" }}>

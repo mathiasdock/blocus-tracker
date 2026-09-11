@@ -2081,6 +2081,34 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-social-panel { height: calc(100dvh - 132px); }
 }
 @media (max-width: 1023px) {
+  /* Friends et Communautés sont des surfaces d'app continues : leur carte
+     descend jusqu'au bord inférieur et la navigation flotte par-dessus,
+     comme elle le fait sur les interfaces mobiles natives. La sous-navigation
+     reste dans le flux, donc aucun offset dupliqué n'est nécessaire. */
+  html:not(.bt-chat-fullscreen) .bt-social-fill-shell {
+    height: calc(100dvh - 49px - env(safe-area-inset-top));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  html:not(.bt-chat-fullscreen) .bt-social-fill-shell > [data-bt-subnav] {
+    top: 0 !important;
+  }
+  html:not(.bt-chat-fullscreen) .bt-social-fill-main {
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  html:not(.bt-chat-fullscreen) .bt-social-fill-grid {
+    flex: 1;
+    min-height: 0;
+  }
+  html:not(.bt-chat-fullscreen) .bt-social-fill-grid .bt-social-panel {
+    height: 100%;
+    border-radius: var(--bt-r-card) var(--bt-r-card) 0 0;
+  }
   .bt-social-panel--chat { height: calc(100dvh - 104px - var(--bt-nav-space)); }
 }
 /* Rangée de conversation : elle est atteignable au clavier (role + tabIndex

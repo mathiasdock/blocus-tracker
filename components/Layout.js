@@ -539,6 +539,7 @@ export default function Layout({ children }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const isGuest = !user;
   const guestLocked = isGuest && !GUEST_PUBLIC_PATHS.includes(router.pathname);
+  const fillsSocialViewport = !guestLocked && (router.pathname === "/messages" || router.pathname === "/communautes");
   const mainNav = NAV_MAIN;
   const mobileNav = MOBILE_5;
 
@@ -802,7 +803,7 @@ export default function Layout({ children }) {
       </header>
 
       {/* ══ Contenu principal ════════════════════════════════════ */}
-      <div ref={socialSurfaceRef} className="lg:ml-[232px]">
+      <div ref={socialSurfaceRef} className={`${fillsSocialViewport ? "bt-social-fill-shell" : ""} lg:ml-[232px]`}>
 
         {/* Social sub-nav mobile */}
         {SOCIAL_PATHS.includes(router.pathname) && (
@@ -829,7 +830,7 @@ export default function Layout({ children }) {
           </div>
         )}
 
-        <main data-bt-route-content className="w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip">
+        <main data-bt-route-content className={`${fillsSocialViewport ? "bt-social-fill-main" : ""} w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip`}>
           {!guestLocked && <LegacyEmailBanner />}
           {guestLocked ? <GuestLockedPanel pathname={router.pathname} /> : children}
         </main>

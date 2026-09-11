@@ -1371,7 +1371,7 @@ export default function Messages() {
         {socialMsg && <p role="status" className="px-4 py-2 text-sm">{socialMsg}</p>}
       </InboxSheet>
 
-      <div className="grid gap-4 lg:grid-cols-3 bt-rise">
+      <div className="bt-social-fill-grid grid gap-4 lg:grid-cols-3 bt-rise">
 
         {/* ── Sidebar — recherche + demandes + liste unifiée + suggestions ── */}
         <aside data-friends-inbox className={`bt-friends-inbox min-w-0 ${mobileView === "chat" ? "hidden lg:block" : ""} lg:col-span-1`}>
