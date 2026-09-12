@@ -52,6 +52,35 @@ html {
   overflow-x: hidden;
 }
 
+/* ── Apparence déclarée ─────────────────────────────────────
+ * Le pendant CSS de ce que pose le script de _document.js. Sans cette
+ * déclaration, le navigateur choisit le fond qu'il peint AVANT la page en
+ * suivant l'apparence du système : sur un iPhone en mode sombre, du noir —
+ * alors que l'app est en thème clair. Elle règle aussi les ascenseurs et les
+ * contrôles natifs, qui se rendaient en clair jusque dans le thème sombre. */
+:root { color-scheme: light; }
+:root.dark { color-scheme: dark; }
+
+/* ── Canevas de lancement (PWA) ─────────────────────────────
+ * Lancée depuis l'écran d'accueil, l'app enchaîne : écran de lancement iOS
+ * (vert), puis première image de la page. Entre les deux, le canevas du
+ * document est le fond crème — une rupture au moment précis où la marque doit
+ * tenir. On le peint donc en vert le temps du démarrage.
+ *
+ * Le retour se fait tout seul, par animation CSS, juste après la disparition
+ * du voile (components/AppSplash) : `transparent` rend le canevas au fond du
+ * body, et le rebond de défilement iOS retrouve sa couleur normale. Aucun
+ * effet durable, aucune dépendance à JS. */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  html {
+    background-color: #14b885;
+    animation: bt-launch-canvas 1ms linear 620ms forwards;
+  }
+}
+@keyframes bt-launch-canvas {
+  to { background-color: transparent; }
+}
+
 /* ── Background pages d'authentification ───────────────────── */
 .auth-bg {
   background-image: url('/bg-desktop.png');

@@ -18,7 +18,13 @@ export default function Document() {
           migrated on the fly). "system" follows prefers-color-scheme, but the
           default when nothing is set is "light" (not the OS preference) —
           an iPhone in dark mode must not silently dark-theme the app. */}
-      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){var l=localStorage.getItem('bt_dark');t=l==='true'?'dark':'light';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}catch(e){}})()` }} />
+      {/* `colorScheme` est posé ici, avec la classe, et pas seulement en CSS :
+          avant la première peinture, la WebView peint SON fond à elle, et sans
+          cette déclaration elle suit l'apparence du système. Sur un iPhone en
+          mode sombre, ce fond est noir — c'est l'écran noir qu'on voit passer
+          au lancement, alors même que l'app, elle, est en thème clair. Le lui
+          dire au plus tôt est le seul moment où ça compte. */}
+      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){var l=localStorage.getItem('bt_dark');t=l==='true'?'dark':'light';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})()` }} />
       </Head>
       <body>
         <Main />
