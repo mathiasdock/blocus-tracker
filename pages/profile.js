@@ -73,6 +73,11 @@ function useTheme() {
     const apply = () => {
       const dark = theme === "dark" || (theme === "system" && mq.matches);
       document.documentElement.classList.toggle("dark", dark);
+      // Le script de _document.js pose `colorScheme` en style EN LIGNE, qui bat
+      // la feuille de styles : sans cette ligne, changer de thème ici laissait
+      // une déclaration périmée, et les ascenseurs comme le fond que peint le
+      // navigateur restaient sur l'ancien schéma.
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
     };
     apply();
     if (theme !== "system") return;

@@ -25,6 +25,13 @@ export default function Document() {
           au lancement, alors même que l'app, elle, est en thème clair. Le lui
           dire au plus tôt est le seul moment où ça compte. */}
       <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('bt_theme');if(!t){var l=localStorage.getItem('bt_dark');t=l==='true'?'dark':'light';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light'}catch(e){}})()` }} />
+      {/* Un RECHARGEMENT n'est pas un lancement : l'écran de marque n'a rien à
+          y faire. Sans ce garde-fou, n'importe quelle boucle de rechargement
+          (mise à jour du service worker, retour du réseau) se transforme en
+          clignotement vert plein écran — le défaut devient spectaculaire au
+          lieu de rester discret. Dans son propre try : si la mesure de
+          navigation manque, on retombe simplement sur le comportement normal. */}
+      <script dangerouslySetInnerHTML={{ __html: `(function(){try{var e=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];var r=e?e.type==='reload':(performance.navigation&&performance.navigation.type===1);if(r)document.documentElement.classList.add('bt-no-splash')}catch(e){}})()` }} />
       </Head>
       <body>
         <Main />

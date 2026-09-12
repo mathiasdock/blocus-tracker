@@ -10,7 +10,7 @@ import styles from "./AppSplash.module.css";
 // lit ce balisage.
 export default function AppSplash() {
   return (
-    <div className={styles.splash} aria-hidden="true">
+    <div id="bt-splash" className={styles.splash} aria-hidden="true">
       <svg className={styles.mark} viewBox="0 0 1024 1024" focusable="false">
         <rect width="1024" height="1024" fill="#14B885" />
         <rect x="220" y="110" width="167" height="804" rx="72" fill="#0B2E23" />

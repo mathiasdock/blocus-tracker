@@ -81,6 +81,17 @@ html {
   to { background-color: transparent; }
 }
 
+/* Rechargement : ni voile, ni canevas vert. La classe est posée avant la
+   première peinture par _document.js, donc rien ne clignote même quand la page
+   se recharge en boucle. */
+html.bt-no-splash {
+  background-color: transparent;
+  animation: none;
+}
+html.bt-no-splash #bt-splash {
+  display: none;
+}
+
 /* ── Background pages d'authentification ───────────────────── */
 .auth-bg {
   background-image: url('/bg-desktop.png');

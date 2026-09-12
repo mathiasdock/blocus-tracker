@@ -97,7 +97,13 @@ module.exports = withPWA({
   // Screenshots marketing de la landing : servis à la demande (et cachés par la
   // règle image runtime), mais JAMAIS précachés par le service worker — sinon
   // chaque installation de la PWA téléchargerait tout le dossier d'un coup.
-  publicExcludes: ["!site-web/**/*"],
+  //
+  // Même raison pour les écrans de lancement, avec un argument de plus : la
+  // page ne les demande JAMAIS. C'est iOS qui les lit, au lancement, hors de
+  // la WebView. Les précacher, c'était 432 Ko téléchargés pour rien à chaque
+  // installation — et surtout un manifeste de préchargement modifié, donc un
+  // nouveau service worker, donc un rechargement de page par AppVersionRefresh.
+  publicExcludes: ["!site-web/**/*", "!splash/**/*"],
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
