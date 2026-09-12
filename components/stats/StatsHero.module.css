@@ -94,7 +94,7 @@
   color: var(--bt-ink-text);
   opacity: 0.88;
 }
-.messageDone { color: #7CEBC4; opacity: 1; }
+.messageDone { color: #5DE0B5; opacity: 1; }
 
 /* ── La piste ───────────────────────────────────────────────── */
 .runway { grid-area: runway; position: relative; }
@@ -173,7 +173,7 @@
   inset: 0;
   border-radius: inherit;
   transform-origin: left;
-  background: linear-gradient(90deg, #0E9E72, var(--bt-accent) 56%, #5DE0B5);
+  background: linear-gradient(90deg, #0E8F68, var(--bt-accent) 56%, #5DE0B5);
   transition: transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 /* Quarts d'objectif — le même motif que la barre d'XP du profil. C'est le

@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatDuration, formatMinutesShort, todayISO, computeStreak, computeBestStreak, isStreakPaused } from "../lib/format";
+import { formatDuration, formatMinutesShort, todayISO, computeStreak, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
@@ -304,7 +304,6 @@ export default function Dashboard() {
   const [courses, setCourses] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [streak, setStreak] = useState(0);
-  const [bestStreak, setBestStreak] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   // Garde l'écran allumé tant qu'une session tourne (inline ou mode focus) :
   // sans ça l'iPhone se verrouille après ~30 s et la respiration du mode focus
@@ -374,7 +373,6 @@ export default function Dashboard() {
     setSessions(data.sessions || []);
     setRecentSessions(data.recentSessions || []);
     setStreak(computeStreak(data.recentSessions || []));
-    setBestStreak(computeBestStreak(data.recentSessions || []));
     setTodayObjectives(data.objectives || []);
   }, [setCourseId]);
 
@@ -408,7 +406,6 @@ export default function Dashboard() {
       if (!alive || !res.supported) return;
       setFreezeInfo(res);
       setStreak(computeStreak(recentSessions, res.frozenDays));
-      setBestStreak(computeBestStreak(recentSessions, res.frozenDays));
       // Le gel ne se consomme plus tout seul : on PROPOSE. Un refus déjà donné
       // pour ce même trou n'est pas redemandé (mais un nouveau trou le sera).
       if (res.canRepair && !freezeToastShown.current) {
@@ -433,7 +430,6 @@ export default function Dashboard() {
     const merged = [...freezeInfo.frozenDays, ...freezeInfo.pendingDays];
     setFreezeInfo({ ...freezeInfo, frozenDays: merged, stock: res.stock, pendingDays: [], canRepair: false });
     setStreak(computeStreak(recentSessions, merged));
-    setBestStreak(computeBestStreak(recentSessions, merged));
     setFreezeOfferOpen(false);
     toast(t("streak.offerDone"), "success");
   }, [freezeInfo, freezeBusy, recentSessions, t, toast]);
@@ -1119,7 +1115,6 @@ export default function Dashboard() {
   }
 
   const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
-  const goalPct = Math.min(100, Math.round((totalToday / DAILY_GOAL_SECS) * 100));
 
   // Objectif effectif des Blocus Blocks : phase pomodoro > objectif de
   // session > mode libre (null → les blocs poussent sans fin).
@@ -1759,11 +1754,10 @@ export default function Dashboard() {
           <TodayProgressCard
             className="order-3 lg:order-none"
             totalToday={totalToday}
-            goalPct={goalPct}
+            goalSecs={DAILY_GOAL_SECS}
             weekSecs={weekSecs}
             weeklyGoalMin={weeklyGoalMin}
             streak={streak}
-            bestStreak={bestStreak}
             streakPaused={streakPaused}
             freezeInfo={freezeInfo}
           />

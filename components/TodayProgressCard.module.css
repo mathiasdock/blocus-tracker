@@ -1,0 +1,190 @@
+/* Progression du jour — le tableau de bord de la journée, à côté du chrono.
+   Même famille que le héros de /stats (chiffre dominant, objectif accroché,
+   piste creusée, lumière qui suit l'avancement) mais un objet différent : là-bas
+   une piste continue sur toute la largeur d'une page, ici des BLOCS dans un rail
+   de 340 à 390 px. La carte garde `.card-ink` : c'est une carte dans une
+   colonne, pas un héros de page, et la surface de marque existe déjà. */
+
+/* La carte est son propre conteneur : la respiration des blocs se décide sur SA
+   largeur. Elle est pleine largeur sur téléphone et tablette, puis rangée dans
+   un rail de 320 px et plus sur ordinateur — l'inverse d'une requête média. */
+.card { container-type: inline-size; }
+
+/* Le rembourrage vit ici, pas sur la section : une règle `@container` ne peut
+   pas styler le conteneur qui la porte. Posé sur la carte, il serait resté à sa
+   valeur compacte pendant que le reste de la composition basculait. */
+.body {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-areas: "head" "value" "blocks" "labels" "week";
+  padding: 16px;
+}
+
+/* Lumière d'avancement, comme sur /stats : un halo bas posé là où en est la
+   journée. C'est la seule source de couleur mobile de la carte. */
+.glow {
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 -22% 0;
+  height: 58%;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(58% 100% at var(--p, 0%) 100%, rgba(20, 184, 133, 0.30), transparent 70%);
+}
+
+.head { grid-area: head; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.title { font-size: 1.125rem; font-weight: 700; line-height: 1.4; letter-spacing: -0.015em; color: var(--bt-ink-text); }
+.chips { display: flex; flex-shrink: 0; align-items: center; gap: 6px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+/* Le bleu glace et l'ambre de la flamme sont les deux couleurs de statut déjà
+   en service ici : elles disent « gel » et « série », pas « décoration ». */
+.chipFreeze { background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.34); color: #BAE6FD; }
+.chipFreezeEmpty { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.10); color: rgba(255, 255, 255, 0.55); }
+.chipStreak { background: rgba(251, 191, 36, 0.14); border: 1px solid rgba(251, 191, 36, 0.28); color: #FFF7D6; }
+
+/* ── Le chiffre du jour ─────────────────────────────────────── */
+.value {
+  grid-area: value;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: clamp(2.35rem, 11cqi, 2.9rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-ink-text);
+}
+/* L'objectif est accroché au chiffre plutôt que relégué en légende : on lit
+   « 1h24 sur 2h » d'un seul regard, et le pourcentage devient inutile. */
+.goal {
+  font-size: clamp(0.95rem, 4.2cqi, 1.1rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--bt-ink-muted);
+  white-space: nowrap;
+}
+
+/* ── Les blocs ──────────────────────────────────────────────── */
+/* Huit créneaux de quinze minutes, groupés par heure. C'est la signature de
+   cette page : le brief la promettait — « rendre l'effort concret par unités de
+   15 minutes regroupées visuellement par heure » — et la carte dessinait une
+   barre continue de plus. Un bloc rempli est un quart d'heure gagné. */
+.blocks { grid-area: blocks; display: flex; gap: 5px; margin-top: 14px; }
+.cell {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 20px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 1.5px rgba(0, 0, 0, 0.28);
+}
+/* Respiration d'une heure sur quatre blocs. Sans elle, huit créneaux réguliers
+   ne se comptent pas : ils se relisent. */
+.cell:nth-child(4n):not(:last-child) { margin-inline-end: 8px; }
+
+.cellFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  /* Un seul dégradé traverse toute la piste : chaque bloc n'en montre que sa
+     tranche. `background-size` l'étale sur huit largeurs de bloc et
+     `background-position` choisit la bonne — sans ça, huit dégradés complets
+     côte à côte donneraient huit petites barres au lieu d'une journée. */
+  background-image: linear-gradient(90deg, #0E8F68, var(--bt-accent) 56%, #5DE0B5);
+  background-size: 800% 100%;
+  background-position-x: calc(var(--i) * 100% / 7);
+  /* Le remplissage se découpe au lieu de s'étirer : un `scaleX` écraserait le
+     dégradé du bloc en cours. */
+  clip-path: inset(0 calc((1 - var(--f)) * 100%) 0 0);
+  transition: clip-path 520ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i) * 45ms);
+}
+
+.trackLabels {
+  grid-area: labels;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+  font-size: 12px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-ink-muted);
+}
+.lead { font-weight: 700; color: var(--bt-ink-text); opacity: 0.9; }
+.done { color: #5DE0B5; font-weight: 700; opacity: 1; }
+
+/* ── Second plan : la semaine ───────────────────────────────── */
+.week { grid-area: week; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--bt-ink-border); }
+.weekHead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.weekLabel { font-size: 12px; line-height: 1.4; color: var(--bt-ink-muted); }
+.weekValue {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-ink-text);
+}
+.weekGoal { font-size: 12px; font-weight: 700; color: var(--bt-ink-muted); }
+.weekTrack {
+  position: relative;
+  height: 8px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+/* Une barre continue, pas des blocs : une semaine ne se compte pas en quarts
+   d'heure. Deux quantités différentes, deux formes différentes. */
+.weekFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-origin: left;
+  background-image: linear-gradient(90deg, #0E8F68, var(--bt-accent) 56%, #5DE0B5);
+  transition: transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.paused { margin-top: 12px; font-size: 12px; line-height: 1.4; color: var(--bt-ink-muted); }
+
+/* Sur tablette la carte occupe toute la largeur : les blocs s'épaississent
+   plutôt que de s'étirer en lattes. */
+/* Sur tablette la carte occupe toute la largeur. Elle ne s'étire pas : la
+   légende du jour remonte à côté du chiffre, la piste s'épaissit et prend la
+   ligne entière au lieu de laisser un vide à droite du grand nombre. */
+@container (min-width: 520px) {
+  .body {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "head head" "value labels" "blocks blocks" "week week";
+    padding: 24px;
+  }
+  .trackLabels { justify-self: end; align-self: end; padding-bottom: 7px; margin-top: 0; gap: 14px; font-size: 0.875rem; }
+  .cell { height: 26px; }
+  .blocks { gap: 6px; margin-top: 16px; }
+  .cell:nth-child(4n):not(:last-child) { margin-inline-end: 10px; }
+  .value { font-size: clamp(2.9rem, 7cqi, 3.4rem); }
+  .goal { font-size: 1.2rem; }
+  .week { margin-top: 18px; padding-top: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cellFill, .weekFill { transition: none; }
+}
