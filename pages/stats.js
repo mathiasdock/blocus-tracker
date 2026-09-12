@@ -5,7 +5,6 @@ import Layout from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UserProfileModal from "../components/UserProfileModal";
 import Leaderboard from "../components/Leaderboard";
-import MascotMoment from "../components/MascotMoment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import StatsHero from "../components/stats/StatsHero";
 import StudyByCourse from "../components/stats/StudyByCourse";
@@ -345,22 +344,15 @@ export default function Stats() {
               classement y monte juste après la répartition par cours — il est
               consulté souvent, il n'a pas à finir sous la heatmap. */}
           <div className="contents xl:order-2 xl:flex xl:flex-col xl:gap-5">
+            {/* L'insight « tu es plus régulier » passait par une apparition de
+                la mascotte. Depuis que le héros l'accueille en permanence, ce
+                serait deux shibas à l'écran en même temps — et un personnage
+                qu'on voit deux fois cesse d'être un personnage. La phrase
+                garde sa carte de texte ; le héros garde la mascotte. */}
             {insightText && (
-              <div className="order-3">
-                {insight.key === "moreRegular" ? (
-                  <MascotMoment
-                    eventKey={`stats-regular-${todayISOLocal}`}
-                    message={insightText}
-                    mood="proud"
-                    frequency="daily"
-                    streak={streak}
-                  />
-                ) : (
-                  <p className="card p-4 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                    {insightText}
-                  </p>
-                )}
-              </div>
+              <p className="order-3 card p-4 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+                {insightText}
+              </p>
             )}
 
             <div className="order-5">

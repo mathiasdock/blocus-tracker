@@ -77,11 +77,15 @@ function StatsSkeleton() {
   return (
     <div className="space-y-5">
       <div className="space-y-2"><SkeletonBar width="145px" height={24} /><SkeletonBar width="230px" height={10} /></div>
-      <Surface>
-        <SkeletonBar width="115px" height={11} className="mb-4" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <SkeletonBar key={i} height={108} style={{ borderRadius: 14 }} />)}
-        </div>
+      {/* Le héros « Mon étude » : un seul bloc haut. Le squelette décrivait
+          encore les quatre tuiles d'avant, et la page sautait d'une hauteur de
+          carte à l'arrivée des données. */}
+      <Surface className="min-h-[300px] sm:min-h-[340px] flex flex-col">
+        <SkeletonBar width="88px" height={11} />
+        <SkeletonBar width="72px" height={12} className="mt-4" />
+        <SkeletonBar width="180px" height={52} className="mt-3" />
+        <SkeletonBar width="230px" height={12} className="mt-4" />
+        <SkeletonBar height={12} className="mt-auto" />
       </Surface>
       <div className="grid gap-5 lg:grid-cols-2">
         <Surface><SkeletonBar width="130px" height={13} /><SkeletonBar height={220} className="mt-5" /></Surface>

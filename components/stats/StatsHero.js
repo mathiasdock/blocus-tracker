@@ -1,14 +1,39 @@
+import { useEffect, useState } from "react";
 import AnimatedNumber from "../AnimatedNumber";
 import Flame from "../Flame";
+import Mascot from "../Mascot";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
+import styles from "./StatsHero.module.css";
 
-// Héros des statistiques — « combien j'ai étudié » en une seule surface.
+// Héros des statistiques — « où j'en suis dans ma journée d'étude ».
 //
-// Remplace trois cartes voisines (Aujourd'hui, Cette semaine, Série) qui
-// portaient trois chiffres liés avec le même poids visuel : l'œil n'avait pas
-// de point d'entrée. Même langage que « Aujourd'hui » du Chrono (surface ink),
-// pour que la même information se reconnaisse d'une page à l'autre.
+// La carte portait cinq chiffres du même poids dans un rectangle vert : elle
+// répondait à « voici quelques statistiques » et pas à la question qu'on se
+// pose en ouvrant la page. Trois décisions la recadrent :
+//
+//   1. Le temps du jour est le seul chiffre dominant, et l'objectif lui est
+//      accroché (« 1h24 / 2h ») au lieu de vivre en légende dans un coin.
+//   2. La série ne s'affiche plus deux fois. Elle avait une puce en haut ET
+//      une case en bas ; elle n'a plus qu'une ligne de second plan, et son
+//      vrai domicile reste « Régularité » (record, heatmap, jours gelés).
+//   3. La piste de progression devient la ligne de vie de la carte, et la
+//      mascotte s'y tient là où en est la journée.
+//
+// Sur la mascotte : DESIGN.md réserve le personnage aux MOMENTS, pas aux
+// états — sauf pour une de ses cinq formes, « compagnon silencieux à côté
+// d'un chiffre ». C'est celle-ci : pas de bulle, pas de phrase, pas de clé
+// d'événement, aucune fréquence à mémoriser. Elle appartient au dessin de la
+// carte, exactement comme le shiba de la carte de niveau du profil.
+const HERO_STATES = [
+  // Seuils lus du haut vers le bas ; le premier vrai gagne.
+  { id: "done", mood: "proud", at: (pct) => pct >= 100 },
+  { id: "almost", mood: "happy", at: (pct) => pct >= 80 },
+  { id: "halfway", mood: "focused", at: (pct) => pct >= 45 },
+  { id: "going", mood: "focused", at: (pct, secs) => secs > 0 },
+  { id: "start", mood: "neutral", at: () => true },
+];
+
 export default function StatsHero({
   todaySecs,
   goalSecs,
@@ -19,60 +44,94 @@ export default function StatsHero({
   const { t } = useI18n();
   const goalPct = goalSecs > 0 ? Math.min(100, Math.round((todaySecs / goalSecs) * 100)) : 0;
   const remaining = Math.max(0, goalSecs - todaySecs);
+  const beyond = Math.max(0, todaySecs - goalSecs);
+  const state = HERO_STATES.find((s) => s.at(goalPct, todaySecs));
+
+  // La barre part de zéro et rejoint le jour, en même temps que le chiffre se
+  // compte. La page ne rend ce héros qu'une fois les sessions chargées : sans
+  // ce premier rendu à 0, la piste apparaîtrait déjà remplie et le geste
+  // n'existerait pas. Un timer plutôt qu'une frame d'animation — celles-ci ne
+  // s'exécutent pas dans un onglet caché, et la barre resterait vide.
+  const [drawn, setDrawn] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setDrawn(goalPct);
+      return undefined;
+    }
+    const id = setTimeout(() => setDrawn(goalPct), 60);
+    return () => clearTimeout(id);
+  }, [goalPct]);
+
+  const goalLabel = formatMinutesShort(goalSecs);
+  const message =
+    state.id === "done"
+      ? (beyond >= 60
+        ? t("stats.heroStateBeyond").replace("{time}", formatMinutesShort(beyond))
+        : t("stats.heroGoalReached"))
+      : state.id === "almost"
+        ? t("stats.heroStateAlmost").replace("{time}", formatMinutesShort(remaining))
+        : state.id === "halfway"
+          ? t("stats.heroStateHalfway").replace("{time}", formatMinutesShort(remaining))
+          : state.id === "going"
+            ? t("stats.heroRemaining").replace("{time}", formatMinutesShort(remaining))
+            : t("stats.heroStateStart");
 
   return (
-    <section className={`card-ink bt-grain p-5 ${className}`}>
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
-            {t("stats.heroTitle")}
-          </h2>
-          {streak > 0 && (
-            <span className="inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold"
-              style={{ backgroundColor: "rgba(251,191,36,0.14)", border: "1px solid rgba(251,191,36,0.28)", color: "#FFF7D6" }}>
-              <Flame size={12} style={{ color: "#FBBF24" }} />
-              <span className="font-num tabular-nums"><AnimatedNumber value={streak} /></span>
-            </span>
-          )}
-        </div>
+    <section className={`${styles.hero} bt-grain ${className}`}>
+      <div className={styles.glow} style={{ "--p": `${goalPct}%` }} aria-hidden="true" />
 
-        <p className="mt-3 text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("stats.compactToday")}</p>
-        <div className="mt-1 flex items-end justify-between gap-4">
-          <p className="font-num text-[2.35rem] font-extrabold leading-none tracking-[-0.035em] tabular-nums sm:text-[2.75rem]"
-            style={{ color: "var(--bt-ink-text)" }}>
+      <div className={styles.body}>
+        <h2 className={styles.kicker}>{t("stats.heroTitle")}</h2>
+
+        <div className={styles.figure}>
+          <p className={styles.label}>{t("stats.compactToday")}</p>
+          <p className={`font-num ${styles.value}`}>
             <AnimatedNumber value={todaySecs} format={formatMinutesShort} />
+            <span className={styles.goal}>/ {goalLabel}</span>
           </p>
-          <p className="pb-1 text-right text-xs font-semibold tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
-            {t("dash.goal")} · {formatMinutesShort(goalSecs)}
+          <p className={`${styles.message} ${state.id === "done" ? styles.messageDone : ""}`}>
+            {message}
           </p>
         </div>
 
-        <div className="mt-2.5 h-2 overflow-hidden rounded-full"
-          role="progressbar" aria-label={t("dash.goal")}
-          aria-valuemin={0} aria-valuemax={100} aria-valuenow={goalPct}
-          style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
-          <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-            style={{ transform: `scaleX(${goalPct / 100})`, backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
+        <div className={styles.runway}>
+          {/* Le personnage se tient sur la piste, à l'endroit du jour. Il est
+              hors de l'arbre d'accessibilité : la barre juste dessous porte
+              déjà la valeur, et un lecteur d'écran n'a pas à entendre deux
+              fois la même progression. */}
+          <div className={styles.walk} aria-hidden="true">
+            <span className={`${styles.finish} ${state.id === "done" ? styles.finishDone : ""}`} />
+            <span className={styles.walker} style={{ "--p": `${drawn}%` }}>
+              <Mascot mood={state.mood} streak={streak} size={160} />
+            </span>
+          </div>
+          <div
+            className={styles.track}
+            role="progressbar"
+            aria-label={t("dash.goal")}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={goalPct}
+            aria-valuetext={t("stats.heroGoalOf")
+              .replace("{done}", formatMinutesShort(todaySecs))
+              .replace("{goal}", goalLabel)}
+          >
+            <div className={styles.fill} style={{ transform: `scaleX(${drawn / 100})` }} />
+            <div className={styles.ticks} aria-hidden="true"><i /><i /><i /></div>
+          </div>
         </div>
-        <p className="mt-1.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>
-          {goalPct >= 100
-            ? t("stats.heroGoalReached")
-            : t("stats.heroRemaining").replace("{time}", formatMinutesShort(remaining))}
-        </p>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-3" style={{ borderColor: "var(--bt-ink-border)" }}>
-          <div>
-            <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("stats.compactWeek")}</p>
-            <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
+        <div className={styles.meta}>
+          <div className={styles.stat}>
+            <p className={styles.statLabel}>{t("stats.compactWeek")}</p>
+            <p className={`font-num ${styles.statValue}`}>
               <AnimatedNumber value={weekSecs} format={formatMinutesShort} />
             </p>
           </div>
-          <div>
-            <p className="text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("stats.streakLabel")}</p>
-            {/* Pas de record ici : il vit dans « Régularité », avec la série
-                courante et la heatmap. Le répéter dès le héros, c'était déjà
-                deux fois le même chiffre avant même de faire défiler. */}
-            <p className="mt-0.5 font-num text-base font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
+          <div className={styles.stat}>
+            <p className={styles.statLabel}>{t("stats.streakLabel")}</p>
+            <p className={`font-num ${styles.statValue}`}>
+              <Flame size={14} className={styles.flame} />
               <AnimatedNumber value={streak} suffix={` ${t("stats.dayUnit")}`} />
             </p>
           </div>

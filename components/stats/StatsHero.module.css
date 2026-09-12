@@ -1,0 +1,260 @@
+/* Hero « Mon étude » — une journée en cours, pas un rectangle de chiffres.
+   La carte est son propre conteneur : la bascule vers la composition large se
+   décide sur SA largeur, pas sur celle de la fenêtre. Elle traverse les deux
+   colonnes de /stats à partir de xl, donc la même requête média aurait menti à
+   un breakpoint sur deux. */
+.hero {
+  container-type: inline-size;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--bt-r-card);
+  border: 1px solid var(--bt-ink-border);
+  color: var(--bt-ink-text);
+  /* Trois plans : lumière accent en haut à droite, fond profond, et la
+     diagonale qui évite le dégradé vertical parfaitement plat. */
+  background:
+    radial-gradient(120% 118% at 86% -22%, rgba(20, 184, 133, 0.32), transparent 58%),
+    linear-gradient(168deg, var(--bt-ink-soft), var(--bt-ink) 74%);
+  box-shadow: 0 16px 44px rgba(9, 38, 29, 0.30);
+}
+
+/* La seule lumière mobile de la carte : un halo bas qui se tient là où en est
+   la journée. La profondeur dit quelque chose au lieu de décorer — à 0 h elle
+   est collée à gauche, objectif atteint elle éclaire toute la piste. */
+.glow {
+  position: absolute;
+  z-index: 0;
+  inset: auto 0 -18% 0;
+  height: 62%;
+  pointer-events: none;
+  background: radial-gradient(54% 100% at var(--p, 0%) 100%, rgba(20, 184, 133, 0.34), transparent 70%);
+}
+
+/* Le rembourrage et les mesures du personnage vivent ici, pas sur `.hero` :
+   une règle `@container` ne peut pas styler le conteneur qui la porte, elle
+   ne s'applique qu'à ses descendants. Posées sur la carte elle-même, la
+   largeur de la mascotte et le rembourrage seraient restés à leur valeur
+   mobile sur grand écran — pendant que la grille, elle, basculait. */
+.body {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-areas: "kicker" "figure" "runway" "meta";
+  gap: 14px;
+  padding: 18px;
+  --walker: 62px;
+  --track-h: 11px;
+}
+
+.kicker {
+  grid-area: kicker;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bt-ink-muted);
+}
+
+/* ── Le chiffre du jour ─────────────────────────────────────── */
+.figure { grid-area: figure; min-width: 0; }
+.label {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--bt-ink-muted);
+}
+.value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: clamp(2.6rem, 13cqi, 3.1rem);
+  font-weight: 800;
+  line-height: 0.95;
+  /* Le tracking se resserre quand le corps grandit : à 50 px, un espacement
+     de texte courant fait flotter les chiffres. */
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+/* L'objectif n'est plus une légende de coin : il est accroché au chiffre,
+   dans la même ligne, pour qu'on lise « 1h24 sur 2h » d'un seul regard. */
+.goal {
+  font-size: clamp(1rem, 4.6cqi, 1.15rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--bt-ink-muted);
+  white-space: nowrap;
+}
+.message {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--bt-ink-text);
+  opacity: 0.88;
+}
+.messageDone { color: #7CEBC4; opacity: 1; }
+
+/* ── La piste ───────────────────────────────────────────────── */
+.runway { grid-area: runway; position: relative; }
+
+/* Couloir du personnage : sa hauteur est réservée en dur, sinon la mascotte
+   viendrait chevaucher le message dès que la journée avance. */
+.walk { position: relative; height: var(--walker); }
+
+/* Ligne d'arrivée. Elle donne une destination au couloir : ce qui reste à
+   droite du personnage n'est plus du vide, c'est la distance du jour. À
+   l'objectif atteint, la mascotte la franchit et le trait passe au vert. */
+.finish {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 62%;
+  color: var(--bt-ink-muted);
+  border-left: 1px dashed currentColor;
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 500ms ease-out, color 500ms ease-out;
+}
+.finish::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1px;
+  width: 12px;
+  height: 9px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.finishDone { color: var(--bt-accent); opacity: 1; }
+.walker {
+  position: absolute;
+  bottom: calc(var(--walker) * -0.06);
+  left: var(--p);
+  width: var(--walker);
+  height: var(--walker);
+  pointer-events: none;
+  /* Comportement de curseur : à 0 % son bord gauche part du départ, à 100 %
+     son bord droit s'arrête sur l'objectif. Elle reste donc entière aux deux
+     extrémités au lieu d'être coupée par le bord de la carte. */
+  transform: translateX(calc(var(--p) * -1));
+  transition:
+    left 760ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.walker > svg { width: 100%; height: 100%; }
+/* Lueur sous les pattes : rattache le personnage à la piste au lieu de le
+   laisser flotter au-dessus. */
+.walker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1%;
+  width: 62%;
+  height: 16px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(20, 184, 133, 0.55), transparent);
+  z-index: -1;
+}
+
+.track {
+  position: relative;
+  height: var(--track-h);
+  border-radius: 99px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+.fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-origin: left;
+  background: linear-gradient(90deg, #0E9E72, var(--bt-accent) 56%, #5DE0B5);
+  transition: transform 760ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Quarts d'objectif — le même motif que la barre d'XP du profil. C'est le
+   seul « motif » de la carte, et il est lisible : il donne l'échelle. */
+.ticks {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-evenly;
+  pointer-events: none;
+}
+.ticks i {
+  display: block;
+  width: 2px;
+  background: var(--bt-ink);
+  opacity: 0.42;
+}
+
+/* ── Second plan ────────────────────────────────────────────── */
+.meta {
+  grid-area: meta;
+  display: flex;
+  gap: 22px;
+  padding-top: 13px;
+  border-top: 1px solid var(--bt-ink-border);
+}
+.stat { min-width: 0; }
+.statLabel {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--bt-ink-muted);
+}
+.statValue {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+.flame { flex-shrink: 0; color: #FBBF24; }
+
+/* ── Composition large ──────────────────────────────────────── */
+/* Pas la version mobile étirée : le second plan quitte le pied de carte pour
+   la droite du chiffre, et la piste devient une vraie ligne d'arrivée sur
+   toute la largeur. */
+@container (min-width: 600px) {
+  .body {
+    padding: 24px 26px;
+    --walker: 92px;
+    --track-h: 13px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "kicker meta"
+      "figure meta"
+      "runway runway";
+    column-gap: 32px;
+    row-gap: 16px;
+  }
+  .value { font-size: clamp(3.4rem, 7.6cqi, 4.9rem); gap: 12px; }
+  .goal { font-size: clamp(1.15rem, 2.6cqi, 1.55rem); }
+  .message { margin-top: 10px; font-size: 14px; }
+  .meta {
+    align-self: center;
+    gap: 34px;
+    padding-top: 0;
+    padding-bottom: 4px;
+    border-top: 0;
+    text-align: right;
+  }
+  .statValue { justify-content: flex-end; font-size: 17px; }
+  .statLabel { font-size: 12px; }
+}
+
+@container (min-width: 900px) {
+  .body { padding: 28px 32px; --walker: 108px; }
+  .meta { gap: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walker, .fill { transition: none; }
+}
