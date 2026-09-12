@@ -1,0 +1,60 @@
+/* Raccord entre l'écran de lancement iOS et la première image de l'app.
+ *
+ * iOS affiche son `apple-touch-startup-image` (vert + logo) jusqu'à ce que la
+ * page peigne. Sans ce voile, la reprise se fait sur le fond crème de l'app :
+ * vert → crème, une rupture nette au moment précis où l'on veut que la marque
+ * se tienne. Le voile reprend exactement le même vert et le même logo, donc le
+ * relais ne se voit pas — puis il s'efface pendant que l'app finit de démarrer.
+ *
+ * Trois garde-fous, parce qu'un voile plein écran qui resterait serait pire que
+ * le flash qu'il corrige :
+ *   1. l'effacement est une animation CSS `forwards` — aucune dépendance à JS,
+ *      donc il se termine même si le bundle échoue ;
+ *   2. `pointer-events: none` — l'app dessous est utilisable dès la première
+ *      image, le voile n'ajoute donc aucune attente réelle ;
+ *   3. hors mode autonome (onglet de navigateur) il n'existe simplement pas.
+ */
+
+.splash {
+  display: none;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .splash {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #14b885;
+    pointer-events: none;
+    animation: bt-splash-out 340ms ease-out 240ms forwards;
+  }
+
+  .mark {
+    /* Même calcul que le générateur d'images (lib/splashScreens.mjs) : une part
+       du côté le plus court, plafonnée. Les deux logos se superposent donc au
+       pixel près et le relais est invisible. */
+    width: min(52vw, 52vh, 280px);
+    height: auto;
+  }
+}
+
+@keyframes bt-splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* Mouvement réduit : un fondu d'opacité reste la forme acceptable, mais on le
+   raccourcit — il n'y a plus de raison de tenir l'écran. */
+@media (prefers-reduced-motion: reduce) {
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    .splash {
+      animation-duration: 120ms;
+      animation-delay: 60ms;
+    }
+  }
+}

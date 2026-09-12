@@ -4,7 +4,7 @@
   "description": "Tracker d'étude pour étudiants — chrono, planning, social.",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#fafaf9",
+  "background_color": "#14B885",
   "theme_color": "#14B885",
   "orientation": "portrait",
   "lang": "fr",

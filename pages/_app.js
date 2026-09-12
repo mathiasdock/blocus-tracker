@@ -19,6 +19,8 @@ import LegalUpdateNotice from "../components/LegalUpdateNotice";
 import { recordConsentChoice } from "../lib/privacySettings";
 import { autoSharePost } from "../lib/autoShare";
 import SeoHead from "../components/SeoHead";
+import AppSplash from "../components/AppSplash";
+import { appleSplashEntries } from "../lib/splashScreens.mjs";
 import PageTransition from "../components/PageTransition";
 import { initSensoryFeedback } from "../lib/sensoryFeedback";
 import { BADGES } from "../lib/badges";
@@ -514,8 +516,21 @@ export default function App({ Component, pageProps }) {
           <link rel="manifest" href="/manifest.json" />
           <link rel="icon" type="image/png" sizes="64x64" href="/app-icon-v2-64x64.png" />
           <link rel="apple-touch-icon" sizes="180x180" href="/app-icon-v2-180x180.png" />
+          {/* Écran de lancement iOS. Une image par écran physique et par sens :
+              iOS n'en retient une que si les dimensions tombent juste, sinon il
+              démarre sur du blanc. La liste et les images sortent toutes deux de
+              lib/splashScreens.mjs — voir scripts/generate-splash.mjs. */}
+          {appleSplashEntries().map((entry) => (
+            <link
+              key={`${entry.href}-${entry.orientation}`}
+              rel="apple-touch-startup-image"
+              href={entry.href}
+              media={entry.media}
+            />
+          ))}
         </Head>
         <SeoHead />
+        <AppSplash />
         <PageTransition />
         <IncompleteProfileGuard />
         <Component {...pageProps} />
