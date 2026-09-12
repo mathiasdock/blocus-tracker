@@ -358,6 +358,8 @@ function ReferralCapture() {
 // check only during the first seconds of launch and reload once if its
 // controller changes. This updates stale artwork without interrupting a study
 // session later in the day.
+const SW_RELOADED_KEY = "bt_sw_reloaded";
+
 function AppVersionRefresh() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return undefined;
@@ -366,6 +368,27 @@ function AppVersionRefresh() {
 
     const onControllerChange = () => {
       if (!hadController || reloading) return;
+      // `reloading` ne protège que le chargement EN COURS — et un rechargement
+      // en crée précisément un neuf, avec un drapeau remis à zéro. L'intention
+      // ici a toujours été « recharger UNE fois » ; il manquait une mémoire qui
+      // survive au rechargement lui-même.
+      //
+      // Sans elle, la page profil bouclait à l'infini : elle précharge le SDK
+      // OneSignal au montage (pour ne pas perdre le geste utilisateur sur iOS),
+      // OneSignal réenregistre sw.js — le service worker de l'app, même fichier,
+      // même scope —, le contrôleur change, on rechargeait, la page se
+      // remontait, rechargeait le SDK, et ainsi de suite.
+      //
+      // sessionStorage est la bonne portée : il survit aux rechargements et
+      // disparaît à la fermeture de l'app, donc la mise à jour reste possible
+      // au lancement suivant.
+      try {
+        if (sessionStorage.getItem(SW_RELOADED_KEY)) return;
+        sessionStorage.setItem(SW_RELOADED_KEY, "1");
+      } catch (_) {
+        // Stockage indisponible : on garde l'ancien comportement plutôt que de
+        // renoncer à la mise à jour.
+      }
       reloading = true;
       window.location.reload();
     };
