@@ -22,7 +22,8 @@ import ProfileAchievementCards from "../components/ProfileAchievementCards";
 import Glyph from "../components/Glyph";
 import DetailSheet from "../components/DetailSheet";
 import { optimizeAvatarImage } from "../lib/imageCompression";
-import { isPushSupported, isIOS, isStandalone, enablePush, loginUser, getAppId, initOneSignal, collectPushDiagnostics } from "../lib/onesignal";
+import { isPushSupported, isIOS, isStandalone, enablePush, getAppId, collectPushDiagnostics } from "../lib/onesignal";
+import { pushErrorMessage } from "../lib/pushMessages";
 import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
 import { buildDataExport, downloadJson } from "../lib/dataExport";
 import {
@@ -414,17 +415,6 @@ function ReferralBody({ t, fallbackCode = "" }) {
 // qui expliquait la panne est perdue.
 const PUSH_ERROR_KEY = "bt_push_last_error";
 
-function pushErrorMessage(t, reason, origin) {
-  if (reason === "unconfigured") return t("push.unconfigured");
-  if (reason === "blocked") return t("push.blocked");
-  if (reason === "timeout") return t("push.timeout");
-  if (reason === "origin") return t("push.origin").replace("{url}", origin || "");
-  if (reason === "no-subscription") return t("push.noSubscription");
-  if (reason === "denied") return t("push.denied");
-  if (reason === "error") return t("push.error");
-  return "";
-}
-
 function PushRow({ t, user }) {
   const [env, setEnv] = useState({ ready: false, supported: false, ios: false, standalone: false });
   const [permission, setPermission] = useState("default");
@@ -460,15 +450,12 @@ function PushRow({ t, user }) {
         if (reason) setFailure({ reason, origin });
       }
     } catch (_) {}
-
-    // Précharge le SDK pour qui s'apprête à cliquer. Sans ça, le clic doit
-    // attendre un chargement réseau avant d'atteindre subscribe(), et WebKit a
-    // alors perdu le geste utilisateur : l'abonnement échoue sur iOS. Le coût
-    // reste nul pour les visiteurs qui ne verront jamais le bouton.
-    if (supported && getAppId() && typeof Notification !== "undefined"
-        && Notification.permission !== "denied") {
-      initOneSignal().catch(() => {});
-    }
+    // Plus de préchargement du SDK ici. Il servait à préserver le geste
+    // utilisateur sur iOS, ce que enablePush() garantit désormais en demandant
+    // la permission par l'API native avant toute attente. Il faisait en
+    // revanche réécrire le worker par OneSignal à la simple ouverture de la
+    // page : c'était le point de départ de la boucle de rechargement du profil,
+    // et une initialisation lancée trop tôt dont l'activation héritait.
   }, []);
 
   async function enable() {
@@ -478,14 +465,15 @@ function PushRow({ t, user }) {
       setFailure({ reason, origin });
     };
     try {
-      const res = await enablePush();
+      // L'abonnement naît rattaché au compte : enablePush fait le login avant
+      // de s'abonner, plus besoin de le rattacher après coup.
+      const res = await enablePush(user?.id);
       const perm = typeof Notification !== "undefined" ? Notification.permission : "default";
       setPermission(perm);
 
       // Permission accordée ≠ inscription créée : sans ce garde-fou l'écran
       // affichait "activé" alors qu'aucune notification ne pouvait arriver.
       if (res?.ok && perm === "granted") {
-        if (user) await loginUser(user.id);
         try {
           localStorage.setItem("bt_push_enabled", "1");
           localStorage.removeItem(PUSH_ERROR_KEY);
@@ -543,7 +531,7 @@ function PushRow({ t, user }) {
       {/* Le motif seul ne suffit pas à distinguer les causes possibles d'un
           abonnement manquant. Ce bouton met l'état technique de l'appareil dans
           le presse-papiers pour qu'un testeur puisse l'envoyer tel quel. */}
-      {failure?.reason === "no-subscription" && (
+      {["no-subscription", "slow", "preparing", "error"].includes(failure?.reason) && (
         <div className="px-5 pb-4 -mt-1">
           <button type="button" onClick={copyDiagnostics}
             className="text-xs px-3 py-1.5 rounded-lg font-medium"

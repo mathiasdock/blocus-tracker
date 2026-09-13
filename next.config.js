@@ -104,6 +104,14 @@ module.exports = withPWA({
   // installation — et surtout un manifeste de préchargement modifié, donc un
   // nouveau service worker, donc un rechargement de page par AppVersionRefresh.
   publicExcludes: ["!site-web/**/*", "!splash/**/*"],
+  // L'app enregistre elle-même son worker (lib/appWorker.js). Laissé à
+  // next-pwa, `/sw.js` était réenregistré à CHAQUE lancement — et OneSignal,
+  // qui enregistre le même fichier sous `/sw.js?appId=…`, le réenregistrait à
+  // son tour : deux adresses pour un même worker, réinstallé en boucle. C'est
+  // ce qui faisait échouer l'activation des notifications une fois sur deux.
+  // Seul l'appel à register() disparaît : le cache de navigation et le
+  // rechargement au retour du réseau restent assurés par next-pwa.
+  register: false,
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,

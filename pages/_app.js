@@ -14,6 +14,7 @@ import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
 import { disablePush, initOneSignal, loginUser } from "../lib/onesignal";
+import { ensureAppWorker, SW_RELOADED_KEY } from "../lib/appWorker";
 import ConsentManager from "../components/ConsentManager";
 import LegalUpdateNotice from "../components/LegalUpdateNotice";
 import { recordConsentChoice } from "../lib/privacySettings";
@@ -358,8 +359,6 @@ function ReferralCapture() {
 // check only during the first seconds of launch and reload once if its
 // controller changes. This updates stale artwork without interrupting a study
 // session later in the day.
-const SW_RELOADED_KEY = "bt_sw_reloaded";
-
 function AppVersionRefresh() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return undefined;
@@ -393,9 +392,11 @@ function AppVersionRefresh() {
       window.location.reload();
     };
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-    navigator.serviceWorker.getRegistration("/")
-      .then((registration) => registration?.update())
-      .catch(() => {});
+    // C'est ici que l'app enregistre son worker, et plus next-pwa : voir
+    // lib/appWorker.js. Après le chargement, comme le faisait workbox, pour ne
+    // pas disputer le réseau aux ressources de la page.
+    if (document.readyState === "complete") ensureAppWorker();
+    else window.addEventListener("load", () => ensureAppWorker(), { once: true });
 
     const stopListening = window.setTimeout(() => {
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);

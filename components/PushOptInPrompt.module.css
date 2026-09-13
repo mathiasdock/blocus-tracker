@@ -1,0 +1,187 @@
+/* Invitation aux notifications — un moment de la mascotte, pas une fenêtre de
+   plus. DESIGN.md lui reconnaît cette forme : « un moment qui déborde de sa
+   carte ». Le shiba passe la tête par-dessus le bord de la feuille : il est
+   posé DERRIÈRE la surface, qui masque son corps, et seule sa tête dépasse. */
+
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: bt-push-fade 200ms ease-out both;
+}
+
+/* L'enveloppe porte l'animation d'entrée : la mascotte et la surface doivent
+   bouger ensemble, et le personnage rester derrière la surface pendant tout le
+   trajet — d'où deux frères dans un même contexte d'empilement, plutôt qu'un
+   enfant de la surface qui passerait devant son fond. */
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  animation: bt-push-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.leaving .sheet { animation: bt-push-leave 180ms cubic-bezier(0.4, 0, 1, 1) both; }
+.leaving .scrim { animation: bt-push-fade-out 180ms ease-in both; }
+
+.mascot {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  /* 124 px de personnage, bord de la feuille à 65 % de sa hauteur : la tête et
+     le haut des épaules dépassent, assez pour que le salut du bras se voie. */
+  width: 124px;
+  height: 124px;
+  margin-left: -62px;
+  bottom: calc(100% - 44px);
+  pointer-events: none;
+  animation: bt-push-peek 460ms cubic-bezier(0.16, 1, 0.3, 1) 90ms both;
+}
+.mascot > svg { width: 100%; height: 100%; }
+
+.surface {
+  position: relative;
+  z-index: 1;
+  padding: 30px 22px max(22px, env(safe-area-inset-bottom));
+  border-radius: var(--bt-r-sheet) var(--bt-r-sheet) 0 0;
+  background: var(--bt-surface);
+  box-shadow: var(--bt-elev-3);
+  text-align: center;
+  outline: none;
+}
+
+/* Cible tactile de 44 px, cercle visible de 32 : la croix reste discrète sans
+   devenir difficile à toucher. */
+.close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  color: var(--bt-text-3);
+}
+.close > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--bt-subtle);
+  transition: transform 120ms ease-out;
+}
+.close:active > span { transform: scale(0.92); }
+
+.title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--bt-text-1);
+}
+.lead { margin-top: 6px; font-size: 0.875rem; line-height: 1.5; color: var(--bt-text-2); }
+
+/* Trois raisons concrètes plutôt qu'une phrase qui les énumère : elles se lisent
+   d'un coup d'œil, et chacune porte l'icône qu'elle a déjà ailleurs dans l'app —
+   la flamme de la série, la bulle des messages, le calendrier du planning. En
+   encre neutre, sans pastille : c'est la mascotte qui porte la couleur ici. */
+.reasons {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px auto 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.reason {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--bt-text-1);
+}
+.reasonIcon { display: flex; flex-shrink: 0; width: 22px; justify-content: center; color: var(--bt-text-2); }
+
+.failure {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: var(--bt-r-inset);
+  background: var(--bt-danger-bg);
+  color: var(--bt-danger);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+/* Occupe exactement l'emprise des deux boutons (48 + 8 + 48) : la réussite
+   remplace l'action, elle ne raccourcit pas la feuille. */
+.done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 104px;
+  margin-top: 22px;
+  border-radius: var(--bt-r-control);
+  background: var(--bt-accent-bg);
+  color: var(--bt-accent-text);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.actions { display: flex; flex-direction: column; gap: 8px; margin-top: 22px; }
+.actions button { min-height: 48px; }
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 10px;
+  margin-top: 14px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--bt-text-3);
+}
+.never {
+  min-height: 32px;
+  color: var(--bt-text-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (min-width: 640px) {
+  .layer { align-items: center; padding: 24px; }
+  .sheet { margin-top: 60px; }
+  .surface { border-radius: 24px; padding-bottom: 24px; }
+}
+
+@keyframes bt-push-fade { from { opacity: 0; } }
+@keyframes bt-push-fade-out { to { opacity: 0; } }
+@keyframes bt-push-rise { from { opacity: 0; transform: translateY(28px); } }
+@keyframes bt-push-leave { to { opacity: 0; transform: translateY(18px); } }
+/* Le personnage monte de derrière le bord, un temps après la feuille : c'est
+   lui qui arrive, pas une illustration collée sur la fenêtre. */
+@keyframes bt-push-peek { from { opacity: 0; transform: translateY(34px) scale(0.92); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .mascot, .leaving .sheet { animation-name: bt-push-fade; animation-duration: 160ms; animation-delay: 0ms; }
+  .leaving .sheet { animation-name: bt-push-fade-out; }
+}
