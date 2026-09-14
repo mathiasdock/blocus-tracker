@@ -2120,6 +2120,19 @@ details.bt-acc[open]::details-content { block-size: auto; }
 @media (min-width: 1024px) {
   .bt-social-panel { height: calc(100dvh - 132px); }
 }
+/* Desktop : Friends et Communautés deviennent une vraie interface sociale.
+   Liste à gauche, conversation ou espace ouvert à droite, sur TOUTE la hauteur,
+   chacun avec son défilement ; l'action de participer reste en bas du panneau.
+   Avant : deux cartes posées sur le fond, qui s'arrêtaient au-dessus du pied de
+   page — une page enfermée dans une page. Les deux écrans partagent désormais
+   la même coque : une seule surface, séparée par un filet. Le mobile garde son
+   propre schéma, plus bas. */
+@media (min-width: 1024px) {
+  main.bt-social-fill-main { max-width: none; padding: 0; height: 100dvh; display: flex; flex-direction: column; }
+  .bt-social-fill-main > .bt-social-fill-grid { flex: 1; min-height: 0; gap: 0; }
+  .bt-social-fill-grid .bt-social-panel { height: 100%; border-radius: 0; box-shadow: none; border: 0; }
+  .bt-social-fill-main > .bt-social-fill-grid > :first-child { border-right: 1px solid var(--bt-hairline); }
+}
 @media (max-width: 1023px) {
   /* Friends et Communautés sont des surfaces d'app continues : leur carte
      descend jusqu'au bord inférieur et la navigation flotte par-dessus,

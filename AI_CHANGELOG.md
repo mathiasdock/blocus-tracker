@@ -2,6 +2,19 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-14 - Communities : passe UX/UI sur les espaces d'etude (Claude)
+
+Repris APRES le chantier Codex f154218 / 686a2e4 (espaces d'etude hierarchiques) : architecture, donnees, RPC et migrations INCHANGEES. Toute la logique de `components/StudyCommunities.js` est conservee (sync, pagination, reponses, pieces jointes, examens au planning, suppression).
+
+- **Coque desktop partagee Friends + Communities** (`styles/globals.css`, `bt-social-fill`) : une seule surface pleine hauteur a droite de la barre laterale, liste 1/3 + panneau 2/3 separes par un filet, defilement interne, plus de cartes flottantes ni de pied de page sur ces deux routes (`components/Layout.js`). Friends en profite sans modification de `pages/messages.js`.
+- **Identite des types** : forme d'abord (logo/monogramme universite, boussole domaine, toque programme, livre cours, date examen), teinte `--bt-kind-*` ensuite, bornee au pictogramme et au mot du type. Exception documentee : `DESIGN.md` § Study-Space Kinds + `CLAUDE.md` regle 4. Contrastes AA verifies clair/sombre (5,4 a 10,4).
+- **Liste** : Tes espaces tries par niveau (universite → examen) avec type · contexte · etudiants ; Decouvrir explique chaque suggestion par un fait (tes cours via `courses`, ton domaine, un espace rejoint, ton universite, activite recente).
+- **Espace ouvert** : en-tete sur deux lignes (chemin discret sous le nom), filtres en pastilles neutres, « Membre » sobre avec depart replie, sous-espaces en rangee, suggestion d'elargissement sur UNE ligne (fil calme / etat vide / fin de fil), barre de publication en bas.
+- **Creation** : types en choix illustres, parent pre-rempli, detection avant envoi d'un espace identique (meme regle que `ensure_study_space`) ou proche.
+- Copie FR/EN dans `lib/studySpacesCopy.js` (cles paritaires). Surface brief mis a jour.
+
+Verifie sur le build offline : desktop 1440 (panneaux 0→900, aucun defilement de page, pied de page masque, Friends idem), mobile 390 (liste, espace plein ecran, barre en bas, zero debordement), sombre, feuille de creation (identique → « Rejoindre l'espace existant », proches listes). Detecteur impeccable : 0 anomalie non consultative.
+
 ## 2026-09-10 - La fixture hors-ligne cesse d etre plus permissive que la prod
 
 SUITE DIRECTE DE L ENTREE CI-DESSOUS. Le bug des badges etait corrige, la

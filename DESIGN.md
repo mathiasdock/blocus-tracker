@@ -180,6 +180,14 @@ This is a deliberate, bounded exception to the green-only rule, and it lives ent
 
 **The Locked-Is-Still-Legible Rule.** A locked achievement shows its own artwork, desaturated and softened, never a substitute gray glyph: people must recognize what they are working toward. Because the treatment is a filter over a drawn object, its strength belongs in the stylesheet, where dark mode can lift it.
 
+### Study-Space Kinds
+
+Communities distinguishes five kinds of study space — university, field, program, course, exam — and each must be recognizable at a glance in a list. The kind is carried by **shape first**: a university shows its own logo (or its monogram in its brand color), a field a compass, a program a mortarboard, a course an open book, and a dated exam its date. A restrained hue per kind (`--bt-kind-field`, `--bt-kind-program`, `--bt-kind-course`, `--bt-kind-exam`, each with a `-bg` tint and a dark-mode pair, defined in `styles/study-spaces.css`) reinforces the shape. Every pair meets WCAG AA on its tint and on the surface, in both themes.
+
+**The Kind Boundary Rule.** Kind hues may color a kind mark and the kind word beside a space name — nothing else. They never become a surface, a selected state, a link, a filter or an action. Study Green keeps selection, primary actions and unread counts, so the brand color still means "this is where you are" and "do this".
+
+**The Shape-Before-Hue Rule.** Never express a kind by recoloring one shared glyph. If two kinds would be told apart only by color, the icon is wrong.
+
 **The Green Signal Rule.** Use bright Study Green to communicate progress or a meaningful active state; use the darker Action Green pair for readable controls.
 
 **The Ink Is Earned Rule.** Reserve Brand Ink for high-value focus, progress, and completion moments, never for routine content cards.

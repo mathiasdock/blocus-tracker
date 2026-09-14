@@ -834,7 +834,9 @@ export default function Layout({ children }) {
           {!guestLocked && <LegacyEmailBanner />}
           {guestLocked ? <GuestLockedPanel pathname={router.pathname} /> : children}
         </main>
-        <footer className="hidden lg:flex items-center justify-center gap-3 text-xs py-6"
+        {/* Pas de pied de page sous Friends et Communautés : ce sont des interfaces
+            en pleine hauteur, et il faudrait défiler la page pour l'atteindre. */}
+        <footer className={`${fillsSocialViewport ? "hidden" : "hidden lg:flex"} items-center justify-center gap-3 text-xs py-6`}
           style={{ color: "var(--bt-text-3)" }}>
           <span>{t("footer.tagline")}</span>
           <span aria-hidden="true">·</span>
