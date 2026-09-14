@@ -4,6 +4,7 @@ import Layout, { Avatar } from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UniPicker from "../components/UniPicker";
 import StudyFieldPicker from "../components/StudyFieldPicker";
+import { STUDY_YEARS, studyYearLabel } from "../lib/studyYears";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import MascotMoment from "../components/MascotMoment";
@@ -99,13 +100,7 @@ function useTheme() {
 }
 
 // ── Constants ────────────────────────────────────────────────
-const YEARS = [
-  "BAC 1", "BAC 2", "BAC 3",
-  "Année préparatoire", "Année passerelle",
-  "Master 1", "Master 2",
-  "Année de spécialisation", "Certificat / formation courte",
-  "Doctorat", "Formation continue", "Autre",
-];
+const YEARS = STUDY_YEARS.map(year => year.value);
 
 // ── Icônes ───────────────────────────────────────────────────
 // Dessins seulement : la grille, l'épaisseur et l'accessibilité viennent de
@@ -597,7 +592,7 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
                   <label className="label">{t("profile.year")}</label>
                   <select className="input" value={form.study_year} onChange={e => { set("study_year", e.target.value); set("study_year_custom", ""); }} disabled={locked}>
                     <option value="">—</option>
-                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                    {STUDY_YEARS.map(year => <option key={year.value} value={year.value}>{t(year.key)}</option>)}
                   </select>
                 </div>
               </div>
@@ -1082,7 +1077,7 @@ export default function Profile() {
                 <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-3)" }}>
                   @{profile?.pseudo}
                   {(profile?.study_field || profile?.study_year || profile?.university) && (
-                    <span> · {[profile.study_field, profile.study_year, profile.university].filter(Boolean).join(" · ")}</span>
+                    <span> · {[profile.study_field, studyYearLabel(profile.study_year, t), profile.university].filter(Boolean).join(" · ")}</span>
                   )}
                 </p>
                 {profile?.bio && (

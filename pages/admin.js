@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import LoadingScreen from "../components/LoadingScreen";
 import Layout, { Avatar } from "../components/Layout";
 import UniPicker from "../components/UniPicker";
+import { STUDY_YEARS, studyYearLabel } from "../lib/studyYears";
 import PushConsole from "../components/PushConsole";
 import PushAutomations from "../components/PushAutomations";
 import StudyHeatmap from "../components/StudyHeatmap";
@@ -29,13 +30,7 @@ import {
 
 const ALL_UNI_FULLS = new Set(COUNTRIES.flatMap(c => c.universities).map(u => u.full));
 
-const YEARS = [
-  "BAC 1", "BAC 2", "BAC 3",
-  "Année préparatoire", "Année passerelle",
-  "Master 1", "Master 2",
-  "Année de spécialisation", "Certificat / formation courte",
-  "Doctorat", "Formation continue", "Autre",
-];
+const YEARS = STUDY_YEARS.map(year => year.value);
 
 const SECTIONS = [
   { id: "overview",  label: "Vue d'ensemble" },
@@ -703,6 +698,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
 
 /* ── Edit modal ────────────────────────────────────────────── */
 function EditUserModal({ user, onClose, onSaved }) {
+  const { t } = useI18n();
   const isCustomYear = user.study_year && !YEARS.includes(user.study_year);
   const [form, setForm] = useState({
     first_name: user.first_name || "", last_name: user.last_name || "",
@@ -742,7 +738,7 @@ function EditUserModal({ user, onClose, onSaved }) {
             <div className="flex-1"><label className="label">Filière</label><input className="input" value={form.study_field} onChange={e => set("study_field", e.target.value)} /></div>
             <div className="flex-1"><label className="label">Année</label>
               <select className="input" value={form.study_year} onChange={e => { set("study_year", e.target.value); set("study_year_custom", ""); }}>
-                <option value="">—</option>{YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                <option value="">—</option>{STUDY_YEARS.map(year => <option key={year.value} value={year.value}>{t(year.key)}</option>)}
               </select>
             </div>
           </div>
@@ -806,6 +802,7 @@ function SendMessageModal({ user, adminId, onClose }) {
 
 /* ── Fiche utilisateur complète ────────────────────────────── */
 function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessage, onToggleLock }) {
+  const { t } = useI18n();
   const [sessions, setSessions] = useState([]);
   const [heatSessions, setHeatSessions] = useState([]);
   const [badgeIds, setBadgeIds] = useState([]);
@@ -866,7 +863,7 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
               </div>
               {displayName(user) !== user.pseudo && <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-2)" }}>{displayName(user)}</p>}
               <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>
-                {[user.study_field, user.study_year, user.university].filter(Boolean).join(" · ") || "Profil incomplet"}
+                {[user.study_field, studyYearLabel(user.study_year, t), user.university].filter(Boolean).join(" · ") || "Profil incomplet"}
               </p>
             </div>
             <button onClick={onClose} className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }} aria-label="Fermer"><Glyph size={16}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8"/></Glyph></button>

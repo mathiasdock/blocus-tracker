@@ -3,6 +3,7 @@ import Glyph from "./Glyph";
 import { Avatar } from "./Layout";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import { studyYearLabel } from "../lib/studyYears";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatMinutesShort, todayISO } from "../lib/format";
 import { isStudyingLive } from "../lib/presence";
@@ -156,7 +157,7 @@ export default function UserProfileModal({ userId, onClose }) {
               )}
               {(profile.university || profile.study_field) && (
                 <p className="text-sm mt-1.5" style={{ color: "var(--bt-text-2)" }}>
-                  {[profile.study_field, profile.study_year].filter(Boolean).join(" · ")}
+                  {[profile.study_field, studyYearLabel(profile.study_year, t)].filter(Boolean).join(" · ")}
                   {profile.university ? ` — ${profile.university}` : ""}
                 </p>
               )}
