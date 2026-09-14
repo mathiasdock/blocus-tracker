@@ -12,7 +12,9 @@ A program or course may sit directly under a university when more precise inform
 
 `study_space_members` records multiple memberships. Signed-in students can read the registry, memberships and posts; only the member can join/leave. Publishing requires membership (the old own-university/admin exception is retained for installed clients). Registry inserts are validated server-side, attributed to the caller and rate limited. Invalid hierarchies and replies attached to another space are rejected.
 
-`profiles.broad_field` uses 22 stable taxonomy IDs. Existing `study_field` remains the precise free-text program; `study_year` is retained. Old values are not guessed into a taxonomy. On opening Communities, `sync_my_study_spaces()` enrolls the user in their university, local/global field and program. A profile signature prevents reopening/search from undoing a deliberate leave. Changing profile studies adds the new suggestions without deleting previous memberships.
+`profiles.broad_field` uses 22 stable taxonomy IDs. Existing `study_field` remains the optional precise free-text program; `study_year` is retained. The profile and onboarding make the broad field primary, with an expandable optional specialization/degree input. Closing that input never clears its saved text. On opening Communities, `sync_my_study_spaces()` enrolls the user in their university, local/global field and a genuinely more specific program. Generic labels such as “Gestion d’entreprise” do not create another program under Business & Management. A profile signature prevents reopening/search from undoing a deliberate leave. Changing profile studies adds the new suggestions without deleting previous memberships.
+
+The 2026-09-14 backfill maps reviewed exact normalized aliases in `lib/studyFieldAliases.mjs`. It fills only missing `broad_field` values, preserves every original `study_field` and all explicit choices, and joins migrated students to their global/local field spaces. A transaction-local snapshot asserts those invariants before commit. No substring or fuzzy matching is used: mixed subjects and unclear abbreviations remain unclassified. After migration, 202 profiles have a field and 13 nonempty legacy labels remain for user confirmation. `infer_legacy_study_field` performs classification; `study_program_is_generic` separately distinguishes redundant labels from precise degrees. These are authenticated, security-invoker functions. Existing spaces and their content are not deleted or merged.
 
 ## Identity and university discovery
 
@@ -36,8 +38,9 @@ Apply in order:
 
 1. `20260913174717_study_spaces.sql`
 2. `20260913180559_study_spaces_preferences.sql`
+3. `20260914045839_classify_legacy_study_fields.sql`
 
-Both additive migrations were applied to the Blocus Supabase project on 2026-09-13. No legacy messages were deleted. No frontend deployment or Git push is implied by applying these migrations.
+The first two additive migrations were applied on 2026-09-13, and the classification migration on 2026-09-14. No legacy messages were deleted. No frontend deployment or Git push is implied by applying these migrations.
 
 Automated domain tests: `node --test tests/study-spaces.test.mjs`. Existing auth, mascot and swipe suites also run with `node --test tests/*.test.mjs`.
 

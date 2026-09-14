@@ -9,6 +9,7 @@ import { clearClientCache } from "../lib/clientCache";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { supabase } from "../lib/supabaseClient";
 import { STUDY_YEARS } from "../lib/studyYears";
+import StudyProgramInput from "../components/StudyProgramInput";
 import StudyFieldPicker from "../components/StudyFieldPicker";
 
 function PlusIcon() {
@@ -571,18 +572,7 @@ export default function Onboarding() {
 
                 <div className="space-y-4">
                   <StudyFieldPicker value={broadField} onChange={setBroadField} id="onboarding-broad-field" />
-                  <div>
-                    <label className="label" htmlFor="onboarding-field">{t("spaces.programLabel")}</label>
-                    <input
-                      id="onboarding-field"
-                      className="input"
-                      placeholder={t("onboarding.field.placeholder")}
-                      value={studyField}
-                      onChange={event => setStudyField(event.target.value)}
-                      maxLength={100}
-                      autoComplete="organization-title"
-                    />
-                  </div>
+                  <StudyProgramInput id="onboarding-field" value={studyField} onChange={setStudyField} maxLength={100} />
 
                   <div>
                     <label className="label" htmlFor="onboarding-year">{t("onboarding.year.label")}</label>

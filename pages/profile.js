@@ -4,6 +4,7 @@ import Layout, { Avatar } from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UniPicker from "../components/UniPicker";
 import StudyFieldPicker from "../components/StudyFieldPicker";
+import StudyProgramInput from "../components/StudyProgramInput";
 import { STUDY_YEARS, studyYearLabel } from "../lib/studyYears";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
@@ -585,10 +586,6 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
               <StudyFieldPicker value={form.broad_field} onChange={value => set("broad_field", value)} disabled={!!locked} id="profile-broad-field" />
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 min-w-0">
-                  <label className="label">{t("spaces.programLabel")}</label>
-                  <input className="input" maxLength={180} placeholder={t("profile.studiesPlaceholder")} value={form.study_field} onChange={e => set("study_field", e.target.value)} disabled={locked} />
-                </div>
-                <div className="flex-1 min-w-0">
                   <label className="label">{t("profile.year")}</label>
                   <select className="input" value={form.study_year} onChange={e => { set("study_year", e.target.value); set("study_year_custom", ""); }} disabled={locked}>
                     <option value="">—</option>
@@ -596,6 +593,7 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
                   </select>
                 </div>
               </div>
+              <StudyProgramInput value={form.study_field} onChange={value => set("study_field", value)} disabled={!!locked} id="profile-program" />
               {form.study_year === "Autre" && (
                 <div>
                   <label className="label">{t("profile.customYear")}</label>
