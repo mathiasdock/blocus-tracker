@@ -29,14 +29,33 @@ export default function UniPicker({
   error = false,
   ariaDescribedBy,
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const generatedId = useId().replace(/:/g, "");
   const inputId = id || `university-${generatedId}`;
   const listId = `${inputId}-listbox`;
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [remote, setRemote] = useState([]);
+  const [searching, setSearching] = useState(false);
   const ref = useRef(null);
+
+  useEffect(() => {
+    setRemote([]);
+    if (!open || query.trim().length < 2) { setSearching(false); return undefined; }
+    const controller = new AbortController();
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/universities?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("search");
+        const result = await response.json();
+        if (!controller.signal.aborted) setRemote(result.universities || []);
+      } catch { /* The curated list and explicit custom entry remain usable. */ }
+      finally { if (!controller.signal.aborted) setSearching(false); }
+    }, 280);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query, open]);
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -72,11 +91,15 @@ export default function UniPicker({
         .sort((a, b) => a.name.localeCompare(b.name, "fr")),
     }))
     .filter(country => country.universities.length > 0);
-  const options = filtered.flatMap(country => country.universities.map(university => ({
+  const localOptions = filtered.flatMap(country => country.universities.map(university => ({
     ...university,
     countryCode: country.code,
     countryName: country.name,
   })));
+  const options = [...localOptions, ...remote.filter(row => !localOptions.some(local => local.full === row.full))];
+  if (query.trim().length >= 2 && !options.some(row => row.full.toLowerCase() === normalizedQuery)) {
+    options.push({ id: "custom", full: query.trim().slice(0, 180), name: query.trim(), countryCode: "custom", countryName: lang === "fr" ? "Établissement non répertorié" : "Unlisted institution", custom: true });
+  }
 
   function choose(university) {
     onChange(university.full);
@@ -147,6 +170,7 @@ export default function UniPicker({
           onKeyDown={handleKeyDown}
           disabled={disabled}
           autoComplete="off"
+          maxLength={180}
         />
         {value && !disabled && (
           <button
@@ -169,6 +193,7 @@ export default function UniPicker({
           className="absolute left-0 right-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border shadow-lg"
           style={{ backgroundColor: "var(--bt-surface)", borderColor: "var(--bt-border)" }}
         >
+          {searching && <p role="status" className="px-4 py-2 text-xs" style={{ color: "var(--bt-text-2)" }}>{lang === "fr" ? "Recherche dans l’annuaire mondial…" : "Searching the worldwide directory…"}</p>}
           {options.length === 0 ? (
             <p className="px-4 py-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("common.noResults")}</p>
           ) : (
@@ -196,7 +221,7 @@ export default function UniPicker({
                       fontWeight: value === university.full ? 600 : 400,
                     }}
                   >
-                    {dropdownLabel(university)}
+                    {university.custom ? `${lang === "fr" ? "Utiliser" : "Use"} « ${university.full} »` : dropdownLabel(university)}
                   </button>
                 </Fragment>
               );

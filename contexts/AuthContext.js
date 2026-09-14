@@ -21,6 +21,7 @@ const PROFILE_COLUMNS = [
   "last_name",
   "university",
   "study_field",
+  "broad_field",
   "study_year",
   "bio",
   "avatar_url",

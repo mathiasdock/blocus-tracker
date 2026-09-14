@@ -9,6 +9,7 @@ import { clearClientCache } from "../lib/clientCache";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { supabase } from "../lib/supabaseClient";
 import { STUDY_YEARS } from "../lib/studyYears";
+import StudyFieldPicker from "../components/StudyFieldPicker";
 
 function PlusIcon() {
   return (
@@ -59,6 +60,7 @@ export default function Onboarding() {
   const [universityError, setUniversityError] = useState("");
 
   const [studyField, setStudyField] = useState("");
+  const [broadField, setBroadField] = useState("");
   const [studyYear, setStudyYear] = useState("");
   const [studyYearCustom, setStudyYearCustom] = useState("");
   const [savingStudyInfo, setSavingStudyInfo] = useState(false);
@@ -92,7 +94,7 @@ export default function Onboarding() {
         const [profileResult, coursesResult] = await Promise.all([
           supabase
             .from("profiles")
-            .select("id,pseudo,first_name,last_name,university,study_field,study_year")
+            .select("id,pseudo,first_name,last_name,university,study_field,study_year,broad_field")
             .eq("id", user.id)
             .maybeSingle(),
           supabase
@@ -131,6 +133,7 @@ export default function Onboarding() {
         setLastName(currentProfile.last_name || "");
         setUniversity(currentProfile.university || "");
         setStudyField(currentProfile.study_field || "");
+        setBroadField(currentProfile.broad_field || "");
         setStudyYear(knownYear ? currentYear : (currentYear ? "Autre" : ""));
         setStudyYearCustom(knownYear ? "" : currentYear);
         setCourses(currentCourses);
@@ -288,6 +291,7 @@ export default function Onboarding() {
         .from("profiles")
         .update({
           study_field: studyField.trim() || null,
+          broad_field: broadField || null,
           study_year: actualYear || null,
         })
         .eq("id", user.id)
@@ -566,8 +570,9 @@ export default function Onboarding() {
                 </div>
 
                 <div className="space-y-4">
+                  <StudyFieldPicker value={broadField} onChange={setBroadField} id="onboarding-broad-field" />
                   <div>
-                    <label className="label" htmlFor="onboarding-field">{t("onboarding.field.label")}</label>
+                    <label className="label" htmlFor="onboarding-field">{t("spaces.programLabel")}</label>
                     <input
                       id="onboarding-field"
                       className="input"
@@ -620,7 +625,7 @@ export default function Onboarding() {
                   <button className="btn-primary flex-1" disabled={savingStudyInfo} aria-busy={savingStudyInfo}>
                     {savingStudyInfo
                       ? t("onboarding.saving")
-                      : (studyField.trim() || studyYear ? t("onboarding.saveContinue") : t("onboarding.skip"))}
+                      : (studyField.trim() || broadField || studyYear ? t("onboarding.saveContinue") : t("onboarding.skip"))}
                   </button>
                 </div>
                 <p className="mt-3 text-center text-xs" style={{ color: "var(--bt-text-2)" }}>

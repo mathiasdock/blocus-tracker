@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
-import { ALL_UNIVERSITIES } from "../lib/universities";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { isSafeInternalHref } from "../lib/security";
 import { playSensoryCue } from "../lib/sensoryFeedback";
@@ -30,7 +29,6 @@ const NotificationContext = createContext({
   dismissAnnouncement: () => {},
 });
 
-const COMMUNITY_IDS = ALL_UNIVERSITIES.map(u => u.id);
 const POLL_VISIBLE_MS = 120000; // 2 min (était 45s) — réduit l'egress API
 const POLL_HIDDEN_MS = 300000;  // 5 min (était 2 min) — onglet en arrière-plan
 const POLL_DEBOUNCE_MS = 1200;
@@ -159,12 +157,15 @@ export function NotificationProvider({ children }) {
 
       // Communities: one grouped read instead of one count per community.
       const seenCommunities = [];
-      for (const id of COMMUNITY_IDS) {
-        const last = getLastSeen(id);
-        if (last) seenCommunities.push([id, last]);
-        else setLastSeen(id);
-      }
       const communityPromise = (async () => {
+        const { data: memberships, error: membershipError } = await supabase
+          .from("study_space_members").select("space_id").eq("user_id", user.id).limit(200);
+        if (membershipError) return { data: [], error: membershipError };
+        for (const { space_id: id } of memberships || []) {
+          const last = getLastSeen(id);
+          if (last) seenCommunities.push([id, last]);
+          else setLastSeen(id);
+        }
         if (!seenCommunities.length) return { data: [] };
         const communityIds = seenCommunities.map(([id]) => id);
         const earliestLastSeen = seenCommunities.reduce(
@@ -193,7 +194,7 @@ export function NotificationProvider({ children }) {
       // Group messages: same grouped-read pattern as communities, but the
       // group list is per-user (not a static array) so it must be fetched
       // first. Last-seen keys are namespaced "group_<uuid>" — no collision
-      // risk with community slugs (short strings from ALL_UNIVERSITIES).
+      // risk with academic space identifiers.
       const groupPromise = (async () => {
         const { data: memberships } = await supabase
           .from("group_members")
@@ -392,7 +393,7 @@ export function NotificationProvider({ children }) {
 
       const communityLastSeen = Object.fromEntries(seenCommunities);
       const nextCommunityCount = {};
-      for (const id of COMMUNITY_IDS) nextCommunityCount[id] = 0;
+      for (const [id] of seenCommunities) nextCommunityCount[id] = 0;
       (communityRes.data || []).forEach((row) => {
         if (row.created_at > communityLastSeen[row.community]) {
           nextCommunityCount[row.community] = (nextCommunityCount[row.community] || 0) + 1;

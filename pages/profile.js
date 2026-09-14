@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Layout, { Avatar } from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UniPicker from "../components/UniPicker";
+import StudyFieldPicker from "../components/StudyFieldPicker";
 import StudyHeatmap from "../components/StudyHeatmap";
 import LevelPill from "../components/LevelPill";
 import MascotMoment from "../components/MascotMoment";
@@ -586,10 +587,11 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
                 <label className="label">{t("profile.university")}</label>
                 <UniPicker value={form.university} onChange={v => set("university", v)} disabled={!!locked} placeholder={t("profile.choose")} />
               </div>
+              <StudyFieldPicker value={form.broad_field} onChange={value => set("broad_field", value)} disabled={!!locked} id="profile-broad-field" />
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 min-w-0">
-                  <label className="label">{t("profile.studies")}</label>
-                  <input className="input" placeholder={t("profile.studiesPlaceholder")} value={form.study_field} onChange={e => set("study_field", e.target.value)} disabled={locked} />
+                  <label className="label">{t("spaces.programLabel")}</label>
+                  <input className="input" maxLength={180} placeholder={t("profile.studiesPlaceholder")} value={form.study_field} onChange={e => set("study_field", e.target.value)} disabled={locked} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <label className="label">{t("profile.year")}</label>
@@ -672,7 +674,7 @@ export default function Profile() {
   const [sensoryPrefs, setSensoryPrefs] = useState(DEFAULT_SENSORY_PREFERENCES);
   const [form, setForm] = useState({
     first_name: "", last_name: "", university: "",
-    study_field: "", study_year: "", study_year_custom: "", bio: "",
+    study_field: "", broad_field: "", study_year: "", study_year_custom: "", bio: "",
   });
 
   useEffect(() => {
@@ -831,6 +833,7 @@ export default function Profile() {
       setForm({
         first_name: profile.first_name || "", last_name: profile.last_name || "",
         university: profile.university || "", study_field: profile.study_field || "",
+        broad_field: profile.broad_field || "",
         study_year: isCustomYear ? "Autre" : (profile.study_year || ""),
         study_year_custom: isCustomYear ? profile.study_year : "", bio: profile.bio || "",
       });
@@ -953,6 +956,7 @@ export default function Profile() {
     const { error } = await supabase.from("profiles").update({
       first_name: form.first_name.trim() || null, last_name: form.last_name.trim() || null,
       university: form.university.trim() || null, study_field: form.study_field.trim() || null,
+      broad_field: form.broad_field || null,
       study_year: actualYear || null, bio: form.bio.trim() || null,
     }).eq("id", user.id);
     setBusy(false);

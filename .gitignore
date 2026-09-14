@@ -11,6 +11,9 @@ voix=0
 
 .vercel
 
+# Local Supabase CLI metadata; keep the versioned migrations only.
+supabase/.temp/
+
 # PWA — fichiers auto-générés par next-pwa à chaque build (régénérés par
 # Vercel au déploiement). On ne les suit pas : ça évitait un churn permanent
 # du git status à chaque `npm run build`.
