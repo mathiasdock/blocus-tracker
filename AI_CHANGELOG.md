@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-14 - Mois : retour des couleurs de cours et de la diagonale (Codex)
+
+- Historique consulte : anciens lavis de cours et separation diagonale. Repris sans les bandes arc-en-ciel ni le trait de jour passe.
+- Jour avec objectifs lies : deux teintes legeres separees du bas-gauche au haut-droit ; un seul cours donne deux intensites de sa couleur. Plusieurs cours : deux plus representes au maximum, ordre stable, autres identites conservees en pastilles.
+- L'examen garde exclusivement son fond semantique, son libelle et son icone. Sa couleur de cours apparait dans une petite pastille, jamais a la place du traitement d'examen. Aujourd'hui et selection restent independants du fond.
+- Verification visuelle d'un mois dense en donnees offline, desktop/mobile, clair/sombre : diagonale responsive, pas de debordement, aucun gradient sur les jours d'examen. Test du choix de couleurs (vide, sans cours, plusieurs cours, ordre inverse).
+
 ## 2026-09-14 - Contraste des controles Planning et Activity (Codex)
 
 - Planning : fleches et menu sur une surface distincte avec contour neutre, icones foncees et cibles de 44 px ; piste Jour/Semaine/Mois plus contrastee, sans modifier les autres selecteurs segmentes.

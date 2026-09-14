@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { coursePlanning, dayWorkload } from '../lib/planningInsights.mjs';
+import { coursePlanning, dayWorkload, monthTintCourses } from '../lib/planningInsights.mjs';
 import { parseQuickObjective } from '../lib/planningQuickAdd.js';
 
 test('quick add preserves the duration and separates the afternoon start time', () => {
@@ -16,6 +16,15 @@ test('quick add preserves the duration and separates the afternoon start time', 
 test('workload counts remaining tasks, not finished study minutes', () => {
   assert.deepEqual(dayWorkload([{ done: true, target_minutes: 90 }, { done: false, target_minutes: 30 }, { done: false }]), { remaining: 2, done: 1, minutes: 30 });
   assert.deepEqual(dayWorkload([]), { remaining: 0, done: 0, minutes: 0 });
+});
+
+test('month tints use at most two courses, never an arbitrary rainbow', () => {
+  const rows = [{ course_id: 'c' }, { course_id: 'b' }, { course_id: 'a' }, { course_id: 'c', done: true }, {}];
+  assert.deepEqual(monthTintCourses(rows), ['c', 'a']);
+  assert.deepEqual(monthTintCourses([...rows].reverse()), ['c', 'a']);
+  assert.deepEqual(monthTintCourses([{ course_id: 'a' }, {}]), ['a']);
+  assert.deepEqual(monthTintCourses([{}]), []);
+  assert.deepEqual(monthTintCourses([]), []);
 });
 test('course priorities use upcoming exams and keep overdue work visible', () => {
   const rows = coursePlanning([{ id: 'a' }, { id: 'b' }, { id: 'c' }], [

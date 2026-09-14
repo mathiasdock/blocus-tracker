@@ -20,7 +20,7 @@ import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost } from "../lib/autoShare";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
-import { coursePlanning, dayWorkload } from "../lib/planningInsights.mjs";
+import { coursePlanning, dayWorkload, monthTintCourses } from "../lib/planningInsights.mjs";
 
 // ── Constants ─────────────────────────────────────────────────
 // Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
@@ -1109,10 +1109,8 @@ function CalendarLegend() {
 }
 
 // ── MonthView ─────────────────────────────────────────────────
-// Une case = au plus DEUX couches visuelles : son fond d'état (week-end ou
-// sélection) et ses marqueurs. Avant, un même jour pouvait cumuler un lavis
-// de couleur de cours, un voile rouge d'examen, une teinte week-end, un voile
-// de passé et une diagonale : la couleur ne voulait plus rien dire.
+// One background per cell: exams override course tints. A soft diagonal
+// separates at most two course tones; today's dot and selection stay independent.
 function MonthView() {
   const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
@@ -1153,7 +1151,7 @@ function MonthView() {
               const dayCourseIds = [...new Set(items.filter(o => o.course_id).map(o => o.course_id))];
               const dayColors    = dayCourseIds.map(id => courseColor(id));
               const hasUncoursed = items.some(o => !o.course_id);
-              const soloTint     = dayColors.length === 1 && !hasUncoursed ? rgbTriplet(dayColors[0]) : null;
+              const tints = monthTintCourses(items).map(id => rgbTriplet(courseColor(id))).filter(Boolean);
 
               // UNE seule source de fond par case — jamais deux règles CSS qui
               // se disputent la même cellule. La sélection n'en fait PAS partie :
@@ -1161,6 +1159,7 @@ function MonthView() {
               // jour sélectionné — aujourd'hui par défaut — était le seul à ne
               // jamais montrer la couleur de son cours.
               const fill = examItems.length ? "exam"
+                : tints.length ? "course"
                 : items.length ? "planned"
                 : isWeekend ? "weekend"
                 : null;
@@ -1173,7 +1172,8 @@ function MonthView() {
                   data-fill={fill || undefined} data-selected={isSel ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
-                    "--bt-day-tint": soloTint || undefined,
+                    "--bt-day-tint": tints[0] || undefined,
+                    "--bt-day-tint-secondary": tints[1] || tints[0] || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
                     opacity: inMonth ? 1 : 0.5,
                   }}>
@@ -1181,14 +1181,14 @@ function MonthView() {
                   <span className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full font-num text-xs font-bold tabular-nums"
                     style={isToday
                       ? { backgroundColor: "var(--bt-accent)", color: "#fff" }
-                      : { color: isWeekend ? "var(--bt-text-3)" : "var(--bt-text-1)" }}>
+                      : { color: isWeekend && !items.length && !examItems.length ? "var(--bt-text-3)" : "var(--bt-text-1)" }}>
                     {d.getDate()}
                   </span>
 
                   {examItems.length > 0 && <div className="bt-planning-month-exam">
                     <span className="flex flex-wrap items-center gap-1 font-bold"><span className="hidden sm:inline-flex"><IconCalendar size={12} /></span>{t("plan.examTag")}{examItems.length > 1 && <span>×{examItems.length}</span>}</span>
                     <span className="hidden truncate font-semibold sm:block">{examItems[0].name}</span>
-                    {examItems[0].course_id && <span className="hidden truncate sm:block">{courseName(examItems[0].course_id)}</span>}
+                    {examItems[0].course_id && <span className="flex min-w-0 items-center gap-1" title={courseName(examItems[0].course_id)}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(examItems[0].course_id) }} /><span className="hidden truncate sm:inline">{courseName(examItems[0].course_id)}</span></span>}
                   </div>}
                   {/* Marqueurs — mobile : pastilles (aucun texte ne rentre).
                       Une pastille par COURS, pas par objectif : le fond dit
@@ -1216,7 +1216,7 @@ function MonthView() {
                         <span className="h-1.5 w-1.5 flex-none shrink-0 rounded-full"
                           style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.3 : 1 }} />
                         <span className="truncate text-[10px] leading-tight"
-                          style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-2)",
+                          style={{ color: fill === "course" ? "var(--bt-text-1)" : "var(--bt-text-2)",
                             textDecoration: o.done ? "line-through" : "none" }}>
                           {o.title || courseName(o.course_id) || "—"}
                         </span>
