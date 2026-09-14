@@ -1,0 +1,33 @@
+/* Planning refinement: semantic exam emphasis stays local to planning. */
+.bt-planning { --bt-plan-exam-ink: #f5b5ad; }
+.bt-planning-today-summary { display: grid; gap: 16px; }
+.bt-planning-next-exam { border-top: 1px solid var(--bt-ink-border); padding-top: 16px; overflow-wrap: anywhere; }
+.bt-planning-today .mb-4 { margin-bottom: 8px; }
+.bt-planning-today ul > li { min-height: 44px; }
+.bt-planning-today .mt-3 { margin-top: 0; }
+.bt-planning .bt-plan-day-cell { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; min-width: 0; }
+.bt-planning .bt-plan-day-cell[data-fill="exam"] { background: var(--bt-danger-bg); }
+.bt-planning .bt-plan-day-cell[data-fill="planned"] { background: var(--bt-surface); }
+.bt-planning .bt-plan-day-cell:not([data-fill="exam"]):not([data-fill="planned"]) { background: var(--bt-subtle); }
+.bt-planning-month-exam { color: var(--bt-danger); font-size: 11px; line-height: 1.35; margin: 0 0 6px; overflow: hidden; }
+.bt-planning-month-exam > span:first-child { padding-bottom: 3px; }
+.bt-planning-agenda-exam, .bt-planning-week-exam { background: var(--bt-danger-bg); color: var(--bt-danger); border-radius: var(--bt-r-inset); min-height: 44px; width: 100%; text-align: left; }
+.bt-planning-agenda-exam { display: flex; align-items: center; gap: 12px; padding: 16px; margin-bottom: 12px; overflow-wrap: anywhere; }
+.bt-planning-week-exam { padding: 8px; font-size: 13px; }
+.bt-planning-task { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--bt-hairline, var(--bt-border)); }
+.bt-planning .bt-plan-revision-row { padding: 12px 4px; min-height: 44px; }
+@media (min-width: 640px) {
+  .bt-planning-today > div { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); column-gap: 24px; align-items: start; }
+  .bt-planning-today > div > div:first-child { grid-column: 1 / -1; }
+  .bt-planning-today-summary { display: contents; }
+  .bt-planning-next-exam { grid-column: 2; grid-row: 2 / span 4; border-top: 0; border-left: 1px solid var(--bt-ink-border); padding: 0 0 0 24px; }
+  .bt-planning-today > div > ul, .bt-planning-today > div > button, .bt-planning-today > div > .mt-4 { grid-column: 1; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-planning-next-exam:hover { opacity: .85; }
+  .bt-planning-task:hover { background: var(--bt-subtle); }
+  .bt-planning-agenda-exam:hover, .bt-planning-week-exam:hover { box-shadow: inset 0 0 0 1px var(--bt-danger-border); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-planning *, .bt-planning *::after { animation: none !important; transition: none !important; }
+}

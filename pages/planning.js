@@ -20,6 +20,7 @@ import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost } from "../lib/autoShare";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
+import { coursePlanning, dayWorkload } from "../lib/planningInsights.mjs";
 
 // ── Constants ─────────────────────────────────────────────────
 // Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
@@ -413,7 +414,7 @@ function ExamBadge({ days }) {
 // compteur, sa barre. Les cadres individuels d'avant faisaient trois bordures
 // empilées (carte + rangée + barre) pour une seule information.
 function RevisionChecklists({ className = "" }) {
-  const { activeCourses: courses, t } = usePlan();
+  const { activeCourses: courses, objectives, exams, lang, t } = usePlan();
   const { user } = useAuth();
   const [counts, setCounts]         = useState({}); // courseId -> { done, total }
   const [openCourse, setOpenCourse] = useState(null);
@@ -443,24 +444,29 @@ function RevisionChecklists({ className = "" }) {
         {t("checklist.sectionTitle")}
       </p>
       <ul className="space-y-2.5">
-        {courses.map(c => {
+        {coursePlanning(courses, objectives, exams, localToday()).map(({ course: c, exam, remaining, overdue }) => {
           const cnt = counts[c.id] || { done: 0, total: 0 };
           const pct = cnt.total ? Math.round(cnt.done / cnt.total * 100) : 0;
           return (
             <li key={c.id}>
               <button onClick={() => setOpenCourse(c)}
                 className="bt-plan-revision-row w-full rounded-xl px-2 py-1.5 text-left transition-colors">
-                <div className="mb-1.5 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
                   <span className="shrink-0 text-xs font-semibold tabular-nums" style={{ color: cnt.total ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>
-                    {cnt.total === 0 ? t("checklist.none") : `${cnt.done}/${cnt.total}`}
+                    {cnt.total > 0 ? `${cnt.done}/${cnt.total}` : <IconChevron dir="right" size={14} />}
                   </span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                  <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>
+                  {[exam && `${t("plan.examTag")} · ${examCountdown(daysUntil(exam.exam_date), t)}`,
+                    remaining > 0 ? `${remaining} ${lang === "en" ? (remaining === 1 ? "objective left" : "objectives left") : (remaining === 1 ? "objectif restant" : "objectifs restants")}` : !exam && (lang === "en" ? "Nothing planned" : "Rien de prévu")].filter(Boolean).join(" · ")}
+                </p>
+                {overdue > 0 && <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{overdue} {lang === "en" ? "to reschedule" : "à reprogrammer"}</p>}
+                {cnt.total > 0 && <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" role="progressbar" aria-label={`${c.name} · ${t("checklist.sectionTitle")}`} aria-valuenow={cnt.done} aria-valuemax={cnt.total} aria-valuemin={0} style={{ backgroundColor: "var(--bt-subtle)" }}>
                   <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
                     style={{ transform: `scaleX(${pct / 100})`, backgroundColor: c.color }} />
-                </div>
+                </div>}
               </button>
             </li>
           );
@@ -484,84 +490,62 @@ function RevisionChecklists({ className = "" }) {
 // calendrier, quelle que soit la date actuellement sélectionnée/naviguée.
 // Surface ink (même langage que « Aujourd'hui » du Chrono) : c'est le
 // moment de marque du planning.
-// Intègre la bande "À préparer cette semaine" (strictement demain → J+6,
-// jamais aujourd'hui : le haut de la carte couvre déjà le jour même).
+// Deux prochaines actions maximum ; le calendrier porte le reste de la semaine.
 function TodayCard({ className = "" }) {
-  const { byDate, examsByDate, exams, objectives, toggle, courseColor, courseName, launchTimer, openDay, lang, t } = usePlan();
+  const { byDate, examsByDate, exams, toggle, courseColor, courseName, launchTimer, openDay, lang, t, view } = usePlan();
   const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
   const doneCount       = todayObjectives.filter(o => o.done).length;
   const isEmptyToday    = todayObjectives.length === 0 && todayExams.length === 0;
 
-  const weekEnd = addDays(today, 6);
-  const weekAhead = [
-    ...exams
-      .filter(e => e.exam_date > today && e.exam_date <= weekEnd)
-      .map(e => ({ kind: "exam", id: `ex-${e.id}`, date: e.exam_date, name: e.name, courseId: e.course_id })),
-    ...objectives
-      .filter(o => !o.done && o.scheduled_date > today && o.scheduled_date <= weekEnd)
-      .map(o => ({ kind: "obj", id: `ob-${o.id}`, date: o.scheduled_date, name: o.title || courseName(o.course_id) || "—", courseId: o.course_id })),
-  ].sort((a, b) => a.date.localeCompare(b.date));
-  const WEEK_AHEAD_MAX = 6;
+  const remainingToday = todayObjectives.filter(o => !o.done).sort((a, b) => (a.scheduled_time || "99").localeCompare(b.scheduled_time || "99"));
+  const workload = dayWorkload(todayObjectives);
 
   const nextExam = exams
     .filter(e => e.exam_date >= today)
     .sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
   const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
 
-  // Premier objectif du jour encore à faire ET rattaché à un cours : c'est
-  // celui que « Commencer à réviser » lance (le chrono a besoin d'un cours).
-  const nextUp = todayObjectives.find(o => !o.done && o.course_id);
-
   const dateLabel = dateFromYmd(today).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <section className={`card-ink bt-grain p-5 ${className}`}>
+    <section className={`card-ink bt-planning-today p-5 ${className}`}>
       <div className="relative z-10">
         <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
+          <h2 className="text-base font-bold" style={{ color: "var(--bt-ink-text)" }}>
             {t("plan.todayCardEyebrow")}
           </h2>
           <button onClick={() => openDay(today)}
-            className="truncate text-xs underline-offset-2 transition-colors hover:underline"
+            className="min-h-11 truncate text-xs underline-offset-2 transition-colors hover:underline"
             style={{ color: "var(--bt-ink-muted)" }}>
             {sentenceCase(dateLabel)}
           </button>
         </div>
 
-        <div className="flex items-start justify-between gap-4">
+        <div className="bt-planning-today-summary">
           <div className="min-w-0">
-            <p className="font-num text-[2rem] font-extrabold leading-none tabular-nums tracking-[-0.03em]" style={{ color: "var(--bt-ink-text)" }}>
-              <AnimatedNumber value={doneCount} />/<AnimatedNumber value={todayObjectives.length} />
+            <p className="text-xl font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
+              {todayObjectives.length ? <><AnimatedNumber value={doneCount} />/{todayObjectives.length} <span className="text-sm font-medium">{t("plan.todayCardObjectives")}</span></> : t("plan.nothingToday")}
             </p>
-            <p className="mt-1 text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.todayCardObjectives")}</p>
+            {todayObjectives.length > 0 && <p className="mt-1 text-sm" style={{ color: "var(--bt-ink-muted)" }}>{workload.remaining} {lang === "en" ? "left to do" : "à faire"}{workload.minutes > 0 && ` · ${formatMinutesShort(workload.minutes * 60)}`}</p>}
           </div>
 
-          {todayExams.length > 0 ? (
-            <div className="min-w-0 text-right">
-              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
-                {t("plan.todayCardExamsToday")}
-              </p>
-              <p className="mt-1 truncate text-sm font-bold" style={{ color: "#FCA5A5" }}>
-                {todayExams.map(e => sentenceCase(e.name)).join(" · ")}
-              </p>
-            </div>
-          ) : nextExam ? (
-            <div className="min-w-0 text-right">
-              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
+          {nextExam ? (
+            <button onClick={() => openDay(nextExam.exam_date)} className="bt-planning-next-exam min-w-0 text-left">
+              <p className="text-xs font-semibold" style={{ color: "var(--bt-ink-muted)" }}>
                 {t("plan.nextExam")}
               </p>
-              <p className="mt-1 truncate text-sm font-bold" style={{ color: "var(--bt-ink-text)" }}>{sentenceCase(nextExam.name)}</p>
-              <p className="text-xs tabular-nums" style={{ color: "#FCA5A5" }}>{examCountdown(nextExamDays, t)}</p>
-            </div>
+              <p className="mt-1 text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>{sentenceCase(nextExam.name)}</p>
+              {nextExam.course_id && <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{courseName(nextExam.course_id)}</p>}
+              <p className="mt-2 flex items-center gap-2 text-sm font-bold tabular-nums" style={{ color: "var(--bt-plan-exam-ink)" }}><IconCalendar size={16} />{examCountdown(nextExamDays, t)} · {quickDateLabel(nextExam.exam_date, lang, t)}{nextExam.exam_time && ` · ${nextExam.exam_time.slice(0, 5)}`}</p>
+              {todayExams.length > 1 && <p className="mt-1 text-xs">+{todayExams.length - 1} {t("plan.todayCardExamsToday")}</p>}
+            </button>
           ) : null}
         </div>
 
         {isEmptyToday ? (
           <div className="mt-4">
-            <p className="text-sm font-semibold" style={{ color: "var(--bt-ink-text)" }}>{t("plan.nothingToday")}</p>
-            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.nothingTodayHint")}</p>
             <button onClick={() => openDay(today)}
               className="bt-plan-ink-btn mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold">
               <IconPlus size={13} />
@@ -570,13 +554,13 @@ function TodayCard({ className = "" }) {
           </div>
         ) : (
           <>
-            {todayObjectives.length > 0 && (
+            {remainingToday.length > 0 && view !== "day" && (
               <ul className="mt-4 space-y-2">
-                {todayObjectives.slice(0, 3).map(o => (
+                {remainingToday.slice(0, 2).map(o => (
                   <li key={o.id} className="flex items-center gap-2.5 text-sm">
-                    <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
+                    <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" checked={o.done} onChange={() => toggle(o)}
                       aria-label={o.title || courseName(o.course_id) || "—"}
-                      className="bt-task-check bt-task-check--ink h-4 w-4 shrink-0" />
+                      className="bt-task-check bt-task-check--ink h-4 w-4 shrink-0" /></label>
                     {o.course_id && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(o.course_id) }} />}
                     {/* La barre de rature vit sur un inline-block : posée sur
                         le conteneur flex-1, elle s'étirait sur toute la
@@ -589,69 +573,23 @@ function TodayCard({ className = "" }) {
                     {o.target_minutes > 0 && (
                       <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>{o.target_minutes} min</span>
                     )}
+                    {o.course_id && <button className="bt-plan-ink-btn flex min-h-11 min-w-11 items-center justify-center rounded-xl" aria-label={`${t("plan.startStudying")} · ${o.title || courseName(o.course_id)}`} onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}><IconPlay /></button>}
                   </li>
                 ))}
-                {todayObjectives.length > 3 && (
+                {remainingToday.length > 2 && (
                   <li>
-                    <button onClick={() => openDay(today)} className="pl-6 text-xs underline-offset-2 hover:underline"
+                    <button onClick={() => openDay(today)} className="min-h-11 pl-6 text-xs underline-offset-2 hover:underline"
                       style={{ color: "var(--bt-ink-muted)" }}>
-                      +{todayObjectives.length - 3} {t("plan.todayCardMore")}
+                      +{remainingToday.length - 2} {t("plan.todayCardMore")}
                     </button>
                   </li>
                 )}
               </ul>
             )}
 
-            {/* Pont vers le Chrono : le cours ET la durée de l'objectif sont
-                déjà posés à l'arrivée — plus besoin de les resaisir. */}
-            {nextUp && (
-              <button onClick={() => launchTimer(nextUp.course_id, nextUp.target_minutes, nextUp.title)}
-                className="bt-plan-ink-btn mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold">
-                <IconPlay size={12} />
-                {t("plan.startStudying")}
-              </button>
-            )}
           </>
         )}
 
-        {weekAhead.length > 0 && (
-          <div className="mt-4 border-t pt-3.5" style={{ borderColor: "var(--bt-ink-border)" }}>
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
-              {t("plan.weekAheadTitle")}
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {weekAhead.slice(0, WEEK_AHEAD_MAX).map(item => {
-                const days = daysUntil(item.date);
-                const dayLabel = days === 1 ? t("plan.tomorrow")
-                  : weekdaysShortFor(lang)[(dateFromYmd(item.date).getDay() + 6) % 7];
-                const isExam = item.kind === "exam";
-                return (
-                  <button key={item.id} onClick={() => openDay(item.date)}
-                    className="flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-2 text-xs transition-colors"
-                    style={isExam
-                      ? { backgroundColor: "rgba(252,165,165,0.12)", border: "1px solid rgba(252,165,165,0.30)" }
-                      : { backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)" }}>
-                    {item.courseId && (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(item.courseId) }} />
-                    )}
-                    <span className="max-w-[140px] truncate font-medium"
-                      style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-text)" }}>
-                      {isExam ? `${t("plan.examTag")} · ${item.name}` : item.name}
-                    </span>
-                    <span className="shrink-0 font-bold tabular-nums" style={{ color: isExam ? "#FCA5A5" : "var(--bt-ink-muted)" }}>
-                      {isExam ? examCountdown(days, t) : dayLabel}
-                    </span>
-                  </button>
-                );
-              })}
-              {weekAhead.length > WEEK_AHEAD_MAX && (
-                <span className="flex items-center px-2 py-1.5 text-xs" style={{ color: "var(--bt-ink-muted)" }}>
-                  +{weekAhead.length - WEEK_AHEAD_MAX}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );
@@ -1179,7 +1117,8 @@ function MonthView() {
   const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
   const today = localToday();
-  const weeks = Array.from({ length: 6 }, (_, i) => grid.slice(i * 7, i * 7 + 7));
+  const weeks = Array.from({ length: 6 }, (_, i) => grid.slice(i * 7, i * 7 + 7))
+    .filter(week => week.some(d => d.getMonth() === cursor.month));
 
   return (
     <section className="card overflow-hidden">
@@ -1198,13 +1137,12 @@ function MonthView() {
       <div>
         {weeks.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7"
-            style={{ borderBottom: wi < 5 ? "1px solid var(--bt-border)" : "none" }}>
+            style={{ borderBottom: wi < weeks.length - 1 ? "1px solid var(--bt-border)" : "none" }}>
             {week.map((d, di) => {
               const key       = ymd(d);
               const inMonth   = d.getMonth() === cursor.month;
               const isToday   = key === today;
               const isSel     = key === selectedDate;
-              const isPast    = key < today;
               const isWeekend = d.getDay() === 0 || d.getDay() === 6;
               const items     = byDate[key]      || [];
               const examItems = examsByDate[key] || [];
@@ -1222,8 +1160,8 @@ function MonthView() {
               // elle s'exprime par le contour vert, pas par un aplat. Sinon le
               // jour sélectionné — aujourd'hui par défaut — était le seul à ne
               // jamais montrer la couleur de son cours.
-              const fill = soloTint ? "course"   // un seul cours → sa couleur, très diluée
-                : items.length ? "multi"         // plusieurs cours (ou sans cours) → neutre, les pastilles disent lesquels
+              const fill = examItems.length ? "exam"
+                : items.length ? "planned"
                 : isWeekend ? "weekend"
                 : null;
 
@@ -1231,13 +1169,13 @@ function MonthView() {
 
               return (
                 <button key={key} onClick={() => { if (inMonth) openDay(key); else setSelectedDate(key); }}
-                  aria-label={label} aria-current={isToday ? "date" : undefined}
+                  aria-label={`${label}${examItems.length ? ` — ${examItems.map(e => e.name).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
                   data-fill={fill || undefined} data-selected={isSel ? "1" : undefined}
-                  className="bt-plan-day-cell relative min-h-[84px] p-1.5 text-left sm:p-2"
+                  className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
                     "--bt-day-tint": soloTint || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
-                    opacity: inMonth ? (isPast && !isToday ? 0.62 : 1) : 0.3,
+                    opacity: inMonth ? 1 : 0.5,
                   }}>
                   {/* Day number */}
                   <span className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full font-num text-xs font-bold tabular-nums"
@@ -1247,14 +1185,17 @@ function MonthView() {
                     {d.getDate()}
                   </span>
 
+                  {examItems.length > 0 && <div className="bt-planning-month-exam">
+                    <span className="flex flex-wrap items-center gap-1 font-bold"><span className="hidden sm:inline-flex"><IconCalendar size={12} /></span>{t("plan.examTag")}{examItems.length > 1 && <span>×{examItems.length}</span>}</span>
+                    <span className="hidden truncate font-semibold sm:block">{examItems[0].name}</span>
+                    {examItems[0].course_id && <span className="hidden truncate sm:block">{courseName(examItems[0].course_id)}</span>}
+                  </div>}
                   {/* Marqueurs — mobile : pastilles (aucun texte ne rentre).
                       Une pastille par COURS, pas par objectif : le fond dit
                       « il y a quelque chose », les pastilles disent « de quels
                       cours ». Répéter la même couleur n'ajoutait rien. */}
                   <div className="flex flex-wrap gap-1 sm:hidden">
-                    {examItems.slice(0, 2).map(e => (
-                      <span key={e.id} className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
-                    ))}
+                    {items.length > 1 && <span className="text-[10px] leading-none tabular-nums" style={{ color: "var(--bt-text-2)" }}>{items.length}</span>}
                     {dayColors.slice(0, 4).map((c, i) => (
                       <span key={i} className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: c }} />
                     ))}
@@ -1270,12 +1211,6 @@ function MonthView() {
 
                   {/* Marqueurs — sm+ : titres. L'examen passe en premier. */}
                   <div className="hidden space-y-0.5 sm:block">
-                    {examItems.slice(0, 1).map(e => (
-                      <div key={e.id} className="flex items-center gap-1 truncate" title={e.name}>
-                        <span className="h-1.5 w-1.5 flex-none shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
-                        <span className="truncate text-[10px] font-semibold leading-tight" style={{ color: "var(--bt-danger)" }}>{e.name}</span>
-                      </div>
-                    ))}
                     {items.slice(0, 2).map(o => (
                       <div key={o.id} className="flex items-center gap-1 truncate" title={o.title || courseName(o.course_id) || ""}>
                         <span className="h-1.5 w-1.5 flex-none shrink-0 rounded-full"
@@ -1287,9 +1222,9 @@ function MonthView() {
                         </span>
                       </div>
                     ))}
-                    {(items.length + examItems.length) > 3 && (
+                    {items.length > 2 && (
                       <span className="text-[10px] tabular-nums" style={{ color: "var(--bt-text-4)" }}>
-                        +{items.length + examItems.length - 3}
+                        +{items.length - 2}
                       </span>
                     )}
                   </div>
@@ -1308,6 +1243,32 @@ function MonthView() {
 // colonnes dans 390 px donnaient ~45 px par jour : illisible dès qu'un
 // objectif porte un titre. La grille garde donc une largeur mini par colonne
 // et défile horizontalement quand l'écran est trop étroit.
+function DayAgenda() {
+  const { selectedDate, byDate, examsByDate, courseName, courseColor, toggle, openDay, launchTimer, lang, t } = usePlan();
+  const items = [...(byDate[selectedDate] || [])].sort((a, b) => Number(a.done) - Number(b.done) || (a.scheduled_time || "99").localeCompare(b.scheduled_time || "99"));
+  const exams = examsByDate[selectedDate] || [];
+  const work = dayWorkload(items);
+  return <section className="card p-4 sm:p-5">
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <div><h2 className="text-base font-bold">{lang === "en" ? "Your day" : "Votre journée"}</h2>
+        <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{work.remaining} {lang === "en" ? "objectives left" : "objectifs restants"}{work.minutes > 0 && ` · ${formatMinutesShort(work.minutes * 60)}`}</p></div>
+      <button className="btn-ghost min-h-11 px-3 text-sm" onClick={() => openDay(selectedDate)}>{t("common.add")}</button>
+    </div>
+    {exams.map(exam => <button key={exam.id} className="bt-planning-agenda-exam" onClick={() => openDay(selectedDate)}>
+      <IconCalendar size={20} /><span className="min-w-0 flex-1"><span className="block text-xs font-bold">{t("plan.examTag")}{exam.exam_time && ` · ${exam.exam_time.slice(0, 5)}`}</span><strong className="block">{exam.name}</strong><span className="block text-sm">{[courseName(exam.course_id), exam.location].filter(Boolean).join(" · ")}</span></span><IconChevron dir="right" />
+    </button>)}
+    {!items.length && <p className="py-4 text-sm" style={{ color: "var(--bt-text-2)" }}>{lang === "en" ? "No objectives planned for this day." : "Aucun objectif prévu ce jour-là."}</p>}
+    <ul>{items.map(o => <li key={o.id} className="bt-planning-task">
+      <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" className="bt-task-check h-4 w-4" checked={o.done} onChange={() => toggle(o)} aria-label={o.title || courseName(o.course_id)} /></label>
+      <button className="min-w-0 flex-1 py-3 text-left" onClick={() => openDay(selectedDate)}>
+        <span className={`bt-strike ${o.done ? "is-done" : ""} max-w-full break-words text-sm font-semibold`}>{o.title || courseName(o.course_id)}</span>
+        <span className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--bt-text-2)" }}>{o.course_id && <><span className="h-2 w-2 rounded-full" style={{ backgroundColor: courseColor(o.course_id) }} />{courseName(o.course_id)}</>}{o.scheduled_time && <span>{o.scheduled_time.slice(0, 5)}</span>}{o.target_minutes > 0 && <span>{formatMinutesShort(o.target_minutes * 60)}</span>}</span>
+      </button>
+      {!o.done && o.course_id && selectedDate === localToday() && <button className="bt-plan-icon-btn min-h-11 min-w-11" aria-label={`${t("plan.startStudying")} · ${o.title || courseName(o.course_id)}`} onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}><IconPlay size={16} /></button>}
+    </li>)}</ul>
+  </section>;
+}
+
 function TimeGrid({ days }) {
   const { byDate, examsByDate, selectedDate, courseColor, courseName, openDay, t, lang } = usePlan();
   const today = localToday();
@@ -1346,6 +1307,8 @@ function TimeGrid({ days }) {
                       style={isToday ? { backgroundColor: "var(--bt-accent)", color: "#fff" } : { color: "var(--bt-text-1)" }}>
                       {d.getDate()}
                     </span>
+                    <span className="mt-1 block text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>{(byDate[key] || []).length} {t("plan.legendObjective")}</span>
+                    {dayWorkload(byDate[key] || []).minutes > 0 && <span className="block text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>{formatMinutesShort(dayWorkload(byDate[key] || []).minutes * 60)}</span>}
                   </button>
                 );
               })}
@@ -1366,12 +1329,13 @@ function TimeGrid({ days }) {
                     style={{ borderRight: "1px solid var(--bt-border)" }}
                     onClick={() => handleSlotClick(key, null)}>
                     {examItems.map(e => (
-                      <div key={e.id} className="truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold"
-                        style={{ backgroundColor: "var(--bt-danger-solid)", color: "#fff" }}
+                      <button key={e.id} className="bt-planning-week-exam"
                         title={e.name}
                         onClick={ev => { ev.stopPropagation(); openDay(key); }}>
-                        {e.name}
-                      </div>
+                        <span className="flex items-center gap-1 text-xs font-bold"><IconCalendar size={12} />{t("plan.examTag")}{e.exam_time && ` · ${e.exam_time.slice(0, 5)}`}</span>
+                        <strong className="block truncate">{e.name}</strong>
+                        {e.course_id && <span className="block truncate text-xs">{courseName(e.course_id)}</span>}
+                      </button>
                     ))}
                     {items.map(o => (
                       <div key={o.id} className="truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white"
@@ -1452,6 +1416,7 @@ function QuickAddBar({ className = "" }) {
   const { activeCourses: courses, addObjectiveForDate, courseName, lang, t } = usePlan();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
   const trimmed = text.trim();
   const parsed = trimmed ? parseQuickObjective(text, { courses, baseDateISO: localToday() }) : null;
   const canAdd = !!parsed && (parsed.title.trim() !== "" || parsed.courseId !== "");
@@ -1470,30 +1435,28 @@ function QuickAddBar({ className = "" }) {
   }
 
   return (
-    <form onSubmit={submit} className={`card p-4 no-print ${className}`}>
+    <form onSubmit={submit} onFocus={() => setFocused(true)} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }} className={`card p-3 no-print ${className}`}>
       <div className="mb-2.5 flex items-center gap-1.5">
         <span style={{ color: "var(--bt-accent)" }}><IconSparkle /></span>
         <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.quickAddTitle")}</h2>
-        <span className="ml-auto hidden truncate text-[11px] sm:block" style={{ color: "var(--bt-text-4)" }}>
-          {t("plan.quickAddHint")}
-        </span>
       </div>
 
       {/* Empilé sur téléphone : côte à côte, le champ tombait sous ~200 px et
           l'exemple du placeholder était coupé en plein milieu — or c'est lui
           qui apprend la syntaxe. Le 16 px reste obligatoire (en dessous, iOS
           zoome sur le champ au focus). */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex items-center gap-2">
         <input value={text} onChange={e => setText(e.target.value)}
           placeholder={t("plan.quickAddPlaceholder")} aria-label={t("plan.quickAddTitle")}
           className="input min-w-0 flex-1 text-base sm:text-sm" />
         <button type="submit" disabled={!canAdd || busy}
-          className={`${canAdd && !busy ? "btn-primary" : "btn-ghost"} min-h-11 w-full shrink-0 px-4 text-sm font-semibold sm:w-auto`}
+          className={`${canAdd && !busy ? "btn-primary" : "btn-ghost"} min-h-11 shrink-0 px-3 text-sm font-semibold`}
           style={!canAdd || busy ? { opacity: 0.6, cursor: "default" } : undefined}>
           {t("common.add")}
         </button>
       </div>
 
+      {focused && !trimmed && <p className="mt-2 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.quickAddHint")}</p>}
       {trimmed && parsed && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <span className="shrink-0 text-[10px] uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddPreview")}</span>
@@ -1989,7 +1952,9 @@ export default function Planning() {
             Les deux enveloppes sont `display:contents` sous xl : les 6 blocs
             redeviennent enfants directs de la pile, et `order-*` fixe l'ordre
             mobile une bonne fois (l'ordre du DOM sert la colonne desktop). */}
-        <div className="flex flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start xl:gap-5">
+        <div className="bt-planning flex flex-col gap-5">
+          <TodayCard />
+          <div className="flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
           <div className="contents xl:flex xl:flex-col xl:gap-5">
             <PlanToolbar
               className="order-1"
@@ -2002,16 +1967,15 @@ export default function Planning() {
 
             {/* Keyed on the view so switching mois/semaine/jour plays a soft fade.
                 Calendrier pleine largeur : le détail d'un jour vit dans le modal. */}
-            <div key={view} className="bt-tab-fade order-5 min-w-0">
+            <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-tab-fade order-5 min-w-0">
               {view === "month" && <MonthView />}
               {view === "week"  && <TimeGrid days={getWeekDays(selectedDate)} />}
-              {view === "day"   && <TimeGrid days={[dateFromYmd(selectedDate)]} />}
-              <CalendarLegend />
+              {view === "day"   && <DayAgenda />}
+              {view !== "day" && <CalendarLegend />}
             </div>
           </div>
 
           <div className="contents xl:flex xl:flex-col xl:gap-5">
-            <TodayCard className="order-3" />
 
             {examMoment && (
               <MascotMoment
@@ -2024,6 +1988,7 @@ export default function Planning() {
             )}
 
             <RevisionChecklists className="order-6" />
+          </div>
           </div>
         </div>
       </Layout>

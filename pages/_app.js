@@ -1,5 +1,6 @@
 import "../styles/globals.css";
 import "../styles/study-spaces.css";
+import "../styles/planning.css";
 import Glyph from "../components/Glyph";
 import Head from "next/head";
 import { useRouter } from "next/router";

@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-14 - Planning : priorite au jour et aux examens (Codex)
+
+- Raffinement de l'existant, sans modification du schema ni des mutations : Today compacte et adaptive, prochain examen cliquable avec cours/date/heure, deux prochaines actions maximum. La bande hebdomadaire redondante disparait.
+- Jour devient une liste d'execution (examens, objectifs horaires, completion, lancement du chrono, ouverture du detail existant). Semaine conserve sa grille avec charge restante par jour et examens explicitement nommes. Mois utilise un fond chaud + libelle Examen, y compris mobile, avec compteur multi-examens ; les semaines entierement hors mois sont retirees.
+- Ajout rapide compacte, aide au focus et apercu conserves. Correction du parseur pour `45min demain 14h` : 45 minutes a 14h, pas une duree de 14h45.
+- Revision par cours triee par prochain examen puis travail en retard/restant. Les barres representent uniquement des checklists existantes ; aucun score de preparation invente.
+- Styles isoles dans `styles/planning.css`, tokens existants, mouvement reduit respecte. Desktop : synthese transversale puis calendrier + colonne de revision ; mobile : pile verticale.
+- Verification navigateur offline : 375/812/1024/1440 px sans debordement de page, vues Jour/Semaine/Mois, etat vide, sombre et reduced-motion, ajout rapide et completion. Tests des agregats et du parseur ajoutes.
+
+
 ## 2026-09-14 - Communities : passe UX/UI sur les espaces d'etude (Claude)
 
 Repris APRES le chantier Codex f154218 / 686a2e4 (espaces d'etude hierarchiques) : architecture, donnees, RPC et migrations INCHANGEES. Toute la logique de `components/StudyCommunities.js` est conservee (sync, pagination, reponses, pieces jointes, examens au planning, suppression).
