@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-14 - Calendrier : un cours, une teinte ; jours passes barres (Codex)
+
+- Un cours donne desormais une teinte uniforme dans toute la case. La separation diagonale est reservee a deux cours distincts, de meme intensite.
+- Jours strictement passes : fine diagonale bas-gauche/haut-droit, non interactive, derriere les libelles. Aucun trait sur aujourd'hui ni les dates futures ; examens toujours prioritaires.
+- Cases vides sur la surface claire, dates du week-end en texte principal, dates hors mois moins estompees pour rester lisibles.
+
 ## 2026-09-14 - Mois : retour des couleurs de cours et de la diagonale (Codex)
 
 - Historique consulte : anciens lavis de cours et separation diagonale. Repris sans les bandes arc-en-ciel ni le trait de jour passe.

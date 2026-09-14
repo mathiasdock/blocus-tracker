@@ -1170,18 +1170,21 @@ function MonthView() {
                 <button key={key} onClick={() => { if (inMonth) openDay(key); else setSelectedDate(key); }}
                   aria-label={`${label}${examItems.length ? ` — ${examItems.map(e => e.name).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
                   data-fill={fill || undefined} data-selected={isSel ? "1" : undefined}
+                  data-multi-course={tints.length > 1 ? "1" : undefined}
+                  data-past={key < today ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
                     "--bt-day-tint": tints[0] || undefined,
                     "--bt-day-tint-secondary": tints[1] || tints[0] || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
-                    opacity: inMonth ? 1 : 0.5,
+                    opacity: inMonth ? 1 : 0.75,
                   }}>
+                  {key < today && <svg className="bt-planning-past-mark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line x1="0" y1="100" x2="100" y2="0" vectorEffect="non-scaling-stroke" /></svg>}
                   {/* Day number */}
                   <span className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full font-num text-xs font-bold tabular-nums"
                     style={isToday
                       ? { backgroundColor: "var(--bt-accent)", color: "#fff" }
-                      : { color: isWeekend && !items.length && !examItems.length ? "var(--bt-text-3)" : "var(--bt-text-1)" }}>
+                      : { color: "var(--bt-text-1)" }}>
                     {d.getDate()}
                   </span>
 

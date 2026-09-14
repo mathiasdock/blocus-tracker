@@ -19,22 +19,26 @@
 .bt-planning .bt-plan-day-cell { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; min-width: 0; }
 .bt-planning .bt-plan-day-cell[data-fill="exam"] { background: var(--bt-danger-bg); }
 .bt-planning .bt-plan-day-cell[data-fill="planned"] { background: var(--bt-surface); }
-.bt-planning .bt-plan-day-cell:not([data-fill="exam"]):not([data-fill="planned"]):not([data-fill="course"]) { background: var(--bt-subtle); }
+.bt-planning .bt-plan-day-cell:not([data-fill="exam"]):not([data-fill="planned"]):not([data-fill="course"]) { background: var(--bt-surface); }
 /* A tonal seam, not a line: the boundary joins bottom-left to top-right,
    including tall mobile cells (corner direction rather than a fixed angle).
    Exam cells never match this rule, so their warm surface remains dominant. */
 .bt-planning .bt-plan-day-cell[data-fill="course"] {
+  --bt-course-tint-strength: .14;
   background-color: var(--bt-surface);
+  background-image: linear-gradient(rgba(var(--bt-day-tint), var(--bt-course-tint-strength)), rgba(var(--bt-day-tint), var(--bt-course-tint-strength)));
+}
+.bt-planning .bt-plan-day-cell[data-fill="course"][data-multi-course="1"] {
   background-image: linear-gradient(to bottom right,
-    rgba(var(--bt-day-tint), .16) 49.5%,
-    rgba(var(--bt-day-tint-secondary), .08) 50.5%);
+    rgba(var(--bt-day-tint), var(--bt-course-tint-strength)) 49.5%,
+    rgba(var(--bt-day-tint-secondary), var(--bt-course-tint-strength)) 50.5%);
 }
 .dark .bt-planning .bt-plan-day-cell[data-fill="course"] {
-  background-color: var(--bt-surface);
-  background-image: linear-gradient(to bottom right,
-    rgba(var(--bt-day-tint), .22) 49.5%,
-    rgba(var(--bt-day-tint-secondary), .12) 50.5%);
+  --bt-course-tint-strength: .20;
 }
+.bt-planning-past-mark { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; color: var(--bt-text-2); opacity: .2; }
+.bt-planning-past-mark line { stroke: currentColor; stroke-width: 1; }
+.bt-planning .bt-plan-day-cell > :not(.bt-planning-past-mark) { position: relative; }
 .bt-planning-month-exam { color: var(--bt-danger); font-size: 11px; line-height: 1.35; margin: 0 0 6px; overflow: hidden; }
 .bt-planning-month-exam > span:first-child { padding-bottom: 3px; }
 .bt-planning-agenda-exam, .bt-planning-week-exam { background: var(--bt-danger-bg); color: var(--bt-danger); border-radius: var(--bt-r-inset); min-height: 44px; width: 100%; text-align: left; }
