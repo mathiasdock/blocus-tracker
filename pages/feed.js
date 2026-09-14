@@ -491,15 +491,15 @@ export default function Feed() {
             composer et le premier post, pour un réglage qu'on ouvre au plus
             une fois. Réduit à une bande discrète : toujours accessible,
             jamais dans le passage. */}
-        <div className="mb-6 overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-subtle)" }}>
+        <div className="card mb-6 overflow-hidden rounded-2xl">
           <button type="button" onClick={() => setShowAutoSettings(v => !v)}
             aria-expanded={showAutoSettings}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left">
-            <span className="shrink-0" style={{ color: "var(--bt-text-3)" }}><IconSliders /></span>
-            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" style={{ color: "var(--bt-text-2)" }}>
+            className="flex min-h-11 w-full items-center gap-3 px-4 py-3 text-left">
+            <span className="shrink-0" style={{ color: "var(--bt-text-1)" }}><IconSliders /></span>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" style={{ color: "var(--bt-text-1)" }}>
               {t("feed.autoShareTitle")}
             </span>
-            <span className="shrink-0" style={{ color: "var(--bt-text-3)" }}>
+            <span className="shrink-0" style={{ color: "var(--bt-text-1)" }}>
               <IconChevronDown open={showAutoSettings} />
             </span>
           </button>

@@ -49,7 +49,7 @@ export default function SegmentedGlide({
 
   return (
     <div ref={wrapRef} className={`relative flex rounded-xl p-0.5 gap-0.5 ${className}`}
-      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+      style={{ backgroundColor: "var(--bt-segment-track, var(--bt-subtle))", border: "1px solid var(--bt-border)" }}>
       <span ref={thumbRef} aria-hidden="true" className="bt-seg-thumb" style={thumbStyle} />
       {options.map((o) => {
         const active = o.value === value;

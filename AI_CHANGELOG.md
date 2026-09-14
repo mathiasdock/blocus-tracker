@@ -2,6 +2,11 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-14 - Contraste des controles Planning et Activity (Codex)
+
+- Planning : fleches et menu sur une surface distincte avec contour neutre, icones foncees et cibles de 44 px ; piste Jour/Semaine/Mois plus contrastee, sans modifier les autres selecteurs segmentes.
+- Activity : partage automatique sur la surface de carte existante, texte et icones en couleur principale plutot que secondaire/tertiaire. Tokens adaptatifs clair/sombre, aucune modification des comportements.
+
 ## 2026-09-14 - Planning : priorite au jour et aux examens (Codex)
 
 - Raffinement de l'existant, sans modification du schema ni des mutations : Today compacte et adaptive, prochain examen cliquable avec cours/date/heure, deux prochaines actions maximum. La bande hebdomadaire redondante disparait.

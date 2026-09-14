@@ -1,5 +1,16 @@
 /* Planning refinement: semantic exam emphasis stays local to planning. */
 .bt-planning { --bt-plan-exam-ink: #f5b5ad; }
+.bt-planning { --bt-segment-track: var(--bt-border); }
+.bt-planning .bt-plan-nav-btn {
+  background-color: var(--bt-surface);
+  color: var(--bt-text-1);
+  border-color: var(--bt-border);
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-planning .bt-plan-nav-btn:hover { background-color: var(--bt-border); }
+}
 .bt-planning-today-summary { display: grid; gap: 16px; }
 .bt-planning-next-exam { border-top: 1px solid var(--bt-ink-border); padding-top: 16px; overflow-wrap: anywhere; }
 .bt-planning-today .mb-4 { margin-bottom: 8px; }
