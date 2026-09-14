@@ -527,7 +527,7 @@ function PushRow({ t, user }) {
       {/* Le motif seul ne suffit pas à distinguer les causes possibles d'un
           abonnement manquant. Ce bouton met l'état technique de l'appareil dans
           le presse-papiers pour qu'un testeur puisse l'envoyer tel quel. */}
-      {["no-subscription", "slow", "preparing", "error"].includes(failure?.reason) && (
+      {["no-subscription", "slow", "preparing", "error", "blocked", "unsupported"].includes(failure?.reason) && (
         <div className="px-5 pb-4 -mt-1">
           <button type="button" onClick={copyDiagnostics}
             className="text-xs px-3 py-1.5 rounded-lg font-medium"
