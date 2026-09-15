@@ -1,124 +1,43 @@
-# UI conventions — blocus-tracker
+# UI implementation map — Blocus Tracker
 
-## Design direction — "l'instrument de focus"
+Read [DESIGN.md](../DESIGN.md) first. It is the source of truth for visual decisions:
+**Blocus makes studying tangible.** This file locates existing code; it is not
+a second design system or a claim that every component already follows v1.
+See DESIGN.md's consolidation list before copying a legacy pattern.
 
-L'app est un instrument de mesure du temps d'étude. Trois piliers :
-- **Nunito Sans** (`font-sans`) pour l'interface entière : textes, navigation, boutons, formulaires, cartes, métadonnées et chiffres.
-- **Quicksand 600/700** (`font-display`) comme accent rare : titres de page, wordmark et quelques grands titres importants. Les `h1` l'utilisent automatiquement ; les `h2/h3` restent en Nunito Sans sauf choix explicite.
-- **Nunito Sans** (`font-num` + `tabular-nums`) pour les chiffres : chrono, stats, records et XP restent parfaitement alignés sans introduire une troisième voix.
-- **Surface "ink"** (`.card-ink`, vert profond) réservée aux moments de marque : hero chrono "Aujourd'hui", records. Jamais pour du contenu courant.
+## Source map
 
-Les deux fontes variables sont auto-hébergées en `.woff2` dans `public/fonts/`.
-Il ne doit exister aucune requête d'exécution vers Google Fonts ou un autre CDN.
+| Concern | Current implementation |
+| --- | --- |
+| Product constraints | `PRODUCT.md` |
+| Colors, surfaces, controls, navigation tokens | `styles/globals.css` (`:root` / `.dark`) |
+| Font families and responsive utilities | `tailwind.config.js`; self-hosted `public/fonts/` |
+| Timer units / daily time | `pages/dashboard.js`, `components/TodayProgressCard.js` |
+| Goal-linked mascot position | `components/stats/StatsHero.js` |
+| Course palette | `lib/courseColors.js`; saved `course.color` is identity |
+| Exam/calendar presentation | `pages/planning.js`, `styles/planning.css`, `lib/planningInsights.mjs` |
+| Mascot poses / appearances | `components/Mascot.js`, `components/MascotMoment.js`, `lib/mascotMotion.mjs`, `lib/mascotMoments.js` |
+| Reward data / artwork | `lib/badges.js`, `lib/badgeArt.js`, `components/BadgeIcon.jsx` |
+| Structured activity bodies | `components/ActivityPostBody.jsx` |
+| Academic relationships / kinds | `lib/studySpaces.mjs`, `components/StudyCommunities.js`, `styles/study-spaces.css` |
+| Shared interface icons | `components/Glyph.js` |
+| Representative controls / sheets | `components/SegmentedGlide.js`, `components/InboxSheet.js`, `components/DetailSheet.js` |
 
-## Design tokens
+## Implementation safeguards
 
-All colors live in `styles/globals.css` as CSS variables. **Never hardcode** colors except for the brand accent.
+- Use semantic CSS variables for UI color. Course data and bounded artwork/kind palettes follow DESIGN.md; do not replace them with brand green.
+- Root CSS is the runtime token authority. Tailwind's older literal neutral colors differ; do not propagate them or change global CSS as a side effect.
+- Existing `.card` uses the card-radius/elevation roles; `.card-plain` and `.card-inset` are available. None is obligatory for a new section.
+- `.btn-primary` is solid Action Green; `.btn-ghost` uses a subtle surface. The Timer's brighter primary is an existing local exception.
+- Keep Nunito Sans for operational text and tabular values; Quicksand is a limited accent. No runtime font CDN.
+- Mobile-first: `sm` 640px, `lg` 1024px; `xs` 380px is available. Sidebar is 232px at desktop. Preserve floating mobile navigation, safe-area padding and access to the last row.
+- Use at least 44px touch hit areas and 16px touch text inputs; do not infer that every current control meets this.
+- Keep visible keyboard focus, associated labels, semantic state, modal focus containment/restoration and Escape dismissal. Existing sheet implementations differ.
+- Prefer CSS states and transform/opacity feedback; honor reduced motion with truthful final values. Do not copy an animation merely because a nearby card uses it.
+- Match surrounding Tailwind/layout conventions, but use tokens for theme-aware values. Never redefine utilities such as `.dark .bg-white`; deliberate artwork colors must survive.
+- Keep FR/EN copy in the established translation system. Do not use emoji as interface artwork; user-authored reactions are content.
+- No new token, global refactor or shared object implementation is implied by a documentation change.
 
-### Brand accent (light theme)
-| Token | Hex | Use |
-|-------|-----|-----|
-| `--bt-accent` / `#14B885` | green | primary buttons, active states |
-| `--bt-accent-dark` / `#0E8F68` | dark green | hover, success text |
-| `--bt-accent-bg` / `#EAFBF4` | tint | hover bg, soft pills |
-| `--bt-accent-border` / `#C6EED9` | soft | pill borders |
-
-### Neutrals (light + dark via `.dark`)
-| Token | Use |
-|-------|-----|
-| `--bt-bg` | page background |
-| `--bt-surface` | card background |
-| `--bt-subtle` | input bg, secondary surface |
-| `--bt-border` | dividers, card borders |
-| `--bt-text-1` | primary text |
-| `--bt-text-2` | secondary text |
-| `--bt-text-3` | tertiary / muted text |
-| `--bt-text-4` | quaternary / placeholders |
-| `--bt-shadow` | card shadows |
-
-### Ink surface (brand moments only)
-| Token | Use |
-|-------|-----|
-| `--bt-ink` | deep green surface bg |
-| `--bt-ink-soft` | ink gradient top |
-| `--bt-ink-text` | primary text on ink |
-| `--bt-ink-muted` | secondary text on ink |
-| `--bt-ink-border` | hairline border on ink |
-
-### Misc
-| Token | Use |
-|-------|-----|
-| `--bt-auth-overlay` | veil over auth photo (white in light, dark in dark) |
-| `--bt-scrollbar` / `--bt-scrollbar-h` | theme-aware scrollbar thumb |
-
-### Status colors (hardcoded — used sparingly)
-- Red: `#ef4444` (delete, errors, heart ♥)
-- Amber/gold: `#FBBF24` (XP, badges)
-
-## Component classes (in `styles/globals.css`)
-
-| Class | Use |
-|-------|-----|
-| `card` | rounded card (20px) with surface bg + border + soft shadow |
-| `card-ink` | deep-green brand-moment card (radial accent veil) |
-| `card-lift` | subtle hover lift for interactive cards (desktop only) |
-| `btn-primary` | green gradient CTA button (press feedback built-in) |
-| `btn-ghost` | transparent secondary button |
-| `input` | text input with subtle bg |
-| `label` | small uppercase form label |
-| `font-sans` | Nunito Sans — interface et contenu courant |
-| `font-display` | Quicksand 600/700 — accent typographique rare |
-| `font-num` | Nunito Sans — à associer à `tabular-nums` pour les nombres affichés |
-| `bt-rise` | fade-up entrance for a single element |
-| `bt-stagger` | parent class: direct children fade-up with staggered delays |
-
-## Layout
-
-- **Desktop sidebar**: 232px wide, fixed left, visible at `lg:` breakpoint (1024px+).
-- **Mobile topbar**: 48px tall, sticky, with `env(safe-area-inset-top)` padding for iOS notch.
-- **Mobile bottom nav**: 56px tall + `env(safe-area-inset-bottom)`, 5 tabs.
-- **Social sub-nav**: sticky under topbar on mobile when path ∈ `/feed /friends /messages /communautes`.
-
-## Mobile
-
-- Primary breakpoint: `sm:` = 640px+ for tablet, `lg:` = 1024px+ for desktop. Mobile-first by default.
-- Use `env(safe-area-inset-top)` / `env(safe-area-inset-bottom)` for any fixed top/bottom bar.
-- Touch targets ≥ 44×44px (Apple HIG).
-- Long-press: 600ms timer is the project standard (see `feed.js` reactors panel).
-- Images in feeds: `aspectRatio: "4/3"` wrapper with `object-cover` for consistent display on iPhone + desktop.
-- Hide scrollbars in inner scrollers:
-  ```jsx
-  className="[&::-webkit-scrollbar]:hidden"
-  style={{ overflowY: "auto", scrollbarWidth: "none" }}
-  ```
-
-## Inline styles vs Tailwind
-
-The codebase mixes both. Match the surrounding pattern:
-- Static layout, generic spacing → Tailwind classes
-- Theme-aware colors (CSS vars) → `style={{ color: "var(--bt-text-1)" }}`
-- One-off pixel-perfect values → inline `style={{...}}`
-- Hover effects on non-button elements → `onMouseEnter` / `onMouseLeave` setting inline styles (look at `Layout.js` patterns)
-
-## Animations
-
-CSS keyframes in `globals.css`:
-- `bt-pulse-green` — running chrono glow
-- `bt-press` — `scale(0.96)` on `:active`
-- `bt-xp-float` — XP gain ghost rising
-- `badge-shine` — badge unlock pop
-- `bt-check-pop` — mission check stamp
-
-Apply via class names. All respect `@media (prefers-reduced-motion: reduce)`.
-
-## Dark mode
-
-Activated by adding `.dark` class on `<html>` (Tailwind's `darkMode: "class"` strategy). All component classes use CSS variables that switch automatically. **Never** write `dark:` Tailwind variants — the CSS variable system handles it.
-
-## Anti-patterns
-
-- ❌ `color: "white"` for text on a card (breaks dark mode)
-- ❌ `bg-gray-100` Tailwind (use `var(--bt-subtle)`)
-- ❌ New green shades — use `#14B885` family only
-- ❌ Modals without `e.stopPropagation()` on the inner card (clicks bubble to backdrop)
-- ❌ Fixed `top: 0` without `env(safe-area-inset-top)` (clipped by iPhone notch)
+For scope and recent shipped behavior, read `AI_CHANGELOG.md` and the matching
+`.impeccable/surfaces/` brief. Historical visual choices there do not override
+DESIGN.md v1; retain local functionality and explicit user composition constraints.

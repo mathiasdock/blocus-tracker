@@ -36,6 +36,8 @@ Le produit n'est pas un simple minuteur : chaque session alimente un système é
 
 ## Brand Commitments
 
+Principe visuel : **« Blocus makes studying tangible. »** L'identité vient de la représentation du temps étudié, des cours, des examens, de la progression, des objets gagnés et des relations académiques. `DESIGN.md` formalise ce langage ; l'interface utilitaire reste neutre.
+
 Le nom Blocus Tracker, la palette verte, les surfaces sombres de marque, la mascotte et le ton direct, encourageant et étudiant sont des éléments identitaires à préserver. Nunito Sans est la police principale et Quicksand reste une police d'accent rare.
 
 ## Evidence on Hand

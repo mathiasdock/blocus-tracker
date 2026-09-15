@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-15 - Langage visuel v1 : studying becomes tangible (Codex, documentation)
+
+- DESIGN.md devient la reference pratique : six signatures, blocs regroupables selon l'echelle sans changer duration_seconds, couleurs de cours semantiques, examens prioritaires, progression reelle, objets de recompense communs et relations academiques.
+- Decisions futures explicites : diagonale uniquement pour date passee (separation multi-cours a retirer dans une tache dediee), marqueur d'examen commun, medaillon de niveau et famille de flamme reutilisables. Rien de cela n'est implemente dans les pages par cette entree.
+- Nunito Sans et Quicksand conserves apres evaluation de leurs roles. Contrastes, equivalents de controles, doubles mascottes et ecarts de tokens repertories pour consolidation progressive.
+- Valeurs documentaires de surfaces sombres/rayons corrigees d'apres le CSS ; docs/UI.md devient une carte d'implementation, liens PRODUCT/CLAUDE/AGENTS alignes et sidecar documentaire actualise.
+- Aucun composant applicatif, CSS, asset, schema, fonctionnalite ou comportement de publication modifie. Les changements de travail preexistants restent hors de ce perimetre.
+
 ## 2026-09-15 - Activity : posts structures et partage fiable (Codex)
 
 - Corps reutilisable ActivityPostBody : niveau hero sur vert sombre, vrais BadgeIcon, palier de serie, session compacte duree/cours, objectif termine. En-tetes, reactions, commentaires, edition de legende et suppression conserves. Aucun parsing hasardeux des anciens textes, aucun record invente, aucune animation permanente/mascotte systematique.

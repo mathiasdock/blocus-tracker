@@ -1,77 +1,44 @@
 ---
 name: Blocus Tracker
-description: A calm study workspace that turns focused time into visible progress.
+description: Blocus makes studying tangible.
 colors:
   canvas: "#F4F1EA"
   surface: "#FFFDFB"
   surface-subtle: "#F6F3EC"
   border: "#E9E3DB"
-  hairline: "rgba(31,26,23,0.06)"
   text-primary: "#1F1A17"
   text-secondary: "#7C746E"
-  text-tertiary: "#A8A09A"
-  text-disabled: "#C4BCB6"
   study-green: "#14B885"
-  study-green-deep: "#0E8F68"
   action-green: "#087454"
-  action-green-deep: "#065F46"
   mint-surface: "#EAFBF4"
-  mint-border: "#C6EED9"
   brand-ink: "#0B2E23"
-  brand-ink-soft: "#114134"
   ink-text: "#F2FBF7"
-  ink-muted: "#8FD4B8"
   danger: "#B83E3E"
   danger-solid: "#C43D3D"
   danger-surface: "#FFF1F0"
   danger-border: "#F2C9C6"
-  warning: "#8A5A10"
-  white: "#FFFFFF"
   dark-canvas: "#12100E"
-  dark-surface: "#1A1715"
-  dark-surface-subtle: "#222120"
+  dark-surface: "#1F1B18"
+  dark-surface-subtle: "#262220"
   dark-border: "#2C2622"
   dark-text-primary: "#F0EDE8"
   dark-text-secondary: "#A8A09A"
 typography:
   display:
     fontFamily: "Quicksand, Avenir Next, ui-rounded, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.5rem"
     fontWeight: 700
-    lineHeight: 1.25
-    letterSpacing: "-0.02em"
-  headline:
-    fontFamily: "Nunito Sans, Avenir Next, Segoe UI, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "1.125rem"
-    fontWeight: 700
-    lineHeight: 1.4
-    letterSpacing: "-0.015em"
   body:
     fontFamily: "Nunito Sans, Avenir Next, Segoe UI, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.875rem"
     fontWeight: 400
-    lineHeight: 1.5
-    letterSpacing: "normal"
-  label:
-    fontFamily: "Nunito Sans, Avenir Next, Segoe UI, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "0.6875rem"
-    fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: "0.06em"
   numeric:
     fontFamily: "Nunito Sans, Avenir Next, Segoe UI, ui-sans-serif, system-ui, sans-serif"
-    fontSize: "clamp(3.6rem, 11vw, 6rem)"
     fontWeight: 700
-    lineHeight: 1
-    letterSpacing: "-0.04em"
     fontFeature: "tnum"
 rounded:
-  checkbox: "6px"
-  subtle: "10px"
+  inset: "12px"
   control: "14px"
-  card: "20px"
-  sheet: "24px"
-  pill: "9999px"
+  card: "22px"
+  sheet: "28px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -82,269 +49,235 @@ spacing:
 components:
   button-primary:
     backgroundColor: "{colors.action-green}"
-    textColor: "{colors.white}"
-    typography: "{typography.body}"
+    textColor: "{colors.surface}"
     rounded: "{rounded.control}"
-    padding: "8px 18px"
-    height: "44px"
-  button-ghost:
-    backgroundColor: "{colors.surface-subtle}"
-    textColor: "{colors.text-primary}"
-    typography: "{typography.body}"
-    rounded: "{rounded.control}"
-    padding: "8px 18px"
-    height: "44px"
   input:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text-primary}"
-    typography: "{typography.body}"
     rounded: "{rounded.control}"
-    padding: "10px 14px"
-    height: "44px"
   card:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text-primary}"
     rounded: "{rounded.card}"
-    padding: "20px"
-  card-ink:
-    backgroundColor: "{colors.brand-ink}"
-    textColor: "{colors.ink-text}"
-    rounded: "{rounded.card}"
-    padding: "20px"
-  chip-selected:
-    backgroundColor: "{colors.action-green}"
-    textColor: "{colors.white}"
-    typography: "{typography.label}"
-    rounded: "{rounded.pill}"
-    padding: "8px 14px"
-    height: "44px"
 ---
 
-# Design System: Blocus Tracker
+# Blocus visual language · v1
 
 ## Overview
 
-**Creative North Star: "The Focused Study Desk"**
+**Creative North Star: "Blocus makes studying tangible."**
 
-Blocus Tracker feels like a prepared study desk: warm, calm, and ready for work. Paper-like off-white surfaces, quiet warm-gray borders, and direct green signals keep repeated daily use comfortable, while typography and spacing favor quick scanning over decorative display.
+The signature is how the product represents effort, academic context and earned outcomes—not a green card template. Time becomes accumulated material; courses retain identity; exams interrupt ordinary planning; progress has a destination; rewards are objects; academic relationships explain relevance. Utility UI stays quiet.
 
-The system earns intensity instead of spreading it everywhere. Deep green ink surfaces and authored radial light mark high-value focus, progress, and completion moments; ordinary management stays on restrained cards. Motion is brief, tactile, and state-driven, and secondary correction or management actions appear through progressive disclosure so the main task remains obvious.
+**Status and authority — 2026-09-15.** This is the practical source of truth for future UI decisions. It supersedes conflicting visual guidance in older docs, source comments and surface briefs, but does not authorize a redesign. Existing behavior, data and user-directed compositions remain intact until their own scoped task. The frontmatter records a compact baseline from current CSS; use runtime `--bt-*` variables, not copied hex values. Components may not yet meet the rules below: the consolidation list explicitly records that gap.
+
+Read [PRODUCT.md](PRODUCT.md) for product constraints and [docs/UI.md](docs/UI.md) for implementation entry points. Surface briefs retain local requirements, not competing global rules. The sidecar is a derived documentation preview, not another authority.
 
 **Key Characteristics:**
 
-- Warm, paper-like surfaces with quiet borders.
-- Dark green ink surfaces reserved for high-value focus and achievement moments.
-- Readable, mobile-first controls with at least 44px targets.
-- Short, tactile transform/opacity motion with reduced-motion equivalents.
-- Progressive disclosure keeps correction and management actions nearby but secondary.
+- Measured time, not decorative blocks.
+- Academic identity, not arbitrary color.
+- Exam priority that survives a small screen and loss of color.
+- Data-linked participation, not mascot placement.
+- Shared reward objects, not independent celebration banners.
+- Familiar, neutral controls around these six signatures.
 
 ## Colors
 
-The palette combines warm editorial neutrals with an energetic study green and a deep green-black brand surface; dark mode remaps the same semantic roles rather than introducing a second visual identity.
+### Semantic roles
 
-### Primary
+| Meaning | Existing source | Boundary |
+| --- | --- | --- |
+| Primary action / positive / active | `--bt-action`, `--bt-accent`, `--bt-accent-text`, `--bt-accent-bg` | Differentiate action, selection and information by structure too. Bright green is not a default text color. |
+| Course identity | Saved `course.color`; palette in `lib/courseColors.js` | Follow the course, never task completion or urgency. |
+| Exam priority | Current Planning `--bt-danger*` family | Shared warm vocabulary with an exam-specific structure; not a destructive button. |
+| Error / destructive action | `--bt-danger*` | Error copy, warning/action semantics; no exam marker. |
+| Routine interface | Surface/text/border `--bt-*` roles | Search, settings, back, fields, ordinary messaging. |
+| Achievement artwork | `lib/badgeArt.js` illustration palette | Inside objects only; no random colored UI panels. |
+| Academic kind | `--bt-kind-*` in `styles/study-spaces.css` | Kind mark and kind word only; never a selected-row background. Exam kind must converge on the shared exam vocabulary. |
+| University / mascot | Real logo / existing character artwork | Preserve asset colors; do not leak them into surrounding controls. |
 
-- **Study Green:** The bright progress signal for checks, fills, active markers, and rare celebratory details.
-- **Action Green:** The darker, more readable action pair used for primary controls and selected states.
-- **Mint Surface:** The quiet green tint used for active navigation, supportive notices, and progress context.
+**The Meaning Rule.** Every strong color must answer “what does this mean?” No answer means neutral UI. No new palette is introduced by this document. Separate exam/error semantic aliases can be established during a shared exam implementation; do not invent per-page shades now.
 
-### Secondary
+### Course Colors — academic identity
 
-- **Brand Ink:** The deep green surface reserved for focus, progress summaries, and completion moments.
-- **Ink Text:** The high-contrast foreground family used only on Brand Ink surfaces.
+A saved course owns its hue across Timer, objectives, Planning, Stats and Activity. Two courses can share a hue; names still distinguish them. No course or an unavailable color means neutral, not an invented identity.
 
-### Tertiary
+| Context | Rule |
+| --- | --- |
+| Light surface | Original hue in a marker or chart; light derived tint for a larger region, neutral readable text. |
+| Dark surface | Preserve hue identity; adjust tint/marker luminance only as needed for contrast. Do not recolor the entire course green. |
+| Selected | Preserve course hue; add a check, outline or selected control state independent of the course fill. |
+| Calendar: one course | One uniform subtle tint across the cell. Current 14% light / 20% dark opacity is a starting point, not a contrast guarantee. |
+| Calendar: multiple courses | One representative tint, selected deterministically using the existing objective-count ordering and stable ID tie-break. Show a few named/dotted identities plus a count/detail affordance. No diagonal split or rainbow. The representative tint is not a claim about time share. |
+| Charts | Course hues identify series; labels/values and a shared scale carry quantity. Never change series colors with sort order. |
+| Activity | Course marker and name support the event; ordinary sessions remain compact. Preserve an existing historical event snapshot if no reliable live course reference exists. |
+| Text/icons | Use semantic neutral text unless the actual course-color/background pair passes contrast; retain identity in an adjacent marker. Never place white text on every course hue. |
 
-- **Danger Red:** Destructive, error, and paused-state communication. Pair it with copy or an icon; never depend on color alone.
-- **Warning Amber:** Time-sensitive or cautionary status that is distinct from both study progress and destructive actions.
-
-### Neutral
-
-- **Warm Canvas:** The app background; it should read as softer than pure white.
-- **Warm Surface:** The default card, field, menu, and shell surface.
-- **Quiet Surface:** A recessed layer for controls, rows, empty states, and grouped options.
-- **Quiet Border:** The low-contrast structural line used to separate without hard framing.
-- **Warm Text Scale:** Near-black primary text steps down through secondary, tertiary, and disabled roles. In dark mode the same roles invert to warm near-white and warm gray.
-
-### Illustration Palette
-
-Achievement badges are drawn objects, not tinted tiles, and they carry their own nine-hue illustration palette (mint, ember, gold, sky, violet, indigo, rose, paper, steel) defined in `lib/badgeArt.js`. Like the mascot's fur, it does **not** re-tint per theme: a drawn object keeps its colors or it stops being an object.
-
-This is a deliberate, bounded exception to the green-only rule, and it lives entirely inside badge artwork. Interface chrome — surfaces, text, states, icons — stays on the `--bt-*` tokens. Green remains the product's color and the hue of the study-time objects.
-
-### Named Rules
-
-**The Illustration Boundary Rule.** The illustration palette may color a drawn badge object and nothing else. It never reaches a surface, a label, a status, or an interface icon. If a hue would be the only thing carrying meaning, it is the wrong tool.
-
-**The Object, Not The Tile Rule.** A reward is identified by its shape — a flame, a cup, a crystal — never by the color of a container it sits in. Difficulty must not be expressed as the same shape going darker; rarity gets a soft halo behind the object and a word in its detail sheet, and nothing else.
-
-**The Locked-Is-Still-Legible Rule.** A locked achievement shows its own artwork, desaturated and softened, never a substitute gray glyph: people must recognize what they are working toward. Because the treatment is a filter over a drawn object, its strength belongs in the stylesheet, where dark mode can lift it.
-
-### Study-Space Kinds
-
-Communities distinguishes five kinds of study space — university, field, program, course, exam — and each must be recognizable at a glance in a list. The kind is carried by **shape first**: a university shows its own logo (or its monogram in its brand color), a field a compass, a program a mortarboard, a course an open book, and a dated exam its date. A restrained hue per kind (`--bt-kind-field`, `--bt-kind-program`, `--bt-kind-course`, `--bt-kind-exam`, each with a `-bg` tint and a dark-mode pair, defined in `styles/study-spaces.css`) reinforces the shape. Every pair meets WCAG AA on its tint and on the surface, in both themes.
-
-**The Kind Boundary Rule.** Kind hues may color a kind mark and the kind word beside a space name — nothing else. They never become a surface, a selected state, a link, a filter or an action. Study Green keeps selection, primary actions and unread counts, so the brand color still means "this is where you are" and "do this".
-
-**The Shape-Before-Hue Rule.** Never express a kind by recoloring one shared glyph. If two kinds would be told apart only by color, the icon is wrong.
-
-**The Green Signal Rule.** Use bright Study Green to communicate progress or a meaningful active state; use the darker Action Green pair for readable controls.
-
-**The Ink Is Earned Rule.** Reserve Brand Ink for high-value focus, progress, and completion moments, never for routine content cards.
+Contrast acceptance for future work: ordinary text at least 4.5:1, large text 3:1, necessary graphical/control boundaries 3:1 against their surroundings. Check both themes and actual tints. Color is never the only identifier; use labels, state marks and accessible descriptions. Existing faint `--bt-text-3/4` roles are not approved for essential small text merely because they are tokens.
 
 ## Typography
 
-**Display Font:** Quicksand (with Avenir Next and rounded system fallbacks)
+**Decision: retain Nunito Sans + Quicksand. No font change.**
 
-**Body Font:** Nunito Sans (with Avenir Next, Segoe UI, and system sans fallbacks)
+From scratch, Nunito Sans would still be a defensible choice: approachable without being a display novelty, useful weights, readable words and stable tabular numerals. It supports a student productivity product more naturally than a deliberately institutional or ornamental voice. Its softness is not unique; the study grammar must provide distinctiveness.
 
-**Numeric Font:** Nunito Sans with tabular numerals
+Quicksand remains defensible as a restrained accent: it relates to the friendly character and current wordmark. It is less suitable for dense calendars, metadata or long reading; using it everywhere would exaggerate softness and weaken hierarchy. This is a role problem, not an overwhelming technical reason to replace the family.
 
-**Character:** Nunito Sans carries almost the entire interface with a friendly but operational voice. Quicksand is a rare identity accent for the wordmark and selected brand moments; numeric displays stay in Nunito Sans so time and progress remain stable and highly legible.
-
-### Hierarchy
-
-- **Display:** Bold Quicksand with tight tracking for the wordmark and rare brand-led statements.
-- **Headline:** Bold Nunito Sans for card and section titles; keep the hierarchy compact and scannable.
-- **Body:** Regular or semibold Nunito Sans for interface copy, rows, and explanatory text.
-- **Label:** Small semibold Nunito Sans with uppercase and wider tracking for terse mode, field, and status labels.
-- **Numeric:** Bold, tabular Nunito Sans with tight tracking for timers and large statistics; seconds or units may be smaller and visually quieter.
-
-### Named Rules
-
-**The One Interface Voice Rule.** Nunito Sans is the default; Quicksand appears only when the brand itself is speaking.
-
-**The Stable Number Rule.** Time, XP, streaks, counts, dates, and percentages use tabular numerals so changing values do not shift their layout.
+- Nunito Sans: body, controls, lists, labels, charts and all numeric data.
+- Quicksand: wordmark, selected page titles and intentional brand moments—not every card heading. Existing `h1` and dashboard-title usage is a consolidation question, not an automatic removal.
+- Use tabular numerals for time/XP/counts and aligned comparisons; distinguish minutes/seconds without making units unreadable.
+- Default body/control copy stays around 14–16px. Aim for at least 12px for useful secondary text; do not solve density with 9–10px labels. Touch text inputs remain at least 16px.
+- Prefer sentence-case labels. Uppercase is for short categories, not every field or reward.
+- Verify long FR/EN names, multi-digit levels, 8h totals and narrow screens. Fonts are self-hosted; no new CDN requests.
+- Fix contrast, role, wrapping and spacing before blaming the font. The current faint academic metadata and tiny labels are known debt.
 
 ## Layout
 
-The system is mobile-first. App content uses 20px horizontal gutters and 20px gaps at compact widths, then expands to 36px gutters inside a centered 1280px content limit. At the 1024px application breakpoint, the bottom navigation becomes a fixed 232px sidebar and content receives the matching left offset. The 640px breakpoint changes bottom sheets into centered dialogs; the 380px breakpoint is available only for controls that can safely move from a stacked to a horizontal arrangement.
+Operate-first: answer the current question before introducing brand expression. Complementary desktop columns are useful when they shorten understanding, not when they merely fill width. Mobile rearranges priorities rather than shrinking a dashboard.
 
-Cards use 20px internal padding by default and 24px where the viewport allows. Dense internal controls step through 8px, 12px, and 16px spacing; major sibling surfaces use the 20px rhythm. Layout must tolerate French and English labels without fixed text widths, and mobile shells preserve safe-area insets at the top and bottom.
+Reuse the incumbent spacing rhythm, compact 20px gutters and wider desktop gutters, the 1024px sidebar transition, and safe areas. Preserve touch targets of at least 44px, keyboard navigation and visible focus. A visual marker can be small; its interactive hit area cannot. Long labels wrap or reveal complete details.
 
-**The 44-Pixel Rule.** Every primary control, field, segmented option, and icon-only action reaches at least 44px on touch layouts.
+Do not give sparse content a fixed hero height just to feel premium. Day serves execution, Week serves workload, Month serves important dates; they need not share identical density. Calendar exam identity must remain visible without hover on mobile.
+
+### Neutral UI principles
+
+Back, search, forms, settings, delete confirmations and normal message controls may remain familiar. Do not add a block, mascot, special course tint or reward object unless there is a real study datum involved. Friends need not look eccentric. A persistent selected state, a passive count and a primary action must not look interchangeable.
 
 ## Elevation & Depth
 
-Depth comes from **tonal separation plus a two-layer shadow**, not from outlining. The canvas is deliberately deeper than the surface so a card can read as raised with no border at all. Each elevation token carries a short contact shadow and a wide ambient one; a single-layer shadow reads as a flat halo, and a zero-offset glow is decoration, not depth.
+**No card by default.** First ask whether the content needs independent containment: a movable object, interactive group, separate context or true layer can justify a surface. A heading alone cannot. Start with spacing, alignment or a separator; preserve existing cards until their scoped review.
 
-In dark mode shadows are nearly invisible, so the same tokens shift strategy: elevation is carried by a lighter surface plus a faint hairline. The token names stay identical, so components never branch on theme.
+Use current elevation tokens when a surface is justified: `--bt-elev-1` for a resting card, `--bt-elev-2` for a menu/appropriate hover, `--bt-elev-3` for overlays and floating chrome. Light cards generally use tonal separation plus shadow; dark surfaces may need a hairline. Borders that communicate a control, calendar grid or exam priority are valid. Do not mechanically ban every border/shadow combination or delete useful nested containment.
 
-### Elevation Ladder
-
-| Token | Use |
-| --- | --- |
-| `--bt-elev-1` | Resting cards and panels. |
-| `--bt-elev-2` | Interactive lift on fine-pointer hover; floating menus. |
-| `--bt-elev-3` | Chrome that crosses layers: floating navigation, sheets, dialogs. |
-
-### Named Rules
-
-**The Hairline Exception.** Softening a divider to the hairline applies to lines that *separate*: rows inside a card, a panel's own edge, a box sitting on a filled surface. It does **not** apply to lines that *afford*: a button's edge, a segmented track, the inactive half of a control. There the border is the affordance, and a hairline reads as decoration the user cannot press. Nor does it apply to lines that *structure*: a calendar grid, a data table's rows, a full-bleed section boundary, the sidebar's edge — those carry meaning and keep their weight.
-
-**The No-Frame Rule.** A card does not carry a border and a shadow at the same time. In light mode the shadow does the work and the border is removed; in dark mode a hairline replaces the shadow. Carrying both is the web-dashboard signature this system exists to remove.
-
-**The Earned Container Rule.** A card is for meaningful grouping, never for holding content. When a section only needs separation, use `.card-plain` and let whitespace, type, and a heading do it. Nested cards are always wrong; use `.card-inset` for a recessed region inside a card.
-
-**The Quiet Lift Rule.** Resting surfaces stay calm; elevation increases only for interaction or a true layer change.
-
-**The Tonal Depth Rule.** Build atmosphere with authored gradients and radial light, never with generic grain overlays.
+Prefer plain or inset groups inside cards; another elevated card requires a separate interaction/context reason. Soft material shading may explain an object or a real layer, not conceal an empty composition. Current ink surfaces remain available for important focus/progress moments, never as the automatic wrapper for a signature.
 
 ## Shapes
 
-The form language is softly geometric, and the scale is named rather than improvised per component: `--bt-r-inset` 12px, `--bt-r-control` 14px, `--bt-r-card` 22px, `--bt-r-sheet` 28px, plus full pills for status chips. A segmented control matches the radius of the controls beside it rather than defaulting to a pill — a lone pill in a row of rounded rectangles reads as a stray element. Checkboxes remain compact rounded squares, while course identity and status markers are circular. Bottom sheets use 24px top corners on mobile and settle into rounded dialogs on wider screens.
+Soft geometry is supporting infrastructure, not the identity. Reuse the four radius roles in the frontmatter; do not normalize every object to a 22px card.
 
-Borders are thin and quiet. Dashed borders are reserved for an empty or add state; selected color swatches use a two-ring treatment so selection remains visible across light and dark swatches.
+**No pill by default.** A pill must carry a filter, selection, state, tag, compact action or meaningful count. Information is non-interactive and quiet; selection has a persistent selected state; action has an explicit verb/icon and focus/press feedback. Do not wrap ordinary copy to fill space.
+
+**The Diagonal Rule.** A thin bottom-left → top-right stroke means a date is strictly past, not completed, failed or an exam. It stays behind content, subordinate to exam identity; never strikes through the exam's label. Today's/future cells have no past stroke. Multi-course tint splitting is legacy behavior to retire, not a second meaning to standardize. No decorative diagonal elsewhere.
 
 ## Components
 
-### Buttons
+### Study Blocks — time becomes tangible
 
-- **Shape:** Soft controls with 14px corners; timer and compact choice actions may use full pills.
-- **Primary:** A dark green gradient, white text, semibold weight, and a restrained green shadow. It is the clearest action on a surface.
-- **Hover / Focus:** Fine-pointer hover lifts by 1px with a broader shadow; press scales to 97%. Keyboard focus uses a 2px Study Green outline with 2px offset.
-- **Secondary / Ghost:** Quiet Surface fill, primary text, and a Quiet Border. Neutral full-fill actions may use the primary text color against the surface color when they need equal weight without implying progress.
-- **Disabled:** Preserve the component shape and reduce opacity; never remove the label or rely on color alone.
+**Data unit ≠ visual unit.** Sessions currently store `duration_seconds`; retain that precision. Fifteen minutes (900 seconds) is the conceptual block, not a new storage/rounding rule. Planned time comes from explicit targets; task count, XP and elapsed wall-clock time are not study time.
 
-### Chips
+| Scale | Default representation | Readability rule |
+| --- | --- | --- |
+| Zero / under 15 min | Zero: no earned block. Positive duration: one fractional quarter-hour block with exact duration label; compact records may be text-only. | 7 min is not one completed block; never inflate a fraction to imply more study. |
+| 15–120 min session | Quarter-hour units, clustered every four into one hour. 15m = 1; 30m = 2; 1h = 4. | At most eight individual units by default. Partial last unit follows measured time. |
+| Over 2h / long study day | Hour-sized clusters with optional four internal divisions only when legible. 6–8h means 6–8 primary units, not 24–32 independent tiles. | Prefer solid hour faces when subdivisions become tiny. Preserve a labeled remainder: 6h20 = six hours + one-third hour. |
+| Very long totals / narrow summary | Labeled aggregate, or larger time units (e.g. 2h per segment). | At most 12 primary units; compress earlier if they need to shrink below a readable size. Never hide time behind an unlabeled “+N”. |
+| Week / month / stats / leaderboard | Exact total plus optional compact rectangular duration bands or day/week bins. | State the unit/axis; a day-bin is not a 15-minute block. Use one shared scale across comparisons, or omit the graphic. |
 
-- **Style:** Full pills with small semibold or bold labels. Selected choices use Action Green and white; unselected choices use Quiet Surface with a Quiet Border.
-- **State:** Progress counts and status pills use tabular numerals. Course colors remain data-driven identifiers and do not replace semantic system colors.
+Compression changes rendering, not stored data or reward eligibility. A caption such as “1 unit = 1h” is required when the unit would otherwise be ambiguous. Do not change scale independently for each leaderboard row. On live views, avoid rearranging all units every minute; change scale at stable boundaries. The current Timer's capped overflow and daily goal cells are evidence to evolve, not this full policy already implemented.
 
-### Cards / Containers
+Completed time is filled; a live measured fraction is partial; paused time stops accumulating and uses an explicit pause state, not an exam/error rail. Planned time is an outline/unfilled allocation labeled “planned,” never shown as earned. Unknown duration stays unknown; completing a checklist does not prove time studied.
 
-- **Corner Style:** Generous 20px corners, increasing to 22–24px for sheets and transient completion surfaces.
-- **Background:** Warm Surface for routine work, Quiet Surface for inset groups, and Brand Ink for earned focus or progress moments.
-- **Shadow Strategy:** Tonal separation first, Ambient Card shadow second; use stronger elevation only for interactive or floating layers.
-- **Border:** One quiet 1px border at rest.
-- **Internal Padding:** 20px compact and 24px when space permits.
+**Blocks are quantities; progress bars are ratios.** A labeled time-target view may show studied units against planned capacity because both are durations. Do not turn “3/5 objectives” or “40% setup” into study blocks. Do not duplicate the same duration as blocks, a bar and a percentage without a different question. No target means no invented empty capacity. Over-target time remains in the total even when a goal track stops at 100%.
 
-### Inputs / Fields
+### Exams — interrupt the ordinary system
 
-- **Style:** Warm Surface, Quiet Border, 14px corners, and 10px by 14px padding.
-- **Focus:** Study Green border plus a soft 4px green focus halo; the global keyboard outline remains visible.
-- **Error / Disabled:** Errors shift to the Danger family with a matching halo. Disabled fields reduce opacity and move to Quiet Surface. Text inputs use at least 16px type on touch layouts to prevent iOS zoom.
+**EXAM STATE > COURSE COLOR.** Adopt one vocabulary: a **deadline marker** comprising a short solid leading rail aligned with the calendar glyph + explicit “Exam” label, followed by the date/event identity. The rail belongs to the exam header/event, not an arbitrary full-height colored card edge. Use the existing warm Planning family; color reinforces a recognizable structure.
 
-### Navigation
+- Month cell: exam header/marker and date remain visible; warm treatment owns the cell. Course identity is a small named/dotted secondary signal. No competing course-colored background.
+- Mobile: preserve the marker, calendar glyph and short Exam label before optional course detail. Show exam count if needed; the cell opens complete names/date/time without hover. Do not solve crowding by removing the exam identity.
+- Day/Week/list/Activity/academic space: reuse the same header vocabulary at the available size. A date-bearing mark can include the actual date; do not fabricate a date for an undated exam space.
+- Today and selection remain independently visible, for example on the date indicator/outline; neither replaces the exam treatment.
+- Multiple exams: one marker with count and accessible event names, not stacked stripes. Other objectives remain secondary and available.
+- Error/delete UI uses its own icon, action and message; a warm exam is not an error.
 
-Desktop navigation is a quiet vertical list on Warm Surface; the active item receives Mint Surface, dark green text, and a slim Study Green rail.
+This contract evolves Planning's existing calendar label and occasional leading stripe. The shared renderer/aliases and mobile treatment are **not implemented by this documentation task**.
 
-Mobile navigation is a **floating translucent bar** (`.bt-nav`), inset 12px from the edges and lifted above the home indicator, carrying `--bt-elev-3` and a bright top hairline that reads as light catching the material. Content scrolls underneath it rather than stopping at it. The active tab grows a Mint pill behind its icon from a 0.94 resting scale, so selection is felt without flashing. The bar becomes opaque under `prefers-reduced-transparency`, gains a solid contrasting border under `prefers-contrast: more`, and drops the scale transition under `prefers-reduced-motion`.
+### Progress — distance to a real destination
 
-Inactive items use tertiary text, and notification badges add both count and contrast.
+Ordinary objectives, setup and percentages use an ordinary labeled progress bar. Important personal goals may use a spatial track with an origin, current position and known destination.
 
-### Progress & Selection
+The mascot's position must derive from the same ratio as the accessible progress value; clamp position to the track but keep actual over-target totals visible. Unknown/zero target means no fabricated journey. XP distance is XP, not fifteen-minute blocks. Decorative tick marks must not imply time units.
 
-Progress tracks use recessed neutral or translucent ink tracks, full-pill clipping, and a left-origin `scaleX` fill so updates remain composited and stable. Checkboxes keep a native or semantic checkbox behavior, add a rounded-square green fill and white check, and pair completion with a drawn strike-through where appropriate. Segmented controls keep one sliding or elevated selected surface inside a quiet pill-shaped track.
+### Mascot rules — participates, does not decorate
 
-### Dialogs & Progressive Disclosure
+Reuse `Mascot`, its moods and `MascotMoment`; no parallel character system.
 
-Editing opens as a bottom sheet on compact screens and a centered dialog from 640px upward. Dialogs trap focus, close on Escape, restore the opener, and separate destructive confirmation inside a Danger-tinted inset panel. Row-level edit and delete actions stay behind an overflow menu or a contextual editor until requested.
+Two permitted modes:
 
-**Grouped lists.** Settings that are opened a few times a year belong in a grouped list, not in an expanded card. A group is one surface holding rows of an icon pill, a label, the current state, and a chevron; the hairline starts after the pill so the eye follows the label column instead of being cut at every line. A folded row must still answer the question it was opened for — "Preferences · FR · Light" beats a bare "Preferences" — otherwise folding becomes hiding. What people check often, or urgently, stays unfolded: notification state is the standing example.
+1. **Event:** reaction to a real achievement/context change, using existing event identity, deduplication and frequency rules. Short reaction, not explanatory paragraphs; ordinary session posts do not automatically earn a mascot.
+2. **Persistent silent participant:** its position, state or relationship explains real personal progress. Stats' data-linked walker is the model. The user-approved Profile companion remains valid beside earned level/XP; do not copy its static stage to other pages as a default. A new persistent scene must explain what the character is doing with the data.
 
-## The Mascot
+No mascot for filler, every empty state or repeated generic advice. Aim for one prominent character per visible composition; suppress/defer a competing event when a permanent companion already occupies it. Existing overlap is backlog, not permission to rewrite appearances now.
 
-The mascot is a character, not an illustration slot. It earns attention by being **rare**, and it loses it by being present.
+Keep meaningful text/values outside artwork. Hide duplicated decorative SVG from assistive technology. Respect reduced motion with the correct static value/state, suspend unnecessary offscreen/hidden work, and avoid continuous celebratory loops. Motion must never delay access to the result.
 
-**The Event Rule.** The mascot appears for a *moment*, never for a state. Something happened — a block cleared, a badge unlocked, a record beaten, a streak saved, an exam closing in. A section being empty is not a moment; a page loading is not a moment. Every appearance carries an event key and a frequency (once / daily / session / always), and the system remembers what has been seen. "Always" is reserved for reactions to an action the person just took, where repeating *is* the point.
+### Achievement Objects — rewards have an identity outside their container
 
-**The Short-Copy Rule.** A mascot line is a reaction, not an explanation: "4 blocks already!", "New record!", "Your streak is safe." If an idea needs a paragraph, it is not the mascot's to deliver — the interface says it, in text, where it belongs.
+Use an object independent of its host: compact metadata, profile collection, detail and Activity should refer to the same reward. Object artwork must survive on a neutral surface; a dark gradient card is not its identity.
 
-**The Shape Rule.** The mascot has five presentations — a speech bubble sized to its words, a moment that overflows its card, a full celebration, a silent companion beside a number, and a toast that fades. It must not always be the same full-width tinted rectangle: a banner shape repeated on every screen is read as a banner, and banners are skipped.
+| Object family | Contract |
+| --- | --- |
+| Badge | Use the actual `BadgeIcon` by earned badge ID. Retain its recognizable locked silhouette; expose name and condition. Shared silhouettes need visible milestone/name distinctions, not halo strength alone. |
+| Level | Converge on a **level seal**: the existing Activity circular medallion vocabulary, readable numeral + “Lv.” identity and consistent rim. Small metadata may stay `Lv. N`; do not force a tiny illustrated coin everywhere. Rim is not an XP meter or time ticks. Final shared artwork/component is a scoped follow-up. |
+| Streak | One flame family derived from existing badge artwork, paired with a visible number + days. Ordinary count is compact; a milestone uses that same object, not an unrelated flame/card. |
+| Study milestone / record | Only a real supported metric with value, unit and record/milestone label. Choose its object in a dedicated task; this document creates neither new records nor reward criteria. |
+| Session / ordinary task | Compact duration/course or completion mark; not automatically a collectible reward. |
 
-**The Mood Rule.** The pose follows the context. Moods are named by the caller (proud, focused, celebrating, worried…) and mapped to artwork in one table, so a new drawing changes one line and no call site. Where a mood has no drawing yet, it borrows the closest one — deliberately, rather than shipping a weak pose to fill the grid.
+Rarity can have a restrained material treatment and a word, not a new UI palette. Preserve original artwork colors across themes. No generic gradient + uppercase eyebrow + huge number + confetti recipe. Celebrations are brief and exceptional. Activity should eventually reuse shared objects through its structured renderer; preserve legacy text fallbacks and never infer achievements by parsing arbitrary captions.
+
+### Academic Structure — relationships explain relevance
+
+The existing model is connected contexts, **not a mandatory seven-step funnel**. A university may contain a field/program/course/exam, while a cross-university field can be a broader relevant space. “All students” is a hub; skipped/unknown levels are valid.
+
+Use real `parent_id` ancestry and field/course relationships, not names that merely resemble one another. Show current space + nearest useful parent, with remaining ancestry disclosed when needed. Use short factual relevance copy (“your field at UCF,” “inside Marketing”), not invented affinity percentages. Distinguish membership, relevance and activity.
+
+Preserve logo/monogram, compass, cap, book and exam-date/marker distinctions; kind color reinforces shape. A university color or blue course-kind glyph is not the user's personal course color. Only show that course hue when an actual course mapping exists. Name/university context must remain readable when many results share the same title.
+
+Offer one broader relevant route when an area is quiet, based on available activity/context data; member count alone does not prove activity. Keep familiar lists, filters and social controls. Do not render the whole hierarchy as a tree or change Friends to manufacture uniqueness.
 
 ## Do's and Don'ts
 
-### Do:
+### Correct / incorrect usage
 
-- **Do** use the warm semantic surface stack before adding elevation.
-- **Do** ask whether a section needs a container at all before reaching for `.card`.
-- **Do** keep primary actions in the dark Action Green pair and progress indicators in bright Study Green.
-- **Do** reserve dark ink surfaces for focus, meaningful progress, and completion.
-- **Do** use tabular numerals for any value that updates or aligns with another value.
-- **Do** preserve keyboard focus, 44px touch targets, safe areas, dark mode, and reduced-motion behavior.
-- **Do** reveal correction, deletion, and detailed management actions progressively.
-- **Do** keep the page title in the document and out of the layout when navigation already names the screen — the tab bar on a phone, the active sidebar entry on a desktop. Screen readers and search engines still need the heading; the reader does not need to be told twice.
-- **Do** collapse rarely used settings into grouped list rows, and show their current state on the folded row.
-- **Do** draw icons through the shared `Glyph` primitive and pass a size, never a hand-written stroke width — the stroke belongs to the size, and fourteen hand-picked values in circulation read as mixed typefaces.
-- **Do** let a settings icon stand on its own in the row, in neutral ink, at a size that reads without a container.
-- **Do** give every achievement its own drawn object, and keep locked ones recognizable.
+| Correct | Incorrect |
+| --- | --- |
+| “6h20 studied,” six hour units + fractional remainder | 26 tiny squares or rounding to 6h30 |
+| “3/5 objectives,” labeled ratio | Three earned study blocks |
+| Pink course marker with readable neutral text | Pink used as “overdue” |
+| Exam structure survives a red-course cell and mobile width | Red text alone or hiding the exam icon on mobile |
+| Past-date slash, independent of completion | Same diagonal for past, mixed courses and decoration |
+| Mascot stands at the real goal position | Mascot fills spare space beside generic copy |
+| Same level seal/object across detail and feed | A new trophy/card silhouette on every page |
+| Plain search and settings rows | Course tints and mascot decoration in preferences |
+| Named course/context under identical field names | Repeated colored icons with barely legible context |
 
-### Don't:
+### Gradual consolidation — not shipped by this document
 
-- **Don't** show the mascot because a section is empty, or attach it to copy that never changes. A character that says the same line on every visit stops being a character.
-- **Don't** use an emoji as an interface icon. It ignores the theme's color, changes shape from one device to the next, arrives at the font's size, and inside a translated string it cannot be translated — every translator has to copy it. Emoji stay where they are the content itself, like a reaction someone chose.
-- **Don't** re-skin a utility class for dark mode (`.dark .bg-white { … }`). A utility means what it says; if a color must follow the theme it goes through a token. Overriding one silently repaints every deliberate use of it — that rule turned a white call-to-action into dark-green-on-black.
-- **Don't** put a border and a shadow on the same surface.
-- **Don't** nest a card inside a card; use `.card-inset` or plain spacing.
-- **Don't** spread Brand Ink across ordinary management cards or use it as a generic dark panel.
-- **Don't** add generic grain, noise, or decorative texture; depth comes from tonal radial light and restrained shadow.
-- **Don't** use Quicksand as the general interface font.
-- **Don't** use bright green for dense text when the darker green role is available.
-- **Don't** let course colors carry status meaning or replace labels, icons, and semantic feedback.
-- **Don't** put a colored pastel tile behind every settings icon; that is a dashboard template, not a product.
-- **Don't** express achievement difficulty as the same shape getting darker, or let the illustration palette leak into interface chrome.
-- **Don't** fold away what people open under pressure — notification state stays visible on the profile.
-- **Don't** animate layout properties or leave motion running when reduced motion is requested.
+| Priority | Existing mismatch / evidence | Acceptance in a future scoped task |
+| --- | --- | --- |
+| 1 | Timer capped `+N`; `TodayProgressCard` builds one cell per target quarter-hour | Shared scale-aware duration rules, exact fractions/totals, 0/7m/1h/3h/8h and over-target checks |
+| 1 | `styles/planning.css` diagonal course split + past slash; mobile hides exam details/icon | One past-date diagonal; exam marker survives 320–390px, multiple exams, red/pink course, today and both themes |
+| 1 | Planning exam palette vs `--bt-kind-exam` | One shared semantic exam vocabulary; distinguish errors and undated exam spaces |
+| 1 | Faint small metadata; bright-green/white selected text | Measured contrast in both themes; no essential text demoted to disabled-looking gray |
+| 2 | Level number / circular medallion / square celebration; multiple flames | Shared object family, compact variants, visible milestone identity |
+| 2 | Daily blocks, Stats runway, XP ticks, ordinary bars | Distinguish time quantity from ratio; no invented units or redundant encodings |
+| 2 | Profile segmented controls vs `SegmentedGlide`; different sheet implementations | Consistent equivalent states; labels, focus trap/restore, Escape, targets and reduced motion |
+| 2 | Profile permanent companion plus event mascot; decorative cover/stage details | Resolve competing characters and information-free emphasis only in an authorized profile task |
+| 3 | Tailwind color literals differ from CSS; historical surface docs/comments | Consolidate at source without repainting unrelated screens; record before/after |
+| 3 | Shared badge silhouettes; legacy Activity text; small academic context | Legible distinctions and graceful history; no fabricated structured data or proximity |
+
+Documentation values for radii, dark surfaces and the old “card/border/gradient by default” guidance are reconciled here. Runtime CSS, controls, artwork and layouts have **not** been consolidated.
+
+### Rules for coding agents
+
+1. Read this file, PRODUCT.md, the relevant surface brief and recent AI_CHANGELOG before UI work.
+2. Inspect real data, current render and reusable components. State which signature answers which user question; “none, utility UI” is valid.
+3. Preserve existing behavior and explicit composition constraints. This language is not authorization for a global redesign, migration or asset replacement.
+4. Reuse tokens and objects; do not create another palette, level object, mascot system or competing design document.
+5. Record units/scale, source of truth, priority conflicts and empty/unknown behavior before adding a visualization.
+6. Explain the need for each new surface, pill and strong decoration. Use fewer encodings, not fewer facts.
+7. Keep exam > course priority, honest time, no fake data and familiar utility UI.
+8. During implementation, verify mobile/desktop, sparse/dense/long-name states, themes, keyboard and reduced motion in proportion to the change.
+9. Update the scoped changelog and affected brief with what actually shipped. Mark remaining gaps; never imply that documentation changed the application.
+10. Apply one bounded feature at a time. Do not “fix the backlog” as a side effect.
