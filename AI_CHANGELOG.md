@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-15 - Activity : posts structures et partage fiable (Codex)
+
+- Corps reutilisable ActivityPostBody : niveau hero sur vert sombre, vrais BadgeIcon, palier de serie, session compacte duree/cours, objectif termine. En-tetes, reactions, commentaires, edition de legende et suppression conserves. Aucun parsing hasardeux des anciens textes, aucun record invente, aucune animation permanente/mascotte systematique.
+- Preferences privees par compte dans auto_share_settings (RLS proprietaire), synchronisees entre appareils. Anciens choix locaux confirmables explicitement, jamais transferes silencieusement depuis un navigateur partage. Sauvegarde avec etat occupe/erreur.
+- Suppression du plafond silencieux une fois/jour/type. Dedupe serveur user_id + auto_event_key ; file locale de reprise, essais au retour online/focus et intervalle visible. Annulation si consentement retire ; audience jamais elargie lors des retries.
+- Sessions de moins de 60 secondes filtrees avant publication. Trigger transactionnel a l'insertion sessions, incluant Pomodoro, synchronisation offline et chronos de groupe, selon consentement serveur existant. Pas de backfill et jamais de note personnelle publiee. Client compatible avec la meme cle idempotente.
+- Deux migrations appliquees au projet Supabase : automatic_activity_posts et automatic_session_delivery. Preferences owner-only ; fonction trigger non executable par anon/authenticated. Les autres evenements restent relies au detecteur existant (pas de republication des anciens niveaux/badges au login).
+- Verification : 59 tests passes dont huit du transport/consentement/retry, ESLint cible et build production passes ; fixtures offline FR a 1440px et 390px, pas de debordement, cinq rendus et persistance des choix controles. Aucun post de demonstration publie en production.
+
+
 ## 2026-09-14 - Calendrier : un cours, une teinte ; jours passes barres (Codex)
 
 - Un cours donne desormais une teinte uniforme dans toute la case. La separation diagonale est reservee a deux cours distincts, de meme intensite.

@@ -10,7 +10,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { formatDuration, formatMinutesShort, todayISO, computeStreak, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
-import { autoSharePost } from "../lib/autoShare";
+import { autoSharePost, shareSavedSession } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
@@ -528,7 +528,8 @@ export default function Dashboard() {
         autoSharePost(supabase, {
           userId: user.id,
           kind: "goal_completed",
-          caption: t("autoshare.goal").replace("{title}", data.title || ""),
+          eventKey: data.id,
+          activity: { version: 1, type: "goal_completed", title: data.title || "" },
         });
       }
     }
@@ -888,15 +889,7 @@ export default function Dashboard() {
     // annoncer quelque chose qui n'est pas là. Jamais la note personnelle —
     // on la prend pour soi, pas pour la vitrine.
     const sharedCourse = courses.find(c => c.id === courseId);
-    autoSharePost(supabase, {
-      userId: user.id,
-      kind: "session_completed",
-      caption: sharedCourse
-        ? t("autoshare.sessionCourse")
-            .replace("{duration}", formatMinutesShort(seconds))
-            .replace("{course}", sharedCourse.name)
-        : t("autoshare.session").replace("{duration}", formatMinutesShort(seconds)),
-    });
+    shareSavedSession(supabase, sessionRow, sharedCourse);
 
     // Refresh streak / goal counters in background
     load();

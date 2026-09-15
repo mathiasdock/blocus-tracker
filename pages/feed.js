@@ -22,6 +22,7 @@ import {
 import LevelPill from "../components/LevelPill";
 import EmptyState from "../components/EmptyState";
 import FeedPhoto from "../components/FeedPhoto";
+import ActivityPostBody from "../components/ActivityPostBody";
 import { SkeletonRow, SkeletonBar } from "../components/Skeleton";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
@@ -30,6 +31,7 @@ import {
   DEFAULT_AUTO_SHARE,
   TEXT_ONLY_POST_IMAGE,
   readAutoShare,
+  loadAutoShare,
   writeAutoShare,
 } from "../lib/autoShare";
 
@@ -99,6 +101,7 @@ const AUTO_SHARE_LABEL_KEYS = {
   goal_completed: "feed.autoGoal",
   level_up: "feed.autoLevel",
   streak: "feed.autoStreak",
+  badge_unlocked: "feed.autoBadge",
 };
 const AUTO_SHARE_LABELS = AUTO_SHARE_EVENTS.map((key) => [key, AUTO_SHARE_LABEL_KEYS[key]]);
 
@@ -124,6 +127,8 @@ export default function Feed() {
   const [formOpen, setFormOpen]         = useState(false);
   const [showAutoSettings, setShowAutoSettings] = useState(false);
   const [autoShare, setAutoShare] = useState(DEFAULT_AUTO_SHARE);
+  const [autoBusy, setAutoBusy] = useState(true);
+  const [autoError, setAutoError] = useState(false);
   const fileInputRef  = useRef(null);
   const pressTimerRef = useRef(null);
   const [editingPostId, setEditingPostId] = useState(null);
@@ -209,15 +214,30 @@ export default function Feed() {
   useEffect(() => {
     load();
     markSeen("feed");
+    window.addEventListener("bt:auto-post-published", load);
+    return () => window.removeEventListener("bt:auto-post-published", load);
   }, [load, markSeen]);
 
   // Lecture et écriture passent par lib/autoShare : c'est le même module que
   // celui qui publie, donc il ne peut pas y avoir de désaccord entre ce que
   // l'écran affiche et ce que l'app fait.
-  useEffect(() => { setAutoShare(readAutoShare()); }, []);
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    setAutoBusy(true);
+    loadAutoShare(supabase, user.id).then(prefs => { if (alive) setAutoShare(prefs); })
+      .catch(() => { if (alive) setAutoError(true); })
+      .finally(() => { if (alive) setAutoBusy(false); });
+    return () => { alive = false; };
+  }, [user?.id]);
 
-  function setAutoSharePref(patch) {
-    setAutoShare(writeAutoShare(patch));
+  async function setAutoSharePref(patch) {
+    if (autoBusy || !user?.id) return;
+    setAutoBusy(true);
+    setAutoError(false);
+    try { setAutoShare(await writeAutoShare(supabase, user.id, patch)); }
+    catch { setAutoError(true); }
+    finally { setAutoBusy(false); }
   }
 
   async function createPost(e) {
@@ -506,11 +526,18 @@ export default function Feed() {
           {showAutoSettings && (
             <div className="px-4 pb-4">
               <p className="mb-3 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("feed.autoShareHint")}</p>
+              {autoError && <p role="alert" className="mb-3 text-sm">{t("feed.autoSaveError")}</p>}
+              {AUTO_SHARE_EVENTS.some(key => readAutoShare()[key]) && !AUTO_SHARE_EVENTS.some(key => autoShare[key]) && (
+                <button type="button" disabled={autoBusy} className="btn-secondary mb-3 min-h-11" onClick={() => setAutoSharePref(readAutoShare())}>
+                  {t("feed.autoImport")}
+                </button>
+              )}
               <div className="grid gap-2 sm:grid-cols-2">
                 {AUTO_SHARE_LABELS.map(([key, labelKey]) => (
                   <button key={key} type="button" onClick={() => setAutoSharePref({ [key]: !autoShare[key] })}
+                    disabled={autoBusy}
                     role="switch" aria-checked={!!autoShare[key]}
-                    className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm"
+                    className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
                     style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)" }}>
                     <span className="min-w-0 truncate">{t(labelKey)}</span>
                     <span className="h-5 w-9 shrink-0 rounded-full p-0.5 transition-colors"
@@ -532,6 +559,7 @@ export default function Feed() {
                   { val: "public", label: t("feed.everyone"), icon: <IconGlobe /> },
                 ].map(opt => (
                   <button key={opt.val} type="button"
+                    disabled={autoBusy}
                     onClick={() => setAutoSharePref({ visibility: opt.val })}
                     aria-pressed={autoShare.visibility === opt.val}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold transition-all"
@@ -682,6 +710,8 @@ export default function Feed() {
                       onDoubleTapLike={myReaction ? undefined : (pst) => react(pst, DEFAULT_REACTION_EMOJI)}
                     />
                   </div>
+                ) : post.activity ? (
+                  <ActivityPostBody activity={post.activity} caption={post.caption} />
                 ) : (
                   /* Un post sans photo est un post de TEXTE, pas une « activité »
                      générée par l'app : le bandeau menthe « ACTIVITÉ » étiquetait

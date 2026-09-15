@@ -1,6 +1,7 @@
 import "../styles/globals.css";
 import "../styles/study-spaces.css";
 import "../styles/planning.css";
+import "../styles/activity-post.css";
 import Glyph from "../components/Glyph";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -20,7 +21,7 @@ import { ensureAppWorker, SW_RELOADED_KEY } from "../lib/appWorker";
 import ConsentManager from "../components/ConsentManager";
 import LegalUpdateNotice from "../components/LegalUpdateNotice";
 import { recordConsentChoice } from "../lib/privacySettings";
-import { autoSharePost } from "../lib/autoShare";
+import { autoSharePost, flushAutoShare, loadAutoShare } from "../lib/autoShare";
 import SeoHead from "../components/SeoHead";
 import AppSplash from "../components/AppSplash";
 import { appleSplashEntries } from "../lib/splashScreens.mjs";
@@ -101,6 +102,22 @@ async function loadCurrentStatus(userId) {
 
 function GlobalLevelUpWatcher() {
   const { user } = useAuth();
+  useEffect(() => {
+    if (!user?.id) return;
+    const sync = () => {
+      if (document.visibilityState === "hidden") return;
+      loadAutoShare(supabase, user.id).then(() => flushAutoShare(supabase, user.id)).catch(() => {});
+    };
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("focus", sync);
+    const timer = window.setInterval(sync, 60000);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("focus", sync);
+      window.clearInterval(timer);
+    };
+  }, [user?.id]);
   // Le partage automatique se greffe ICI et nulle part ailleurs pour le niveau
   // et les paliers de série : ce veilleur sait déjà les détecter, et il porte
   // surtout les REPÈRES qui empêchent de fêter (donc de publier) un palier
@@ -203,9 +220,8 @@ function GlobalLevelUpWatcher() {
         autoSharePost(supabase, {
           userId: user.id,
           kind: "level_up",
-          caption: t("autoshare.level")
-            .replace("{level}", String(currentLevel))
-            .replace("{title}", current.titleKey ? t(current.titleKey) : ""),
+          eventKey: String(currentLevel),
+          activity: { version: 1, type: "level_up", level: currentLevel, titleKey: current.titleKey },
         });
       }
       previousLevelRef.current = Math.max(previousLevelRef.current, currentLevel);
@@ -217,7 +233,8 @@ function GlobalLevelUpWatcher() {
         autoSharePost(supabase, {
           userId: user.id,
           kind: "streak",
-          caption: t("autoshare.streak").replace("{n}", String(reachedMilestone)),
+          eventKey: String(reachedMilestone),
+          activity: { version: 1, type: "streak", days: reachedMilestone },
         });
       }
       streakBaselineRef.current = Math.max(streakBaselineRef.current || 0, reachedMilestone);
@@ -230,6 +247,10 @@ function GlobalLevelUpWatcher() {
           known.add(id);
           const def = BADGE_BY_ID[id];
           if (def) enqueueCelebration({ kind: "badge", badgeId: def.id, labelKey: def.labelKey, descKey: def.descKey });
+          if (def) autoSharePost(supabase, {
+            userId: user.id, kind: "badge_unlocked", eventKey: def.id,
+            activity: { version: 1, type: "badge_unlocked", badgeId: def.id },
+          });
         });
         if (fresh.length) localStorage.setItem(badgeKey, JSON.stringify([...known]));
       }
@@ -242,7 +263,7 @@ function GlobalLevelUpWatcher() {
         setTimeout(checkLevel, 0);
       }
     }
-  }, [user, enqueueCelebration, t]);
+  }, [user, enqueueCelebration]);
 
   const scheduleCheck = useCallback(() => {
     if (typeof window === "undefined") return;

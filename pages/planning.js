@@ -1653,12 +1653,12 @@ export default function Planning() {
       notifyXPChanged();
       if (!o.done) {
         playSensoryCue("task");
-        // Au COCHAGE seulement. Le garde-fou d'un post par jour vit dans
-        // lib/autoShare : cocher dix objectifs d'affilée ne fait qu'un post.
+        // A completed objective is shared at most once, even if rechecked.
         autoSharePost(supabase, {
           userId: user.id,
           kind: "goal_completed",
-          caption: t("autoshare.goal").replace("{title}", data.title || ""),
+          eventKey: data.id,
+          activity: { version: 1, type: "goal_completed", title: data.title || "" },
         });
         const nextDate = nextRecurrenceDate(o);
         if (nextDate) {
