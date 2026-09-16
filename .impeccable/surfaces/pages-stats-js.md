@@ -25,6 +25,7 @@ The hero answers "where am I in today's study day" and carries the mascot walkin
 - **Exact values are never hover-only.** The year heatmap is one tab stop with arrow-key navigation (← → a week, ↑ ↓ a day, Home/End), per-cell accessible labels carrying the exact duration, and a detail line under the grid fed by tap, click, hover or focus. A 53 × 7 grid cannot give 44 px targets; precision comes from selection plus arrows instead, and a mis-tap is visible and correctable.
 - Recharts produces neither text nor focusable targets, so each chart is `aria-hidden` beside an `sr-only` list of its exact bucket values. The expanded chart is a real dialog: focus enters it, Tab cycles inside, Escape closes, focus returns to its opener (`useDialogFocus`).
 - Compact controls keep their compact look and gain a 44 px interaction area through `bt-tap-44`, never by growing.
+- A filter group is capped at its card's width and wraps under the title when its chips do not fit (320 px, or 375–390 px with a long period such as "7 derniers jours"). Wrapped rows are spaced 12 px apart so their 44 px tap areas touch without overlapping. Truncating a chip is not an option: its label is the answer to "what am I looking at".
 - `bt-stats-readable` lifts `--bt-text-3/4` to `--bt-text-2` for this page: period labels, shares and cohort captions are information, and those tokens hold 2.5:1 light / 2.9:1 dark. A filter's current value is the answer to "what am I looking at" and reads in primary ink.
 - No Study Blocks and no `PlanningLoadBar` here. Historical statistics use the simplest truthful representation of the question asked; borrowing another surface's object for visual consistency would claim a meaning these numbers do not have.
 
@@ -34,4 +35,4 @@ Phase 1: browser on strictly offline fixture data at 320 / 375 / 390 / 1280 / 14
 
 ## Deferred
 
-Leaderboard placement, section reordering, redesigning the social comparison area, removing the percentile, the donut, badge consolidation with Profile, Advanced, hero redesign, XP progression, exam readiness and objective analytics belong to later scoped work. Known and untouched: `RankBadge` medal numerals and `LevelPill` sit below 4.5:1, and the leaderboard's three filters overflow their card at 320 px. The comparison RPC buckets active days in UTC.
+Leaderboard placement, section reordering, redesigning the social comparison area, removing the percentile, the donut, badge consolidation with Profile, Advanced, hero redesign, XP progression, exam readiness and objective analytics belong to later scoped work. Known and untouched: `RankBadge` medal numerals and `LevelPill` sit below 4.5:1. The comparison RPC buckets active days in UTC.
