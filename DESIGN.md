@@ -256,7 +256,7 @@ Offer one broader relevant route when an area is quiet, based on available activ
 
 | Priority | Existing mismatch / evidence | Acceptance in a future scoped task |
 | --- | --- | --- |
-| 1 | Timer capped `+N`; `TodayProgressCard` builds one cell per target quarter-hour | Shared scale-aware duration rules, exact fractions/totals, 0/7m/1h/3h/8h and over-target checks |
+| ✅ | ~~Timer capped `+N`; `TodayProgressCard` builds one cell per target quarter-hour~~ — shipped 2026-09-15 in `lib/studyBlocks.mjs` + `components/StudyBlocks.js` (Timer, Focus and Today share one scale; exact fractions; no `+N`; no invented capacity; Pomodoro rest has its own form) | Done. Remaining in this family: Stats' runway and the leaderboard still use their own encodings. |
 | 1 | `styles/planning.css` diagonal course split + past slash; mobile hides exam details/icon | One past-date diagonal; exam marker survives 320–390px, multiple exams, red/pink course, today and both themes |
 | 1 | Planning exam palette vs `--bt-kind-exam` | One shared semantic exam vocabulary; distinguish errors and undated exam spaces |
 | 1 | Faint small metadata; bright-green/white selected text | Measured contrast in both themes; no essential text demoted to disabled-looking gray |

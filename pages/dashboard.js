@@ -33,6 +33,8 @@ import MissionSummary from "../components/MissionSummary";
 import ChallengeStrip from "../components/ChallengeStrip";
 import { loadUserLevelMap } from "../lib/userLevels";
 import { getDailyMissionDefs, evaluateMissions } from "../lib/xp";
+import StudyBlocks, { RestTrack } from "../components/StudyBlocks";
+import { studyBlockLayout } from "../lib/studyBlocks.mjs";
 import TodayProgressCard from "../components/TodayProgressCard";
 import TodaySessionsCard from "../components/TodaySessionsCard";
 import DashboardCoursesCard from "../components/DashboardCoursesCard";
@@ -51,126 +53,14 @@ function daysUntilExam(dateStr) {
   return Math.floor((exam - today) / 86400000);
 }
 
-// ── Blocus Blocks — la signature visuelle du chrono ───────────
-// L'utilisateur ne "remplit pas une barre" : il CONSTRUIT sa session bloc
-// par bloc. Un bloc = 15 min de concentration.
-//  • Mode libre : les blocs validés s'accumulent (pas de fin imposée).
-//  • Mode objectif / pomodoro : progression vers un total de blocs, puis
-//    blocs bonus une fois l'objectif dépassé.
-// États d'un bloc : vide (discret) · validé (vert plein) · en cours (se
-// remplit + pulse doux) · pause (bordeaux doux qui pulse) · bonus (sobre
-// mais valorisé).
-const BLOCK_SECS = 900;          // 15 minutes par bloc
-const PAUSE_ACCENT = "#EF4444";  // rouge vif — la pause doit se voir d'un coup d'oeil
-
-// Construit la liste des blocs à afficher selon le mode.
-function buildBlockLayout({ elapsed, goalSecs, running, paused, max }) {
-  const validated = Math.floor(elapsed / BLOCK_SECS);
-  const fraction  = (elapsed % BLOCK_SECS) / BLOCK_SECS;
-  const curState  = paused ? "paused" : running ? "active" : "next";
-
-  if (goalSecs) {
-    const goalBlocks = Math.max(1, Math.ceil(goalSecs / BLOCK_SECS));
-    const reached = elapsed >= goalSecs;
-    const shown = Math.min(goalBlocks, max);
-    const head = [];
-    for (let i = 0; i < shown; i++) {
-      head.push(reached || i < validated ? "done" : i === validated ? curState : "empty");
-    }
-    return {
-      head,
-      overflow: goalBlocks > max ? goalBlocks - max : 0,
-      tail: null,
-      bonus: reached ? Math.min(4, Math.max(0, validated - goalBlocks)) : 0,
-      fraction,
-    };
-  }
-
-  // ── Mode libre — pas de fin, les blocs poussent ──
-  const need = validated + 1;
-  if (need <= max) {
-    const baseline = Math.max(need, 6);       // toujours au moins 6 emplacements
-    const head = [];
-    for (let i = 0; i < Math.min(baseline, max); i++) {
-      head.push(i < validated ? "done" : i === validated ? curState : "empty");
-    }
-    return { head, overflow: 0, tail: null, bonus: 0, fraction };
-  }
-  // Session longue : [quelques validés] +N [bloc en cours]
-  const headDone = max - 2;
-  return {
-    head: Array.from({ length: headDone }, () => "done"),
-    overflow: validated - headDone,
-    tail: curState,
-    bonus: 0,
-    fraction,
-  };
-}
-
-// Un bloc individuel. `fraction` remplit le bloc en cours (0→1).
-function Block({ state, fraction = 0, focus, groupStart = false }) {
-  const GREEN = "var(--bt-accent)";
-  const base = {
-    flex: 1,
-    minWidth: focus ? 8 : 5,
-    maxWidth: focus ? 46 : 30,
-    height: focus ? 22 : 14,
-    borderRadius: focus ? 6 : 4,
-    position: "relative",
-    overflow: "hidden",
-    marginLeft: groupStart ? (focus ? 7 : 5) : 0,
-    transition: "background-color 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease",
-  };
-  if (state === "done") {
-    return <span style={{ ...base, backgroundColor: GREEN, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }} />;
-  }
-  if (state === "bonus") {
-    return <span style={{ ...base, backgroundImage: "linear-gradient(155deg,var(--bt-accent-hover),var(--bt-accent))", boxShadow: "0 0 10px rgba(20,184,133,0.32)" }} />;
-  }
-  if (state === "active") {
-    return (
-      <span className="bt-block-active" style={{ ...base, backgroundColor: focus ? "rgba(20,184,133,0.16)" : "var(--bt-accent-bg)" }}>
-        <span style={{ position: "absolute", inset: 0, backgroundColor: GREEN, transform: `scaleX(${Math.max(0.07, fraction)})`, transformOrigin: "left", transition: "transform 0.9s linear" }} />
-      </span>
-    );
-  }
-  if (state === "paused") {
-    return (
-      <span className="bt-block-paused" style={{ ...base, backgroundColor: focus ? "rgba(239,68,68,0.18)" : "rgba(239,68,68,0.12)" }}>
-        <span style={{ position: "absolute", inset: 0, backgroundColor: PAUSE_ACCENT, opacity: 0.9, transform: `scaleX(${Math.max(0.07, fraction)})`, transformOrigin: "left" }} />
-      </span>
-    );
-  }
-  if (state === "next") {
-    return <span style={{ ...base, backgroundColor: "transparent", boxShadow: `inset 0 0 0 1.5px ${focus ? "rgba(255,255,255,0.24)" : "var(--bt-border)"}` }} />;
-  }
-  // empty
-  return <span style={{ ...base, backgroundColor: focus ? "rgba(255,255,255,0.07)" : "var(--bt-subtle)", boxShadow: focus ? "none" : "inset 0 0 0 1px var(--bt-border)" }} />;
-}
-
-function BlocusBlocks({ elapsed, running, paused, goalSecs, focus = false }) {
-  const max = focus ? 16 : 12;
-  const { head, overflow, tail, bonus, fraction } = buildBlockLayout({ elapsed, goalSecs, running, paused, max });
-  return (
-    <div className="flex items-center justify-center gap-[5px] w-full" style={{ minHeight: focus ? 22 : 14 }} aria-hidden="true">
-      {head.map((s, i) => (
-        <Block key={i} state={s} fraction={s === "active" || s === "paused" ? fraction : 0} focus={focus} groupStart={i > 0 && i % 4 === 0} />
-      ))}
-      {overflow > 0 && (
-        <span className="font-num tabular-nums shrink-0 px-1" style={{ fontSize: focus ? 13 : 11, fontWeight: 700, color: focus ? "rgba(255,255,255,0.6)" : "var(--bt-text-3)" }}>
-          +{overflow}
-        </span>
-      )}
-      {tail && <Block state={tail} fraction={fraction} focus={focus} />}
-      {bonus > 0 && (
-        <>
-          <span className="shrink-0" style={{ width: 4 }} />
-          {Array.from({ length: bonus }, (_, i) => <Block key={`b${i}`} state="bonus" focus={focus} />)}
-        </>
-      )}
-    </div>
-  );
-}
+// ── Blocus Blocks ─────────────────────────────────────────────
+// Le dessin et l'échelle vivent maintenant dans components/StudyBlocks.js et
+// lib/studyBlocks.mjs, partagés avec la carte « Progression du jour ». Ce qui a
+// disparu d'ici : le plafond à douze blocs suivi d'un « +N » (qui voulait dire
+// tantôt des blocs étudiés cachés, tantôt des blocs d'objectif cachés), la
+// rangée de six emplacements vides en mode libre alors qu'aucun objectif
+// n'était choisi, et le remplissage de TOUTES les cases dès l'objectif atteint
+// — vingt-cinq minutes y devenaient deux blocs pleins, soit trente annoncées.
 
 // Un caractère du chrono dans une fente à largeur fixe : quand sa valeur
 // change, le nouveau chiffre glisse vers le haut en fondu (effet odomètre).
@@ -186,13 +76,21 @@ function RollChar({ ch }) {
 
 // Chiffres du chrono — heures:minutes en héros, secondes dé-emphasées
 // (plus petites, atténuées) : la lecture premium façon minuteur Apple.
-function TimerDigits({ seconds, color, size = "clamp(4.9rem, 23vw, 7.5rem)" }) {
+function TimerDigits({
+  seconds,
+  color,
+  size = "clamp(4.9rem, 23vw, 7.5rem)",
+  // Une session de plus d'une heure affiche TROIS groupes de chiffres. A la
+  // taille du cas courant, « 11:56:58 » debordait et le « 8 » des secondes
+  // passait a la ligne sous le chrono a 320 px. Le cas courant garde sa taille.
+  hoursSize = "clamp(3.4rem, 16vw, 6.4rem)",
+}) {
   const [hh, mm, ss] = formatDuration(seconds).split(":");
   const showHours = hh !== "00";
   const main = showHours ? `${hh}:${mm}` : mm;
   return (
     <div className="font-num font-bold tabular-nums"
-      style={{ fontSize: size, lineHeight: 1, letterSpacing: "-0.04em", color, transition: "color 0.3s" }}>
+      style={{ fontSize: showHours ? hoursSize : size, lineHeight: 1, letterSpacing: "-0.04em", whiteSpace: "nowrap", color, transition: "color 0.3s" }}>
       {main.split("").map((ch, i) => <RollChar key={`m${i}`} ch={ch} />)}
       <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.45, marginLeft: "0.06em" }}>
         :{ss.split("").map((ch, i) => <RollChar key={`s${i}`} ch={ch} />)}
@@ -336,6 +234,11 @@ export default function Dashboard() {
   const [courseEditorBusy, setCourseEditorBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle"|"saving"|"success"|"error"
   const savingRef = useRef(false);
+  // Sessions arrêtées dont la ligne n'est pas encore revenue dans `sessions` :
+  // sans elles le total du jour RETOMBERAIT le temps d'un aller-retour réseau,
+  // juste après avoir été crédité par le chrono. L'entrée porte l'id de la
+  // session, donc elle ne peut pas compter deux fois.
+  const [pendingCredits, setPendingCredits] = useState([]);
   const [completionToast, setCompletionToast] = useState(null);
   // Amis pour l'envoi depuis le récapitulatif. `null` = pas encore chargés ;
   // on ne les charge qu'au clic sur "Envoyer à un ami", pas à chaque fin de
@@ -758,6 +661,7 @@ export default function Dashboard() {
 
       pause();
       reset();
+      setPendingCredits((prev) => [...prev, { id: payload.id, secs }]);
 
       if (isGuest) {
         const nextSessions = [payload, ...sessions];
@@ -822,8 +726,10 @@ export default function Dashboard() {
 
     // 2) Reset UI : le travail est capturé dans la queue, l'utilisateur voit
     //    le timer revenir à 0. Pas de risque de re-cliquer "stop" sur le même
-    //    elapsed (id idempotent via PK).
+    //    elapsed (id idempotent via PK). Le total du jour prend le relais du
+    //    chrono dans le même geste : il ne redescend pas en attendant la base.
     reset();
+    setPendingCredits((prev) => [...prev, { id: payload.id, secs: seconds }]);
 
     if (isGuest) {
       savingRef.current = false;
@@ -1107,7 +1013,7 @@ export default function Dashboard() {
     }
   }
 
-  const totalToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
+  const recordedToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
 
   // Objectif effectif des Blocus Blocks : phase pomodoro > objectif de
   // session > mode libre (null → les blocs poussent sans fin).
@@ -1123,10 +1029,29 @@ export default function Dashboard() {
       : [];
     return [...base, ...extra].sort((a, b) => a[0] - b[0]).concat([[null, "∞"]]);
   }, [sessionGoalMin]);
-  const blockGoalSecs = pomodoro ? pomoTargetSecs : sessionGoalSecs;
+  const onBreak = pomodoro && pomoPhase === "break";
+  // La pause Pomodoro n'est pas du temps étudié : elle n'alimente ni les blocs,
+  // ni le total du jour, ni les moments.
+  const blockGoalSecs = onBreak ? null : (pomodoro ? pomoTargetSecs : sessionGoalSecs);
+  const liveStudySecs = onBreak ? 0 : elapsed;
   // Marée du mode focus : monte vers l'objectif ; en libre, ambiance basse
   // et constante (aucune "fin" à suggérer).
   const focusTidePct = blockGoalSecs ? Math.min(1, elapsed / blockGoalSecs) : 0.22;
+
+  // ── Session en cours vs journée ───────────────────────────────
+  // « Chrono 16:19 / Aujourd'hui 1 min » était techniquement exact et
+  // incompréhensible : le total du jour ne lisait que les sessions ENREGISTRÉES
+  // pendant que le chrono tenait du temps non encore sauvé. La journée additionne
+  // donc les trois sources, sans jamais compter deux fois :
+  //   · `recordedToday` — ce que la base connaît déjà ;
+  //   · `pendingCredits` — ce qui vient d'être arrêté et n'est pas encore
+  //     revenu de la base (ou attend dans la file hors ligne) ; une entrée
+  //     s'efface d'elle-même dès que sa session apparaît dans `sessions` ;
+  //   · `liveStudySecs` — la session qui tourne, remise à zéro par `reset()`
+  //     à l'instant précis où le crédit prend le relais.
+  const creditedToday = pendingCredits.reduce(
+    (a, c) => (sessions.some((s) => s.id === c.id) ? a : a + c.secs), 0);
+  const totalToday = recordedToday + creditedToday;
 
   // ── Records (fenêtre 90 jours) ────────────────────────────────
   const dayTotals = {};
@@ -1141,33 +1066,45 @@ export default function Dashboard() {
   const weekStartISO = weekStart.toISOString().slice(0, 10);
   const weekSecs = Object.entries(dayTotals).reduce((a, [d, v]) => (d >= weekStartISO ? a + v : a), 0);
 
-  // ── Texte intelligent sous les blocs — UNE phrase, selon le mode ──
-  const blkValidated = Math.floor(elapsed / BLOCK_SECS);
-  const blkGoalCount = blockGoalSecs ? Math.max(1, Math.ceil(blockGoalSecs / BLOCK_SECS)) : null;
-  const blkReached = blockGoalSecs ? elapsed >= blockGoalSecs : false;
-  const nextBlockMin = Math.max(1, Math.ceil((BLOCK_SECS - (elapsed % BLOCK_SECS)) / 60));
-  function blockLine() {
-    if (isPaused) return t("dash.blkPause").replace("{t}", pauseSince);
-    if (pomodoro) {
-      if (pomoPhase === "break") return t("dash.nextAutoStart");
-      const rem = formatMinutesShort(Math.max(0, blockGoalSecs - elapsed));
-      return t("dash.blkPomo")
-        .replace("{done}", String(Math.min(blkValidated, blkGoalCount)))
-        .replace("{total}", String(blkGoalCount))
-        .replace("{t}", rem);
-    }
+  // ── Ce que les blocs ne disent pas ───────────────────────────
+  // L'en-tete des blocs portait quatre encodages de la meme quantite : le
+  // libelle, la pastille d'unite, « N termines », puis une phrase « 3/8 blocs ·
+  // encore 1h12 » sous la piste — alors que le chrono geant donnait deja la
+  // valeur exacte. Il n'en reste qu'un slot, a droite, pour la seule question
+  // que le dessin ne tranche pas : ce qu'il reste, ou ce qui a ete fait en plus.
+  // Meme echelle que la piste : ni le libelle d'unite ni le compte a rebours ne
+  // peuvent la contredire. « Prochain bloc dans 15 min » pendant que la piste
+  // affiche des heures serait exactement l'ambiguite qu'on essaie de retirer.
+  const blockUnitSecs = studyBlockLayout({
+    earnedSecs: elapsed, plannedSecs: blockGoalSecs, maxUnits: 12,
+  }).unitSecs;
+  const nextBlockMin = Math.max(1, Math.ceil((blockUnitSecs - (elapsed % blockUnitSecs)) / 60));
+  function blockAside() {
+    // La pause du chrono comme celle du Pomodoro disent deja leur etat : le
+    // slot reste vide plutot que d'annoncer « 0 min etudiees ».
+    if (isPaused || onBreak) return null;
+    // Pomodoro : les chiffres comptent a rebours, donc la valeur exacte du
+    // temps etudie ne serait ecrite nulle part ailleurs.
+    if (pomodoro) return t("dash.blkStudied").replace("{t}", formatMinutesShort(elapsed));
     if (blockGoalSecs) {
-      if (blkReached) return t("dash.blkGoalOver").replace("{m}", String(Math.max(0, Math.floor((elapsed - blockGoalSecs) / 60))));
-      const rem = formatMinutesShort(Math.max(0, blockGoalSecs - elapsed));
-      return t("dash.blkGoal").replace("{done}", String(blkValidated)).replace("{total}", String(blkGoalCount)).replace("{t}", rem);
+      const over = elapsed - blockGoalSecs;
+      // Sous la minute, on ne raconte ni « +0 min » ni « encore 0 min » : on
+      // dit l'état. Au-delà, la valeur arrondie suffit — le chrono garde
+      // la seconde exacte juste au-dessus.
+      if (over >= 60) return t("dash.blkOver").replace("{t}", formatMinutesShort(over));
+      if (over >= 0) return t("dash.goalDone");
+      return t("dash.blkLeft").replace("{t}", formatMinutesShort(Math.max(60, -over)));
     }
-    // Mode libre : rien tant qu'on n'a pas démarré (les chips objectif sont là).
-    if (!running && elapsed === 0) return null;
-    if (blkValidated === 0) return t("dash.blkFreeNext").replace("{m}", String(nextBlockMin));
-    return (blkValidated === 1 ? t("dash.blkFreeOne") : t("dash.blkFreeMany").replace("{n}", String(blkValidated)))
-      .replace("{m}", String(nextBlockMin));
+    return t("dash.blkFreeNext").replace("{m}", String(nextBlockMin));
   }
-  const liveMessage = blockLine();
+  const blocksAside = blockAside();
+  const blocksAria = blockGoalSecs
+    ? t("dash.blkAriaGoal")
+        .replace("{done}", formatMinutesShort(elapsed))
+        .replace("{goal}", formatMinutesShort(blockGoalSecs))
+    : t("dash.blkStudied").replace("{t}", formatMinutesShort(elapsed));
+  // Une pause dit son etat une seule fois, dans son libelle.
+  const liveMessage = onBreak ? t("dash.nextAutoStart") : null;
 
   // ── Moments — le bon message au bon moment ────────────────────
   // Détectés au franchissement d'un seuil (une seule fois par session),
@@ -1205,8 +1142,14 @@ export default function Dashboard() {
     }
     // Du plus banal au plus précieux : si plusieurs seuils tombent dans le
     // même tick, le dernier setMoment gagne → le plus rare l'emporte.
-    const blocks = Math.floor(elapsed / BLOCK_SECS);
-    if (blocks >= 1) fire(`block${blocks}`, t("coach.timer.block"));
+    //
+    // Le quart d'heure ne déclenche PLUS la mascotte. Une journée de blocus de
+    // huit heures produisait trente-deux apparitions : à ce rythme le
+    // personnage ne félicite plus rien, il commente. L'accumulation ordinaire
+    // est désormais dite par les blocs eux-mêmes — plus un retour haptique bref
+    // toutes les vingt-cinq minutes. Il reste les heures pleines, l'objectif de
+    // session, l'objectif du jour, la plus longue session et le record du jour :
+    // des événements qui existaient déjà, aucun critère nouveau.
     const hours = Math.floor(elapsed / 3600);
     if (hours >= 1) fire(`hour${hours}`, t("dash.momentHour").replace("{h}", String(hours)));
     if (sessionGoalSecs && elapsed >= sessionGoalSecs) fire("sessionGoal", t("dash.momentSessionGoal"));
@@ -1215,6 +1158,15 @@ export default function Dashboard() {
     if (bestDaySecs > 0 && totalToday < bestDaySecs && totalToday + elapsed > bestDaySecs) fire("bestDay", t("dash.momentBestDay"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, running, pomodoro, pomoPhase]);
+
+  // Un crédit disparaît dès que sa session est dans la liste : le total ne
+  // bouge pas, il change juste de source.
+  useEffect(() => {
+    setPendingCredits((prev) => {
+      const kept = prev.filter((c) => !sessions.some((s) => s.id === c.id));
+      return kept.length === prev.length ? prev : kept;
+    });
+  }, [sessions]);
 
   // Ce jalon reste indépendant des Blocus Blocks de 15 min : un retour bref
   // accompagne chaque tranche de 25 min réellement franchie.
@@ -1235,10 +1187,12 @@ export default function Dashboard() {
   const timerMoment = moment ? { key: `timer-${moment.id}`, message: moment.text } : null;
   // Ce que la mascotte ne dit plus, l'écran le dit en texte : l'état de pause
   // et l'invitation à démarrer, qui n'ont jamais été des exploits.
+  // Le libellé « En pause · mm:ss » dit déjà l'état et sa durée : la phrase de
+  // coach n'apparaît que lorsqu'elle AJOUTE quelque chose, après dix minutes.
   const timerHint = timerMoment
     ? null
     : isPaused
-      ? t(pauseSeconds >= 10 * 60 ? "coach.timer.longPause" : "coach.timer.pause")
+      ? (pauseSeconds >= 10 * 60 ? t("coach.timer.longPause") : null)
       : (!running && elapsed === 0)
         ? t("coach.timer.ready")
         : null;
@@ -1292,12 +1246,16 @@ export default function Dashboard() {
             donnés en clair plutôt que remis à zéro : `lg:order-none` ne
             l'emportait pas de façon fiable sur le rang mobile. */}
         <div className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
+        {/* La pause ne teinte plus la carte en rouge et ne l'entoure plus d'un
+            halo d'alerte. Elle fait exactement l'inverse : le lavis vert qui
+            accompagne le travail S'ÉTEINT. On lit « ça ne compte plus » au lieu
+            de « quelque chose a échoué ». */}
         <section className="bt-dashboard-timer order-1 lg:order-1 card relative min-w-0 overflow-hidden"
           style={{
-            backgroundColor: isPaused ? "rgba(239,68,68,0.13)" : "var(--bt-surface)",
+            backgroundColor: "var(--bt-surface)",
             backgroundImage: isPaused ? "none" : "radial-gradient(90% 75% at 50% 100%, var(--bt-timer-wash), transparent 72%), linear-gradient(180deg, var(--bt-surface), var(--bt-timer-base))",
-            borderColor:     isPaused ? "rgba(239,68,68,0.60)" : "var(--bt-border)",
-            boxShadow:       isPaused ? "0 4px 32px rgba(239,68,68,0.22)" : "0 4px 32px var(--bt-shadow)",
+            borderColor:     "var(--bt-border)",
+            boxShadow:       "0 4px 32px var(--bt-shadow)",
           }}>
 
           {/* Halo de progression — le fond respire et s'intensifie avec la
@@ -1309,23 +1267,6 @@ export default function Dashboard() {
               opacity: (running || elapsed > 0) && !isPaused ? 0.35 + focusTidePct * 0.65 : 0,
               transition: "opacity 1.5s ease",
             }} />
-
-          {/* Le Défi du jour, au-dessus du sélecteur de cours. C'est le seul
-              objectif de la journée qui puisse changer ce qu'on est sur le
-              point de faire : il nomme un cours et une durée, et le sélecteur
-              est juste dessous. Un tap arme la session sur le bon cours. */}
-          {challenge && !running && (
-            <div className="relative z-20 px-4 pt-4 sm:px-6 sm:pt-5">
-              {/* Le tap n'est proposé QUE si le cours du défi existe encore
-                  dans la liste : un bouton qui ne sélectionne rien, ou qui
-                  sélectionne un cours supprimé pour se faire corriger à la
-                  frame suivante, vaut moins qu'une simple ligne de texte. */}
-              <ChallengeStrip
-                challenge={challenge}
-                onPickCourse={activeCourses.some(c => c.id === challenge?.params?.course_id) ? setCourseId : undefined}
-              />
-            </div>
-          )}
 
           {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
           <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
@@ -1419,43 +1360,94 @@ export default function Dashboard() {
             </button>
           </div>
 
+          {/* Le Défi du jour, SOUS le cours et avant le bouton Démarrer. Il
+              était au-dessus du sélecteur : une mission passait donc avant la
+              première question de la page, « qu'est-ce que j'étudie ». Il
+              s'efface aussi dès qu'une session existe — pendant une pause, il
+              venait commenter par-dessus un chrono arrêté. Sa place dans la
+              liste des objectifs du jour, elle, ne bouge pas.
+              Le tap n'est proposé QUE si le cours du défi existe encore dans la
+              liste : un bouton qui ne sélectionne rien, ou qui sélectionne un
+              cours supprimé pour se faire corriger à la frame suivante, vaut
+              moins qu'une simple ligne de texte. */}
+          {challenge && !running && elapsed === 0 && (
+            <div className="relative z-20 mt-3 px-4 sm:px-6">
+              <ChallengeStrip
+                challenge={challenge}
+                onPickCourse={activeCourses.some(c => c.id === challenge?.params?.course_id) ? setCourseId : undefined}
+              />
+            </div>
+          )}
+
           {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
           <div className="px-4 pb-3 pt-8 text-center sm:px-6 sm:pt-10">
             {pomodoro && (
               <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]"
-                style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "#075E80" }}>
+                style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "var(--bt-text-2)" }}>
                 {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
               </div>
             )}
+            {/* Une pause est un état ordinaire du chrono. Elle se dit une fois,
+                en encre neutre, avec sa durée dans le même libellé — plus de
+                pastille blanche sur rouge vif qui pulse. */}
             {isPaused && !pomodoro && (
               <div className="mb-3 flex justify-center">
-                <span className="bt-pause-pulse inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1.5 rounded-full"
-                  style={{ color: "#FFFFFF", backgroundColor: "#DC2626", border: "1px solid #DC2626" }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-                  {t("dash.pausedStatus")}
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold"
+                  style={{ color: "var(--bt-text-2)", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                  <span className="font-num tabular-nums">{t("dash.pausedFor").replace("{t}", pauseSince)}</span>
                 </span>
               </div>
             )}
 
+            {/* Les chiffres s'assourdissent au lieu de virer au rouge : ils ne
+                montent plus, ils ne sont pas en erreur. */}
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={isPaused && !pomodoro ? PAUSE_ACCENT : "var(--bt-text-1)"} />
+              color={isPaused && !pomodoro ? "var(--bt-text-2)" : "var(--bt-text-1)"} />
 
             {(running || elapsed > 0) && (
             <div className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
               <div className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
-                <span className="flex items-center gap-2">
-                  <span>{t("dash.sessionBlocks")}</span>
-                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
-                    {t("dash.blockUnit")}
+                <span className="flex min-w-0 items-center gap-2">
+                  {/* Sous 380 px, « Blocs de la session » se reduisait a
+                      « Blo… » : la pastille d'unite dit deja de quoi parle la
+                      rangee. « Pause », lui, reste — c'est le seul libelle de
+                      la piste de repos. */}
+                  <span className={onBreak ? "truncate" : "hidden truncate xs:inline"}>
+                    {onBreak ? t("dash.pause") : t("dash.sessionBlocks")}
                   </span>
+                  {/* L'unité est écrite parce qu'elle CHANGE : quinze minutes
+                      sur une session courte, une heure sur une journée de
+                      blocus. Compresser sans le dire rendrait la piste
+                      ambiguë. */}
+                  {!onBreak && (
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
+                      {t("dash.blockUnitLabel").replace("{u}", formatMinutesShort(blockUnitSecs))}
+                    </span>
+                  )}
                 </span>
-                <span className="font-num shrink-0 font-semibold tabular-nums">
-                  {t("dash.blocksValidated").replace("{n}", String(blkValidated))}
-                </span>
+                {blocksAside && (
+                  <span className="font-num shrink-0 font-semibold tabular-nums">{blocksAside}</span>
+                )}
               </div>
-              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} />
+              {onBreak ? (
+                <RestTrack
+                  remainingSecs={Math.max(0, pomoTargetSecs - elapsed)}
+                  totalSecs={pomoTargetSecs}
+                  label={t("dash.breakAria").replace("{t}", formatMinutesShort(Math.max(0, pomoTargetSecs - elapsed)))}
+                />
+              ) : (
+                <StudyBlocks
+                  earnedSecs={elapsed}
+                  plannedSecs={blockGoalSecs}
+                  running={running}
+                  paused={isPaused}
+                  maxUnits={12}
+                  label={blocksAria}
+                />
+              )}
             </div>
             )}
 
@@ -1474,8 +1466,8 @@ export default function Dashboard() {
                   live
                 />
               ) : !timerMoment && (liveMessage || timerHint) ? (
-                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? PAUSE_ACCENT : "var(--bt-text-3)" }}>
+                <p key={liveMessage || timerHint} className="bt-msg-swap text-sm"
+                  style={{ color: "var(--bt-text-3)" }}>
                   {liveMessage || timerHint}
                 </p>
               ) : null}
@@ -1747,6 +1739,7 @@ export default function Dashboard() {
           <TodayProgressCard
             className="order-3 lg:order-none"
             totalToday={totalToday}
+            liveSecs={liveStudySecs}
             goalSecs={DAILY_GOAL_SECS}
             weekSecs={weekSecs}
             weeklyGoalMin={weeklyGoalMin}
@@ -1824,17 +1817,13 @@ export default function Dashboard() {
 
       {focusMode && (
         <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
-          style={{
-            background: (isPaused && !pomodoro) ? "#1A0605" : "var(--bt-ink)",
-            zIndex: 100,
-          }}>
+          style={{ background: "var(--bt-ink)", zIndex: 100 }}>
           {/* Vagues WebGL de marque. Le composant fournit son propre fallback
-              statique et coupe la boucle sous prefers-reduced-motion. */}
+              statique et coupe la boucle sous prefers-reduced-motion. En pause
+              le champ se refroidit — il ne vire plus au rouge, et le battement
+              à 1 Hz qui doublait le signal a été retiré : c'était un
+              clignotement d'alerte pour un état ordinaire. */}
           <FocusShaderBackground paused={isPaused && !pomodoro} />
-
-          {/* Battement rouge à 1 Hz — un seul rythme, il happe le regard et
-              dit "en pause" avant même de lire quoi que ce soit. */}
-          {isPaused && !pomodoro && <div aria-hidden className="bt-pause-flash" />}
 
           {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
           <AmbientSoundControl active={focusMode} visible={focusCtlVisible || !running} />
@@ -1845,24 +1834,55 @@ export default function Dashboard() {
 
           {pomodoro && (
             <p className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
-              style={{ color: pomoPhase === "work" ? "#14B885" : "#0ea5e9" }}>
+              style={{ color: pomoPhase === "work" ? "var(--bt-accent)" : "var(--bt-ink-muted)" }}>
               {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
-              {pomoCount > 0 && <span className="font-normal ml-2" style={{ color: "#555" }}>· {t("dash.cycle")} {pomoCount}</span>}
+              {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
             </p>
           )}
 
-          <p className="text-sm mb-2 relative z-10" style={{ color: "#A8A09A" }}>
-            {courseId ? courseName(courseId) : t("dash.noCourse")}
+          {/* Le cours garde son identité en plein écran : un marqueur de sa
+              couleur, pas un habillage complet de l'écran. Sans lui, Focus
+              perdait le seul repère visuel partagé avec le Chrono, le planning
+              et les stats. Le cercle clair l'isole du champ mouvant. */}
+          <p className="text-sm mb-2 relative z-10 flex items-center gap-2" style={{ color: "var(--bt-ink-muted)" }}>
+            {courseId && courses.find((c) => c.id === courseId)?.color && (
+              <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{
+                  backgroundColor: courses.find((c) => c.id === courseId).color,
+                  boxShadow: "0 0 0 1.5px rgba(255,255,255,0.32)",
+                }} />
+            )}
+            <span>{courseId ? courseName(courseId) : t("dash.noCourse")}</span>
           </p>
 
           <div className="relative z-10 w-full text-center px-6">
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={(isPaused && !pomodoro) ? "#FFEDEB" : "var(--bt-ink-text)"}
-              size="clamp(4.5rem, 16vw, 8.5rem)" />
+              color={(isPaused && !pomodoro) ? "var(--bt-ink-muted)" : "var(--bt-ink-text)"}
+              size="clamp(4.5rem, 16vw, 8.5rem)"
+              hoursSize="clamp(3.2rem, 11vw, 7rem)" />
 
+            {/* Même échelle et même plafond d'unités que le Chrono : le
+                plein écran ne compresse plus différemment. */}
             <div className="mt-10 mx-auto w-full max-w-[600px]">
-              <BlocusBlocks elapsed={elapsed} running={running} paused={isPaused && !pomodoro} goalSecs={blockGoalSecs} focus />
+              {onBreak ? (
+                <RestTrack
+                  focus
+                  remainingSecs={Math.max(0, pomoTargetSecs - elapsed)}
+                  totalSecs={pomoTargetSecs}
+                  label={t("dash.breakAria").replace("{t}", formatMinutesShort(Math.max(0, pomoTargetSecs - elapsed)))}
+                />
+              ) : (
+                <StudyBlocks
+                  focus
+                  earnedSecs={elapsed}
+                  plannedSecs={blockGoalSecs}
+                  running={running}
+                  paused={isPaused}
+                  maxUnits={12}
+                  label={blocksAria}
+                />
+              )}
             </div>
 
             <div className="min-h-[82px] mt-5 flex items-center justify-center">
@@ -1877,19 +1897,19 @@ export default function Dashboard() {
                   live
                 />
               ) : (liveMessage || timerHint) ? (
-                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
+                <p key={liveMessage || timerHint} className="bt-msg-swap text-sm"
+                  style={{ color: "var(--bt-ink-muted)" }}>
                   {liveMessage || timerHint}
                 </p>
               ) : null}
             </div>
 
-            {/* Indicateur EN PAUSE — pastille bordeaux qui pulse */}
+            {/* En pause — un libellé sobre sur l'encre, avec sa durée. */}
             {isPaused && !pomodoro && (
-              <div className="bt-pause-pulse inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
-                style={{ color: "#FFFFFF", backgroundColor: "#DC2626", letterSpacing: "0.12em" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-                {t("dash.pausedStatus")}
+              <div className="inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full text-xs font-bold"
+                style={{ color: "var(--bt-ink-text)", backgroundColor: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                <span className="font-num tabular-nums">{t("dash.pausedFor").replace("{t}", pauseSince)}</span>
               </div>
             )}
           </div>

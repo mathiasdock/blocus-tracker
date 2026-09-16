@@ -2,6 +2,29 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-15 - Chrono : des blocs qui disent le temps reellement etudie (Claude)
+
+Application de la revue Timer et de DESIGN.md § Study Blocks. Pas de refonte : la
+disposition, le mode Focus, la selection de cours, l'architecture de chronometrage
+et la structure responsive sont inchangees. Aucun changement de ce qui est stocke,
+compte pour les recompenses ou publie.
+
+- **`lib/studyBlocks.mjs` (nouveau)** : une seule echelle pour le Chrono, le mode Focus et la progression du jour. Une unite represente une DUREE, jamais un etat d'objectif. Corrige le mensonge central : 25 min d'objectif remplissaient DEUX blocs de quinze minutes (30 min annoncees), 40 min en remplissaient TROIS (45 min annoncees). Desormais 25 min = une unite pleine + deux tiers, avec le trait d'objectif a sa position exacte. Verifie sur 0 / 7m / 15m / 25m / 40m / 45m / 1h / 1h30 / 2h / 3h / 6h / 8h / 12h et au-dela de l'objectif : la surface remplie egale toujours la duree mesuree.
+- **Echelle** : quarts d'heure groupes par heure jusqu'a huit unites, puis heures jusqu'a douze, puis tranches de deux heures. Une journee de six heures donne six groupes d'une heure au lieu de vingt-quatre lattes. L'unite visible est ecrite a cote de la piste (« 1h / bloc ») et le compte a rebours du prochain bloc la suit.
+- **Plus de « +N »**, qui designait tantot des blocs etudies caches, tantot des blocs d'objectif caches. Cinq signes structurels, aucun n'etant une couleur seule : cadre creuse = capacite prevue, remplissage = temps gagne, trait = frontiere exacte de l'objectif, ecart = limite du prevu, anneau neutre = endroit ou la session s'est arretee.
+- **Plus de capacite imaginaire** : sans objectif, la rangee de six emplacements vides disparait. Rien avant le depart, puis les unites poussent.
+- **La pause Pomodoro n'est plus du temps etudie** : piste continue et neutre qui se VIDE (`RestTrack`), au lieu des memes blocs verts qui se remplissent. Elle n'alimente pas non plus le total du jour.
+- **Session en cours vs journee** : « Chrono 16:19 / Aujourd'hui 1 min » n'existe plus. La carte du jour additionne le temps enregistre et la session en cours, et nomme la part en cours (« dont 26 min en cours »). Un credit local indexe sur l'identifiant de la session couvre l'aller-retour d'enregistrement : verifie en direct, le total reste a 1h27 pendant toute la sauvegarde, sans redescendre ni compter deux fois.
+- **Moins de redondance** : l'en-tete des blocs portait le libelle, la pastille d'unite, « N termines », puis une phrase « 3/8 blocs · encore 1h12 » sous la piste — quatre encodages de ce que le chrono geant disait deja. Il reste le libelle, l'unite et un seul slot a droite (ce qu'il reste / ce qui a ete fait en plus / le temps exact en Pomodoro).
+- **La pause redevient un etat ordinaire** : fond rouge de la carte, bordure d'alerte, halo rouge, chiffres rouges, pastille blanche sur rouge qui pulse et **battement rouge a 1 Hz en plein ecran** retires. A la place : libelle sobre « En pause · mm:ss », chiffres assourdis, extinction du lavis vert, champ du mode Focus qui se refroidit (`PAUSED_COLORS` desature au lieu du virage rouge), anneau d'arret sur l'unite en cours. Le vocabulaire du danger reste aux erreurs.
+- **Identite du cours en mode Focus** : pastille de la couleur du cours devant son nom, cerclee de blanc pour tenir sur le champ mouvant. Verifie avec une couleur non verte.
+- **Mascotte moins frequente** : le quart d'heure ne la declenche plus (trente-deux apparitions sur une journee de huit heures). L'accumulation ordinaire est dite par les unites, plus le retour haptique de vingt-cinq minutes deja en place. Restent heures pleines, objectif de session, objectif du jour, plus longue session, record du jour — aucun critere nouveau.
+- **Hierarchie** : le Defi du jour passe SOUS le selecteur de cours (une mission passait avant « qu'est-ce que j'etudie ») et disparait des qu'une session existe. L'ordre des cartes n'est PAS modifie : il est valide par l'utilisateur dans PRODUCT.md et le brief de surface.
+- **Correction responsive** : a 320 px, une session de plus de dix heures faisait passer le chiffre des secondes a la ligne sous le chrono. Une duree a trois groupes utilise desormais sa propre echelle de taille ; le cas courant mm:ss garde la sienne.
+- i18n FR+EN a parite. Cles retirees : `dash.blockUnit`, `dash.blocksValidated`, `dash.blocksToday`, `dash.blkFreeOne/Many`, `dash.blkGoal`, `dash.blkPomo`, `dash.blkGoalOver`, `dash.blkPause`, `coach.timer.block`.
+
+Verification : build offline et build production reel OK, ESLint propre, 59 tests Node passes, detecteur impeccable a zero anomalie. Navigateur offline : desktop 1280/1440, mobile 375 et 320, clair et sombre, libre / objectif / objectif depasse / pause / Pomodoro travail / Pomodoro repos / plein ecran, aucun debordement horizontal. Contrastes mesures : anneau d'arret 4,1 (clair) et 6,1 (sombre), repere d'objectif 4,6 sur le remplissage et 8,9 sur le logement grace a son lisere inverse, chiffres en pause 4,5. Mouvement reduit : transitions des unites et de la piste de repos coupees. Les durees de test viennent de l'etat local du chrono, aucune session fictive n'a ete inseree en base.
+
 ## 2026-09-15 - Langage visuel v1 : studying becomes tangible (Codex, documentation)
 
 - DESIGN.md devient la reference pratique : six signatures, blocs regroupables selon l'echelle sans changer duration_seconds, couleurs de cours semantiques, examens prioritaires, progression reelle, objets de recompense communs et relations academiques.

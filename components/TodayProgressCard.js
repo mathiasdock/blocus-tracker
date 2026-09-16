@@ -4,9 +4,8 @@ import Glyph from "./Glyph";
 import Flame from "./Flame";
 import { useI18n } from "../contexts/I18nContext";
 import { formatMinutesShort } from "../lib/format";
+import { studyBlockLayout, firstOverIndex } from "../lib/studyBlocks.mjs";
 import styles from "./TodayProgressCard.module.css";
-
-const BLOCK_SECONDS = 15 * 60;
 
 // Progression du jour — la même journée que le héros de /stats, vue depuis le
 // chrono. La carte comptait QUATRE fois la même quantité : le grand chiffre, le
@@ -26,7 +25,16 @@ const BLOCK_SECONDS = 15 * 60;
 // déjà des MOMENTS — fin de session, missions — et un personnage permanent en
 // plus ferait deux shibas à l'écran au même instant.
 export default function TodayProgressCard({
+  // Temps ENREGISTRÉ du jour (sessions en base + celles qui viennent d'être
+  // arrêtées et attendent leur aller-retour).
   totalToday,
+  // Temps de la session EN COURS, pas encore enregistré. La carte lisait
+  // seulement `totalToday` : pendant qu'un chrono affichait 16:19, elle
+  // pouvait afficher « 1 min ». Exact, incompréhensible. Elle additionne
+  // maintenant les deux et nomme la part en cours ; à l'enregistrement,
+  // `liveSecs` retombe à zéro au moment exact où `totalToday` monte, donc rien
+  // n'est compté deux fois.
+  liveSecs = 0,
   // L'objectif du jour vient du dashboard, il n'est plus redéclaré ici. Les
   // blocs s'en déduisent : si l'objectif bouge un jour, la piste suit au lieu
   // de mentir.
@@ -44,14 +52,23 @@ export default function TodayProgressCard({
   className = "",
 }) {
   const { t } = useI18n();
-  const blockGoal = Math.max(1, Math.round(goalSecs / BLOCK_SECONDS));
-  const goalPct = goalSecs > 0 ? Math.min(100, Math.round((totalToday / goalSecs) * 100)) : 0;
-  const blocks = Math.floor(totalToday / BLOCK_SECONDS);
-  const remaining = Math.max(0, goalSecs - totalToday);
-  const reached = totalToday >= goalSecs;
+  const dayTotal = totalToday + Math.max(0, liveSecs);
+  const goalPct = goalSecs > 0 ? Math.min(100, Math.round((dayTotal / goalSecs) * 100)) : 0;
+  const remaining = Math.max(0, goalSecs - dayTotal);
+  const reached = dayTotal >= goalSecs;
   const weekPct = weeklyGoalMin > 0
     ? Math.min(100, Math.round((weekSecs / (weeklyGoalMin * 60)) * 100))
     : 0;
+
+  // Même système d'échelle que le Chrono et le mode Focus (lib/studyBlocks.mjs).
+  // La carte fabriquait une case par quart d'heure d'objectif : à trois heures
+  // d'étude, douze cases toutes pleines et rien pour le dépassement.
+  const layout = studyBlockLayout({
+    earnedSecs: dayTotal, plannedSecs: goalSecs, maxUnits: 12,
+  });
+  const overIndex = firstOverIndex(layout);
+  const quarterScale = layout.unitSecs === 900;
+  const unitLabel = formatMinutesShort(layout.unitSecs);
 
   // Les blocs partent vides et se remplissent en cascade au montage, comme la
   // piste de /stats. Un minuteur plutôt qu'une frame d'animation : celles-ci ne
@@ -65,13 +82,6 @@ export default function TodayProgressCard({
     const id = setTimeout(() => setDrawn(true), 60);
     return () => clearTimeout(id);
   }, []);
-
-  // Un bloc = un quart d'heure. Celui en cours se remplit à sa fraction réelle
-  // plutôt que d'attendre d'être complet : c'est la précision qui rend la piste
-  // vivante entre deux sessions.
-  const cells = Array.from({ length: blockGoal }, (_, i) =>
-    Math.max(0, Math.min(1, (totalToday - i * BLOCK_SECONDS) / BLOCK_SECONDS))
-  );
 
   const goalLabel = formatMinutesShort(goalSecs);
 
@@ -108,7 +118,7 @@ export default function TodayProgressCard({
         </div>
 
         <p className={`font-num ${styles.value}`}>
-          <AnimatedNumber value={totalToday} format={formatMinutesShort} />
+          <AnimatedNumber value={dayTotal} format={formatMinutesShort} />
           <span className={styles.goal}>/ {goalLabel}</span>
         </p>
 
@@ -122,19 +132,42 @@ export default function TodayProgressCard({
           // Même phrase que sur /stats : la clé y est déjà, une seconde
           // formulation du même fait ne servirait personne.
           aria-valuetext={t("stats.heroGoalOf")
-            .replace("{done}", formatMinutesShort(totalToday))
+            .replace("{done}", formatMinutesShort(dayTotal))
             .replace("{goal}", goalLabel)}
         >
-          {cells.map((fill, i) => (
-            <span key={i} className={styles.cell}>
-              <span className={styles.cellFill} style={{ "--i": i, "--f": drawn ? fill : 0 }} />
+          {layout.units.map((unit, i) => (
+            <span
+              key={i}
+              className={styles.cell}
+              // Respiration d'une heure toutes les quatre unités — seulement
+              // quand l'unité est le quart d'heure ; au-delà elle EST l'heure.
+              data-cluster={quarterScale && i > 0 && i % 4 === 0 ? "1" : undefined}
+              // L'écart marque l'endroit où l'objectif s'arrête et où le temps
+              // en plus commence. Ce temps-là reste visible, il ne disparaît pas
+              // dans une piste plafonnée à 100 %.
+              data-over={i === overIndex ? "1" : undefined}
+              data-plain={unit.capacity === 0 ? "1" : undefined}
+              // `--n` = nombre d'unités (largeur du dégradé), `--d` = nombre
+              // d'intervalles (position de la tranche). Les deux changent avec
+              // l'échelle, et `--d` ne descend jamais à zéro.
+              style={{ "--c": unit.capacity, "--n": layout.units.length, "--d": Math.max(1, layout.units.length - 1) }}
+            >
+              <span className={styles.cellFill} style={{ "--i": i, "--f": drawn ? unit.fill : 0 }} />
+              {i === layout.goalIndex && (
+                <span className={styles.cellGoal} style={{ "--g": layout.goalAt }} aria-hidden="true" />
+              )}
             </span>
           ))}
         </div>
 
         <div className={`font-num ${styles.trackLabels}`}>
+          {/* L'unité est écrite en permanence : elle CHANGE selon la journée,
+              et une piste compressée sans légende serait ambiguë. La part en
+              cours s'y ajoute pendant qu'une session tourne — c'est la seule
+              chose que le grand chiffre ne dit pas. */}
           <span className={styles.lead}>
-            {t("dash.blocksToday").replace("{done}", String(blocks)).replace("{total}", String(blockGoal))}
+            {t("dash.blockUnitLabel").replace("{u}", unitLabel)}
+            {liveSecs > 0 && ` · ${t("dash.todayLive").replace("{t}", formatMinutesShort(liveSecs))}`}
           </span>
           <span className={reached ? styles.done : undefined}>
             {reached ? t("dash.goalDone") : t("dash.goalLeft").replace("{time}", formatMinutesShort(remaining))}
