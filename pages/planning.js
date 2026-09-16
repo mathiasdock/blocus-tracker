@@ -1210,7 +1210,13 @@ function MonthView() {
               return (
                 <button key={key} onClick={() => { if (inMonth || examItems.length) openDay(key); else setSelectedDate(key); }}
                   aria-label={`${label}${examItems.length ? ` — ${examItems.map(e => e.name || courseName(e.course_id)).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
-                  data-fill={fill || undefined} data-selected={isSel ? "1" : undefined}
+                  // Aujourd'hui porte déjà sa pastille verte sur le numéro. Le
+                  // contour vert de sélection, qui tombe dessus par défaut,
+                  // faisait un SECOND signal vert pour le même fait — et la
+                  // case du jour criait alors plus fort qu'un examen voisin.
+                  // Sélectionner un autre jour garde son contour ; aujourd'hui
+                  // reste repérable par sa pastille et par `aria-current`.
+                  data-fill={fill || undefined} data-selected={isSel && !isToday ? "1" : undefined}
                   data-past={key < today ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
@@ -1302,15 +1308,17 @@ function WeekWorkload({ days }) {
 
   return (
     <section className="card overflow-hidden">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b px-4 py-3 sm:px-5" style={{ borderColor: "var(--bt-border)" }}>
-        <div className="min-w-0">
-          <h2 className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.weekLoadTitle")}</h2>
-          {/* L'unité est écrite : une bande sans unité serait ambiguë. */}
-          <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.weekLoadHint")}</p>
-        </div>
+      {/* Une ligne, pas une introduction. Le sous-titre expliquait des bandes
+          dont chaque ligne écrit déjà la durée exacte à côté ; c'était de la
+          cérémonie au-dessus de l'information. Le total, lui, reste le seul
+          chiffre que les bandes ne donnent pas — il passe donc en évidence. */}
+      <div className="flex items-baseline justify-between gap-4 border-b px-4 py-2.5 sm:px-5" style={{ borderColor: "var(--bt-border)" }}>
+        <h2 className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+          {t("plan.weekLoadTitle")}
+        </h2>
         {weekMinutes > 0 && (
-          <p className="font-num shrink-0 text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
-            {t("plan.weekTotal").replace("{t}", formatMinutesShort(weekMinutes * 60))}
+          <p className="font-num shrink-0 text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+            {formatMinutesShort(weekMinutes * 60)}
           </p>
         )}
       </div>
@@ -1329,13 +1337,26 @@ function WeekWorkload({ days }) {
           const shown     = items.slice(0, WEEK_CHIPS);
           const hidden    = items.length - shown.length;
 
+          // La densité suit la quantité d'information. Une journée sans rien
+          // occupait presque autant de hauteur qu'une journée à huit objectifs :
+          // sur téléphone, cinq lignes d'affilée répétaient la même absence.
+          // Elle se réduit à sa date, sur une seule ligne. Les sept jours
+          // restent là — la structure lundi→dimanche ne se devine pas, elle se
+          // lit — mais l'absence cesse d'occuper la place du travail.
+          const empty = !load.minutes && !examItems.length && !items.length;
+
           return (
-            <li key={key} className="bt-plan-week-row" data-today={isToday ? "1" : undefined} data-exam={examItems.length ? "1" : undefined}>
+            <li key={key} className="bt-plan-week-row" data-today={isToday ? "1" : undefined}
+              data-exam={examItems.length ? "1" : undefined} data-empty={empty ? "1" : undefined}>
               <button type="button" className="bt-plan-week-date" onClick={() => openDay(key)}
                 aria-current={isToday ? "date" : undefined}
                 aria-label={`${t("plan.openDay")} — ${quickDateLabel(key, lang, t)}`}>
                 <span className="bt-plan-week-weekday">{weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}</span>
                 <span className="bt-plan-week-daynum font-num tabular-nums">{d.getDate()}</span>
+                {/* La phrase n'est plus écrite sept fois de suite : l'absence de
+                    barre EST l'absence de travail. Elle reste dite aux
+                    technologies d'assistance, qui ne voient pas ce vide. */}
+                {empty && <span className="sr-only">{t("plan.noPlan")}</span>}
               </button>
 
               <div className="bt-plan-week-body">
@@ -1368,9 +1389,7 @@ function WeekWorkload({ days }) {
                       ].filter(Boolean).join(" · ")}
                     </p>
                   </>
-                ) : (
-                  !examItems.length && <p className="bt-plan-week-meta">{t("plan.noPlan")}</p>
-                )}
+                ) : null}
 
                 {shown.length > 0 && (
                   <div className="bt-plan-week-chips">

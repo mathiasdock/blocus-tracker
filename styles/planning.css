@@ -82,15 +82,25 @@
    segments sont la part de chaque cours. Ni barre de progression, ni Study
    Block : rien n'est « rempli », c'est du plan, pas du temps gagné. */
 .bt-plan-load {
-  display: block;
+  display: flex;
+  align-items: flex-end;
   inline-size: 100%;
-  block-size: 5px;
-  border-radius: 999px;
-  background: var(--bt-subtle);
-  box-shadow: inset 0 0 0 1px var(--bt-hairline, var(--bt-border));
+  block-size: 6px;
+  /* Une barre POSÉE SUR UN AXE, pas un remplissage dans une gouttière.
+     La version précédente était une pastille pleine longueur dont on peignait
+     le début : exactement l'idiome d'une barre de progression, et on y lisait
+     « X % terminé » au lieu de « tant de travail prévu ». Il ne reste qu'un
+     filet — la capacité de huit heures — sur lequel la quantité repose, comme
+     une barre d'histogramme sur son axe. Rien n'est « rempli ». */
+  border-block-end: 1px solid var(--bt-border);
+}
+.bt-plan-load-fill {
+  display: flex;
+  block-size: 100%;
+  /* Coins presque droits : l'arrondi complet appartient aux jauges. */
+  border-radius: 2px 2px 0 0;
   overflow: hidden;
 }
-.bt-plan-load-fill { display: flex; block-size: 100%; border-radius: inherit; overflow: hidden; }
 .bt-plan-load-seg {
   flex-basis: 0;
   /* Plancher de RENDU : une part de 4 % reste visible sans devenir un trait
@@ -117,6 +127,21 @@
 }
 .bt-plan-week-row:first-child { border-top: 0; }
 .bt-plan-week-row[data-exam="1"] { background: var(--bt-exam-bg); }
+/* Journée vide : la date sur une ligne, rien d'autre. La hauteur suit la
+   quantité d'information, et la semaine garde ses sept jours. */
+.bt-plan-week-row[data-empty="1"] { padding-block: 2px; }
+.bt-plan-week-row[data-empty="1"] .bt-plan-week-date {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 8px;
+  inline-size: auto;
+  min-block-size: 44px;
+  padding-inline: 4px;
+  color: var(--bt-text-3);
+}
+.bt-plan-week-row[data-empty="1"] .bt-plan-week-daynum { font-size: 14px; font-weight: 700; }
+.bt-plan-week-row[data-empty="1"] .bt-plan-week-body { display: none; }
 .bt-plan-week-date {
   flex: none;
   display: flex;
@@ -140,7 +165,7 @@
 .bt-plan-week-body { min-inline-size: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .bt-plan-week-exams { display: flex; flex-direction: column; gap: 6px; }
 .bt-plan-week-meter { display: flex; align-items: center; gap: 10px; }
-.bt-plan-week-meter .bt-plan-load { flex: 1; block-size: 8px; }
+.bt-plan-week-meter .bt-plan-load { flex: 1; block-size: 10px; }
 .bt-plan-week-total { flex: none; font-size: 13px; font-weight: 700; color: var(--bt-text-1); }
 .bt-plan-week-meta { font-size: 12px; line-height: 1.4; color: var(--bt-text-2); }
 .bt-plan-week-chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -157,13 +182,14 @@
 }
 @media (min-width: 640px) {
   .bt-plan-week-row { gap: 16px; padding: 14px 20px; }
+  .bt-plan-week-row[data-empty="1"] { padding-block: 2px; }
   .bt-plan-week-date { inline-size: 56px; }
-  .bt-plan-week-meter .bt-plan-load { block-size: 10px; }
+  .bt-plan-week-meter .bt-plan-load { block-size: 12px; }
   .bt-plan-week-total { font-size: 14px; }
 }
 
 /* Le mois pose sa bande au bas de la case, sous les titres. */
-.bt-planning .bt-plan-day-cell .bt-plan-load { block-size: 4px; }
+.bt-planning .bt-plan-day-cell .bt-plan-load { block-size: 5px; }
 
 .bt-planning-task { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--bt-hairline, var(--bt-border)); }
 .bt-planning .bt-plan-revision-row { padding: 12px 4px; min-height: 44px; }

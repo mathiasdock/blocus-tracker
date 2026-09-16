@@ -3,6 +3,19 @@
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
 
+## 2026-09-16 - Planning : passe de reglage visuel sur la phase 2 (Claude)
+
+Quatre points releves sur les captures reelles, apres validation de
+l'architecture et de la semantique de charge. Aucun changement de modele de
+donnees, d'examens ni de chrono.
+
+- **La densite de la semaine suit la quantite d'information.** Une journee vide occupait presque la hauteur d'une journee a huit objectifs ; sur telephone, cinq lignes d'affilee repetaient la meme absence. Une journee sans travail, sans examen et sans objectif se reduit a sa date sur une ligne. Les sept jours restent affiches — la structure lundi→dimanche se lit toujours — et la phrase « Rien de prevu » reste dite aux technologies d'assistance. Semaine vide mesuree : 596 → 379 px, sept rangees a 48 px.
+- **En-tete de la semaine reduit a une ligne.** Le sous-titre expliquait des bandes dont chaque rangee ecrit deja la duree exacte a cote. Il reste le libelle et le total, ce dernier passant en evidence puisque c'est le seul chiffre que les bandes ne donnent pas.
+- **La bande de charge devient une barre POSEE SUR UN AXE.** C'etait une pastille pleine longueur dont on peignait le debut : l'idiome exact d'une barre de progression, et on y lisait « X % termine » au lieu de « tant de travail prevu ». Il ne reste qu'un filet — la capacite de huit heures — sur lequel repose la quantite, coins presque droits. Echelle absolue, segments par cours et duree exacte accessible inchanges ; le mois et la semaine parlent toujours la meme langue.
+- **Aujourd'hui cesse de crier plus fort qu'un examen.** Le jour courant portait sa pastille verte ET le contour vert de selection, qui tombe dessus par defaut — deux signaux verts pour le meme fait. Le contour est supprime quand le jour selectionne EST aujourd'hui ; selectionner un autre jour le garde. Hierarchie retablie : examen > aujourd'hui > identite de cours > quantite. Les examens n'ont pas ete rendus plus rouges.
+
+Verification : 75 tests Node passes, ESLint propre, detecteur impeccable a zero anomalie, builds offline et production reels OK. Navigateur hors ligne a 320 / 375 / 390 / 1280 / 1440, clair et sombre, semaine vide, semaine dense, semaine d'examens, mois multi-cours, aujourd'hui a cote d'un examen. Aucun debordement horizontal.
+
 ## 2026-09-16 - Planning phase 2 : la semaine devient une repartition de charge (Claude)
 
 Suite de la phase 1 (039328e), dont la normalisation des examens, le langage
