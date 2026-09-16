@@ -267,23 +267,24 @@ const COLORS = new Float32Array([
   0.949, 0.984, 0.969,
 ]);
 
-// Même rampe, teinte pause : les vagues se REFROIDISSENT — assombries et
-// désaturées, elles gardent la forme du champ vert mais perdent sa vie. On
-// interpole vers cette palette dans la boucle.
+// Même rampe, teinte pause : les vagues deviennent ROUGES au lieu d'être
+// simplement assombries. On interpole vers cette palette dans la boucle.
 //
-// Elles ont été rouges pendant un temps. Une pause est un état ordinaire du
-// chrono, pas une erreur : un champ rouge plein écran empruntait le vocabulaire
-// du danger pour dire « tu as arrêté de compter ». Ce que dit maintenant
-// l'extinction du champ, plus le libellé « En pause ».
+// POURQUOI SI FRANC. Ce n'est pas une sémantique d'erreur — c'est un état
+// d'attention (DESIGN.md § The Paused-Timer Exception). Le problème réel
+// rapporté par les étudiants : on met en pause, on se laisse distraire, et on
+// oublie de relancer ; le temps d'étude cesse d'être compté sans que personne
+// s'en aperçoive. En plein écran, le champ lui-même est le rappel : au moindre
+// regard de retour, la couleur dit que le chrono ne tourne plus.
 const PAUSED_COLORS = new Float32Array([
-  0.039, 0.059, 0.051, // #0A0F0D
-  0.086, 0.110, 0.102, // #161C1A
-  0.169, 0.220, 0.200, // #2B3833
-  0.298, 0.361, 0.341, // #4C5C57
-  0.553, 0.612, 0.592, // #8D9C97 — la crête reste claire mais éteinte
-  0.553, 0.612, 0.592,
-  0.553, 0.612, 0.592,
-  0.553, 0.612, 0.592,
+  0.110, 0.027, 0.027, // #1C0707
+  0.180, 0.043, 0.043, // #2E0B0B
+  0.639, 0.129, 0.086, // #A32116
+  0.937, 0.267, 0.267, // #EF4444
+  1.000, 0.655, 0.608, // #FFA79B — la crête reste saumon, pas blanc grisé
+  1.000, 0.655, 0.608,
+  1.000, 0.655, 0.608,
+  1.000, 0.655, 0.608,
 ]);
 
 function compileShader(gl, type, source) {

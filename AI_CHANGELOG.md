@@ -2,6 +2,28 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-15 - Chrono : la pause redevient franche, et on ecrit pourquoi (Claude)
+
+REVIENT SUR UNE DECISION DE L'ENTREE CI-DESSOUS, prise le meme jour. J'avais
+calme l'etat de pause en le traitant comme un etat ordinaire. C'etait faux pour
+ce produit, et la raison est comportementale, pas visuelle : les etudiants
+mettent le chrono en pause, se laissent distraire, et oublient de relancer. Leur
+travail cesse d'etre compte sans qu'ils le sachent. Le traitement fort existait
+exactement pour ca. Une pause n'est pas une ERREUR, mais c'est un etat
+d'ATTENTION.
+
+- **Retabli** : carte teintee avec bordure et halo d'attention, lavis vert du travail eteint, chiffres du chrono en rouge, pastille « EN PAUSE · mm:ss » blanche sur rouge qui respire, anneau rouge sur l'unite de temps en cours, et en plein ecran le champ du shader qui vire au rouge plus une respiration peripherique.
+- **Famille de couleur dediee** `--bt-pause*` (clair et sombre), DISTINCTE de `--bt-danger*`. La pause n'emprunte pas le vocabulaire de l'erreur et aucun autre ecran n'emprunte celui de la pause. Les hex rouges qui trainaient en dur dans `pages/dashboard.js` passent par ces jetons.
+- **Le battement n'est pas restaure tel quel.** L'ancien faisait clignoter tout le champ du mode Focus a 1 Hz, de 0,14 a 1,0 d'opacite, avec une attaque seche : sous le seuil WCAG des trois flashs par seconde, mais c'etait bien une variation brutale de forte amplitude sur une grande surface. Remplace par un cycle de 2,4 s, courbe douce sans attaque, amplitude 0,34 → 0,92, et centre transparent — le chrono lui-meme ne clignote jamais. Aussi voyant en vision peripherique, sans stroboscopie.
+- **Mouvement reduit** : les respirations sont coupees mais l'avertissement NE L'EST PAS. Chaque signal anime prend sa version posee a pleine force (vignette a 0,72, halo fixe sur la pastille, anneau fixe sur le bloc). Le probleme de comportement ne disparait pas pour ces personnes.
+- **Contrastes corriges au passage** (l'ancienne version ne les tenait pas) : l'anneau de l'unite en pause ne tenait que 1,9:1 sur le remplissage vert, il prend un lisere inverse comme le repere d'objectif (meme procede, verifie clair/sombre/Focus) ; le texte de coach en pause passe a `--bt-pause-text` (4,6:1) car `#EF4444` n'en donne que 3,1 — assez pour les gros chiffres, pas pour une phrase.
+- **Annonce vocale** : `role="status"` porte un compagnon invisible au texte FIXE (« En pause »). Le poser sur la pastille aurait fait relire « En pause · 04:13 » chaque seconde. La duree reste lisible a la demande.
+- **DESIGN.md § The Paused-Timer Exception** explique la raison comportementale, les surfaces concernees, la separation d'avec la semantique d'erreur et les contraintes de securite du mouvement — pour qu'aucun agent ne « recalme » la pause en repartant des principes generaux. Ligne ajoutee au tableau des roles semantiques et renvoi depuis § Neutral UI principles et § Study Blocks.
+
+INTACT : semantique des unites de temps, calcul session en cours / journee, distinction travail-repos du Pomodoro, systeme d'echelle, identite du cours en Focus, frequence de la mascotte, hierarchie. Le REMPLISSAGE d'une unite en pause garde sa couleur — ce temps a bien ete etudie ; ce qui alerte, c'est qu'il ne monte plus.
+
+Verification : ESLint propre, 59 tests Node passes, detecteur impeccable a zero anomalie, build offline et build production reel OK. Navigateur offline : desktop 1280, mobile 375, clair et sombre, mode Focus, cycle actif → pause → reprise dans les deux sens (tous les marqueurs apparaissent et disparaissent correctement), et le bloc `prefers-reduced-motion` rejoue sans media query pour confirmer que l'avertissement reste entier sans animation.
+
 ## 2026-09-15 - Chrono : des blocs qui disent le temps reellement etudie (Claude)
 
 Application de la revue Timer et de DESIGN.md § Study Blocks. Pas de refonte : la

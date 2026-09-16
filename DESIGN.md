@@ -92,6 +92,7 @@ Read [PRODUCT.md](PRODUCT.md) for product constraints and [docs/UI.md](docs/UI.m
 | Course identity | Saved `course.color`; palette in `lib/courseColors.js` | Follow the course, never task completion or urgency. |
 | Exam priority | Current Planning `--bt-danger*` family | Shared warm vocabulary with an exam-specific structure; not a destructive button. |
 | Error / destructive action | `--bt-danger*` | Error copy, warning/action semantics; no exam marker. |
+| Paused Timer | `--bt-pause*` in `styles/globals.css` | Attention state, **not** an error. Timer surfaces only — card, digits, badge, in-progress unit ring, Focus field. Never borrow it for failures, and never borrow `--bt-danger*` for a pause. See § The Paused-Timer Exception. |
 | Routine interface | Surface/text/border `--bt-*` roles | Search, settings, back, fields, ordinary messaging. |
 | Achievement artwork | `lib/badgeArt.js` illustration palette | Inside objects only; no random colored UI panels. |
 | Academic kind | `--bt-kind-*` in `styles/study-spaces.css` | Kind mark and kind word only; never a selected-row background. Exam kind must converge on the shared exam vocabulary. |
@@ -142,7 +143,7 @@ Do not give sparse content a fixed hero height just to feel premium. Day serves 
 
 ### Neutral UI principles
 
-Back, search, forms, settings, delete confirmations and normal message controls may remain familiar. Do not add a block, mascot, special course tint or reward object unless there is a real study datum involved. Friends need not look eccentric. A persistent selected state, a passive count and a primary action must not look interchangeable.
+Back, search, forms, settings, delete confirmations and normal message controls may remain familiar. The paused Timer is the one documented place where the interface deliberately refuses to stay quiet (§ The Paused-Timer Exception); everything else on this page still applies. Do not add a block, mascot, special course tint or reward object unless there is a real study datum involved. Friends need not look eccentric. A persistent selected state, a passive count and a primary action must not look interchangeable.
 
 ## Elevation & Depth
 
@@ -176,7 +177,7 @@ Soft geometry is supporting infrastructure, not the identity. Reuse the four rad
 
 Compression changes rendering, not stored data or reward eligibility. A caption such as “1 unit = 1h” is required when the unit would otherwise be ambiguous. Do not change scale independently for each leaderboard row. On live views, avoid rearranging all units every minute; change scale at stable boundaries. The current Timer's capped overflow and daily goal cells are evidence to evolve, not this full policy already implemented.
 
-Completed time is filled; a live measured fraction is partial; paused time stops accumulating and uses an explicit pause state, not an exam/error rail. Planned time is an outline/unfilled allocation labeled “planned,” never shown as earned. Unknown duration stays unknown; completing a checklist does not prove time studied.
+Completed time is filled; a live measured fraction is partial; paused time stops accumulating and uses an explicit pause state (§ The Paused-Timer Exception), not an exam/error rail. A paused unit keeps its earned fill in the ordinary colour — the time was studied; what is wrong is that it stopped growing — and carries the warning on its ring. Planned time is an outline/unfilled allocation labeled “planned,” never shown as earned. Unknown duration stays unknown; completing a checklist does not prove time studied.
 
 **Blocks are quantities; progress bars are ratios.** A labeled time-target view may show studied units against planned capacity because both are durations. Do not turn “3/5 objectives” or “40% setup” into study blocks. Do not duplicate the same duration as blocks, a bar and a percentage without a different question. No target means no invented empty capacity. Over-target time remains in the total even when a goal track stops at 100%.
 
@@ -192,6 +193,49 @@ Completed time is filled; a live measured fraction is partial; paused time stops
 - Error/delete UI uses its own icon, action and message; a warm exam is not an error.
 
 This contract evolves Planning's existing calendar label and occasional leading stripe. The shared renderer/aliases and mobile treatment are **not implemented by this documentation task**.
+
+### The Paused-Timer Exception — loud on purpose
+
+**This overrides "no color without meaning", "neutral UI stays neutral" and any
+recommendation to keep the paused Timer calm. It is a deliberate, bounded
+exception with a behavioural reason, not a leftover.**
+
+Blocus Tracker users pause a study session, get distracted, and forget to come
+back. The Timer then sits there not recording, and real study time is lost from
+their day. The strong pause treatment exists to solve exactly that: someone who
+looks back at the screen after their attention wandered must register, without
+reading anything, that **their session is not counting time right now**.
+
+A quiet pause state was tried and is wrong for this product. Do not re-derive it
+from first principles; the behaviour was observed in real use.
+
+| Surface | Treatment |
+| --- | --- |
+| Timer card | `--bt-pause-bg` fill, `--bt-pause-border`, `--bt-pause-shadow`; the green working wash turns off. |
+| Digits | `--bt-pause` — the largest element on screen, so the most recognisable from across a room. |
+| Badge | White on `--bt-pause-strong`, with the elapsed pause duration, breathing via `.bt-pause-pulse`. The duration answers the returning user's actual question. |
+| In-progress study unit | `.bt-block-paused` ring. The earned fill keeps its normal colour. |
+| Focus mode | Red shader palette plus a peripheral breathing vignette (`.bt-pause-flash`); full screen has no card to carry the state. |
+
+**Semantics stay separate.** This is an attention state, never destructive or
+error semantics. It does not use `--bt-danger*`, it does not appear in error
+copy, and no other screen may borrow `--bt-pause*`. Pausing is a normal, valid
+thing to do — the interface is insistent about the *consequence*, not
+disapproving of the *action*. Copy stays neutral and never scolds.
+
+**Motion safety is not negotiable.** Insistent must not mean unsafe. The
+historical implementation flashed the whole Focus field at 1 Hz from 0.14 to 1.0
+opacity: under the WCAG three-per-second threshold, but a large-area,
+high-amplitude, sharp-attack change. The current pulses are slow (2.4–2.6 s),
+eased with no attack, lower amplitude, and the Focus vignette keeps its centre
+transparent so the timer itself never flashes. Under
+`prefers-reduced-motion: reduce` every pulse is replaced by its **persistent
+full-strength** form — the warning is never simply removed, because the
+behavioural problem does not go away for those users.
+
+Keep the pause reachable and reversible: Resume stays a primary action with its
+own invitation (`.bt-pause-cta`), and the state is announced once through
+`role="status"` rather than re-read on every tick.
 
 ### Progress — distance to a real destination
 

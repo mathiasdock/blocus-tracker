@@ -148,6 +148,18 @@ html.bt-no-splash #bt-splash {
   --bt-text-4:        #C4BCB6;
   --bt-accent:        #14B885;
   --bt-accent-hover:  #10A878;
+  /* Etat PAUSE du chrono — attention, PAS erreur. Famille distincte de
+     `--bt-danger*` : une pause n'est pas un echec, mais elle doit se voir de
+     loin parce qu'on oublie de relancer. DESIGN.md § The Paused-Timer
+     Exception. Reserve au chrono ; aucun autre ecran ne l'emprunte. */
+  --bt-pause:         #EF4444;
+  /* Meme etat, version lisible en PETIT : #EF4444 sur la carte teintee ne tient
+     que 3,1:1 — assez pour les gros chiffres, pas pour une phrase. */
+  --bt-pause-text:    #C92A2A;
+  --bt-pause-strong:  #DC2626;
+  --bt-pause-bg:      rgba(239,68,68,0.13);
+  --bt-pause-border:  rgba(239,68,68,0.60);
+  --bt-pause-shadow:  rgba(239,68,68,0.22);
   --bt-accent-dark:   #0E8F68;
   --bt-accent-text:   #087454;
   --bt-on-accent:     #082B21;
@@ -205,6 +217,13 @@ html.bt-no-splash #bt-splash {
   --bt-text-4:        #4A4642;
   --bt-accent-bg:     #0D2B22;
   --bt-accent-border: #1A4A3A;
+  /* Sur surface sombre la teinte remonte pour garder le contraste du texte. */
+  --bt-pause:         #FF6B6B;
+  --bt-pause-text:    #FF6B6B;
+  --bt-pause-strong:  #DC2626;
+  --bt-pause-bg:      rgba(239,68,68,0.16);
+  --bt-pause-border:  rgba(255,107,107,0.58);
+  --bt-pause-shadow:  rgba(239,68,68,0.26);
   --bt-accent-text:   #54D3A9;
   --bt-accent-hover:  #20C996;
   --bt-on-accent:     #06271D;
@@ -670,14 +689,17 @@ html.bt-no-splash #bt-splash {
   opacity: 0;
   transition: opacity 0.3s ease-out;
 }
-/* Pause : le champ se REFROIDIT — même rampe de marque, assombrie et
-   désaturée (palette pilotée dans le shader, le fallback statique suit). Une
-   pause n'est pas une erreur : elle arrête l'accumulation, elle n'alerte pas.
-   L'ancien virage rouge empruntait le vocabulaire du danger. */
+/* Pause : le champ VIRE AU ROUGE (palette pilotée dans le shader, le fallback
+   statique suit).
+   POURQUOI SI FORT — voir DESIGN.md § The Paused-Timer Exception. Ce n'est pas
+   une sémantique d'erreur : c'est un état d'attention. Les étudiants mettent en
+   pause, se laissent distraire, et oublient de relancer ; leur travail cesse
+   d'être compté sans qu'ils le sachent. L'interruption visuelle existe pour
+   qu'un regard de retour sur l'écran le voie immédiatement. */
 .bt-focus-shader.is-paused {
   background:
-    radial-gradient(90% 70% at 82% 12%, rgba(160,176,170,0.16), transparent 68%),
-    linear-gradient(155deg, #0A0F0D, #2B3833 58%, #8D9C97 140%);
+    radial-gradient(90% 70% at 82% 12%, rgba(255,138,128,0.30), transparent 68%),
+    linear-gradient(155deg, #1C0707, #A32116 58%, #FFA79B 140%);
 }
 .bt-focus-shader-veil {
   position: absolute;
@@ -686,14 +708,36 @@ html.bt-no-splash #bt-splash {
     radial-gradient(ellipse 62% 58% at 50% 48%, rgba(4,24,18,0.56), rgba(4,24,18,0.20) 70%, transparent 100%),
     linear-gradient(to bottom, rgba(4,24,18,0.30), rgba(4,24,18,0.34));
 }
-/* Voile plus dense au centre en pause : le champ s'éteint, le chrono garde son
-   contraste. Le battement rouge à 1 Hz qui vivait ici a été retiré — un
-   clignotement d'alerte pour un état ordinaire, et un risque pour les
-   personnes sensibles aux flashs. */
+/* Voile plus dense au centre en pause : le champ périphérique reste franchement
+   rouge, mais le chrono garde son contraste. */
 .bt-focus-shader.is-paused .bt-focus-shader-veil {
   background:
-    radial-gradient(ellipse 62% 58% at 50% 48%, rgba(6,10,9,0.74), rgba(6,10,9,0.30) 70%, transparent 100%),
-    linear-gradient(to bottom, rgba(6,10,9,0.36), rgba(6,10,9,0.42));
+    radial-gradient(ellipse 62% 58% at 50% 48%, rgba(24,5,5,0.74), rgba(24,5,5,0.30) 70%, transparent 100%),
+    linear-gradient(to bottom, rgba(24,5,5,0.34), rgba(24,5,5,0.38));
+}
+
+/* Pause (focus) — RESPIRATION rouge périphérique.
+   La vision périphérique réagit au mouvement : c'est ce qui rattrape quelqu'un
+   qui regarde ailleurs. L'ancienne version battait à 1 Hz avec une attaque
+   sèche de 0,14 à 1,0 d'opacité sur tout le champ. Sous le seuil WCAG des trois
+   flashs par seconde, mais c'était bien une variation brutale de forte
+   amplitude sur une grande surface — inconfortable, et le mauvais pari pour les
+   personnes photosensibles.
+   Ici : cycle de 2,4 s, courbe douce sans attaque, amplitude réduite (0,34 →
+   0,92) et centre transparent, donc le chrono ne clignote jamais. Le halo
+   périphérique reste aussi voyant, sans stroboscopie. */
+@keyframes bt-pause-flash {
+  0%, 100% { opacity: 0.34; }
+  50%      { opacity: 0.92; }
+}
+.bt-pause-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 74% 66% at 50% 50%, transparent 38%, rgba(239,68,68,0.16) 68%, rgba(239,68,68,0.52) 100%);
+  animation: bt-pause-flash 2.4s ease-in-out infinite;
 }
 
 /* Mode focus plein écran (classe posée sur <html> par dashboard.js). Sur iPhone,
@@ -790,9 +834,14 @@ html.bt-focus-active .bt-nav { display: none; }
      liseré inverse garantit la lisibilite de la marque partout. */
   --bt-block-tick: rgba(8, 43, 33, 0.88);
   --bt-block-tick-halo: rgba(255, 255, 255, 0.72);
-  /* L'anneau d'arret doit se detacher du logement : `--bt-text-3` n'y tenait
-     que 2,1:1, sous le seuil d'un contour porteur de sens. */
-  --bt-block-hold: var(--bt-text-2);
+  /* L'anneau d'arret porte l'etat « en pause » : rouge d'attention, pas encre
+     neutre. Contraste verifie sur le remplissage vert comme sur le logement. */
+  /* L'anneau traverse tantot le remplissage vert, tantot le logement clair.
+     Un rouge seul n'y tient que 1,9:1 sur le vert ; le lisere inverse fait que
+     l'une des deux teintes se detache toujours (meme procede que le repere
+     d'objectif). */
+  --bt-block-hold: #991B1B;
+  --bt-block-hold-edge: rgba(255, 255, 255, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -800,7 +849,14 @@ html.bt-focus-active .bt-nav { display: none; }
   width: 100%;
   min-height: 14px;
 }
-.dark .bt-blocks { --bt-block-tick: rgba(255, 255, 255, 0.92); --bt-block-tick-halo: rgba(0, 0, 0, 0.50); }
+.dark .bt-blocks {
+  --bt-block-tick: rgba(255, 255, 255, 0.92);
+  --bt-block-tick-halo: rgba(0, 0, 0, 0.50);
+  /* Sur surface sombre l'anneau d'arret s'eclaircit et son lisere s'assombrit :
+     sans ca le lisere blanc dominait et l'etat perdait sa teinte d'alerte. */
+  --bt-block-hold: #FF8A8A;
+  --bt-block-hold-edge: rgba(0, 0, 0, 0.60);
+}
 /* Le plein écran est une surface d'encre, pas le thème sombre : ses valeurs
    sont posées ici et pas dans `.dark`, sinon le Focus resterait clair. */
 .bt-blocks.is-focus {
@@ -808,7 +864,8 @@ html.bt-focus-active .bt-nav { display: none; }
   --bt-block-slot-edge: rgba(255, 255, 255, 0.17);
   --bt-block-tick: rgba(255, 255, 255, 0.92);
   --bt-block-tick-halo: rgba(0, 0, 0, 0.50);
-  --bt-block-hold: rgba(255, 255, 255, 0.62);
+  --bt-block-hold: #FFD9D4;
+  --bt-block-hold-edge: rgba(0, 0, 0, 0.55);
   gap: 7px;
   min-height: 22px;
 }
@@ -864,12 +921,29 @@ html.bt-focus-active .bt-nav { display: none; }
   background-color: var(--bt-block-tick);
   box-shadow: 0 0 0 1px var(--bt-block-tick-halo);
 }
+/* L'unité où la session s'est arrêtée. Le REMPLISSAGE garde sa couleur : ce
+   temps a bien été étudié. C'est son contour qui alerte — l'anneau rouge dit
+   « ça ne monte plus », pas « ce temps est perdu ». */
 .bt-block-hold {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: inset 0 0 0 1.5px var(--bt-block-hold);
+  box-shadow:
+    inset 0 0 0 1.5px var(--bt-block-hold),
+    inset 0 0 0 2.5px var(--bt-block-hold-edge);
 }
+@keyframes bt-block-paused {
+  0%, 100% { box-shadow: 0 0 0 1.5px rgba(239, 68, 68, 0.95); }
+  50%      { box-shadow: 0 0 12px 1.5px rgba(239, 68, 68, 0.55); }
+}
+.bt-block-paused { animation: bt-block-paused 2.6s ease-in-out infinite; }
+
+/* Halo rouge autour de la pastille « En pause ». */
+@keyframes bt-pause-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.20); }
+}
+.bt-pause-pulse { animation: bt-pause-pulse 2.4s ease-in-out infinite; }
 
 /* Bloc en cours : glow vert qui respire doucement. */
 @keyframes bt-block-active {
@@ -1643,6 +1717,9 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-msg-pop,
   .bt-digit-roll,
   .bt-block-active,
+  .bt-block-paused,
+  .bt-pause-pulse,
+  .bt-pause-flash,
   .bt-pause-cta,
   .bt-xp-float,
   .badge-shine,
@@ -1679,6 +1756,14 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-session-bar { transition: none !important; }
   /* Les unites de temps prennent directement leur valeur mesuree. */
   .bt-block-fill, .bt-rest-fill { transition: none !important; }
+  /* ── Pause en mouvement réduit ───────────────────────────────
+     On coupe la respiration, PAS l'avertissement. L'enjeu n'est pas
+     décoratif : sans rappel, la session reste en pause et le travail cesse
+     d'être compté (DESIGN.md § The Paused-Timer Exception). Chaque signal
+     animé est donc remplacé par sa version posée, à pleine force. */
+  .bt-pause-flash { opacity: 0.72 !important; }
+  .bt-pause-pulse { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.22) !important; }
+  .bt-block-paused { box-shadow: 0 0 0 1.5px rgba(239, 68, 68, 0.85) !important; }
   .bt-xp-loop { opacity: 1 !important; transform: none !important; }
   .bt-tilt { transform: none !important; transition: none !important; }
   details.bt-acc::details-content { transition: none !important; }

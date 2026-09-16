@@ -9,6 +9,11 @@ import { studyBlockLayout, firstOverIndex } from "../lib/studyBlocks.mjs";
 // qui remplace le « +N » d'avant, qui voulait dire tantôt des blocs étudiés
 // cachés, tantôt des blocs d'objectif cachés.
 //
+// En pause, l'anneau de l'unité en cours passe au rouge d'attention et respire
+// (DESIGN.md § The Paused-Timer Exception). Le REMPLISSAGE, lui, garde sa
+// couleur : ce temps-là a bien été étudié. Ce qui alerte, c'est qu'il ne monte
+// plus — pas la valeur acquise.
+//
 // L'échelle vient de lib/studyBlocks.mjs, partagée avec la carte du jour : les
 // trois vues comptent désormais pareil.
 export default function StudyBlocks({
@@ -38,7 +43,7 @@ export default function StudyBlocks({
         return (
           <span
             key={i}
-            className={`bt-block${live && running ? " bt-block-active" : ""}${live && paused ? " is-held" : ""}`}
+            className={`bt-block${live && running ? " bt-block-active" : ""}${live && paused ? " bt-block-paused" : ""}`}
             // Respiration d'une heure toutes les quatre unités de quart d'heure ;
             // au-delà l'unité EST l'heure, il n'y a plus rien à regrouper.
             data-cluster={quarterScale && i > 0 && i % 4 === 0 ? "1" : undefined}

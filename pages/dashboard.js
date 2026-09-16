@@ -1246,16 +1246,21 @@ export default function Dashboard() {
             donnés en clair plutôt que remis à zéro : `lg:order-none` ne
             l'emportait pas de façon fiable sur le rang mobile. */}
         <div className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
-        {/* La pause ne teinte plus la carte en rouge et ne l'entoure plus d'un
-            halo d'alerte. Elle fait exactement l'inverse : le lavis vert qui
-            accompagne le travail S'ÉTEINT. On lit « ça ne compte plus » au lieu
-            de « quelque chose a échoué ». */}
+        {/* ── La carte entière change d'état en pause ──────────────────
+            Le lavis vert du travail s'éteint ET la carte prend la teinte
+            d'attention : fond, bordure et halo. C'est volontairement fort.
+            Ce n'est pas une sémantique d'erreur (voir DESIGN.md § The
+            Paused-Timer Exception) : c'est le rappel qu'une session est
+            ouverte et que le temps n'est plus compté. Les étudiants mettent
+            en pause, se laissent distraire, et oublient de relancer — un
+            traitement discret leur coûtait des heures de travail non
+            enregistrées. */}
         <section className="bt-dashboard-timer order-1 lg:order-1 card relative min-w-0 overflow-hidden"
           style={{
-            backgroundColor: "var(--bt-surface)",
+            backgroundColor: isPaused ? "var(--bt-pause-bg)" : "var(--bt-surface)",
             backgroundImage: isPaused ? "none" : "radial-gradient(90% 75% at 50% 100%, var(--bt-timer-wash), transparent 72%), linear-gradient(180deg, var(--bt-surface), var(--bt-timer-base))",
-            borderColor:     "var(--bt-border)",
-            boxShadow:       "0 4px 32px var(--bt-shadow)",
+            borderColor:     isPaused ? "var(--bt-pause-border)" : "var(--bt-border)",
+            boxShadow:       isPaused ? "0 4px 32px var(--bt-pause-shadow)" : "0 4px 32px var(--bt-shadow)",
           }}>
 
           {/* Halo de progression — le fond respire et s'intensifie avec la
@@ -1388,24 +1393,31 @@ export default function Dashboard() {
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
               </div>
             )}
-            {/* Une pause est un état ordinaire du chrono. Elle se dit une fois,
-                en encre neutre, avec sa durée dans le même libellé — plus de
-                pastille blanche sur rouge vif qui pulse. */}
+            {/* La pastille d'état, franche et qui respire. Elle porte sa durée :
+                « En pause · 04:12 » répond d'un coup à « depuis quand est-ce
+                que je ne compte plus ? », ce qui est précisément la question
+                d'un retour de distraction.
+                L'annonce vocale est portée par un compagnon invisible au texte
+                FIXE. Mettre `role="status"` sur la pastille elle-même aurait
+                relu « En pause · 04:13 » à chaque seconde — un lecteur d'écran
+                serait devenu inutilisable. La durée reste lisible à la demande,
+                elle n'est simplement pas dans une région vivante. */}
             {isPaused && !pomodoro && (
               <div className="mb-3 flex justify-center">
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold"
-                  style={{ color: "var(--bt-text-2)", backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)" }}>
+                <span className="sr-only" role="status">{t("dash.pausedStatus")}</span>
+                <span className="bt-pause-pulse inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em]"
+                  style={{ color: "#FFFFFF", backgroundColor: "var(--bt-pause-strong)", border: "1px solid var(--bt-pause-strong)" }}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
                   <span className="font-num tabular-nums">{t("dash.pausedFor").replace("{t}", pauseSince)}</span>
                 </span>
               </div>
             )}
 
-            {/* Les chiffres s'assourdissent au lieu de virer au rouge : ils ne
-                montent plus, ils ne sont pas en erreur. */}
+            {/* Les chiffres passent à la teinte d'attention : c'est l'élément le
+                plus grand de l'écran, donc le plus sûr à reconnaître de loin. */}
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={isPaused && !pomodoro ? "var(--bt-text-2)" : "var(--bt-text-1)"} />
+              color={isPaused && !pomodoro ? "var(--bt-pause)" : "var(--bt-text-1)"} />
 
             {(running || elapsed > 0) && (
             <div className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
@@ -1466,8 +1478,8 @@ export default function Dashboard() {
                   live
                 />
               ) : !timerMoment && (liveMessage || timerHint) ? (
-                <p key={liveMessage || timerHint} className="bt-msg-swap text-sm"
-                  style={{ color: "var(--bt-text-3)" }}>
+                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
+                  style={{ color: isPaused ? "var(--bt-pause-text)" : "var(--bt-text-3)" }}>
                   {liveMessage || timerHint}
                 </p>
               ) : null}
@@ -1817,13 +1829,22 @@ export default function Dashboard() {
 
       {focusMode && (
         <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
-          style={{ background: "var(--bt-ink)", zIndex: 100 }}>
+          style={{
+            background: (isPaused && !pomodoro) ? "#1A0605" : "var(--bt-ink)",
+            zIndex: 100,
+          }}>
           {/* Vagues WebGL de marque. Le composant fournit son propre fallback
-              statique et coupe la boucle sous prefers-reduced-motion. En pause
-              le champ se refroidit — il ne vire plus au rouge, et le battement
-              à 1 Hz qui doublait le signal a été retiré : c'était un
-              clignotement d'alerte pour un état ordinaire. */}
+              statique et coupe la boucle sous prefers-reduced-motion. En pause,
+              le champ vire au rouge : en plein écran il n'y a pas de carte pour
+              porter l'état, c'est l'environnement qui le porte. */}
           <FocusShaderBackground paused={isPaused && !pomodoro} />
+
+          {/* Respiration rouge périphérique — le signal qui rattrape un regard
+              parti ailleurs. Cycle de 2,4 s, courbe douce et centre transparent
+              (voir globals.css) : aussi voyant que l'ancien battement à 1 Hz,
+              sans son attaque stroboscopique. En mouvement réduit, le halo
+              reste posé à pleine force au lieu de disparaître. */}
+          {isPaused && !pomodoro && <div aria-hidden className="bt-pause-flash" />}
 
           {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
           <AmbientSoundControl active={focusMode} visible={focusCtlVisible || !running} />
@@ -1858,7 +1879,7 @@ export default function Dashboard() {
           <div className="relative z-10 w-full text-center px-6">
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={(isPaused && !pomodoro) ? "var(--bt-ink-muted)" : "var(--bt-ink-text)"}
+              color={(isPaused && !pomodoro) ? "#FFEDEB" : "var(--bt-ink-text)"}
               size="clamp(4.5rem, 16vw, 8.5rem)"
               hoursSize="clamp(3.2rem, 11vw, 7rem)" />
 
@@ -1897,17 +1918,19 @@ export default function Dashboard() {
                   live
                 />
               ) : (liveMessage || timerHint) ? (
-                <p key={liveMessage || timerHint} className="bt-msg-swap text-sm"
-                  style={{ color: "var(--bt-ink-muted)" }}>
+                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
+                  style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
                   {liveMessage || timerHint}
                 </p>
               ) : null}
             </div>
 
-            {/* En pause — un libellé sobre sur l'encre, avec sa durée. */}
+            {/* En pause — pastille franche qui respire, avec sa durée. L'annonce
+                vocale vit dans le compagnon invisible de la carte : une seule
+                région vivante suffit, et elle ne doit pas relire la durée. */}
             {isPaused && !pomodoro && (
-              <div className="inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full text-xs font-bold"
-                style={{ color: "var(--bt-ink-text)", backgroundColor: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)" }}>
+              <div className="bt-pause-pulse inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
+                style={{ color: "#FFFFFF", backgroundColor: "var(--bt-pause-strong)", letterSpacing: "0.12em" }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
                 <span className="font-num tabular-nums">{t("dash.pausedFor").replace("{t}", pauseSince)}</span>
               </div>
