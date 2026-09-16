@@ -305,7 +305,7 @@ Offer one broader relevant route when an area is quiet, based on available activ
 | 1 | Planning exam palette vs `--bt-kind-exam` | One shared semantic exam vocabulary; distinguish errors and undated exam spaces |
 | 1 | Faint small metadata; bright-green/white selected text | Measured contrast in both themes; no essential text demoted to disabled-looking gray |
 | 2 | Level number / circular medallion / square celebration; multiple flames | Shared object family, compact variants, visible milestone identity |
-| 2 | Daily blocks, Stats runway, XP ticks, ordinary bars | Distinguish time quantity from ratio; no invented units or redundant encodings |
+| 2 | Stats runway, XP ticks, ordinary bars | Distinguish time quantity from ratio; no invented units or redundant encodings. Planning shipped its own duration band on 2026-09-16 (`PlanningLoadBar`, length = planned minutes on one absolute scale, segments = course share) — a week/month duration band as this document allows, deliberately not a Study Block. |
 | 2 | Profile segmented controls vs `SegmentedGlide`; different sheet implementations | Consistent equivalent states; labels, focus trap/restore, Escape, targets and reduced motion |
 | 2 | Profile permanent companion plus event mascot; decorative cover/stage details | Resolve competing characters and information-free emphasis only in an authorized profile task |
 | 3 | Tailwind color literals differ from CSS; historical surface docs/comments | Consolidate at source without repainting unrelated screens; record before/after |

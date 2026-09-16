@@ -20,7 +20,8 @@ import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost } from "../lib/autoShare";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
-import { coursePlanning, dayWorkload, monthTintCourses } from "../lib/planningInsights.mjs";
+import { coursePlanning, dayWorkload, dayLoad, loadSegments } from "../lib/planningInsights.mjs";
+import PlanningLoadBar from "../components/PlanningLoadBar";
 import { normalizePlanningExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
 import PlanningExamMark from "../components/PlanningExamMark";
 
@@ -512,7 +513,7 @@ function RevisionChecklists({ className = "" }) {
 // moment de marque du planning.
 // Deux prochaines actions maximum ; le calendrier porte le reste de la semaine.
 function TodayCard({ className = "" }) {
-  const { byDate, examsByDate, exams, toggle, courseColor, courseName, launchTimer, openDay, lang, t, view } = usePlan();
+  const { byDate, examsByDate, exams, toggle, courseColor, courseName, launchTimer, openDay, lang, t, isOnToday } = usePlan();
   const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
@@ -572,7 +573,15 @@ function TodayCard({ className = "" }) {
           </div>
         ) : (
           <>
-            {remainingToday.length > 0 && view !== "day" && (
+            {/* Les deux prochaines actions ne servent que si le calendrier ne
+                montre PAS déjà aujourd'hui. Quand la semaine ou le mois
+                affiché contient la journée en cours, ses objectifs sont juste
+                en dessous, avec leur charge : cette liste les répétait et
+                repoussait la vue de la semaine sous la ligne de flottaison
+                (premier jour à 937 px sur un écran de 812 px en période
+                chargée). Dès qu'on navigue ailleurs, elle reprend son rôle de
+                rappel. */}
+            {remainingToday.length > 0 && !isOnToday && (
               <ul className="mt-4 space-y-2">
                 {remainingToday.slice(0, 2).map(o => (
                   <li key={o.id} className="flex items-center gap-2.5 text-sm">
@@ -1098,23 +1107,24 @@ function DayDetailModal() {
 // ── CalendarLegend ────────────────────────────────────────────
 function CalendarLegend() {
   const { activeCourses: courses, t } = usePlan();
-  // Un objectif n'a pas de couleur à lui : il porte celle de son cours. Une
-  // seule pastille grise l'annonçait donc à tort. On montre les vraies
-  // couleurs de SES cours — la légende devient un mini-index lisible.
-  const swatches = courses.slice(0, 3).map(c => c.color).filter(Boolean);
-  const objectiveNode = swatches.length ? (
-    <span className="flex items-center -space-x-1">
-      {swatches.map((c, i) => (
-        <span key={i} className="h-2.5 w-2.5 rounded-full"
-          style={{ backgroundColor: c, boxShadow: "0 0 0 1.5px var(--bt-surface)", zIndex: swatches.length - i }} />
-      ))}
+  // La bande est la nouvelle unité de lecture du calendrier : sa longueur est
+  // du TEMPS, ses segments sont des cours. Un échantillon vaut mieux qu'une
+  // phrase — on reprend les vraies couleurs des cours de l'étudiant, donc la
+  // légende sert aussi de mini-index.
+  const swatches = courses.slice(0, 2).map(c => c.color).filter(Boolean);
+  const loadNode = (
+    <span className="bt-plan-load" aria-hidden="true" style={{ inlineSize: 34 }}>
+      <span className="bt-plan-load-fill" style={{ inlineSize: "72%" }}>
+        {(swatches.length ? swatches : [null]).map((color, i) => (
+          <span key={i} className={`bt-plan-load-seg${color ? "" : " is-unassigned"}`}
+            style={{ flexGrow: i === 0 ? 2 : 1, backgroundColor: color || undefined }} />
+        ))}
+      </span>
     </span>
-  ) : (
-    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bt-text-3)" }} />
   );
 
   const items = [
-    { label: t("plan.legendObjective"), node: objectiveNode },
+    { label: t("plan.legendLoad"), node: loadNode },
     { label: t("plan.legendExam"),      node: <PlanningExamMark label={t("plan.examTag")} /> },
     { label: t("common.today"),         node: <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--bt-accent)" }} /> },
   ];
@@ -1130,8 +1140,10 @@ function CalendarLegend() {
 }
 
 // ── MonthView ─────────────────────────────────────────────────
-// Exams override the representative course tint. Workload weighting stays
-// count-based until Phase 2; course markers retain the other identities.
+// Une carte de la charge de travail. Le fond porte l'IDENTITÉ (le cours qui
+// pèse le plus de minutes ce jour-là), la bande du bas porte la QUANTITÉ et la
+// part de chaque cours. L'examen garde la priorité sur le fond et conserve sa
+// bande : un jour d'examen montre à la fois l'échéance et la révision prévue.
 function MonthView() {
   const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
@@ -1165,13 +1177,15 @@ function MonthView() {
               const items     = byDate[key]      || [];
               const examItems = examsByDate[key] || [];
 
-              // Couleurs des cours réellement présents ce jour-là (une par
-              // cours, pas une par objectif : trois objectifs du même cours
-              // sont UNE information de couleur, pas trois).
-              const dayCourseIds = [...new Set(items.filter(o => o.course_id).map(o => o.course_id))];
-              const dayColors    = dayCourseIds.map(id => courseColor(id)).filter(Boolean);
-              const hasUncoursed = items.some(o => !courseColor(o.course_id));
-              const tints = monthTintCourses(items).map(id => rgbTriplet(courseColor(id))).filter(Boolean);
+              // La charge de la journée, en MINUTES prévues. Le cours dominant
+              // est celui qui pèse le plus de temps, plus celui qui compte le
+              // plus de tâches : une matinée de Finance de 4 h ne perd plus
+              // contre deux QCM de Marketing de 20 min.
+              const load  = dayLoad(items);
+              // Seul un vrai cours peut teinter la case. Si la plus grosse part
+              // de la journée n'a pas de cours, aucun cours ne « possède » ce
+              // jour : la case reste neutre plutôt que d'emprunter une identité.
+              const tint  = load.dominantCourseId ? rgbTriplet(courseColor(load.dominantCourseId)) : null;
 
               // UNE seule source de fond par case — jamais deux règles CSS qui
               // se disputent la même cellule. La sélection n'en fait PAS partie :
@@ -1179,11 +1193,19 @@ function MonthView() {
               // jour sélectionné — aujourd'hui par défaut — était le seul à ne
               // jamais montrer la couleur de son cours.
               const fill = examItems.length ? "exam"
-                : tints.length ? "course"
+                : tint ? "course"
                 : items.length ? "planned"
                 : null;
 
-              const label = `${quickDateLabel(key, lang, t)} — ${t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length)}, ${t(examItems.length === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", examItems.length)}`;
+              // Le libellé accessible porte la quantité exacte : la bande dit
+              // « beaucoup », elle ne dit pas « 3 h 15 ». Et la couleur n'est
+              // jamais la seule source de sens.
+              const loadAria = load.minutes > 0
+                ? t("plan.loadAria")
+                    .replace("{t}", formatMinutesShort(load.minutes * 60))
+                    .replace("{courses}", load.courses.map(entry => entry.id ? courseName(entry.id) : t("plan.unassigned")).filter(Boolean).join(", "))
+                : "";
+              const label = `${quickDateLabel(key, lang, t)} — ${t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length)}, ${t(examItems.length === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", examItems.length)}${loadAria ? ` — ${loadAria}` : ""}`;
 
               return (
                 <button key={key} onClick={() => { if (inMonth || examItems.length) openDay(key); else setSelectedDate(key); }}
@@ -1192,7 +1214,7 @@ function MonthView() {
                   data-past={key < today ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
-                    "--bt-day-tint": tints[0] || undefined,
+                    "--bt-day-tint": tint || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
                     opacity: inMonth || examItems.length ? 1 : 0.75,
                   }}>
@@ -1209,26 +1231,7 @@ function MonthView() {
                     <span className="hidden truncate font-semibold sm:block">{examItems[0].name}</span>
                     {examItems[0].course_id && <span className="mt-1 flex min-w-0 items-center gap-1" title={courseName(examItems[0].course_id)}><CourseMark id={examItems[0].course_id} /><span className="hidden truncate sm:inline">{courseName(examItems[0].course_id)}</span></span>}
                   </div>}
-                  {/* Marqueurs — mobile : pastilles (aucun texte ne rentre).
-                      Une pastille par COURS, pas par objectif : le fond dit
-                      « il y a quelque chose », les pastilles disent « de quels
-                      cours ». Répéter la même couleur n'ajoutait rien. */}
-                  <div className="flex flex-wrap gap-1 sm:hidden">
-                    {items.length > 1 && <span className="text-[10px] leading-none tabular-nums" style={{ color: "var(--bt-text-2)" }}>{items.length}</span>}
-                    {dayColors.slice(0, 4).map((c, i) => (
-                      <span key={i} className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: c }} />
-                    ))}
-                    {hasUncoursed && (
-                      <CourseMark />
-                    )}
-                    {dayColors.length > 4 && (
-                      <span className="text-[9px] leading-none tabular-nums" style={{ color: "var(--bt-text-4)" }}>
-                        +{dayColors.length - 4}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Marqueurs — sm+ : titres. L'examen passe en premier. */}
+                  {/* Titres — sm+ seulement, quand la case est assez large. */}
                   <div className="hidden space-y-0.5 sm:block">
                     {items.slice(0, 2).map(o => (
                       <div key={o.id} className="flex items-center gap-1 truncate" title={o.title || courseName(o.course_id) || ""}>
@@ -1240,18 +1243,164 @@ function MonthView() {
                         </span>
                       </div>
                     ))}
-                    {items.length > 2 && (
-                      <span className="text-[10px] tabular-nums" style={{ color: "var(--bt-text-4)" }}>
-                        +{items.length - 2}
-                      </span>
-                    )}
                   </div>
+
+                  {/* La bande de charge, collée au bas de la case. Elle remplace
+                      la rangée de pastilles et le « +N » : sa LONGUEUR dit
+                      combien de travail est prévu (échelle absolue, la même
+                      dans tout le calendrier et dans la semaine), ses segments
+                      disent à quels cours il appartient et dans quelles
+                      proportions. Deux « +N » de sens différents vivaient ici —
+                      objectifs cachés sur grand écran, cours cachés sur
+                      téléphone ; il n'en reste aucun.
+                      Elle survit à la case d'examen : le jour garde sa priorité
+                      d'examen ET montre la révision prévue, au lieu de perdre
+                      l'une pour l'autre. */}
+                  <span className="mt-auto pt-1">
+                    <PlanningLoadBar load={load} courseColor={courseColor} max={2} label={loadAria} />
+                  </span>
                 </button>
               );
             })}
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+// ── WeekWorkload ──────────────────────────────────────────────
+// La semaine répond à « comment mon travail se répartit sur les prochains
+// jours », pas à « à quelle heure exactement ». Elle était une grille de
+// seize heures sur sept colonnes — 119 créneaux — alors que la grande
+// majorité des objectifs ne porte AUCUNE heure : tout s'entassait dans une
+// bande de 38 px au-dessus de mille pixels de grille vide, et sur téléphone
+// il fallait défiler horizontalement pour voir la semaine.
+//
+// Sept RANGÉES, pas sept colonnes : les bandes partagent le même bord gauche,
+// donc comparer deux journées revient à comparer deux longueurs alignées. Une
+// rangée garde toute la largeur disponible, donc les titres restent lisibles à
+// 320 px comme à 1440. Même structure sur téléphone et sur ordinateur — ce
+// n'est pas une grille réduite, c'est une liste dès le départ.
+const WEEK_CHIPS = 3;
+
+function WeekWorkload({ days }) {
+  const { byDate, examsByDate, courseColor, courseName, openDay, t, lang } = usePlan();
+  const today = localToday();
+  const loads = days.map(d => dayLoad(byDate[ymd(d)] || []));
+  const weekMinutes = loads.reduce((sum, load) => sum + load.minutes, 0);
+
+  function loadLabel(load) {
+    if (!load.minutes) return t("plan.loadAriaEmpty");
+    const names = load.courses
+      .map(entry => entry.id ? courseName(entry.id) : t("plan.unassigned"))
+      .filter(Boolean);
+    return t("plan.loadAria")
+      .replace("{t}", formatMinutesShort(load.minutes * 60))
+      .replace("{courses}", names.join(", "));
+  }
+
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b px-4 py-3 sm:px-5" style={{ borderColor: "var(--bt-border)" }}>
+        <div className="min-w-0">
+          <h2 className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.weekLoadTitle")}</h2>
+          {/* L'unité est écrite : une bande sans unité serait ambiguë. */}
+          <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.weekLoadHint")}</p>
+        </div>
+        {weekMinutes > 0 && (
+          <p className="font-num shrink-0 text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
+            {t("plan.weekTotal").replace("{t}", formatMinutesShort(weekMinutes * 60))}
+          </p>
+        )}
+      </div>
+
+      <ul>
+        {days.map((d, i) => {
+          const key       = ymd(d);
+          const load      = loads[i];
+          const items     = byDate[key] || [];
+          const examItems = examsByDate[key] || [];
+          const isToday   = key === today;
+          const isPast    = key < today;
+          const overdue   = isPast ? items.filter(o => !o.done).length : 0;
+          const segments  = loadSegments(load, 3);
+          const rest      = segments.find(segment => segment.rest)?.rest || 0;
+          const shown     = items.slice(0, WEEK_CHIPS);
+          const hidden    = items.length - shown.length;
+
+          return (
+            <li key={key} className="bt-plan-week-row" data-today={isToday ? "1" : undefined} data-exam={examItems.length ? "1" : undefined}>
+              <button type="button" className="bt-plan-week-date" onClick={() => openDay(key)}
+                aria-current={isToday ? "date" : undefined}
+                aria-label={`${t("plan.openDay")} — ${quickDateLabel(key, lang, t)}`}>
+                <span className="bt-plan-week-weekday">{weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}</span>
+                <span className="bt-plan-week-daynum font-num tabular-nums">{d.getDate()}</span>
+              </button>
+
+              <div className="bt-plan-week-body">
+                {examItems.length > 0 && (
+                  <div className="bt-plan-week-exams">
+                    {examItems.map(exam => (
+                      <button type="button" key={exam.id} className="bt-planning-week-exam" onClick={() => openDay(key)}>
+                        <PlanningExamMark label={t("plan.examTag")} />
+                        <strong className="block truncate">{exam.name || courseName(exam.course_id) || t("plan.examTag")}</strong>
+                        <span className="flex min-w-0 items-center gap-1 text-xs">
+                          {exam.exam_time && <span className="font-num tabular-nums">{exam.exam_time.slice(0, 5)}</span>}
+                          {exam.course_id && <><CourseMark id={exam.course_id} /><span className="truncate">{courseName(exam.course_id)}</span></>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {load.minutes > 0 ? (
+                  <>
+                    <div className="bt-plan-week-meter">
+                      <PlanningLoadBar load={load} courseColor={courseColor} max={3} label={loadLabel(load)} />
+                      <span className="font-num bt-plan-week-total tabular-nums">{formatMinutesShort(load.minutes * 60)}</span>
+                    </div>
+                    <p className="bt-plan-week-meta">
+                      {[
+                        t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length),
+                        overdue > 0 && t(overdue === 1 ? "plan.overdueOne" : "plan.overdueMany").replace("{n}", overdue),
+                        rest > 0 && t(rest === 1 ? "plan.otherCoursesOne" : "plan.otherCoursesMany").replace("{n}", rest),
+                      ].filter(Boolean).join(" · ")}
+                    </p>
+                  </>
+                ) : (
+                  !examItems.length && <p className="bt-plan-week-meta">{t("plan.noPlan")}</p>
+                )}
+
+                {shown.length > 0 && (
+                  <div className="bt-plan-week-chips">
+                    {shown.map(o => (
+                      <button type="button" key={o.id} className="bt-plan-objective-chip"
+                        data-done={o.done ? "1" : undefined}
+                        title={o.title || courseName(o.course_id) || ""}
+                        onClick={() => openDay(key)}>
+                        <CourseMark id={o.course_id} />
+                        <span className="min-w-0 truncate">
+                          {o.title || courseName(o.course_id) || "—"}
+                          <span className="sr-only"> · {courseName(o.course_id) || t("plan.unassigned")}</span>
+                        </span>
+                        {o.scheduled_time && <span className="font-num shrink-0 tabular-nums" style={{ color: "var(--bt-text-3)" }}>{o.scheduled_time.slice(0, 5)}</span>}
+                      </button>
+                    ))}
+                    {/* Jamais un « +3 » nu : le nom de ce qui est replié est
+                        écrit, et le bouton ouvre exactement cette journée. */}
+                    {hidden > 0 && (
+                      <button type="button" className="bt-plan-week-more" onClick={() => openDay(key)}>
+                        {t(hidden === 1 ? "plan.moreObjectivesOne" : "plan.moreObjectivesMany").replace("{n}", hidden)}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -1325,8 +1474,10 @@ function TimeGrid({ days }) {
                       style={isToday ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: "var(--bt-text-1)" }}>
                       {d.getDate()}
                     </span>
-                    <span className="mt-1 block text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>{t((byDate[key] || []).length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", (byDate[key] || []).length)}</span>
-                    {dayWorkload(byDate[key] || []).minutes > 0 && <span className="block text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>{formatMinutesShort(dayWorkload(byDate[key] || []).minutes * 60)}</span>}
+                    {/* Le compte et la durée du jour vivent dans la charge de la
+                        semaine, soixante pixels plus haut. Les répéter ici
+                        donnait deux chiffres différents pour la même journée —
+                        l'un « restant », l'autre « prévu ». */}
                   </button>
                 );
               })}
@@ -1340,7 +1491,10 @@ function TimeGrid({ days }) {
               </div>
               {days.map(d => {
                 const key       = ymd(d);
-                const items     = (byDate[key] || []).filter(o => !o.scheduled_time);
+                // Les objectifs SANS heure ne sont plus répétés ici : la charge
+                // de la semaine, juste au-dessus, les porte tous avec leur
+                // durée et leur cours. Cette grille ne montre que ce qui a une
+                // place dans le temps — ce que dit son sous-titre.
                 const examItems = examsByDate[key] || [];
                 return (
                   <div key={key} className="bt-plan-slot cursor-pointer space-y-0.5 p-1"
@@ -1354,14 +1508,6 @@ function TimeGrid({ days }) {
                         {e.exam_time && <span className="block text-xs">{e.exam_time.slice(0, 5)}</span>}
                         <strong className="block truncate">{e.name}</strong>
                         {e.course_id && <span className="flex items-center gap-1 text-xs"><CourseMark id={e.course_id} /><span className="truncate">{courseName(e.course_id)}</span></span>}
-                      </button>
-                    ))}
-                    {items.map(o => (
-                      <button type="button" key={o.id} className="bt-plan-objective-chip"
-                        data-done={o.done ? "1" : undefined}
-                        title={o.title || courseName(o.course_id) || ""}
-                        onClick={e => { e.stopPropagation(); openDay(key); }}>
-                        <CourseMark id={o.course_id} /><span className="min-w-0 truncate">{o.title || courseName(o.course_id) || "—"}<span className="sr-only"> · {courseName(o.course_id) || t("plan.unassigned")}</span></span>
                       </button>
                     ))}
                   </div>
@@ -1411,6 +1557,35 @@ function TimeGrid({ days }) {
         <p className="mt-2 px-1 text-[11px] no-print xl:hidden" style={{ color: "var(--bt-text-4)" }}>
           {t("plan.weekScrollHint")}
         </p>
+      )}
+    </>
+  );
+}
+
+// ── WeekView ──────────────────────────────────────────────────
+// La répartition de la charge d'abord. La grille horaire reste disponible —
+// des étudiants posent de vraies heures — mais elle n'apparaît QUE si la
+// semaine affichée contient au moins un objectif horodaté. Une semaine sans
+// heure ne déroule plus seize rangées vides : ce n'est pas un réglage, c'est
+// la donnée qui décide.
+function WeekView({ days }) {
+  const { byDate, t } = usePlan();
+  // Le créneau doit exister dans la grille : un objectif à 5 h ne s'y afficherait
+  // pas, et la grille serait vide en promettant le contraire. Il reste visible
+  // avec son heure dans la charge, au-dessus.
+  const hasTimed = days.some(d => (byDate[ymd(d)] || [])
+    .some(o => HOURS.includes(getHour(o.scheduled_time))));
+  return (
+    <>
+      <WeekWorkload days={days} />
+      {hasTimed && (
+        <section className="mt-5">
+          <div className="mb-2 px-1">
+            <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.timedSectionTitle")}</h2>
+            <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.timedSectionHint")}</p>
+          </div>
+          <TimeGrid days={days} />
+        </section>
       )}
     </>
   );
@@ -1989,7 +2164,7 @@ export default function Planning() {
   );
 
   const ctxValue = {
-    view, courses, activeCourses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
+    view, isOnToday, courses, activeCourses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit, saveLegacyDate,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
     launchTimer, duplicateDay, duplicateWeek,
@@ -2031,7 +2206,7 @@ export default function Planning() {
                 Calendrier pleine largeur : le détail d'un jour vit dans le modal. */}
             <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-tab-fade order-5 min-w-0">
               {view === "month" && <MonthView />}
-              {view === "week"  && <TimeGrid days={getWeekDays(selectedDate)} />}
+              {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
               {view === "day"   && <DayAgenda />}
               {view !== "day" && <CalendarLegend />}
             </div>

@@ -2,6 +2,26 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+
+## 2026-09-16 - Planning phase 2 : la semaine devient une repartition de charge (Claude)
+
+Suite de la phase 1 (039328e), dont la normalisation des examens, le langage
+visuel d'examen, les contrastes et le travail sans cours sont CONSERVES tels
+quels. Le chrono n'est pas touche.
+
+- **La charge se mesure en MINUTES PLANIFIEES, plus en nombre de taches** (`lib/planningInsights.mjs`). L'ancien classement par compte faisait perdre un objectif de Finance de 4 h face a deux QCM de Marketing de 20 min : le mois annoncait le mauvais cours dominant. `dayLoad` / `loadSegments` / `loadRatio` deviennent la source unique. Une ligne sans duree exploitable compte quand meme, pour 30 min documentees, plutot que de disparaitre. Les objectifs termines restent dans le plan — cocher une case ne vide pas la journee.
+- **`components/PlanningLoadBar.js` (nouveau)** : la bande de charge, partagee par le mois et la semaine. Sa LONGUEUR est une duree sur une echelle absolue (plein = 8 h, le haut d'une vraie journee de blocus) ; ses segments sont la part de chaque cours, du plus lourd au plus leger, les cours au-dela du plafond regroupes dans UN segment neutre qui porte son propre nombre. Ni barre de progression, ni Study Block.
+- **La semaine change de metier.** Elle etait une grille de seize heures sur sept colonnes — 119 creneaux — alors que 71 % des objectifs ne portent aucune heure, et il fallait defiler horizontalement pour voir la semaine sur telephone (grille de 780 px dans 333 px). Elle devient sept RANGEES : date, examens, bande de charge, total exact, nombre d'objectifs, retards, autres cours, trois objectifs et un lien nomme vers le reste. Les bandes partagent le meme bord gauche, donc comparer deux journees revient a comparer deux longueurs alignees. Les sept jours tiennent a 320 px sans defilement horizontal.
+- **La grille horaire survit, en second.** Elle n'apparait que si la semaine affichee contient un objectif a une heure affichable — une semaine sans heure ne deroule plus seize rangees vides. Sa ligne « toute la journee » ne garde que les examens et son en-tete ne repete plus les totaux : ils vivaient a soixante pixels d'ecart, l'un « restant », l'autre « prevu ».
+- **Le mois devient une carte de charge.** Le fond garde l'identite (le cours qui pese le plus de MINUTES ; aucune teinte si le travail sans cours domine — pas d'identite empruntee), la bande du bas porte la quantite et le melange de cours. Elle survit a la case d'examen : un jour d'examen montre a la fois l'echeance et la revision prevue. La rangee de pastilles et les deux « +N » de sens differents (objectifs caches sur grand ecran, cours caches sur telephone) disparaissent. Le libelle accessible porte la duree exacte et les noms de cours.
+- **Aujourd'hui cesse de repeter le calendrier** : ses deux prochaines actions ne s'affichent que si la periode visible ne contient pas deja la journee en cours. En periode chargee, la premiere journee de la semaine commencait a 937 px sur un ecran de 812 px ; elle commence a 779 px.
+- Legende mise a jour : un echantillon de bande « Temps prevu » remplace les pastilles d'objectif. i18n FR+EN a parite.
+- `pages/dev/planning-phase-one.js` gagne un scenario `dense` (hors production, developpement + mode hors ligne seulement) qui rejoue une vraie periode de blocus.
+
+Study Blocks volontairement NON utilises : ils opposent du temps gagne a du temps prevu, or rien n'est encore etudie sur une journee future — un bloc non rempli y dirait « pas etudie », ce qui n'a pas de sens. DESIGN.md autorise explicitement une bande de duree compacte a l'echelle semaine/mois, a condition d'en enoncer l'unite.
+
+Verification : 75 tests Node passes, ESLint propre, detecteur impeccable a zero anomalie, builds offline et production reels OK. Navigateur hors ligne sur le scenario dense : semaine et mois a 320 / 375 / 1280 / 1440, clair et sombre, zero debordement horizontal, semaine vide, jour d'examen multiple, journee a 8h50 sur quatre cours plus travail sans cours, journees en retard.
+
 ## 2026-09-16 - Planning Phase 1 : examens fiables et prioritaires (Codex)
 
 - Lecture normalisee `lib/planningExams.mjs` : `exams` prioritaire pour un couple cours/date identique, dates `courses.exam_date` non representees conservees sans nom/heure inventes. Deux vrais examens restent deux evenements. Pas de migration ni de changement Timer. Contrat et limites dans `docs/planning-exams.md`.

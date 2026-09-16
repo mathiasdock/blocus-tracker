@@ -76,6 +76,95 @@
   .bt-plan-exam-mark--compact .bt-plan-exam-mark-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .bt-plan-exam-mark--compact .bt-plan-exam-count::before { content: none; }
 }
+/* ── Bande de charge ──────────────────────────────────────────
+   Combien de travail est prévu, et à quels cours il appartient. La LONGUEUR
+   est la quantité (échelle absolue partagée mois/semaine, plein = 6 h), les
+   segments sont la part de chaque cours. Ni barre de progression, ni Study
+   Block : rien n'est « rempli », c'est du plan, pas du temps gagné. */
+.bt-plan-load {
+  display: block;
+  inline-size: 100%;
+  block-size: 5px;
+  border-radius: 999px;
+  background: var(--bt-subtle);
+  box-shadow: inset 0 0 0 1px var(--bt-hairline, var(--bt-border));
+  overflow: hidden;
+}
+.bt-plan-load-fill { display: flex; block-size: 100%; border-radius: inherit; overflow: hidden; }
+.bt-plan-load-seg {
+  flex-basis: 0;
+  /* Plancher de RENDU : une part de 4 % reste visible sans devenir un trait
+     invisible. Il ne déforme que l'extrémité basse de l'échelle. */
+  min-inline-size: 3px;
+  background: var(--bt-text-3);
+}
+/* Travail sans cours : neutre clair. Pas d'identité de cours empruntée. */
+.bt-plan-load-seg.is-unassigned { background: var(--bt-text-4); }
+/* Cours regroupés au-delà du plafond de segments : neutre foncé, et leur
+   nombre est écrit en toutes lettres dans la semaine. */
+.bt-plan-load-seg.is-rest { background: var(--bt-text-2); }
+
+/* ── Semaine : sept rangées de charge ─────────────────────────
+   Les bandes partagent le même bord gauche : comparer deux journées, c'est
+   comparer deux longueurs alignées. Une rangée occupe toute la largeur, donc
+   les titres restent lisibles à 320 px. Aucun défilement horizontal. */
+.bt-plan-week-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--bt-border);
+}
+.bt-plan-week-row:first-child { border-top: 0; }
+.bt-plan-week-row[data-exam="1"] { background: var(--bt-exam-bg); }
+.bt-plan-week-date {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  inline-size: 48px;
+  min-block-size: 44px;
+  padding: 2px 0;
+  border-radius: var(--bt-r-inset);
+  color: var(--bt-text-1);
+}
+.bt-plan-week-weekday { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--bt-text-3); }
+.bt-plan-week-daynum { font-size: 17px; font-weight: 800; line-height: 1.1; }
+.bt-plan-week-row[data-today="1"] .bt-plan-week-daynum {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 28px; block-size: 28px; border-radius: 999px;
+  background: var(--bt-action); color: #fff;
+}
+.bt-plan-week-body { min-inline-size: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.bt-plan-week-exams { display: flex; flex-direction: column; gap: 6px; }
+.bt-plan-week-meter { display: flex; align-items: center; gap: 10px; }
+.bt-plan-week-meter .bt-plan-load { flex: 1; block-size: 8px; }
+.bt-plan-week-total { flex: none; font-size: 13px; font-weight: 700; color: var(--bt-text-1); }
+.bt-plan-week-meta { font-size: 12px; line-height: 1.4; color: var(--bt-text-2); }
+.bt-plan-week-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.bt-plan-week-chips .bt-plan-objective-chip { inline-size: auto; max-inline-size: 100%; flex: 0 1 auto; }
+.bt-plan-week-more {
+  display: inline-flex; align-items: center; min-block-size: 44px; padding: 0 10px;
+  border-radius: var(--bt-r-inset); font-size: 12px; font-weight: 600;
+  color: var(--bt-text-2); text-decoration: underline; text-underline-offset: 2px;
+}
+.bt-plan-week-date:focus-visible, .bt-plan-week-more:focus-visible { outline: 2px solid var(--bt-action); outline-offset: -2px; }
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-week-date:hover { background: var(--bt-subtle); }
+  .bt-plan-week-more:hover { color: var(--bt-text-1); }
+}
+@media (min-width: 640px) {
+  .bt-plan-week-row { gap: 16px; padding: 14px 20px; }
+  .bt-plan-week-date { inline-size: 56px; }
+  .bt-plan-week-meter .bt-plan-load { block-size: 10px; }
+  .bt-plan-week-total { font-size: 14px; }
+}
+
+/* Le mois pose sa bande au bas de la case, sous les titres. */
+.bt-planning .bt-plan-day-cell .bt-plan-load { block-size: 4px; }
+
 .bt-planning-task { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--bt-hairline, var(--bt-border)); }
 .bt-planning .bt-plan-revision-row { padding: 12px 4px; min-height: 44px; }
 @media (min-width: 640px) {
