@@ -1273,8 +1273,11 @@ export default function Dashboard() {
               transition: "opacity 1.5s ease",
             }} />
 
-          {/* ── Barre de contexte : cours actif · modes · plein écran ── */}
-          <div className="relative z-20 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
+          {/* ── Barre de contexte : cours actif · modes · plein écran ──
+              z-30 et non z-20 : le défi du jour, juste en dessous, est aussi
+              en z-20 et vient APRÈS dans le DOM — il recouvrait donc le menu
+              des cours ouvert. */}
+          <div className="relative z-30 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
             <div className="flex min-w-0 items-center gap-2">
               <div className="relative min-w-0 flex-1">
                 {activeCourses.length === 0 ? (
