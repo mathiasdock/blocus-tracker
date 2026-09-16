@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Glyph from "../Glyph";
 import { useI18n } from "../../contexts/I18nContext";
-import { formatMinutesShort } from "../../lib/format";
+import { formatStudyTime } from "../../lib/format";
 
 // « Anciens cours » — ce que tu as retiré de tes listes, et ce que ça pesait.
 //
@@ -14,6 +14,11 @@ import { formatMinutesShort } from "../../lib/format";
 //
 // C'est aussi le seul endroit d'où l'on peut supprimer POUR DE BON. Le geste
 // est rare et irréversible : il se cherche exprès, il ne se croise pas.
+//
+// Les barres sont une COMPARAISON DE QUANTITÉS : même bord gauche, même
+// échelle, et pas de rail rempli derrière — un rail se lirait « x % de
+// quelque chose », alors qu'il n'y a ici aucun total à atteindre. L'échelle
+// est écrite au-dessus, sans quoi une longueur ne veut rien dire.
 
 function IconRestore() {
   return (
@@ -43,6 +48,7 @@ export default function ArchivedCourses({ rows, busyId, onRestore, onDelete }) {
   // les cours : sinon, quelqu'un qui a archivé deux petites matières verrait
   // deux traits invisibles et n'aurait aucun moyen de les comparer entre eux.
   const max = rows.reduce((m, r) => Math.max(m, r.secs), 0) || 1;
+  const topName = rows.reduce((best, r) => (r.secs > (best?.secs || 0) ? r : best), null)?.name;
 
   return (
     <section className="card p-4 sm:p-5">
@@ -64,6 +70,12 @@ export default function ArchivedCourses({ rows, busyId, onRestore, onDelete }) {
           {t("stats.archivedEmpty")}
         </p>
       ) : (
+        <>
+        {rows.length > 1 && (
+          <p className="mt-3 text-[11px] leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+            {t("stats.archivedScale").replace("{course}", topName || "—")}
+          </p>
+        )}
         <ul className="mt-4 space-y-4">
           {rows.map((row) => {
             const confirming = confirmId === row.id;
@@ -79,7 +91,7 @@ export default function ArchivedCourses({ rows, busyId, onRestore, onDelete }) {
                     </p>
                     <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                       {row.secs > 0
-                        ? t("stats.archivedDeleteKept").replace("{time}", formatMinutesShort(row.secs))
+                        ? t("stats.archivedDeleteKept").replace("{time}", formatStudyTime(row.secs))
                         : t("stats.archivedDeleteEmpty")}
                     </p>
                     <div className="mt-3 flex gap-2">
@@ -122,18 +134,25 @@ export default function ArchivedCourses({ rows, busyId, onRestore, onDelete }) {
                   </button>
                 </div>
                 <div className="mt-1.5 flex items-center gap-2.5">
-                  <span className="h-2 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }} aria-hidden="true">
-                    <span className="block h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-                      style={{ transform: `scaleX(${Math.max(0.03, row.secs / max)})`, backgroundColor: "var(--bt-accent)" }} />
+                  {/* Un cours archivé sans aucune heure ne dessine AUCUNE barre :
+                      l'ancien plancher de 3 % lui en donnait une, aussi visible
+                      que celle d'un cours réellement étudié un peu. */}
+                  <span className="flex h-2 min-w-0 flex-1 items-center" aria-hidden="true">
+                    <span className="bt-stats-quantity block h-full rounded-full"
+                      style={{
+                        inlineSize: row.secs > 0 ? `max(2px, ${(row.secs / max) * 100}%)` : 0,
+                        backgroundColor: "var(--bt-accent-text)",
+                      }} />
                   </span>
                   <span className="shrink-0 font-num text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-                    {formatMinutesShort(row.secs)}
+                    {formatStudyTime(row.secs)}
                   </span>
                 </div>
               </li>
             );
           })}
         </ul>
+        </>
       )}
     </section>
   );

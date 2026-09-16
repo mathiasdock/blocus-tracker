@@ -3,7 +3,7 @@ import Glyph from "../Glyph";
 import BadgeIcon from "../BadgeIcon";
 import ArchivedCourses from "./ArchivedCourses";
 import { useI18n } from "../../contexts/I18nContext";
-import { formatMinutesShort } from "../../lib/format";
+import { formatStudyTime } from "../../lib/format";
 
 // Niveau 2 — ce qu'on consulte de temps en temps, pas tous les jours.
 //
@@ -20,6 +20,8 @@ function weekdayName(isoIndex, lang) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+// `minutes` peut valoir null : quand les heures de début sont trop dispersées,
+// aucune « heure moyenne » n'a de sens et statsInsights refuse d'en inventer une.
 function formatClock(minutes, lang) {
   if (minutes == null) return "—";
   const h = Math.floor(minutes / 60) % 24;
@@ -105,6 +107,9 @@ export default function AdvancedAnalytics({
     { id: "goal10",        label: t("stats.badgeGoal10") },
   ];
   const earned = badges.filter((b) => insights?.badges?.[b.id]).length;
+  const slotTotal = hasInsights
+    ? Object.values(insights.timeOfDay).reduce((a, b) => a + b, 0)
+    : 0;
 
   return (
     <div className={className}>
@@ -130,14 +135,18 @@ export default function AdvancedAnalytics({
                 {t("stats.habitsWhen")}
               </p>
               <div className="space-y-2">
+                {/* PART D'UN TOUT : le rail est le total, le remplissage la
+                    part. Il est calculé sur les secondes exactes ; seul le
+                    chiffre écrit à côté est arrondi. */}
                 {slots.map((s) => {
                   const p = insights.timeOfDayPct[s.key];
+                  const share = slotTotal > 0 ? insights.timeOfDay[s.key] / slotTotal : 0;
                   return (
                     <div key={s.key} className="flex items-center gap-2.5">
                       <span className="w-16 shrink-0 text-xs" style={{ color: "var(--bt-text-2)" }}>{s.label}</span>
                       <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                        <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-                          style={{ transform: `scaleX(${p / 100})`, backgroundColor: s.color }} />
+                        <div className="bt-stats-quantity h-full rounded-full"
+                          style={{ inlineSize: share > 0 ? `max(2px, ${share * 100}%)` : 0, backgroundColor: s.color }} />
                       </div>
                       <span className="w-9 shrink-0 text-right font-num text-xs font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{p}%</span>
                     </div>
@@ -145,12 +154,16 @@ export default function AdvancedAnalytics({
                 })}
               </div>
               <div className="mt-3 border-t pt-1.5" style={{ borderColor: "var(--bt-border)" }}>
-                <Row label={t("stats.habitPreferredDay")} value={weekdayName(insights.bestWeekday, lang)} />
-                <Row label={t("stats.habitAvgSession")} value={formatMinutesShort(insights.avgSessionSecs)} />
+                {/* Les libellés disent ce qui est MESURÉ. « Jour préféré » et
+                    « heure la plus productive » prétendaient lire une
+                    préférence et un rendement : une session ne contient qu'une
+                    heure de début et une durée. */}
+                <Row label={t("stats.habitTopDay")} value={weekdayName(insights.topWeekday, lang)} />
+                <Row label={t("stats.habitAvgSession")} value={formatStudyTime(insights.avgSessionSecs)} />
                 <Row label={t("stats.habitAvgStart")} value={formatClock(insights.avgStartMinutes, lang)} />
-                <Row label={t("stats.perfProductiveHour")}
-                  value={insights.mostProductiveHour == null ? "—"
-                    : t("stats.hourRange").replace("{h}", String(insights.mostProductiveHour)).replace("{h2}", String((insights.mostProductiveHour + 1) % 24))} />
+                <Row label={t("stats.habitTopHour")}
+                  value={insights.topStudyHour == null ? "—"
+                    : t("stats.hourRange").replace("{h}", String(insights.topStudyHour)).replace("{h2}", String((insights.topStudyHour + 1) % 24))} />
               </div>
             </section>
 
@@ -158,15 +171,15 @@ export default function AdvancedAnalytics({
             <section className="card p-4 sm:p-5">
               <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.perfTitle")}</h3>
               <div className="mt-3">
-                <Row label={t("stats.perfLongest")} value={formatMinutesShort(insights.longestSessionSecs)} />
-                <Row label={t("stats.perfBestDay")} value={formatMinutesShort(insights.bestDaySecs)} />
-                <Row label={t("stats.recBestWeek")} value={formatMinutesShort(insights.bestWeekSecs)} />
-                <Row label={t("stats.recBestMonth")} value={formatMinutesShort(insights.bestMonthSecs)} />
+                <Row label={t("stats.perfLongest")} value={formatStudyTime(insights.longestSessionSecs)} />
+                <Row label={t("stats.perfBestDay")} value={formatStudyTime(insights.bestDaySecs)} />
+                <Row label={t("stats.recBestWeek")} value={formatStudyTime(insights.bestWeekSecs)} />
+                <Row label={t("stats.recBestMonth")} value={formatStudyTime(insights.bestMonthSecs)} />
                 {/* Records de VOLUME uniquement. Le record de série vit dans
                     « Régularité », à côté de la série en cours — le reprendre
                     ici affichait deux fois le même chiffre sur une page dont
                     c'était justement le défaut. */}
-                <Row label={t("stats.recTotal")} value={formatMinutesShort(allTimeSecs)} />
+                <Row label={t("stats.recTotal")} value={formatStudyTime(allTimeSecs)} />
               </div>
             </section>
           </div>

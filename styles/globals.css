@@ -1910,6 +1910,52 @@ details.bt-acc[open]::details-content { block-size: auto; }
    Memes principes que la page Planning : les etats d'interaction vivent en
    CSS (le clavier et le tactile y ont droit aussi), pas en onMouseEnter. */
 
+/* Les encres secondaires de cette page portent de l'INFORMATION : periode
+   observee, part en pourcentage, cohorte d'une comparaison, valeur exacte
+   d'une journee. Or `--bt-text-3` tient 2,54:1 en clair et 2,90:1 en sombre,
+   `--bt-text-4` 1,85:1 et 1,83:1 — loin sous le seuil de lecture. Meme remede
+   que le dashboard (`.bt-dashboard-readable`), borne a cette page. */
+.bt-stats-readable {
+  --bt-text-3: var(--bt-text-2);
+  --bt-text-4: var(--bt-text-2);
+}
+/* La valeur affichee par un filtre EST la reponse a « je regarde quoi ? ».
+   Posee sur `--bt-subtle` plutot que sur la carte, elle ne tenait que 4,14:1
+   en encre secondaire : elle passe en encre principale. */
+.bt-stats-readable .bt-filter-btn { color: var(--bt-text-1); }
+
+/* Cible tactile de 44 px SANS grossir le bouton : un rectangle invisible
+   deborde en hauteur, l'apparence compacte du filtre est conservee. Les
+   filtres de periode mesuraient 32 px de haut. */
+.bt-tap-44 { position: relative; }
+.bt-tap-44::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: max(44px, 100%);
+  transform: translateY(-50%);
+}
+
+/* Barres dont la LONGUEUR est la quantite. L'animation porte sur la TAILLE et
+   non sur une mise a l'echelle, contrairement a l'usage : `scaleX` deformerait
+   aussi le minimum de deux pixels qui garde une toute petite valeur visible.
+   C'est deja le compromis retenu par le remplissage des blocs du chrono
+   (`.bt-block-fill`, meme plancher de deux pixels). Une dizaine d'elements
+   minuscules, une seule fois au rendu ou au changement de periode : le cout de
+   mise en page est negligeable devant une longueur fausse. */
+.bt-stats-quantity { transition: inline-size 0.3s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .bt-stats-quantity { transition: none; }
+}
+
+/* Case de la grille d'activite : c'est un bouton, il doit se voir au clavier. */
+.bt-heatmap-cell { cursor: pointer; padding: 0; border: 0; }
+.bt-heatmap-cell:focus-visible {
+  outline: 2px solid var(--bt-text-1);
+  outline-offset: 1px;
+}
+
 /* Action discrete : « Voir le detail », « Voir tout le classement ». */
 .bt-stats-quiet-btn {
   color: var(--bt-text-2);

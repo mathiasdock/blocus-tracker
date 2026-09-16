@@ -5,7 +5,7 @@ import { SkeletonList } from "./Skeleton";
 import EmptyState from "./EmptyState";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatMinutesShort, displayName, lastNDates, todayISO } from "../lib/format";
+import { formatStudyTime, displayName, lastNDates, todayISO } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
 import AnimatedNumber from "./AnimatedNumber";
 import FilterMenu from "./FilterMenu";
@@ -255,8 +255,8 @@ export default function Leaderboard({
     return (
       <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
         {animate
-          ? <AnimatedNumber value={row.total_seconds} format={formatMinutesShort} />
-          : formatMinutesShort(row.total_seconds)}
+          ? <AnimatedNumber value={row.total_seconds} format={formatStudyTime} />
+          : formatStudyTime(row.total_seconds)}
       </span>
     );
   }
@@ -315,6 +315,7 @@ export default function Leaderboard({
             options={audienceOptions}
             onChange={setAudience}
             ariaLabel={t("stats.audienceFilterLabel")}
+            buttonClassName="bt-tap-44"
           />
           {(!v2Available || metric !== "streak") && (
             <FilterMenu
@@ -322,6 +323,7 @@ export default function Leaderboard({
               options={periodOptions}
               onChange={setPeriod}
               ariaLabel={t("stats.periodFilterLabel")}
+              buttonClassName="bt-tap-44"
             />
           )}
           {v2Available && (
@@ -330,6 +332,7 @@ export default function Leaderboard({
               options={metricOptions}
               onChange={pickMetric}
               ariaLabel={t("stats.metricFilterLabel")}
+              buttonClassName="bt-tap-44"
             />
           )}
         </div>

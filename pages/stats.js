@@ -17,9 +17,9 @@ import { useToast } from "../contexts/ToastContext";
 import { clearClientCache } from "../lib/clientCache";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatMinutesShort, getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
-import { computeInsights } from "../lib/statsInsights";
-import { pickInsight } from "../lib/statsInsightLine";
+import { getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
+import { computeInsights } from "../lib/statsInsights.mjs";
+import { pickInsight } from "../lib/statsInsightLine.mjs";
 import {
   PERIOD_KEYS, resolvePeriod, buildTimeSeries, courseBreakdown, activeDaysIn,
 } from "../lib/statsPeriod";
@@ -77,6 +77,12 @@ export default function Stats() {
   const [sessions, setSessions] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]);
   const [comparison, setComparison] = useState(undefined); // undefined=chargement, null=indispo
+  // Une lecture qui ÉCHOUE et un compte qui n'a PAS ENCORE de session sont deux
+  // situations opposées : l'une demande de réessayer, l'autre de lancer un
+  // chrono. Elles tombaient toutes les deux sur « Tes graphiques t'attendent »,
+  // donc l'app annonçait « tu n'as jamais étudié » à quelqu'un dont l'historique
+  // existe et n'a simplement pas pu être lu.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [myRank, setMyRank] = useState(null);
   const [viewUserId, setViewUserId] = useState(null);
   const [archiveBusyId, setArchiveBusyId] = useState(null);
@@ -95,17 +101,26 @@ export default function Stats() {
     // notes de session et l'identifiant client transitaient pour rien), et plus
     // de fenêtre à 370 jours : « Tout » doit pouvoir dire tout. Le total
     // all-time se déduit désormais de ces lignes — une requête de moins.
-    const [{ data: c }, { data: s }] = await Promise.all([
+    const [coursesRes, sessionsRes] = await Promise.all([
       // Volontairement SANS filtre sur archived_at : un cours archivé est
       // justement celui dont on veut retrouver les heures du semestre passé.
       supabase.from("courses").select("id, name, color, archived_at").eq("user_id", user.id),
       supabase.from("sessions").select("course_id, duration_seconds, started_at").eq("user_id", user.id),
     ]);
-    setCourses(c || []);
-    setSessions(s || []);
+    // Les deux lectures alimentent toute la page : si l'une manque, aucun
+    // chiffre n'est fiable. On ne remplace pas les données par des zéros.
+    if (coursesRes.error || sessionsRes.error) { setLoadFailed(true); return; }
+    setLoadFailed(false);
+    setCourses(coursesRes.data || []);
+    setSessions(sessionsRes.data || []);
   }, [user]);
 
   useEffect(() => { load().finally(() => setReady(true)); }, [load]);
+
+  const retryLoad = useCallback(() => {
+    setReady(false);
+    load().finally(() => setReady(true));
+  }, [load]);
 
   // ── Anciens cours ────────────────────────────────────────────
   // Le temps compté ici est celui de TOUTE la vie du compte, pas de la période
@@ -256,8 +271,8 @@ export default function Stats() {
         .replace("{course}", vars.course || t("stats.courseNone"))
         .replace("{pct}", String(vars.pct));
     }
-    if (key === "bestWeekday") {
-      return t("stats.insightBestWeekday").replace("{weekday}", weekdayName(vars.weekday, lang));
+    if (key === "topWeekday") {
+      return t("stats.insightTopWeekday").replace("{weekday}", weekdayName(vars.weekday, lang));
     }
     return null;
   }, [insight, t, lang]);
@@ -265,8 +280,14 @@ export default function Stats() {
   // ── Percentile — seulement si la cohorte est significative ─────
   const cohort = myRank ? Number(myRank.total_active) : 0;
   const mySecs = myRank ? Number(myRank.my_secs) : 0;
+  // « Top X % » = la place occupée, donc rang / cohorte. L'ancien calcul
+  // divisait le nombre d'étudiants MEILLEURS par la cohorte : premier sur huit
+  // donnait « Top 1 % », ce qui est impossible dans un groupe de huit. Le rang
+  // est `better_count + 1`, et le premier d'un groupe de huit est donc dans le
+  // premier huitième — « Top 13 % ».
+  const myPosition = myRank ? Number(myRank.better_count) + 1 : 0;
   const percentile = cohort >= MIN_COHORT_FOR_PERCENTILE && mySecs > 0
-    ? Math.max(1, Math.ceil((Number(myRank.better_count) / cohort) * 100))
+    ? Math.min(100, Math.max(1, Math.ceil((myPosition / cohort) * 100)))
     : null;
 
   if (!ready || forceSkeleton) return <Layout><PageContentSkeleton pathname="/stats" /></Layout>;
@@ -277,10 +298,18 @@ export default function Stats() {
     <Layout>
       <h1 className="sr-only">{t("stats.title")}</h1>
 
-      {empty ? (
+      {loadFailed ? (
+        <section className="card flex flex-col items-center p-8 text-center sm:p-10" role="status">
+          <h2 className="mb-1 text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.loadErrorTitle")}</h2>
+          <p className="mb-5 max-w-xs text-sm" style={{ color: "var(--bt-text-2)" }}>{t("stats.loadErrorSub")}</p>
+          <button type="button" onClick={retryLoad} className="btn-primary min-h-11 px-5 text-sm">
+            {t("plan.retryLoad")}
+          </button>
+        </section>
+      ) : empty ? (
         <section className="card flex flex-col items-center p-8 text-center sm:p-10">
           <h2 className="mb-1 text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.emptyChartsTitle")}</h2>
-          <p className="mb-5 max-w-xs text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.emptyChartsSub")}</p>
+          <p className="mb-5 max-w-xs text-sm" style={{ color: "var(--bt-text-2)" }}>{t("stats.emptyChartsSub")}</p>
           <Link href="/dashboard" className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" /></svg>
             {t("stats.emptyCta")}
@@ -294,7 +323,12 @@ export default function Stats() {
         // Le rail gagne encore un peu de largeur sur les grands écrans : les
         // filtres, noms et comparaisons y respirent sans réduire le graphique
         // à une largeur inconfortable au premier breakpoint desktop.
-        <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
+        /* `bt-stats-readable` remonte les encres secondaires au seuil de
+           lecture : libellés de période, parts en pourcentage et légendes de
+           cohorte portent de l'information, pas de la décoration, et tenaient
+           2,5:1 en clair comme en sombre. Même remède que le dashboard,
+           appliqué au périmètre de cette page seulement. */
+        <div className="bt-stats-readable flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
           {/* Le héros traverse les deux colonnes : il résume la page entière,
               il ne peut pas vivre dans un rail de 340 px. Plus de filtre
               global sous lui — chaque section porte le sien. */}
@@ -376,8 +410,12 @@ export default function Stats() {
                     {t("stats.rankTop").replace("{pct}", String(percentile))}
                   </p>
                   <p className="mt-1.5 text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
-                    {t("stats.rankPosition")
-                      .replace("{rank}", String(Number(myRank.better_count) + 1))
+                    {/* La cohorte n'est PAS « tous les étudiants » : la RPC ne
+                        compte que ceux qui ont une session aujourd'hui. Le
+                        libellé le dit, sinon « #3 sur 24 » se lit comme un
+                        classement de toute l'application. */}
+                    {t("stats.rankPositionToday")
+                      .replace("{rank}", String(myPosition))
                       .replace("{total}", String(cohort))}
                   </p>
                 </div>

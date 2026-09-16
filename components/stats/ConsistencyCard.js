@@ -2,7 +2,6 @@ import StudyHeatmap from "../StudyHeatmap";
 import StreakEmblem from "../StreakEmblem";
 import AnimatedNumber from "../AnimatedNumber";
 import { useI18n } from "../../contexts/I18nContext";
-import { formatMinutesShort } from "../../lib/format";
 
 // « Est-ce que je suis régulier ? » — tout ce qui répond à cette question,
 // au même endroit. La série vivait dans une tuile en haut, son record dans
@@ -20,7 +19,10 @@ export default function ConsistencyCard({
   className = "",
 }) {
   const { t } = useI18n();
-  const activePct = periodDays > 0 ? Math.min(100, Math.round((activeDays / periodDays) * 100)) : 0;
+  // Part d'un tout : jours étudiés sur jours de la fenêtre. Le rail EST la
+  // fenêtre, donc le rail rempli est ici le bon idiome. La géométrie suit la
+  // valeur exacte ; l'arrondi ne sert qu'à d'éventuels affichages.
+  const activeShare = periodDays > 0 ? Math.min(1, activeDays / periodDays) : 0;
 
   return (
     // `overflow-visible` volontaire : l'emblème déborde la carte par la droite.
@@ -62,8 +64,8 @@ export default function ConsistencyCard({
           <span className="truncate text-[11px]" style={{ color: "var(--bt-text-4)" }}>{periodLabel}</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
-          <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-            style={{ transform: `scaleX(${activePct / 100})`, backgroundColor: "var(--bt-accent)" }} />
+          <div className="bt-stats-quantity h-full rounded-full"
+            style={{ inlineSize: activeShare > 0 ? `max(2px, ${activeShare * 100}%)` : 0, backgroundColor: "var(--bt-accent)" }} />
         </div>
       </div>
 

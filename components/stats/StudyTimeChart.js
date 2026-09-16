@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Glyph from "../Glyph";
 import {
   BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid, ReferenceLine, ResponsiveContainer,
 } from "recharts";
 import FilterMenu from "../FilterMenu";
+import useDialogFocus from "../useDialogFocus";
 import { useI18n } from "../../contexts/I18nContext";
-import { formatMinutesShort } from "../../lib/format";
+import { formatStudyTime, formatMinutesShort } from "../../lib/format";
 import { bucketLongLabel } from "../../lib/statsPeriod";
 
 // Recharts pose `tick.fill` / `stroke` en ATTRIBUTS SVG, où var(--bt-*) ne se
@@ -86,7 +87,7 @@ function BucketDetail({ bucket, lang }) {
         {bucketLongLabel(bucket, lang)}
       </span>
       <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
-        {formatMinutesShort(bucket.secs)}
+        {formatStudyTime(bucket.secs)}
       </span>
       <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>
         {bucket.count === 1
@@ -105,6 +106,8 @@ export default function StudyTimeChart({
   const { t, lang } = useI18n();
   const [selectedIso, setSelectedIso] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const closeExpanded = useCallback(() => setExpanded(false), []);
+  const dialogRef = useDialogFocus(expanded, closeExpanded);
 
   const data = useMemo(
     () => series.map((b) => ({ ...b, minutes: Math.round(b.secs / 60) })),
@@ -129,9 +132,10 @@ export default function StudyTimeChart({
           options={periodOptions}
           onChange={onPeriodChange}
           ariaLabel={t("stats.periodFilterLabel")}
+          buttonClassName="bt-tap-44"
         />
         <span className="font-num text-lg font-bold leading-none tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-          {formatMinutesShort(totalSecs)}
+          {formatStudyTime(totalSecs)}
         </span>
       </div>
     </div>
@@ -144,16 +148,25 @@ export default function StudyTimeChart({
 
         {hasData ? (
           <>
-            <div className="mt-4 h-40 sm:h-48">
+            {/* Le graphique lui-même est une image : recharts ne produit ni
+                texte ni cible focalisable. Les valeurs exactes vivent donc
+                aussi dans une liste invisible à l'écran mais lue par les
+                lecteurs d'écran — la même donnée, dans l'autre modalité. */}
+            <div className="mt-4 h-40 sm:h-48" aria-hidden="true">
               <Chart data={data} goalMinutes={goalMinutes} selectedIso={selectedIso} onSelect={setSelectedIso} />
             </div>
+            <ul className="sr-only">
+              {data.map((d) => (
+                <li key={d.iso}>{`${bucketLongLabel(d, lang)} : ${formatStudyTime(d.secs)}`}</li>
+              ))}
+            </ul>
             <BucketDetail bucket={selected} lang={lang} />
             <div className="mt-3 flex items-center justify-between gap-3">
               <p className="text-[11px]" style={{ color: "var(--bt-text-4)" }}>
                 {goalMinutes > 0 && data[0]?.gran === "day" ? t("stats.chartGoalHint") : t("stats.chartTapHint")}
               </p>
               <button onClick={() => setExpanded(true)}
-                className="btn-ghost flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-semibold">
+                className="btn-ghost bt-tap-44 flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-semibold">
                 <ExpandIcon size={12} />
                 {t("stats.chartExpand")}
               </button>
@@ -167,9 +180,9 @@ export default function StudyTimeChart({
       {expanded && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
           style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(3px)" }}
-          onClick={() => setExpanded(false)}>
-          <div role="dialog" aria-modal="true" aria-label={t("stats.studyTimeTitle")}
-            className="card w-full rounded-t-[24px] p-5 sm:max-w-2xl sm:rounded-[20px]"
+          onClick={closeExpanded}>
+          <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("stats.studyTimeTitle")}
+            className="bt-stats-readable card w-full rounded-t-[24px] p-5 focus:outline-none sm:max-w-2xl sm:rounded-[20px]"
             onClick={(e) => e.stopPropagation()}
             style={{ maxHeight: "88vh", overflowY: "auto" }}>
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -179,14 +192,19 @@ export default function StudyTimeChart({
                 </h2>
                 <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{periodLabel}</p>
               </div>
-              <button onClick={() => setExpanded(false)} aria-label={t("common.close")}
-                className="btn-ghost flex h-9 w-9 shrink-0 items-center justify-center p-0">
+              <button onClick={closeExpanded} aria-label={t("common.close")}
+                className="btn-ghost flex h-11 w-11 shrink-0 items-center justify-center p-0">
                 <CloseIcon />
               </button>
             </div>
-            <div className="h-72">
+            <div className="h-72" aria-hidden="true">
               <Chart data={data} goalMinutes={goalMinutes} selectedIso={selectedIso} onSelect={setSelectedIso} tall />
             </div>
+            <ul className="sr-only">
+              {data.map((d) => (
+                <li key={d.iso}>{`${bucketLongLabel(d, lang)} : ${formatStudyTime(d.secs)}`}</li>
+              ))}
+            </ul>
             <BucketDetail bucket={selected} lang={lang} />
           </div>
         </div>

@@ -3,7 +3,7 @@ import AnimatedNumber from "../AnimatedNumber";
 import Flame from "../Flame";
 import Mascot from "../Mascot";
 import { useI18n } from "../../contexts/I18nContext";
-import { formatMinutesShort } from "../../lib/format";
+import { formatStudyTime } from "../../lib/format";
 import styles from "./StatsHero.module.css";
 
 // Héros des statistiques — « où j'en suis dans ma journée d'étude ».
@@ -25,12 +25,18 @@ import styles from "./StatsHero.module.css";
 // d'un chiffre ». C'est celle-ci : pas de bulle, pas de phrase, pas de clé
 // d'événement, aucune fréquence à mémoriser. Elle appartient au dessin de la
 // carte, exactement comme le shiba de la carte de niveau du profil.
+//
+// Les seuils lisent un RATIO EXACT, jamais un pourcentage arrondi. À 119 min 24 s
+// pour un objectif de 2 h, `Math.round(99,5 %)` donnait 100 et la page fêtait un
+// objectif qui n'était pas atteint : le personnage prenait sa pose fière, la
+// ligne d'arrivée s'allumait, et le chrono du dashboard, lui, réclamait encore
+// 36 secondes. L'affichage peut arrondir ; l'ÉTAT, non.
 const HERO_STATES = [
   // Seuils lus du haut vers le bas ; le premier vrai gagne.
-  { id: "done", mood: "proud", at: (pct) => pct >= 100 },
-  { id: "almost", mood: "happy", at: (pct) => pct >= 80 },
-  { id: "halfway", mood: "focused", at: (pct) => pct >= 45 },
-  { id: "going", mood: "focused", at: (pct, secs) => secs > 0 },
+  { id: "done", mood: "proud", at: (ratio, secs, reached) => reached },
+  { id: "almost", mood: "happy", at: (ratio) => ratio >= 0.8 },
+  { id: "halfway", mood: "focused", at: (ratio) => ratio >= 0.45 },
+  { id: "going", mood: "focused", at: (ratio, secs) => secs > 0 },
   { id: "start", mood: "neutral", at: () => true },
 ];
 
@@ -42,10 +48,17 @@ export default function StatsHero({
   className = "",
 }) {
   const { t } = useI18n();
-  const goalPct = goalSecs > 0 ? Math.min(100, Math.round((todaySecs / goalSecs) * 100)) : 0;
+  // Une seule source : le ratio exact en secondes. `goalPct` n'en est que la
+  // projection géométrique (position de la mascotte, longueur de la piste).
+  const goalRatio = goalSecs > 0 ? todaySecs / goalSecs : 0;
+  const reached = goalSecs > 0 && todaySecs >= goalSecs;
+  const goalPct = Math.min(100, goalRatio * 100);
+  // Valeur annoncée aux technologies d'assistance : elle ne peut atteindre 100
+  // que si l'objectif l'est vraiment, d'où le plancher à 99 sous le seuil.
+  const ariaPct = reached ? 100 : Math.min(99, Math.floor(goalPct));
   const remaining = Math.max(0, goalSecs - todaySecs);
   const beyond = Math.max(0, todaySecs - goalSecs);
-  const state = HERO_STATES.find((s) => s.at(goalPct, todaySecs));
+  const state = HERO_STATES.find((s) => s.at(goalRatio, todaySecs, reached));
 
   // La barre part de zéro et rejoint le jour, en même temps que le chiffre se
   // compte. La page ne rend ce héros qu'une fois les sessions chargées : sans
@@ -62,18 +75,18 @@ export default function StatsHero({
     return () => clearTimeout(id);
   }, [goalPct]);
 
-  const goalLabel = formatMinutesShort(goalSecs);
+  const goalLabel = formatStudyTime(goalSecs);
   const message =
     state.id === "done"
       ? (beyond >= 60
-        ? t("stats.heroStateBeyond").replace("{time}", formatMinutesShort(beyond))
+        ? t("stats.heroStateBeyond").replace("{time}", formatStudyTime(beyond))
         : t("stats.heroGoalReached"))
       : state.id === "almost"
-        ? t("stats.heroStateAlmost").replace("{time}", formatMinutesShort(remaining))
+        ? t("stats.heroStateAlmost").replace("{time}", formatStudyTime(remaining))
         : state.id === "halfway"
-          ? t("stats.heroStateHalfway").replace("{time}", formatMinutesShort(remaining))
+          ? t("stats.heroStateHalfway").replace("{time}", formatStudyTime(remaining))
           : state.id === "going"
-            ? t("stats.heroRemaining").replace("{time}", formatMinutesShort(remaining))
+            ? t("stats.heroRemaining").replace("{time}", formatStudyTime(remaining))
             : t("stats.heroStateStart");
 
   return (
@@ -86,7 +99,7 @@ export default function StatsHero({
         <div className={styles.figure}>
           <p className={styles.label}>{t("stats.compactToday")}</p>
           <p className={`font-num ${styles.value}`}>
-            <AnimatedNumber value={todaySecs} format={formatMinutesShort} />
+            <AnimatedNumber value={todaySecs} format={formatStudyTime} />
             <span className={styles.goal}>/ {goalLabel}</span>
           </p>
           <p className={`${styles.message} ${state.id === "done" ? styles.messageDone : ""}`}>
@@ -100,7 +113,7 @@ export default function StatsHero({
               déjà la valeur, et un lecteur d'écran n'a pas à entendre deux
               fois la même progression. */}
           <div className={styles.walk} aria-hidden="true">
-            <span className={`${styles.finish} ${state.id === "done" ? styles.finishDone : ""}`} />
+            <span className={`${styles.finish} ${reached ? styles.finishDone : ""}`} />
             <span className={styles.walker} style={{ "--p": `${drawn}%` }}>
               <Mascot mood={state.mood} streak={streak} size={160} />
             </span>
@@ -111,9 +124,9 @@ export default function StatsHero({
             aria-label={t("dash.goal")}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={goalPct}
+            aria-valuenow={ariaPct}
             aria-valuetext={t("stats.heroGoalOf")
-              .replace("{done}", formatMinutesShort(todaySecs))
+              .replace("{done}", formatStudyTime(todaySecs))
               .replace("{goal}", goalLabel)}
           >
             <div className={styles.fill} style={{ transform: `scaleX(${drawn / 100})` }} />
@@ -125,7 +138,7 @@ export default function StatsHero({
           <div className={styles.stat}>
             <p className={styles.statLabel}>{t("stats.compactWeek")}</p>
             <p className={`font-num ${styles.statValue}`}>
-              <AnimatedNumber value={weekSecs} format={formatMinutesShort} />
+              <AnimatedNumber value={weekSecs} format={formatStudyTime} />
             </p>
           </div>
           <div className={styles.stat}>

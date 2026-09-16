@@ -26,6 +26,9 @@ export default function FilterMenu({
   actions,          // [{ key, label, onSelect, danger }] — mode commandes
   trigger,          // remplace le bouton-valeur (ex. un « … »)
   triggerClassName = "",
+  // Classes ajoutées au bouton-valeur. Sert à étendre la cible tactile
+  // (`bt-tap-44`) là où le contrôle doit rester visuellement compact.
+  buttonClassName = "",
   onChange,
   ariaLabel,
   align = "right",  // bord sur lequel le menu s'aligne
@@ -125,7 +128,7 @@ export default function FilterMenu({
         aria-label={isActions ? ariaLabel : (ariaLabel ? `${ariaLabel} : ${current?.label}` : undefined)}
         className={isActions
           ? triggerClassName
-          : "bt-filter-btn inline-flex min-h-8 max-w-full items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold"}
+          : `bt-filter-btn inline-flex min-h-8 max-w-full items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold ${buttonClassName}`}
       >
         {isActions ? trigger : (
           <>

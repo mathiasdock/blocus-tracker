@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { RankBadge } from "../Leaderboard";
 import FilterMenu from "../FilterMenu";
 import { useI18n } from "../../contexts/I18nContext";
-import { formatMinutesShort } from "../../lib/format";
+import { formatStudyTime } from "../../lib/format";
 
 // « Sur quels cours je passe mon temps » — une seule section.
 //
@@ -13,6 +13,16 @@ import { formatMinutesShort } from "../../lib/format";
 // classements différents. Ici, un seul classement, sa propre période affichée
 // dans l'en-tête, et le camembert en second rideau — il complète le classement,
 // il ne le double pas.
+//
+// UNE SEULE QUESTION, UN SEUL DÉNOMINATEUR : « quelle part de mon temps est
+// allée à ce cours ? ». La longueur de barre et le pourcentage écrit à côté
+// mesurent donc exactement la même chose, le total de la période. Avant, la
+// barre se mesurait au cours le PLUS étudié et le pourcentage au TOTAL : le
+// premier cours avait toujours une barre pleine, y compris quand elle était
+// suivie de « 40 % ». Deux encodages côte à côte qui semblent partager un
+// dénominateur doivent le partager pour de bon. Comparer deux cours entre eux
+// reste immédiat — même dénominateur, donc deux fois plus de temps fait deux
+// fois plus de barre.
 export default function StudyByCourse({
   rows, totalSecs, periodLabel,
   period, periodOptions, onPeriodChange,
@@ -35,10 +45,11 @@ export default function StudyByCourse({
           options={periodOptions}
           onChange={onPeriodChange}
           ariaLabel={t("stats.periodFilterLabel")}
+          buttonClassName="bt-tap-44"
         />
         {rows.length > 0 && (
           <span className="font-num text-lg font-bold leading-none tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-            {formatMinutesShort(totalSecs)}
+            {formatStudyTime(totalSecs)}
           </span>
         )}
       </div>
@@ -54,7 +65,7 @@ export default function StudyByCourse({
     );
   }
 
-  const max = rows[0].secs || 1;
+  const total = totalSecs > 0 ? totalSecs : 1;
   const nameOf = (r) => r.name || t("stats.courseNone");
   // Le camembert ne supporte pas une variable CSS en attribut SVG : le temps
   // sans cours y prend un gris fixe, lisible dans les deux thèmes.
@@ -88,13 +99,16 @@ export default function StudyByCourse({
                   )}
                 </span>
                 <span className="shrink-0 font-num text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-                  {formatMinutesShort(r.secs)}
+                  {formatStudyTime(r.secs)}
                   <span className="ml-1.5 text-xs font-normal" style={{ color: "var(--bt-text-3)" }}>{r.pct}%</span>
                 </span>
               </div>
+              {/* Aucun plancher de 3 % : un cours à 1 % dessine 1 %. Seul un
+                  minimum de DEUX PIXELS garantit qu'une part réelle reste
+                  visible — c'est du rendu, pas un arrondi de la donnée. */}
               <div className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-                  style={{ transform: `scaleX(${Math.max(0.03, r.secs / max)})`, backgroundColor: r.color }} />
+                <div className="bt-stats-quantity h-full rounded-full"
+                  style={{ inlineSize: `max(2px, ${(r.secs / total) * 100}%)`, backgroundColor: r.color }} />
               </div>
             </div>
           </li>
@@ -103,7 +117,7 @@ export default function StudyByCourse({
 
       {rows.length > 1 && (
         <button onClick={() => setOpen((v) => !v)} aria-expanded={open}
-          className="bt-stats-quiet-btn mt-3 w-full rounded-xl py-2 text-xs font-semibold">
+          className="bt-stats-quiet-btn bt-tap-44 mt-3 w-full rounded-xl py-2 text-xs font-semibold">
           {open ? t("stats.hideBreakdown") : t("stats.viewBreakdown")}
         </button>
       )}
@@ -129,7 +143,7 @@ export default function StudyByCourse({
                   {r.archived && <span style={{ color: "var(--bt-text-3)" }}> · {t("stats.courseArchived")}</span>}
                 </span>
                 <span className="shrink-0 font-num text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
-                  {formatMinutesShort(r.secs)} · {r.pct}%
+                  {formatStudyTime(r.secs)} · {r.pct}%
                 </span>
               </li>
             ))}

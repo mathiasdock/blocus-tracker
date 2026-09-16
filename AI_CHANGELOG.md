@@ -3,6 +3,47 @@
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
 
+## 2026-09-16 - Stats phase 1 : honnetete des chiffres (Claude)
+
+Suite de l'audit Stats fait par Codex. La page n'est PAS refondue : hierarchie,
+sections, heros, mascotte, classement et analyse avancee restent en place. Ce
+qui change, c'est ce que les chiffres ont le droit d'affirmer.
+
+- **L'objectif du jour se decide sur les SECONDES, plus sur un pourcentage arrondi.** A 1h59'24, `Math.round(99,5 %)` donnait 100 : la page fetait un objectif atteint pendant que le chrono reclamait encore 36 secondes, mascotte fiere et ligne d'arrivee allumee. L'affichage peut arrondir, l'ETAT non. Verifie a 0, 20 s, 1h59'24, exactement 2 h et 3h15 : seul 2 h et au-dela declenchent la fin, et le depassement reste ecrit en toutes lettres.
+- **L'heure moyenne de debut se calcule en CIRCULAIRE.** 23 h et 1 h donnaient midi — exactement l'heure ou cette personne n'etudie jamais — parce qu'on faisait la moyenne de 1380 et 60 minutes. Les heures deviennent des points sur un cadran. Et quand les departs sont trop disperses pour qu'une heure habituelle existe, la ligne affiche « — » plutot qu'une moyenne inventee.
+- **Le temps va aux heures qu'il a REELLEMENT traversees** (`spreadOverHours`). Une session de 17 h a 20 h comptait trois heures « d'apres-midi » parce qu'elle avait COMMENCE l'apres-midi. Elle vaut maintenant une heure d'apres-midi et deux de soiree. Les badges « apres minuit » et « leve-tot » restent volontairement indexes sur l'heure de DEPART : les changer attribuerait des badges retroactivement.
+- **Les libelles disent ce qui est mesure.** « Jour prefere » devient « Jour le plus etudie », « Heure la plus productive » devient « Heure la plus etudiee », « le {jour} est ton jour le plus productif » devient « c'est le {jour} que tu etudies le plus ». Une session stocke une heure de debut et une duree : ni une preference, ni un rendement.
+- **Une barre pleine ne dit plus « 40 % ».** Dans « Etude par cours », la LONGUEUR se mesurait au cours le plus etudie et le POURCENTAGE ecrit a cote au total de la periode : le premier cours avait donc toujours une barre pleine. Les deux partagent maintenant le total. Trois geometries, trois questions, et elles ne se ressemblent plus : rail rempli = part d'un tout, rail rempli avec destination = progression vers un objectif (le heros seul), barre sans rail sur un bord commun = quantite comparee.
+- **Zero vaut zero.** Les remplissages minimums de 14 % (comparaison sociale) et 3 % (anciens cours) donnaient une barre franche a une valeur nulle. Ils disparaissent ; les valeurs passent A COTE des barres plutot que dedans, donc la longueur n'a plus besoin de reserver de la place pour du texte. Une valeur reelle mais minuscule garde deux pixels — du rendu, comme le remplissage des blocs du chrono.
+- **Les echelles s'annoncent.** La comparaison ecrit « chaque barre est comparee a la plus grande des trois valeurs » ; les anciens cours nomment le cours qui sert d'echelle.
+- **Les cohortes portent leur vrai nom.** Le percentile compte les etudiants ayant etudie AUJOURD'HUI, pas tous les inscrits : c'est ecrit. Idem pour la comparaison, qui moyenne les etudiants ayant etudie au moins une fois sur trente jours. Et « Top X % » devient rang / cohorte : premier sur huit donnait « Top 1 % », ce qui est impossible dans un groupe de huit — c'est « Top 13 % ».
+- **Une lecture qui echoue n'est plus un compte vide.** Les deux requetes ignoraient leur erreur, donc un reseau coupe affichait « Lance ton premier chrono » a quelqu'un ayant deux ans d'historique. Message distinct + bouton Reessayer. Aucun zero invente.
+- **Les durees s'additionnent en secondes avant d'etre formatees.** La heatmap arrondissait CHAQUE session a la minute avant de sommer : deux sessions de 40 s y valaient « 2 min » quand le total de la page disait « 1 min ». Surtout, une session de 20 s devenait 0 minute, donc une case VIDE — une journee reellement etudiee disparaissait de la grille tout en comptant dans la serie. Toute duree positive s'ecrit desormais « < 1 min » au lieu de « 0 min » (`formatStudyTime`).
+- **La valeur exacte d'un jour n'est plus reservee a la souris.** La heatmap etait 371 carres sans nom : rien au doigt, rien au clavier, rien pour un lecteur d'ecran. Elle devient UN arret de tabulation, les fleches deplacent le jour actif (gauche/droite une semaine, haut/bas un jour, Home/Fin), chaque case porte sa date et sa duree exacte, et une ligne de detail sous la grille repond au doigt comme a la souris. Une grille de 53 semaines ne peut pas offrir des cibles de 44 px : la precision vient de la selection et des fleches, et une erreur de visee se voit et se corrige.
+- **Le graphique agrandi devient une vraie boite de dialogue** : le focus y entre, Tab y tourne, Echap ferme, et le focus revient au bouton « Agrandir » (`components/useDialogFocus.js`, extrait du comportement deja ecrit dans `CourseChecklistModal`). Recharts ne produisant ni texte ni cible focalisable, chaque graphique est double d'une liste invisible portant ses valeurs exactes.
+- **Cibles tactiles et contrastes.** Les sept filtres et boutons compacts de la page gardent leur taille visible (32-34 px) et gagnent une zone d'appui de 44 px (`bt-tap-44`). `bt-stats-readable` remonte les encres secondaires au seuil de lecture : `--bt-text-3` tenait 2,54:1 en clair et 2,90:1 en sombre, `--bt-text-4` 1,85:1 et 1,83:1, pour des libelles de periode et des parts qui sont de l'information. La valeur d'un filtre passe en encre principale (elle tenait 4,14:1 sur son fond).
+- Aucun StudyBlocks ni PlanningLoadBar dans Stats : une statistique historique prend la representation vraie la plus simple de la question posee. La mascotte ne se repand pas non plus.
+- i18n FR+EN a parite. Cles retirees : `stats.habitPreferredDay`, `stats.perfProductiveHour`, `stats.insightBestWeekday`, `stats.rankPosition`, `stats.cmpPrivacy`.
+
+Verification : 83 tests Node passes (8 nouveaux sur la moyenne circulaire, la
+repartition horaire, l'attribution des creneaux, l'indexation des badges, la
+moyenne en secondes et le format sous la minute), ESLint propre, detecteur
+impeccable a zero anomalie sur les fichiers touches, builds offline et
+production reels OK. Navigateur hors ligne a 320 / 375 / 390 / 1280 / 1440,
+clair et sombre : 0, 20 s, 1h59'24, 2 h, 3h15, sessions a 23 h / 00 h / 01 h,
+un cours puis cinq plus du temps sans cours, valeur de comparaison nulle et
+minuscule, ancien cours sans heures, echec de lecture force puis reessai, compte
+reellement vide. Clavier : fleches de la heatmap, piege de focus, Echap, retour
+du focus. Aucun debordement horizontal. Aucune donnee fictive en production —
+tout vient de la fixture hors ligne.
+
+DIFFERE (phase 2) : deplacement du classement, reordonnancement des sections,
+refonte de la comparaison sociale, suppression du percentile, camembert, badges
+communs avec le profil, Analyse avancee, heros. Connus et non touches : les
+chiffres des medailles `RankBadge` et `LevelPill` restent sous 4,5:1, les trois
+filtres du classement debordent leur carte a 320 px, et la RPC de comparaison
+compte les jours actifs en UTC.
+
 ## 2026-09-16 - Planning : passe de reglage visuel sur la phase 2 (Claude)
 
 Quatre points releves sur les captures reelles, apres validation de
