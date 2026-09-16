@@ -309,7 +309,12 @@ export default function Leaderboard({
           </h2>
           <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{subtitle}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        {/* `max-w-full` : sans plafond, le groupe gardait la largeur de ses
+            trois filtres sur une ligne et débordait de la carte à 320 px — le
+            dernier était rogné, donc inatteignable. Plafonné, il passe à la
+            ligne. `gap-y-3` : les zones tactiles de 44 px de deux rangées se
+            touchent sans se chevaucher. Aligné à gauche, sous le titre. */}
+        <div className="flex max-w-full shrink-0 flex-wrap items-center justify-start gap-x-1.5 gap-y-3">
           <FilterMenu
             value={audience}
             options={audienceOptions}
