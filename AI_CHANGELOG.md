@@ -2,6 +2,17 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-16 - Planning Phase 1 : examens fiables et prioritaires (Codex)
+
+- Lecture normalisee `lib/planningExams.mjs` : `exams` prioritaire pour un couple cours/date identique, dates `courses.exam_date` non representees conservees sans nom/heure inventes. Deux vrais examens restent deux evenements. Pas de migration ni de changement Timer. Contrat et limites dans `docs/planning-exams.md`.
+- Edition des dates heritees dans leur champ d'origine, filtre proprietaire + ancienne date. Suppression du dernier examen correspondant efface d'abord cette date pour eviter sa reapparition. Erreurs visibles, lecture partielle signalee avec reessai, ecritures serialisees dans l'instance Planning. Operations inter-tables non transactionnelles : limite documentee.
+- `PlanningExamMark` partage entre Mois/Semaine/Jour/Today/detail : rail court, glyphe calendrier, libelle ou glyphe + compteur dans les cellules etroites. Jetons `--bt-exam-*` dedies clair/sombre, distincts de danger et pause. Identite du cours secondaire ; examen hors mois adjacent toujours ouvrable.
+- Suppression des DEUX diagonales (date passee et deux cours), des remplissages weekend/multi morts et des regles de teinte contradictoires. Une teinte representative uniforme conserve le tri existant par nombre d'objectifs : aucun changement de ponderation.
+- Objectifs de grille sur surface/texte neutres avec marqueur de cours ; sans cours = repere neutre non colore. Contrastes texte/fond mesures 16,99:1 clair / 14,64:1 sombre, libelle examen 6,50:1 / 8,73:1. Pluriels et petites chaines Planning migres vers i18n.
+- Verification navigateur sur donnees STRICTEMENT hors ligne : 320/375/390/1280/1440, clair/sombre, examens simples/multiples, cours rose/rouge, taches denses/sans cours, dates passees/aujourd'hui/futures et vide. Aucun debordement de page ; Semaine conserve son defilement interne. Ouverture detail depuis Semaine, completion Jour, modification date heritee et suppression/rechargement sans resurrection verifies. Fixture reproductible `/dev/planning-phase-one`, inaccessible en production.
+- `node --test tests/*.test.mjs` : 68/68 ; lint cible et build production reussis. Avertissement Node preexistant de type de module ; aucun changement de configuration. Changements tiers du worktree preserves et exclus du commit.
+- Phase 2 DIFFEREE : structure Semaine orientee charge, ponderation Mois par minutes, agregation dense, sections de soutien, eventuels Study Blocks. Aucun ajout de StudyBlocks a Planning, aucune refonte Today/Quick Add/Revision, aucune modification Timer.
+
 ## 2026-09-15 - Chrono : la pause redevient franche, et on ecrit pourquoi (Claude)
 
 REVIENT SUR UNE DECISION DE L'ENTREE CI-DESSOUS, prise le meme jour. J'avais

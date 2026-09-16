@@ -1879,20 +1879,10 @@ details.bt-acc[open]::details-content { block-size: auto; }
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Fond d'une case du mois. Le JS choisit UNE valeur de `data-fill` : les
-   regles ci-dessous sont donc exclusives, jamais empilees. L'alpha du lavis
-   de cours vit ici et non en JS, parce qu'il differe selon le theme — la
-   meme couleur doit rester un souffle sur le creme et rester perceptible
-   sur le sombre. Le triplet r,g,b arrive par --bt-day-tint. */
-.bt-plan-day-cell[data-fill="weekend"]  { background-color: var(--bt-subtle); }
-.bt-plan-day-cell[data-fill="multi"]    { background-color: var(--bt-mint-surface); }
-.bt-plan-day-cell[data-fill="course"]   { background-color: rgba(var(--bt-day-tint), 0.16); }
-.dark .bt-plan-day-cell[data-fill="course"] { background-color: rgba(var(--bt-day-tint), 0.28); }
+/* Month fills have one owner: styles/planning.css. */
 
-/* Selection = contour, pas aplat : elle se superpose ainsi a la couleur du
-   cours au lieu de l'effacer. Le fond mint ne sert que si la journee n'a
-   rien a montrer par elle-meme. */
-.bt-plan-day-cell[data-selected="1"]:not([data-fill]) { background-color: var(--bt-mint-strong); }
+/* Selection = contour, pas aplat : elle se superpose a la couleur du cours
+   ou au traitement examen sans l'effacer. */
 .bt-plan-day-cell[data-selected="1"] { box-shadow: inset 0 0 0 2px var(--bt-accent); }
 
 /* Survol : un lisere, pas un aplat. Repeindre le fond effacait la couleur du

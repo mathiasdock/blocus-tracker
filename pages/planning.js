@@ -21,6 +21,8 @@ import { autoSharePost } from "../lib/autoShare";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 import { coursePlanning, dayWorkload, monthTintCourses } from "../lib/planningInsights.mjs";
+import { normalizePlanningExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
+import PlanningExamMark from "../components/PlanningExamMark";
 
 // ── Constants ─────────────────────────────────────────────────
 // Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
@@ -47,6 +49,32 @@ const TODAY_TINT = "rgba(20,184,133,0.06)";
 // ── Context ────────────────────────────────────────────────────
 const Ctx = createContext(null);
 const usePlan = () => useContext(Ctx);
+
+function CourseMark({ id }) {
+  const { courseColor, courseName, t } = usePlan();
+  const color = courseColor(id);
+  return <span className={`bt-plan-course-mark${color ? "" : " bt-plan-course-mark--unassigned"}`}
+    style={color ? { backgroundColor: color } : undefined}
+    title={courseName(id) || t("plan.unassigned")} aria-hidden="true" />;
+}
+
+function LegacyExamDate({ exam }) {
+  const { t, saveLegacyDate } = usePlan();
+  const [date, setDate] = useState(exam.exam_date);
+  const [busy, setBusy] = useState(false);
+  return <form className="mt-2" onSubmit={async event => {
+    event.preventDefault();
+    setBusy(true);
+    try { await saveLegacyDate(exam, date); } finally { setBusy(false); }
+  }}>
+    <label className="block text-xs">
+      {t("plan.legacyExamDate")}
+      <input type="date" className="input mt-1 w-full" value={date} required
+        onChange={event => setDate(event.target.value)} />
+    </label>
+    {date !== exam.exam_date && <button type="submit" disabled={busy} className="btn-ghost mt-2 min-h-11 px-3 text-sm">{t(busy ? "common.saving" : "common.save")}</button>}
+  </form>;
+}
 
 // ── Helpers ───────────────────────────────────────────────────
 function ymd(d) {
@@ -341,9 +369,9 @@ function ExamForm({ value, onChange, onSubmit, onCancel, submitLabel, title, dat
   const { activeCourses: courses, t } = usePlan();
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-2xl p-4"
-      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
+      style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
       <div className="flex items-center gap-2">
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
+        <PlanningExamMark label={t("plan.examTag")} />
         <p className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{title}</p>
         {dateLabel && (
           <span className="ml-auto truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{dateLabel}</span>
@@ -391,19 +419,11 @@ function recurrenceBadgeLabel(o, t, lang) {
 }
 
 // ── ExamBadge ─────────────────────────────────────────────────
-// Compte à rebours à 3 paliers (aujourd'hui/passé → rouge, ≤ 7 j → ambre,
-// au-delà → vert). Tokens et non hex en dur : les anciens #FEF2F2/#FEF3C7
-// restaient des pastilles blanchâtres illisibles en mode sombre.
+// Countdown is context, not a second urgency/reward colour scale.
 function ExamBadge({ days }) {
   const { t } = usePlan();
-  const tone = days <= 0
-    ? { backgroundColor: "var(--bt-danger-bg)", color: "var(--bt-danger)", border: "1px solid var(--bt-danger-border)" }
-    : days <= 7
-      ? { backgroundColor: "var(--bt-reward-bg)", color: "var(--bt-reward-text)", border: "1px solid var(--bt-reward-border)" }
-      : { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" };
   return (
-    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums"
-      style={tone}>
+    <span className="bt-plan-exam-countdown text-xs font-semibold tabular-nums">
       {examCountdown(days, t)}
     </span>
   );
@@ -460,9 +480,9 @@ function RevisionChecklists({ className = "" }) {
                 </div>
                   <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>
                   {[exam && `${t("plan.examTag")} · ${examCountdown(daysUntil(exam.exam_date), t)}`,
-                    remaining > 0 ? `${remaining} ${lang === "en" ? (remaining === 1 ? "objective left" : "objectives left") : (remaining === 1 ? "objectif restant" : "objectifs restants")}` : !exam && (lang === "en" ? "Nothing planned" : "Rien de prévu")].filter(Boolean).join(" · ")}
+                    remaining > 0 ? t(remaining === 1 ? "plan.remainingOne" : "plan.remainingMany").replace("{n}", remaining) : !exam && t("plan.nothingPlanned")].filter(Boolean).join(" · ")}
                 </p>
-                {overdue > 0 && <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{overdue} {lang === "en" ? "to reschedule" : "à reprogrammer"}</p>}
+                {overdue > 0 && <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.toReschedule").replace("{n}", overdue)}</p>}
                 {cnt.total > 0 && <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" role="progressbar" aria-label={`${c.name} · ${t("checklist.sectionTitle")}`} aria-valuenow={cnt.done} aria-valuemax={cnt.total} aria-valuemin={0} style={{ backgroundColor: "var(--bt-subtle)" }}>
                   <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
                     style={{ transform: `scaleX(${pct / 100})`, backgroundColor: c.color }} />
@@ -528,18 +548,16 @@ function TodayCard({ className = "" }) {
             <p className="text-xl font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
               {todayObjectives.length ? <><AnimatedNumber value={doneCount} />/{todayObjectives.length} <span className="text-sm font-medium">{t("plan.todayCardObjectives")}</span></> : t("plan.nothingToday")}
             </p>
-            {todayObjectives.length > 0 && <p className="mt-1 text-sm" style={{ color: "var(--bt-ink-muted)" }}>{workload.remaining} {lang === "en" ? "left to do" : "à faire"}{workload.minutes > 0 && ` · ${formatMinutesShort(workload.minutes * 60)}`}</p>}
+            {todayObjectives.length > 0 && <p className="mt-1 text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.leftToDo").replace("{n}", workload.remaining)}{workload.minutes > 0 && ` · ${formatMinutesShort(workload.minutes * 60)}`}</p>}
           </div>
 
           {nextExam ? (
             <button onClick={() => openDay(nextExam.exam_date)} className="bt-planning-next-exam min-w-0 text-left">
-              <p className="text-xs font-semibold" style={{ color: "var(--bt-ink-muted)" }}>
-                {t("plan.nextExam")}
-              </p>
-              <p className="mt-1 text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>{sentenceCase(nextExam.name)}</p>
-              {nextExam.course_id && <p className="text-sm" style={{ color: "var(--bt-ink-muted)" }}>{courseName(nextExam.course_id)}</p>}
-              <p className="mt-2 flex items-center gap-2 text-sm font-bold tabular-nums" style={{ color: "var(--bt-plan-exam-ink)" }}><IconCalendar size={16} />{examCountdown(nextExamDays, t)} · {quickDateLabel(nextExam.exam_date, lang, t)}{nextExam.exam_time && ` · ${nextExam.exam_time.slice(0, 5)}`}</p>
-              {todayExams.length > 1 && <p className="mt-1 text-xs">+{todayExams.length - 1} {t("plan.todayCardExamsToday")}</p>}
+              <PlanningExamMark label={t("plan.nextExam")} />
+              {nextExam.name && <p className="mt-1 text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>{sentenceCase(nextExam.name)}</p>}
+              {nextExam.course_id && <p className="mt-1 flex items-center gap-2 text-sm" style={{ color: "var(--bt-ink-muted)" }}><CourseMark id={nextExam.course_id} />{courseName(nextExam.course_id)}</p>}
+              <p className="mt-2 text-sm font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>{nextExamDays > 1 && `${examCountdown(nextExamDays, t)} · `}{quickDateLabel(nextExam.exam_date, lang, t)}{nextExam.exam_time && ` · ${nextExam.exam_time.slice(0, 5)}`}</p>
+              {todayExams.length > 1 && <p className="mt-1 text-xs">{t(todayExams.length === 2 ? "plan.moreExamTodayOne" : "plan.moreExamTodayMany").replace("{n}", todayExams.length - 1)}</p>}
             </button>
           ) : null}
         </div>
@@ -561,7 +579,7 @@ function TodayCard({ className = "" }) {
                     <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" checked={o.done} onChange={() => toggle(o)}
                       aria-label={o.title || courseName(o.course_id) || "—"}
                       className="bt-task-check bt-task-check--ink h-4 w-4 shrink-0" /></label>
-                    {o.course_id && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(o.course_id) }} />}
+                    <CourseMark id={o.course_id} />
                     {/* La barre de rature vit sur un inline-block : posée sur
                         le conteneur flex-1, elle s'étirait sur toute la
                         largeur libre et barrait aussi le vide après le texte. */}
@@ -662,13 +680,13 @@ function DayDetailModal() {
   async function handleExamEditSave(e) {
     e.preventDefault();
     if (!examEditForm.name.trim()) return;
-    await saveExamEdit(editingExamId, {
+    const saved = await saveExamEdit(editingExamId, {
       name:      examEditForm.name.trim(),
       course_id: examEditForm.courseId || null,
       exam_time: examEditForm.time     || null,
       location:  examEditForm.location || null,
     });
-    setEditingExamId(null);
+    if (saved) setEditingExamId(null);
   }
 
   if (!modalDate) return null;
@@ -702,15 +720,17 @@ function DayDetailModal() {
   async function handleAddExam(e) {
     e.preventDefault();
     if (!examForm.name.trim()) return;
-    await addExam({
+    const added = await addExam({
       name:      examForm.name.trim(),
       course_id: examForm.courseId || null,
       exam_date: modalDate,
       exam_time: examForm.time     || null,
       location:  examForm.location || null,
     });
-    setExamForm(EMPTY_EXAM_FORM);
-    setShowAddExamForm(false);
+    if (added) {
+      setExamForm(EMPTY_EXAM_FORM);
+      setShowAddExamForm(false);
+    }
   }
 
   const dayTitle = sentenceCase(d.toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" }));
@@ -724,7 +744,7 @@ function DayDetailModal() {
       {/* Card — bottom sheet on mobile, centered on sm+ */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
         <div role="dialog" aria-modal="true" aria-label={dayTitle}
-          className="pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]"
+          className="bt-planning-dialog pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]"
           style={{
             backgroundColor: "var(--bt-surface)",
             border: "1px solid var(--bt-hairline)",
@@ -813,25 +833,26 @@ function DayDetailModal() {
                       );
                     }
                     return (
-                      <div key={ex.id} className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                        style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)", borderLeft: "3px solid var(--bt-danger-solid)" }}>
-                        {ex.course_id && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(ex.course_id) }} />}
+                      <div key={ex.id} className="bt-plan-exam-detail">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{ex.name}</p>
+                          <PlanningExamMark label={t("plan.examTag")} />
+                          {ex.name && <p className="mt-1 break-words text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{ex.name}</p>}
+                          {ex.course_id && <p className="mt-1 flex items-center gap-1.5 text-sm"><CourseMark id={ex.course_id} />{courseName(ex.course_id)}</p>}
                           {(ex.exam_time || ex.location) && (
-                            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-3)" }}>
+                            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-1)" }}>
                               {[ex.exam_time, ex.location].filter(Boolean).join(" · ")}
                             </p>
                           )}
+                          <ExamBadge days={daysUntil(ex.exam_date)} />
+                          {ex.source === "course" && <LegacyExamDate exam={ex} />}
                         </div>
-                        <ExamBadge days={daysUntil(ex.exam_date)} />
                         <div className="flex shrink-0 items-center gap-0.5">
-                          <button onClick={() => startExamEdit(ex)} title={t("plan.dayEdit")} aria-label={t("plan.dayEdit")}
-                            className="bt-plan-icon-btn flex h-8 w-8 items-center justify-center rounded-lg">
+                          {ex.source !== "course" && <button onClick={() => startExamEdit(ex)} title={t("plan.dayEdit")} aria-label={t("plan.dayEdit")}
+                            className="bt-plan-icon-btn flex h-11 w-11 items-center justify-center rounded-lg">
                             <IconEdit />
-                          </button>
+                          </button>}
                           <button onClick={() => removeExam(ex.id)} title={t("common.delete")} aria-label={t("common.delete")}
-                            className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-8 w-8 items-center justify-center rounded-lg">
+                            className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-11 w-11 items-center justify-center rounded-lg">
                             <IconTrash />
                           </button>
                         </div>
@@ -888,7 +909,7 @@ function DayDetailModal() {
                                 qu'une centaine de pixels et « Relire les
                                 fiches » se lisait « Relire l… ». */}
                             <div className="flex items-center gap-2">
-                              {o.course_id && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: courseColor(o.course_id) }} />}
+                              <CourseMark id={o.course_id} />
                               <p className="min-w-0 flex-1 text-sm font-medium"
                                 style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-1)" }}>
                                 <span className={`bt-strike ${o.done ? "is-done" : ""} inline-block max-w-full truncate align-bottom`}>
@@ -900,7 +921,7 @@ function DayDetailModal() {
                               <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={statusTone}>
                                 {statusLabel}
                               </span>
-                              {o.course_id && <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{courseName(o.course_id)}</span>}
+                              <span className="text-xs" style={{ color: "var(--bt-text-1)" }}>{courseName(o.course_id) || t("plan.unassigned")}</span>
                               {o.scheduled_time && <span className="text-xs font-medium tabular-nums" style={{ color: "var(--bt-text-3)" }}>· {o.scheduled_time}</span>}
                               {o.target_minutes > 0 && <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>· {o.target_minutes} min</span>}
                               {recurLabel && <span className="text-xs font-semibold" style={{ color: "var(--bt-text-4)" }}>· ↻ {recurLabel}</span>}
@@ -1009,7 +1030,7 @@ function DayDetailModal() {
                 )}
                 <button onClick={() => setShowAddExamForm(true)}
                   className="btn-ghost flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm font-semibold">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} />
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bt-exam-rail)" }} />
                   {t("plan.addExamShort")}
                 </button>
               </div>
@@ -1094,14 +1115,14 @@ function CalendarLegend() {
 
   const items = [
     { label: t("plan.legendObjective"), node: objectiveNode },
-    { label: t("plan.legendExam"),      node: <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bt-danger-solid)" }} /> },
+    { label: t("plan.legendExam"),      node: <PlanningExamMark label={t("plan.examTag")} /> },
     { label: t("common.today"),         node: <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--bt-accent)" }} /> },
   ];
   return (
     <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 no-print">
       {items.map(i => (
         <li key={i.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--bt-text-3)" }}>
-          {i.node}{i.label}
+          {i.node}{i.label !== t("plan.legendExam") && i.label}
         </li>
       ))}
     </ul>
@@ -1109,8 +1130,8 @@ function CalendarLegend() {
 }
 
 // ── MonthView ─────────────────────────────────────────────────
-// One background per cell: exams override course tints. A soft diagonal
-// separates at most two course tones; today's dot and selection stay independent.
+// Exams override the representative course tint. Workload weighting stays
+// count-based until Phase 2; course markers retain the other identities.
 function MonthView() {
   const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
@@ -1141,7 +1162,6 @@ function MonthView() {
               const inMonth   = d.getMonth() === cursor.month;
               const isToday   = key === today;
               const isSel     = key === selectedDate;
-              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
               const items     = byDate[key]      || [];
               const examItems = examsByDate[key] || [];
 
@@ -1149,8 +1169,8 @@ function MonthView() {
               // cours, pas une par objectif : trois objectifs du même cours
               // sont UNE information de couleur, pas trois).
               const dayCourseIds = [...new Set(items.filter(o => o.course_id).map(o => o.course_id))];
-              const dayColors    = dayCourseIds.map(id => courseColor(id));
-              const hasUncoursed = items.some(o => !o.course_id);
+              const dayColors    = dayCourseIds.map(id => courseColor(id)).filter(Boolean);
+              const hasUncoursed = items.some(o => !courseColor(o.course_id));
               const tints = monthTintCourses(items).map(id => rgbTriplet(courseColor(id))).filter(Boolean);
 
               // UNE seule source de fond par case — jamais deux règles CSS qui
@@ -1161,37 +1181,33 @@ function MonthView() {
               const fill = examItems.length ? "exam"
                 : tints.length ? "course"
                 : items.length ? "planned"
-                : isWeekend ? "weekend"
                 : null;
 
-              const label = `${d.getDate()} — ${items.length} ${t("plan.legendObjective")}, ${examItems.length} ${t("plan.legendExam")}`;
+              const label = `${quickDateLabel(key, lang, t)} — ${t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length)}, ${t(examItems.length === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", examItems.length)}`;
 
               return (
-                <button key={key} onClick={() => { if (inMonth) openDay(key); else setSelectedDate(key); }}
-                  aria-label={`${label}${examItems.length ? ` — ${examItems.map(e => e.name).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
+                <button key={key} onClick={() => { if (inMonth || examItems.length) openDay(key); else setSelectedDate(key); }}
+                  aria-label={`${label}${examItems.length ? ` — ${examItems.map(e => e.name || courseName(e.course_id)).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
                   data-fill={fill || undefined} data-selected={isSel ? "1" : undefined}
-                  data-multi-course={tints.length > 1 ? "1" : undefined}
                   data-past={key < today ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
                     "--bt-day-tint": tints[0] || undefined,
-                    "--bt-day-tint-secondary": tints[1] || tints[0] || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
-                    opacity: inMonth ? 1 : 0.75,
+                    opacity: inMonth || examItems.length ? 1 : 0.75,
                   }}>
-                  {key < today && <svg className="bt-planning-past-mark" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false"><line x1="0" y1="100" x2="100" y2="0" vectorEffect="non-scaling-stroke" /></svg>}
                   {/* Day number */}
                   <span className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full font-num text-xs font-bold tabular-nums"
                     style={isToday
-                      ? { backgroundColor: "var(--bt-accent)", color: "#fff" }
+                      ? { backgroundColor: "var(--bt-action)", color: "#fff" }
                       : { color: "var(--bt-text-1)" }}>
                     {d.getDate()}
                   </span>
 
                   {examItems.length > 0 && <div className="bt-planning-month-exam">
-                    <span className="flex flex-wrap items-center gap-1 font-bold"><span className="hidden sm:inline-flex"><IconCalendar size={12} /></span>{t("plan.examTag")}{examItems.length > 1 && <span>×{examItems.length}</span>}</span>
+                    <PlanningExamMark label={t("plan.examTag")} count={examItems.length} compact />
                     <span className="hidden truncate font-semibold sm:block">{examItems[0].name}</span>
-                    {examItems[0].course_id && <span className="flex min-w-0 items-center gap-1" title={courseName(examItems[0].course_id)}><span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: courseColor(examItems[0].course_id) }} /><span className="hidden truncate sm:inline">{courseName(examItems[0].course_id)}</span></span>}
+                    {examItems[0].course_id && <span className="mt-1 flex min-w-0 items-center gap-1" title={courseName(examItems[0].course_id)}><CourseMark id={examItems[0].course_id} /><span className="hidden truncate sm:inline">{courseName(examItems[0].course_id)}</span></span>}
                   </div>}
                   {/* Marqueurs — mobile : pastilles (aucun texte ne rentre).
                       Une pastille par COURS, pas par objectif : le fond dit
@@ -1203,7 +1219,7 @@ function MonthView() {
                       <span key={i} className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: c }} />
                     ))}
                     {hasUncoursed && (
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: "var(--bt-text-3)" }} />
+                      <CourseMark />
                     )}
                     {dayColors.length > 4 && (
                       <span className="text-[9px] leading-none tabular-nums" style={{ color: "var(--bt-text-4)" }}>
@@ -1216,10 +1232,9 @@ function MonthView() {
                   <div className="hidden space-y-0.5 sm:block">
                     {items.slice(0, 2).map(o => (
                       <div key={o.id} className="flex items-center gap-1 truncate" title={o.title || courseName(o.course_id) || ""}>
-                        <span className="h-1.5 w-1.5 flex-none shrink-0 rounded-full"
-                          style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.3 : 1 }} />
+                        <CourseMark id={o.course_id} />
                         <span className="truncate text-[10px] leading-tight"
-                          style={{ color: fill === "course" ? "var(--bt-text-1)" : "var(--bt-text-2)",
+                          style={{ color: "var(--bt-text-1)",
                             textDecoration: o.done ? "line-through" : "none" }}>
                           {o.title || courseName(o.course_id) || "—"}
                         </span>
@@ -1253,19 +1268,19 @@ function DayAgenda() {
   const work = dayWorkload(items);
   return <section className="card p-4 sm:p-5">
     <div className="mb-3 flex items-center justify-between gap-3">
-      <div><h2 className="text-base font-bold">{lang === "en" ? "Your day" : "Votre journée"}</h2>
-        <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{work.remaining} {lang === "en" ? "objectives left" : "objectifs restants"}{work.minutes > 0 && ` · ${formatMinutesShort(work.minutes * 60)}`}</p></div>
+      <div><h2 className="text-base font-bold">{t("plan.yourDay")}</h2>
+        <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t(work.remaining === 1 ? "plan.remainingOne" : "plan.remainingMany").replace("{n}", work.remaining)}{work.minutes > 0 && ` · ${formatMinutesShort(work.minutes * 60)}`}</p></div>
       <button className="btn-ghost min-h-11 px-3 text-sm" onClick={() => openDay(selectedDate)}>{t("common.add")}</button>
     </div>
     {exams.map(exam => <button key={exam.id} className="bt-planning-agenda-exam" onClick={() => openDay(selectedDate)}>
-      <IconCalendar size={20} /><span className="min-w-0 flex-1"><span className="block text-xs font-bold">{t("plan.examTag")}{exam.exam_time && ` · ${exam.exam_time.slice(0, 5)}`}</span><strong className="block">{exam.name}</strong><span className="block text-sm">{[courseName(exam.course_id), exam.location].filter(Boolean).join(" · ")}</span></span><IconChevron dir="right" />
+      <span className="min-w-0 flex-1"><PlanningExamMark label={t("plan.examTag")} />{exam.exam_time && <span className="ml-2 text-sm">{exam.exam_time.slice(0, 5)}</span>}{exam.name && <strong className="mt-1 block">{exam.name}</strong>}<span className="mt-1 flex items-center gap-2 text-sm">{exam.course_id && <CourseMark id={exam.course_id} />}{[courseName(exam.course_id), exam.location].filter(Boolean).join(" · ")}</span><ExamBadge days={daysUntil(exam.exam_date)} /></span><IconChevron dir="right" />
     </button>)}
-    {!items.length && <p className="py-4 text-sm" style={{ color: "var(--bt-text-2)" }}>{lang === "en" ? "No objectives planned for this day." : "Aucun objectif prévu ce jour-là."}</p>}
+    {!items.length && <p className="py-4 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("plan.noObjectivesDay")}</p>}
     <ul>{items.map(o => <li key={o.id} className="bt-planning-task">
       <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" className="bt-task-check h-4 w-4" checked={o.done} onChange={() => toggle(o)} aria-label={o.title || courseName(o.course_id)} /></label>
       <button className="min-w-0 flex-1 py-3 text-left" onClick={() => openDay(selectedDate)}>
         <span className={`bt-strike ${o.done ? "is-done" : ""} max-w-full break-words text-sm font-semibold`}>{o.title || courseName(o.course_id)}</span>
-        <span className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--bt-text-2)" }}>{o.course_id && <><span className="h-2 w-2 rounded-full" style={{ backgroundColor: courseColor(o.course_id) }} />{courseName(o.course_id)}</>}{o.scheduled_time && <span>{o.scheduled_time.slice(0, 5)}</span>}{o.target_minutes > 0 && <span>{formatMinutesShort(o.target_minutes * 60)}</span>}</span>
+        <span className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--bt-text-2)" }}><CourseMark id={o.course_id} />{courseName(o.course_id) || t("plan.unassigned")}{o.scheduled_time && <span>{o.scheduled_time.slice(0, 5)}</span>}{o.target_minutes > 0 && <span>{formatMinutesShort(o.target_minutes * 60)}</span>}</span>
       </button>
       {!o.done && o.course_id && selectedDate === localToday() && <button className="bt-plan-icon-btn min-h-11 min-w-11" aria-label={`${t("plan.startStudying")} · ${o.title || courseName(o.course_id)}`} onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}><IconPlay size={16} /></button>}
     </li>)}</ul>
@@ -1307,10 +1322,10 @@ function TimeGrid({ days }) {
                       {weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}
                     </p>
                     <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full font-num text-sm font-bold tabular-nums"
-                      style={isToday ? { backgroundColor: "var(--bt-accent)", color: "#fff" } : { color: "var(--bt-text-1)" }}>
+                      style={isToday ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: "var(--bt-text-1)" }}>
                       {d.getDate()}
                     </span>
-                    <span className="mt-1 block text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>{(byDate[key] || []).length} {t("plan.legendObjective")}</span>
+                    <span className="mt-1 block text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>{t((byDate[key] || []).length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", (byDate[key] || []).length)}</span>
                     {dayWorkload(byDate[key] || []).minutes > 0 && <span className="block text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>{formatMinutesShort(dayWorkload(byDate[key] || []).minutes * 60)}</span>}
                   </button>
                 );
@@ -1335,18 +1350,19 @@ function TimeGrid({ days }) {
                       <button key={e.id} className="bt-planning-week-exam"
                         title={e.name}
                         onClick={ev => { ev.stopPropagation(); openDay(key); }}>
-                        <span className="flex items-center gap-1 text-xs font-bold"><IconCalendar size={12} />{t("plan.examTag")}{e.exam_time && ` · ${e.exam_time.slice(0, 5)}`}</span>
+                        <PlanningExamMark label={t("plan.examTag")} />
+                        {e.exam_time && <span className="block text-xs">{e.exam_time.slice(0, 5)}</span>}
                         <strong className="block truncate">{e.name}</strong>
-                        {e.course_id && <span className="block truncate text-xs">{courseName(e.course_id)}</span>}
+                        {e.course_id && <span className="flex items-center gap-1 text-xs"><CourseMark id={e.course_id} /><span className="truncate">{courseName(e.course_id)}</span></span>}
                       </button>
                     ))}
                     {items.map(o => (
-                      <div key={o.id} className="truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white"
-                        style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.45 : 1 }}
+                      <button type="button" key={o.id} className="bt-plan-objective-chip"
+                        data-done={o.done ? "1" : undefined}
                         title={o.title || courseName(o.course_id) || ""}
                         onClick={e => { e.stopPropagation(); openDay(key); }}>
-                        {o.title || courseName(o.course_id) || "—"}
-                      </div>
+                        <CourseMark id={o.course_id} /><span className="min-w-0 truncate">{o.title || courseName(o.course_id) || "—"}<span className="sr-only"> · {courseName(o.course_id) || t("plan.unassigned")}</span></span>
+                      </button>
                     ))}
                   </div>
                 );
@@ -1370,16 +1386,17 @@ function TimeGrid({ days }) {
                         style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isToday ? TODAY_TINT : "transparent" }}
                         onClick={() => handleSlotClick(key, h)}>
                         {slotObjs.map(o => (
-                          <div key={o.id}
-                            className="mb-0.5 cursor-pointer truncate rounded-md px-1.5 py-1 text-[11px] font-medium text-white hover:brightness-90"
-                            style={{ backgroundColor: courseColor(o.course_id), opacity: o.done ? 0.45 : 1 }}
+                          <button type="button" key={o.id}
+                            className="bt-plan-objective-chip mb-0.5"
+                            data-done={o.done ? "1" : undefined}
                             title={o.title || courseName(o.course_id) || ""}
                             onClick={e => { e.stopPropagation(); openDay(key); }}>
-                            <span className="block truncate">{o.title || courseName(o.course_id) || "—"}</span>
+                            <CourseMark id={o.course_id} /><span className="min-w-0"><span className="block truncate">{o.title || courseName(o.course_id) || "—"}</span><span className="sr-only">{courseName(o.course_id) || t("plan.unassigned")}</span>
                             {o.target_minutes > 0 && (
-                              <span className="font-num text-[10px] tabular-nums opacity-80">{o.target_minutes} min</span>
+                              <span className="font-num text-xs tabular-nums">{o.target_minutes} min</span>
                             )}
-                          </div>
+                            </span>
+                          </button>
                         ))}
                       </div>
                     );
@@ -1577,7 +1594,12 @@ export default function Planning() {
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses]       = useState([]);
   const [objectives, setObjectives] = useState([]);
-  const [exams, setExams]           = useState([]);
+  const [examRows, setExamRows]     = useState([]);
+  const exams = normalizePlanningExams(courses, examRows);
+  const [examLoadWarning, setExamLoadWarning] = useState(false);
+  // Serialise exam writes: deleting two same-day events concurrently could
+  // otherwise let each assume the other still represents the legacy date.
+  const examWrites = useRef(new Set());
   const [sessions, setSessions]     = useState([]);
   const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
   const [cursor, setCursor]         = useState(() => {
@@ -1610,7 +1632,7 @@ export default function Planning() {
   const load = useCallback(async () => {
     if (!user) return;
     const ninetyAgo = new Date(Date.now() - 90 * 864e5).toISOString();
-    const [{ data: c }, { data: o }, examRes, { data: s }] = await Promise.all([
+    const [courseRes, { data: o }, examRes, { data: s }] = await Promise.all([
       supabase.from("courses").select("*").eq("user_id", user.id).order("created_at"),
       supabase.from("objectives").select("*").eq("user_id", user.id).order("scheduled_date"),
       supabase.from("exams").select("*").eq("user_id", user.id).order("exam_date"),
@@ -1618,10 +1640,11 @@ export default function Planning() {
         .select("user_id,course_id,duration_seconds,started_at")
         .eq("user_id", user.id)
         .gte("started_at", ninetyAgo),
-    ]);
-    setCourses(c || []);
+    ].map(query => Promise.resolve(query).catch(error => ({ data: null, error }))));
+    if (!courseRes.error) setCourses(courseRes.data || []);
     setObjectives(o || []);
-    setExams(examRes.data || []);
+    if (!examRes.error) setExamRows(examRes.data || []);
+    setExamLoadWarning(!!(courseRes.error || examRes.error));
     setSessions(s || []);
     // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
     const freeze = await runStreakFreezeUpkeep(supabase, user.id, s || []);
@@ -1714,24 +1737,54 @@ export default function Planning() {
   }
 
   async function addExam(examData) {
-    const { data } = await supabase.from("exams")
-      .insert({ user_id: user.id, ...examData }).select().single();
-    if (data) {
-      setExams(p => [...p, data]);
+    if (examWrites.current.size) return false;
+    examWrites.current.add("add");
+    try {
+      const { data, error } = await supabase.from("exams")
+        .insert({ user_id: user.id, ...examData }).select().single();
+      if (error || !data) throw error || new Error("Missing exam");
+      setExamRows(p => [...p, data]);
       notifyXPChanged();
       toast(t("toast.examAdded"));
-    }
+      return true;
+    } catch { toast(t("plan.examWriteError"), "error"); return false; }
+    finally { examWrites.current.delete("add"); }
   }
 
   async function removeExam(id) {
-    await supabase.from("exams").delete().eq("id", id);
-    setExams(p => p.filter(x => x.id !== id));
+    const exam = exams.find(e => e.id === id);
+    if (!exam || examWrites.current.size) return;
+    examWrites.current.add(id);
+    try {
+      await deletePlanningExam(supabase, user.id, exam, exams);
+      await load();
+    } catch {
+      toast(t("plan.examWriteError"), "error");
+      await load();
+    } finally { examWrites.current.delete(id); }
   }
 
   async function saveExamEdit(id, examData) {
-    const { data } = await supabase.from("exams")
-      .update(examData).eq("id", id).select().single();
-    if (data) setExams(p => p.map(x => x.id === id ? data : x));
+    if (examWrites.current.size) return false;
+    examWrites.current.add(id);
+    try {
+      const { data, error } = await supabase.from("exams")
+        .update(examData).eq("id", id).eq("user_id", user.id).select().single();
+      if (error || !data) throw error || new Error("Missing exam");
+      setExamRows(p => p.map(x => x.id === id ? data : x));
+      return true;
+    } catch { toast(t("plan.examWriteError"), "error"); return false; }
+    finally { examWrites.current.delete(id); }
+  }
+
+  async function saveLegacyDate(exam, date) {
+    if (examWrites.current.size) return;
+    examWrites.current.add(exam.id);
+    try {
+      await updateLegacyExamDate(supabase, user.id, exam, date);
+      await load();
+    } catch { toast(t("plan.examWriteError"), "error"); await load(); }
+    finally { examWrites.current.delete(exam.id); }
   }
 
   async function addObjectiveForDate(date, { title: ft, courseId: fc, minutes: fm, time: fti, weekdays: fw, until: fu }) {
@@ -1828,7 +1881,10 @@ export default function Planning() {
   // `courses` garde tout : un objectif posé sur un cours archivé doit conserver
   // son nom et sa couleur. Seuls les CHOIX se limitent aux cours du semestre.
   const activeCourses = courses.filter(c => !c.archived_at);
-  const courseColor = id => courses.find(c => c.id === id)?.color || "#94a3b8";
+  const courseColor = id => {
+    const color = courses.find(c => c.id === id)?.color;
+    return rgbTriplet(color) ? color : null;
+  };
   const courseName  = id => courses.find(c => c.id === id)?.name;
 
   // Export .ics : examens + objectifs (non terminés) vers un agenda externe.
@@ -1934,7 +1990,7 @@ export default function Planning() {
 
   const ctxValue = {
     view, courses, activeCourses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
-    toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit,
+    toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit, saveLegacyDate,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
     launchTimer, duplicateDay, duplicateWeek,
     lang, t,
@@ -1956,6 +2012,9 @@ export default function Planning() {
             redeviennent enfants directs de la pile, et `order-*` fixe l'ordre
             mobile une bonne fois (l'ordre du DOM sert la colonne desktop). */}
         <div className="bt-planning flex flex-col gap-5">
+          {examLoadWarning && <div role="status" className="flex flex-wrap items-center gap-3 text-sm">
+            <p>{t("plan.examLoadWarning")}</p><button className="btn-ghost min-h-11 px-3" onClick={load}>{t("plan.retryLoad")}</button>
+          </div>}
           <TodayCard />
           <div className="flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
           <div className="contents xl:flex xl:flex-col xl:gap-5">

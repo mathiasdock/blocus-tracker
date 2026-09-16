@@ -90,7 +90,7 @@ Read [PRODUCT.md](PRODUCT.md) for product constraints and [docs/UI.md](docs/UI.m
 | --- | --- | --- |
 | Primary action / positive / active | `--bt-action`, `--bt-accent`, `--bt-accent-text`, `--bt-accent-bg` | Differentiate action, selection and information by structure too. Bright green is not a default text color. |
 | Course identity | Saved `course.color`; palette in `lib/courseColors.js` | Follow the course, never task completion or urgency. |
-| Exam priority | Current Planning `--bt-danger*` family | Shared warm vocabulary with an exam-specific structure; not a destructive button. |
+| Exam priority | Planning `--bt-exam-*` in `styles/planning.css` | Warm academic surface, deadline rail and calendar glyph; independent of danger and pause tokens. |
 | Error / destructive action | `--bt-danger*` | Error copy, warning/action semantics; no exam marker. |
 | Paused Timer | `--bt-pause*` in `styles/globals.css` | Attention state, **not** an error. Timer surfaces only — card, digits, badge, in-progress unit ring, Focus field. Never borrow it for failures, and never borrow `--bt-danger*` for a pause. See § The Paused-Timer Exception. |
 | Routine interface | Surface/text/border `--bt-*` roles | Search, settings, back, fields, ordinary messaging. |
@@ -98,7 +98,7 @@ Read [PRODUCT.md](PRODUCT.md) for product constraints and [docs/UI.md](docs/UI.m
 | Academic kind | `--bt-kind-*` in `styles/study-spaces.css` | Kind mark and kind word only; never a selected-row background. Exam kind must converge on the shared exam vocabulary. |
 | University / mascot | Real logo / existing character artwork | Preserve asset colors; do not leak them into surrounding controls. |
 
-**The Meaning Rule.** Every strong color must answer “what does this mean?” No answer means neutral UI. No new palette is introduced by this document. Separate exam/error semantic aliases can be established during a shared exam implementation; do not invent per-page shades now.
+**The Meaning Rule.** Every strong color must answer “what does this mean?” No answer means neutral UI. Planning's semantic exam tokens derive from its warm palette; reuse that vocabulary in future scoped exam work, not new per-page shades.
 
 ### Course Colors — academic identity
 
@@ -159,7 +159,7 @@ Soft geometry is supporting infrastructure, not the identity. Reuse the four rad
 
 **No pill by default.** A pill must carry a filter, selection, state, tag, compact action or meaningful count. Information is non-interactive and quiet; selection has a persistent selected state; action has an explicit verb/icon and focus/press feedback. Do not wrap ordinary copy to fill space.
 
-**The Diagonal Rule.** A thin bottom-left → top-right stroke means a date is strictly past, not completed, failed or an exam. It stays behind content, subordinate to exam identity; never strikes through the exam's label. Today's/future cells have no past stroke. Multi-course tint splitting is legacy behavior to retire, not a second meaning to standardize. No decorative diagonal elsewhere.
+**The Diagonal Rule.** Planning uses no diagonal for past dates or multiple courses. Both conflicted and were removed in Phase 1. Calendar position/date and Today communicate time context; course markers communicate identity. Do not restore either slash or split, or substitute another decorative motif.
 
 ## Components
 
@@ -186,7 +186,7 @@ Completed time is filled; a live measured fraction is partial; paused time stops
 **EXAM STATE > COURSE COLOR.** Adopt one vocabulary: a **deadline marker** comprising a short solid leading rail aligned with the calendar glyph + explicit “Exam” label, followed by the date/event identity. The rail belongs to the exam header/event, not an arbitrary full-height colored card edge. Use the existing warm Planning family; color reinforces a recognizable structure.
 
 - Month cell: exam header/marker and date remain visible; warm treatment owns the cell. Course identity is a small named/dotted secondary signal. No competing course-colored background.
-- Mobile: preserve the marker, calendar glyph and short Exam label before optional course detail. Show exam count if needed; the cell opens complete names/date/time without hover. Do not solve crowding by removing the exam identity.
+- Mobile/narrow cells: preserve the rail and calendar glyph, plus the count for multiple exams. The full Exam label stays accessible to assistive technology when visually omitted for lack of space; day detail exposes names/date/time without hover. Never truncate the exam identity into an ambiguous fragment.
 - Day/Week/list/Activity/academic space: reuse the same header vocabulary at the available size. A date-bearing mark can include the actual date; do not fabricate a date for an undated exam space.
 - Today and selection remain independently visible, for example on the date indicator/outline; neither replaces the exam treatment.
 - Multiple exams: one marker with count and accessible event names, not stacked stripes. Other objectives remain secondary and available.
@@ -290,7 +290,7 @@ Offer one broader relevant route when an area is quiet, based on available activ
 | “3/5 objectives,” labeled ratio | Three earned study blocks |
 | Pink course marker with readable neutral text | Pink used as “overdue” |
 | Exam structure survives a red-course cell and mobile width | Red text alone or hiding the exam icon on mobile |
-| Past-date slash, independent of completion | Same diagonal for past, mixed courses and decoration |
+| Date position and Today mark; uniform representative course tint | Diagonal for past dates, mixed courses or decoration |
 | Mascot stands at the real goal position | Mascot fills spare space beside generic copy |
 | Same level seal/object across detail and feed | A new trophy/card silhouette on every page |
 | Plain search and settings rows | Course tints and mascot decoration in preferences |
@@ -301,7 +301,7 @@ Offer one broader relevant route when an area is quiet, based on available activ
 | Priority | Existing mismatch / evidence | Acceptance in a future scoped task |
 | --- | --- | --- |
 | ✅ | ~~Timer capped `+N`; `TodayProgressCard` builds one cell per target quarter-hour~~ — shipped 2026-09-15 in `lib/studyBlocks.mjs` + `components/StudyBlocks.js` (Timer, Focus and Today share one scale; exact fractions; no `+N`; no invented capacity; Pomodoro rest has its own form) | Done. Remaining in this family: Stats' runway and the leaderboard still use their own encodings. |
-| 1 | `styles/planning.css` diagonal course split + past slash; mobile hides exam details/icon | One past-date diagonal; exam marker survives 320–390px, multiple exams, red/pink course, today and both themes |
+| ✅ | Planning Phase 1: both diagonals removed; shared exam marker and semantic tokens; neutral objective chips | Shipped 2026-09-16. Exam read compatibility documented in `docs/planning-exams.md`. Month workload weighting and Week composition remain Phase 2. |
 | 1 | Planning exam palette vs `--bt-kind-exam` | One shared semantic exam vocabulary; distinguish errors and undated exam spaces |
 | 1 | Faint small metadata; bright-green/white selected text | Measured contrast in both themes; no essential text demoted to disabled-looking gray |
 | 2 | Level number / circular medallion / square celebration; multiple flames | Shared object family, compact variants, visible milestone identity |
