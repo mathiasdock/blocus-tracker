@@ -4,7 +4,26 @@ Status: **shipped** (Communities phase 2, 2026-09-17). Replaces the academic-spa
 
 Journey: **my personal courses → matched canonical courses (`canonical-courses.md`) → relevant course spaces → voluntary join → one lightweight course conversation.** It is not a social network and does not replace WhatsApp or Discord: a student sees which of *their own* courses connect them to students of *their* institution, joins if they want, writes, shares an exam date, and goes back to studying.
 
-Migration: `supabase/migrations/20260917061842_course_spaces.sql` (applied 2026-09-17 via MCP).
+Migrations: `supabase/migrations/20260917061842_course_spaces.sql`, then `20260917104500_default_academic_spaces.sql` (both applied 2026-09-17 via MCP).
+
+## Two default spaces, then courses
+
+Since 2026-09-17 (second migration below) every student also belongs to two spaces built from their profile, so the page is never empty before a course match exists:
+
+| Space | Identity | Created |
+|---|---|---|
+| Institution | the university of the profile (`course_institution_of`, the same resolution as everywhere else) | at the first `ensure_my_default_rooms()` for that institution |
+| Program **inside** that institution | the broad field's English name (`study_spaces` row `field-<id>`, 22 stable ids) or, without one, the free-text `study_field` | idem, per institution + normalized program key |
+
+Rules that keep this simple:
+
+- **Institution-scoped.** "Business & Management · ICHEC" and "Business & Management · Solvay" are two rooms; no cross-institution program space exists, and none can be created.
+- **Automatic, not imposed.** `ensure_my_default_rooms()` runs when the page opens: it creates the rooms lazily, joins the student, and moves them when the profile changes (the membership of a space that no longer matches is dropped; messages stay). Leaving one is remembered in `course_room_optouts`, so the sync never puts it back; the space stays listed with a *Rejoindre* action, and `join_default_room(room)` — the caller's own spaces only — clears the memory.
+- **No taxonomy comes back.** No global hub, no cross-university field, no exam space, no hierarchy, no browsing. "Other studies" creates no program space: it would gather unrelated students behind one meaningless name.
+- **Same conversation, same privacy.** A default space is a `course_rooms` row like any other: members only, same posting rules, same moderation, same 3-member count threshold. The 40-space cap counts course spaces only.
+- **Identity.** The institution shows its real logo when the project ships one (`lib/universities.js`), otherwise its initials in ink; a program shows no mark at all, with its institution as the secondary line. No icon tile, no invented pictogram.
+
+The list therefore reads: **Tes espaces** (institution, program) → **Tes cours** (joined course spaces) → **Pour tes cours** (suggestions and match questions). On a wide screen the page opens on the first joined course space, or on the institution space when there is none.
 
 ## Model
 
@@ -20,7 +39,8 @@ New tables:
 
 | Table | Columns | Notes |
 |---|---|---|
-| `course_rooms` | `id`, `offering_id` (unique, FK `course_offerings` on delete cascade), `created_at` | At most one room per canonical course. No client grant at all: rooms are reached only through functions. |
+| `course_rooms` | `id`, `kind` (`course` / `university` / `program`), `offering_id` (unique, FK `course_offerings`), `institution_id`, `program_key`, `title`, `created_at` | One room per canonical course, one per institution, one per program inside an institution (partial unique indexes + a shape check). No client grant at all: rooms are reached only through functions. |
+| `course_room_optouts` | `user_id`, `room_id`, `created_at` | A default space left on purpose; the automatic sync skips it until the student joins again. Readable by its owner only, written by functions only. |
 | `course_room_members` | `room_id`, `user_id`, `joined_at`; PK `(room_id, user_id)` | Clients read **their own rows only**; no client insert/update/delete. |
 | `user_blocks` | `blocker_id`, `blocked_id`, `created_at`; PK pair; check not self | The blocker reads, inserts and deletes their own rows. The blocked student is never told. |
 | `course_message_reports` | `message_id` (FK `community_messages` cascade), `reporter_id`, `reason` ∈ spam/abuse/other, `created_at`, `resolved_at`; PK pair | The reporter reads their own rows; writes only through `report_course_message`. |
@@ -37,12 +57,12 @@ Messages reuse `community_messages` with a new `room_id` column (and `hidden_at`
 
 ## What the student sees
 
-Opening the page calls, in order: `courses` (own rows), `resolve_my_course_links()` (Phase 1 matching, ~0.3 s for the largest institution, 61 students, measured in a rolled-back transaction), then `course_space_summaries(offering ids of auto/confirmed links)`. Pure decisions live in `lib/courseSpaces.mjs` (tested); I/O in `lib/courseSpacesClient.js`.
+Opening the page calls, in parallel: `courses` (own rows), `resolve_my_course_links()` (Phase 1 matching, ~0.3 s for the largest institution, 61 students, measured in a rolled-back transaction) and `ensure_my_default_rooms()`, then `course_space_summaries(offering ids of auto/confirmed links)`. Pure decisions live in `lib/courseSpaces.mjs` (tested); I/O in `lib/courseSpacesClient.js`.
 
 **Left column** (`components/course-spaces/CourseSpaceList.js`)
 
 1. *Chercher un cours* — optional; `search_course_spaces` over canonical titles of the caller's institution (min 2 characters, 20 results). A student may join any space of their institution found this way (decision of 2026-09-17).
-2. **Tes espaces de cours** — joined rooms, most recent activity first; unread count from `NotificationContext` (`room_<id>` keys).
+2. **Tes espaces** — the institution and the program of the profile (`ensure_my_default_rooms`), then **Tes cours** — joined course rooms, most recent activity first; unread count from `NotificationContext` (`room_<id>` keys).
 3. **Pour tes cours** — first at most two questions for uncertain matches, then one row per canonical course linked `auto` or `confirmed` to an **active** personal course and not joined. Nothing else can appear here: no popularity list, no other institution, no invented recommendation.
 4. One truthful sentence when empty (`coldStartState`): no institution → profile link; no active course → Timer link; courses but no match yet → *« Tes cours apparaîtront ici quand Blocus trouvera des étudiants de ton établissement qui suivent le même cours. »*
 
@@ -73,7 +93,8 @@ Not built, on purpose: weekly presence, "X students studied", exam consensus, pi
 - Personal course lists and other students' course names never leave the server; course links stay owner-only (Phase 1, unchanged).
 - A student cannot join, leave or alter someone else's membership (no table writes; functions act on `auth.uid()`). Room creation is not a public insert: only `join_course_room` creates, for a canonical course **of the caller's institution**.
 - Attachments: `/api/storage/sign` now checks community files **as the student** — it signs only when that student can read the referencing message under the RLS above. Before, any signed-in account could sign any community file referenced by a message.
-- Functions (all `security definer`, `search_path = public`, revoked from `public`/`anon`, granted to `authenticated`): `course_space_summaries`, `search_course_spaces`, `join_course_room`, `leave_course_room`, `post_course_room_message`, `report_course_message`, `admin_course_reports`, `admin_resolve_course_report`.
+- Functions (all `security definer`, `search_path = public`, revoked from `public`/`anon`, granted to `authenticated`): `course_space_summaries`, `search_course_spaces`, `join_course_room`, `leave_course_room`, `post_course_room_message`, `report_course_message`, `admin_course_reports`, `admin_resolve_course_report`, `ensure_my_default_rooms`, `join_default_room`. The program helper `course_program_of` stays internal (no client grant).
+- A default space is never reachable from another institution: `join_default_room` checks the caller's own institution and, for a program, their own program key.
 
 ## Moderation
 
@@ -90,6 +111,7 @@ Nothing was deleted. As of 2026-09-17: **183** `study_spaces` (still readable by
 ## Tests
 
 - `supabase/tests/course_spaces_security.sql` — 46 checks with two throw-away institutions and seven throw-away students, always rolled back: lazy creation and idempotent join, one room per canonical course, cross-institution join/search/summary refused, search scope, posting rules (trim, duplicate, foreign attachment path, far exam date, length, threads, non-member, burst limit), member reads, own-membership-only reads, rooms unreadable, no client membership or message writes, other students' course links unreadable, non-member reads nothing, leave revokes read and post, counts hidden under 3, blocks (per blocker, cannot block for someone else, unblock restores), reports (own/non-member refused, hidden for the reporter, hidden for all at 3, author still sees), admin functions refused to students, admin dismiss and remove, legacy messages and memberships private, legacy insert refused, badge rule still counts room messages, `anon` denied. Expected: an error starting with `COURSE SPACES TESTS PASSED`.
+- `supabase/tests/course_default_spaces_security.sql` — 26 checks on the default spaces, always rolled back: two spaces for a complete profile, idempotence (no duplicate room or membership), shared rooms for the same institution and program, the same program name at another institution as another room, free-text program, missing program (institution only), missing university (nothing), program change and institution change moving the memberships, a deliberate leave remembered and the space still offered, `join_default_room` restoring it, cross-institution and other-program joins refused, members reading and writing, non-members refused, opt-outs private, `anon` and the internal program helper denied. Expected: an error starting with `DEFAULT SPACES TESTS PASSED`.
 - Phase 1 tests still apply: `course_matching_pure.sql`, `course_matching_security.sql`.
 - `node --test tests/course-spaces.test.mjs` — suggestion/joined/question rules, archived courses, two personal courses on one canonical course, count threshold, name difference, cold-start sentences, grouping and day markers, poll merging (deletions, gaps), announcements, exam bounds, planned-exam detection, error mapping.
 

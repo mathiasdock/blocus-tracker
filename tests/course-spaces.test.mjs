@@ -12,6 +12,9 @@ import {
   mergeOlderPage,
   namesDiffer,
   newMessagesFromOthers,
+  pickInitialSpace,
+  programLabel,
+  universityInitials,
   visibleMemberCount,
 } from "../lib/courseSpaces.mjs";
 
@@ -216,4 +219,56 @@ test("file names split so only the middle can give way", () => {
   assert.notEqual(five.tail, six.tail, "the distinguishing number stays in the visible end");
   assert.deepEqual(splitFileName("plan.pdf"), { head: "plan", tail: ".pdf" });
   assert.equal(splitFileName("notes").head + splitFileName("notes").tail, "notes");
+});
+
+const defaultRows = [
+  { room_id: "r-prog", kind: "program", title: "Business & Management", institution_id: "ICHEC", institution_name: "ICHEC Brussels Management School", joined: true, member_count: 7, last_message_at: "2026-09-17T08:00:00Z" },
+  { room_id: "r-uni", kind: "university", title: "ICHEC Brussels Management School", institution_id: "ICHEC", institution_name: "ICHEC Brussels Management School", joined: true, member_count: 41, last_message_at: "2026-09-16T08:00:00Z" },
+];
+
+test("the profile's two default spaces come first, institution before program", () => {
+  const view = buildCourseSpaceView({ courses: [adv], links: [], summaries: [], defaults: defaultRows });
+  assert.deepEqual(view.defaults.map((entry) => entry.kind), ["university", "program"]);
+  const [university, program] = view.defaults;
+  assert.equal(university.id, "room:r-uni");
+  assert.equal(university.roomId, "r-uni");
+  assert.equal(university.institutionId, "ICHEC");
+  assert.equal(university.memberCount, 41);
+  assert.equal(program.course, null, "a default space never borrows a course color");
+  assert.equal(view.joined.length, 0, "default spaces are not course spaces");
+  assert.equal(view.suggestions.length, 0);
+});
+
+test("the desktop opens a joined course space, otherwise the institution", () => {
+  const joinedCourse = buildCourseSpaceView({
+    courses: [adv],
+    links: [{ course_id: "c-adv", offering_id: "o-adv", offering_title: "Advertising Strategy", status: "auto", confidence: "high" }],
+    summaries: [{ offering_id: "o-adv", offering_title: "Advertising Strategy", room_id: "r-adv", joined: true, member_count: 5, last_message_at: "2026-09-17T09:00:00Z" }],
+    defaults: defaultRows,
+  });
+  assert.equal(pickInitialSpace(joinedCourse).roomId, "r-adv");
+  const noCourseRoom = buildCourseSpaceView({ courses: [adv], defaults: defaultRows });
+  assert.equal(pickInitialSpace(noCourseRoom).id, "room:r-uni");
+  const programOnly = buildCourseSpaceView({ defaults: [defaultRows[0]] });
+  assert.equal(pickInitialSpace(programOnly).id, "room:r-prog");
+  const suggestionOnly = buildCourseSpaceView({
+    courses: [adv],
+    links: [{ course_id: "c-adv", offering_id: "o-adv", offering_title: "Advertising Strategy", status: "auto", confidence: "high" }],
+  });
+  assert.equal(pickInitialSpace(suggestionOnly).offeringId, "o-adv");
+  assert.equal(pickInitialSpace(buildCourseSpaceView({})), null);
+});
+
+test("an institution without a logo falls back to its initials, never a pictogram", () => {
+  assert.equal(universityInitials("Université catholique de Louvain"), "UC");
+  assert.equal(universityInitials("ICHEC"), "IC");
+  assert.equal(universityInitials("HEC Paris"), "HP");
+  assert.equal(universityInitials(""), "?");
+});
+
+test("a program space shows the taxonomy name in the reader's language, free text untouched", () => {
+  assert.equal(programLabel("Business & Management", "fr"), "Gestion & management");
+  assert.equal(programLabel("Business & Management", "en"), "Business & Management");
+  assert.equal(programLabel("Kinésithérapie du sport", "fr"), "Kinésithérapie du sport");
+  assert.equal(programLabel("", "fr"), "");
 });

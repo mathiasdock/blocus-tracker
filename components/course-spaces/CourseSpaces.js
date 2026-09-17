@@ -8,10 +8,10 @@ import { useToast } from "../../contexts/ToastContext";
 import { useNotifications } from "../../contexts/NotificationContext";
 import { useTimer } from "../../contexts/TimerContext";
 import { isOfflineDev } from "../../lib/supabaseClient";
-import { buildCourseSpaceView, coldStartState, courseSpaceErrorKey, toSpaceEntry } from "../../lib/courseSpaces.mjs";
+import { buildCourseSpaceView, coldStartState, courseSpaceErrorKey, pickInitialSpace, toSpaceEntry } from "../../lib/courseSpaces.mjs";
 import {
   answerCourseMatch, blockStudent, fetchAuthors, fetchBlockedIds, joinCourseSpace,
-  leaveCourseSpace, loadCourseSpaceOverview, searchCourseSpaces, unblockStudent,
+  joinDefaultSpace, leaveCourseSpace, loadCourseSpaceOverview, searchCourseSpaces, unblockStudent,
 } from "../../lib/courseSpacesClient";
 import CourseSpaceList from "./CourseSpaceList";
 import CourseRoom, { authorName } from "./CourseRoom";
@@ -52,9 +52,9 @@ export default function CourseSpaces() {
 
   const view = useMemo(() => buildCourseSpaceView(overview || {}), [overview]);
   const searchEntries = useMemo(() => search.rows.map((row) => toSpaceEntry(row, view.linkedByOffering)), [search.rows, view.linkedByOffering]);
-  // Joined rows win over suggestions and search rows for the same offering.
-  const entries = useMemo(() => new Map([...searchEntries, ...view.suggestions, ...view.joined].map((entry) => [entry.offeringId, entry])), [searchEntries, view]);
-  const activeEntry = activeId ? entries.get(activeId) || (snapshot?.offeringId === activeId ? snapshot : null) : null;
+  // Joined rows win over suggestions and search rows for the same space.
+  const entries = useMemo(() => new Map([...searchEntries, ...view.suggestions, ...view.joined, ...view.defaults].map((entry) => [entry.id, entry])), [searchEntries, view]);
+  const activeEntry = activeId ? entries.get(activeId) || (snapshot?.id === activeId ? snapshot : null) : null;
   const coldStart = loadState === "ready" ? coldStartState({ hasInstitution, view }) : null;
 
   useEffect(() => {
@@ -86,13 +86,14 @@ export default function CourseSpaces() {
     fetchBlockedIds(user.id).then(setBlockedIds).catch(() => {});
   }, [user]);
 
-  // Desktop opens the most useful space once: the first joined space, else
-  // the first course suggestion. The phone starts on the list.
+  // Desktop opens the most useful space once: the first joined course space,
+  // otherwise the institution space — so the right panel is never blank while
+  // the student has no course match yet. The phone starts on the list.
   useEffect(() => {
     if (autoSelected.current || loadState !== "ready" || !desktop || activeId) return;
     autoSelected.current = true;
-    const first = view.joined[0] || view.suggestions[0];
-    if (first) { setActiveId(first.offeringId); setSnapshot(first); }
+    const first = pickInitialSpace(view);
+    if (first) { setActiveId(first.id); setSnapshot(first); }
   }, [loadState, desktop, activeId, view]);
 
   useEffect(() => {
@@ -126,31 +127,33 @@ export default function CourseSpaces() {
   });
 
   function open(entry) {
-    setActiveId(entry.offeringId);
+    setActiveId(entry.id);
     setSnapshot(entry);
     setMobileOpen(true);
   }
 
+  // A course space is joined through its canonical course; an institution or
+  // program space through its room, and only if it is the caller's own.
   async function join(entry) {
-    if (pending[entry.offeringId]) return;
-    busy(entry.offeringId, true);
+    if (pending[entry.id]) return;
+    busy(entry.id, true);
     try {
-      const roomId = await joinCourseSpace(entry.offeringId);
+      const roomId = entry.kind === "course" ? await joinCourseSpace(entry.offeringId) : await joinDefaultSpace(entry.roomId);
       setSnapshot({ ...entry, roomId, joined: true });
-      setActiveId(entry.offeringId);
+      setActiveId(entry.id);
       setMobileOpen(true);
       await refresh();
       if (search.query.length >= 2) setSearch((previous) => ({ ...previous, rows: previous.rows.map((row) => row.offering_id === entry.offeringId ? { ...row, room_id: roomId, joined: true } : row) }));
     } catch (error) {
       toast(t(courseSpaceErrorKey(error, "join")), "error");
     } finally {
-      busy(entry.offeringId, false);
+      busy(entry.id, false);
     }
   }
 
   async function leave(entry) {
-    if (!entry.roomId || pending[entry.offeringId]) return;
-    busy(entry.offeringId, true);
+    if (!entry.roomId || pending[entry.id]) return;
+    busy(entry.id, true);
     try {
       await leaveCourseSpace(entry.roomId);
       // The space stays open as a preview: joining again is one tap away.
@@ -161,7 +164,7 @@ export default function CourseSpaces() {
     } catch (error) {
       toast(t(courseSpaceErrorKey(error)), "error");
     } finally {
-      busy(entry.offeringId, false);
+      busy(entry.id, false);
     }
   }
 
@@ -220,16 +223,14 @@ export default function CourseSpaces() {
 
   // A message written or read in the open room moves its row's activity
   // without resolving every course link again.
-  const noteActivity = useCallback((offeringId, at) => {
+  const noteActivity = useCallback((roomId, at) => {
     setOverview((previous) => {
       if (!previous) return previous;
-      let changed = false;
-      const summaries = previous.summaries.map((row) => {
-        if (row.offering_id !== offeringId || !row.joined || (row.last_message_at && Date.parse(row.last_message_at) >= Date.parse(at))) return row;
-        changed = true;
-        return { ...row, last_message_at: at };
-      });
-      return changed ? { ...previous, summaries } : previous;
+      const fresher = (row) => row.room_id === roomId && row.joined
+        && (!row.last_message_at || Date.parse(row.last_message_at) < Date.parse(at));
+      if (!previous.summaries.some(fresher) && !(previous.defaults || []).some(fresher)) return previous;
+      const stamp = (row) => fresher(row) ? { ...row, last_message_at: at } : row;
+      return { ...previous, summaries: previous.summaries.map(stamp), defaults: (previous.defaults || []).map(stamp) };
     });
   }, []);
 

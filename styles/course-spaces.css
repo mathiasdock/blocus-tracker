@@ -18,6 +18,14 @@
 /* Deep hues (bordeaux, marron, ardoise) vanish on the dark surface: a faint
    light ring keeps the marker visible without recoloring the course. */
 .dark .bt-course-marker:not(.is-empty) { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.24); }
+/* Default spaces: the institution is its real wordmark (a drawn object, so it
+   keeps a paper plate in both themes) or its initials in ink. A program has no
+   mark at all — only the width its neighbour's mark takes, so the two titles
+   start on the same line. */
+.bt-course-marker.is-wide { width: var(--mark, 24px); }
+.bt-course-logo { display: grid; place-items: center; flex-shrink: 0; width: var(--mark, 24px); height: var(--mark, 24px); padding: 2px; border-radius: 6px; background: #FFFFFF; box-shadow: inset 0 0 0 1px var(--bt-hairline); }
+.bt-course-logo img { width: 100%; height: 100%; object-fit: contain; }
+.bt-course-monogram { display: grid; place-items: center; flex-shrink: 0; width: var(--mark, 24px); height: var(--mark, 24px); color: var(--bt-text-2); font-size: calc(var(--mark, 24px) * 0.46); font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
 
 /* ── List ──────────────────────────────────────────────────────── */
 .bt-course-list-head { display: grid; gap: 12px; flex-shrink: 0; padding: 20px 16px 12px 20px; }
@@ -35,6 +43,8 @@
    row that a long name or its details made taller. */
 .bt-course-row-open { display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 0; min-height: 56px; padding: 9px 12px; border-radius: var(--bt-r-control); text-align: left; color: var(--bt-text-1); }
 .bt-course-row-open > .bt-course-marker { margin-top: 5px; }
+.bt-course-row-open > .bt-course-marker.is-wide { margin-top: 0; }
+.bt-course-row-open > .bt-course-logo, .bt-course-row-open > .bt-course-monogram { margin-top: -1px; }
 .bt-course-row-text { flex: 1; min-width: 0; }
 .bt-course-row-text strong { display: block; font-size: 15px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; text-wrap: pretty; }
 .bt-course-row-text small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--bt-text-2); overflow-wrap: anywhere; text-wrap: pretty; }
@@ -76,8 +86,10 @@
 .bt-course-room-title h2 > span:last-child { min-width: 0; }
 .bt-course-room-title h2 > .bt-course-marker { width: 12px; height: 12px; margin-top: 6px; }
 .bt-course-room-title h2 > .bt-course-marker.is-empty { display: none; }
+.bt-course-room-title h2 > .bt-course-logo, .bt-course-room-title h2 > .bt-course-monogram { margin-top: -2px; }
 .bt-course-room-title p { margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--bt-text-2); overflow-wrap: anywhere; }
 .bt-course-room-title h2:has(> .bt-course-marker:not(.is-empty)) + p { padding-left: 22px; }
+.bt-course-room-title h2:has(> .bt-course-logo) + p, .bt-course-room-title h2:has(> .bt-course-monogram) + p { padding-left: 38px; }
 .bt-course-study { min-height: 44px; padding: 0 14px; border-radius: var(--bt-r-control); background: var(--bt-subtle); color: var(--bt-text-1); font-size: 14px; font-weight: 700; white-space: nowrap; transition: background-color 150ms ease; }
 .bt-course-icon-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 999px; color: var(--bt-text-2); transition: background-color 150ms ease, color 150ms ease; }
 .bt-course-icon-btn.is-on { background: var(--bt-accent-bg); color: var(--bt-accent-text); }

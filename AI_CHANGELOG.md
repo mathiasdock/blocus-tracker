@@ -3,6 +3,58 @@
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
 
+## 2026-09-17 - Communautes : deux espaces par defaut (etablissement et programme) (Claude)
+
+Complement cible de la refonte du meme jour : avant qu'un cours ne trouve des
+camarades, la page etait trop vide. Chaque etudiant appartient desormais
+automatiquement a deux espaces tires de son profil, sans rien reintroduire de
+l'ancienne taxonomie (ni hub global, ni domaine inter-universites, ni espace
+d'examen, ni hierarchie, ni navigation par categories).
+
+- **Tes espaces** : son etablissement (« UCLouvain ») et son programme DANS cet
+  etablissement (« Gestion & management », avec l'etablissement en dessous).
+  Puis **Tes cours** (espaces de cours rejoints), puis **Pour tes cours**.
+- **Programme toujours rattache a un etablissement** : « Gestion & management »
+  a l'ICHEC et a Solvay sont deux salons differents ; aucun espace de programme
+  inter-etablissements n'existe ni ne peut etre cree. Le libelle vient du
+  domaine d'etudes du profil (22 identifiants stables, nom traduit a l'ecran) ou,
+  a defaut, du programme ecrit librement. « Autres etudes » ne cree pas d'espace.
+- **Adhesion automatique et coherente** : `ensure_my_default_rooms()` cree les
+  salons a la demande, inscrit l'etudiant, et le DEPLACE si son profil change
+  (l'adhesion qui ne correspond plus est retiree, ses messages restent). Aucun
+  doublon possible. Quitter un espace par defaut est memorise
+  (`course_room_optouts`) : la synchronisation ne le remet pas, l'espace reste
+  affiche avec « Rejoindre » et `join_default_room` (ses propres espaces
+  uniquement) efface la memoire.
+- **Bureau** : sans espace de cours rejoint, la page ouvre l'espace de
+  l'etablissement a droite au lieu d'un panneau vide — avec de vrais messages,
+  jamais de faux contenu. Telephone : liste puis salon plein ecran, inchange.
+- **Identite visuelle** : le vrai logo de l'etablissement quand le projet en a un
+  (sur une petite plaque blanche, sinon un logo sombre disparait en theme
+  sombre), sinon ses initiales en encre ; un programme n'a AUCUNE marque, juste
+  la largeur de celle de son voisin pour que les deux titres s'alignent. Pas de
+  pictogramme invente, pas de tuile coloree. Les cours gardent la pastille de la
+  couleur du cours personnel.
+- **Meme conversation, memes protections** : un espace par defaut est une ligne
+  de `course_rooms` comme une autre (membres seulement, memes limites
+  anti-spam, meme moderation, compteur a partir de 3). Le plafond de 40 espaces
+  ne compte que les cours. Aucune fonctionnalite sociale ajoutee.
+- Migration `20260917104500_default_academic_spaces.sql` (appliquee via MCP) :
+  `course_rooms` gagne `kind`, `institution_id`, `program_key`, `title` ;
+  nouvelle table `course_room_optouts` ; fonctions `ensure_my_default_rooms`,
+  `join_default_room`, `course_program_of` (interne) ; `leave_course_room`,
+  `join_course_room` et `admin_course_reports` mis a jour. Anciennes donnees :
+  rien n'est supprime, rien n'est deplace.
+
+Verification : `supabase/tests/course_default_spaces_security.sql` 26 controles
+(2 etablissements, 6 etudiants fictifs, tout annule) + les 46 controles de la
+phase 2 rejoues ; 105 tests Node ; lint ; builds production et hors ligne ;
+parcours hors ligne (liste a trois sections, ouverture automatique de
+l'etablissement quand aucun cours n'est rejoint, quitter puis rejoindre,
+repli en initiales quand le logo manque) a 320, 390, 1280 et 1440 px, en clair
+et en sombre. Detail : `docs/course-spaces.md`.
+
+
 ## 2026-09-17 - Communautes phase 2 : espaces de cours (Claude)
 
 `/communautes` ne montre plus le reseau d'espaces academiques (universite →

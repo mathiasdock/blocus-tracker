@@ -16,7 +16,7 @@ import {
   ROOM_PAGE_SIZE, addSharedExamToPlanning, deleteRoomMessage, fetchAuthors, fetchRoomMessages,
   findPlannedExams, postRoomMessage, reportRoomMessage, signRoomAttachment,
 } from "../../lib/courseSpacesClient";
-import { CourseMarker } from "./CourseSpaceList";
+import { spaceIdentity, spaceMark } from "./CourseSpaceList";
 
 // Right column: one course, one chronological conversation. Members read and
 // write; anyone else sees what joining means and a way to join. Study actions
@@ -248,8 +248,8 @@ export default function CourseRoom({
   // Same for the list callback and the offering id read by a poll.
   const tRef = useRef(t);
   const activityRef = useRef(onActivity);
-  const offeringRef = useRef(entry?.offeringId);
-  useEffect(() => { tRef.current = t; activityRef.current = onActivity; offeringRef.current = entry?.offeringId; }, [t, onActivity, entry?.offeringId]);
+  const roomRef = useRef(roomId);
+  useEffect(() => { tRef.current = t; activityRef.current = onActivity; roomRef.current = roomId; }, [t, onActivity, roomId]);
 
   useVisualViewportHeight(panelRef, fullscreen);
 
@@ -274,7 +274,7 @@ export default function CourseRoom({
       else if (merged.reset) setHasMore(true);
       commit(merged.messages);
       const newest = merged.messages[merged.messages.length - 1];
-      if (newest) activityRef.current?.(offeringRef.current, newest.created_at);
+      if (newest) activityRef.current?.(roomRef.current, newest.created_at);
       setStatus("ready");
     } catch {
       if (request === loadRequest.current && !background) setStatus("error");
@@ -313,7 +313,8 @@ export default function CourseRoom({
 
   // An exam date already in the student's planning says so on arrival, not
   // only after a click.
-  const examName = entry ? t("courseSpaces.exam.name").replace("{course}", entry.course?.name || entry.title) : "";
+  const identity = entry ? spaceIdentity(entry, lang) : { title: "", context: null };
+  const examName = entry ? t("courseSpaces.exam.name").replace("{course}", entry.course?.name || identity.title) : "";
   const examCourseId = entry?.course?.id || null;
   useEffect(() => {
     if (!user?.id) return;
@@ -361,7 +362,7 @@ export default function CourseRoom({
     const row = await postRoomMessage({ userId: user.id, roomId, ...payload });
     stickToBottom.current = true;
     commit(sortMessages([...messagesRef.current.filter((message) => message.id !== row.id), row]));
-    onActivity?.(entry.offeringId, row.created_at);
+    onActivity?.(roomId, row.created_at);
     notifyXPChanged();
   }
 
@@ -459,7 +460,9 @@ export default function CourseRoom({
     </section>;
   }
 
+  const { title: roomTitle, context } = identity;
   const details = [
+    context,
     entry.personalName && t("courseSpaces.yourCourse").replace("{name}", entry.personalName),
     entry.memberCount && t("courseSpaces.members").replace("{n}", entry.memberCount),
   ].filter(Boolean);
@@ -480,7 +483,7 @@ export default function CourseRoom({
     <header className="bt-course-room-head">
       <button type="button" className="bt-course-icon-btn bt-course-back" onClick={onBack} aria-label={t("common.back")}><IconBack /></button>
       <div className="bt-course-room-title">
-        <h2 id="course-room-title"><CourseMarker course={entry.course} /><span>{entry.title}</span></h2>
+        <h2 id="course-room-title">{spaceMark(entry, 28)}<span>{roomTitle}</span></h2>
         {details.length > 0 && <p>{details.join(" · ")}</p>}
       </div>
       {entry.course && <button type="button" className="bt-course-study" onClick={() => onStudy(entry)}>{t("courseSpaces.study")}</button>}
@@ -488,14 +491,14 @@ export default function CourseRoom({
     </header>
 
     {!entry.joined ? <div className="bt-course-preview">
-      <p>{t("courseSpaces.preview.body")}</p>
+      <p>{t(`courseSpaces.preview.${entry.kind === "course" ? "body" : entry.kind}`)}</p>
       <button type="button" className="btn-primary" disabled={joinPending} aria-busy={joinPending || undefined} onClick={() => onJoin(entry)}>
         {t("courseSpaces.join")}
       </button>
       <p className="bt-course-preview-note">{t("courseSpaces.preview.privacy")}</p>
     </div> : <>
       <div ref={streamRef} className="bt-course-stream" role="log" aria-live="off"
-        aria-label={t("courseSpaces.room.label").replace("{title}", entry.title)} aria-busy={status === "loading" || undefined}>
+        aria-label={t("courseSpaces.room.label").replace("{title}", roomTitle)} aria-busy={status === "loading" || undefined}>
         {hasMore && <button type="button" className="bt-course-older" disabled={olderLoading} onClick={loadOlder}>
           {olderLoading ? t("common.loading") : t("courseSpaces.room.older")}
         </button>}
@@ -547,7 +550,7 @@ export default function CourseRoom({
         })}
       </div>
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
-      <Composer t={t} title={entry.title} roomId={roomId} onSend={send} />
+      <Composer t={t} title={roomTitle} roomId={roomId} onSend={send} />
     </>}
 
     <InboxSheet open={!!reportTarget} title={t("courseSpaces.report.title")} closeLabel={t("common.close")} onClose={() => { if (!reporting) setReportTarget(null); }}>

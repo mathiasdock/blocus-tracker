@@ -1,9 +1,13 @@
+import { useState } from "react";
 import Link from "next/link";
 import { timeAgo } from "../../lib/format";
+import { COMMUNITY_BY_ID } from "../../lib/universities";
+import { programLabel, universityInitials } from "../../lib/courseSpaces.mjs";
 
-// Left column: search, the spaces the student joined, then the spaces that
-// exist for their own courses. Text first; the only color is the student's
-// personal course marker. No kind icon, no tile, no directory.
+// Left column: the two spaces the profile gives (institution, program), then
+// the course spaces joined, then the ones that exist for the student's own
+// courses. Text first; the only identity color is the personal course marker.
+// No kind icon, no tile, no directory.
 
 // Replaces {placeholders} with nodes, so a translated sentence can carry the
 // student's course names in bold without splitting the string in the code.
@@ -19,12 +23,53 @@ export function CourseMarker({ course }) {
     style={course?.color ? { "--course": course.color } : undefined} />;
 }
 
+// An institution is its own crest when the project already ships its logo, and
+// its initials in ink otherwise. Never an invented pictogram, never a colored
+// tile: the drawn wordmark keeps a paper plate so it survives the dark theme.
+export function UniversityMark({ entry, size = 24 }) {
+  const university = COMMUNITY_BY_ID[entry.institutionId];
+  const [failed, setFailed] = useState(false);
+  if (university?.logo && !failed) {
+    return <span className="bt-course-logo" style={{ "--mark": `${size}px` }} aria-hidden="true">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={university.logo} alt="" width={size} height={size} onError={() => setFailed(true)} />
+    </span>;
+  }
+  return <span className="bt-course-monogram" style={{ "--mark": `${size}px` }} aria-hidden="true">
+    {universityInitials(university?.name || entry.institutionName || entry.title)}
+  </span>;
+}
+
+// What a row says about itself. A course space is its canonical title and the
+// student's own course; a default space is its institution or its program,
+// with the institution kept visible but secondary.
+export function spaceIdentity(entry, lang) {
+  if (entry.kind === "course") return { title: entry.title, context: null };
+  const university = COMMUNITY_BY_ID[entry.institutionId];
+  const institution = university?.name || entry.institutionName || "";
+  if (entry.kind === "university") {
+    const title = institution || entry.title;
+    return { title, context: university?.full && university.full !== title ? university.full : null };
+  }
+  return { title: programLabel(entry.title, lang), context: institution || null };
+}
+
+export function spaceMark(entry, size = 24) {
+  if (entry.kind === "university") return <UniversityMark entry={entry} size={size} />;
+  // A program has no drawn identity of its own: its slot stays empty so its
+  // name starts exactly where the institution's does.
+  if (entry.kind === "program") return <span className="bt-course-marker is-empty is-wide" style={{ "--mark": `${size}px` }} aria-hidden="true" />;
+  return <CourseMarker course={entry.course} />;
+}
+
 function membersLabel(t, count) {
   return count ? t("courseSpaces.members").replace("{n}", count) : null;
 }
 
 function SpaceRow({ entry, t, lang, selected, unread, onOpen, pending, onJoin, joinable }) {
+  const { title, context } = spaceIdentity(entry, lang);
   const details = [
+    context,
     entry.personalName && t("courseSpaces.yourCourse").replace("{name}", entry.personalName),
     membersLabel(t, entry.memberCount),
     // "Dernier message 15 sept.", never a bare date: on a surface that shares
@@ -35,9 +80,9 @@ function SpaceRow({ entry, t, lang, selected, unread, onOpen, pending, onJoin, j
   ].filter(Boolean);
   return <li className={`bt-course-row${selected ? " is-selected" : ""}`}>
     <button type="button" className="bt-course-row-open" onClick={() => onOpen(entry)} aria-current={selected ? "true" : undefined}>
-      <CourseMarker course={entry.course} />
+      {spaceMark(entry)}
       <span className="bt-course-row-text">
-        <strong>{entry.title}</strong>
+        <strong>{title}</strong>
         {details.length > 0 && <small>{details.join(" · ")}</small>}
       </span>
       {unread > 0 && <span className="bt-course-unread">
@@ -46,7 +91,7 @@ function SpaceRow({ entry, t, lang, selected, unread, onOpen, pending, onJoin, j
       </span>}
     </button>
     {joinable && !entry.joined && <button type="button" className="bt-course-join" disabled={pending}
-      aria-busy={pending || undefined} aria-label={t("courseSpaces.joinTitle").replace("{title}", entry.title)}
+      aria-busy={pending || undefined} aria-label={t("courseSpaces.joinTitle").replace("{title}", title)}
       onClick={() => onJoin(entry)}>{t("courseSpaces.join")}</button>}
     {joinable && entry.joined && <span className="bt-course-joined">{t("courseSpaces.joinedState")}</span>}
   </li>;
@@ -75,9 +120,9 @@ export default function CourseSpaceList({
   blockedCount, onOpenBlocked, demo,
 }) {
   const searching = query.trim().length > 0;
-  const row = (entry, joinable) => <SpaceRow key={entry.offeringId} entry={entry} t={t} lang={lang}
-    selected={activeId === entry.offeringId} unread={entry.joined ? unreadFor(entry.roomId) : 0}
-    onOpen={onOpen} onJoin={onJoin} pending={!!pending[entry.offeringId]} joinable={joinable} />;
+  const row = (entry, joinable) => <SpaceRow key={entry.id} entry={entry} t={t} lang={lang}
+    selected={activeId === entry.id} unread={entry.joined ? unreadFor(entry.roomId) : 0}
+    onOpen={onOpen} onJoin={onJoin} pending={!!pending[entry.id]} joinable={joinable} />;
 
   return <aside className="bt-course-list card bt-social-panel">
     <header className="bt-course-list-head">
@@ -106,6 +151,11 @@ export default function CourseSpaceList({
         {loadState === "loading" && <p className="bt-course-note" role="status">{t("common.loading")}</p>}
 
         {loadState === "ready" && <>
+          {view.defaults.length > 0 && <section aria-labelledby="course-default-title">
+            <h2 id="course-default-title" className="bt-course-section-title">{t("courseSpaces.defaultTitle")}</h2>
+            <ul className="bt-course-rows">{view.defaults.map((entry) => row(entry, !entry.joined))}</ul>
+          </section>}
+
           {view.joined.length > 0 && <section aria-labelledby="course-joined-title">
             <h2 id="course-joined-title" className="bt-course-section-title">{t("courseSpaces.joinedTitle")}</h2>
             <ul className="bt-course-rows">{view.joined.map((entry) => row(entry, false))}</ul>
