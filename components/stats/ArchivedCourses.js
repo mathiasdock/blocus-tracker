@@ -40,7 +40,10 @@ function IconTrash() {
   );
 }
 
-export default function ArchivedCourses({ rows, busyId, onRestore, onDelete }) {
+// `bare` : rendu SANS carte ni titre, pour vivre dans la section « Historique »
+// derrière son propre bouton de dépliage — une carte dans une carte n'ajoute
+// qu'un cadre de plus autour de la même information.
+export default function ArchivedCourses({ rows, busyId, onRestore, onDelete, bare = false }) {
   const { t } = useI18n();
   const [confirmId, setConfirmId] = useState(null);
 
@@ -50,20 +53,25 @@ export default function ArchivedCourses({ rows, busyId, onRestore, onDelete }) {
   const max = rows.reduce((m, r) => Math.max(m, r.secs), 0) || 1;
   const topName = rows.reduce((best, r) => (r.secs > (best?.secs || 0) ? r : best), null)?.name;
 
+  const Wrapper = bare ? "div" : "section";
   return (
-    <section className="card p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.archivedTitle")}</h3>
-          <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>{t("stats.archivedSub")}</p>
+    <Wrapper className={bare ? "" : "card p-4 sm:p-5"}>
+      {bare ? (
+        <p className="text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>{t("stats.archivedSub")}</p>
+      ) : (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.archivedTitle")}</h3>
+            <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>{t("stats.archivedSub")}</p>
+          </div>
+          {rows.length > 0 && (
+            <span className="shrink-0 rounded-full px-2 py-0.5 font-num text-xs tabular-nums"
+              style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
+              {rows.length}
+            </span>
+          )}
         </div>
-        {rows.length > 0 && (
-          <span className="shrink-0 rounded-full px-2 py-0.5 font-num text-xs tabular-nums"
-            style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
-            {rows.length}
-          </span>
-        )}
-      </div>
+      )}
 
       {rows.length === 0 ? (
         <p className="py-6 text-center text-sm leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
@@ -154,6 +162,6 @@ export default function ArchivedCourses({ rows, busyId, onRestore, onDelete }) {
         </ul>
         </>
       )}
-    </section>
+    </Wrapper>
   );
 }

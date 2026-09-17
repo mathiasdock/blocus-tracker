@@ -1,13 +1,19 @@
 import { useI18n } from "../../contexts/I18nContext";
 import { formatStudyTime } from "../../lib/format";
 
-// « Comment je me situe » — deux métriques, pas dix.
+// « Comment je me situe » — position du jour, puis deux moyennes.
 //
-// Les écarts s'énoncent en clair (« 22 min de moins que la moyenne de l'app »)
-// et non plus par une pastille rouge « ↓ 52 % ». Le rouge et la flèche vers le
-// bas lisaient comme une faute alors qu'il s'agit d'une moyenne : informer,
-// pas sanctionner. L'écart favorable reste souligné en vert, parce que là
-// c'est une bonne nouvelle qu'on a le droit de célébrer.
+// Phase 2 : le percentile avait sa propre carte d'encre verte, aussi sombre et
+// aussi grande que le héros — « Top 25 % » occupait autant de place que le
+// temps étudié du jour. C'est pourtant une variation de la même question que
+// cette carte : où je me situe, de façon anonyme. Il y entre, en une ligne.
+// Le classement nominatif reste à côté, pour ce qu'il est : de la motivation
+// entre personnes, pas une mesure.
+//
+// Les écarts s'énoncent en clair (« 22 min de moins que la moyenne ») et en
+// encre NEUTRE dans les deux sens. Étudier plus longtemps que la moyenne n'est
+// pas étudier mieux, et une moyenne de cohorte n'est pas une durée recommandée :
+// l'ancien vert réservé à l'écart « favorable » disait le contraire.
 //
 // GÉOMÉTRIE : une COMPARAISON DE QUANTITÉS, pas une progression. Les trois
 // barres partagent un bord gauche et une échelle — la plus grande des trois
@@ -35,17 +41,18 @@ function DeltaLine({ mine, other, label, formatDelta }) {
   }
   const key = diff > 0 ? "stats.cmpAbove" : "stats.cmpBelow";
   return (
-    <span className="text-[11px]" style={{ color: diff > 0 ? "var(--bt-accent-text)" : "var(--bt-text-2)" }}>
+    <span className="text-[11px]" style={{ color: "var(--bt-text-2)" }}>
       {t(key).replace("{delta}", formatDelta(abs)).replace("{who}", label)}
     </span>
   );
 }
 
-export default function CompareCard({ comparison, className = "" }) {
+export default function CompareCard({ comparison, position = null, className = "" }) {
   const { t } = useI18n();
-  if (!comparison?.me || !comparison?.app) return null;
+  const hasAverages = Boolean(comparison?.me && comparison?.app);
+  if (!hasAverages && !position) return null;
 
-  const metrics = [
+  const metrics = !hasAverages ? [] : [
     {
       key: "avgDaily",
       label: t("stats.cmpAvgDaily"),
@@ -68,12 +75,36 @@ export default function CompareCard({ comparison, className = "" }) {
 
   return (
     <section className={`card p-4 sm:p-5 ${className}`}>
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.compareTitle")}</h2>
-        <span className="shrink-0 text-[11px]" style={{ color: "var(--bt-text-3)" }}>{t("stats.cmpSub")}</span>
-      </div>
+      <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.compareTitle")}</h3>
 
-      <div className="mt-4 space-y-5">
+      {/* Position du jour. La cohorte n'est PAS « tous les étudiants » : la
+          RPC ne compte que ceux qui ont une session aujourd'hui, et le
+          libellé le dit. Masquée sous huit étudiants (voir pages/stats.js). */}
+      {position && (
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+            {t("stats.lbToday")}
+          </p>
+          <p className="mt-1 text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
+            <span className="font-num font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+              {t("stats.rankTop").replace("{pct}", String(position.percentile))}
+            </span>
+            {" · "}
+            <span className="tabular-nums">
+              {t("stats.rankPositionToday")
+                .replace("{rank}", String(position.rank))
+                .replace("{total}", String(position.cohort))}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {hasAverages && (
+      <div className={position ? "mt-4 border-t pt-4" : "mt-3"} style={{ borderColor: "var(--bt-border)" }}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
+        {t("stats.cmpSub")}
+      </p>
+      <div className="mt-3 space-y-5">
         {metrics.map((m) => {
           const max = Math.max(m.me, m.uni || 0, m.app || 0) || 1;
           const bars = [
@@ -128,6 +159,8 @@ export default function CompareCard({ comparison, className = "" }) {
       <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
         {t("stats.cmpCohort")}
       </p>
+      </div>
+      )}
     </section>
   );
 }

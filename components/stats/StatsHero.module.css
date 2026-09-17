@@ -40,27 +40,19 @@
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-areas: "kicker" "figure" "runway" "meta";
-  gap: 14px;
-  padding: 18px;
-  --walker: 62px;
+  grid-template-areas: "figure" "runway" "meta";
+  gap: 12px;
+  padding: 16px 18px 18px;
+  --walker: 58px;
   --track-h: 11px;
-}
-
-.kicker {
-  grid-area: kicker;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--bt-ink-muted);
 }
 
 /* ── Le chiffre du jour ─────────────────────────────────────── */
 .figure { grid-area: figure; min-width: 0; }
+/* Titre de la carte : c'est lui qui dit de quoi parle le chiffre. */
 .label {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.4;
   color: var(--bt-ink-muted);
 }
@@ -224,19 +216,18 @@
    toute la largeur. */
 @container (min-width: 600px) {
   .body {
-    padding: 24px 26px;
-    --walker: 92px;
-    --track-h: 13px;
+    padding: 20px 24px 22px;
+    --walker: 76px;
+    --track-h: 12px;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "kicker meta"
       "figure meta"
       "runway runway";
     column-gap: 32px;
-    row-gap: 16px;
+    row-gap: 12px;
   }
-  .value { font-size: clamp(3.4rem, 7.6cqi, 4.9rem); gap: 12px; }
-  .goal { font-size: clamp(1.15rem, 2.6cqi, 1.55rem); }
+  .value { font-size: clamp(3rem, 6.4cqi, 4.1rem); gap: 12px; }
+  .goal { font-size: clamp(1.1rem, 2.3cqi, 1.4rem); }
   .message { margin-top: 10px; font-size: 14px; }
   .meta {
     align-self: center;
@@ -251,7 +242,7 @@
 }
 
 @container (min-width: 900px) {
-  .body { padding: 28px 32px; --walker: 108px; }
+  .body { padding: 22px 28px 24px; --walker: 84px; }
   .meta { gap: 44px; }
 }
 

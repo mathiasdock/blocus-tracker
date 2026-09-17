@@ -20,6 +20,13 @@ import styles from "./StatsHero.module.css";
 //   3. La piste de progression devient la ligne de vie de la carte, et la
 //      mascotte s'y tient là où en est la journée.
 //
+// Phase 2 : la carte répond à « où j'en suis aujourd'hui ? » sans devenir une
+// bannière. L'étiquette « MON ÉTUDE » posée au-dessus de « Aujourd'hui » faisait
+// deux titres pour une seule question — « Aujourd'hui » devient le titre. Le
+// couloir de la mascotte et le chiffre rétrécissent sur grand écran, où la
+// carte occupait 352 px de haut pour un seul chiffre ; la relation temps du
+// jour → objectif → personnage qui avance, elle, ne change pas.
+//
 // Sur la mascotte : DESIGN.md réserve le personnage aux MOMENTS, pas aux
 // états — sauf pour une de ses cinq formes, « compagnon silencieux à côté
 // d'un chiffre ». C'est celle-ci : pas de bulle, pas de phrase, pas de clé
@@ -94,10 +101,8 @@ export default function StatsHero({
       <div className={styles.glow} style={{ "--p": `${goalPct}%` }} aria-hidden="true" />
 
       <div className={styles.body}>
-        <h2 className={styles.kicker}>{t("stats.heroTitle")}</h2>
-
         <div className={styles.figure}>
-          <p className={styles.label}>{t("stats.compactToday")}</p>
+          <h2 className={styles.label}>{t("stats.compactToday")}</h2>
           <p className={`font-num ${styles.value}`}>
             <AnimatedNumber value={todaySecs} format={formatStudyTime} />
             <span className={styles.goal}>/ {goalLabel}</span>
@@ -144,7 +149,9 @@ export default function StatsHero({
           <div className={styles.stat}>
             <p className={styles.statLabel}>{t("stats.streakLabel")}</p>
             <p className={`font-num ${styles.statValue}`}>
-              <Flame size={14} className={styles.flame} />
+              {/* Pas de flamme allumée à côté de zéro : on ne célèbre pas une
+                  série qui n'existe pas. */}
+              {streak > 0 && <Flame size={14} className={styles.flame} />}
               <AnimatedNumber value={streak} suffix={` ${t("stats.dayUnit")}`} />
             </p>
           </div>

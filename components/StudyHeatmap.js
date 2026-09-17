@@ -25,6 +25,18 @@ function getLevel(seconds) {
   return 4;
 }
 
+// Légende : ce que veut dire une teinte. Le dernier palier est « 2 h et plus »
+// — toutes les grosses journées s'y ressemblent, et c'est écrit : une case plus
+// foncée n'a pas forcément duré plus longtemps qu'une autre case foncée. La
+// durée exacte reste dans la ligne de détail.
+const LEGEND = [
+  { level: 0, key: "heatmap.levelNone" },
+  { level: 1, key: "heatmap.levelUnder30" },
+  { level: 2, key: "heatmap.level30to60" },
+  { level: 3, key: "heatmap.level1to2" },
+  { level: 4, key: "heatmap.level2plus" },
+];
+
 const MONTH_LABELS = {
   fr: ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"],
   en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
@@ -228,10 +240,19 @@ export default function StudyHeatmap({ sessions = [] }) {
         </div>
       </div>
 
+      <ul className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1" aria-label={t("heatmap.legendLabel")}>
+        {LEGEND.map(({ level, key }) => (
+          <li key={level} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--bt-text-2)" }}>
+            <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: LEVELS[level] }} aria-hidden="true" />
+            {t(key)}
+          </li>
+        ))}
+      </ul>
+
       {/* La valeur exacte, disponible sans survol : au doigt par un appui, au
           clavier par les flèches, à la souris par le survol. Elle occupe une
           hauteur constante pour que la grille ne saute pas. */}
-      <p className="mt-2.5 min-h-[1.25rem] text-[11px] leading-5 first-letter:uppercase"
+      <p className="mt-2 min-h-[1.25rem] text-[11px] leading-5 first-letter:uppercase"
         style={{ color: "var(--bt-text-2)" }}>
         {shownIso
           ? `${new Date(shownIso + "T12:00:00").toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { weekday: "long", day: "numeric", month: "long" })} · ${shownSecs > 0 ? formatStudyTime(shownSecs) : t("heatmap.noStudy")}`

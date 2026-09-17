@@ -1949,6 +1949,19 @@ details.bt-acc[open]::details-content { block-size: auto; }
   .bt-stats-quantity { transition: none; }
 }
 
+/* Graphique du temps d'etude : le conteneur est focalisable et se parcourt aux
+   fleches. Son anneau de focus n'apparait qu'au clavier. */
+.bt-chart-focus { border-radius: 12px; outline: none; }
+.bt-chart-focus:focus-visible { box-shadow: 0 0 0 2px var(--bt-accent-text); }
+
+/* Ligne « N autres cours » : elle se lit comme les lignes de cours qu'elle
+   regroupe, et se deplie d'un appui. L'etat survole reste discret. */
+.bt-stats-rest { cursor: pointer; padding: 2px 0; }
+@media (hover: hover) and (pointer: fine) {
+  .bt-stats-rest:hover { background-color: var(--bt-subtle); box-shadow: 0 0 0 6px var(--bt-subtle); }
+}
+.bt-stats-rest:focus-visible { outline: 2px solid var(--bt-accent-text); outline-offset: 4px; }
+
 /* Case de la grille d'activite : c'est un bouton, il doit se voir au clavier. */
 .bt-heatmap-cell { cursor: pointer; padding: 0; border: 0; }
 .bt-heatmap-cell:focus-visible {

@@ -5,12 +5,13 @@ import Layout from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import UserProfileModal from "../components/UserProfileModal";
 import Leaderboard from "../components/Leaderboard";
-import AnimatedNumber from "../components/AnimatedNumber";
 import StatsHero from "../components/stats/StatsHero";
 import StudyByCourse from "../components/stats/StudyByCourse";
 import ConsistencyCard from "../components/stats/ConsistencyCard";
+import StudyHabits from "../components/stats/StudyHabits";
+import StudyHistory from "../components/stats/StudyHistory";
 import CompareCard from "../components/stats/CompareCard";
-import AdvancedAnalytics from "../components/stats/AdvancedAnalytics";
+import BadgeSummary from "../components/stats/BadgeSummary";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
@@ -18,8 +19,7 @@ import { clearClientCache } from "../lib/clientCache";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
-import { computeInsights } from "../lib/statsInsights.mjs";
-import { pickInsight } from "../lib/statsInsightLine.mjs";
+import { computeInsights, regularityTrend } from "../lib/statsInsights.mjs";
 import {
   PERIOD_KEYS, resolvePeriod, buildTimeSeries, courseBreakdown, activeDaysIn,
 } from "../lib/statsPeriod";
@@ -57,14 +57,6 @@ function usePersistedPeriod(storageKey, fallback = "7") {
   return [value, set];
 }
 
-// Jour de semaine ISO (0 = lundi) → nom localisé, première lettre en majuscule.
-function weekdayName(isoIndex, lang) {
-  if (isoIndex == null) return "";
-  const base = new Date(2021, 0, 4 + isoIndex); // 4 janv. 2021 = lundi
-  const name = base.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { weekday: "long" });
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
 export default function Stats() {
   const { user, profile } = useAuth();
   const { t, lang } = useI18n();
@@ -84,6 +76,9 @@ export default function Stats() {
   // existe et n'a simplement pas pu être lu.
   const [loadFailed, setLoadFailed] = useState(false);
   const [myRank, setMyRank] = useState(null);
+  // Badges RÉELS (`user_badges`) : undefined = chargement, null = lecture
+  // impossible, tableau = la collection. Voir components/stats/BadgeSummary.
+  const [earnedBadges, setEarnedBadges] = useState(undefined);
   const [viewUserId, setViewUserId] = useState(null);
   const [archiveBusyId, setArchiveBusyId] = useState(null);
 
@@ -190,6 +185,19 @@ export default function Stats() {
     })();
   }, [user]);
 
+  // Collection de badges : lecture seule. Pas de `sync_my_badges` ici — ouvrir
+  // les statistiques ne doit rien attribuer ; le profil et /badges s'en chargent.
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from("user_badges").select("badge_id, earned_at").eq("user_id", user.id);
+      if (alive) setEarnedBadges(error ? null : (data || []));
+    })();
+    return () => { alive = false; };
+  }, [user]);
+
   // Comparaison vs autres (RPC agrégée ; null si non déployée).
   useEffect(() => {
     if (!user) return;
@@ -221,11 +229,12 @@ export default function Stats() {
 
   const fmtDay = (iso) =>
     new Date(iso + "T12:00:00").toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { day: "numeric", month: "short" });
-  // Sous le titre : la plage réelle en dates. Le menu dit l'intention
-  // (« Ce mois-ci »), cette ligne dit ce qui est effectivement compté.
-  const rangeLabel = (key, range) => key === "7" ? t("stats.periodLast7")
-    : key === "30" ? t("stats.periodLast30")
-    : key === "all" ? t("stats.periodAllSince").replace("{from}", fmtDay(range.fromISO))
+  // Sous le titre : la plage réelle en DATES, pour toutes les périodes. Le menu
+  // dit l'intention (« 7 derniers jours »), cette ligne dit quels jours sont
+  // comptés. Répéter « 7 derniers jours » sous un filtre qui l'affiche déjà
+  // n'apprenait rien.
+  const rangeLabel = (key, range) => key === "all"
+    ? t("stats.periodAllSince").replace("{from}", fmtDay(range.fromISO))
     : t("stats.periodRange").replace("{from}", fmtDay(range.fromISO)).replace("{to}", fmtDay(range.toISO));
 
   // ── Chiffres du héros (indépendants du filtre : c'est « maintenant ») ──
@@ -243,39 +252,12 @@ export default function Stats() {
   const bestStreak = computeBestStreak(sessions, frozenDays);
   const sessionCount = sessions.length;
 
-  const insights = useMemo(
-    () => computeInsights(sessions, {
-      todaySecs, streak, bestStreak, allTimeSecs, dailyGoalSecs: DAILY_GOAL_SECS,
-    }),
-    [sessions, todaySecs, streak, bestStreak, allTimeSecs]
-  );
-
-  // ── Un insight, ou rien ────────────────────────────────────────
-  const insight = useMemo(
-    () => pickInsight(insights, { courseRows: breakdown.rows }),
-    [insights, breakdown.rows]
-  );
-  const insightText = useMemo(() => {
-    if (!insight) return null;
-    const { key, vars } = insight;
-    if (key === "moreRegular") {
-      return t("stats.insightMoreRegular").replace("{n}", String(vars.n)).replace("{prev}", String(vars.prev));
-    }
-    if (key.startsWith("slot_")) {
-      const slot = key.slice(5);
-      const k = `stats.insightSlot${slot.charAt(0).toUpperCase()}${slot.slice(1)}`;
-      return t(k).replace("{pct}", String(vars.pct));
-    }
-    if (key === "topCourse") {
-      return t("stats.insightTopCourse")
-        .replace("{course}", vars.course || t("stats.courseNone"))
-        .replace("{pct}", String(vars.pct));
-    }
-    if (key === "topWeekday") {
-      return t("stats.insightTopWeekday").replace("{weekday}", weekdayName(vars.weekday, lang));
-    }
-    return null;
-  }, [insight, t, lang]);
+  const insights = useMemo(() => computeInsights(sessions), [sessions]);
+  // L'ancienne carte « insight » répétait, en tête de page, un chiffre que sa
+  // section affiche désormais à sa place (créneau dominant, part du premier
+  // cours, jour le plus étudié). Seule l'évolution de la régularité n'était
+  // écrite nulle part ailleurs : elle rejoint la section Régularité.
+  const trend = useMemo(() => regularityTrend(insights), [insights]);
 
   // ── Percentile — seulement si la cohorte est significative ─────
   const cohort = myRank ? Number(myRank.total_active) : 0;
@@ -286,8 +268,12 @@ export default function Stats() {
   // est `better_count + 1`, et le premier d'un groupe de huit est donc dans le
   // premier huitième — « Top 13 % ».
   const myPosition = myRank ? Number(myRank.better_count) + 1 : 0;
-  const percentile = cohort >= MIN_COHORT_FOR_PERCENTILE && mySecs > 0
-    ? Math.min(100, Math.max(1, Math.ceil((myPosition / cohort) * 100)))
+  const position = cohort >= MIN_COHORT_FOR_PERCENTILE && mySecs > 0
+    ? {
+      percentile: Math.min(100, Math.max(1, Math.ceil((myPosition / cohort) * 100))),
+      rank: myPosition,
+      cohort,
+    }
     : null;
 
   if (!ready || forceSkeleton) return <Layout><PageContentSkeleton pathname="/stats" /></Layout>;
@@ -307,46 +293,54 @@ export default function Stats() {
           </button>
         </section>
       ) : empty ? (
-        <section className="card flex flex-col items-center p-8 text-center sm:p-10">
-          <h2 className="mb-1 text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.emptyChartsTitle")}</h2>
-          <p className="mb-5 max-w-xs text-sm" style={{ color: "var(--bt-text-2)" }}>{t("stats.emptyChartsSub")}</p>
-          <Link href="/dashboard" className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-            {t("stats.emptyCta")}
-          </Link>
-        </section>
+        <div className="flex flex-col gap-4">
+          <section className="card flex flex-col items-center p-8 text-center sm:p-10">
+            <h2 className="mb-1 text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.emptyChartsTitle")}</h2>
+            <p className="mb-5 max-w-xs text-sm" style={{ color: "var(--bt-text-2)" }}>{t("stats.emptyChartsSub")}</p>
+            <Link href="/dashboard" className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+              {t("stats.emptyCta")}
+            </Link>
+          </section>
+          {/* Un compte sans session peut avoir archivé un cours mal nommé : sans
+              cette section, il n'aurait aucun endroit d'où le supprimer. */}
+          <StudyHistory
+            className="bt-stats-readable"
+            archived={archivedRows}
+            archivedBusyId={archiveBusyId}
+            onRestoreCourse={restoreArchivedCourse}
+            onDeleteCourse={deleteArchivedCourse}
+          />
+        </div>
       ) : (
-        // Une colonne par défaut. À partir de xl, le graphique et la répartition
-        // occupent la colonne large, le contexte personnel passe à droite —
-        // le seuil est xl et non lg pour la même raison que sur le Planning :
-        // à 1024 px la barre de navigation ne laisse pas assez au graphique.
-        // Le rail gagne encore un peu de largeur sur les grands écrans : les
-        // filtres, noms et comparaisons y respirent sans réduire le graphique
-        // à une largeur inconfortable au premier breakpoint desktop.
-        /* `bt-stats-readable` remonte les encres secondaires au seuil de
-           lecture : libellés de période, parts en pourcentage et légendes de
-           cohorte portent de l'information, pas de la décoration, et tenaient
-           2,5:1 en clair comme en sombre. Même remède que le dashboard,
-           appliqué au périmètre de cette page seulement. */
-        <div className="bt-stats-readable flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
-          {/* Le héros traverse les deux colonnes : il résume la page entière,
-              il ne peut pas vivre dans un rail de 340 px. Plus de filtre
-              global sous lui — chaque section porte le sien. */}
+        /* L'ordre de la page suit les questions de l'étudiant, du plus personnel
+           au plus social :
+             1. où j'en suis aujourd'hui           → héros
+             2. comment mon étude a évolué         → temps d'étude
+             3. où est allé ce temps               → par cours
+             4. suis-je régulier                   → régularité
+             5. quelles habitudes, quels records   → habitudes · records
+             6. et par rapport aux autres          → classement · me situer
+             7. ce que j'ai obtenu                 → badges
+           Avant, le classement occupait tout le rail droit dès la première
+           rangée — à égalité avec le graphique — et s'intercalait sur téléphone
+           avant la régularité : la comparaison passait devant la
+           compréhension. L'ordre du DOM est maintenant l'ordre de lecture à
+           toutes les largeurs ; plus de `display: contents` ni de `order-*`.
+
+           `bt-stats-readable` remonte les encres secondaires au seuil de
+           lecture (voir styles/globals.css). */
+        <div className="bt-stats-readable flex flex-col gap-4 xl:gap-5">
           <StatsHero
-            className="order-1 xl:col-span-2"
             todaySecs={todaySecs} goalSecs={DAILY_GOAL_SECS}
             weekSecs={weekSecs} streak={streak}
           />
 
-          {/* Colonne large : ce qui a besoin de place (graphique, barres par
-              cours, heatmap sur 53 semaines).
-              `xl:order-2` est indispensable : sous xl l'enveloppe est en
-              `display:contents` et n'a pas de boîte, mais à partir de xl elle
-              en reprend une — avec l'ordre par défaut 0, donc AVANT le héros
-              (ordre 1). Les deux colonnes remontaient ainsi en haut de page. */}
-          <div className="contents xl:order-2 xl:flex xl:flex-col xl:gap-5">
+          {/* Volume et répartition côte à côte à partir de xl : deux lectures
+              de la même période récente. Le graphique prend la largeur, parce
+              qu'une tendance se lit en comparant des barres voisines. */}
+          <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
             <StudyTimeChart
-              className="order-2"
               series={series}
               goalMinutes={DAILY_GOAL_SECS / 60}
               periodLabel={rangeLabel(chartPeriod, chartRange)}
@@ -355,7 +349,6 @@ export default function Stats() {
               onPeriodChange={setChartPeriod}
             />
             <StudyByCourse
-              className="order-4"
               rows={breakdown.rows}
               totalSecs={breakdown.totalSecs}
               periodLabel={rangeLabel(coursePeriod, courseRange)}
@@ -363,33 +356,45 @@ export default function Stats() {
               periodOptions={periodOptions}
               onPeriodChange={setCoursePeriod}
             />
-            <ConsistencyCard
-              className="order-6"
-              sessions={sessions}
-              streak={streak}
-              bestStreak={bestStreak}
-              activeDays={activeDays}
-              periodDays={consistencyRange.days}
-              periodLabel={t("stats.consistencyWindow")}
+          </div>
+
+          <ConsistencyCard
+            sessions={sessions}
+            streak={streak}
+            bestStreak={bestStreak}
+            activeDays={activeDays}
+            periodDays={consistencyRange.days}
+            periodLabel={t("stats.consistencyWindow")}
+            trend={trend}
+          />
+
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 xl:gap-5">
+            <StudyHabits insights={insights} />
+            <StudyHistory
+              insights={insights}
+              allTimeSecs={allTimeSecs}
+              archived={archivedRows}
+              archivedBusyId={archiveBusyId}
+              onRestoreCourse={restoreArchivedCourse}
+              onDeleteCourse={deleteArchivedCourse}
             />
           </div>
 
-          {/* Rail de contexte : plus court, se lit d'un coup d'œil. Le
-              classement y monte juste après la répartition par cours — il est
-              consulté souvent, il n'a pas à finir sous la heatmap. */}
-          <div className="contents xl:order-2 xl:flex xl:flex-col xl:gap-5">
-            {/* L'insight « tu es plus régulier » passait par une apparition de
-                la mascotte. Depuis que le héros l'accueille en permanence, ce
-                serait deux shibas à l'écran en même temps — et un personnage
-                qu'on voit deux fois cesse d'être un personnage. La phrase
-                garde sa carte de texte ; le héros garde la mascotte. */}
-            {insightText && (
-              <p className="order-3 card p-4 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                {insightText}
+          {/* ── Et par rapport aux autres ──
+              Une frontière explicite : ce qui suit ne parle plus de TON étude.
+              Trois surfaces répondaient à « où je me situe » (classement,
+              carte percentile, moyennes) ; il en reste deux, de rôles
+              distincts — les personnes, puis ta position anonyme. */}
+          <section aria-labelledby="stats-compare-title" className="mt-2 flex flex-col gap-3">
+            <div>
+              <h2 id="stats-compare-title" className="bt-section-title">{t("stats.compareSectionTitle")}</h2>
+              {/* Posée sur le fond de page et non sur une carte : l'encre
+                  secondaire n'y tient que 4,1:1, d'où l'encre principale. */}
+              <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--bt-text-1)" }}>
+                {t("stats.compareSectionSub")}
               </p>
-            )}
-
-            <div className="order-5">
+            </div>
+            <div className="flex flex-col gap-4 xl:grid xl:grid-cols-2 xl:items-start xl:gap-5">
               <Leaderboard
                 user={user}
                 profile={profile}
@@ -397,43 +402,11 @@ export default function Stats() {
                 compact
                 desktopTall
               />
+              <CompareCard comparison={comparison} position={position} />
             </div>
+          </section>
 
-            {percentile !== null && (
-              <section className="card-ink bt-grain order-7 p-5">
-                <div className="relative z-10">
-                  <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
-                    {t("stats.percentilePre")}
-                  </p>
-                  <p className="mt-1 font-num text-[2rem] font-extrabold leading-none tabular-nums tracking-[-0.03em]"
-                    style={{ color: "var(--bt-ink-text)" }}>
-                    {t("stats.rankTop").replace("{pct}", String(percentile))}
-                  </p>
-                  <p className="mt-1.5 text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
-                    {/* La cohorte n'est PAS « tous les étudiants » : la RPC ne
-                        compte que ceux qui ont une session aujourd'hui. Le
-                        libellé le dit, sinon « #3 sur 24 » se lit comme un
-                        classement de toute l'application. */}
-                    {t("stats.rankPositionToday")
-                      .replace("{rank}", String(myPosition))
-                      .replace("{total}", String(cohort))}
-                  </p>
-                </div>
-              </section>
-            )}
-
-            {comparison && <CompareCard className="order-8" comparison={comparison} />}
-          </div>
-
-          <AdvancedAnalytics
-            className="order-9 xl:col-span-2"
-            insights={insights}
-            allTimeSecs={allTimeSecs}
-            archived={archivedRows}
-            archivedBusyId={archiveBusyId}
-            onRestoreCourse={restoreArchivedCourse}
-            onDeleteCourse={deleteArchivedCourse}
-          />
+          <BadgeSummary earned={earnedBadges} />
         </div>
       )}
 

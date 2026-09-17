@@ -3,6 +3,41 @@
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
 
+## 2026-09-16 - Stats phase 2 : la page repond aux questions dans le bon ordre (Claude)
+
+La phase 1 (ee1db31) a rendu les chiffres fiables ; celle-ci remet la page dans
+l'ordre des questions de l'etudiant. Chrono et Planning non touches. Les
+calculs de la phase 1 sont conserves tels quels.
+
+- **Ordre de lecture.** Aujourd'hui → evolution de l'etude → repartition par cours → regularite → habitudes et records → comparaison aux autres → badges. Avant, le classement occupait tout le rail droit des la premiere rangee, a egalite avec le graphique (486 px de haut a 1440), et s'intercalait sur telephone avant la regularite : la comparaison passait devant la comprehension. L'ordre du DOM est maintenant l'ordre de lecture a toutes les largeurs (plus de `display: contents` ni de `order-*`).
+- **Heros.** L'etiquette « MON ETUDE » posee au-dessus de « Aujourd'hui » faisait deux titres pour une question ; « Aujourd'hui » devient le titre. Couloir de la mascotte et chiffre reduits sur grand ecran : 352 → 271 px a 1440, relation temps du jour → objectif → personnage intacte. Plus de flamme allumee a cote d'une serie a zero.
+- **Le graphique du temps d'etude devient l'objet d'analyse principal.** Axe vertical a graduations RONDES (recharts ecrivait « 1h25 », « 4h12 »), encre des axes lisible dans les deux themes (le taupe fixe tenait 3,1:1), ligne d'objectif nommee sur le graphique avec un fond pour rester lisible au-dessus des barres, hauteur 208 → 240 px, etiquettes 9 → 11 px. Les barres INCOMPLETES (mois en cours, premiere semaine d'un historique commence un mercredi) sont plus claires, cernees de pointilles et nommees dans le detail (« En cours · 3 j sur 7 ») : elles ressemblaient a une chute d'effort. Parcours au clavier (fleches, Debut/Fin, Echap) avec detail annonce. Sous-titres en vraies dates pour toutes les periodes, avec le total.
+- **Etude par cours : une seule representation.** Plus de medailles or/argent/bronze — le cours le plus etudie n'est pas le meilleur cours. Plus de camembert ni de seconde legende qui repetaient durees et pourcentages. Au-dela de cinq cours, le reste est regroupe dans une ligne « 6 autres cours » avec son temps et sa part, qui deplie la liste : replie, le total fait toujours 100 %. Noms longs passes a la ligne, part positive sous 1 % ecrite « < 1 % ».
+- **Regularite sans repeter la serie.** Le heros donne deja la serie en une ligne ; la section l'affichait une seconde fois en chiffre geant, double d'un embleme de 132 px. Elle mene maintenant par les jours etudies sur 30 jours (une serie retombe a zero au premier jour manque, la regularite non), met la serie a cote de son record, et accueille l'evolution de la semaine quand elle est nette. La heatmap gagne une legende dont le dernier palier dit « 2 h et plus » : toutes les grosses journees s'y ressemblent, et c'est ecrit. A partir de 1280 px l'annee entiere tient sans defilement.
+- **« Analyse avancee » disparait.** Elle cachait quatre intentions derriere un bouton. Habitudes (comprendre) et Records (historique, anciens cours replies a l'interieur avec leur nombre) deviennent visibles ; les badges passent en fin de page. « Meilleure semaine » devient « Plus grande semaine » : c'est une quantite. La repartition dans la journee passe a une seule teinte — quatre couleurs faisaient de quatre moments d'une journee quatre categories etrangeres.
+- **Badges : une seule verite.** La page calculait neuf « badges » locaux dessines avec le vrai objet `BadgeIcon` mais obtenus par d'autres regles, sans XP, sans ligne dans `user_badges` et absents du profil : un meme objet pouvait etre debloque ici et verrouille la. Ils sont retires. `BadgeSummary` LIT `user_badges` (sans `sync_my_badges` : ouvrir Stats n'attribue rien), affiche « 8 sur 22 obtenus », les derniers objets gagnes et un lien vers la collection. Pas de migration.
+- **Comparaison sociale : une zone, deux roles.** Section « Par rapport aux autres » avec une phrase : classement et moyennes mesurent le temps etudie, pas la qualite du travail. Le percentile perd sa carte d'encre aussi sombre et grande que le heros et devient une ligne dans « Me situer ». Le classement affiche des numeros au lieu de medailles, des valeurs lisibles (#0E8F68 et #D97706 tenaient 3,8 et 3,2:1) et ne garde plus 486 px de haut pour trois lignes. Ecarts a la moyenne en encre neutre dans les deux sens : une moyenne de cohorte n'est pas une duree recommandee.
+- **Carte « insight » retiree.** Chaque phrase repetait un chiffre desormais affiche dans sa section ; seule l'evolution de la regularite n'existait nulle part ailleurs, elle rejoint Regularite. `lib/statsInsightLine.mjs` supprime.
+- Filtres du classement a 320 px : deja corriges par 1af699a, reverifies dans la nouvelle composition.
+- i18n FR+EN a parite ; 24 cles devenues inutiles retirees.
+
+Verification : 86 tests Node passes (semaines et mois incomplets, fevrier
+compris ; seuils de l'evolution de regularite ; absence de badges dans les
+insights), ESLint propre, detecteur impeccable sans anomalie sur les fichiers
+touches, builds offline et production OK. `/stats` passe de 394 a 295 kB de JS
+au premier chargement : le camembert etait le seul import statique de Recharts.
+Captures relues hors ligne a 320 / 375 / 390 / 1280 / 1440, clair et sombre :
+compte dense (neuf cours dont un nom de 57 caracteres, cours archives, serie,
+huit badges canoniques), compte clairseme (un cours, pas de serie, aucun badge),
+compte vide avec un cours archive. Aucun debordement horizontal ; tout le texte
+de la page a 4,5:1 ou plus dans les deux themes sauf `LevelPill` (partage).
+Clavier : fleches du graphique et de la heatmap, piege de focus, Echap, retour
+du focus. Aucune donnee fictive en production.
+
+DIFFERE : contraste de `LevelPill` (composant partage), entrees des neuf badges
+locaux restees dans `lib/badgeArt.js`, jours actifs de la RPC de comparaison
+comptes en UTC.
+
 ## 2026-09-16 - Stats phase 1 : honnetete des chiffres (Claude)
 
 Suite de l'audit Stats fait par Codex. La page n'est PAS refondue : hierarchie,

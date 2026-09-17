@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeInsights, circularMeanMinutes, spreadOverHours } from '../lib/statsInsights.mjs';
+import { computeInsights, circularMeanMinutes, spreadOverHours, regularityTrend } from '../lib/statsInsights.mjs';
+import { buildTimeSeries } from '../lib/statsPeriod.js';
 import { formatStudyTime, formatMinutesShort } from '../lib/format.js';
 
-const ctx = { todaySecs: 0, streak: 0, bestStreak: 0, allTimeSecs: 0, dailyGoalSecs: 7200 };
+const ctx = undefined;
 const at = (iso, secs) => ({ started_at: iso, duration_seconds: secs });
 
 test("l'heure moyenne se calcule sur un cercle, pas sur une regle graduee", () => {
@@ -64,15 +65,52 @@ test("l'heure la plus etudiee est celle ou le temps s'est reellement ecoule", ()
   assert.equal(out.topStudyHour, 14);
 });
 
-test("les badges de nuit et de lever restent indexes sur l'heure de DEBUT", () => {
-  // Une session lancee a 23 h qui deborde sur minuit n'a pas ete « lancee
-  // apres minuit » : changer ce critere attribuerait un badge retroactivement.
-  const late = computeInsights([at('2026-03-02T23:00:00', 3 * 3600)], ctx);
-  assert.equal(late.badges.afterMidnight, false);
-  assert.equal(late.badges.earlyBird, false);
-  assert.equal(late.timeOfDay.night > 0, true, 'le temps apres minuit compte quand meme comme de la nuit');
-  const early = computeInsights([at('2026-03-02T02:00:00', 3600)], ctx);
-  assert.equal(early.badges.afterMidnight, true);
+test("les statistiques ne fabriquent plus de badges a part", () => {
+  // Un badge n'a qu'une regle d'obtention : lib/badges.js, attribue par le
+  // serveur. La page lisait neuf conditions locales dessinees comme de vrais
+  // badges ; plus rien de tel ne doit reapparaitre ici.
+  const out = computeInsights([at('2026-03-02T23:00:00', 3 * 3600)], ctx);
+  assert.equal('badges' in out, false);
+  assert.equal(out.timeOfDay.night > 0, true, 'le temps apres minuit compte toujours comme de la nuit');
+});
+
+test("l'evolution de la regularite ne parle que d'un ecart net", () => {
+  const base = { hasData: true, sessionCount: 12 };
+  assert.deepEqual(regularityTrend({ ...base, activeDaysThisWeek: 5, activeDaysLastWeek: 2 }), { now: 5, prev: 2 });
+  assert.equal(regularityTrend({ ...base, activeDaysThisWeek: 3, activeDaysLastWeek: 2 }), null, 'un jour d ecart est du bruit');
+  assert.equal(regularityTrend({ ...base, activeDaysThisWeek: 4, activeDaysLastWeek: 1 }), null, 'une semaine passee quasi vide ne sert pas de reference');
+  assert.equal(regularityTrend({ ...base, sessionCount: 3, activeDaysThisWeek: 5, activeDaysLastWeek: 2 }), null);
+  assert.equal(regularityTrend(null), null);
+});
+
+test("une barre qui compte moins de jours que ses voisines le dit", () => {
+  // Historique commence un mercredi : la premiere semaine n'a que 5 jours.
+  const range = { fromISO: '2026-06-03', toISO: '2026-07-14', days: 42 };
+  const series = buildTimeSeries([at('2026-06-03T10:00:00', 3600)], range, 'fr');
+  assert.equal(series[0].gran, 'week');
+  assert.equal(series[0].partial, true);
+  assert.equal(series[0].days, 5);
+  assert.equal(series[0].fullDays, 7);
+  assert.equal(series[1].partial, false, 'une semaine entiere n est pas partielle');
+  const last = series[series.length - 1];
+  assert.equal(last.days, 2, 'le lundi 13 et le mardi 14 juillet');
+  assert.equal(last.partial, true);
+  // Une serie par jour n'a jamais de seau partiel.
+  const daily = buildTimeSeries([], { fromISO: '2026-07-08', toISO: '2026-07-14', days: 7 }, 'fr');
+  assert.equal(daily.some((b) => b.partial), false);
+});
+
+test("un mois incomplet compte ses vrais jours, fevrier compris", () => {
+  const range = { fromISO: '2026-01-01', toISO: '2026-07-10', days: 191 };
+  const series = buildTimeSeries([], range, 'fr');
+  assert.equal(series[0].gran, 'month');
+  const feb = series.find((b) => b.iso === '2026-02');
+  assert.equal(feb.fullDays, 28);
+  assert.equal(feb.partial, false);
+  const jul = series.find((b) => b.iso === '2026-07');
+  assert.equal(jul.days, 10);
+  assert.equal(jul.fullDays, 31);
+  assert.equal(jul.partial, true);
 });
 
 test("la duree moyenne d'une session sort des secondes, pas de minutes arrondies", () => {

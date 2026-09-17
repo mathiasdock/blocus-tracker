@@ -12,29 +12,16 @@ import FilterMenu from "./FilterMenu";
 import Flame from "./Flame";
 
 // ── RankBadge ────────────────────────────────────────────────
-// Pastille de rang — podium or / argent / bronze pour bien démarquer le 1er.
-// Réservé et intentionnel (comme le rouge pour le destructif) ; le reste en
-// numéro discret. Chiffres en Nunito Sans. Dark-safe (couleurs pleines).
-// (Déplacé depuis pages/stats.js — aussi utilisé par le podium des cours.)
-export function RankBadge({ rank }) {
-  const medal = rank === 1
-    ? { backgroundColor: "#F59E0B", color: "#fff", boxShadow: "0 2px 10px rgba(245,158,11,0.5)" }   // or
-    : rank === 2
-    ? { backgroundColor: "#9AA4B2", color: "#fff", boxShadow: "0 1px 5px rgba(154,164,178,0.45)" }  // argent
-    : rank === 3
-    ? { backgroundColor: "#C2703D", color: "#fff", boxShadow: "0 1px 5px rgba(194,112,61,0.45)" }   // bronze
-    : null;
-  if (!medal) {
-    return (
-      <span className="shrink-0 w-6 h-6 flex items-center justify-center font-num font-bold text-xs tabular-nums"
-        style={{ color: "var(--bt-text-3)" }}>
-        {rank}
-      </span>
-    );
-  }
+// Rang : un numéro, pas une médaille. Le podium or / argent / bronze habillait
+// une simple quantité d'heures en récompense — comme si étudier plus longtemps
+// voulait dire étudier mieux — et ses chiffres blancs tenaient 2,2:1 sur l'or.
+// Le classement reste motivant par les noms, les visages et sa propre ligne ;
+// le rang, lui, est une position. La ligne de l'utilisateur ressort par son
+// fond, pas par une couleur de rang.
+export function RankBadge({ rank, isMe = false }) {
   return (
-    <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center font-num font-bold text-xs tabular-nums"
-      style={medal}>
+    <span className="shrink-0 w-6 h-6 flex items-center justify-center font-num font-bold text-xs tabular-nums"
+      style={{ color: isMe ? "var(--bt-text-1)" : "var(--bt-text-2)" }}>
       {rank}
     </span>
   );
@@ -235,10 +222,13 @@ export default function Leaderboard({
   // Valeur affichée à droite de chaque ligne, selon la métrique active.
   function ValueCell({ row, rank }) {
     const animate = rank <= 10;
+    // Encres lisibles : l'ambre (#D97706) et le vert (#0E8F68) écrits en dur
+    // tenaient 3,2:1 et 3,8:1 sur la carte. La flamme garde sa teinte chaude —
+    // c'est elle qui dit « série » — et le nombre passe en encre de texte.
     if (v2Available && metric === "streak") {
       return (
-        <span className="inline-flex items-center gap-1 text-sm font-num font-semibold tabular-nums" style={{ color: "#D97706" }}>
-          <Flame size={13} />
+        <span className="inline-flex items-center gap-1 text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
+          <Flame size={13} style={{ color: "#F59E0B" }} />
           {animate
             ? <AnimatedNumber value={row.streak_days} suffix={` ${t("stats.dayUnit")}`} />
             : <>{row.streak_days} {t("stats.dayUnit")}</>}
@@ -247,13 +237,13 @@ export default function Leaderboard({
     }
     if (v2Available && metric === "regularity") {
       return (
-        <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
+        <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
           {animate ? <AnimatedNumber value={row.active_days} /> : row.active_days}/{periodDays} {t("stats.dayUnit")}
         </span>
       );
     }
     return (
-      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "#0E8F68" }}>
+      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
         {animate
           ? <AnimatedNumber value={row.total_seconds} format={formatStudyTime} />
           : formatStudyTime(row.total_seconds)}
@@ -298,15 +288,17 @@ export default function Leaderboard({
     : compactRows;
 
   return (
-    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"} ${desktopTall ? "xl:flex xl:h-[486px] xl:flex-col 2xl:h-[540px]" : ""}`}>
+    // `max-h` et non une hauteur fixe : avec deux ou trois lignes, la carte
+    // gardait 486 px de haut et la moitié basse restait vide.
+    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"} ${desktopTall ? "xl:flex xl:max-h-[486px] xl:flex-col 2xl:max-h-[540px]" : ""}`}>
       {/* Titre + les deux filtres, dans le même en-tête. Ils y restent même en
           aperçu : savoir QUI on regarde et SUR QUELLE PÉRIODE fait partie de
           la lecture du classement, ce n'est pas un réglage avancé. */}
       <div className={`mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 ${desktopTall ? "xl:shrink-0" : ""}`}>
         <div className="min-w-0">
-          <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>
+          <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>
             {t("stats.publicLeaderTitle")}
-          </h2>
+          </h3>
           <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{subtitle}</p>
         </div>
         {/* `max-w-full` : sans plafond, le groupe gardait la largeur de ses
@@ -363,7 +355,7 @@ export default function Leaderboard({
                   onClick={() => { if (!isMe) onViewUser(row.user_id); }}
                   onMouseEnter={e => { if (!isMe) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                   onMouseLeave={e => { if (!isMe) e.currentTarget.style.backgroundColor = ""; }}>
-                  <RankBadge rank={i + 1} />
+                  <RankBadge rank={i + 1} isMe={isMe} />
                   <Avatar url={row.avatar_url} pseudo={row.name} size={32} />
                   <span className="flex-1 min-w-0 text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
                     <span className="inline-flex items-center gap-1.5 max-w-full">
@@ -372,7 +364,9 @@ export default function Leaderboard({
                         <LevelPill level={levels[row.user_id].current.level} />
                       )}
                     </span>
-                    {isMe && <span className="font-normal" style={{ color: "var(--bt-text-3)" }}> {t("stats.me")}</span>}
+                    {/* Sur le fond vert de sa propre ligne, l'encre secondaire ne
+                        tenait que 4,3:1. */}
+                    {isMe && <span className="font-normal" style={{ color: "var(--bt-text-1)" }}> {t("stats.me")}</span>}
                   </span>
                   <ValueCell row={row} rank={i + 1} />
                 </li>
