@@ -3,6 +3,45 @@
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
 
+## 2026-09-17 - Communautes phase 1 : cours canoniques et rapprochement des cours (Claude)
+
+Fondation invisible de la future refonte des Communautes. AUCUNE interface :
+ni `/communautes`, ni Chrono, Planning, Stats, Amis, Activite, badges ou tokens
+ne changent. Les Communautes ne sont PAS refaites ; leur taxonomie actuelle
+(`study_spaces`) est desormais documentee comme heritee.
+
+Question traitee : deux cours personnels du MEME etablissement sont-ils le meme
+vrai cours ?
+
+- **Trois objets distincts.** Cours personnel (`courses`, inchange : « ADV Strat » reste « ADV Strat » partout), cours canonique (`course_offerings` : un vrai cours dans UN etablissement, sans proprietaire ni liste de membres), lien (`course_links` : decision privee `auto` / `confirmed` / `rejected`, aucune ligne = non resolu). Un lien n'est pas une adhesion a un futur salon.
+- **Etablissement = frontiere dure**, resolu exactement comme `sync_my_study_spaces` (`study_name_key` de `profiles.university` vers l'espace universite), en lecture seule. Programme : jamais une frontiere, pas utilise. Annee : indice d'ambiguite seulement, ne decide jamais.
+- **Correspondance deterministe en SQL** (ni IA, ni embeddings) : codes de cours (ADV3008, LINFO1115, INFO-F101), niveau ecrit (BAC 1, MA1), marqueurs de partie (2, II, Q2, Partie 2), pluriels et variantes FR/EN (optimisation/optimization, statistique/statistic), abreviations, fautes de frappe (le debut du mot doit concorder : microeconomie n'est pas une faute de macroeconomie), ordre des mots, acronymes.
+- **HIGH = lien automatique** : meme titre distinctif, meme code, ou alias confirme par 3 etudiants au moins. **MEDIUM = question posee une fois** : noms generiques, abreviations, annees differentes, titre plus court qu'un titre partage. **LOW = jamais** : Math / Math financiere, Compta / Compta 2, Math / Math Q2, meme nom dans un autre etablissement.
+- **Noms generiques** (un seul mot distinctif ou cours de langue : Anglais, Introduction au droit, Macroeconomie) : jamais automatiques. Utilises sur plusieurs annees, personne n'est lie ni interroge. Aucune regle « meme nom + annee differente = cours differents ».
+- **Un cours canonique n'existe qu'a partir de 2 etudiants.** Pas de doublon d'orthographe : « Progra » n'a pas son propre cours canonique, ses etudiants sont interroges sur « Programmation ». Aucun backfill : les tables sont vides, elles se remplissent quand un etudiant appelle `resolve_my_course_links()`.
+- **Refus retenus** par paire cours personnel / cours canonique. Deux refus d'autres etudiants suspendent les liens automatiques (`contested`), trois retirent la question.
+- **Confidentialite** : les cours personnels des autres ne quittent jamais le serveur, le client ne recoit que des titres canoniques. RLS : liens lisibles par leur seul proprietaire, aucune ecriture client, 12 fonctions internes inaccessibles aux clients, seulement 3 RPC pour les etudiants connectes. Exposition heritee des Communautes (membres et messages lisibles par tout etudiant connecte) NON corrigee, documentee.
+
+Migrations appliquees via MCP : `20260917021405_canonical_course_matching.sql`
+puis `20260917055426_canonical_course_matching_fixes.sql`. Le test de securite
+a trouve un bug avant tout usage : un lien automatique retire (cours conteste)
+faisait disparaitre le cours au lieu de le reposer en question ; corrige par la
+seconde migration.
+
+Verification : `supabase/tests/course_matching_pure.sql` 184 controles, 0 echec ;
+`supabase/tests/course_matching_security.sql` 38 controles (2 etablissements et
+9 etudiants fictifs, tout annule) dont RLS authenticated et anon. Aucune trace
+en base apres coup. Calibration en lecture seule sur la production (transaction
+annulee) : 961 cours actifs dans un etablissement reconnu → 74 liens
+automatiques (25 cours canoniques, tous relus, aucun contredit), 233 cours
+interroges une fois, 654 laisses non resolus (dont 446 portes par un seul
+etudiant et 154 noms generiques utilises sur plusieurs annees). Resolution
+~0,1 s par etudiant (max 0,19 s a l'ICHEC). La precision des HIGH ne peut pas
+etre certifiee a 95 % sans verite terrain : 0 erreur sur 25 cours canoniques,
+borne basse ~88 %. Detail, regles et consignes pour la phase 2 :
+`docs/canonical-courses.md`.
+
+
 ## 2026-09-16 - Stats phase 2 : la page repond aux questions dans le bon ordre (Claude)
 
 La phase 1 (ee1db31) a rendu les chiffres fiables ; celle-ci remet la page dans

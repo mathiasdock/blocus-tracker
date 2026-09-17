@@ -1,5 +1,7 @@
 # Academic spaces
 
+> **Legacy (2026-09-17).** This taxonomy (university → field → program → course → exam spaces) is the current Communities model and will be rebuilt in a later phase around course-level spaces. Its `course` spaces are not canonical courses: the course identity foundation for the rebuild is documented in `canonical-courses.md` and has no UI yet. The privacy exposures of this model (memberships and messages readable by every signed-in student) remain unresolved until that rebuild.
+
 Communities is a public-to-signed-in-students study network. Friends remains the private inbox; its private groups are not migrated into academic spaces.
 
 ## Model

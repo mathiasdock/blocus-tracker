@@ -20,6 +20,8 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `group_members` | group memberships (group_id, user_id, role ∈ {'admin','member'}) |
 | `group_messages` | group chat messages |
 | `deleted_accounts` | audit log of self-deletes (admin-only read) |
+| `course_offerings` | canonical courses: one real course inside one institution, derived from 2+ students, no personal column (2026-09-17, no UI yet — `docs/canonical-courses.md`) |
+| `course_links` | private decision personal course → canonical course (`auto` / `confirmed` / `rejected`); not a room membership |
 
 ## Row Level Security — rules
 
@@ -34,6 +36,8 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `private_messages` | sender or receiver | INSERT only between accepted friends |
 | `study_groups` / `group_members` / `group_messages` | members only | admin/owner roles |
 | `deleted_accounts` | admins only | trigger on self-delete |
+| `course_links` | owner only | none for clients — `confirm_course_link` / `reject_course_link` / `resolve_my_course_links` |
+| `course_offerings` | canonical courses the caller has a decision about | none for clients |
 
 ## Sensitive functions (SECURITY DEFINER)
 
@@ -50,6 +54,8 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `get_leaderboard_v2(p_period, p_metric, p_scope, p_university, p_study_field, p_study_year)` | v27+ — leaderboard with metrics (time / streak / regularity), friends scope resolved server-side via `auth.uid()`, profile filters. Top 50, `authenticated` only. |
 | `get_my_study_rank(p_period text)` | Returns user's percentile vs all active users |
 | `get_user_profile_stats(p_user_id uuid)` | v12+: restricted to self/friend/admin |
+| `resolve_my_course_links()` | Refreshes and returns the caller's course matching state (`auto`, `confirmed`, `suggested`). Reads other students' courses server-side, returns only canonical titles. Internal helpers (`course_identity`, `course_candidates`…) are not executable by clients. See `docs/canonical-courses.md` |
+| `confirm_course_link(p_course_id uuid, p_offering_id uuid)` / `reject_course_link(…)` | Owner decision on one of their own active courses; confirm accepts only a MEDIUM/HIGH candidate at the caller's institution |
 
 ## Storage buckets
 

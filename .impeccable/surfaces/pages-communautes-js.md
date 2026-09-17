@@ -58,3 +58,5 @@ Ce relevé distingue les contrôles de base de données réels des scénarios de
 ## Unresolved decisions
 
 Aucune décision de direction ouverte pour cette extension délimitée. La validation sur appareil physique et le parcours complet authentifié en production restent hors des vérifications effectuées. Le rapprochement sémantique des noms et la fusion modérée d'espaces demeurent des extensions futures, non des capacités de cette livraison.
+
+**Statut au 17 septembre 2026 : taxonomie héritée.** Cette hiérarchie d'espaces sera reconstruite plus tard autour d'espaces de cours. Les fondations de l'identité de cours (cours canonique par établissement, liens privés, confirmations et refus) existent côté base, sans aucune interface : voir `docs/canonical-courses.md`. Ce brief décrit toujours l'interface actuelle ; il ne décrit pas la future.
