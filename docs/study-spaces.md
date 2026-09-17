@@ -1,6 +1,6 @@
 # Academic spaces
 
-> **Legacy (2026-09-17).** This taxonomy (university → field → program → course → exam spaces) is the current Communities model and will be rebuilt in a later phase around course-level spaces. Its `course` spaces are not canonical courses: the course identity foundation for the rebuild is documented in `canonical-courses.md` and has no UI yet. The privacy exposures of this model (memberships and messages readable by every signed-in student) remain unresolved until that rebuild.
+> **Retired from the interface (2026-09-17, Communities phase 2).** `/communautes` now shows course spaces built on canonical courses — see `course-spaces.md` and `canonical-courses.md`. Nothing below is visible to students any more; this page is kept as historical implementation context. The data was **not deleted**: 183 `study_spaces` remain (readable by signed-in students, used by no screen), the 649 `study_space_members` rows are readable by their owner only, and the 9 legacy `community_messages` by their author and admins only. Nobody can publish in this system any more. The legacy UI files (`components/StudyCommunities.js`, `lib/studySpacesClient.js`, `lib/studySpacesCopy.js`, `lib/offlineStudySpaces.js`, `styles/study-spaces.css`) were removed; `lib/studySpaces.mjs` stays because the university directory API, the field picker and the field aliases still use it.
 
 Communities is a public-to-signed-in-students study network. Friends remains the private inbox; its private groups are not migrated into academic spaces.
 

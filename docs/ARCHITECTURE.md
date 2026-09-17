@@ -58,7 +58,7 @@
 | `/historique` | `historique.js` | Past sessions list |
 | `/friends` | `friends.js` | Friends list, requests, suggestions |
 | `/messages` | `messages.js` | Private DMs + study group chats (incl. synchronized group chrono) |
-| `/communautes` | `communautes.js` | University-wide chats |
+| `/communautes` | `communautes.js` | Course spaces: the student's own courses matched to canonical courses of their institution, voluntary join, one member-only conversation per course (`docs/course-spaces.md`) |
 | `/feed` | `feed.js` | Photo feed (sessions, reactions, comments) |
 | `/profile` | `profile.js` | Profile, badges, XP, settings |
 | `/admin` | `admin.js` | Admin dashboard (gated by `profiles.is_admin`) |

@@ -33,6 +33,10 @@ export default function FilterMenu({
   ariaLabel,
   align = "right",  // bord sur lequel le menu s'aligne
   className = "",
+  // Classe ajoutée au menu lui-même. Il est rendu en portail, hors de la
+  // surface qui l'ouvre : c'est le seul moyen pour elle d'en régler le focus
+  // sans restyler tous les menus de l'app.
+  menuClassName = "",
 }) {
   const isActions = Array.isArray(actions) && actions.length > 0;
   const items = isActions ? actions : options;
@@ -146,7 +150,7 @@ export default function FilterMenu({
           id={menuId}
           role={isActions ? "menu" : "listbox"}
           aria-label={ariaLabel}
-          className="min-w-[9.5rem] overflow-hidden rounded-xl p-1"
+          className={`min-w-[9.5rem] overflow-hidden rounded-xl p-1 ${menuClassName}`}
           style={{
             position: "fixed",
             top: coords ? coords.top : -9999,

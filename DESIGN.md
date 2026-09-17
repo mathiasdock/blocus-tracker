@@ -67,7 +67,7 @@ components:
 
 **Creative North Star: "Blocus makes studying tangible."**
 
-The signature is how the product represents effort, academic context and earned outcomes—not a green card template. Time becomes accumulated material; courses retain identity; exams interrupt ordinary planning; progress has a destination; rewards are objects; academic relationships explain relevance. Utility UI stays quiet.
+The signature is how the product represents effort, academic context and earned outcomes—not a green card template. Time becomes accumulated material; courses retain identity; exams interrupt ordinary planning; progress has a destination; rewards are objects; shared course spaces start from the student's own courses. Utility UI stays quiet.
 
 **Status and authority — 2026-09-15.** This is the practical source of truth for future UI decisions. It supersedes conflicting visual guidance in older docs, source comments and surface briefs, but does not authorize a redesign. Existing behavior, data and user-directed compositions remain intact until their own scoped task. The frontmatter records a compact baseline from current CSS; use runtime `--bt-*` variables, not copied hex values. Components may not yet meet the rules below: the consolidation list explicitly records that gap.
 
@@ -95,7 +95,7 @@ Read [PRODUCT.md](PRODUCT.md) for product constraints and [docs/UI.md](docs/UI.m
 | Paused Timer | `--bt-pause*` in `styles/globals.css` | Attention state, **not** an error. Timer surfaces only — card, digits, badge, in-progress unit ring, Focus field. Never borrow it for failures, and never borrow `--bt-danger*` for a pause. See § The Paused-Timer Exception. |
 | Routine interface | Surface/text/border `--bt-*` roles | Search, settings, back, fields, ordinary messaging. |
 | Achievement artwork | `lib/badgeArt.js` illustration palette | Inside objects only; no random colored UI panels. |
-| Academic kind | `--bt-kind-*` in `styles/study-spaces.css` | Kind mark and kind word only; never a selected-row background. Exam kind must converge on the shared exam vocabulary. |
+| Course spaces | Saved `course.color` marker + semantic roles in `styles/course-spaces.css` | The student's personal course marker is the only identity color, and only through a real course link. No kind palette (the `--bt-kind-*` tokens were retired with the academic-space directory on 2026-09-17). |
 | University / mascot | Real logo / existing character artwork | Preserve asset colors; do not leak them into surrounding controls. |
 
 **The Meaning Rule.** Every strong color must answer “what does this mean?” No answer means neutral UI. Planning's semantic exam tokens derive from its warm palette; reuse that vocabulary in future scoped exam work, not new per-page shades.
@@ -187,7 +187,7 @@ Completed time is filled; a live measured fraction is partial; paused time stops
 
 - Month cell: exam header/marker and date remain visible; warm treatment owns the cell. Course identity is a small named/dotted secondary signal. No competing course-colored background.
 - Mobile/narrow cells: preserve the rail and calendar glyph, plus the count for multiple exams. The full Exam label stays accessible to assistive technology when visually omitted for lack of space; day detail exposes names/date/time without hover. Never truncate the exam identity into an ambiguous fragment.
-- Day/Week/list/Activity/academic space: reuse the same header vocabulary at the available size. A date-bearing mark can include the actual date; do not fabricate a date for an undated exam space.
+- Day/Week/list/Activity/course space: reuse the same header vocabulary at the available size. A date-bearing mark can include the actual date; never fabricate a date. In a course space an exam date exists only as a message a student shared (`PlanningExamMark` + warm exam tokens, scoped to `.bt-course-room`); it enters Planning only on the reader's own course, by their action, and is never presented as a consensus.
 - Today and selection remain independently visible, for example on the date indicator/outline; neither replaces the exam treatment.
 - Multiple exams: one marker with count and accessible event names, not stacked stripes. Other objectives remain secondary and available.
 - Error/delete UI uses its own icon, action and message; a warm exam is not an error.
@@ -270,15 +270,18 @@ Use an object independent of its host: compact metadata, profile collection, det
 
 Rarity can have a restrained material treatment and a word, not a new UI palette. Preserve original artwork colors across themes. No generic gradient + uppercase eyebrow + huge number + confetti recipe. Celebrations are brief and exceptional. Activity should eventually reuse shared objects through its structured renderer; preserve legacy text fallbacks and never infer achievements by parsing arbitrary captions.
 
-### Academic Structure — relationships explain relevance
+### Course Spaces — your real courses first
 
-The existing model is connected contexts, **not a mandatory seven-step funnel**. A university may contain a field/program/course/exam, while a cross-university field can be a broader relevant space. “All students” is a hub; skipped/unknown levels are valid.
+`/communautes` answers one question: *which of my own courses connect me to students at my institution?* It is a list and a conversation, not a directory or a feed (`docs/course-spaces.md`, `.impeccable/surfaces/pages-communautes-js.md`).
 
-Use real `parent_id` ancestry and field/course relationships, not names that merely resemble one another. Show current space + nearest useful parent, with remaining ancestry disclosed when needed. Use short factual relevance copy (“your field at UCF,” “inside Marketing”), not invented affinity percentages. Distinguish membership, relevance and activity.
-
-Preserve logo/monogram, compass, cap, book and exam-date/marker distinctions; kind color reinforces shape. A university color or blue course-kind glyph is not the user's personal course color. Only show that course hue when an actual course mapping exists. Name/university context must remain readable when many results share the same title.
-
-Offer one broader relevant route when an area is quiet, based on available activity/context data; member count alone does not prove activity. Keep familiar lists, filters and social controls. Do not render the whole hierarchy as a tree or change Friends to manufacture uniqueness.
+- **Identity.** The student's personal course marker (a 10–12px dot in the saved `course.color`) is the only identity color, shown only when an active personal course is linked to that canonical course. A space joined through search stays neutral. No generic course icon, no tinted tile, no university logo or monogram, no kind glyph or kind color.
+- **Text first.** Canonical title; *Ton cours : {personal name}* only when the words differ; member count only from 3 members; recency always labelled (*Dernier message 15 sept.*), never a bare date that could read as an exam date.
+- **Green.** Actions (*Rejoindre*, send, *Ajouter à mon planning*), the selected row and unread counts — plus the mint own-message bubble, which follows the Friends chat grammar. Nothing decorative.
+- **Uncertain match.** One sentence about the student's course with two answers of equal weight (*Oui* / *Non*); at most two at a time; a flat inset group, not a raised card.
+- **Conversation.** Oldest to newest, day markers, consecutive messages of one author grouped, own messages right. Bubbles 18px with a 6px tail (shared with Friends); circles (marker, unread count, icon buttons) use a full radius. Message actions appear on hover/focus with a pointer and on tapping a bubble on touch; destructive actions stay in menus.
+- **Study actions are the only Blocus-specific actions.** *Étudier ce cours* is a neutral button that opens the Timer on the student's own course; a shared exam date reuses the Planning exam vocabulary. No presence, reactions, polls, consensus or social XP.
+- **Empty and non-member states.** One truthful sentence, no illustration. A non-member sees what joining means and one primary *Rejoindre*; messages stay members-only.
+- **Layout.** Desktop keeps the full-height Social shell shared with Friends (list a third, room two thirds, one hairline). Phones: list inside the Social tab (the tab names the page, so the list title is for screen readers only), then the room full screen with its own back control and a composer that follows the keyboard.
 
 ## Do's and Don'ts
 
@@ -294,7 +297,7 @@ Offer one broader relevant route when an area is quiet, based on available activ
 | Mascot stands at the real goal position | Mascot fills spare space beside generic copy |
 | Same level seal/object across detail and feed | A new trophy/card silhouette on every page |
 | Plain search and settings rows | Course tints and mascot decoration in preferences |
-| Named course/context under identical field names | Repeated colored icons with barely legible context |
+| Canonical title with “Ton cours : ADV Strat” and the student's own course marker | Repeated course icons or kind-colored tiles with barely legible context |
 
 ### Gradual consolidation — not shipped by this document
 
@@ -302,7 +305,7 @@ Offer one broader relevant route when an area is quiet, based on available activ
 | --- | --- | --- |
 | ✅ | ~~Timer capped `+N`; `TodayProgressCard` builds one cell per target quarter-hour~~ — shipped 2026-09-15 in `lib/studyBlocks.mjs` + `components/StudyBlocks.js` (Timer, Focus and Today share one scale; exact fractions; no `+N`; no invented capacity; Pomodoro rest has its own form) | Done. Remaining in this family: Stats' runway and the leaderboard still use their own encodings — Stats Phase 1 (2026-09-16) settled its bar semantics without touching either. |
 | ✅ | Planning Phase 1: both diagonals removed; shared exam marker and semantic tokens; neutral objective chips | Shipped 2026-09-16. Exam read compatibility documented in `docs/planning-exams.md`. Month workload weighting and Week composition remain Phase 2. |
-| 1 | Planning exam palette vs `--bt-kind-exam` | One shared semantic exam vocabulary; distinguish errors and undated exam spaces |
+| ✅ | ~~Planning exam palette vs `--bt-kind-exam`~~ — resolved 2026-09-17 (Communities phase 2): the kind palette and undated exam spaces were retired; course rooms reuse Planning's exam tokens and `PlanningExamMark` | Done. Exam vocabulary now has one source (`styles/planning.css`), shared by Planning and course rooms. |
 | 1 | Faint small metadata; bright-green/white selected text | Measured contrast in both themes; no essential text demoted to disabled-looking gray. Stats Phase 1 scoped this for `/stats` only (`bt-stats-readable` lifts `--bt-text-3/4`, measured 2.5:1 light / 2.9:1 dark before). `RankBadge` numerals and `LevelPill` remain below threshold everywhere. |
 | 2 | Level number / circular medallion / square celebration; multiple flames | Shared object family, compact variants, visible milestone identity |
 | ✅ | ~~Stats hierarchy, local badges, podium medals~~ — shipped 2026-09-16 (Stats Phase 2). Personal analysis precedes social comparison at every width; the Stats-only badge universe is replaced by a read-only summary of the canonical collection; gold/silver/bronze no longer decorate study quantities (course breakdown, leaderboard). | Remaining: `LevelPill` contrast (shared), unused Stats badge entries in `lib/badgeArt.js`. |

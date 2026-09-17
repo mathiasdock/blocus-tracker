@@ -155,19 +155,22 @@ export function NotificationProvider({ children }) {
         .eq("addressee", user.id)
         .eq("status", "pending");
 
-      // Communities: one grouped read instead of one count per community.
+      // Course spaces: one grouped read over the rooms the student joined.
+      // Last-seen keys are namespaced "room_<uuid>"; RLS already hides hidden,
+      // blocked and self-reported messages, so those never count as unread.
       const seenCommunities = [];
       const communityPromise = (async () => {
         const { data: memberships, error: membershipError } = await supabase
-          .from("study_space_members").select("space_id").eq("user_id", user.id).limit(200);
+          .from("course_room_members").select("room_id").eq("user_id", user.id).limit(200);
         if (membershipError) return { data: [], error: membershipError };
-        for (const { space_id: id } of memberships || []) {
-          const last = getLastSeen(id);
-          if (last) seenCommunities.push([id, last]);
-          else setLastSeen(id);
+        for (const { room_id: roomId } of memberships || []) {
+          const key = `room_${roomId}`;
+          const last = getLastSeen(key);
+          if (last) seenCommunities.push([roomId, last]);
+          else setLastSeen(key);
         }
         if (!seenCommunities.length) return { data: [] };
-        const communityIds = seenCommunities.map(([id]) => id);
+        const roomIds = seenCommunities.map(([id]) => id);
         const earliestLastSeen = seenCommunities.reduce(
           (min, [, last]) => last < min ? last : min,
           seenCommunities[0][1]
@@ -178,8 +181,8 @@ export function NotificationProvider({ children }) {
         for (let from = 0; from < NOTIFICATION_ROW_LIMIT; from += COMMUNITY_PAGE_SIZE) {
           const { data, error } = await supabase
             .from("community_messages")
-            .select("community, created_at")
-            .in("community", communityIds)
+            .select("room_id, created_at")
+            .in("room_id", roomIds)
             .gt("created_at", earliestLastSeen)
             .neq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -393,10 +396,10 @@ export function NotificationProvider({ children }) {
 
       const communityLastSeen = Object.fromEntries(seenCommunities);
       const nextCommunityCount = {};
-      for (const [id] of seenCommunities) nextCommunityCount[id] = 0;
+      for (const [id] of seenCommunities) nextCommunityCount[`room_${id}`] = 0;
       (communityRes.data || []).forEach((row) => {
-        if (row.created_at > communityLastSeen[row.community]) {
-          nextCommunityCount[row.community] = (nextCommunityCount[row.community] || 0) + 1;
+        if (Date.parse(row.created_at) > Date.parse(communityLastSeen[row.room_id])) {
+          nextCommunityCount[`room_${row.room_id}`] = (nextCommunityCount[`room_${row.room_id}`] || 0) + 1;
         }
       });
       setCommunityCount(nextCommunityCount);

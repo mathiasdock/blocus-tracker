@@ -1,12 +1,13 @@
-/* Exam semantics are scoped to Planning, including its day-detail sheet.
+/* Exam semantics are scoped to Planning, including its day-detail sheet, and
+   to course rooms, where a shared exam date reuses the same vocabulary.
    Warm ink derives from the existing palette, never error/Timer-pause tokens. */
-.bt-planning, .bt-planning-dialog {
+.bt-planning, .bt-planning-dialog, .bt-course-room {
   --bt-exam-ink: #963e32;
   --bt-exam-rail: #ad493b;
   --bt-exam-bg: #fff6f1;
   --bt-exam-border: #d7aaa0;
 }
-.dark .bt-planning, .dark .bt-planning-dialog {
+.dark .bt-planning, .dark .bt-planning-dialog, .dark .bt-course-room {
   --bt-exam-ink: #f5b5ad;
   --bt-exam-rail: #eea194;
   --bt-exam-bg: #30231f;

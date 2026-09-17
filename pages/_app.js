@@ -1,5 +1,5 @@
 import "../styles/globals.css";
-import "../styles/study-spaces.css";
+import "../styles/course-spaces.css";
 import "../styles/planning.css";
 import "../styles/activity-post.css";
 import Glyph from "../components/Glyph";

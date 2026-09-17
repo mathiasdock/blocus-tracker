@@ -27,6 +27,7 @@ import {
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
+import CourseReportsAdmin from "../components/course-spaces/CourseReportsAdmin";
 
 const ALL_UNI_FULLS = new Set(COUNTRIES.flatMap(c => c.universities).map(u => u.full));
 
@@ -1874,6 +1875,9 @@ export default function Admin() {
                   </section>
               </div>
             </details>
+
+            {/* Signalements des espaces de cours : ouvert d'office tant qu'il en reste. */}
+            <CourseReportsAdmin />
 
             {/* Repliés par défaut : consultables sans encombrer la liste des membres. */}
             <details className="card bt-acc overflow-hidden">

@@ -1,6 +1,6 @@
 # Canonical courses and course links
 
-Status: **foundation only** (Communities phase 1, 2026-09-17). No screen calls it yet and nothing here is visible to students. The current Communities taxonomy (`study_spaces`, see `study-spaces.md`) is **legacy**: it will be rebuilt on top of this model in a later phase, and this document does not describe any new Communities UI.
+Status: **in use** since Communities phase 2 (2026-09-17). This document describes the matching foundation (phase 1). Its only consumer is the course spaces page, documented in `course-spaces.md`: `/communautes` calls `resolve_my_course_links()` on opening, suggests spaces for `auto`/`confirmed` links and asks `suggested` pairs once. The former Communities taxonomy (`study_spaces`, see `study-spaces.md`) is retired from the interface; its data is kept, private.
 
 Migrations: `supabase/migrations/20260917021405_canonical_course_matching.sql`, then `20260917055426_canonical_course_matching_fixes.sql` (both applied on 2026-09-17).
 
@@ -112,9 +112,9 @@ Owners can also `select` their own `course_links`, and the `course_offerings` th
 - Only the three client functions above are executable by `authenticated`; they are `security definer` with `search_path = public` and always act on `auth.uid()`. The twelve internal functions (`course_identity`, `course_population`, `course_candidates`, `course_emerge_offerings`…) are not executable by `anon` or `authenticated`. `anon` reaches nothing.
 - Inference limit: emergence needs only one other student, so a student who creates a course can learn that at least one other student of their institution uses that name (never who). This matters most at institutions with very few Blocus users.
 
-### Legacy Communities privacy — still unresolved
+### Legacy Communities privacy — resolved in phase 2
 
-This phase does not change the legacy Communities security model. As of 2026-09-17, `study_space_members` (who belongs to which university/field/program space) and `community_messages` are readable by every signed-in student, and `study_spaces` by everyone signed in. These exposures belong to the Communities rebuild and are not fixed here.
+Phase 1 left the legacy exposures untouched: `study_space_members` and `community_messages` were readable by every signed-in student. Phase 2 (`20260917061842_course_spaces.sql`) closed them: legacy memberships are readable by their owner only, legacy messages by their author and admins only, and nobody can publish in the legacy system. Room messages are readable by room members only. `study_spaces` (names of university/field/program/course/exam spaces, no personal data) stays readable by signed-in students. Details in `course-spaces.md`.
 
 ## Tests
 
@@ -152,10 +152,13 @@ Removed from HIGH during calibration, on purpose: "Introduction au droit" (IHECS
 - No browse/search association: only matcher candidates can be confirmed.
 - A one-letter section after a name is read as the French filler "a" ("Bio A" = "Bio").
 
-## For Phase 2
+## Phase 2 consumption (2026-09-17)
 
-- Call `resolve_my_course_links()` when the student opens the course area, not on every render. Show `auto` rows as recognised but always let the student say "not my course" (`reject_course_link`); ask `suggested` rows once.
-- Show canonical titles only; never display or fetch other students' personal course names.
-- Keep room membership in its own table: propose joining for `auto`/`confirmed` links, never join automatically. Consider not proposing rooms for `generic` canonical courses without a confirmation.
-- Scaling: the resolver analyses every active course of the institution on each call (~0.13 ms per course plus the pairs). Materialise the identity per course before institutions reach a few thousand courses.
-- The legacy Communities privacy exposures above must be addressed in the rebuild.
+What phase 2 did with the recommendations originally written here:
+
+- `resolve_my_course_links()` runs once when `/communautes` opens (and again after an answer), not on every render. Measured ~0.3 s for the largest institution (61 students), rolled back.
+- Canonical titles only; other students' personal course names are never fetched.
+- Room membership has its own table (`course_room_members`); joining is always the student's act, never automatic. `suggested` rows become one question each (at most two at a time); `auto`/`confirmed` rows become suggestions to join.
+- Not done: letting the student say "not my course" about an `auto` link directly from the page (the brief kept the matching UI minimal), and special handling of `generic` canonical courses (they are only ever asked, never automatic, as phase 1 already guarantees).
+- Still open: materialise the identity per course before institutions reach a few thousand courses (the resolver analyses every active course of the institution on each call).
+- The legacy privacy exposures are closed (above).

@@ -1,6 +1,6 @@
 import Layout from "../components/Layout";
-import StudyCommunities from "../components/StudyCommunities";
+import CourseSpaces from "../components/course-spaces/CourseSpaces";
 
 export default function Communautes() {
-  return <Layout><StudyCommunities /></Layout>;
+  return <Layout><CourseSpaces /></Layout>;
 }

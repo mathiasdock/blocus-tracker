@@ -3,6 +3,51 @@
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
 
+## 2026-09-17 - Communautes phase 2 : espaces de cours (Claude)
+
+`/communautes` ne montre plus le reseau d'espaces academiques (universite →
+domaine → programme → cours → examen). La page repond a une seule question :
+quels de MES cours me relient a des etudiants de MON etablissement ? Parcours :
+cours personnels → cours canoniques (phase 1) → espaces de cours → adhesion
+volontaire → une conversation par cours. Libelle de navigation « Communautes »
+conserve. Chrono (hors l'action d'entree), Planning, Stats, Activite, Amis,
+badges et gamification non modifies.
+
+- **Retire de l'interface** : hub global, espaces domaine/programme/examen, hierarchie, fil d'Ariane, liens « elargir », sous-espaces, assistant de creation, filtres par type, onglets Discussion/Question/Ressource/Examen, icones de type et tuiles teintees, annuaire « Decouvrir ». Fichiers supprimes : `components/StudyCommunities.js`, `lib/studySpacesClient.js`, `lib/studySpacesCopy.js`, `lib/offlineStudySpaces.js`, `styles/study-spaces.css` (tokens `--bt-kind-*` inclus). `lib/studySpaces.mjs` reste (annuaire des universites, domaines d'etudes).
+- **Liste** (`components/course-spaces/`) : recherche « Chercher un cours » (titres canoniques de SON etablissement), « Tes espaces de cours » (rejoints, activite recente d'abord, non-lus), « Pour tes cours » (uniquement les cours canoniques lies `auto`/`confirmed` a un cours personnel ACTIF). Repere d'identite = pastille de la couleur du cours personnel, jamais une icone. « Ton cours : ADV Strat » seulement si les mots different. Nombre de membres a partir de 3. Une seule phrase vraie quand c'est vide (pas d'etablissement / pas de cours / pas encore de correspondance).
+- **Correspondance incertaine** : une phrase « ADV Strat semble correspondre a Advertising Strategy. » [Oui] [Non], deux au plus a la fois, la plus probable d'abord. Un « Non » ne revient jamais. Aucun ecran de gestion.
+- **Salon** : reserve aux membres ; un seul fil du plus ancien au plus recent, messages groupes par auteur (5 min), separateurs de jour, les miens a droite (grammaire des Amis), pieces jointes existantes signees a la demande, rafraichissement toutes les 15 s onglet visible, annonce des nouveaux messages aux lecteurs d'ecran. Non-membre : une phrase et « Rejoindre », aucun message charge. Telephone : liste puis salon plein ecran, hauteur calee sur le clavier (`visualViewport`), actions d'un message au toucher de la bulle.
+- **Actions propres a Blocus, seules** : « Etudier ce cours » selectionne SON cours dans le Chrono (jamais pendant une session lancee sur un autre cours) ; une date d'examen partagee (bouton discret du composeur) s'ajoute a SON planning, sur son cours lie (« Examen · … »), et affiche « Dans ton planning » si elle y est deja. Pas de presence, de consensus, de reactions, de sondages ni de XP sociale.
+- **Base** (`20260917061842_course_spaces.sql`, appliquee via MCP) : `course_rooms` (une par cours canonique, creee au premier « Rejoindre »), `course_room_members`, `user_blocks`, `course_message_reports` ; `community_messages` gagne `room_id` et `hidden_at` (un message appartient a un salon OU a un ancien espace). 8 fonctions `security definer`. Messages lisibles par les seuls membres du salon (jamais masques, bloques ou signales par le lecteur) ; adhesions lisibles par leur proprietaire ; plus aucune insertion client dans `community_messages`.
+- **Moderation minimale** : signaler (masque pour soi, pour tous a 3 signalements, 20/jour), bloquer / debloquer, supprimer son message, limites serveur (6 messages / 30 s, 200/jour, doublon 2 min, 1 000 caracteres), section « Signalements · espaces de cours » dans /admin → Membres (garder ou supprimer).
+- **Faille corrigee** : `/api/storage/sign` signait tout fichier du bucket `community` pour n'importe quel compte connecte des qu'un message le referencait. La verification se fait maintenant AVEC LA SESSION de l'etudiant : il faut pouvoir lire le message (membre, auteur ou admin).
+- **Anciennes donnees** (choix de Mathias : les rendre privees) : rien n'est supprime. 183 `study_spaces` gardes ; 649 adhesions desormais lisibles par leur seul proprietaire ; 9 anciens messages par leur auteur et les admins ; plus aucune publication possible dans l'ancien systeme.
+- Non-lus (`NotificationContext`) : cles `room_<id>` sur les salons rejoints. Export RGPD : liens de cours, adhesions, blocages et signalements ajoutes. Textes d'accueil invite et SEO de `/communautes` reecrits. Jetons d'examen du Planning reutilises dans le salon (`styles/planning.css` : portee etendue a `.bt-course-room`).
+
+Verification : `supabase/tests/course_spaces_security.sql` 46 controles (2
+etablissements et 7 etudiants fictifs, tout annule, aucune trace apres coup) ;
+`node --test tests/*.test.mjs` 100 tests dont 14 nouveaux
+(`tests/course-spaces.test.mjs`) ; parcours complet dans le build hors ligne
+(`lib/offlineCourseSpaces.js`, donnees de demonstration etiquetees) :
+correspondance oui/non, rejoindre, ecrire, date d'examen vers le planning,
+signaler, bloquer/debloquer, quitter, recherche, « Etudier ce cours », admin,
+trois demarrages a froid ; 320, 375/390, 768, 1024, 1280, 1440, clair et sombre ;
+contrastes mesures (texte secondaire de la ligne selectionnee remonte de 4,3 a
+plus de 4,5:1). `resolve_my_course_links()` mesure a ~0,3 s pour le plus gros
+etablissement (61 etudiants), transaction annulee.
+
+Revue finale independante (contexte neuf, sept captures) : deux tours de
+corrections avant le feu vert. Corrige a cette occasion : l'activite recente
+d'une ligne disait « 15 sept. » sans dire de quoi (confusion possible avec une
+date d'examen), une piece jointe demandait deux gestes et pouvait pointer un
+lien signe perime, six cibles tactiles etaient sous 44 px, l'anneau de focus
+vert vif tenait 2,5:1 (passe a `--bt-accent-text`, y compris dans les menus
+« ... » rendus en portail via une nouvelle prop facultative `menuClassName` de
+`FilterMenu`), et les noms de fichiers longs sont desormais raccourcis au
+MILIEU, seulement quand la place manque, extension gardee. Detail :
+`docs/course-spaces.md`.
+
+
 ## 2026-09-17 - Communautes phase 1 : cours canoniques et rapprochement des cours (Claude)
 
 Fondation invisible de la future refonte des Communautes. AUCUNE interface :

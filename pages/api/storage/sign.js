@@ -127,7 +127,12 @@ async function userCanAccessGroupPhoto(admin, userId, bucket, path, originalRef)
   return !error && !!data?.id;
 }
 
-async function userCanAccessCommunityAttachment(admin, userId, path, originalRef) {
+// A course-room attachment is readable exactly when its message is: the
+// check runs AS THE STUDENT, so the community_messages RLS decides — room
+// members, the author, admins; never a hidden message, a blocked author or a
+// retired academic-space post of someone else. Before course spaces, any
+// signed-in account could sign any community file.
+async function userCanAccessCommunityAttachment(admin, userId, path, originalRef, userScoped) {
   const message = await findReferencedRow(
     admin,
     "community_messages",
@@ -135,17 +140,25 @@ async function userCanAccessCommunityAttachment(admin, userId, path, originalRef
     "attachment_url",
     referenceVariants("community", path, originalRef)
   );
-  if (message && pathBelongsTo(path, message.user_id)) return true;
+  if (message && pathBelongsTo(path, message.user_id)) {
+    const { data, error } = await userScoped
+      .from("community_messages")
+      .select("id")
+      .eq("id", message.id)
+      .limit(1)
+      .maybeSingle();
+    return !error && !!data?.id;
+  }
 
   // Older versions stored private group photos in the community bucket.
   return userCanAccessGroupPhoto(admin, userId, "community", path, originalRef);
 }
 
-async function canAccessAttachment(admin, bucket, userId, path, originalRef) {
+async function canAccessAttachment(admin, bucket, userId, path, originalRef, userScoped) {
   if (bucket === "dm") return userCanAccessDmAttachment(admin, userId, path, originalRef);
   if (bucket === "posts") return userCanAccessPostImage(admin, userId, path, originalRef);
   if (bucket === "group") return userCanAccessGroupAttachment(admin, userId, path, originalRef);
-  if (bucket === "community") return userCanAccessCommunityAttachment(admin, userId, path, originalRef);
+  if (bucket === "community") return userCanAccessCommunityAttachment(admin, userId, path, originalRef, userScoped);
   return false;
 }
 
@@ -202,7 +215,12 @@ export default async function handler(req, res) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const allowed = await canAccessAttachment(admin, bucket, userId, path, ref);
+  const userScoped = createClient(SUPABASE_URL, ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const allowed = await canAccessAttachment(admin, bucket, userId, path, ref, userScoped);
   if (!allowed) {
     console.warn("storage/sign forbidden attachment request", {
       user: `${userId.slice(0, 8)}...`,

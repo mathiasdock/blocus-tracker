@@ -19,7 +19,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Mascot poses / appearances | `components/Mascot.js`, `components/MascotMoment.js`, `lib/mascotMotion.mjs`, `lib/mascotMoments.js` |
 | Reward data / artwork | `lib/badges.js`, `lib/badgeArt.js`, `components/BadgeIcon.jsx` |
 | Structured activity bodies | `components/ActivityPostBody.jsx` |
-| Academic relationships / kinds | `lib/studySpaces.mjs`, `components/StudyCommunities.js`, `styles/study-spaces.css` |
+| Course spaces (Communities) | `components/course-spaces/*`, `lib/courseSpaces.mjs`, `styles/course-spaces.css` — `docs/course-spaces.md` |
 | Shared interface icons | `components/Glyph.js` |
 | Representative controls / sheets | `components/SegmentedGlide.js`, `components/InboxSheet.js`, `components/DetailSheet.js` |
 

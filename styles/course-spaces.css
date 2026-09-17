@@ -1,0 +1,237 @@
+/* ── Course spaces (/communautes) ─────────────────────────────────
+   Replaces styles/study-spaces.css (retired with the academic-space
+   directory, 17 Sept 2026). Rules, from DESIGN.md and the surface brief:
+   - text first; the ONLY identity color is the student's own course marker
+     (saved course.color), shown only when a real link to that course exists;
+   - green means action, selection or unread — never decoration;
+   - no icon tile, no kind color, no label pill, no card inside the card.
+   Desktop: the full-height social shell shared with Friends ("bt-social-fill"
+   in globals.css). Phone: list, then the room full screen. */
+
+.bt-course-spaces { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 2fr); gap: 20px; min-height: 0; color: var(--bt-text-1); }
+.bt-course-list, .bt-course-room { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+/* Identity: a course marker, never a tile. Two courses may share a hue; the
+   name next to it always distinguishes them. */
+.bt-course-marker { flex-shrink: 0; width: 10px; height: 10px; border-radius: 999px; background: var(--course); }
+.bt-course-marker.is-empty { background: transparent; }
+/* Deep hues (bordeaux, marron, ardoise) vanish on the dark surface: a faint
+   light ring keeps the marker visible without recoloring the course. */
+.dark .bt-course-marker:not(.is-empty) { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.24); }
+
+/* ── List ──────────────────────────────────────────────────────── */
+.bt-course-list-head { display: grid; gap: 12px; flex-shrink: 0; padding: 20px 16px 12px 20px; }
+.bt-course-list-head h1 { font-size: 20px; font-weight: 800; line-height: 1.25; letter-spacing: -0.02em; }
+.bt-course-search { -webkit-appearance: none; appearance: none; font-size: 14px; }
+.bt-course-search::-webkit-search-cancel-button { cursor: pointer; filter: grayscale(1); opacity: 0.6; }
+.bt-course-list-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 0 8px 24px; }
+.bt-course-section-title { padding: 18px 12px 6px; font-size: 13px; font-weight: 700; line-height: 1.4; color: var(--bt-text-2); }
+.bt-course-rows, .bt-course-questions { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.bt-course-questions { gap: 6px; margin-bottom: 6px; }
+
+.bt-course-row { display: flex; align-items: center; gap: 4px; border-radius: var(--bt-r-control); transition: background-color 150ms ease; }
+.bt-course-row.is-selected { background: var(--bt-accent-bg); }
+/* Markers and counts align with the course title, not with the middle of a
+   row that a long name or its details made taller. */
+.bt-course-row-open { display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 0; min-height: 56px; padding: 9px 12px; border-radius: var(--bt-r-control); text-align: left; color: var(--bt-text-1); }
+.bt-course-row-open > .bt-course-marker { margin-top: 5px; }
+.bt-course-row-text { flex: 1; min-width: 0; }
+.bt-course-row-text strong { display: block; font-size: 15px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; text-wrap: pretty; }
+.bt-course-row-text small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--bt-text-2); overflow-wrap: anywhere; text-wrap: pretty; }
+.bt-course-unread { flex-shrink: 0; min-width: 22px; margin-top: 1px; padding: 1px 7px; border-radius: 999px; background: var(--bt-action); color: #FFFFFF; font-size: 12px; font-weight: 800; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.bt-course-join { flex-shrink: 0; min-height: 44px; margin-right: 4px; padding: 0 14px; border-radius: var(--bt-r-control); color: var(--bt-accent-text); font-size: 14px; font-weight: 800; transition: background-color 150ms ease; }
+.bt-course-join:disabled { opacity: 0.55; cursor: progress; }
+.bt-course-joined { flex-shrink: 0; padding: 0 14px; font-size: 13px; font-weight: 600; color: var(--bt-text-2); }
+/* --bt-text-2 on the mint selection measures 4.3:1 in light: the selected
+   row's secondary text moves a third of the way toward --bt-text-1. */
+.bt-course-row.is-selected small, .bt-course-row.is-selected .bt-course-joined { color: var(--bt-text-1); color: color-mix(in srgb, var(--bt-text-2) 70%, var(--bt-text-1)); }
+
+/* The uncertain match: one sentence about the student's own course, two
+   answers of equal weight. */
+.bt-course-question { padding: 12px; border-radius: var(--bt-r-control); background: var(--bt-subtle); }
+.bt-course-question p { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.5; color: var(--bt-text-1); }
+.bt-course-question p > .bt-course-marker { margin-top: 6px; }
+.bt-course-question strong { font-weight: 700; overflow-wrap: anywhere; }
+.bt-course-answers { display: flex; gap: 8px; margin-top: 10px; padding-left: 22px; }
+.bt-course-answers button { min-width: 76px; min-height: 44px; padding: 0 16px; border: 1px solid var(--bt-border); border-radius: var(--bt-r-control); background: var(--bt-surface); color: var(--bt-text-1); font-size: 14px; font-weight: 700; transition: background-color 150ms ease, border-color 150ms ease; }
+.bt-course-answers button:disabled { opacity: 0.55; cursor: progress; }
+
+.bt-course-note { padding: 16px 12px; font-size: 14px; line-height: 1.6; color: var(--bt-text-2); }
+.bt-course-note p + .bt-course-text-btn { margin-top: 4px; }
+.bt-course-cold { max-width: 46ch; padding: 20px 12px; }
+.bt-course-cold p { font-size: 14px; line-height: 1.6; color: var(--bt-text-2); }
+.bt-course-cold p:first-child { color: var(--bt-text-1); }
+.bt-course-cold > * + * { margin-top: 8px; }
+.bt-course-text-btn { display: inline-flex; align-items: center; min-height: 44px; color: var(--bt-accent-text); font-size: 14px; font-weight: 700; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.bt-course-text-btn.is-quiet { color: var(--bt-text-2); font-weight: 600; }
+.bt-course-list-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 16px; padding: 8px 12px 0; border-top: 1px solid var(--bt-hairline); }
+.bt-course-list-foot small { font-size: 12px; color: var(--bt-text-2); }
+
+/* ── Room ──────────────────────────────────────────────────────── */
+.bt-course-room.is-empty { align-items: center; justify-content: center; }
+.bt-course-room-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; flex-shrink: 0; padding: 14px 16px 14px 24px; border-bottom: 1px solid var(--bt-hairline); }
+.bt-course-room-head > .bt-course-back { display: none; }
+.bt-course-room-title { min-width: 0; }
+.bt-course-room-title h2 { display: flex; align-items: flex-start; gap: 10px; font-size: 19px; font-weight: 800; line-height: 1.3; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.bt-course-room-title h2 > span:last-child { min-width: 0; }
+.bt-course-room-title h2 > .bt-course-marker { width: 12px; height: 12px; margin-top: 6px; }
+.bt-course-room-title h2 > .bt-course-marker.is-empty { display: none; }
+.bt-course-room-title p { margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--bt-text-2); overflow-wrap: anywhere; }
+.bt-course-room-title h2:has(> .bt-course-marker:not(.is-empty)) + p { padding-left: 22px; }
+.bt-course-study { min-height: 44px; padding: 0 14px; border-radius: var(--bt-r-control); background: var(--bt-subtle); color: var(--bt-text-1); font-size: 14px; font-weight: 700; white-space: nowrap; transition: background-color 150ms ease; }
+.bt-course-icon-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 999px; color: var(--bt-text-2); transition: background-color 150ms ease, color 150ms ease; }
+.bt-course-icon-btn.is-on { background: var(--bt-accent-bg); color: var(--bt-accent-text); }
+
+/* Not a member: what joining means, and the way in. */
+.bt-course-preview { display: flex; flex: 1; flex-direction: column; align-items: flex-start; justify-content: center; gap: 14px; width: 100%; max-width: 480px; margin: 0 auto; padding: 32px 24px; }
+.bt-course-preview > p { font-size: 15px; line-height: 1.6; color: var(--bt-text-1); }
+.bt-course-preview > p.bt-course-preview-note { font-size: 13px; color: var(--bt-text-2); }
+.bt-course-preview .btn-primary { min-height: 44px; padding: 0 24px; }
+
+/* One stream, oldest at the top, newest against the composer. */
+.bt-course-stream { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 12px 24px 16px; }
+.bt-course-stream > :first-child { margin-top: auto; }
+.bt-course-older { align-self: center; min-height: 44px; margin-bottom: 8px; padding: 0 16px; border-radius: var(--bt-r-control); background: var(--bt-subtle); color: var(--bt-text-1); font-size: 13px; font-weight: 700; }
+.bt-course-room-empty { align-self: center; max-width: 42ch; padding: 24px 12px; text-align: center; font-size: 14px; line-height: 1.6; color: var(--bt-text-2); }
+.bt-course-room-empty strong { font-weight: 700; color: var(--bt-text-1); }
+.bt-course-day { align-self: center; margin: 18px 0 4px; font-size: 12px; font-weight: 700; line-height: 1.4; color: var(--bt-text-2); }
+.bt-course-day::first-letter { text-transform: uppercase; }
+
+.bt-course-group { display: flex; align-items: flex-start; gap: 8px; max-width: min(640px, 88%); margin-top: 12px; }
+.bt-course-group.is-mine { flex-direction: row-reverse; align-self: flex-end; }
+/* A 32px face, a 44px target. */
+.bt-course-avatar { position: relative; flex-shrink: 0; margin-top: 22px; border-radius: 999px; }
+.bt-course-avatar::after { content: ""; position: absolute; inset: -6px; }
+.bt-course-group-body { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.bt-course-group.is-mine .bt-course-group-body { align-items: flex-end; }
+.bt-course-group-meta { display: flex; align-items: baseline; gap: 8px; min-height: 20px; padding: 0 12px; font-size: 12px; line-height: 1.4; color: var(--bt-text-2); }
+.bt-course-author { color: var(--bt-text-1); font-size: 13px; font-weight: 700; text-align: left; overflow-wrap: anywhere; }
+.bt-course-message { display: flex; align-items: center; gap: 2px; max-width: 100%; }
+.bt-course-group.is-mine .bt-course-message { flex-direction: row-reverse; }
+.bt-course-bubble { min-width: 0; padding: 9px 14px; border-radius: 18px 18px 18px 6px; background: var(--bt-subtle); color: var(--bt-text-1); font-size: 15px; line-height: 1.5; }
+.bt-course-group.is-mine .bt-course-bubble { border-radius: 18px 18px 6px 18px; background: var(--bt-accent-bg); }
+.dark .bt-course-group:not(.is-mine) .bt-course-bubble { box-shadow: inset 0 0 0 1px var(--bt-hairline); }
+/* About 65 characters a line at 15px: a comfortable measure for a message. */
+.bt-course-text { max-width: 32em; white-space: pre-wrap; overflow-wrap: anywhere; text-wrap: pretty; }
+.bt-course-message-menu { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 999px; color: var(--bt-text-2); opacity: 0; transition: opacity 120ms ease, background-color 150ms ease; }
+.bt-course-message:hover .bt-course-message-menu,
+.bt-course-message:focus-within .bt-course-message-menu,
+.bt-course-message-menu[aria-expanded="true"] { opacity: 1; }
+
+/* A shared exam date speaks the Planning exam vocabulary (styles/planning.css
+   scopes the tokens to .bt-course-room as well): warm surface, rail, date. */
+.bt-course-exam { display: grid; justify-items: start; gap: 2px; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--bt-exam-border); border-radius: var(--bt-r-inset); background: var(--bt-exam-bg); color: var(--bt-text-1); }
+.bt-course-bubble > .bt-course-exam:first-child { margin-top: 0; }
+.bt-course-exam time { font-size: 15px; font-weight: 700; }
+.bt-course-exam time::first-letter { text-transform: uppercase; }
+.bt-course-exam-add { min-height: 36px; color: var(--bt-accent-text); font-size: 14px; font-weight: 700; text-align: left; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.bt-course-exam-add:disabled { color: var(--bt-text-2); text-decoration: none; cursor: default; }
+
+.bt-course-attachment { margin-top: 6px; }
+.bt-course-bubble > .bt-course-attachment:first-child, .bt-course-bubble > .bt-course-attachment-image:first-child { margin-top: 0; }
+.bt-course-attachment-btn { display: flex; align-items: center; max-width: 100%; min-height: 44px; padding: 6px 12px; border: 1px solid var(--bt-border); border-radius: var(--bt-r-inset); background: var(--bt-surface); color: var(--bt-text-1); font-size: 14px; font-weight: 600; text-align: left; }
+.bt-course-file-label { display: flex; min-width: 0; white-space: pre; }
+.bt-course-file-text, .bt-course-file-tail { flex-shrink: 0; }
+.bt-course-file-head { min-width: 1ch; overflow: hidden; text-overflow: ellipsis; }
+.bt-course-attachment p { margin-top: 4px; font-size: 13px; color: var(--bt-danger); }
+.bt-course-attachment-image { display: block; max-width: 100%; margin-top: 6px; padding: 0; border-radius: var(--bt-r-inset); cursor: zoom-in; }
+.bt-course-attachment-image img { display: block; max-width: 100%; max-height: 320px; border-radius: var(--bt-r-inset); }
+
+/* ── Composer ──────────────────────────────────────────────────── */
+.bt-course-composer { flex-shrink: 0; padding: 10px 16px 14px; border-top: 1px solid var(--bt-hairline); background: var(--bt-surface); }
+.bt-course-composer-row { display: flex; align-items: flex-end; gap: 2px; }
+.bt-course-composer-field { flex: 1; min-width: 0; min-height: 44px; max-height: 132px; margin-left: 6px; padding: 11px 16px; border-radius: 22px; font-size: 15px; line-height: 1.4; resize: none; }
+.bt-course-send { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; min-width: 44px; min-height: 44px; margin-left: 6px; padding: 0 18px; border-radius: 22px; background: var(--bt-action); color: #FFFFFF; font-size: 14px; font-weight: 800; transition: background-color 150ms ease; }
+.bt-course-send svg { display: none; }
+.bt-course-send:disabled { background: var(--bt-subtle); color: var(--bt-text-2); cursor: not-allowed; }
+.bt-course-composer-extras { display: grid; gap: 6px; margin-bottom: 8px; }
+.bt-course-composer-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-left: 10px; font-size: 14px; }
+.bt-course-composer-extra label { font-weight: 700; color: var(--bt-text-2); }
+.bt-course-composer-extra .input { flex: 0 1 190px; width: auto; min-height: 44px; }
+.bt-course-composer-file { flex: 1; min-width: 0; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.bt-course-composer-count, .bt-course-composer-error { margin-top: 6px; padding-left: 10px; font-size: 13px; line-height: 1.4; }
+.bt-course-composer-count { color: var(--bt-text-2); }
+.bt-course-composer-count.is-over { color: var(--bt-danger); }
+
+/* ── Sheets ────────────────────────────────────────────────────── */
+.bt-course-report, .bt-course-blocked { display: grid; gap: 14px; padding: 4px 20px 20px; }
+.bt-course-report > p, .bt-course-blocked > p { font-size: 14px; line-height: 1.6; color: var(--bt-text-2); }
+.bt-course-report-reasons { display: grid; gap: 8px; }
+.bt-course-report-reasons button { min-height: 48px; padding: 0 16px; border-radius: var(--bt-r-control); background: var(--bt-subtle); color: var(--bt-text-1); font-size: 15px; font-weight: 700; text-align: left; transition: background-color 150ms ease; }
+.bt-course-blocked ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.bt-course-blocked li { display: flex; align-items: center; gap: 12px; min-height: 52px; }
+.bt-course-blocked li > span { flex: 1; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+
+/* ── States ────────────────────────────────────────────────────── */
+@media (hover: hover) and (pointer: fine) {
+  .bt-course-row:not(.is-selected):hover { background: var(--bt-subtle); }
+  .bt-course-join:hover:not(:disabled) { background: var(--bt-accent-bg); }
+  .bt-course-row.is-selected .bt-course-join:hover:not(:disabled) { background: var(--bt-surface); }
+  .bt-course-answers button:hover:not(:disabled) { border-color: var(--bt-text-2); }
+  .bt-course-icon-btn:hover, .bt-course-message-menu:hover { background: var(--bt-subtle); color: var(--bt-text-1); }
+  .bt-course-study:hover, .bt-course-older:hover:not(:disabled), .bt-course-report-reasons button:hover:not(:disabled) { background: var(--bt-border); }
+  .bt-course-send:hover:not(:disabled) { background: var(--bt-action-deep); }
+  .bt-course-text-btn:hover, .bt-course-exam-add:hover:not(:disabled) { text-decoration-thickness: 2px; }
+  .bt-course-attachment-btn:hover:not(:disabled) { border-color: var(--bt-text-2); }
+}
+/* Touch has no hover: a tap on a message reveals its actions, at full target
+   size. Always-visible dots beside every bubble made the conversation read
+   like a list of controls. The button stays in the accessibility tree. */
+@media (hover: none), (pointer: coarse) {
+  .bt-course-message-menu { width: 44px; height: 44px; pointer-events: none; }
+  .bt-course-message.is-active .bt-course-message-menu,
+  .bt-course-message-menu[aria-expanded="true"],
+  .bt-course-message:focus-within .bt-course-message-menu { opacity: 1; pointer-events: auto; }
+  .bt-course-message.is-active .bt-course-bubble { box-shadow: 0 0 0 1.5px var(--bt-text-2); }
+  .bt-course-exam-add { min-height: 44px; }
+}
+/* Focus: bright --bt-accent measures 2.5:1 on the surface and 2.4:1 on the
+   mint selection; --bt-accent-text holds 3:1 in both themes (as in Stats). */
+.bt-course-spaces :focus-visible { outline-color: var(--bt-accent-text); }
+.bt-course-row-open:focus-visible, .bt-course-join:focus-visible, .bt-course-answers button:focus-visible,
+.bt-course-icon-btn:focus-visible, .bt-course-message-menu:focus-visible, .bt-course-study:focus-visible,
+.bt-course-send:focus-visible, .bt-course-older:focus-visible, .bt-course-report-reasons button:focus-visible,
+.bt-course-attachment-btn:focus-visible, .bt-course-attachment-image:focus-visible, .bt-course-avatar:focus-visible,
+.bt-course-author:focus-visible, .bt-course-exam-add:focus-visible, .bt-course-text-btn:focus-visible {
+  outline: 2px solid var(--bt-accent-text); outline-offset: 2px;
+}
+.bt-course-row-open:focus-visible { outline-offset: -2px; }
+/* The room and message menus are portaled outside this surface (FilterMenu
+   `menuClassName`): their items get the same contrasted ring here only. */
+.bt-course-menu .bt-filter-item:focus-visible { outline: 2px solid var(--bt-accent-text); outline-offset: -2px; }
+
+/* ── Phone and tablet: list, then the room full screen ─────────── */
+@media (max-width: 1023px) {
+  .bt-course-spaces { display: flex; flex-direction: column; gap: 0; }
+  .bt-course-room { display: none; }
+  .bt-course-spaces.is-open .bt-course-list { display: none; }
+  .bt-course-spaces.is-open .bt-course-room { display: flex; }
+  .bt-course-list-scroll { padding-bottom: calc(var(--bt-nav-space) + 28px); }
+  /* The Social tab right above already reads « Communautés »: the title stays
+     for screen readers only, as on the Friends page. */
+  .bt-course-list-head { padding-top: 16px; }
+  .bt-course-list-head h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bt-course-search, .bt-course-composer-field, .bt-course-composer-extra .input { font-size: 16px; }
+  .bt-course-room-head { grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 4px; padding: 6px 4px 8px; }
+  .bt-course-room-head > .bt-course-back { display: inline-flex; grid-column: 1; grid-row: 1; }
+  .bt-course-room-title { grid-column: 2; grid-row: 1; padding: 4px 0; }
+  .bt-course-room-title h2 { font-size: 17px; }
+  .bt-course-room-title h2 > .bt-course-marker { margin-top: 5px; }
+  .bt-course-room-menu { grid-column: 3; grid-row: 1; }
+  .bt-course-study { grid-column: 2; grid-row: 2; justify-self: start; min-height: 44px; margin-top: 2px; padding: 0 12px; font-size: 13px; }
+  .bt-course-stream { padding: 8px 12px 12px; }
+  .bt-course-group { max-width: 94%; }
+  .bt-course-composer { padding: 8px 8px 10px; }
+  .bt-course-composer-field { margin-left: 2px; }
+  .bt-course-preview { padding: 24px 20px; }
+  html.bt-chat-fullscreen .bt-course-room.bt-social-panel--chat { height: var(--bt-room-viewport, 100dvh); }
+}
+@media (max-width: 639px) {
+  .bt-course-send { width: 44px; padding: 0; }
+  .bt-course-send svg { display: block; }
+  .bt-course-send span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-course-row, .bt-course-join, .bt-course-answers button, .bt-course-study, .bt-course-icon-btn,
+  .bt-course-message-menu, .bt-course-send, .bt-course-report-reasons button { transition: none; }
+}

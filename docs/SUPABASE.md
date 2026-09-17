@@ -14,7 +14,7 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `posts` | feed posts (user_id, image_url, caption, visibility ∈ {'public','friends'}) |
 | `likes` | emoji reactions on posts (post_id, user_id, emoji) |
 | `comments` | comments on posts (post_id, user_id, content) |
-| `community_messages` | university chat messages (community, user_id, content, attachment_url, **parent_id** question-reply thread, **exam_date** v25+) |
+| `community_messages` | messages of **course rooms** (`room_id`, 2026-09-17) and legacy academic spaces (`community`, retired) — exactly one of the two is set; user_id, content, attachment_url, exam_date, `hidden_at` (moderation) |
 | `private_messages` | DMs (sender_id, receiver_id, content, read) |
 | `study_groups` | revision groups (name, description, created_by) |
 | `group_members` | group memberships (group_id, user_id, role ∈ {'admin','member'}) |
@@ -22,6 +22,10 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `deleted_accounts` | audit log of self-deletes (admin-only read) |
 | `course_offerings` | canonical courses: one real course inside one institution, derived from 2+ students, no personal column (2026-09-17, no UI yet — `docs/canonical-courses.md`) |
 | `course_links` | private decision personal course → canonical course (`auto` / `confirmed` / `rejected`); not a room membership |
+| `course_rooms` | one course space per canonical course, created lazily by the first join (`docs/course-spaces.md`) |
+| `course_room_members` | voluntary memberships (room_id, user_id, joined_at) |
+| `user_blocks` | blocker_id → blocked_id; hides the blocked student's room messages for the blocker |
+| `course_message_reports` | message_id, reporter_id, reason (spam/abuse/other), resolved_at; 3 open reports hide a message |
 
 ## Row Level Security — rules
 
@@ -32,12 +36,17 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `friendships` | requester or addressee | INSERT forced to `'pending'`; only `addressee` can accept (v8); cannot self-friend |
 | `posts` | all authenticated users (filtered client-side by visibility) | owner only |
 | `likes` / `comments` | all authenticated | owner only |
-| `community_messages` | all authenticated, any community (v25+) | own community only (or admin), owner for delete |
+| `community_messages` | author, admins, or members of the message's course room (never hidden, blocked-author or self-reported rows); legacy rows author/admin only | no client insert — `post_course_room_message`; author or admin delete |
 | `private_messages` | sender or receiver | INSERT only between accepted friends |
 | `study_groups` / `group_members` / `group_messages` | members only | admin/owner roles |
 | `deleted_accounts` | admins only | trigger on self-delete |
 | `course_links` | owner only | none for clients — `confirm_course_link` / `reject_course_link` / `resolve_my_course_links` |
 | `course_offerings` | canonical courses the caller has a decision about | none for clients |
+| `course_rooms` | none for clients (functions only) | none — `join_course_room` |
+| `course_room_members` | own rows only | none — `join_course_room` / `leave_course_room` |
+| `user_blocks` | own rows (as blocker) | insert/delete own rows |
+| `course_message_reports` | own rows (as reporter) | none — `report_course_message` |
+| `study_space_members` (legacy) | own rows only (2026-09-17) | own join/leave rows, unused by the app |
 
 ## Sensitive functions (SECURITY DEFINER)
 
@@ -55,6 +64,10 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `get_my_study_rank(p_period text)` | Returns user's percentile vs all active users |
 | `get_user_profile_stats(p_user_id uuid)` | v12+: restricted to self/friend/admin |
 | `resolve_my_course_links()` | Refreshes and returns the caller's course matching state (`auto`, `confirmed`, `suggested`). Reads other students' courses server-side, returns only canonical titles. Internal helpers (`course_identity`, `course_candidates`…) are not executable by clients. See `docs/canonical-courses.md` |
+| `course_space_summaries(p_offering_ids)` / `search_course_spaces(p_query)` | Course space rows for the caller's institution: canonical title, room, joined, member count only from 3, last activity for members only. See `docs/course-spaces.md` |
+| `join_course_room(p_offering_id)` / `leave_course_room(p_room_id)` | Voluntary membership; the join creates the room lazily, own institution only, 40 memberships max |
+| `post_course_room_message(...)` | Members only: text ≤ 1,000, attachment under `<uid>/<room>/`, optional exam date; 6 per 30 s, 200 per day, no duplicate within 2 min |
+| `report_course_message(p_message_id, p_reason)` / `admin_course_reports()` / `admin_resolve_course_report(p_message_id, p_remove)` | Moderation: report (hidden for all at 3 open reports, 20 per day); admin list, dismiss or delete |
 | `confirm_course_link(p_course_id uuid, p_offering_id uuid)` / `reject_course_link(…)` | Owner decision on one of their own active courses; confirm accepts only a MEDIUM/HIGH candidate at the caller's institution |
 
 ## Storage buckets
