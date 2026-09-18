@@ -2803,3 +2803,6 @@ Changements effectues :
 - Stage uniquement les fichiers necessaires.
 - Toujours commit les changements valides avec un message clair.
 - Ne jamais push sans confirmation explicite.
+
+## 2026-09-18 — Claude — Les deux espaces par defaut ont enfin une marque lisible
+Les icones des espaces academiques passent de 24px a 40px et changent de forme : l'etablissement garde sa plaque carree avec son vrai logo (ICHEC, UCLouvain, ...), le programme recoit un disque d'encre portant ses initiales (M pour Medecine, GM pour Gestion & management). Le carre dit "etablissement", le rond dit "groupe d'etudiants" — la meme grammaire que les applications de discussion — et rien n'est un pictogramme invente. Tests 20/20, build production OK.

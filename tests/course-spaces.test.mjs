@@ -13,6 +13,7 @@ import {
   namesDiffer,
   newMessagesFromOthers,
   pickInitialSpace,
+  programInitials,
   programLabel,
   universityInitials,
   visibleMemberCount,
@@ -271,4 +272,11 @@ test("a program space shows the taxonomy name in the reader's language, free tex
   assert.equal(programLabel("Business & Management", "en"), "Business & Management");
   assert.equal(programLabel("Kinésithérapie du sport", "fr"), "Kinésithérapie du sport");
   assert.equal(programLabel("", "fr"), "");
+});
+
+test("a program disc carries one letter for one word, two for a real pair", () => {
+  assert.equal(programInitials("Médecine"), "M");
+  assert.equal(programInitials("Gestion & management"), "GM");
+  assert.equal(programInitials("Sciences de la santé"), "SS");
+  assert.equal(programInitials(""), "?");
 });

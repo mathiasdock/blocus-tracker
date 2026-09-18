@@ -483,7 +483,7 @@ export default function CourseRoom({
     <header className="bt-course-room-head">
       <button type="button" className="bt-course-icon-btn bt-course-back" onClick={onBack} aria-label={t("common.back")}><IconBack /></button>
       <div className="bt-course-room-title">
-        <h2 id="course-room-title">{spaceMark(entry, 28)}<span>{roomTitle}</span></h2>
+        <h2 id="course-room-title">{spaceMark(entry, 34, lang)}<span>{roomTitle}</span></h2>
         {details.length > 0 && <p>{details.join(" · ")}</p>}
       </div>
       {entry.course && <button type="button" className="bt-course-study" onClick={() => onStudy(entry)}>{t("courseSpaces.study")}</button>}

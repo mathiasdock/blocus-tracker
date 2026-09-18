@@ -2,7 +2,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { timeAgo } from "../../lib/format";
 import { COMMUNITY_BY_ID } from "../../lib/universities";
-import { programLabel, universityInitials } from "../../lib/courseSpaces.mjs";
+import { programInitials, programLabel, universityInitials } from "../../lib/courseSpaces.mjs";
 
 // Left column: the two spaces the profile gives (institution, program), then
 // the course spaces joined, then the ones that exist for the student's own
@@ -24,8 +24,8 @@ export function CourseMarker({ course }) {
 }
 
 // An institution is its own crest when the project already ships its logo, and
-// its initials in ink otherwise. Never an invented pictogram, never a colored
-// tile: the drawn wordmark keeps a paper plate so it survives the dark theme.
+// its initials otherwise, on the same square plate. Never an invented
+// pictogram: the plate stays paper so a drawn wordmark survives the dark theme.
 export function UniversityMark({ entry, size = 24 }) {
   const university = COMMUNITY_BY_ID[entry.institutionId];
   const [failed, setFailed] = useState(false);
@@ -54,11 +54,19 @@ export function spaceIdentity(entry, lang) {
   return { title: programLabel(entry.title, lang), context: institution || null };
 }
 
-export function spaceMark(entry, size = 24) {
+// A program is a group of people, not an institution: messaging apps have
+// taught that a round mark means people and a square one means an organisation.
+// So it keeps the initials of its own name in a disc — still typography, no
+// invented pictogram — and the square crest stays the institution's alone.
+export function ProgramMark({ entry, size = 24, lang = "fr" }) {
+  return <span className="bt-course-disc" style={{ "--mark": `${size}px` }} aria-hidden="true">
+    {programInitials(programLabel(entry.title, lang))}
+  </span>;
+}
+
+export function spaceMark(entry, size = 24, lang = "fr") {
   if (entry.kind === "university") return <UniversityMark entry={entry} size={size} />;
-  // A program has no drawn identity of its own: its slot stays empty so its
-  // name starts exactly where the institution's does.
-  if (entry.kind === "program") return <span className="bt-course-marker is-empty is-wide" style={{ "--mark": `${size}px` }} aria-hidden="true" />;
+  if (entry.kind === "program") return <ProgramMark entry={entry} size={size} lang={lang} />;
   return <CourseMarker course={entry.course} />;
 }
 
@@ -80,7 +88,7 @@ function SpaceRow({ entry, t, lang, selected, unread, onOpen, pending, onJoin, j
   ].filter(Boolean);
   return <li className={`bt-course-row${selected ? " is-selected" : ""}`}>
     <button type="button" className="bt-course-row-open" onClick={() => onOpen(entry)} aria-current={selected ? "true" : undefined}>
-      {spaceMark(entry)}
+      {spaceMark(entry, entry.kind === "course" ? 24 : 40, lang)}
       <span className="bt-course-row-text">
         <strong>{title}</strong>
         {details.length > 0 && <small>{details.join(" · ")}</small>}
