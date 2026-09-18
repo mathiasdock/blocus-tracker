@@ -135,23 +135,63 @@ create policy "friendships_insert" on public.friendships for insert to authentic
 create policy "friendships_update" on public.friendships for update to authenticated using (auth.uid() = requester or auth.uid() = addressee);
 create policy "friendships_delete" on public.friendships for delete to authenticated using (auth.uid() = requester or auth.uid() = addressee);
 
--- POSTS
+-- POSTS / LIKES / COMMENTS  (Activity)
+--
+-- These three blocks describe what production ACTUALLY enforces. This file
+-- said `using (true)` for all three until 2026-09-18, while the database had
+-- been hardened long before: anybody reading this file would have believed
+-- that a friends-only post was world readable, or "fixed" a hole that did not
+-- exist. Two rules apply, in this order:
+--   1. AUDIENCE — a friends-only post is readable by its author and their
+--      accepted friends only (`is_friend_or_self`);
+--   2. BLOCKING — a blocked student and the student who blocked them never see
+--      each other here, and cannot write on each other's posts
+--      (`activity_blocked_with`, migration 20260918120000_activity_blocks).
+-- Admins keep separate read policies for moderation (see that migration and
+-- the security-hardening ones). Writes are always in one's own name.
 drop policy if exists "posts_read"  on public.posts;
 drop policy if exists "posts_write" on public.posts;
-create policy "posts_read"  on public.posts for select to authenticated using (true);
+create policy "posts_read"  on public.posts for select to authenticated
+  using ((visibility is distinct from 'friends' or public.is_friend_or_self(user_id))
+         and not public.activity_blocked_with(user_id));
 create policy "posts_write" on public.posts for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- LIKES
-drop policy if exists "likes_read"  on public.likes;
-drop policy if exists "likes_write" on public.likes;
-create policy "likes_read"  on public.likes for select to authenticated using (true);
-create policy "likes_write" on public.likes for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "likes_read"   on public.likes;
+drop policy if exists "likes_insert" on public.likes;
+drop policy if exists "likes_delete" on public.likes;
+create policy "likes_read" on public.likes for select to authenticated
+  using (exists (select 1 from public.posts p
+                 where p.id = likes.post_id
+                   and (p.visibility is distinct from 'friends' or public.is_friend_or_self(p.user_id))
+                   and not public.activity_blocked_with(p.user_id))
+         and not public.activity_blocked_with(user_id));
+create policy "likes_insert" on public.likes for insert to authenticated
+  with check (auth.uid() = user_id
+              and exists (select 1 from public.posts p
+                          where p.id = likes.post_id
+                            and (p.visibility is distinct from 'friends' or public.is_friend_or_self(p.user_id))
+                            and not public.activity_blocked_with(p.user_id)));
+create policy "likes_delete" on public.likes for delete to authenticated using (auth.uid() = user_id);
 
 -- COMMENTS
-drop policy if exists "comments_read"  on public.comments;
-drop policy if exists "comments_write" on public.comments;
-create policy "comments_read"  on public.comments for select to authenticated using (true);
-create policy "comments_write" on public.comments for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "comments_read"   on public.comments;
+drop policy if exists "comments_insert" on public.comments;
+drop policy if exists "comments_delete" on public.comments;
+create policy "comments_read" on public.comments for select to authenticated
+  using (exists (select 1 from public.posts p
+                 where p.id = comments.post_id
+                   and (p.visibility is distinct from 'friends' or public.is_friend_or_self(p.user_id))
+                   and not public.activity_blocked_with(p.user_id))
+         and not public.activity_blocked_with(user_id));
+create policy "comments_insert" on public.comments for insert to authenticated
+  with check (auth.uid() = user_id
+              and exists (select 1 from public.posts p
+                          where p.id = comments.post_id
+                            and (p.visibility is distinct from 'friends' or public.is_friend_or_self(p.user_id))
+                            and not public.activity_blocked_with(p.user_id)));
+create policy "comments_delete" on public.comments for delete to authenticated
+  using (auth.uid() = user_id or exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true));
 
 -- ============================================================
 --  STORAGE BUCKETS  (avatars + post images, public read)

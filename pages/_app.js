@@ -1,7 +1,7 @@
 import "../styles/globals.css";
 import "../styles/course-spaces.css";
 import "../styles/planning.css";
-import "../styles/activity-post.css";
+import "../styles/activity.css";
 import Glyph from "../components/Glyph";
 import Head from "next/head";
 import { useRouter } from "next/router";

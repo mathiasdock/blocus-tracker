@@ -78,7 +78,16 @@ test("preferences persist remotely and failed settings saves reject", async () =
 });
 test("saved session never leaks its private note and uses course snapshot", async () => {
   const db = database(); db.settings.set("session", { session_completed: true });
-  await shareSavedSession(db, { id: "s", user_id: "session", duration_seconds: 120, course_id: "c", note: "private" });
+  await shareSavedSession(db, { id: "s", user_id: "session", duration_seconds: 1500, course_id: "c", note: "private" });
   assert.equal(db.rows[0].activity.courseName, "Marketing");
   assert.equal(JSON.stringify(db.rows).includes("private"), false);
+});
+test("a session under the signal threshold is studied, not announced", async () => {
+  const db = database(); db.settings.set("small", { session_completed: true });
+  // Twelve minutes still counts in Stats, in the streak and in XP; it simply
+  // does not become a social event (lib/activityFeed.mjs).
+  await shareSavedSession(db, { id: "s", user_id: "small", duration_seconds: 12 * 60, course_id: "c" });
+  assert.equal(db.rows.length, 0);
+  await shareSavedSession(db, { id: "s2", user_id: "small", duration_seconds: 20 * 60, course_id: "c" });
+  assert.equal(db.rows.length, 1);
 });

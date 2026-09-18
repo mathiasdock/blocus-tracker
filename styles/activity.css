@@ -1,0 +1,128 @@
+/* ── Activity (/feed) ─────────────────────────────────────────────
+   Replaces styles/activity-post.css (the card-per-event stack, retired
+   18 Sept 2026). Rules, from DESIGN.md and the Activity audit:
+   - ordinary study is a ROW, not a card: no shadow, no tile, no pill;
+   - an accomplishment is the product's own object, with room around it;
+   - the course marker is the only identity color, and only when a real
+     course is attached; green means action, selection or unread;
+   - the page must still read as Blocus in grayscale, without the logo. */
+
+.bt-activity { list-style: none; margin: 0; padding: 0; }
+
+/* One hairline between events. No box around anything. */
+.bt-activity-item { display: flex; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--bt-hairline); }
+.bt-activity-item:first-child { border-top: 0; }
+.bt-activity-line { flex: 1; min-width: 0; }
+.bt-activity-line > * + * { margin-top: 3px; }
+.bt-activity-face { flex-shrink: 0; align-self: flex-start; border-radius: 999px; }
+
+/* The day is a quiet rule across the timeline, not a heading with a card. */
+.bt-activity-day { display: flex; align-items: center; gap: 12px; padding: 22px 4px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: var(--bt-text-3); }
+.bt-activity-day::after { content: ""; flex: 1; height: 1px; background: var(--bt-hairline); }
+.bt-activity-day:first-child { padding-top: 4px; }
+
+.bt-activity-person { font: inherit; color: inherit; text-align: left; }
+.bt-activity-person strong { font-size: 15px; font-weight: 700; color: var(--bt-text-1); }
+.bt-activity-person:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+.bt-activity-verb { margin-left: 6px; font-size: 15px; color: var(--bt-text-1); }
+.bt-activity-item p { line-height: 1.4; overflow-wrap: anywhere; text-wrap: pretty; }
+
+/* Courses: the marker carries the identity, the name carries the meaning. */
+.bt-activity-courses { font-size: 13.5px; color: var(--bt-text-2); }
+.bt-activity-course { white-space: nowrap; }
+.bt-activity-course i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 999px; background: var(--bt-text-4); vertical-align: 1px; }
+.dark .bt-activity-course i { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.24); }
+.bt-activity-sep { margin: 0 6px; color: var(--bt-text-3); }
+
+.bt-activity-meta, .bt-activity-byline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12.5px; color: var(--bt-text-3); }
+.bt-activity-byline .bt-activity-sep { margin: 0; }
+.bt-activity-goal-title { font-size: 15px; font-weight: 600; color: var(--bt-text-1); }
+
+/* One encouragement. Text, not an emoji tray: "Bravo" is the whole
+   vocabulary, and its count is the only number worth showing. */
+.bt-activity-cheer { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; margin-left: -10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--bt-text-3); transition: background-color 150ms ease, color 150ms ease; }
+.bt-activity-cheer:hover { background: var(--bt-subtle); color: var(--bt-text-1); }
+.bt-activity-cheer.is-on { color: var(--bt-accent-text); }
+.bt-activity-cheer:disabled { opacity: 0.5; cursor: progress; }
+.bt-activity-cheer-count { font-variant-numeric: tabular-nums; }
+.bt-activity-meta .bt-activity-cheer { margin-left: 0; }
+
+.bt-activity-inline-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; color: var(--bt-text-3); transition: background-color 150ms ease, color 150ms ease; }
+.bt-activity-inline-btn:hover { background: var(--bt-subtle); color: var(--bt-text-1); }
+.bt-activity-inline-btn.is-danger:hover { color: var(--bt-danger-solid); }
+.bt-activity-owner { display: inline-flex; margin-left: auto; }
+
+/* ── The accomplishment: the interruption ─────────────────────────
+   More air, a bigger object, a title that is allowed to be a title. The
+   surface stays the page: an object must survive on a neutral surface. */
+.bt-activity-item.is-achievement { gap: 18px; padding: 22px 4px; align-items: center; }
+.bt-activity-object { flex-shrink: 0; display: grid; place-items: center; width: 84px; }
+.bt-activity-achievement-kind { font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--bt-text-3); }
+.bt-activity-item.is-achievement h2 { margin-top: 2px; font-size: 20px; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; color: var(--bt-text-1); overflow-wrap: anywhere; }
+.bt-activity-achievement-detail { font-size: 13.5px; color: var(--bt-text-2); max-width: 46ch; }
+.bt-activity-byline { margin-top: 8px; }
+
+.bt-activity-text { font-size: 15.5px; line-height: 1.5; color: var(--bt-text-1); max-width: 46ch; }
+.bt-activity-caption { font-size: 14px; color: var(--bt-text-2); max-width: 46ch; }
+.bt-activity-photo { margin-top: 8px; max-width: 420px; border-radius: 14px; overflow: hidden; }
+
+/* Comments stay secondary: a link until asked for. */
+.bt-activity-social { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; }
+.bt-activity-comments { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; }
+.bt-activity-comments ul { flex-basis: 100%; list-style: none; margin: 0 0 2px; padding: 0; }
+.bt-activity-comments li { display: flex; align-items: baseline; gap: 6px; font-size: 13.5px; line-height: 1.45; color: var(--bt-text-2); }
+.bt-activity-comments li > button:first-child { font-weight: 700; color: var(--bt-text-1); }
+.bt-activity-comments li span { min-width: 0; overflow-wrap: anywhere; }
+.bt-activity-quiet-btn { min-height: 32px; font-size: 12.5px; font-weight: 700; color: var(--bt-text-3); }
+.bt-activity-quiet-btn:hover { color: var(--bt-text-1); }
+.bt-activity-comment-field { display: flex; flex-basis: 100%; gap: 8px; align-items: center; }
+.bt-activity-comment-field .input { font-size: 14px; }
+.bt-activity-comment-field button { flex-shrink: 0; min-height: 40px; padding: 0 10px; font-size: 13px; font-weight: 700; color: var(--bt-accent-text); }
+.bt-activity-comment-field button:disabled { opacity: 0.4; }
+
+/* ── Level seal — the shared level object ─────────────────────────
+   One circular medallion, the "Niv." identity above a readable numeral, a
+   rim that never doubles as a progress meter. Used by Progression and by
+   Activity so a student sees the same object in both places. */
+.bt-level-seal { display: inline-grid; place-items: center; align-content: center; flex-shrink: 0; width: var(--seal, 96px); height: var(--seal, 96px); border-radius: 999px; background: var(--bt-accent-bg); color: var(--bt-accent-text); box-shadow: inset 0 0 0 2px var(--bt-accent-border); }
+.bt-level-seal.is-on-ink { background: rgba(255, 255, 255, 0.12); color: #FFFFFF; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.34); }
+.bt-level-seal-label { font-size: calc(var(--seal, 96px) * 0.12); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
+.bt-level-seal-number { font-size: calc(var(--seal, 96px) * 0.42); font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+
+/* ── Sharing invitation, empty and error states ───────────────────
+   Quiet, left aligned, product specific. No centered illustration. */
+.bt-activity-note { padding: 18px 4px; max-width: 48ch; }
+.bt-activity-note h2 { font-size: 15px; font-weight: 700; color: var(--bt-text-1); }
+.bt-activity-note p { margin-top: 4px; font-size: 14px; line-height: 1.6; color: var(--bt-text-2); }
+.bt-activity-note .bt-activity-note-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.bt-activity-share { padding: 14px 4px 16px; border-bottom: 1px solid var(--bt-hairline); }
+.bt-activity-share-head { display: flex; align-items: baseline; gap: 10px; }
+.bt-activity-share-head h2 { font-size: 14px; font-weight: 700; color: var(--bt-text-1); }
+.bt-activity-share p { margin-top: 3px; font-size: 13.5px; line-height: 1.55; color: var(--bt-text-2); max-width: 52ch; }
+.bt-activity-share-actions { margin-top: 10px; }
+.bt-activity-share-toggles { display: grid; gap: 6px; margin-top: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.bt-activity-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 0 10px; border-radius: var(--bt-r-control); font-size: 14px; color: var(--bt-text-1); text-align: left; transition: background-color 150ms ease; }
+.bt-activity-switch:hover { background: var(--bt-subtle); }
+.bt-activity-switch:disabled { opacity: 0.5; }
+.bt-activity-switch-track { flex-shrink: 0; width: 36px; height: 20px; padding: 2px; border-radius: 999px; background: var(--bt-border); transition: background-color 150ms ease; }
+.bt-activity-switch[aria-checked="true"] .bt-activity-switch-track { background: var(--bt-action); }
+.bt-activity-switch-knob { display: block; width: 16px; height: 16px; border-radius: 999px; background: #FFFFFF; transition: transform 150ms ease; }
+.bt-activity-switch[aria-checked="true"] .bt-activity-switch-knob { transform: translateX(16px); }
+.bt-activity-audience { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--bt-text-2); }
+.bt-activity-audience button { min-height: 36px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--bt-text-2); box-shadow: inset 0 0 0 1px var(--bt-hairline); }
+.bt-activity-audience button[aria-pressed="true"] { background: var(--bt-accent-bg); color: var(--bt-accent-text); box-shadow: inset 0 0 0 1px var(--bt-accent-border); }
+
+/* The composer stays one slim row: on a phone the first real event must be
+   visible without scrolling past two forms. */
+.bt-activity-composer { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 4px 12px; text-align: left; }
+.bt-activity-composer span { flex: 1; min-width: 0; padding: 9px 14px; border-radius: 999px; background: var(--bt-subtle); color: var(--bt-text-3); font-size: 14px; }
+
+.bt-activity :focus-visible, .bt-activity-share :focus-visible,
+.bt-activity-note :focus-visible, .bt-activity-composer:focus-visible { outline: 2px solid var(--bt-accent-text); outline-offset: 2px; border-radius: 10px; }
+
+@media (max-width: 640px) {
+  .bt-activity-item.is-achievement { gap: 14px; padding: 18px 4px; }
+  .bt-activity-item.is-achievement h2 { font-size: 18px; }
+  .bt-activity-course { white-space: normal; }
+}

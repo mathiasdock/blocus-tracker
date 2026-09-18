@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import PageHeader from "../components/PageHeader";
 import AnimatedNumber from "../components/AnimatedNumber";
+import LevelSeal from "../components/LevelSeal";
 import Glyph from "../components/Glyph";
 import { MissionRow, WeeklyRow } from "../components/MissionRows";
 import { useAuth } from "../contexts/AuthContext";
@@ -126,11 +127,11 @@ export default function ProgressionPage() {
         <section className="card-ink bt-grain relative overflow-hidden p-5 sm:p-6">
           <div className="relative z-10">
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-[20px]"
-                style={{ background: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 20px rgba(20,184,133,0.45)" }}>
-                <span className="text-[10px] font-semibold leading-none" style={{ color: "rgba(255,255,255,0.72)" }}>{t("xp.level")}</span>
-                <AnimatedNumber value={current.level} style={{ fontSize: 30, fontWeight: 700, color: "#fff", lineHeight: 1.1 }} />
-              </div>
+              {/* The shared level seal (components/LevelSeal): the same object a
+                  student sees when a level appears in Activity. The rounded
+                  gradient tile that used to live here was a third drawing of
+                  the same thing. */}
+              <LevelSeal level={current.level} size={68} onInk />
               <div className="min-w-0">
                 <p className="font-display text-2xl font-bold leading-tight tracking-[-0.015em]" style={{ color: "var(--bt-ink-text)" }}>
                   {t(current.titleKey)}
