@@ -41,7 +41,10 @@ function MascotStage() {
 }
 
 export default function ProfileAchievementCards({ levelInfo, earnedBadgeIds, t }) {
-  const earned = BADGES.filter(badge => earnedBadgeIds.includes(badge.id));
+  // `earnedBadgeIds` is null when the server list could not be read: the card
+  // keeps its object but announces no count — "0 sur 22" would read as a loss.
+  const known = Array.isArray(earnedBadgeIds);
+  const earned = known ? BADGES.filter(badge => earnedBadgeIds.includes(badge.id)) : [];
   const preview = collectionPreview(earned);
   const { current, next, progressXP, rangeXP, progressPct } = levelInfo;
   const progress = Math.max(0, Math.min(100, progressPct || 0));
@@ -70,11 +73,13 @@ export default function ProfileAchievementCards({ levelInfo, earnedBadgeIds, t }
               {t("xp.level")} {next.level}
             </span>}
           </span>
-          <span className={styles.track} role="progressbar" aria-label={t("xp.nextLevel")}
+          {/* The XP bar is the shared one (styles/level.css): the same track
+              on the Progression page. No tick marks — they cut the bar into
+              quarters that meant nothing. */}
+          <span className="bt-level-track" role="progressbar" aria-label={t("xp.nextLevel")}
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}
             aria-valuetext={next ? `${progressXP} / ${rangeXP} XP — ${t("xp.level")} ${next.level}` : t("xp.maxLevel")}>
-            <span className={styles.fill} style={{ transform: `scaleX(${progress / 100})` }} />
-            <span className={styles.trackTicks} aria-hidden="true"><i /><i /><i /></span>
+            <span className="bt-level-fill" style={{ transform: `scaleX(${progress / 100})` }} />
           </span>
         </span>
       </Link>
@@ -89,9 +94,9 @@ export default function ProfileAchievementCards({ levelInfo, earnedBadgeIds, t }
           )) : <span className={styles.emptyObject}><BadgeIcon id="first_session" size={96} /></span>}
         </span>
         <span className="sr-only">{preview.map(badge => t(badge.labelKey)).join(", ")}</span>
-        {!earned.length && <span className={styles.emptyLabel}>{t("profile.collectionEmpty")}</span>}
+        {known && !earned.length && <span className={styles.emptyLabel}>{t("profile.collectionEmpty")}</span>}
         <span className={styles.collectionFooter}>
-          <span className={styles.count}>{countLabel}</span>
+          {known && <span className={styles.count}>{countLabel}</span>}
           <span className={styles.openCollection}>{t("profile.viewCollection")}</span>
         </span>
       </Link>

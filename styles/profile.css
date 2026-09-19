@@ -1,0 +1,62 @@
+/* ── Profile (/profile) ──────────────────────────────────────────
+   Identity first, and short: one row — avatar, name, one line of academic
+   identity, the bio, two facts. No cover band, no large avatar sitting on
+   it, no row of stat tiles: that is a social-network hero, not a student's
+   page. What makes this profile Blocus — the Progression card with its
+   shiba, the Badges card with its objects — comes right after, full width.
+   Settings follow, each column as tall as what it holds. */
+
+.bt-profile { max-width: 980px; }
+
+.bt-profile-id {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 16px;
+  padding: 4px 2px 0;
+}
+.bt-profile-avatar { position: relative; flex-shrink: 0; }
+.bt-profile-photo-btn {
+  position: absolute; right: -4px; bottom: -4px;
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px;
+  background: var(--bt-action); color: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--bt-bg);
+}
+.bt-profile-photo-btn:disabled { opacity: 0.7; }
+/* A 28px disc is the visible part; the tap area reaches 44px. */
+.bt-profile-photo-btn::after { content: ""; position: absolute; inset: -8px; }
+
+.bt-profile-id-text { min-width: 0; }
+.bt-profile-id-text h1 { font-size: 22px; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; color: var(--bt-text-1); overflow-wrap: anywhere; }
+.bt-profile-id-line { margin-top: 2px; font-size: 13.5px; line-height: 1.45; color: var(--bt-text-2); overflow-wrap: anywhere; text-wrap: pretty; }
+.bt-profile-bio { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--bt-text-1); max-width: 60ch; overflow-wrap: anywhere; }
+.bt-profile-metrics { margin-top: 6px; font-size: 13px; line-height: 1.45; color: var(--bt-text-2); font-variant-numeric: tabular-nums; }
+.bt-profile-inline-msg { margin-top: 6px; font-size: 12.5px; color: var(--bt-accent-text); }
+.bt-profile-inline-msg[data-kind="error"] { color: var(--bt-danger); }
+
+.bt-profile-edit {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px;
+  border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--bt-text-1);
+  background: var(--bt-subtle); box-shadow: inset 0 0 0 1px var(--bt-hairline);
+  white-space: nowrap; transition: background-color 150ms ease;
+}
+.bt-profile-edit:hover { background: var(--bt-surface); }
+
+.bt-profile-doors { margin-top: 20px; }
+.bt-profile-doors > * + * { margin-top: 12px; }
+
+.bt-profile-rest { display: grid; gap: 16px; margin-top: 16px; align-items: start; }
+@media (min-width: 1024px) {
+  .bt-profile-rest { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .bt-profile-id-text h1 { font-size: 24px; }
+}
+
+/* Narrow phones: the edit action moves under the text instead of squeezing
+   the name. */
+@media (max-width: 520px) {
+  .bt-profile-id { grid-template-columns: auto minmax(0, 1fr); }
+  .bt-profile-edit { grid-column: 2; justify-self: start; margin-top: 8px; min-height: 36px; }
+}
+
+.bt-profile-photo-btn:focus-visible, .bt-profile-edit:focus-visible { outline: 2px solid var(--bt-accent-text); outline-offset: 3px; }
+.bt-profile-id-line .bt-profile-part:first-child { color: var(--bt-text-3); }

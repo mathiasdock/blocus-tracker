@@ -9,6 +9,9 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { BADGES } from "../lib/badges";
 import { groupBadges } from "../lib/badgeGroups";
+import { fetchCanonicalBadgeIds } from "../lib/badgeTruth.mjs";
+
+const BADGE_IDS = BADGES.map((badge) => badge.id);
 
 // La collection, sur sa propre page.
 //
@@ -59,30 +62,13 @@ export default function BadgesPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    // Les badges appartiennent au serveur depuis la v28 : `sync_my_badges`
-    // attribue ceux qui viennent d'être mérités et renvoie la liste, la table
-    // porte l'historique. Leur union suffit — inutile de rejouer ici le calcul
-    // client, qui demanderait de relire sessions, objectifs, amis et
-    // publications pour un résultat que la base connaît déjà.
-    //
-    // `.then(r => r)` AVANT `.catch` : le constructeur de requête de
-    // supabase-js expose `then` mais pas `catch`. Appeler `.catch` directement
-    // dessus lève un TypeError qui faisait échouer toute la fonction — et une
-    // collection de quinze badges s'affichait vide, tout verrouillé. Le client
-    // hors-ligne, lui, renvoie une vraie Promise : le repli avait donc un
-    // `catch` et la vérification locale ne pouvait pas voir le bug.
+    // Les badges appartiennent au serveur depuis la v28. Le profil lit la même
+    // liste par la même fonction (lib/badgeTruth) : les deux écrans ne peuvent
+    // plus annoncer deux totaux différents. Un échec de lecture garde ce qu'on
+    // avait plutôt que d'afficher une collection vide.
     try {
-      const [syncRes, rowsRes] = await Promise.all([
-        supabase.rpc("sync_my_badges").then(r => r).catch(() => ({ data: null })),
-        supabase.from("user_badges").select("badge_id").eq("user_id", user.id)
-          .then(r => r).catch(() => ({ data: null })),
-      ]);
-      const synced = Array.isArray(syncRes?.data) ? syncRes.data : [];
-      const stored = Array.isArray(rowsRes?.data) ? rowsRes.data.map(r => r.badge_id) : [];
-      const ids = [...new Set([...synced, ...stored])];
-      // Un échec de lecture ne doit pas RESSEMBLER à une perte : plutôt que
-      // d'écraser la collection par une liste vide, on garde ce qu'on avait.
-      if (ids.length || (syncRes?.data && rowsRes?.data)) setEarnedIds(ids);
+      const ids = await fetchCanonicalBadgeIds(supabase, user.id, BADGE_IDS);
+      if (ids) setEarnedIds(ids);
     } catch (error) {
       console.warn("Badge load failed:", error);
     }

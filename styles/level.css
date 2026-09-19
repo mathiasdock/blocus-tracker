@@ -1,0 +1,34 @@
+/* ── Level — one object, one progress bar ─────────────────────────
+   The Profile's Progression card is the reference: "Niv." in small muted
+   type above a large tabular numeral, on the brand ink, and a separate bar
+   for XP. Level is a STATUS (the numeral); XP is PROGRESS (the bar). They
+   are never drawn as one thing, and the bar carries no decorative ticks.
+
+   Used by components/LevelSeal (Progression header, Activity) and mirrored by
+   components/ProfileAchievementCards.module.css. Colors are tokens only. */
+
+.bt-level-mark {
+  display: inline-flex; flex-direction: column; justify-content: flex-end; flex-shrink: 0;
+  min-width: calc(var(--seal, 84px) * 0.62);
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-text-1);
+}
+.bt-level-mark-label {
+  margin-bottom: calc(var(--seal, 84px) * 0.04);
+  font-size: max(11px, calc(var(--seal, 84px) * 0.13));
+  font-weight: 600; line-height: 1.3; letter-spacing: 0;
+  color: var(--bt-text-3);
+}
+.bt-level-mark-number {
+  font-size: calc(var(--seal, 84px) * 0.72);
+  font-weight: 800; line-height: 0.95; letter-spacing: -0.04em;
+}
+.bt-level-mark.is-on-ink { color: var(--bt-ink-text); }
+.bt-level-mark.is-on-ink .bt-level-mark-label { color: var(--bt-ink-muted); }
+
+/* XP toward the next level. Same track on the Profile card and on the
+   Progression page: a light channel on the ink, a fill from the brand green
+   to the ink's own highlight. */
+.bt-level-track { position: relative; display: block; height: 8px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, 0.16); }
+.bt-level-fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--bt-accent), var(--bt-ink-muted)); transform-origin: left; transition: transform 500ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .bt-level-fill { transition: none; } }

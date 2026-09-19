@@ -204,7 +204,7 @@ export function AuthProvider({ children }) {
     if (password.length < 6) return { error: "Le mot de passe doit faire au moins 6 caractères." };
     if (!em)                 return { error: "L'adresse email est obligatoire." };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
-      return { error: "L'adresse email n'est pas valide." };
+      return { error: "L'adresse email n'est pas valide.", code: "invalid" };
 
     // Vérifier disponibilité du pseudo
     let { data: pseudoAvailable, error: availabilityError } = await supabase
@@ -449,13 +449,14 @@ export function AuthProvider({ children }) {
 
   // ---------------------------------------------------------------
   // updateEmail — utilisé dans la page profil pour les anciens
-  //   utilisateurs qui veulent ajouter leur email
+  //   utilisateurs qui veulent ajouter leur email. `code` est ce que l'écran
+  //   traduit ; `error` reste pour les appelants existants.
   // ---------------------------------------------------------------
   const updateEmail = useCallback(async (newEmail) => {
     const em = (newEmail || "").trim().toLowerCase();
-    if (!em) return { error: "L'adresse email est obligatoire." };
+    if (!em) return { error: "L'adresse email est obligatoire.", code: "required" };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
-      return { error: "L'adresse email n'est pas valide." };
+      return { error: "L'adresse email n'est pas valide.", code: "invalid" };
 
     // Supabase Auth validates the change first. The database trigger copies
     // only the confirmed Auth email to profiles afterwards.
@@ -466,12 +467,12 @@ export function AuthProvider({ children }) {
     );
     if (aErr) {
       if (classifyAuthError(aErr) === "rate_limited") {
-        return { error: "Un email vient déjà d'être envoyé. Réessaie dans une minute." };
+        return { error: "Un email vient déjà d'être envoyé. Réessaie dans une minute.", code: "rate_limited" };
       }
       if (aErr.code === "email_exists" || aErr.code === "user_already_exists") {
-        return { error: "Cet email est déjà utilisé." };
+        return { error: "Cet email est déjà utilisé.", code: "taken" };
       }
-      return { error: "L'adresse email n'a pas pu être modifiée pour le moment." };
+      return { error: "L'adresse email n'a pas pu être modifiée pour le moment.", code: "failed" };
     }
 
     return { error: null };

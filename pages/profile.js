@@ -5,9 +5,8 @@ import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleto
 import UniPicker from "../components/UniPicker";
 import StudyFieldPicker from "../components/StudyFieldPicker";
 import StudyProgramInput from "../components/StudyProgramInput";
-import { STUDY_YEARS, studyYearLabel } from "../lib/studyYears";
-import StudyHeatmap from "../components/StudyHeatmap";
-import LevelPill from "../components/LevelPill";
+import { STUDY_YEARS, studyYearShortLabel } from "../lib/studyYears";
+import { universityShortName } from "../lib/universities";
 import MascotMoment from "../components/MascotMoment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import PwaHomeScreenVisual from "../components/PwaHomeScreenVisual";
@@ -17,8 +16,9 @@ import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
 import { useConsent } from "../contexts/ConsentContext";
 import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
-import { displayName, formatMinutesShort, computeStreak, computeBestStreak, todayISO } from "../lib/format";
-import { BADGES, computeEarnedBadgeIds } from "../lib/badges";
+import { displayName, formatStudyTime, computeStreak, computeBestStreak } from "../lib/format";
+import { BADGES } from "../lib/badges";
+import { fetchCanonicalBadgeIds } from "../lib/badgeTruth.mjs";
 import { computeTotalXP, getLevelInfo } from "../lib/xp";
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import ProfileAchievementCards from "../components/ProfileAchievementCards";
@@ -40,6 +40,18 @@ import {
   readSensoryPreferences,
   writeSensoryPreferences,
 } from "../lib/sensoryFeedback";
+
+// The catalogue order every badge count follows (lib/badgeTruth).
+const BADGE_IDS = BADGES.map((badge) => badge.id);
+
+// AuthContext.updateEmail codes → sentences in the reader's language.
+const EMAIL_ERROR_KEYS = {
+  required: "profile.emailRequired",
+  invalid: "profile.emailInvalid",
+  rate_limited: "profile.emailRateLimited",
+  taken: "profile.emailTaken",
+  failed: "profile.emailFailed",
+};
 
 // ── Thème ────────────────────────────────────────────────────
 // bt_theme = "light" | "dark" | "system" (bt_dark est la clé héritée,
@@ -236,6 +248,15 @@ function SettingsRow({ icon, tone, label, description, right, onClick, href, dan
   return inner;
 }
 
+// A line of short facts separated by "·". The separator is glued to the
+// fact before it by a non-breaking space, so a wrapped line never starts with
+// a lone dot — while a long free-text program can still wrap inside itself.
+function Parts({ items }) {
+  return items.map((item, index) => (
+    <span key={index} className="bt-profile-part">{item}{index < items.length - 1 ? "\u00a0·" : ""}{" "}</span>
+  ));
+}
+
 // ── Liste groupée — la navigation du profil ──────────────────
 // La page montrait tout, tout le temps : quatorze cartes dépliées, dont onze
 // de réglages qu'on ouvre trois fois par an. Ce qui compte — qui je suis, où
@@ -281,7 +302,7 @@ function Segmented({ options, value, onChange }) {
       {options.map(o => (
         <button key={o.value} onClick={() => onChange(o.value)} title={o.title || undefined}
           className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-          style={value === o.value ? { backgroundColor: "#14B885", color: "#fff" } : { color: "var(--bt-text-3)" }}>
+          style={value === o.value ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: "var(--bt-text-3)" }}>
           {o.label}
         </button>
       ))}
@@ -307,19 +328,6 @@ function MiniSwitch({ checked, onChange, label }) {
 // 10 px en gris clair — elle se lisait moins bien qu'un corps normal et
 // n'ajoutait aucune hiérarchie ; c'est le chiffre qui doit dominer, pas
 // l'étiquette qui crie.
-function StatTile({ label, value, sub }) {
-  return (
-    <div className="card-inset min-w-0 px-1.5 py-3 text-center">
-      {/* Taille fluide : a 1,35 rem fixe, « 130h13 » ne tenait pas dans une
-          tuile de 96 px sur un iPhone et se coupait en « 130h… ». Le chiffre
-          reste le plus gros element de la tuile, mais il s'adapte a sa boite. */}
-      <p className="font-num truncate text-[clamp(1.05rem,4.9vw,1.35rem)] font-bold leading-none tracking-[-0.02em] tabular-nums" style={{ color: "var(--bt-text-1)" }}>{value}</p>
-      <p className="mt-1.5 truncate text-[11px] font-medium" style={{ color: "var(--bt-text-2)" }} title={label}>{label}</p>
-      {sub && <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--bt-text-4)" }}>{sub}</p>}
-    </div>
-  );
-}
-
 // ── Parrainage — contenu nu, posé dans une feuille de détail ──
 // Plus de carte ni d'en-tête : la feuille qui l'accueille porte déjà les deux.
 // Une carte dans une carte, c'était exactement le cadre-dans-le-cadre qu'on
@@ -514,7 +522,7 @@ function PushRow({ t, user }) {
     right = (
       <button onClick={enable} disabled={busy}
         className="px-3 py-1.5 rounded-full text-xs font-semibold transition disabled:opacity-60"
-        style={{ backgroundColor: "#14B885", color: "#fff" }}>
+        style={{ backgroundColor: "var(--bt-action)", color: "#fff" }}>
         {busy ? "…" : t("push.enable")}
       </button>
     );
@@ -607,7 +615,7 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
               <button className="btn-primary w-full" type="submit" disabled={busy || !!locked}>
                 {busy ? t("common.saving") : t("common.save")}
               </button>
-              {msg && <p className="text-xs text-center" style={{ color: msg.startsWith("Erreur") ? "#DC2626" : "var(--bt-accent-dark)" }}>{msg}</p>}
+              {msg && <p className="text-xs text-center" role={msg.kind === "error" ? "alert" : "status"} style={{ color: msg.kind === "error" ? "var(--bt-danger)" : "var(--bt-accent-text)" }}>{msg.text}</p>}
             </form>
           </div>
         </div>
@@ -625,14 +633,14 @@ export default function Profile() {
   const { openSettings: openConsentSettings } = useConsent();
   const avatarInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
-  const [avatarMsg, setAvatarMsg] = useState("");
-  const [earnedBadgeIds, setEarnedBadgeIds] = useState([]);
+  const [avatarMsg, setAvatarMsg] = useState(null);
+  // null = the server did not answer: the card then says nothing about the
+  // count rather than announcing an empty collection.
+  const [earnedBadgeIds, setEarnedBadgeIds] = useState(null);
   const [profileSessions, setProfileSessions] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
   const [freezeStock, setFreezeStock] = useState(null); // stock restant (null = pas encore lu)
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
-  const [sessionCount, setSessionCount] = useState(0);
-  const [myRank, setMyRank] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -653,10 +661,10 @@ export default function Profile() {
   const [privacy, setPrivacy] = useState(DEFAULT_PRIVACY_SETTINGS);
   const [privacyAvailable, setPrivacyAvailable] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [msg, setMsg] = useState(null);
   const [emailInput, setEmailInput] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
-  const [emailMsg, setEmailMsg] = useState("");
+  const [emailMsg, setEmailMsg] = useState(null);
   // Premier chargement des donnees du profil. Tant qu'il n'est pas termine on
   // affiche un squelette : sinon la page rend un niveau 1, zero badge et des
   // compteurs a zero, que les gens lisent comme un bug.
@@ -699,88 +707,42 @@ export default function Profile() {
   }, [newBadgeId]);
 
   // ── Load badge / XP data ─────────────────────────────────
+  // Badges: the server's list only (lib/badgeTruth), exactly what the Badges
+  // page reads. The profile used to recompute the rules here and add its own
+  // result — with UTC days and without blocus periods — so it announced more
+  // badges than the collection it links to. Level and XP come from the
+  // canonical RPC (loadUserLevelMap); the counts below only feed its offline
+  // fallback.
   useEffect(() => {
     if (!user) return;
     async function loadBadges() {
-      const today = todayISO();
-      const [
-        sessionsRes, examRes, objRes, friendRes, activityTotalsRes, existingRes,
-        doneObjRes, groupRes,
-        commMsgRes, referralStatsRes, syncedBadgesRes,
-      ] = await Promise.all([
-        supabase.from("sessions").select("started_at, duration_seconds, course_id, note").eq("user_id", user.id),
+      const [examRes, doneObjRes, badgeIds] = await Promise.all([
         supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("friendships").select("id", { count: "exact", head: true })
-          .or(`requester.eq.${user.id},addressee.eq.${user.id}`).eq("status", "accepted"),
-        // Publications et réactions sont supprimées au bout de 24 h (v46) :
-        // les compter en direct ferait retomber la progression vers les badges
-        // à zéro chaque jour. On lit le total à vie, alimenté à la création.
-        supabase.from("user_activity_totals")
-          .select("lifetime_posts, lifetime_reactions")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        supabase.from("user_badges").select("badge_id").eq("user_id", user.id),
         supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("done", true),
-        supabase.from("group_members").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("community_messages").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.rpc("get_my_referral_stats"),
-        supabase.rpc("sync_my_badges"),
+        fetchCanonicalBadgeIds(supabase, user.id, BADGE_IDS),
       ]);
+      const allBadges = badgeIds || [];
 
-      const sessions = sessionsRes.data || [];
-      // Jours gelés inclus : badges streak_x et XP cohérents avec l'affichage.
-      const freezeRes = await runStreakFreezeUpkeep(supabase, user.id, sessions);
-      const streak = computeStreak(sessions, freezeRes.supported ? freezeRes.frozenDays : []);
-      const totalHours = sessions.reduce((a, s) => a + s.duration_seconds, 0) / 3600;
-
-      // Compute maxDailyHours for marathon_day badge
-      const dayTotals = {};
-      for (const s of sessions) {
-        const day = s.started_at.slice(0, 10);
-        dayTotals[day] = (dayTotals[day] || 0) + s.duration_seconds;
-      }
-      const maxDailySecs = Object.values(dayTotals).length > 0 ? Math.max(...Object.values(dayTotals)) : 0;
-
-      const completedObj = doneObjRes.count || 0;
-      const earned = computeEarnedBadgeIds({
-        streak, totalHours,
-        maxDailyHours: maxDailySecs / 3600,
-        sessionCount: sessions.length,
-        examCount: examRes.count || 0,
-        objectiveCount: objRes.count || 0,
-        completedObjCount: completedObj,
-        friendCount: friendRes.count || 0,
-        postCount: activityTotalsRes.data?.lifetime_posts || 0,
-        reactionsCount: activityTotalsRes.data?.lifetime_reactions || 0,
-        groupMemberCount: groupRes.count || 0,
-        communityMsgCount: commMsgRes.count || 0,
-        referralCount: referralStatsRes.data?.ok ? (referralStatsRes.data.count || 0) : 0,
-      });
-
-      const synced = Array.isArray(syncedBadgesRes.data) ? syncedBadgesRes.data : [];
-      const existing = (existingRes.data || []).map(b => b.badge_id);
-      const allBadges = [...new Set([...synced, ...existing, ...earned])];
-
-      // Badge rows are now awarded by the database. Keep the celebration local
-      // and show it only when a badge appears after the first observed baseline.
-      try {
-        const seenKey = `blocus:seen-badges:${user.id}`;
-        const rawSeen = localStorage.getItem(seenKey);
-        const seen = rawSeen ? JSON.parse(rawSeen) : null;
-        if (Array.isArray(seen)) {
-          const newlySeen = allBadges.filter(id => !seen.includes(id));
-          if (newlySeen.length) setNewBadgeId(newlySeen[0]);
+      // The celebration stays local: it shows a badge that appeared since the
+      // last visit, never on the first observation.
+      if (badgeIds) {
+        try {
+          const seenKey = `blocus:seen-badges:${user.id}`;
+          const rawSeen = localStorage.getItem(seenKey);
+          const seen = rawSeen ? JSON.parse(rawSeen) : null;
+          if (Array.isArray(seen)) {
+            const newlySeen = allBadges.filter(id => !seen.includes(id));
+            if (newlySeen.length) setNewBadgeId(newlySeen[0]);
+          }
+          localStorage.setItem(seenKey, JSON.stringify(allBadges));
+        } catch (_) {
+          // Progress remains correct if storage is unavailable.
         }
-        localStorage.setItem(seenKey, JSON.stringify(allBadges));
-      } catch (_) {
-        // Progress remains correct if storage is unavailable.
+        setEarnedBadgeIds(allBadges);
       }
-      setEarnedBadgeIds(allBadges);
 
-      setSessionCount(sessions.length);
       setExamCount(examRes.count || 0);
-      setCompletedObjCount(completedObj);
+      setCompletedObjCount(doneObjRes.count || 0);
 
       clearUserLevelCache();
       const levelMap = await loadUserLevelMap(supabase, [user.id], {
@@ -807,16 +769,6 @@ export default function Profile() {
       // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
       const freeze = await runStreakFreezeUpkeep(supabase, user.id, heatSessions || []);
       if (freeze.supported) { setFrozenDays(freeze.frozenDays); setFreezeStock(freeze.stock); }
-    })();
-  }, [user]);
-
-  // ── Classement de la semaine (RPC leaderboard existant) ───
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase.rpc("get_my_study_rank", { p_period: "week" });
-      const row = Array.isArray(data) ? data[0] : data;
-      if (row) setMyRank(row);
     })();
   }, [user]);
 
@@ -852,8 +804,8 @@ export default function Profile() {
     const rawFile = e.target.files?.[0];
     if (!rawFile) return;
     const precheck = validateUploadFile(rawFile, "avatar");
-    if (!precheck.ok) { setAvatarMsg(uploadErrorMessage(t, precheck)); return; }
-    setBusy(true); setAvatarMsg("");
+    if (!precheck.ok) { setAvatarMsg({ kind: "error", text: uploadErrorMessage(t, precheck) }); return; }
+    setBusy(true); setAvatarMsg(null);
 
     // Compresse l'avatar (≤ 320×320 px, WebP si possible) avant l'upload.
     // Chute silencieuse : on utilise le fichier original si la compression échoue.
@@ -864,29 +816,31 @@ export default function Profile() {
     } catch (_) {}
 
     const finalCheck = validateFinalUploadFile(uploadFile, "avatar");
-    if (!finalCheck.ok) { setBusy(false); setAvatarMsg(uploadErrorMessage(t, finalCheck)); return; }
+    if (!finalCheck.ok) { setBusy(false); setAvatarMsg({ kind: "error", text: uploadErrorMessage(t, finalCheck) }); return; }
     const pathInfo = safeStoragePath(user.id, uploadFile, ["avatars"], "avatar");
-    if (!pathInfo.ok) { setBusy(false); setAvatarMsg(uploadErrorMessage(t, pathInfo)); return; }
+    if (!pathInfo.ok) { setBusy(false); setAvatarMsg({ kind: "error", text: uploadErrorMessage(t, pathInfo) }); return; }
     const { error: upErr } = await supabase.storage
       .from("avatars")
       .upload(pathInfo.path, uploadFile, { upsert: true, cacheControl: "31536000", contentType: pathInfo.contentType });
-    if (upErr) { setBusy(false); setAvatarMsg(t("profile.avatarError")); return; }
+    if (upErr) { setBusy(false); setAvatarMsg({ kind: "error", text: t("profile.avatarError") }); return; }
     const { data: pub } = supabase.storage.from("avatars").getPublicUrl(pathInfo.path);
     const { error: updErr } = await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", user.id);
     setBusy(false);
-    if (updErr) setAvatarMsg(t("profile.avatarError"));
-    else { setAvatarMsg(t("profile.avatarUpdated")); refreshProfile(); }
+    if (updErr) setAvatarMsg({ kind: "error", text: t("profile.avatarError") });
+    else { setAvatarMsg({ kind: "success", text: t("profile.avatarUpdated") }); refreshProfile(); }
   }
 
   async function saveEmail(e) {
-    e.preventDefault(); setEmailMsg("");
+    e.preventDefault(); setEmailMsg(null);
     if (!emailInput.trim()) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)) { setEmailMsg(t("profile.emailInvalid")); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)) { setEmailMsg({ kind: "error", text: t("profile.emailInvalid") }); return; }
     setEmailBusy(true);
-    const { error } = await updateEmail(emailInput);
+    const { error, code } = await updateEmail(emailInput);
     setEmailBusy(false);
-    if (error) setEmailMsg(error);
-    else { setEmailMsg(t("profile.emailSaved")); refreshProfile(); }
+    // AuthContext answers with a code; the sentence is chosen here, in the
+    // reader's language — never the French text it also returns.
+    if (error) setEmailMsg({ kind: "error", text: t(EMAIL_ERROR_KEYS[code] || "profile.emailFailed") });
+    else { setEmailMsg({ kind: "success", text: t("profile.emailSaved") }); refreshProfile(); }
   }
 
   // La suppression passe par /api/account/delete : le RPC seul laissait en
@@ -910,7 +864,7 @@ export default function Profile() {
     } catch (_) {}
 
     const { error } = await supabase.rpc("self_delete_user");
-    if (error) { setDeleting(false); setMsg("Erreur : " + error.message); setDeleteConfirm(false); return; }
+    if (error) { console.error("Account deletion failed:", error); setDeleting(false); setMsg({ kind: "error", text: t("profile.deleteError") }); setDeleteConfirm(false); return; }
     await signOut();
   }
 
@@ -944,7 +898,7 @@ export default function Profile() {
   }
 
   async function saveInfo(e) {
-    e.preventDefault(); setBusy(true); setMsg("");
+    e.preventDefault(); setBusy(true); setMsg(null);
     const actualYear = form.study_year === "Autre" ? (form.study_year_custom.trim() || "Autre") : form.study_year;
     const { error } = await supabase.from("profiles").update({
       first_name: form.first_name.trim() || null, last_name: form.last_name.trim() || null,
@@ -953,84 +907,53 @@ export default function Profile() {
       study_year: actualYear || null, bio: form.bio.trim() || null,
     }).eq("id", user.id);
     setBusy(false);
-    if (error) { setMsg("Erreur : " + error.message); toast(t("toast.genericError"), "error"); }
-    else { setMsg(t("profile.updated")); refreshProfile(); toast(t("toast.saved")); }
+    if (error) { console.error("Profile save failed:", error); setMsg({ kind: "error", text: t("profile.saveError") }); toast(t("toast.genericError"), "error"); }
+    else { setMsg({ kind: "success", text: t("profile.updated") }); refreshProfile(); toast(t("toast.saved")); }
   }
 
   // ── Computed values ──────────────────────────────────────
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const secs30d = profileSessions.filter(s => new Date(s.started_at) >= thirtyDaysAgo).reduce((a, s) => a + s.duration_seconds, 0);
   const streak = computeStreak(profileSessions, frozenDays);
   const best = computeBestStreak(profileSessions, frozenDays);
-  const activeDays = new Set(profileSessions.map(s => (s.started_at || "").slice(0, 10))).size;
-  const avgDaySecs30 = Math.round(secs30d / 30);
-
-  const todayStr = todayISO();
-  const todaySessions = profileSessions.filter(s => s.started_at?.startsWith(todayStr));
-  const todaySecs = todaySessions.reduce((a, s) => a + s.duration_seconds, 0);
   const fallbackTotalXP = computeTotalXP({
     totalMinutes: profileTotalSecs / 60,
     completedObjectives: completedObjCount,
-    bestStreak: best, examCount, badgeIds: earnedBadgeIds,
+    bestStreak: best, examCount, badgeIds: earnedBadgeIds || [],
     bonusXP: profile?.bonus_xp || 0,
   });
   const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);
   const newBadge = newBadgeId ? BADGES.find(b => b.id === newBadgeId) : null;
+  // The Progression card already carries the mascot. A second shiba right
+  // below it is only justified by a real event — a badge that just arrived,
+  // the last level reached — never by a daily "your streak is safe": that is
+  // the Timer's message, not the profile's.
   const profileMoment = newBadge
     ? { key: `badge-${newBadge.id}`, mood: "celebrating", frequency: "once",
         message: t("mascot.badge").replace("{badge}", t(newBadge.labelKey)) }
     : !levelInfo.next
       ? { key: "level-max", mood: "celebrating", frequency: "once", message: t("mascot.maxLevel") }
-      : (todaySecs > 0 && streak > 0)
-        ? { key: "streak-safe", mood: "proud", frequency: "daily", message: t("mascot.streakSafe") }
-        : null;
-
-  // Classement : #N parmi les actifs de la semaine (RPC leaderboard).
-  const rankValue = myRank
-    ? (Number(myRank.my_secs) > 0
-        ? <AnimatedNumber value={Number(myRank.better_count) + 1} prefix="#" />
-        : "—")
-    : "…";
+      : null;
 
   const sep = <div style={{ height: 1, backgroundColor: "var(--bt-hairline)" }} />;
 
-  // Les trois chiffres qui répondent à « où j'en suis » restent sous les yeux.
-  // Les six autres — sessions, record, gels, moyennes — passent dans la
-  // feuille « Mon activité » : ils comptent, mais personne n'ouvre son profil
-  // pour les vérifier tous les jours, et à neuf tuiles côte à côte plus aucune
-  // ne ressortait.
-  const heroStats = [
-    { label: t("profile.statTotalTime"), value: <AnimatedNumber value={profileTotalSecs} format={formatMinutesShort} /> },
-    { label: t("profile.streakDays"), value: <AnimatedNumber value={streak} suffix={` ${t("dash.daysShort")}`} /> },
-    { label: t("profile.statRank7d"), value: rankValue },
-  ];
+  // Identity in one short line: program, year, institution — each in its
+  // shortest faithful form ("Médecine · Bac 2 · UCLouvain"), never the
+  // onboarding sentence "Premier cycle (Bachelor / Licence) · année 2".
+  const identityParts = [
+    profile?.study_field,
+    studyYearShortLabel(profile?.study_year, t),
+    universityShortName(profile?.university),
+  ].filter(Boolean);
 
-  const activityStats = [
-    { label: t("profile.hours30d"), value: <AnimatedNumber value={secs30d} format={formatMinutesShort} /> },
-    { label: t("profile.statAvgDay"), value: <AnimatedNumber value={avgDaySecs30} format={formatMinutesShort} /> },
-    { label: t("profile.statActiveDays"), value: <AnimatedNumber value={activeDays} /> },
-    { label: t("profile.statObjDone"), value: <AnimatedNumber value={completedObjCount} /> },
-    { label: t("profile.statSessions"), value: <AnimatedNumber value={sessionCount} /> },
-    { label: t("profile.bestStreakDays"), value: <AnimatedNumber value={best} suffix={` ${t("dash.daysShort")}`} /> },
-    // Les gels n'étaient visibles NULLE PART sur le profil : on ne pouvait pas
-    // savoir combien il en restait. Affiché dès que la fonctionnalité répond,
-    // y compris à 0 (sinon on ne découvre jamais que ce filet existe).
-    ...(freezeStock == null ? [] : [{
-      label: t("streak.stockLabel"),
-      value: (
-        <span className="inline-flex items-center gap-1.5">
-          <Glyph size={14} style={{ color: freezeStock > 0 ? "#38BDF8" : "var(--bt-text-4)" }}>
-            <path d="M12 2v20M4 6l16 12M20 6L4 18M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5"/>
-          </Glyph>
-          <span className="font-num tabular-nums">{freezeStock}/2</span>
-        </span>
-      ),
-      // La valeur affiche déjà « n/2 » : le sous-titre sert donc à dire QUAND
-      // ça se recharge, l'info qui manque vraiment (et qui tient dans la tuile).
-      sub: t("streak.stockRefill"),
-    }]),
-  ];
+  // Two facts, written as information rather than drawn as tiles: the time
+  // studied and the streak. The weekly rank left — empty for anyone who has
+  // not studied this week, and a competition, not an identity. The freeze
+  // stock comes along with the streak it protects (it used to be visible only
+  // inside "Mon activité").
+  const metrics = [
+    profileTotalSecs > 0 && t("profile.metricStudied").replace("{time}", formatStudyTime(profileTotalSecs)),
+    streak > 0 && t(streak === 1 ? "profile.metricStreakOne" : "profile.metricStreak").replace("{n}", streak),
+    streak > 0 && freezeStock != null && t("profile.metricFreezes").replace("{n}", freezeStock),
+  ].filter(Boolean);
 
   const closeSheet = () => setSheet(null);
   // L'état courant s'affiche sur la rangée fermée : c'est ce qui distingue
@@ -1044,66 +967,41 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="max-w-[1200px] mx-auto pb-10 bt-stagger">
+      <div className="bt-profile mx-auto pb-10 bt-stagger">
 
-        {/* ══ HERO — identité ══════════════════════════════════ */}
-        <div className="card overflow-hidden">
-          <div className="h-20 sm:h-24 relative overflow-hidden" style={{ background: "radial-gradient(130% 150% at 82% -30%, rgba(20,184,133,0.45), transparent 58%), linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink))" }} />
-          <div className="px-5 sm:px-7 pb-5 sm:pb-6">
-            <div className="flex flex-col items-center text-center sm:flex-row sm:items-end sm:text-left gap-3 sm:gap-5 pt-2">
-              {/* Avatar + caméra — seul l'avatar chevauche le cover, le texte
-                  reste sous la ligne pour garder son contraste */}
-              <div className="relative shrink-0" style={{ marginTop: -58 }}>
-                <div style={{ borderRadius: "50%", padding: 3, backgroundColor: "var(--bt-surface)", boxShadow: "0 6px 20px var(--bt-shadow)" }}>
-                  <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={88} />
-                </div>
-                <button onClick={() => avatarInputRef.current?.click()} disabled={busy}
-                  title={t("profile.changePhoto")}
-                  className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full flex items-center justify-center transition-all"
-                  style={{ backgroundColor: "#14B885", color: "#fff", boxShadow: "0 1px 6px rgba(0,0,0,0.25)" }}>
-                  {busy ? <span className="block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <IconCamera />}
-                </button>
-                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={uploadAvatar} disabled={busy} />
-              </div>
-
-              {/* Identité */}
-              <div className="flex-1 min-w-0 sm:pb-1">
-                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                  <h2 className="text-xl font-display" style={{ color: "var(--bt-text-1)" }}>{displayName(profile)}</h2>
-                  <LevelPill level={levelInfo.current.level} size="sm" solid />
-                </div>
-                <p className="text-sm mt-0.5" style={{ color: "var(--bt-text-3)" }}>
-                  @{profile?.pseudo}
-                  {(profile?.study_field || profile?.study_year || profile?.university) && (
-                    <span> · {[profile.study_field, studyYearLabel(profile.study_year, t), profile.university].filter(Boolean).join(" · ")}</span>
-                  )}
-                </p>
-                {profile?.bio && (
-                  <p className="text-sm mt-1.5 italic leading-snug" style={{ color: "var(--bt-text-2)" }}>« {profile.bio} »</p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="shrink-0 sm:pb-1">
-                <button onClick={() => { setMsg(""); setShowEditProfile(true); }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-colors bt-press"
-                  style={{ backgroundColor: "var(--bt-subtle)", boxShadow: "inset 0 0 0 1px var(--bt-hairline)", color: "var(--bt-text-1)" }}>
-                  <IconEdit />
-                  {t("profile.editProfile")}
-                </button>
-              </div>
-            </div>
-
-            {avatarMsg && (
-              <p className="text-xs mt-2.5 text-center sm:text-left" style={{ color: avatarMsg === t("profile.avatarUpdated") ? "var(--bt-accent-dark)" : "var(--bt-danger)" }}>{avatarMsg}</p>
-            )}
-
-            {/* Rail de stats-clés — trois chiffres, pas neuf. */}
-            <div className="grid grid-cols-3 gap-2 mt-5 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-              {heroStats.map((s, i) => <StatTile key={i} label={s.label} value={s.value} sub={s.sub} />)}
-            </div>
+        {/* ══ IDENTITÉ ═══════════════════════════════════════════
+            Qui on est, en une rangée. Plus de bannière décorative, plus de
+            grand avatar posé dessus, plus de trois tuiles de chiffres : c'est
+            la page d'identité d'un étudiant, pas l'en-tête d'un réseau social.
+            La progression arrive juste en dessous, dès le premier écran. */}
+        <header className="bt-profile-id">
+          <div className="bt-profile-avatar">
+            <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={64} />
+            <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={busy}
+              title={t("profile.changePhoto")} aria-label={t("profile.changePhoto")}
+              className="bt-profile-photo-btn">
+              {busy ? <span className="block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <IconCamera />}
+            </button>
+            <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={uploadAvatar} disabled={busy} />
           </div>
-        </div>
+
+          <div className="bt-profile-id-text">
+            <h1 className="font-display">{displayName(profile)}</h1>
+            <p className="bt-profile-id-line"><Parts items={[`@${profile?.pseudo || ""}`, ...identityParts]} /></p>
+            {profile?.bio && <p className="bt-profile-bio">{profile.bio}</p>}
+            {metrics.length > 0 && <p className="bt-profile-metrics"><Parts items={metrics} /></p>}
+            {avatarMsg && (
+              <p className="bt-profile-inline-msg" role={avatarMsg.kind === "error" ? "alert" : "status"}
+                data-kind={avatarMsg.kind}>{avatarMsg.text}</p>
+            )}
+          </div>
+
+          <button type="button" onClick={() => { setMsg(null); setShowEditProfile(true); }}
+            className="bt-profile-edit bt-press">
+            <IconEdit />
+            <span>{t("profile.editProfile")}</span>
+          </button>
+        </header>
 
         {/* Locked warning */}
         {profile?.locked && (
@@ -1117,47 +1015,44 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ══ RUBRIQUES ════════════════════════════════════════
-            Ce qu'on vient FAIRE. Deux colonnes dès qu'il y a la largeur, et le
-            partage est explicite plutôt que laissé au hasard du flux : à gauche
-            ce qui appartient à la personne et ce qu'elle vient vérifier, à
-            droite ce qu'elle vient régler. */}
-        <div className="mt-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start">
+        {/* ══ LES DEUX PORTES ════════════════════════════════════
+            Progression et collection : ce qui distingue ce profil de n'importe
+            quel autre. Elles prennent toute la largeur, directement sous
+            l'identité — elles étaient serrées dans une demi-colonne pendant
+            que l'en-tête et les réglages occupaient l'écran. */}
+        <div className="bt-profile-doors">
+          <ProfileAchievementCards levelInfo={levelInfo} earnedBadgeIds={earnedBadgeIds} t={t} />
+          {profileMoment && (
+            <MascotMoment
+              eventKey={profileMoment.key}
+              message={profileMoment.message}
+              mood={profileMoment.mood}
+              frequency={profileMoment.frequency}
+              streak={streak}
+              className=""
+            />
+          )}
+        </div>
+
+        {/* ══ CE QU'ON VIENT FAIRE, PUIS RÉGLER ════════════════
+            Deux colonnes dès qu'il y a la largeur. Elles n'ont pas à être de
+            même hauteur : chacune a la taille de ce qu'elle contient. */}
+        <div className="bt-profile-rest">
 
           <div className="space-y-4">
-            {/* ══ LES DEUX PORTES ══════════════════════════════════
-            La progression et la collection occupaient deux pavés dépliés qu'il
-            fallait franchir avant d'atteindre le premier réglage — et aucun des
-            deux ne tenait dans un écran. Ce sont maintenant deux tuiles carrées
-            qui disent l'essentiel d'un coup d'œil et mènent à leur page.
-
-            Chacune porte sa matière : la progression sur l'encre de marque,
-            réservée aux moments de progrès acquis ; la collection sur surface
-            claire, avec ses objets dessinés en guise d'identité. Deux portes
-            qui se ressemblent seraient deux portes qu'on confond. */}
-            <ProfileAchievementCards levelInfo={levelInfo} earnedBadgeIds={earnedBadgeIds} t={t} />
-
-            {profileMoment && (
-              <MascotMoment
-                eventKey={profileMoment.key}
-                message={profileMoment.message}
-                mood={profileMoment.mood}
-                frequency={profileMoment.frequency}
-                streak={streak}
-                className=""
-              />
-            )}
-
-
-            {/* Ce qui appartient à l'utilisateur : son activité, ses filleuls,
-                sa voix. Trois portes, pas trois pavés dépliés. */}
+            {/* « Mon activité » répétait la page Stats (calendrier, moyennes,
+                jours actifs, record). Il n'en reste qu'une porte vers Stats ;
+                la seule information propre au profil — les gels de série —
+                est passée à côté de la série, dans l'identité. */}
             <NavGroup>
               <NavRow tone="accent" icon={<IconActivity />}
-                label={t("profile.activitySection")} description={t("profile.activityRowDesc")}
-                onClick={() => setSheet("activity")} />
+                label={t("profile.statsRow")} description={t("profile.statsRowDesc")}
+                href="/stats" />
               <NavRow icon={<IconGift />}
                 label={t("referral.title")} description={t("referral.subtitle")}
                 onClick={() => setSheet("referral")} />
+              {/* Une seule entrée vers les retours : la même page montre la
+                  boîte de réception aux administrateurs. */}
               <NavRow icon={<IconFeedback />}
                 label={t("feedback.improveTitle")} href="/feedback" />
             </NavGroup>
@@ -1186,12 +1081,10 @@ export default function Profile() {
                 </>
               )}
             </div>
-
           </div>
 
           {/* ── Ce qu'on vient régler ──────────────────────── */}
           <div className="space-y-4">
-
             {/* Réglages — ce qu'on ouvre trois fois par an. */}
             <NavGroup>
               <NavRow icon={<IconSliders />}
@@ -1209,7 +1102,6 @@ export default function Profile() {
             {profile?.is_admin && (
               <NavGroup>
                 <NavRow icon={<IconShield />} label={t("profile.adminDashboard")} href="/admin" />
-                <NavRow icon={<IconFeedback />} label={t("profile.suggestionInbox")} href="/feedback" />
               </NavGroup>
             )}
 
@@ -1222,22 +1114,6 @@ export default function Profile() {
       </div>
 
       {/* ══ Feuilles de détail ════════════════════════════════ */}
-      <DetailSheet open={sheet === "activity"} title={t("profile.activitySection")}
-        closeLabel={t("common.close")} onClose={closeSheet}>
-        <div className="px-5">
-          {profileTotalSecs > 0 ? (
-            <>
-              <StudyHeatmap sessions={profileSessions} />
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {activityStats.map((s, i) => <StatTile key={i} label={s.label} value={s.value} sub={s.sub} />)}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.empty")}</p>
-          )}
-        </div>
-      </DetailSheet>
-
       <DetailSheet open={sheet === "referral"} title={t("referral.title")}
         closeLabel={t("common.close")} onClose={closeSheet}>
         <ReferralBody t={t} fallbackCode={profile?.referral_code} />
@@ -1282,7 +1158,7 @@ export default function Profile() {
             <form onSubmit={saveEmail} className="space-y-2">
               <input className="input" type="email" value={emailInput} onChange={e => setEmailInput(e.target.value)} autoComplete="email" placeholder="ton@email.com" />
               <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("profile.emailHint")}</p>
-              {emailMsg && <p className="text-xs" style={{ color: emailMsg === t("profile.emailSaved") ? "var(--bt-accent-dark)" : "var(--bt-danger)" }}>{emailMsg}</p>}
+              {emailMsg && <p className="text-xs" role={emailMsg.kind === "error" ? "alert" : "status"} style={{ color: emailMsg.kind === "error" ? "var(--bt-danger)" : "var(--bt-accent-text)" }}>{emailMsg.text}</p>}
               <button className="btn-primary w-full" type="submit" disabled={emailBusy || !emailInput.trim() || emailInput === (profile?.email || "")}>
                 {emailBusy ? t("profile.emailSaving") : t("profile.emailSave")}
               </button>
@@ -1359,7 +1235,7 @@ export default function Profile() {
               </button>
               <button onClick={() => setDeleteConfirm(false)} className="btn-ghost flex-1 text-sm">{t("common.cancel")}</button>
             </div>
-            {msg && <p className="text-xs text-center" style={{ color: "var(--bt-danger)" }}>{msg}</p>}
+            {msg && <p className="text-xs text-center" role="alert" style={{ color: "var(--bt-danger)" }}>{msg.text}</p>}
           </div>
         )}
       </DetailSheet>

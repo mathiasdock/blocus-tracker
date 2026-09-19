@@ -126,13 +126,13 @@ export default function ProgressionPage() {
             acquise, exactement ce à quoi l'encre verte est réservée. */}
         <section className="card-ink bt-grain relative overflow-hidden p-5 sm:p-6">
           <div className="relative z-10">
-            <div className="flex items-center gap-4">
-              {/* The shared level seal (components/LevelSeal): the same object a
-                  student sees when a level appears in Activity. The rounded
-                  gradient tile that used to live here was a third drawing of
-                  the same thing. */}
-              <LevelSeal level={current.level} size={68} onInk />
-              <div className="min-w-0">
+            {/* The same object as the Profile's Progression card, which is
+                how the student got here: "Niv." above a large numeral on the
+                ink (components/LevelSeal). The level is the status; the bar
+                below is the XP toward the next one — two things, two shapes. */}
+            <div className="flex items-end gap-5">
+              <LevelSeal level={current.level} size={104} onInk />
+              <div className="min-w-0 pb-1">
                 <p className="font-display text-2xl font-bold leading-tight tracking-[-0.015em]" style={{ color: "var(--bt-ink-text)" }}>
                   {t(current.titleKey)}
                 </p>
@@ -143,14 +143,14 @@ export default function ProgressionPage() {
             </div>
 
             <div className="mt-5">
-              <div className="font-num mb-2 flex justify-between text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
+              <div className="font-num mb-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>
                 <span>{next ? `${levelInfo.progressXP} / ${levelInfo.rangeXP} ${t("xp.xpLabel")}` : t("xp.maxLevel")}</span>
-                {next && <span>{t("xp.nextLevel")} : {t(next.titleKey)}</span>}
+                {next && <span>{t("xp.level")} {next.level} · {t(next.titleKey)}</span>}
               </div>
-              <div className="h-2.5 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
-                <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
-                  style={{ transform: `scaleX(${(levelInfo?.progressPct || 0) / 100})`, background: "linear-gradient(90deg, #0EA571, #22E4A4)" }} />
-              </div>
+              <span className="bt-level-track" role="progressbar" aria-label={t("xp.nextLevel")}
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(levelInfo?.progressPct || 0)}>
+                <span className="bt-level-fill" style={{ transform: `scaleX(${(levelInfo?.progressPct || 0) / 100})` }} />
+              </span>
             </div>
 
             {/* Le detail des sources COMPOSE le nombre affiche juste au-dessus.

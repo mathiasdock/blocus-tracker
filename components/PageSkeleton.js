@@ -95,19 +95,22 @@ function StatsSkeleton() {
   );
 }
 
+// Same shape as the page it announces: one identity row, the two cards
+// (Progression, Badges) side by side, then the settings.
 function ProfileSkeleton() {
   return (
-    <div className="space-y-5">
-      <Surface className="overflow-hidden p-0">
-        <div className="bt-skeleton h-24 rounded-none" />
-        <div className="px-6 pb-6">
-          <div className="flex items-end gap-4 -mt-8"><SkeletonCircle size={86} /><div className="space-y-2 pb-2"><SkeletonBar width="155px" height={21} /><SkeletonBar width="95px" height={10} /></div></div>
-          <div className="grid grid-cols-2 gap-3 mt-6 sm:grid-cols-5">{Array.from({ length: 5 }).map((_, i) => <SkeletonBar key={i} height={72} />)}</div>
-        </div>
-      </Surface>
+    <div className="bt-profile mx-auto space-y-5">
+      <div className="flex items-start gap-4 px-0.5 pt-1">
+        <SkeletonCircle size={64} />
+        <div className="flex-1 space-y-2 pt-1"><SkeletonBar width="160px" height={20} /><SkeletonBar width="220px" height={10} /><SkeletonBar width="140px" height={10} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <Surface className="p-0"><SkeletonBar height={250} style={{ borderRadius: "var(--bt-r-card)" }} /></Surface>
+        <Surface className="p-0"><SkeletonBar height={250} style={{ borderRadius: "var(--bt-r-card)" }} /></Surface>
+      </div>
       <div className="grid gap-5 lg:grid-cols-2">
-        <Surface><SkeletonBar width="130px" height={15} className="mb-5" /><SkeletonBar height={12} /><SkeletonList rows={3} avatar={24} lines={1} /></Surface>
-        <Surface><SkeletonBar width="105px" height={15} className="mb-5" /><div className="grid grid-cols-4 gap-3">{Array.from({ length: 8 }).map((_, i) => <SkeletonCircle key={i} size={48} />)}</div></Surface>
+        <Surface><SkeletonList rows={3} avatar={24} lines={1} /></Surface>
+        <Surface><SkeletonList rows={3} avatar={24} lines={1} /></Surface>
       </div>
     </div>
   );
