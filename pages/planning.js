@@ -22,7 +22,7 @@ import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 import { coursePlanning, dayWorkload, dayLoad, loadSegments } from "../lib/planningInsights.mjs";
 import PlanningLoadBar from "../components/PlanningLoadBar";
-import { normalizePlanningExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
+import { normalizePlanningExams, relevantUpcomingExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
 import PlanningExamMark from "../components/PlanningExamMark";
 
 // ── Constants ─────────────────────────────────────────────────
@@ -431,31 +431,12 @@ function ExamBadge({ days }) {
 }
 
 // ── RevisionChecklists ────────────────────────────────────────
-// Avancement des révisions par cours. Rangées compactes : le cours, son
-// compteur, sa barre. Les cadres individuels d'avant faisaient trois bordures
-// empilées (carte + rangée + barre) pour une seule information.
+// Aperçu décisionnel par cours : prochain examen et objectifs restants. La
+// progression de la checklist appartient à la fiche détaillée du cours.
 function RevisionChecklists({ className = "" }) {
-  const { activeCourses: courses, objectives, exams, lang, t } = usePlan();
+  const { activeCourses: courses, objectives, exams, t } = usePlan();
   const { user } = useAuth();
-  const [counts, setCounts]         = useState({}); // courseId -> { done, total }
   const [openCourse, setOpenCourse] = useState(null);
-
-  const loadCounts = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("course_checklist_items")
-      .select("course_id, is_done")
-      .eq("user_id", user.id);
-    const map = {};
-    (data || []).forEach(row => {
-      if (!map[row.course_id]) map[row.course_id] = { done: 0, total: 0 };
-      map[row.course_id].total += 1;
-      if (row.is_done) map[row.course_id].done += 1;
-    });
-    setCounts(map);
-  }, [user]);
-
-  useEffect(() => { loadCounts(); }, [loadCounts]);
 
   if (!courses.length) return null;
 
@@ -466,8 +447,6 @@ function RevisionChecklists({ className = "" }) {
       </p>
       <ul className="space-y-2.5">
         {coursePlanning(courses, objectives, exams, localToday()).map(({ course: c, exam, remaining, overdue }) => {
-          const cnt = counts[c.id] || { done: 0, total: 0 };
-          const pct = cnt.total ? Math.round(cnt.done / cnt.total * 100) : 0;
           return (
             <li key={c.id}>
               <button onClick={() => setOpenCourse(c)}
@@ -475,19 +454,13 @@ function RevisionChecklists({ className = "" }) {
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
-                  <span className="shrink-0 text-xs font-semibold tabular-nums" style={{ color: cnt.total ? "var(--bt-text-2)" : "var(--bt-text-4)" }}>
-                    {cnt.total > 0 ? `${cnt.done}/${cnt.total}` : <IconChevron dir="right" size={14} />}
-                  </span>
+                  <span className="shrink-0" style={{ color: "var(--bt-text-4)" }}><IconChevron dir="right" size={14} /></span>
                 </div>
                   <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>
                   {[exam && `${t("plan.examTag")} · ${examCountdown(daysUntil(exam.exam_date), t)}`,
                     remaining > 0 ? t(remaining === 1 ? "plan.remainingOne" : "plan.remainingMany").replace("{n}", remaining) : !exam && t("plan.nothingPlanned")].filter(Boolean).join(" · ")}
                 </p>
                 {overdue > 0 && <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.toReschedule").replace("{n}", overdue)}</p>}
-                {cnt.total > 0 && <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full" role="progressbar" aria-label={`${c.name} · ${t("checklist.sectionTitle")}`} aria-valuenow={cnt.done} aria-valuemax={cnt.total} aria-valuemin={0} style={{ backgroundColor: "var(--bt-subtle)" }}>
-                  <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-                    style={{ transform: `scaleX(${pct / 100})`, backgroundColor: c.color }} />
-                </div>}
               </button>
             </li>
           );
@@ -499,7 +472,6 @@ function RevisionChecklists({ className = "" }) {
           course={openCourse}
           userId={user.id}
           onClose={() => setOpenCourse(null)}
-          onChanged={loadCounts}
         />
       )}
     </section>
@@ -523,9 +495,7 @@ function TodayCard({ className = "" }) {
   const remainingToday = todayObjectives.filter(o => !o.done).sort((a, b) => (a.scheduled_time || "99").localeCompare(b.scheduled_time || "99"));
   const workload = dayWorkload(todayObjectives);
 
-  const nextExam = exams
-    .filter(e => e.exam_date >= today)
-    .sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0];
+  const nextExam = relevantUpcomingExams(exams, today)[0];
   const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
 
   const dateLabel = dateFromYmd(today).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" });
@@ -1706,12 +1676,12 @@ function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, on
 
   return (
     <div className={className}>
-      <div className="flex items-center gap-2">
-        <h1 className="bt-page-title min-w-0 flex-1 truncate">
+      <div className="bt-plan-toolbar-head flex items-center gap-2">
+        <h1 className="bt-page-title bt-plan-toolbar-title min-w-0 flex-1">
           {sentenceCase(periodLabel)}
         </h1>
 
-        <div className="flex shrink-0 items-center gap-1 no-print">
+        <div className="bt-plan-toolbar-actions flex shrink-0 items-center gap-1 no-print">
           <button onClick={onPrev} aria-label={t("plan.prevPeriod")}
             className="bt-plan-nav-btn flex h-9 w-9 items-center justify-center rounded-xl">
             <IconChevron dir="left" />
@@ -2100,9 +2070,7 @@ export default function Planning() {
   const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
-  const nextExam = exams
-    .filter(e => e.exam_date >= today)
-    .sort((a, b) => a.exam_date.localeCompare(b.exam_date))[0] || null;
+  const nextExam = relevantUpcomingExams(exams, today)[0] || null;
   const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
   const hasPreparationForNextExam = nextExam
     ? objectives.some(o => !o.done

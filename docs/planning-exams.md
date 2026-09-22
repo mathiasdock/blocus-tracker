@@ -17,6 +17,16 @@ same normalized list. No migration, backfill or write-on-read occurs.
 - Failed course/exam reads show a retry warning and retain previously loaded data
   for that source. The UI must not claim that a failed read means no exams.
 
+For a **course's next exam** (Chrono course context/list and Planning revision),
+`nextExamForCourse` selects the earliest upcoming structured exam, breaking
+same-day ties by time and ID. A valid `courses.exam_date` is the fallback only
+when that course has no upcoming structured exam. Past events never displace
+future ones. Planning's global next-exam summary uses those same course
+selections plus unassigned structured exams. The full calendar/ICS still keeps
+all distinct known dates; this selector does not delete or rewrite events.
+Chrono refreshes course and exam rows on entry even when its short-lived session
+cache is available, so an exam edited in Planning can become current there.
+
 ## Writes
 
 New exams and structured edits still use `exams`. Editing a legacy date updates
@@ -37,8 +47,8 @@ any remaining known legacy date stays visible for explicit correction.
 
 ## Limits and legacy
 
-Timer/course flows still write the legacy course date; Timer is untouched.
-Other readers (profile, push/mission flows, academic spaces) are not globally
+Timer/course editing still writes the legacy course date; the Timer timing
+engine is untouched. Other readers (profile, push/mission flows, academic spaces) are not globally
 migrated by this change. A future canonical write model requires its own task.
 No production data was changed during validation.
 

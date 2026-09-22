@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizePlanningExams, validExamDate, deletePlanningExam, updateLegacyExamDate } from '../lib/planningExams.mjs';
+import { normalizePlanningExams, nextExamForCourse, relevantUpcomingExams, validExamDate, deletePlanningExam, updateLegacyExamDate } from '../lib/planningExams.mjs';
 
 const course = { id: 'pink', name: 'Marketing', exam_date: '2026-09-20' };
 const exam = { id: 'exam-1', course_id: 'pink', name: 'Exam 2', exam_date: course.exam_date, exam_time: '14:00' };
@@ -34,6 +34,34 @@ test('invalid dates are not normalized into invented dates; input is immutable',
   const frozen = Object.freeze({ ...exam });
   assert.equal(normalizePlanningExams([{ id: 'bad', exam_date: '2026-02-30' }], [frozen]).length, 1);
   assert.equal(frozen.source, undefined);
+});
+
+const today = '2026-09-22';
+test('next course exam: structured-only and legacy-only dates', () => {
+  const structured = { ...exam, exam_date: '2026-10-03' };
+  assert.equal(nextExamForCourse(normalizePlanningExams([{ ...course, exam_date: null }], [structured]), course.id, today)?.id, structured.id);
+  assert.equal(nextExamForCourse(normalizePlanningExams([{ ...course, exam_date: '2026-10-04' }]), course.id, today)?.source, 'course');
+});
+test('next course exam: structured upcoming event is authoritative over a divergent legacy date', () => {
+  const rows = normalizePlanningExams([{ ...course, exam_date: '2026-09-25' }], [{ ...exam, exam_date: '2026-10-03' }]);
+  assert.equal(rows.length, 2); // calendar still preserves both known dates
+  assert.equal(nextExamForCourse(rows, course.id, today)?.exam_date, '2026-10-03');
+  assert.equal(relevantUpcomingExams(rows, today)[0]?.exam_date, '2026-10-03');
+});
+test('next course exam: multiple structured exams sort by date then time', () => {
+  const rows = normalizePlanningExams([course], [
+    { ...exam, id: 'late', exam_date: '2026-10-02', exam_time: '16:00' },
+    { ...exam, id: 'early', exam_date: '2026-10-02', exam_time: '09:00' },
+    { ...exam, id: 'later-day', exam_date: '2026-10-08' },
+  ]);
+  assert.equal(nextExamForCourse([...rows].reverse(), course.id, today)?.id, 'early');
+});
+test('next course exam: past structured event never displaces future legacy or structured event', () => {
+  const rows = normalizePlanningExams([{ ...course, exam_date: '2026-10-04' }], [
+    { ...exam, id: 'past', exam_date: '2026-09-20' },
+  ]);
+  assert.equal(nextExamForCourse(rows, course.id, today)?.exam_date, '2026-10-04');
+  assert.equal(nextExamForCourse(rows, course.id, '2026-10-05'), null);
 });
 
 function fakeClient(responses = []) {

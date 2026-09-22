@@ -645,6 +645,7 @@ export default function Profile() {
   const [showEmail, setShowEmail] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showPwa, setShowPwa] = useState(false);
+  const [pwaPlatform, setPwaPlatform] = useState(null);
   const [examCount, setExamCount] = useState(0);
   const [completedObjCount, setCompletedObjCount] = useState(0);
   // Feuille de détail ouverte : "activity" | "referral" | "prefs" | "account"
@@ -680,6 +681,7 @@ export default function Profile() {
 
   useEffect(() => {
     setSensoryPrefs(readSensoryPreferences());
+    setPwaPlatform(isStandalone() ? "installed" : isIOS() ? "ios" : "browser");
   }, []);
 
   // Préférences vie privée du compte. Tant que la migration v44 n'est pas
@@ -1170,6 +1172,9 @@ export default function Profile() {
           onClick={() => setShowPwa(s => !s)} right={<IconChevronDown open={showPwa} />} />
         {showPwa && (
           <div className="px-5 pb-4 pt-1 space-y-3">
+            {pwaPlatform === "installed" ? (
+              <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("pwa.installed")}</p>
+            ) : pwaPlatform === "ios" ? (<>
             <div className="flex items-start gap-2 rounded-xl px-3 py-2"
               style={{ backgroundColor: "var(--bt-reward-bg)", color: "var(--bt-reward-text)" }}>
               <span className="shrink-0 mt-0.5"><IconAlert /></span>
@@ -1186,6 +1191,9 @@ export default function Profile() {
             {/* Les étapes seules ne suffisent pas : « Sur l'écran d'accueil »
                 est noyé dans un long menu iOS, personne ne le trouve. */}
             <PwaHomeScreenVisual />
+            </>) : (
+              <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t("pwa.browserFallback")}</p>
+            )}
           </div>
         )}
         {sep}

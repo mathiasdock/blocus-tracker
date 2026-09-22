@@ -1189,7 +1189,7 @@ export default function Messages() {
       name: g.name,
       pseudo: null,
       avatarUrl: g.photo_url,
-      subtitle: g.lastMsg?.content || (g.lastMsg ? t("msg.file") : `${g.memberCount} ${t("msg.members")}`),
+      subtitle: g.lastMsg?.content || (g.lastMsg ? t("msg.file") : `${g.memberCount} ${t(g.memberCount === 1 ? "msg.member" : "msg.members")}`),
       unread: groupCount[g.id] || 0,
       lastAt: g.lastMsg?.created_at || g.created_at,
       isActive: activeType === "group" && grpActiveId === g.id,

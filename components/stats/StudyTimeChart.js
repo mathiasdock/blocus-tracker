@@ -1,10 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
-import Glyph from "../Glyph";
+import { useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid, ReferenceLine, ResponsiveContainer,
 } from "recharts";
 import FilterMenu from "../FilterMenu";
-import useDialogFocus from "../useDialogFocus";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatStudyTime, formatMinutesShort } from "../../lib/format";
 import { bucketLongLabel } from "../../lib/statsPeriod";
@@ -29,22 +27,6 @@ export function roundTicks(maxMinutes) {
   const ticks = [];
   for (let v = 0; v <= end; v += step) ticks.push(v);
   return { ticks, end };
-}
-
-function ExpandIcon({ size = 14 }) {
-  return (
-    <Glyph size={size}>
-      <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
-      <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-    </Glyph>
-  );
-}
-function CloseIcon() {
-  return (
-    <Glyph size={14}>
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-    </Glyph>
-  );
 }
 
 // Graphique principal de la page : « comment mon volume d'étude a évolué ? ».
@@ -78,14 +60,14 @@ function GoalTag({ viewBox, value }) {
   );
 }
 
-function Chart({ data, goalMinutes, goalLabel, selectedIso, onSelect, tall }) {
+function Chart({ data, goalMinutes, goalLabel, selectedIso, onSelect }) {
   const showGoal = goalMinutes > 0 && data.length > 0 && data[0].gran === "day";
   // Le domaine inclut l'objectif pour qu'il reste visible même une semaine
   // sans aucune barre qui l'atteint.
   const { ticks, end } = roundTicks(Math.max(...data.map((d) => d.minutes), showGoal ? goalMinutes : 0));
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} barCategoryGap={tall ? "28%" : "22%"}
+      <BarChart data={data} barCategoryGap="22%"
         margin={{ top: 14, right: 4, left: 0, bottom: 0 }}
         onClick={(state) => {
           const p = state?.activePayload?.[0]?.payload;
@@ -94,8 +76,8 @@ function Chart({ data, goalMinutes, goalLabel, selectedIso, onSelect, tall }) {
         <CartesianGrid strokeDasharray="0" stroke={AXIS} strokeOpacity={0.14} vertical={false} />
         <XAxis dataKey="label" tickLine={false} axisLine={false}
           fontSize={11} tick={{ fill: AXIS }}
-          interval="preserveStartEnd" minTickGap={tall ? 10 : 6} />
-        <YAxis tickLine={false} axisLine={false} width={tall ? 52 : 44} fontSize={11}
+          interval="preserveStartEnd" minTickGap={6} />
+        <YAxis tickLine={false} axisLine={false} width={44} fontSize={11}
           tick={{ fill: AXIS }} ticks={ticks} domain={[0, end]} interval={0}
           tickFormatter={(v) => (v === 0 ? "0" : formatMinutesShort(v * 60))} />
         <Bar dataKey="minutes" radius={[5, 5, 0, 0]} isAnimationActive={false} cursor="pointer">
@@ -166,9 +148,6 @@ export default function StudyTimeChart({
 }) {
   const { t, lang } = useI18n();
   const [selectedIso, setSelectedIso] = useState(null);
-  const [expanded, setExpanded] = useState(false);
-  const closeExpanded = useCallback(() => setExpanded(false), []);
-  const dialogRef = useDialogFocus(expanded, closeExpanded);
 
   const data = useMemo(
     () => series.map((b) => ({ ...b, minutes: Math.round(b.secs / 60) })),
@@ -185,9 +164,7 @@ export default function StudyTimeChart({
   // celle qu'on cherche presque toujours.
   function onChartKey(e) {
     if (!data.length) return;
-    // Échap désélectionne d'abord ; dans la vue agrandie, le second Échap
-    // ferme la fenêtre (la propagation n'est arrêtée que si une barre était
-    // sélectionnée).
+    // Échap désélectionne la barre active.
     if (e.key === "Escape") {
       if (selectedIso) { e.preventDefault(); e.stopPropagation(); setSelectedIso(null); }
       return;
@@ -207,14 +184,14 @@ export default function StudyTimeChart({
   // cible focalisable. Le conteneur, lui, est focalisable et se parcourt aux
   // flèches ; les valeurs exactes vivent aussi dans une liste lue par les
   // lecteurs d'écran.
-  const chartRegion = (heightClass, tall) => (
+  const chartRegion = (heightClass) => (
     <>
       <div role="group" tabIndex={0} onKeyDown={onChartKey}
         aria-label={`${t("stats.studyTimeTitle")} — ${periodLabel}`}
         className={`bt-chart-focus ${heightClass}`}>
         <div className="h-full" aria-hidden="true" style={{ color: "var(--bt-text-2)" }}>
           <Chart data={data} goalMinutes={goalMinutes} goalLabel={goalLabel}
-            selectedIso={selectedIso} onSelect={setSelectedIso} tall={tall} />
+            selectedIso={selectedIso} onSelect={setSelectedIso} />
         </div>
       </div>
       <ul className="sr-only">
@@ -258,25 +235,19 @@ export default function StudyTimeChart({
   );
 
   return (
-    <>
       <section className={`card flex flex-col p-4 sm:p-5 ${className}`}>
         {header}
 
         {hasData ? (
           <>
             <div className="mt-3">
-              {chartRegion("h-52 sm:h-56 xl:h-60", false)}
+              {chartRegion("h-52 sm:h-56 xl:h-60")}
             </div>
-            <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+            <div className="mt-auto pt-3">
               <p className="text-[11px] leading-snug" style={{ color: "var(--bt-text-4)" }}>
                 {t("stats.chartTapHint")}
                 {hasPartial && <><br />{t("stats.chartPartialHint")}</>}
               </p>
-              <button onClick={() => setExpanded(true)}
-                className="btn-ghost bt-tap-44 flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-semibold">
-                <ExpandIcon size={12} />
-                {t("stats.chartExpand")}
-              </button>
             </div>
           </>
         ) : (
@@ -284,30 +255,5 @@ export default function StudyTimeChart({
         )}
       </section>
 
-      {expanded && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(3px)" }}
-          onClick={closeExpanded}>
-          <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("stats.studyTimeTitle")}
-            className="bt-stats-readable card w-full rounded-t-[24px] p-5 focus:outline-none sm:max-w-2xl sm:rounded-[20px]"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: "88vh", overflowY: "auto" }}>
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="font-display truncate text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
-                  {t("stats.studyTimeTitle")}
-                </h2>
-                <p className="mt-0.5 truncate text-xs" style={{ color: "var(--bt-text-3)" }}>{periodLabel}</p>
-              </div>
-              <button onClick={closeExpanded} aria-label={t("common.close")}
-                className="btn-ghost flex h-11 w-11 shrink-0 items-center justify-center p-0">
-                <CloseIcon />
-              </button>
-            </div>
-            {chartRegion("h-72", true)}
-          </div>
-        </div>
-      )}
-    </>
   );
 }

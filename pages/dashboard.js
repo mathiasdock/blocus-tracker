@@ -41,6 +41,7 @@ import DashboardCoursesCard from "../components/DashboardCoursesCard";
 import BlocusCard from "../components/BlocusCard";
 import PushOptInPrompt from "../components/PushOptInPrompt";
 import { toRanges } from "../lib/blocus";
+import { normalizePlanningExams, nextExamForCourse } from "../lib/planningExams.mjs";
 import { buildSessionShareMessage } from "../lib/sessionShare";
 import { clientRateLimit } from "../lib/security";
 import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
@@ -200,6 +201,7 @@ export default function Dashboard() {
   const [ready, setReady] = useState(false);
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
+  const [examRows, setExamRows] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [streak, setStreak] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
@@ -272,6 +274,7 @@ export default function Dashboard() {
     const c = data.courses || [];
     const active = c.filter((course) => !course.archived_at);
     setCourses(c);
+    setExamRows(data.examRows || []);
     setCourseId(current => active.some((course) => course.id === current) ? current : active[0]?.id || "");
     setSessions(data.sessions || []);
     setRecentSessions(data.recentSessions || []);
@@ -284,6 +287,8 @@ export default function Dashboard() {
   // Les sélecteurs, eux, ne doivent proposer que ce qui est en cours : un cours
   // du semestre dernier n'a rien à faire dans la liste du chrono.
   const activeCourses = useMemo(() => courses.filter((c) => !c.archived_at), [courses]);
+  const normalizedExams = useMemo(() => normalizePlanningExams(courses, examRows), [courses, examRows]);
+  const nextCourseExam = useCallback((id) => nextExamForCourse(normalizedExams, id, todayISO()), [normalizedExams]);
 
   // Le TimerProvider hydrate son dernier cours indépendamment des données du
   // dashboard. Si ce cours a depuis été archivé ou supprimé, ou si le jeu de
@@ -369,32 +374,31 @@ export default function Dashboard() {
     }
     const cacheKey = `${dashboardCachePrefix}${todayISO()}`;
     const cached = getClientCache(cacheKey);
-    if (cached) {
-      applyDashboardData(cached);
-      return;
-    }
+    if (cached) applyDashboardData(cached);
 
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-    const [coursesRes, sessionsRes, recentRes, objectivesRes] = await Promise.all([
+    const [coursesRes, examsRes, sessionsRes, recentRes, objectivesRes] = await Promise.all([
       supabase
         .from("courses")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at"),
-      supabase
+      supabase.from("exams").select("id,course_id,name,exam_date,exam_time,location")
+        .eq("user_id", user.id).order("exam_date"),
+      cached ? Promise.resolve({ data: cached.sessions || [] }) : supabase
         .from("sessions")
         .select("*")
         .eq("user_id", user.id)
         .gte("started_at", todayISO())
         .order("started_at", { ascending: false }),
-      supabase
+      cached ? Promise.resolve({ data: cached.recentSessions || [] }) : supabase
         .from("sessions")
         .select("started_at, duration_seconds")
         .eq("user_id", user.id)
         .gte("started_at", ninetyDaysAgo.toISOString()),
-      supabase
+      cached ? Promise.resolve({ data: cached.objectives || [] }) : supabase
         .from("objectives")
         .select("*")
         .eq("user_id", user.id)
@@ -403,7 +407,8 @@ export default function Dashboard() {
     ]);
 
     const data = {
-      courses: coursesRes.data || [],
+      courses: coursesRes.error ? cached?.courses || [] : coursesRes.data || [],
+      examRows: examsRes.error ? cached?.examRows || [] : examsRes.data || [],
       sessions: sessionsRes.data || [],
       recentSessions: recentRes.data || [],
       objectives: objectivesRes.data || [],
@@ -1344,11 +1349,12 @@ export default function Dashboard() {
 
               {(() => {
                 const selectedCourse = courses.find((item) => item.id === courseId);
-                if (!selectedCourse?.exam_date) return null;
-                const days = daysUntilExam(selectedCourse.exam_date);
+                const exam = nextCourseExam(selectedCourse?.id);
+                if (!exam) return null;
+                const days = daysUntilExam(exam.exam_date);
                 return (
                   <span className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: days <= 0 ? "var(--bt-danger-bg)" : days <= 7 ? "#FEF3C7" : "var(--bt-accent-bg)", color: days <= 0 ? "var(--bt-danger)" : days <= 7 ? "#A85E00" : "var(--bt-accent-text)" }}>
-                    {days === 0 ? t("exam.today") : days < 0 ? t("exam.passed") : `J-${days}`}
+                    {days === 0 ? t("exam.today") : days < 0 ? t("exam.passed") : t("exam.daysAway").replace("{n}", String(days))}
                   </span>
                 );
               })()}
@@ -1767,6 +1773,7 @@ export default function Dashboard() {
         <div className="order-6 grid min-w-0 gap-4 sm:gap-5 lg:col-span-2 lg:grid-cols-2 lg:gap-6">
           <DashboardCoursesCard
             courses={activeCourses}
+            nextExamForCourse={nextCourseExam}
             checklistCounts={checklistCounts}
             onAdd={() => openCourseEditor()}
             onOpen={(course) => {
@@ -1779,7 +1786,7 @@ export default function Dashboard() {
           />
           <BlocusCard
             sessions={recentSessions}
-            exams={activeCourses.filter((course) => course.exam_date)}
+            exams={normalizedExams}
             onChange={handleBlocusLoaded}
           />
         </div>

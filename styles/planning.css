@@ -22,6 +22,11 @@
   min-width: 44px;
   min-height: 44px;
 }
+@media (max-width: 390px) {
+  .bt-plan-toolbar-head { flex-wrap: wrap; }
+  .bt-plan-toolbar-title { flex-basis: 100%; }
+  .bt-plan-toolbar-actions { margin-left: auto; }
+}
 @media (hover: hover) and (pointer: fine) {
   .bt-planning .bt-plan-nav-btn:hover { background-color: var(--bt-border); }
 }

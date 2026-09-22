@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-22 — Codex — Nettoyage UX transversal ciblé
+
+- Un sélecteur commun détermine le prochain examen d'un cours : examen structuré futur prioritaire, `courses.exam_date` en repli, tri stable date/heure/ID. Planning (résumé et révisions) et Chrono l'utilisent ; le calendrier conserve tous les événements distincts. Chrono recharge cours et examens même lorsqu'il réutilise son court cache de sessions. Tests couvrant sources, doublons, plusieurs examens et passé/futur.
+- Activity : compositeur mobile à une vraie zone de texte extensible et une icône photo à largeur fixe. Planning : mois/année sur une ligne lisible à 320–390 px, commandes secondaires sur une seconde ligne si nécessaire.
+- Stats : retrait de l'action « Agrandir » et de sa modale qui dupliquait le graphique ; la carte « Étude par cours » ne s'étire plus artificiellement à la hauteur du graphique quand il y a peu de cours.
+- Chrono : texte de départ compatible avec l'étude libre. Pluriels corrigés dans les membres de groupe et le défi hebdomadaire. Le compteur de tâches sans checklist disparaît de « Mes cours ».
+- Planning : l'aperçu « Révisions par cours » garde l'examen et les objectifs à traiter ; la progression de checklist reste dans le détail du cours. Profil : instructions Safari seulement sur iOS, état déjà installé et repli navigateur ailleurs ; le prompt natif déjà présent reste inchangé.
+- Aucun changement de données, migration ni refonte de surface. Vérification à 320/390/1280/1440, FR/EN et clair/sombre, tests, lint et builds standard/offline.
+
 
 ## 2026-09-17 - Communautes : deux espaces par defaut (etablissement et programme) (Claude)
 

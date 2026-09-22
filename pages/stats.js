@@ -349,6 +349,7 @@ export default function Stats() {
               onPeriodChange={setChartPeriod}
             />
             <StudyByCourse
+              className="xl:self-start"
               rows={breakdown.rows}
               totalSecs={breakdown.totalSecs}
               periodLabel={rangeLabel(coursePeriod, courseRange)}

@@ -19,7 +19,7 @@ function formatExamDate(value, locale) {
 // L'archive des cours ne vit pas ici : elle est dans « Analyse avancée » sur la
 // page Statistiques, avec les heures de chaque ancien cours. Le tableau de bord
 // ne montre que ce sur quoi on travaille aujourd'hui.
-export default function DashboardCoursesCard({ courses, checklistCounts, onAdd, onOpen, className = "" }) {
+export default function DashboardCoursesCard({ courses, checklistCounts, nextExamForCourse, onAdd, onOpen, className = "" }) {
   const { t, lang } = useI18n();
   const locale = lang === "en" ? "en-US" : "fr-BE";
 
@@ -41,7 +41,7 @@ export default function DashboardCoursesCard({ courses, checklistCounts, onAdd, 
         <ul className="mt-3 divide-y" style={{ borderColor: "var(--bt-border)" }}>
           {courses.map((course) => {
             const count = checklistCounts[course.id] || { done: 0, total: 0 };
-            const examDate = formatExamDate(course.exam_date, locale);
+            const examDate = formatExamDate(nextExamForCourse(course.id)?.exam_date, locale);
             return (
               <li key={course.id}>
                 <button
@@ -53,11 +53,11 @@ export default function DashboardCoursesCard({ courses, checklistCounts, onAdd, 
                   <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color, boxShadow: course.color ? `0 0 0 4px ${course.color}1F` : "none" }} aria-hidden="true" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
-                    <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs" style={{ color: "var(--bt-text-3)" }}>
+                    {(examDate || count.total > 0) && <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs" style={{ color: "var(--bt-text-3)" }}>
                       {examDate && <span>{t("dash.examLabel")} {examDate}</span>}
-                      {examDate && <span aria-hidden="true">·</span>}
-                      <span>{count.done}/{count.total} {t("checklist.tasks")}</span>
-                    </span>
+                      {examDate && count.total > 0 && <span aria-hidden="true">·</span>}
+                      {count.total > 0 && <span>{count.done}/{count.total} {t("checklist.tasks")}</span>}
+                    </span>}
                   </span>
                   <span className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none" style={{ color: "var(--bt-text-3)" }}>
                     <IconChevron />

@@ -379,8 +379,8 @@ export default function Feed() {
         {!formOpen ? (
           <button type="button" className="bt-activity-composer" onClick={() => setFormOpen(true)}>
             <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={34} />
-            <span>{t("feed.postPrompt")}</span>
-            <span style={{ color: "var(--bt-text-3)" }}><IconCamera /></span>
+            <span className="bt-activity-composer-copy">{t("feed.postPrompt")}</span>
+            <span className="bt-activity-composer-icon" aria-hidden="true"><IconCamera /></span>
           </button>
         ) : (
           <form onSubmit={createPost} className="card mb-3 space-y-3 p-5">
