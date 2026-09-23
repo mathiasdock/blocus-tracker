@@ -1,8 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  PWA_INSTALL_COOLDOWN_MS,
-  PWA_INSTALL_MAX_SHOWS,
   decidePwaPrompt,
   isIOSSafari,
   isPwaInstalled,
@@ -12,11 +10,8 @@ const visibleState = {
   enabled: true,
   hasUser: true,
   installed: false,
-  done: false,
+  installationRecorded: false,
   dismissedThisSession: false,
-  dismissedAt: 0,
-  shownCount: 0,
-  now: 2_000_000_000_000,
 };
 
 test("installed display modes always suppress the install prompt", () => {
@@ -47,27 +42,18 @@ test("Safari instructions are restricted to iOS Safari", () => {
   assert.equal(decidePwaPrompt(visibleState), null);
 });
 
-test("dismissal applies a cooldown and repeated prompts are capped", () => {
+test("dismissal lasts for one browser session, then the prompt returns", () => {
   assert.equal(decidePwaPrompt({
     ...visibleState,
     iosSafari: true,
-    dismissedAt: visibleState.now - PWA_INSTALL_COOLDOWN_MS + 1,
+    dismissedThisSession: true,
   }), null);
-  assert.equal(decidePwaPrompt({
-    ...visibleState,
-    iosSafari: true,
-    dismissedAt: visibleState.now - PWA_INSTALL_COOLDOWN_MS,
-  }), "ios");
-  assert.equal(decidePwaPrompt({
-    ...visibleState,
-    iosSafari: true,
-    shownCount: PWA_INSTALL_MAX_SHOWS,
-  }), null);
+  assert.equal(decidePwaPrompt({ ...visibleState, iosSafari: true }), "ios");
 });
 
 test("signed-out, disabled and explicitly completed states stay hidden", () => {
   assert.equal(decidePwaPrompt({ ...visibleState, iosSafari: true, hasUser: false }), null);
   assert.equal(decidePwaPrompt({ ...visibleState, iosSafari: true, enabled: false }), null);
-  assert.equal(decidePwaPrompt({ ...visibleState, iosSafari: true, done: true }), null);
+  assert.equal(decidePwaPrompt({ ...visibleState, iosSafari: true, installationRecorded: true }), null);
   assert.equal(decidePwaPrompt({ ...visibleState, iosSafari: true, dismissedThisSession: true }), null);
 });

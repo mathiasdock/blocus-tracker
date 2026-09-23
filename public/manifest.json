@@ -1,6 +1,6 @@
 {
   "name": "Blocus Tracker",
-  "short_name": "Blocus",
+  "short_name": "Blocus Tracker",
   "description": "Tracker d'étude pour étudiants — chrono, planning, social.",
   "start_url": "/dashboard",
   "display": "standalone",

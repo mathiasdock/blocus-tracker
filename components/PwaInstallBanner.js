@@ -18,9 +18,7 @@ const OPEN_DELAY_MS = 900;
 
 function storageKeys(userId) {
   return {
-    done: `bt_pwa_done_${userId}`,
-    dismissedAt: `bt_pwa_dismissed_at_${userId}`,
-    shownCount: `bt_pwa_prompt_count_${userId}`,
+    installed: `bt_pwa_installed_${userId}`,
   };
 }
 
@@ -40,7 +38,7 @@ function browserState() {
 
 function ShareIcon() {
   return (
-    <Glyph size={25}>
+    <Glyph size={28}>
       <path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" />
       <path d="M12 3v12M8 7l4-4 4 4" />
     </Glyph>
@@ -60,7 +58,7 @@ export default function PwaInstallBanner({ enabled = true }) {
 
   const markDone = useCallback(() => {
     if (!user?.id) return;
-    try { localStorage.setItem(storageKeys(user.id).done, "1"); } catch (_) {}
+    try { localStorage.setItem(storageKeys(user.id).installed, "1"); } catch (_) {}
   }, [user?.id]);
 
   useEffect(() => {
@@ -88,15 +86,11 @@ export default function PwaInstallBanner({ enabled = true }) {
     const preview = isOfflineDev
       && new URLSearchParams(window.location.search).get("pwa") === "preview";
     const keys = user?.id ? storageKeys(user.id) : null;
-    let done = false;
+    let installationRecorded = false;
     let dismissedThisSession = false;
-    let dismissedAt = 0;
-    let shownCount = 0;
     try {
-      done = keys ? localStorage.getItem(keys.done) === "1" : false;
+      installationRecorded = keys ? localStorage.getItem(keys.installed) === "1" : false;
       dismissedThisSession = sessionStorage.getItem(SESSION_KEY) === "1";
-      dismissedAt = keys ? Number(localStorage.getItem(keys.dismissedAt) || 0) : 0;
-      shownCount = keys ? Number(localStorage.getItem(keys.shownCount) || 0) : 0;
     } catch (_) {}
 
     const state = browserState();
@@ -106,17 +100,12 @@ export default function PwaInstallBanner({ enabled = true }) {
       installed: state.installed,
       nativePromptAvailable: Boolean(nativePrompt),
       iosSafari: state.iosSafari,
-      done,
+      installationRecorded,
       dismissedThisSession,
-      dismissedAt,
-      shownCount,
     });
     if (!nextMode) return undefined;
 
     const timer = window.setTimeout(() => {
-      if (!preview && keys) {
-        try { localStorage.setItem(keys.shownCount, String(shownCount + 1)); } catch (_) {}
-      }
       setMode(nextMode);
     }, preview ? 0 : OPEN_DELAY_MS);
     return () => window.clearTimeout(timer);
@@ -127,7 +116,6 @@ export default function PwaInstallBanner({ enabled = true }) {
     if (dismissed) {
       try {
         sessionStorage.setItem(SESSION_KEY, "1");
-        if (user?.id) localStorage.setItem(storageKeys(user.id).dismissedAt, String(Date.now()));
       } catch (_) {}
     }
     setLeaving(true);
@@ -135,7 +123,7 @@ export default function PwaInstallBanner({ enabled = true }) {
       setMode(null);
       setLeaving(false);
     }, LEAVE_MS);
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => {
     if (!mode) return undefined;

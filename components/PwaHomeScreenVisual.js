@@ -8,18 +8,22 @@ export default function PwaHomeScreenVisual() {
 
   return (
     <span
-      className="flex min-w-0 select-none items-center gap-2.5 rounded-xl px-3 py-2.5"
-      style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)" }}
+      className="flex min-w-0 select-none items-center gap-3 rounded-xl px-3.5 py-3"
+      style={{
+        backgroundColor: "var(--bt-accent-bg)",
+        boxShadow: "inset 0 0 0 1px var(--bt-accent-border)",
+        color: "var(--bt-accent-text)",
+      }}
       role="img"
       aria-label={t("pwa.visualAlt")}
     >
       <span className="flex shrink-0" aria-hidden="true">
-        <Glyph size={19}>
+        <Glyph size={21}>
           <rect x="3" y="3" width="18" height="18" rx="3" />
           <path d="M12 8v8M8 12h8" />
         </Glyph>
       </span>
-      <span className="min-w-0 text-[13px] font-semibold leading-tight">
+      <span className="min-w-0 text-sm font-bold leading-tight">
         {t("pwa.visualRow")}
       </span>
     </span>
