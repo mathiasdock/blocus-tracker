@@ -174,12 +174,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
 
       <div className="flex shrink-0 items-center justify-between gap-3">
         <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{title || t("dash.todaySessions")}</h2>
-        {aside !== undefined ? aside : seeAllHref ? (
-          <Link href={seeAllHref} className="bt-dashboard-control -mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-semibold" style={{ color: "var(--bt-accent-text)" }}>
-            {t("dash.seeAllSessions")}
-            <Glyph size={16}><path d="m9 18 6-6-6-6" /></Glyph>
-          </Link>
-        ) : (
+        {aside !== undefined ? aside : (
           <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
             {sessions.length}
           </span>
@@ -206,7 +201,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
           <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</p>
         </div>
       ) : (
-        <ul className="mt-3 divide-y" style={{ borderColor: "var(--bt-border)" }}>
+        <ul className="mt-3 divide-y divide-[color:var(--bt-border)]">
           {shown.map((session) => {
             const course = courses.find((item) => item.id === session.course_id);
             const maxMinutes = Math.max(1, Math.floor(Number(session.duration_seconds || 0) / 60));
@@ -287,6 +282,16 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
         </ul>
       )}
       </div>
+
+      {/* « Tout voir » en pied de carte, centré, comme la liste d'opérations
+          de Revolut : on lit d'abord, puis on descend vers le reste. */}
+      {seeAllHref && (
+        <div className="mt-auto flex justify-center border-t pt-1" style={{ borderColor: "var(--bt-border)" }}>
+          <Link href={seeAllHref} className="bt-dashboard-control mt-2 inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold" style={{ color: "var(--bt-accent-text)" }}>
+            {t("dash.seeAllSessions")}
+          </Link>
+        </div>
+      )}
     </section>
   );
 }

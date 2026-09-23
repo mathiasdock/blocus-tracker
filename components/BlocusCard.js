@@ -2,7 +2,7 @@
 // valeurs d'objectif horaire peuvent encore exister en base, mais cette surface
 // ne les expose plus et les nouvelles périodes enregistrent toujours null.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
@@ -37,11 +37,10 @@ function CalendarIcon({ size = 18 }) {
 
 function PeriodHeading({ children }) {
   return (
-    <h2 className="bt-dashboard-title-accent flex items-center gap-2 text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
-      <span className="shrink-0" style={{ color: "var(--bt-accent-text)" }}>
-        <CalendarIcon size={18} />
-      </span>
-      <span>{children}</span>
+    // Titre nu, comme « Mes cours » ou « Sessions du jour » : aucune autre
+    // carte du tableau de bord ne porte d'icône devant son titre.
+    <h2 className="bt-dashboard-title-accent text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>
+      {children}
     </h2>
   );
 }
@@ -83,70 +82,47 @@ function daysUntil(date, today) {
 }
 
 // Les examens qui arrivent, en ordre de date. Sur ordinateur cette carte est
-// posée à côté de « Mes cours » et prend sa hauteur : sans cette liste elle
-// restait une en-tête et un bouton au-dessus d'un grand vide. La liste ne pèse
-// rien dans le calcul de cette hauteur (`basis-0`) : c'est « Mes cours » qui la
-// fixe, et la liste montre autant d'examens que la place le permet — plus de
-// cours à gauche, plus d'examens à droite. Aucune ligne n'est coupée à moitié.
+// posée à côté de « Mes cours » et fait toujours sa hauteur : la liste ne pèse
+// rien dans ce calcul (`basis-0`) et prend la place qui reste, puis défile à
+// l'intérieur s'il y a plus d'examens que de place. Un plancher de deux lignes
+// garde la liste lisible quand « Mes cours » est courte — c'est alors « Mes
+// cours » qui s'allonge d'autant, les deux cartes restant égales.
 // Sur téléphone les cartes s'empilent, rien n'est à combler : elle n'y est pas.
 const EXAM_ROW = 56;
 
 function ExamHorizon({ exams, courses, locale, t }) {
-  const boxRef = useRef(null);
-  const headRef = useRef(null);
-  const [fit, setFit] = useState(0);
-
-  useEffect(() => {
-    const box = boxRef.current;
-    if (!box || typeof ResizeObserver === "undefined") return undefined;
-    const measure = () => {
-      const head = headRef.current ? headRef.current.offsetHeight + 4 : 0;
-      setFit(Math.max(0, Math.floor((box.clientHeight - head) / EXAM_ROW)));
-    };
-    const observer = new ResizeObserver(measure);
-    observer.observe(box);
-    measure();
-    return () => observer.disconnect();
-  }, []);
-
   const today = todayISO();
   const upcoming = (exams || []).filter((exam) => String(exam.exam_date).slice(0, 10) >= today);
   const dayFormat = new Intl.DateTimeFormat(locale, { day: "numeric" });
   const monthFormat = new Intl.DateTimeFormat(locale, { month: "short" });
-  const visible = upcoming.slice(0, fit);
 
   return (
-    <div ref={boxRef} className="hidden min-h-0 flex-1 basis-0 overflow-hidden lg:block">
-      {/* Le filet et le titre n'apparaissent que s'il y a la place d'au moins
-          une ligne : un titre « Prochains examens » sans examen dessous serait
-          une promesse vide. */}
-      <div className={fit > 0 ? "mt-5 border-t pt-4" : "invisible mt-5 border-t pt-4"} style={{ borderColor: "var(--bt-accent-border)" }}>
-        <h3 ref={headRef} className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{t("blocus.nextExams")}</h3>
-        {upcoming.length === 0 ? (
-          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.noUpcomingExams")}</p>
-        ) : (
-          <ul className="mt-1">
-            {visible.map((exam) => {
-              const date = String(exam.exam_date).slice(0, 10);
-              const at = new Date(`${date}T12:00:00`);
-              const course = courses.find((item) => item.id === exam.course_id);
-              const left = daysUntil(date, today);
-              const when = left <= 0 ? t("blocus.examToday") : left === 1 ? t("blocus.examTomorrow") : t("blocus.examIn").replace("{n}", String(left));
-              return (
-                <li key={exam.id} className="flex items-center gap-3" style={{ height: EXAM_ROW }}>
-                  <span className="flex w-11 shrink-0 flex-col items-center rounded-xl py-1" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-accent-border)" }}>
-                    <span className="font-num text-base font-extrabold leading-tight tabular-nums" style={{ color: "var(--bt-text-1)" }}>{dayFormat.format(at)}</span>
-                    <span className="text-[10px] font-semibold uppercase leading-tight" style={{ color: "var(--bt-text-3)" }}>{monthFormat.format(at).replace(".", "")}</span>
-                  </span>
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: course?.color || "var(--bt-text-4)" }} aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{exam.name || course?.name || t("dash.noCourse")}</span>
-                  <span className="font-num shrink-0 text-xs font-bold tabular-nums" style={{ color: left <= 7 ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>{when}</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+    <div className="mt-5 hidden min-h-0 flex-1 basis-0 flex-col border-t pt-4 lg:flex" style={{ borderColor: "var(--bt-accent-border)" }}>
+      <h3 className="shrink-0 text-xs font-bold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{t("blocus.nextExams")}</h3>
+      {upcoming.length === 0 ? (
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.noUpcomingExams")}</p>
+      ) : (
+        <ul className="bt-scroll-y -mr-2 mt-1 min-h-0 flex-1 overflow-y-auto pr-2" style={{ minHeight: EXAM_ROW * 2 }} tabIndex={0} aria-label={t("blocus.nextExams")}>
+          {upcoming.map((exam) => {
+            const date = String(exam.exam_date).slice(0, 10);
+            const at = new Date(`${date}T12:00:00`);
+            const course = courses.find((item) => item.id === exam.course_id);
+            const left = daysUntil(date, today);
+            const when = left <= 0 ? t("blocus.examToday") : left === 1 ? t("blocus.examTomorrow") : t("blocus.examIn").replace("{n}", String(left));
+            return (
+              <li key={exam.id} className="flex items-center gap-3" style={{ height: EXAM_ROW }}>
+                <span className="flex w-11 shrink-0 flex-col items-center rounded-xl py-1" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-accent-border)" }}>
+                  <span className="font-num text-base font-extrabold leading-tight tabular-nums" style={{ color: "var(--bt-text-1)" }}>{dayFormat.format(at)}</span>
+                  <span className="text-[10px] font-semibold uppercase leading-tight" style={{ color: "var(--bt-text-3)" }}>{monthFormat.format(at).replace(".", "")}</span>
+                </span>
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: course?.color || "var(--bt-text-4)" }} aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{exam.name || course?.name || t("dash.noCourse")}</span>
+                <span className="font-num shrink-0 text-xs font-bold tabular-nums" style={{ color: left <= 7 ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>{when}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -236,10 +212,7 @@ export default function BlocusCard({ sessions, exams, courses = [], onChange, cl
   if (!state.current) {
     return (
       <section className={`card bt-dashboard-card-mint flex min-w-0 flex-col p-4 sm:p-5 ${className}`}>
-        <div className="min-w-0">
-          <PeriodHeading>{t("blocus.title")}</PeriodHeading>
-          <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.none")}</p>
-        </div>
+        <PeriodHeading>{t("blocus.title")}</PeriodHeading>
         {horizon}
         <div className="mt-4">
           <button className="btn-primary w-full py-2.5 text-sm"

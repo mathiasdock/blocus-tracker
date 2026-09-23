@@ -63,6 +63,7 @@ export default function TodayProgressCard({
   const reached = dayTotal >= goalSecs;
   const weekScale = Math.max(goalSecs || 0, ...weekDays.map((d) => d.secs), 1);
   const dayLetter = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "fr-BE", { weekday: "narrow" });
+  const dayName = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "fr-BE", { weekday: "long" });
   const weekPct = weeklyGoalMin > 0
     ? Math.min(100, Math.round((weekSecs / (weeklyGoalMin * 60)) * 100))
     : 0;
@@ -201,8 +202,13 @@ export default function TodayProgressCard({
                 const letter = dayLetter.format(new Date(`${day.date}T12:00:00`));
                 return (
                   <div key={day.date} className={styles.weekDay} data-today={i === weekDays.length - 1 ? "1" : undefined}>
-                    <span className={styles.weekBarSlot}>
+                    <span className={styles.weekBarSlot} style={{ "--top": Math.min(1, day.secs / weekScale) }}>
                       <span className={styles.weekBar} style={{ "--h": drawn ? Math.min(1, day.secs / weekScale) : 0 }} data-empty={day.secs > 0 ? undefined : "1"} />
+                      {/* Au survol : le temps de CE jour-là. La barre donne la
+                          forme de la semaine, l'infobulle donne le chiffre. */}
+                      <span className={styles.weekTip} data-align={i < 2 ? "start" : i > 4 ? "end" : undefined}>
+                        {dayName.format(new Date(`${day.date}T12:00:00`))} · {formatMinutesShort(day.secs)}
+                      </span>
                     </span>
                     <span className={styles.weekLetter}>{letter}</span>
                   </div>

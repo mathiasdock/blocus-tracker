@@ -38,7 +38,7 @@ export default function DashboardCoursesCard({ courses, checklistCounts, nextExa
       {courses.length === 0 ? (
         <p className="py-5 text-center text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("courseEditor.empty")}</p>
       ) : (
-        <ul className="mt-3 divide-y" style={{ borderColor: "var(--bt-border)" }}>
+        <ul className="mt-3 divide-y divide-[color:var(--bt-border)]">
           {courses.map((course) => {
             const count = checklistCounts[course.id] || { done: 0, total: 0 };
             const examDate = formatExamDate(nextExamForCourse(course.id)?.exam_date, locale);

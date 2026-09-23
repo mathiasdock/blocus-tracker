@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Chrono : retouches après retour de Mathias
+
+- Séparateurs des listes (Mes cours, À faire, sessions) : `divide-[color:var(--bt-border)]` au lieu du gris clair Tailwind par défaut, qui sortait blanc en mode sombre (le `borderColor` posé sur la liste ne s'appliquait pas aux lignes).
+- « Tout voir » centré en pied de la carte des sessions ; le compteur revient en haut à droite. Historique : titre et sous-titre retirés de l'écran (h1 gardé pour les lecteurs d'écran), clé `hist.subtitle` supprimée.
+- Progression du jour : infobulle au survol d'une barre (jour + temps étudié).
+- Ma période d'étude : icône calendrier du titre et phrase « Définis tes dates… » retirées (clé `blocus.none` supprimée) ; les prochains examens défilent dans la carte au lieu d'être tronqués, plancher de deux lignes ; hauteur toujours égale à « Mes cours » sur ordinateur.
+
 ## 2026-09-23 — Claude Code — Chrono sur ordinateur : colonnes sans trou, sessions « Tout voir »
 
 - Sessions du jour : 3 au plus sur le Chrono, lien « Tout voir » vers `/historique` ; plus de défilement dans la carte (le formulaire d'édition y était écrasé). Invités : liste entière, pas de lien.

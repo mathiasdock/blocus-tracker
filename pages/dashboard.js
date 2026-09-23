@@ -1701,7 +1701,7 @@ export default function Dashboard() {
                 {todayObjectives.filter((item) => item.done).length}/{todayObjectives.length}
               </span>
             </div>
-            <ul className="divide-y" style={{ borderColor: "var(--bt-border)" }}>
+            <ul className="divide-y divide-[color:var(--bt-border)]">
               {todayObjectives.map((o) => {
                 const course = courses.find((c) => c.id === o.course_id);
                 return (

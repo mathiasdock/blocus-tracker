@@ -124,8 +124,9 @@ export default function Historique() {
   return (
     <Layout>
       <div className="bt-stagger" style={{ maxWidth: 820, margin: "0 auto" }}>
-        <h1 className="text-2xl mb-0.5" style={{ color: "var(--bt-text-1)" }}>{t("hist.title")}</h1>
-        <p className="text-sm mb-6" style={{ color: "var(--bt-text-2)" }}>{t("hist.subtitle")}</p>
+        {/* Le titre reste pour les lecteurs d'écran et l'onglet, pas à l'écran :
+            on arrive ici depuis « Tout voir », les jours parlent d'eux-mêmes. */}
+        <h1 className="sr-only">{t("hist.title")}</h1>
 
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <select className="input w-auto text-sm" value={filterCourse}
