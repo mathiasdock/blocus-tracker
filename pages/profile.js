@@ -1181,7 +1181,7 @@ export default function Profile() {
               <p className="text-xs">{t("pwa.safariNote")}</p>
             </div>
             <ol className="space-y-2">
-              {[t("pwa.step1"), t("pwa.step2"), t("pwa.step3")].map((step, i) => (
+              {[t("pwa.step1"), t("pwa.step2")].map((step, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "var(--bt-text-2)" }}>
                   <span className="font-num font-bold shrink-0 w-4 text-right tabular-nums" style={{ color: "var(--bt-accent-dark)" }}>{i + 1}.</span>
                   <span>{step}</span>

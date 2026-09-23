@@ -5,7 +5,6 @@ import "../styles/activity.css";
 import "../styles/level.css";
 import "../styles/profile.css";
 import "../styles/auth.css";
-import Glyph from "../components/Glyph";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -33,6 +32,7 @@ import { appleSplashEntries } from "../lib/splashScreens.mjs";
 import PageTransition from "../components/PageTransition";
 import { initSensoryFeedback } from "../lib/sensoryFeedback";
 import { BADGES } from "../lib/badges";
+import PwaInstallBanner from "../components/PwaInstallBanner";
 
 // Paliers de série célébrés (jours consécutifs). Volontairement rares pour que
 // le moment reste marquant — on ne fête PAS chaque badge série (3/14).
@@ -517,59 +517,6 @@ function ConsentSync() {
   return null;
 }
 
-function InstallBanner() {
-  const [prompt, setPrompt] = useState(null);
-
-  useEffect(() => {
-    function handler(e) { e.preventDefault(); setPrompt(e); }
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  if (!prompt) return null;
-
-  async function install() {
-    prompt.prompt();
-    await prompt.userChoice;
-    setPrompt(null);
-  }
-
-  return (
-    <div style={{
-      position: "fixed", bottom: 80, left: 0, right: 0, zIndex: 200,
-      padding: "0 16px", pointerEvents: "none",
-    }}>
-      <div style={{
-        backgroundColor: "#1F1A17", color: "#fff", borderRadius: 16,
-        padding: "12px 16px", maxWidth: 400, margin: "0 auto",
-        display: "flex", alignItems: "center", gap: 12,
-        boxShadow: "0 8px 28px rgba(0,0,0,0.28)", pointerEvents: "all",
-      }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Installer l&apos;app</p>
-          <p style={{ fontSize: 12, color: "#A8A09A", margin: "2px 0 0" }}>
-            Accède à blocus-tracker depuis ton écran d&apos;accueil
-          </p>
-        </div>
-        <button onClick={install} style={{
-          backgroundColor: "#087454", color: "#fff", border: "none",
-          borderRadius: 10, padding: "8px 16px", minHeight: 44, fontSize: 13, fontWeight: 600, cursor: "pointer",
-        }}>
-          Installer
-        </button>
-        <button onClick={() => setPrompt(null)} aria-label="Fermer" style={{
-          color: "#A8A09A", background: "none", border: "none",
-          cursor: "pointer", width: 44, height: 44, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, padding: 0,
-        }}>
-          <Glyph size={16}>
-            <path d="M18 6 6 18M6 6l12 12" />
-          </Glyph>
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function App({ Component, pageProps }) {
   useEffect(() => initSensoryFeedback(), []);
   const router = useRouter();
@@ -621,7 +568,7 @@ export default function App({ Component, pageProps }) {
         <ReferralCapture />
         <PushInit />
         <ConsentSync />
-        {!authPage && <InstallBanner />}
+        <PwaInstallBanner enabled={!authPage} />
         {!setupInProgress && <ConsentManager />}
         {!setupInProgress && <LegalUpdateNotice />}
       </ToastProvider>

@@ -1,174 +1,224 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Glyph from "./Glyph";
-import { useAuth } from "../contexts/AuthContext";
-import { useI18n } from "../contexts/I18nContext";
 import PwaHomeScreenVisual from "./PwaHomeScreenVisual";
+import { useAuth } from "../contexts/AuthContext";
+import { useConsent } from "../contexts/ConsentContext";
+import { useI18n } from "../contexts/I18nContext";
+import { isOfflineDev } from "../lib/supabaseClient";
+import {
+  decidePwaPrompt,
+  isIOSSafari,
+  isPwaInstalled,
+} from "../lib/pwaInstall.mjs";
+import styles from "./PwaInstallBanner.module.css";
+
+const SESSION_KEY = "bt_pwa_closed";
+const LEAVE_MS = 160;
+const OPEN_DELAY_MS = 900;
+
+function storageKeys(userId) {
+  return {
+    done: `bt_pwa_done_${userId}`,
+    dismissedAt: `bt_pwa_dismissed_at_${userId}`,
+    shownCount: `bt_pwa_prompt_count_${userId}`,
+  };
+}
+
+function browserState() {
+  return {
+    installed: isPwaInstalled({
+      displayModeStandalone: window.matchMedia?.("(display-mode: standalone)").matches === true,
+      navigatorStandalone: window.navigator.standalone === true,
+    }),
+    iosSafari: isIOSSafari({
+      userAgent: navigator.userAgent || "",
+      platform: navigator.platform || "",
+      maxTouchPoints: navigator.maxTouchPoints || 0,
+    }),
+  };
+}
 
 function ShareIcon() {
   return (
-    <Glyph size={13} style={{ display: "inline-block", verticalAlign: "text-bottom", margin: "0 2px" }}>
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-      <polyline points="16 6 12 2 8 6"/>
-      <line x1="12" y1="2" x2="12" y2="15"/>
+    <Glyph size={25}>
+      <path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" />
+      <path d="M12 3v12M8 7l4-4 4 4" />
     </Glyph>
   );
 }
 
-export default function PwaInstallBanner() {
+export default function PwaInstallBanner({ enabled = true }) {
   const { user } = useAuth();
+  const { hydrated: consentHydrated, needsDecision } = useConsent();
   const { t } = useI18n();
-  const [show, setShow] = useState(false);
+  const [nativePrompt, setNativePrompt] = useState(null);
+  const [mode, setMode] = useState(null);
+  const [closed, setClosed] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const surfaceRef = useRef(null);
 
-  useEffect(() => {
+  const markDone = useCallback(() => {
     if (!user?.id) return;
-    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    const isStandalone = window.navigator.standalone === true;
-    // Permanent dismiss saved per user (survives sessions/reloads)
-    const donePermanently = localStorage.getItem(`bt_pwa_done_${user.id}`);
-    // Session dismiss — clears when browser/tab is closed
-    const closedThisSession = sessionStorage.getItem("bt_pwa_closed");
-
-    // Trappe de prévisualisation : `?pwa=preview` force l'affichage sur
-    // n'importe quel appareil. Sert à relire la fenêtre sans avoir un iPhone
-    // sous la main — elle ne change rien au comportement réel.
-    const forced = typeof window !== "undefined"
-      && new URLSearchParams(window.location.search).get("pwa") === "preview";
-
-    if (forced || (isIOS && !isStandalone && !donePermanently && !closedThisSession)) {
-      const timer = setTimeout(() => setShow(true), forced ? 0 : 900);
-      return () => clearTimeout(timer);
-    }
+    try { localStorage.setItem(storageKeys(user.id).done, "1"); } catch (_) {}
   }, [user?.id]);
 
-  if (!show) return null;
+  useEffect(() => {
+    const onPrompt = (event) => {
+      event.preventDefault();
+      setNativePrompt(event);
+    };
+    const onInstalled = () => {
+      markDone();
+      setClosed(true);
+      setMode(null);
+      setNativePrompt(null);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, [markDone]);
 
-  // X button: close only for this session — will re-appear on next login
-  function closeSession() {
-    sessionStorage.setItem("bt_pwa_closed", "1");
-    setShow(false);
+  useEffect(() => {
+    if (mode || closed || !enabled || !consentHydrated || needsDecision) return undefined;
+
+    const preview = isOfflineDev
+      && new URLSearchParams(window.location.search).get("pwa") === "preview";
+    const keys = user?.id ? storageKeys(user.id) : null;
+    let done = false;
+    let dismissedThisSession = false;
+    let dismissedAt = 0;
+    let shownCount = 0;
+    try {
+      done = keys ? localStorage.getItem(keys.done) === "1" : false;
+      dismissedThisSession = sessionStorage.getItem(SESSION_KEY) === "1";
+      dismissedAt = keys ? Number(localStorage.getItem(keys.dismissedAt) || 0) : 0;
+      shownCount = keys ? Number(localStorage.getItem(keys.shownCount) || 0) : 0;
+    } catch (_) {}
+
+    const state = browserState();
+    const nextMode = preview ? "ios" : decidePwaPrompt({
+      enabled,
+      hasUser: Boolean(user?.id),
+      installed: state.installed,
+      nativePromptAvailable: Boolean(nativePrompt),
+      iosSafari: state.iosSafari,
+      done,
+      dismissedThisSession,
+      dismissedAt,
+      shownCount,
+    });
+    if (!nextMode) return undefined;
+
+    const timer = window.setTimeout(() => {
+      if (!preview && keys) {
+        try { localStorage.setItem(keys.shownCount, String(shownCount + 1)); } catch (_) {}
+      }
+      setMode(nextMode);
+    }, preview ? 0 : OPEN_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [closed, consentHydrated, enabled, mode, nativePrompt, needsDecision, user?.id]);
+
+  const close = useCallback(({ dismissed = true } = {}) => {
+    setClosed(true);
+    if (dismissed) {
+      try {
+        sessionStorage.setItem(SESSION_KEY, "1");
+        if (user?.id) localStorage.setItem(storageKeys(user.id).dismissedAt, String(Date.now()));
+      } catch (_) {}
+    }
+    setLeaving(true);
+    window.setTimeout(() => {
+      setMode(null);
+      setLeaving(false);
+    }, LEAVE_MS);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!mode) return undefined;
+    surfaceRef.current?.focus({ preventScroll: true });
+    const onKeyDown = (event) => {
+      if (event.key === "Escape" && !installing) close();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [close, installing, mode]);
+
+  useEffect(() => {
+    if (!enabled && mode) setMode(null);
+  }, [enabled, mode]);
+
+  async function install() {
+    if (!nativePrompt || installing) return;
+    setInstalling(true);
+    try {
+      await nativePrompt.prompt();
+      const choice = await nativePrompt.userChoice;
+      setNativePrompt(null);
+      if (choice?.outcome === "accepted") {
+        markDone();
+        close({ dismissed: false });
+      } else {
+        close();
+      }
+    } catch (_) {
+      setNativePrompt(null);
+      close();
+    } finally {
+      setInstalling(false);
+    }
   }
 
-  // "C'est déjà fait": never show again for this user on this device
-  function closePermanently() {
-    if (user?.id) localStorage.setItem(`bt_pwa_done_${user.id}`, "1");
-    setShow(false);
-  }
-
-  const steps = [
-    <span key="s1">{t("pwa.step1")}<ShareIcon /></span>,
-    <span key="s2">{t("pwa.step2")}</span>,
-    <span key="s3">{t("pwa.step3")}</span>,
-  ];
+  if (!mode) return null;
 
   return (
-    <div
-      className="fixed inset-0 flex items-end sm:items-center justify-center"
-      style={{
-        zIndex: 300,
-        backgroundColor: "rgba(0,0,0,0.55)",
-        padding: "0 16px 24px",
-        paddingBottom: "max(24px, env(safe-area-inset-bottom))",
-      }}
-      onClick={closeSession}
-    >
+    <div className={`${styles.layer} ${leaving ? styles.leaving : ""}`}>
+      <div className={styles.scrim} onClick={() => { if (!installing) close(); }} aria-hidden="true" />
       <div
-        className="w-full max-w-sm rounded-3xl shadow-2xl"
-        style={{
-          backgroundColor: "var(--bt-surface)",
-          border: "1px solid var(--bt-hairline)",
-          // Le contenu a grandi (bénéfices + étapes + illustration) : sur un
-          // petit iPhone il dépasserait l'écran sans cette limite.
-          maxHeight: "86vh",
-          overflowY: "auto",
-        }}
-        onClick={e => e.stopPropagation()}
+        ref={surfaceRef}
+        tabIndex={-1}
+        className={styles.surface}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pwa-install-title"
+        aria-describedby="pwa-install-subtitle"
       >
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
-              <Glyph size={22}>
-                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
-              </Glyph>
-            </div>
-            <div>
-              <p className="font-semibold text-[15px] leading-tight" style={{ color: "var(--bt-text-1)" }}>
-                {t("pwa.title")}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--bt-text-3)" }}>
-                {t("pwa.subtitle")}
-              </p>
-            </div>
-          </div>
-          {/* X = fermer pour cette session uniquement */}
-          <button
-            onClick={closeSession}
-            aria-label="Fermer"
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full transition-colors"
-            style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)" }}
-            onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-border)"}
-            onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}>
-            <Glyph size={12}>
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </Glyph>
-          </button>
-        </div>
+        <button
+          type="button"
+          className={styles.close}
+          onClick={() => close()}
+          disabled={installing}
+          aria-label={t("pwa.dismiss")}
+        >
+          <Glyph size={17}><path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8" /></Glyph>
+        </button>
 
-        {/* Divider */}
-        <div style={{ height: "1px", backgroundColor: "var(--bt-border)", margin: "0 24px" }} />
+        <h2 id="pwa-install-title" className={`font-display ${styles.title}`}>{t("pwa.title")}</h2>
+        <p id="pwa-install-subtitle" className={styles.subtitle}>{t("pwa.subtitle")}</p>
 
-        {/* Body text */}
-        <div className="px-6 pt-4">
-          <p className="text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-            {t("pwa.mainText")}
-          </p>
-        </div>
-
-        {/* Les trois arguments qui vivaient ici ont été retirés : sur une
-            fenêtre dont le seul but est d'expliquer un geste, ils repoussaient
-            les étapes plus bas et ajoutaient du texte que personne ne lit. La
-            raison d'installer tient déjà dans la phrase au-dessus. */}
-
-        {/* Les étapes et l'illustration sont VISIBLES D'EMBLÉE : elles étaient
-            masquées derrière « Voir comment faire », alors qu'apprendre à
-            installer est tout l'objet de cette fenêtre. */}
-        <ol className="px-6 pt-4 space-y-3">
-          {steps.map((stepContent, i) => (
-            <li key={i} className="flex items-start gap-3">
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-                style={{ backgroundColor: "#EAFBF4", color: "#0E8F68" }}>
-                {i + 1}
-              </span>
-              <p className="text-sm leading-relaxed pt-0.5" style={{ color: "var(--bt-text-2)" }}>
-                {stepContent}
-              </p>
+        {mode === "ios" ? (
+          <ol className={styles.steps}>
+            <li className={styles.step}>
+              <span className={styles.stepNumber}>1</span>
+              <span className={styles.stepText}>{t("pwa.step1")}</span>
+              <span className={styles.shareIcon} aria-hidden="true"><ShareIcon /></span>
             </li>
-          ))}
-        </ol>
-
-        {/* L'écran que l'utilisateur va voir : c'est la ligne « Sur l'écran
-            d'accueil », noyée dans un long menu, que personne ne trouve. */}
-        <div className="px-6 pt-4">
-          <PwaHomeScreenVisual />
-        </div>
-
-        {/* Actions — hiérarchie inversée par rapport à avant : le bouton le plus
-            visible était « C'est déjà fait », c'est-à-dire celui qui annule. */}
-        <div className="px-6 pt-5 pb-6 space-y-1">
-          <button onClick={closeSession} className="btn-primary w-full">
-            {t("pwa.later")}
-          </button>
-          <button
-            onClick={closePermanently}
-            className="w-full py-2.5 text-sm font-medium transition-colors rounded-xl"
-            style={{ color: "var(--bt-text-3)" }}>
-            {t("pwa.alreadyDone")}
-          </button>
-        </div>
+            <li className={styles.step}>
+              <span className={styles.stepNumber}>2</span>
+              <span className={styles.stepText}>{t("pwa.step2")}</span>
+              <span className={styles.homeRow}><PwaHomeScreenVisual /></span>
+            </li>
+          </ol>
+        ) : (
+          <div className={styles.actions}>
+            <button type="button" className="btn-primary bt-press w-full" onClick={install} disabled={installing}>
+              {installing ? t("pwa.installing") : t("pwa.install")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

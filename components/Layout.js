@@ -7,7 +7,6 @@ import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useConsent } from "../contexts/ConsentContext";
 import { formatDuration, displayName, timeAgo } from "../lib/format";
-import PwaInstallBanner from "./PwaInstallBanner";
 import LegacyEmailBanner from "./LegacyEmailBanner";
 import Mascot from "./Mascot";
 import PageSkeleton from "./PageSkeleton";
@@ -897,9 +896,6 @@ export default function Layout({ children }) {
           onDismissAnnouncement={dismissAnnouncement}
         />
       )}
-
-      {/* PWA install banner (centré, modal) */}
-      <PwaInstallBanner />
 
       {/* ══ Chrono flottant desktop ══════════════════════════════ */}
       {running && router.pathname !== "/dashboard" && (

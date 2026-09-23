@@ -2915,3 +2915,11 @@ Les deux resultats de `supabase.auth.signUp` sont couverts : session immediate, 
 Les cours d'onboarding utilisent un UUID client conserve pendant un retry, un upsert idempotent, une comparaison normalisee (casse, espaces, accents), une couleur suivante automatique, et peuvent etre renommes ou retires avant la fin. Les overlays d'installation, consentement secondaire, mise a jour legale et celebrations sont suspendus pendant `/signup` et `/onboarding`.
 
 Aucune migration SQL : les donnees canoniques existantes restent la source de verite. Verification : 142 tests, lint, builds production et offline, puis parcours navigateur a 320/390/1280/1440 en FR/EN et clair/sombre (aucune violation axe sur l'onboarding).
+
+## 2026-09-23 — Codex — Installation PWA : deux gestes, puis rien de plus
+
+L'invitation iPhone abandonne la fausse capture Safari, le message App Store, la troisieme etape et les deux gros boutons de sortie. La feuille reprend la retenue de l'invitation notifications sans la copier : un titre, une phrase, l'icone Partager et une seule ligne compacte qui reproduit l'option Safari « Sur l'ecran d'accueil » / “Add to Home Screen”. La croix, le clic hors feuille et Echap sont les seules sorties ; aucune mention des notifications n'entre dans ce parcours.
+
+Le flux est desormais unique dans `_app` : quand `beforeinstallprompt` existe, le bouton Installer appelle directement l'invite native au lieu d'afficher les instructions Safari. L'etat standalone couvre `display-mode: standalone` et `navigator.standalone`; une installation acceptee est memorisee. Une fermeture suspend l'invitation 30 jours et le nombre total d'affichages est plafonne a trois, tout en respectant l'ancien choix permanent. Le prompt attend aussi la decision de confidentialite et reste absent des pages d'authentification/onboarding.
+
+Verification : 5 tests unitaires des etats direct/iOS/ferme/installe, lint et build production OK. Parcours navigateur en 320/390/1280, FR/EN, clair/sombre, sans erreur ni violation axe; fermeture, installation directe et suppression apres installation confirmees.
