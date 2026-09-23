@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import Glyph from "../components/Glyph";
 import {
   clearInitialAuthCallback,
   createIsolatedAuthClient,
@@ -13,22 +12,8 @@ import {
   canUseEmailChangeSession,
 } from "../lib/authRecovery.mjs";
 import { useI18n } from "../contexts/I18nContext";
-import LoadingScreen from "../components/LoadingScreen";
-import AuthBackground from "../components/AuthBackground";
-
-function EyeIcon({ open }) {
-  return open ? (
-    <Glyph size={18}>
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </Glyph>
-  ) : (
-    <Glyph size={18}>
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-      <line x1="1" y1="1" x2="23" y2="23"/>
-    </Glyph>
-  );
-}
+import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
+import { FieldGroup, FormNote, PasswordField } from "../components/auth/Field";
 
 export default function ResetPassword() {
   const { t } = useI18n();
@@ -38,8 +23,6 @@ export default function ResetPassword() {
   const [invalid, setInvalid]       = useState(false);
   const [password, setPassword]     = useState("");
   const [confirm, setConfirm]       = useState("");
-  const [showPwd, setShowPwd]       = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy]             = useState(false);
   const [success, setSuccess]       = useState(false);
   const [err, setErr]               = useState("");
@@ -222,104 +205,71 @@ export default function ResetPassword() {
     }
   }
 
+  const alternate = { text: "", cta: t("auth.forgotBack"), href: "/login" };
+
   // Lien invalide / expiré
   if (invalid) {
     return (
-      <AuthBackground>
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <h1 className="font-display text-4xl text-[var(--bt-text-1)]">
-              blocus<span className="text-accent">·</span>tracker
-            </h1>
-          </div>
-          <div className="card p-6 text-center space-y-4">
-            <div className="flex justify-center" style={{ color: "var(--bt-danger)" }}>
-              <Glyph size={44}><path d="M10.5 4 2.6 17.8a1.7 1.7 0 0 0 1.5 2.6h15.8a1.7 1.7 0 0 0 1.5-2.6L13.5 4a1.7 1.7 0 0 0-3 0Z"/><path d="M12 9.6v4M12 16.9h.01"/></Glyph>
-            </div>
-            <p className="text-sm text-red-600">{t("auth.resetInvalid")}</p>
-            <Link href="/forgot-password" className="text-sm text-accent-dark font-medium block">
-              {t("auth.forgotBtn")}
-            </Link>
-          </div>
-        </div>
-      </AuthBackground>
+      <AuthShell alternate={alternate} contentKey="invalid">
+        <AuthHeading title={t("auth.resetInvalidTitle")} lead={t("auth.resetInvalidLead")} />
+        <Link href="/forgot-password" className="bt-auth-primary">{t("auth.resetRequestNew")}</Link>
+      </AuthShell>
     );
   }
 
   // En attente de la session PASSWORD_RECOVERY
   if (!ready) {
     return (
-      <AuthBackground className="min-h-screen flex items-center justify-center">
-        <LoadingScreen compact />
-      </AuthBackground>
+      <AuthShell alternate={alternate} contentKey="checking">
+        <div className="bt-auth-waiting" role="status" aria-live="polite">
+          <span className="bt-pseudo-spinner" aria-hidden="true" />
+          {t("auth.resetChecking")}
+        </div>
+      </AuthShell>
+    );
+  }
+
+  if (success) {
+    return (
+      <AuthShell contentKey="success">
+        <AuthHeading title={t("auth.resetSuccessTitle")} lead={t("auth.resetSuccess")} />
+      </AuthShell>
     );
   }
 
   return (
-    <AuthBackground>
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="font-display text-4xl text-[var(--bt-text-1)]">
-            blocus<span className="text-accent">·</span>tracker
-          </h1>
-          <p className="text-[var(--bt-text-1)] mt-2 text-sm font-medium">{t("auth.resetSubtitle")}</p>
-        </div>
-
-        {success ? (
-          <div className="card p-6 text-center space-y-3">
-            <div className="flex justify-center" style={{ color: "var(--bt-accent-dark)" }}>
-              <Glyph size={44}><circle cx="12" cy="12" r="9"/><path d="m8.2 12.2 2.6 2.6 5-5.2"/></Glyph>
-            </div>
-            <p className="text-sm text-[var(--bt-text-2)]">{t("auth.resetSuccess")}</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-[var(--bt-text-1)]">{t("auth.resetTitle")}</h2>
-
-            {/* Nouveau mot de passe */}
-            <div>
-              <label className="label">{t("auth.resetNewPwd")}</label>
-              <div className="relative">
-                <input className="input pr-10" type={showPwd ? "text" : "password"}
-                  value={password} onChange={e => setPassword(e.target.value)}
-                  autoComplete="new-password" minLength={6} required />
-                <button type="button" tabIndex={-1}
-                  onClick={() => setShowPwd(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--bt-text-4)] hover:text-[var(--bt-text-2)]">
-                  <EyeIcon open={showPwd} />
-                </button>
-              </div>
-            </div>
-
-            {/* Confirmation */}
-            <div>
-              <label className="label">{t("auth.resetConfirm")}</label>
-              <div className="relative">
-                <input
-                  className={`input pr-10 ${!pwdMatch ? "border-red-400 focus:ring-red-300" : ""}`}
-                  type={showConfirm ? "text" : "password"}
-                  value={confirm} onChange={e => setConfirm(e.target.value)}
-                  autoComplete="new-password" minLength={6} required />
-                <button type="button" tabIndex={-1}
-                  onClick={() => setShowConfirm(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--bt-text-4)] hover:text-[var(--bt-text-2)]">
-                  <EyeIcon open={showConfirm} />
-                </button>
-              </div>
-              {!pwdMatch && (
-                <p className="text-xs text-red-500 mt-1">{t("auth.resetMismatch")}</p>
-              )}
-            </div>
-
-            {err && <p className="text-sm text-red-600">{err}</p>}
-
-            <button className="btn-primary w-full"
-              disabled={busy || password.length < 6 || password !== confirm}>
-              {busy ? t("auth.resetUpdating") : t("auth.resetBtn")}
-            </button>
-          </form>
-        )}
-      </div>
-    </AuthBackground>
+    <AuthShell alternate={alternate} contentKey="form">
+      <AuthHeading title={t("auth.resetTitle")} lead={t("auth.resetSubtitle")} />
+      <form onSubmit={handleSubmit} noValidate>
+        <FieldGroup>
+          <PasswordField
+            id="reset-password"
+            label={t("auth.resetNewPwd")}
+            value={password}
+            onChange={e => { setPassword(e.target.value); if (err) setErr(""); }}
+            placeholder={t("setup.passwordPlaceholder")}
+            autoComplete="new-password"
+            autoFocus
+            showLabel={t("auth.showPassword")}
+            hideLabel={t("auth.hidePassword")}
+          />
+          <PasswordField
+            id="reset-confirm"
+            label={t("auth.resetConfirm")}
+            value={confirm}
+            onChange={e => { setConfirm(e.target.value); if (err) setErr(""); }}
+            error={!pwdMatch ? t("auth.resetMismatch") : ""}
+            autoComplete="new-password"
+            showLabel={t("auth.showPassword")}
+            hideLabel={t("auth.hidePassword")}
+          />
+        </FieldGroup>
+        <FormNote tone="error">{err}</FormNote>
+        <button className="bt-auth-primary" disabled={busy || password.length < 6 || password !== confirm} aria-busy={busy}>
+          {busy && <span className="bt-button-spinner" aria-hidden="true" />}
+          {busy ? t("auth.resetUpdating") : t("auth.resetBtn")}
+        </button>
+      </form>
+    </AuthShell>
   );
 }

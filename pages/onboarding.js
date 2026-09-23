@@ -1,83 +1,64 @@
 import { useEffect, useState } from "react";
-import Glyph from "../components/Glyph";
 import { useRouter } from "next/router";
-import StudySetupShell from "../components/StudySetupShell";
-import SetupCourseColor from "../components/SetupCourseColor";
+import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
+import { Field, FieldGroup, FieldSplit, FormNote, messageId } from "../components/auth/Field";
+import SpaceSheet from "../components/auth/SpaceSheet";
+import CourseComposer from "../components/auth/CourseComposer";
+import useCourseSetup from "../components/auth/useCourseSetup";
 import UniPicker from "../components/UniPicker";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { clearClientCache } from "../lib/clientCache";
-import { COURSE_COLORS } from "../lib/courseColors";
 import { supabase } from "../lib/supabaseClient";
 import { STUDY_YEARS } from "../lib/studyYears";
-import StudyProgramInput from "../components/StudyProgramInput";
-import StudyFieldPicker from "../components/StudyFieldPicker";
+import { STUDY_FIELDS } from "../lib/studySpaces.mjs";
 import {
   ONBOARDING_VERSION,
   ONBOARDING_STEPS,
   deriveOnboardingState,
-  hasDuplicateCourse,
-  mergeCourseById,
-  nextCourseColor,
-  normalizeCourseName,
+  setupStageFor,
 } from "../lib/onboarding.mjs";
-import { newClientId } from "../lib/timerDraft";
 
-function PlusIcon() {
+function TaskSkeleton({ label }) {
   return (
-    <Glyph size={18}>
-      <path d="M12 5v14M5 12h14" />
-    </Glyph>
-  );
-}
-
-function LoadingState({ label }) {
-  return (
-    <div aria-busy="true" aria-label={label}>
-      <div className="bt-skeleton h-7 w-2/3 rounded-lg" />
-      <div className="bt-skeleton mt-3 h-4 w-full rounded-lg" />
-      <div className="bt-skeleton mt-2 h-4 w-4/5 rounded-lg" />
-      <div className="bt-skeleton mt-7 h-11 w-full rounded-xl" />
-      <div className="bt-skeleton mt-5 h-11 w-full rounded-xl" />
+    <div className="bt-auth-skeleton" aria-busy="true" aria-label={label}>
+      <span className="bt-skeleton" style={{ width: "46%", height: 30 }} />
+      <span className="bt-skeleton" style={{ width: "88%", height: 14, marginTop: 12 }} />
+      <span className="bt-skeleton bt-auth-skeleton-group" />
+      <span className="bt-skeleton" style={{ width: "100%", height: 48, marginTop: 20, borderRadius: 14 }} />
     </div>
   );
 }
 
 export default function Onboarding() {
   const { user, loading, refreshProfile, completePendingSignup } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const router = useRouter();
   const [step, setStep] = useState(ONBOARDING_STEPS.UNIVERSITY);
   const [ready, setReady] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [loadError, setLoadError] = useState("");
+
   const [pseudo, setPseudo] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [identityError, setIdentityError] = useState("");
-  const [loadError, setLoadError] = useState("");
+  const [savingIdentity, setSavingIdentity] = useState(false);
 
   const [university, setUniversity] = useState("");
-  const [customUniversity, setCustomUniversity] = useState("");
-  const [useCustomUniversity, setUseCustomUniversity] = useState(false);
-  const [savingUniversity, setSavingUniversity] = useState(false);
-  const [universityError, setUniversityError] = useState("");
-
-  const [studyField, setStudyField] = useState("");
   const [broadField, setBroadField] = useState("");
   const [studyYear, setStudyYear] = useState("");
   const [studyYearCustom, setStudyYearCustom] = useState("");
-  const [savingStudyInfo, setSavingStudyInfo] = useState(false);
-  const [studyInfoError, setStudyInfoError] = useState("");
+  const [studyField, setStudyField] = useState("");
+  const [studiesTouched, setStudiesTouched] = useState(false);
+  const [studiesError, setStudiesError] = useState("");
+  const [savingStudies, setSavingStudies] = useState(false);
 
-  const [courses, setCourses] = useState([]);
-  const [newCourse, setNewCourse] = useState("");
-  const [newColor, setNewColor] = useState(COURSE_COLORS[0]);
-  const [savingCourse, setSavingCourse] = useState(false);
-  const [courseError, setCourseError] = useState("");
+  const courseSetup = useCourseSetup({ userId: user?.id, t });
+  const resetCourses = courseSetup.reset;
+  const [courseDraft, setCourseDraft] = useState("");
   const [finishing, setFinishing] = useState(false);
-  const [editingCourseId, setEditingCourseId] = useState(null);
-  const [editingCourseName, setEditingCourseName] = useState("");
-  const [courseActionId, setCourseActionId] = useState(null);
+  const [finishError, setFinishError] = useState("");
 
   function goToStep(nextStep) {
     setStep(nextStep);
@@ -143,8 +124,7 @@ export default function Onboarding() {
         setBroadField(currentProfile.broad_field || "");
         setStudyYear(knownYear ? currentYear : (currentYear ? "Autre" : ""));
         setStudyYearCustom(knownYear ? "" : currentYear);
-        setCourses(currentCourses);
-        setNewColor(nextCourseColor(currentCourses, COURSE_COLORS) || COURSE_COLORS[0]);
+        resetCourses(currentCourses);
         try {
           const draftKey = `bt_onboarding_course_draft_${user.id}`;
           const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
@@ -165,11 +145,7 @@ export default function Onboarding() {
 
     loadSetup();
     return () => { cancelled = true; };
-  }, [user, loading, router, reloadKey, t, completePendingSignup]);
-
-  const selectedUniversity = useCustomUniversity
-    ? customUniversity.trim()
-    : university.trim();
+  }, [user, loading, router, reloadKey, t, completePendingSignup, resetCourses]);
 
   async function saveIdentity(event) {
     event.preventDefault();
@@ -186,7 +162,7 @@ export default function Onboarding() {
       return;
     }
 
-    setSavingUniversity(true);
+    setSavingIdentity(true);
     try {
       const loadOwnProfile = () => supabase
         .from("profiles")
@@ -262,58 +238,39 @@ export default function Onboarding() {
         setIdentityError(t("onboarding.saveError"));
       }
     } finally {
-      setSavingUniversity(false);
+      setSavingIdentity(false);
     }
   }
 
-  async function saveUniversity(event) {
+  const actualYear = studyYear === "Autre" ? (studyYearCustom.trim() || "Autre") : studyYear;
+  const studiesErrors = {
+    university: !university.trim() ? t("signup.errUniversity") : "",
+    field: !broadField ? t("setup.errField") : "",
+    year: !actualYear ? t("setup.errYear") : "",
+  };
+  const studiesShown = field => (studiesTouched ? studiesErrors[field] : "");
+
+  // Institution and studies are one question on screen and one write: the
+  // server still requires all three answers before Courses, exactly as before.
+  async function saveStudies(event) {
     event.preventDefault();
-    setUniversityError("");
-    if (!selectedUniversity) {
-      setUniversityError(t("onboarding.university.required"));
+    setStudiesTouched(true);
+    setStudiesError("");
+    const firstInvalid = ["university", "field", "year"].find(field => studiesErrors[field]);
+    if (firstInvalid) {
+      document.getElementById(`onboarding-${firstInvalid}`)?.focus();
       return;
     }
 
-    setSavingUniversity(true);
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({ university: selectedUniversity })
-        .eq("id", user.id)
-        .select("id")
-        .single();
-      if (error || data?.id !== user.id) throw error || new Error("profile_update_failed");
-
-      setUniversity(selectedUniversity);
-      setUseCustomUniversity(false);
-      await refreshProfile();
-      goToStep(ONBOARDING_STEPS.STUDIES);
-    } catch (_) {
-      setUniversityError(t("onboarding.saveError"));
-    } finally {
-      setSavingUniversity(false);
-    }
-  }
-
-  async function saveStudyInfo(event) {
-    event.preventDefault();
-    setStudyInfoError("");
-    const actualYear = studyYear === "Autre"
-      ? (studyYearCustom.trim() || "Autre")
-      : studyYear;
-    if (!broadField || !actualYear) {
-      setStudyInfoError(t("onboarding.field.required"));
-      return;
-    }
-
-    setSavingStudyInfo(true);
+    setSavingStudies(true);
     try {
       const { data, error } = await supabase
         .from("profiles")
         .update({
+          university: university.trim(),
+          broad_field: broadField,
+          study_year: actualYear,
           study_field: studyField.trim() || null,
-          broad_field: broadField || null,
-          study_year: actualYear || null,
         })
         .eq("id", user.id)
         .select("id")
@@ -323,151 +280,36 @@ export default function Onboarding() {
       await refreshProfile();
       goToStep(ONBOARDING_STEPS.COURSES);
     } catch (_) {
-      setStudyInfoError(t("onboarding.saveError"));
+      setStudiesError(t("onboarding.saveError"));
     } finally {
-      setSavingStudyInfo(false);
-    }
-  }
-
-  async function createCourse() {
-    if (savingCourse || courseActionId || editingCourseId) return null;
-    const name = newCourse.trim();
-    setCourseError("");
-    if (!name) {
-      setCourseError(t("onboarding.courses.needOne"));
-      return null;
-    }
-    if (hasDuplicateCourse(courses, name)) {
-      setCourseError(t("onboarding.courses.duplicate"));
-      return null;
-    }
-
-    setSavingCourse(true);
-    try {
-      const draftKey = `bt_onboarding_course_draft_${user.id}`;
-      let courseId = null;
-      try {
-        const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
-        if (draft?.id && draft?.nameKey === normalizeCourseName(name)) courseId = draft.id;
-      } catch (_) {}
-      courseId ||= newClientId();
-      try {
-        localStorage.setItem(draftKey, JSON.stringify({ id: courseId, nameKey: normalizeCourseName(name) }));
-      } catch (_) {}
-
-      const { data, error } = await supabase
-        .from("courses")
-        .upsert({ id: courseId, user_id: user.id, name, color: newColor }, { onConflict: "id" })
-        .select("id,name,color,created_at,archived_at")
-        .single();
-      if (error || !data) throw error || new Error("course_create_failed");
-
-      clearClientCache(`dashboard:${user.id}:`);
-      const nextCourses = mergeCourseById(courses, data);
-      setCourses(nextCourses);
-      setNewCourse("");
-      requestAnimationFrame(() => document.getElementById("onboarding-course")?.focus());
-      setNewColor(nextCourseColor(nextCourses, COURSE_COLORS) || COURSE_COLORS[0]);
-      try { localStorage.removeItem(draftKey); } catch (_) {}
-      return data;
-    } catch (_) {
-      setCourseError(t("onboarding.courses.saveError"));
-      return null;
-    } finally {
-      setSavingCourse(false);
-    }
-  }
-
-  async function addCourse(event) {
-    event.preventDefault();
-    await createCourse();
-  }
-
-  async function saveCourseEdit(course) {
-    if (savingCourse || courseActionId || finishing) return;
-    const name = editingCourseName.trim();
-    setCourseError("");
-    if (!name || hasDuplicateCourse(courses, name, course.id)) {
-      setCourseError(name ? t("onboarding.courses.duplicate") : t("onboarding.courses.needOne"));
-      return;
-    }
-    setCourseActionId(course.id);
-    try {
-      const { data, error } = await supabase
-        .from("courses")
-        .update({ name })
-        .eq("id", course.id)
-        .eq("user_id", user.id)
-        .select("id,name,color,created_at,archived_at")
-        .single();
-      if (error || !data) throw error || new Error("course_update_failed");
-      setCourses(current => current.map(item => item.id === data.id ? data : item));
-      setEditingCourseId(null);
-      setEditingCourseName("");
-      clearClientCache(`dashboard:${user.id}:`);
-    } catch (_) {
-      setCourseError(t("onboarding.courses.saveError"));
-    } finally {
-      setCourseActionId(null);
-    }
-  }
-
-  async function changeCourseColor(course, color) {
-    if (savingCourse || courseActionId || editingCourseId || finishing) return;
-    setCourseActionId(course.id);
-    setCourseError("");
-    try {
-      const { error } = await supabase.from("courses").update({ color }).eq("id", course.id).eq("user_id", user.id);
-      if (error) throw error;
-      const nextCourses = courses.map(item => item.id === course.id ? { ...item, color } : item);
-      setCourses(nextCourses);
-      setNewColor(nextCourseColor(nextCourses, COURSE_COLORS) || COURSE_COLORS[0]);
-      clearClientCache(`dashboard:${user.id}:`);
-    } catch (_) { setCourseError(t("onboarding.courses.saveError")); }
-    finally { setCourseActionId(null); }
-  }
-
-  async function removeCourse(course) {
-    if (savingCourse || courseActionId || editingCourseId || finishing) return;
-    setCourseError("");
-    setCourseActionId(course.id);
-    try {
-      const { error } = await supabase
-        .from("courses")
-        .delete()
-        .eq("id", course.id)
-        .eq("user_id", user.id);
-      if (error) throw error;
-      const nextCourses = courses.filter(item => item.id !== course.id);
-      setCourses(nextCourses);
-      setNewColor(nextCourseColor(nextCourses, COURSE_COLORS) || COURSE_COLORS[0]);
-      if (editingCourseId === course.id) setEditingCourseId(null);
-      clearClientCache(`dashboard:${user.id}:`);
-    } catch (_) {
-      setCourseError(t("onboarding.courses.removeError"));
-    } finally {
-      setCourseActionId(null);
+      setSavingStudies(false);
     }
   }
 
   async function finish() {
-    if (savingCourse || courseActionId || editingCourseId || finishing) return;
-    setCourseError("");
+    if (finishing) return;
+    setFinishError("");
     setFinishing(true);
-    let courseCount = courses.length;
 
-    if (newCourse.trim()) {
-      const created = await createCourse();
-      if (!created) {
+    // A name still in the entry counts as the student's intent.
+    if (courseDraft.trim()) {
+      const { added } = courseSetup.add([courseDraft]);
+      if (added) setCourseDraft("");
+      else {
         setFinishing(false);
         return;
       }
-      courseCount += 1;
     }
 
-    if (courseCount === 0) {
-      setCourseError(t("onboarding.courses.needOne"));
+    const list = await courseSetup.flush();
+    if (list.some(course => course.status === "failed")) {
       setFinishing(false);
+      return;
+    }
+    if (!list.some(course => !course.status)) {
+      courseSetup.setNotice({ tone: "error", text: t("onboarding.courses.needOne") });
+      setFinishing(false);
+      document.getElementById("onboarding-course")?.focus();
       return;
     }
 
@@ -480,307 +322,177 @@ export default function Onboarding() {
       await refreshProfile();
       await router.replace("/dashboard");
     } catch (_) {
-      setCourseError(t("onboarding.finishError"));
+      setFinishError(t("onboarding.finishError"));
       setFinishing(false);
     }
   }
 
   if (!loading && !user) return null;
 
+  const pending = loading || !ready;
+  const stage = setupStageFor(step);
+  const coursesBusy = courseSetup.courses.some(course => course.status === "saving") || Boolean(courseSetup.busyId);
+  const sheet = (
+    <SpaceSheet
+      loading={pending}
+      firstName={firstName}
+      lastName={lastName}
+      pseudo={pseudo}
+      university={university}
+      broadField={broadField}
+      year={studyYear === "Autre" ? studyYearCustom : studyYear}
+      program={studyField}
+      courses={courseSetup.courses}
+      stage={stage}
+    />
+  );
+
+  let content;
+  if (pending) {
+    content = <TaskSkeleton label={t("loading.preparing")} />;
+  } else if (loadError) {
+    content = (
+      <>
+        <AuthHeading title={t("onboarding.loadErrorTitle")} lead={loadError} />
+        <button type="button" className="bt-auth-primary" onClick={() => setReloadKey(key => key + 1)}>
+          {t("onboarding.retry")}
+        </button>
+      </>
+    );
+  } else if (step === ONBOARDING_STEPS.YOU) {
+    content = (
+      <>
+        <AuthHeading title={t("onboarding.repair.title")} lead={t("onboarding.repair.subtitle")} />
+        <form onSubmit={saveIdentity} noValidate>
+          <FieldGroup>
+            <FieldSplit>
+              <Field id="onboarding-first-name" label={t("profile.firstName")}>
+                <input id="onboarding-first-name" className="bt-field-input" value={firstName} onChange={event => { setFirstName(event.target.value); setIdentityError(""); }} maxLength={80} autoComplete="given-name" autoCapitalize="words" autoFocus />
+              </Field>
+              <Field id="onboarding-last-name" label={t("profile.lastName")}>
+                <input id="onboarding-last-name" className="bt-field-input" value={lastName} onChange={event => { setLastName(event.target.value); setIdentityError(""); }} placeholder={t("setup.optional")} maxLength={80} autoComplete="family-name" autoCapitalize="words" />
+              </Field>
+            </FieldSplit>
+            <Field id="onboarding-pseudo" label={t("signup.pseudo")}>
+              <input id="onboarding-pseudo" className="bt-field-input" value={pseudo} onChange={event => { setPseudo(event.target.value); setIdentityError(""); }} placeholder={t("setup.pseudoPlaceholder")} maxLength={30} autoComplete="username" autoCapitalize="none" spellCheck="false" />
+            </Field>
+            <Field id="onboarding-email" label={t("signup.email")} hint={t("onboarding.repair.emailHelp")}>
+              <input id="onboarding-email" className="bt-field-input" value={user.email || ""} readOnly autoComplete="email" aria-describedby={messageId("onboarding-email")} />
+            </Field>
+          </FieldGroup>
+          <FormNote tone="error">{identityError}</FormNote>
+          <button className="bt-auth-primary" disabled={savingIdentity} aria-busy={savingIdentity}>
+            {savingIdentity ? t("onboarding.saving") : t("onboarding.continue")}
+          </button>
+        </form>
+      </>
+    );
+  } else if (stage === 1) {
+    content = (
+      <>
+        <AuthHeading title={t("setup.studiesTitle")} lead={t("setup.studiesLead")} />
+        <form onSubmit={saveStudies} noValidate>
+          <FieldGroup>
+            <Field id="onboarding-university" label={t("signup.university")} error={studiesShown("university")} className="bt-field-uni">
+              <UniPicker
+                id="onboarding-university"
+                value={university}
+                onChange={value => { setUniversity(value); setStudiesError(""); }}
+                placeholder={t("signup.uniSearch")}
+                error={Boolean(studiesShown("university"))}
+                ariaDescribedBy={studiesShown("university") ? messageId("onboarding-university") : undefined}
+              />
+            </Field>
+          </FieldGroup>
+          <FieldGroup>
+            <Field id="onboarding-field" label={t("setup.fieldLabel")} error={studiesShown("field")}>
+              <select
+                id="onboarding-field"
+                className="bt-field-input bt-field-select"
+                value={broadField}
+                onChange={event => { setBroadField(event.target.value); setStudiesError(""); }}
+                aria-invalid={Boolean(studiesShown("field"))}
+                aria-describedby={studiesShown("field") ? messageId("onboarding-field") : undefined}
+              >
+                <option value="">{t("setup.fieldChoose")}</option>
+                {STUDY_FIELDS.map(field => <option key={field.id} value={field.id}>{lang === "fr" ? field.fr : field.en}</option>)}
+              </select>
+            </Field>
+            <Field id="onboarding-year" label={t("setup.yearLabel")} error={studiesShown("year")}>
+              <select
+                id="onboarding-year"
+                className="bt-field-input bt-field-select"
+                value={studyYear}
+                onChange={event => { setStudyYear(event.target.value); setStudyYearCustom(""); setStudiesError(""); }}
+                aria-invalid={Boolean(studiesShown("year"))}
+                aria-describedby={studiesShown("year") ? messageId("onboarding-year") : undefined}
+              >
+                <option value="">{t("setup.yearChoose")}</option>
+                {STUDY_YEARS.map(year => <option key={year.value} value={year.value}>{t(year.key)}</option>)}
+              </select>
+            </Field>
+            {studyYear === "Autre" && (
+              <Field id="onboarding-custom-year" label={t("onboarding.year.customLabel")}>
+                <input
+                  id="onboarding-custom-year"
+                  className="bt-field-input"
+                  placeholder={t("onboarding.year.customPlaceholder")}
+                  value={studyYearCustom}
+                  onChange={event => setStudyYearCustom(event.target.value)}
+                  maxLength={80}
+                  autoFocus
+                />
+              </Field>
+            )}
+            <Field id="onboarding-program" label={t("setup.programLabel")}>
+              <input
+                id="onboarding-program"
+                className="bt-field-input"
+                value={studyField}
+                onChange={event => setStudyField(event.target.value)}
+                placeholder={t("setup.programPlaceholder")}
+                maxLength={100}
+                autoComplete="organization-title"
+              />
+            </Field>
+          </FieldGroup>
+          <FormNote tone="error">{studiesError}</FormNote>
+          <button className="bt-auth-primary" disabled={savingStudies} aria-busy={savingStudies}>
+            {savingStudies ? t("onboarding.saving") : t("onboarding.continue")}
+          </button>
+        </form>
+      </>
+    );
+  } else {
+    content = (
+      <>
+        <AuthHeading title={t("setup.coursesTitle")} lead={t("setup.coursesLead")} />
+        <CourseComposer setup={courseSetup} draft={courseDraft} onDraftChange={setCourseDraft} disabled={finishing} />
+        <FormNote tone="error">{finishError}</FormNote>
+        <button
+          type="button"
+          className="bt-auth-primary"
+          onClick={finish}
+          disabled={finishing || (courseSetup.courses.length === 0 && !courseDraft.trim())}
+          aria-busy={finishing || coursesBusy}
+        >
+          {finishing && <span className="bt-button-spinner" aria-hidden="true" />}
+          {finishing ? t("onboarding.saving") : t("onboarding.done.cta")}
+        </button>
+        <p className="bt-auth-footnote">{t("onboarding.courses.editLater")}</p>
+      </>
+    );
+  }
+
   return (
-    <StudySetupShell step={step} firstName={firstName} university={selectedUniversity} broadField={broadField} year={studyYear === "Autre" ? studyYearCustom : studyYear} program={studyField} courses={courses}
-      onBack={ready && !savingStudyInfo && !savingCourse && !courseActionId && !editingCourseId && !finishing && step > ONBOARDING_STEPS.UNIVERSITY ? () => goToStep(step - 1) : undefined}>
-        {loading || !ready ? (
-          <LoadingState label={t("loading.preparing")} />
-        ) : loadError ? (
-          <div className="setup-error">
-            <h1 className="text-xl">{t("onboarding.loadErrorTitle")}</h1>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{loadError}</p>
-            <button className="btn-primary mt-6 w-full" onClick={() => setReloadKey(key => key + 1)}>
-              {t("onboarding.retry")}
-            </button>
-          </div>
-        ) : (
-          <div key={step} className="setup-step">
-            {step === ONBOARDING_STEPS.YOU && (
-              <form onSubmit={saveIdentity} noValidate>
-                <div className="mb-6">
-                  <h1 tabIndex={-1}>{t("onboarding.repair.title")}</h1>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                    {t("onboarding.repair.subtitle")}
-                  </p>
-                </div>
-
-                <div className="mb-5 space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="label" htmlFor="onboarding-first-name">{t("profile.firstName")}</label>
-                      <input id="onboarding-first-name" className="input" value={firstName} onChange={event => { setFirstName(event.target.value); setIdentityError(""); }} maxLength={80} autoComplete="given-name" autoFocus />
-                    </div>
-                    <div>
-                      <div className="mb-1 flex items-center justify-between">
-                        <label className="label mb-0" htmlFor="onboarding-last-name">{t("profile.lastName")}</label>
-                        <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.optional")}</span>
-                      </div>
-                      <input id="onboarding-last-name" className="input" value={lastName} onChange={event => { setLastName(event.target.value); setIdentityError(""); }} maxLength={80} autoComplete="family-name" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="label" htmlFor="onboarding-pseudo">{t("signup.pseudo")}</label>
-                    <input id="onboarding-pseudo" className="input" value={pseudo} onChange={event => { setPseudo(event.target.value); setIdentityError(""); }} maxLength={30} autoComplete="username" autoCapitalize="none" spellCheck="false" />
-                    <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.pseudoHint")}</p>
-                  </div>
-
-                  <div>
-                    <label className="label" htmlFor="onboarding-email">{t("signup.email")}</label>
-                    <input id="onboarding-email" className="input" value={user.email || ""} readOnly autoComplete="email" />
-                    <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("onboarding.repair.emailHelp")}</p>
-                  </div>
-
-                  {identityError && <div className="bt-form-alert" role="alert">{identityError}</div>}
-                </div>
-
-                <button className="btn-primary w-full min-h-11" disabled={savingUniversity} aria-busy={savingUniversity}>
-                  {savingUniversity ? t("onboarding.saving") : t("onboarding.continue")}
-                </button>
-              </form>
-            )}
-
-            {step === ONBOARDING_STEPS.UNIVERSITY && (
-              <form onSubmit={saveUniversity} noValidate>
-                <div className="mb-6">
-                  <h1 tabIndex={-1}>{t("onboarding.university.title")}</h1>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("onboarding.university.subtitle")}</p>
-                </div>
-
-                <label className="label" htmlFor="onboarding-university">{t("signup.university")}</label>
-                {!useCustomUniversity ? (
-                  <>
-                    <UniPicker
-                      id="onboarding-university"
-                      value={university}
-                      onChange={value => { setUniversity(value); setUniversityError(""); }}
-                      placeholder={t("signup.uniSearch")}
-                      error={Boolean(universityError)}
-                      ariaDescribedBy={universityError ? "university-error" : "university-help"}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUseCustomUniversity(true);
-                        setCustomUniversity("");
-                        setUniversityError("");
-                      }}
-                      className="mt-2 inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:underline"
-                      style={{ color: "var(--bt-text-2)" }}
-                    >
-                      {t("signup.uniNotFound")}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      id="onboarding-university"
-                      className={`input ${universityError ? "input-error" : ""}`}
-                      placeholder={t("signup.uniCustom")}
-                      value={customUniversity}
-                      onChange={event => { setCustomUniversity(event.target.value); setUniversityError(""); }}
-                      maxLength={120}
-                      autoComplete="organization"
-                      autoFocus
-                      aria-invalid={Boolean(universityError)}
-                      aria-describedby={universityError ? "university-error" : "university-help"}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUseCustomUniversity(false);
-                        setCustomUniversity("");
-                        setUniversityError("");
-                      }}
-                      className="bt-accent-link mt-2 inline-flex min-h-11 items-center text-sm font-medium hover:underline"
-                    >
-                      {t("signup.backToList")}
-                    </button>
-                  </>
-                )}
-
-                <p id="university-help" className="mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                  {t("onboarding.university.help")}
-                </p>
-                {universityError && <p id="university-error" className="bt-form-error mt-2 text-xs" role="alert">{universityError}</p>}
-
-                <button className="btn-primary mt-6 w-full min-h-11" disabled={savingUniversity} aria-busy={savingUniversity}>
-                  {savingUniversity ? t("onboarding.saving") : t("onboarding.continue")}
-                </button>
-              </form>
-            )}
-
-            {step === ONBOARDING_STEPS.STUDIES && (
-              <form onSubmit={saveStudyInfo} noValidate>
-                <div className="mb-6">
-                  <h1 tabIndex={-1}>{t("onboarding.field.title")}</h1>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                    {t("onboarding.field.subtitle")}
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <StudyFieldPicker value={broadField} onChange={value => { setBroadField(value); setStudyInfoError(""); }} id="onboarding-broad-field" required />
-
-                  <div>
-                    <label className="label" htmlFor="onboarding-year">{t("onboarding.year.label")}</label>
-                    <select
-                      id="onboarding-year"
-                      className="input"
-                      value={studyYear}
-                      onChange={event => {
-                        setStudyYear(event.target.value);
-                        setStudyYearCustom("");
-                        setStudyInfoError("");
-                      }}
-                    >
-                      <option value="">{t("onboarding.year.choose")}</option>
-                      {STUDY_YEARS.map(year => <option key={year.value} value={year.value}>{t(year.key)}</option>)}
-                    </select>
-                  </div>
-
-                  {studyYear === "Autre" && (
-                    <div>
-                      <label className="label" htmlFor="onboarding-custom-year">{t("onboarding.year.customLabel")}</label>
-                      <input
-                        id="onboarding-custom-year"
-                        className="input"
-                        placeholder={t("onboarding.year.customPlaceholder")}
-                        value={studyYearCustom}
-                        onChange={event => setStudyYearCustom(event.target.value)}
-                        maxLength={80}
-                        autoFocus
-                      />
-                    </div>
-                  )}
-                </div>
-
-                  <StudyProgramInput id="onboarding-field" value={studyField} onChange={setStudyField} maxLength={100} />
-
-                {studyInfoError && <div className="bt-form-alert mt-5" role="alert">{studyInfoError}</div>}
-
-                <div className="setup-actions">
-                  <button className="btn-primary flex-1" disabled={savingStudyInfo} aria-busy={savingStudyInfo}>
-                    {savingStudyInfo ? t("onboarding.saving") : t("onboarding.saveContinue")}
-                  </button>
-                </div>
-                <p className="mt-3 text-center text-xs" style={{ color: "var(--bt-text-2)" }}>
-                  {t("onboarding.field.programOptional")}
-                </p>
-              </form>
-            )}
-
-            {step === ONBOARDING_STEPS.COURSES && (
-              <div>
-                <div className="mb-6">
-                  <h1 tabIndex={-1}>{t("setup.coursesTitle")}</h1>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                    {t("setup.coursesSubtitle")}
-                  </p>
-                </div>
-
-                <form onSubmit={addCourse} className="space-y-3">
-                  <div className="setup-course-entry">
-                    <input
-                      id="onboarding-course"
-                      disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing}
-                      aria-label={t("setup.addCourse")}
-                      className={`input ${courseError && courses.length === 0 ? "input-error" : ""}`}
-                      placeholder={t("setup.addCourse")}
-                      value={newCourse}
-                      onChange={event => { setNewCourse(event.target.value); setCourseError(""); }}
-                      maxLength={80}
-                      autoFocus
-                      aria-invalid={Boolean(courseError && courses.length === 0)}
-                      aria-describedby={courseError ? "course-error" : undefined}
-                    />
-                    <button
-                      type="submit"
-                      className="btn-primary w-12 shrink-0 px-0"
-                      disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing || !newCourse.trim()}
-                      aria-label={t("onboarding.courses.add")}
-                      title={t("onboarding.courses.add")}
-                    >
-                      <PlusIcon />
-                    </button>
-                  </div>
-
-
-                </form>
-
-                {courses.length > 0 && (
-                  <div className="mt-5">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-2)" }}>
-                      {t("onboarding.courses.added")} · {courses.length}
-                    </p>
-                    <ul className="setup-course-list">
-                      {courses.map(course => (
-                        <li key={course.id} className="setup-course-row">
-                          {editingCourseId === course.id ? (
-                            <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); saveCourseEdit(course); }}>
-                              <SetupCourseColor color={course.color} name={course.name} disabled onChange={color => changeCourseColor(course, color)} />
-                              <input
-                                className="input min-w-0 flex-1 py-1.5"
-                                value={editingCourseName}
-                                onChange={event => { setEditingCourseName(event.target.value); setCourseError(""); }}
-                                onKeyDown={event => { if (event.key === "Escape") { setEditingCourseId(null); setEditingCourseName(""); } }}
-                                maxLength={80}
-                                autoFocus
-                                aria-label={t("onboarding.courses.editName")}
-                              />
-                              <button type="submit" className="bt-accent-link min-h-11 px-2 text-xs font-semibold" disabled={courseActionId === course.id}>
-                                {t("common.save")}
-                              </button>
-                              <button type="button" className="setup-course-remove" aria-label={t("common.cancel")} disabled={!!courseActionId} onClick={() => { setEditingCourseId(null); setEditingCourseName(""); }}><Glyph size={16}><path d="m6 6 12 12M18 6 6 18" /></Glyph></button>
-                            </form>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <SetupCourseColor color={course.color} name={course.name} disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing} onChange={color => changeCourseColor(course, color)} />
-                              <button type="button" className="setup-course-name" disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing} aria-label={t("setup.rename").replace("{course}", course.name)} onClick={() => { setEditingCourseId(course.id); setEditingCourseName(course.name); setCourseError(""); }}>{course.name}</button>
-                              <button
-                                type="button"
-                                className="setup-course-remove"
-                                aria-label={t("setup.remove").replace("{course}", course.name)}
-                                onClick={() => removeCourse(course)}
-                                disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing}
-                              >
-                                <Glyph size={16}><path d="m6 6 12 12M18 6 6 18" /></Glyph>
-                              </button>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {courseError && <p id="course-error" className="bt-form-error mt-4 text-sm" role="alert">{courseError}</p>}
-
-                <div className="setup-actions">
-                  <button
-                    type="button"
-                    className="btn-primary flex-[1.35]"
-                    onClick={finish}
-                    disabled={finishing || savingCourse || !!courseActionId || !!editingCourseId || (courses.length === 0 && !newCourse.trim())}
-                    aria-busy={finishing}
-                  >
-                    {finishing ? t("onboarding.saving") : t("onboarding.done.cta")}
-                  </button>
-                </div>
-                <p className="mt-3 text-center text-xs" style={{ color: "var(--bt-text-2)" }}>
-                  {t("onboarding.courses.editLater")}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-    </StudySetupShell>
+    <AuthShell
+      stage={stage}
+      aside={sheet}
+      contentKey={pending ? "loading" : loadError ? "error" : `stage-${stage}-${step}`}
+      onBack={!pending && !loadError && step === ONBOARDING_STEPS.COURSES && !finishing ? () => goToStep(ONBOARDING_STEPS.STUDIES) : undefined}
+      backLabel={t("setup.stageStudies")}
+    >
+      {content}
+    </AuthShell>
   );
 }

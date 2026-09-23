@@ -4,7 +4,7 @@ import "../styles/planning.css";
 import "../styles/activity.css";
 import "../styles/level.css";
 import "../styles/profile.css";
-import "../styles/setup.css";
+import "../styles/auth.css";
 import Glyph from "../components/Glyph";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -573,6 +573,9 @@ export default function App({ Component, pageProps }) {
   useEffect(() => initSensoryFeedback(), []);
   const router = useRouter();
   const setupInProgress = router.pathname === "/signup" || router.pathname === "/onboarding";
+  // Sign-in and password recovery share the setup's frame: an install prompt
+  // floating over their form hid the submit button on a phone.
+  const authPage = setupInProgress || ["/login", "/forgot-password", "/reset-password"].includes(router.pathname);
 
   return (
     <AuthProvider>
@@ -614,7 +617,7 @@ export default function App({ Component, pageProps }) {
         <ReferralCapture />
         <PushInit />
         <ConsentSync />
-        {!setupInProgress && <InstallBanner />}
+        {!authPage && <InstallBanner />}
         {!setupInProgress && <ConsentManager />}
         {!setupInProgress && <LegalUpdateNotice />}
       </ToastProvider>

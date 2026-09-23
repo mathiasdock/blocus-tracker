@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import AuthBackground from "../components/AuthBackground";
-import AuthBrand from "../components/AuthBrand";
-import PasswordInput from "../components/PasswordInput";
+import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
+import { Field, FieldGroup, FormNote, PasswordField, messageId } from "../components/auth/Field";
+import { SpaceInvite } from "../components/auth/SpaceSheet";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
@@ -60,95 +60,64 @@ export default function Login() {
   }
 
   return (
-    <AuthBackground>
-      <div className="w-full max-w-sm bt-stagger">
-        <AuthBrand subtitle={t("login.tagline")} />
+    <AuthShell
+      alternate={{ text: t("login.noaccount"), cta: t("login.create"), href: "/signup", compactOnly: true }}
+      aside={<SpaceInvite />}
+    >
+      <AuthHeading title={t("login.title")} lead={t("login.subtitle")} />
 
-        <form onSubmit={handleSubmit} className="card p-6 sm:p-7" noValidate>
-          <div className="mb-6">
-            <h1 className="text-2xl">{t("login.title")}</h1>
-            <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-              {t("login.subtitle")}
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="label" htmlFor="login-id">{t("login.pseudoOrEmail")}</label>
-              <input
-                id="login-id"
-                className={`input ${loginIdError ? "input-error" : ""}`}
-                value={loginId}
-                onChange={event => {
-                  setLoginId(event.target.value);
-                  if (error) setError("");
-                }}
-                onBlur={() => setTouched(current => ({ ...current, loginId: true }))}
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck="false"
-                disabled={busy}
-                required
-                autoFocus
-                aria-invalid={Boolean(loginIdError)}
-                aria-describedby={loginIdError ? "login-id-error" : undefined}
-              />
-              {loginIdError && (
-                <p id="login-id-error" className="bt-form-error mt-1.5 text-xs" role="alert">
-                  {loginIdError}
-                </p>
-              )}
-            </div>
-
-            <PasswordInput
-              id="login-password"
-              label={t("login.password")}
-              value={password}
+      <form onSubmit={handleSubmit} noValidate>
+        <FieldGroup>
+          <Field id="login-id" label={t("login.pseudoOrEmail")} error={loginIdError}>
+            <input
+              id="login-id"
+              className="bt-field-input"
+              value={loginId}
               onChange={event => {
-                setPassword(event.target.value);
+                setLoginId(event.target.value);
                 if (error) setError("");
               }}
-              onBlur={() => setTouched(current => ({ ...current, password: true }))}
-              error={passwordError}
-              autoComplete="current-password"
+              onBlur={() => setTouched(current => ({ ...current, loginId: true }))}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck="false"
               disabled={busy}
-              showLabel={t("auth.showPassword")}
-              hideLabel={t("auth.hidePassword")}
+              required
+              autoFocus
+              aria-invalid={Boolean(loginIdError)}
+              aria-describedby={loginIdError ? messageId("login-id") : undefined}
             />
-          </div>
+          </Field>
+          <PasswordField
+            id="login-password"
+            label={t("login.password")}
+            value={password}
+            onChange={event => {
+              setPassword(event.target.value);
+              if (error) setError("");
+            }}
+            onBlur={() => setTouched(current => ({ ...current, password: true }))}
+            error={passwordError}
+            autoComplete="current-password"
+            disabled={busy}
+            showLabel={t("auth.showPassword")}
+            hideLabel={t("auth.hidePassword")}
+          />
+        </FieldGroup>
 
-          {error && (
-            <div className="bt-form-alert mt-5" role="alert" aria-live="polite">
-              {error}
-            </div>
-          )}
-
-          <button className="btn-primary mt-6 w-full min-h-11" disabled={busy} aria-busy={busy}>
-            {busy ? (
-              <>
-                <span className="bt-button-spinner" aria-hidden="true" />
-                {t("login.connecting")}
-              </>
-            ) : t("login.signin")}
-          </button>
-
-          <div className="mt-4 text-center">
-            <Link href="/forgot-password" className="inline-flex min-h-11 items-center text-sm font-medium transition-colors hover:underline" style={{ color: "var(--bt-text-2)" }}>
-              {t("login.forgotPwd")}
-            </Link>
-            <p className="mx-auto max-w-xs text-xs leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
-              {t("login.repairHint")}
-            </p>
-          </div>
-        </form>
-
-        <p className="mt-5 text-center text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
-          {t("login.noaccount")} {" "}
-          <Link href="/signup" className="bt-accent-link inline-flex min-h-11 items-center font-semibold hover:underline">
-            {t("login.create")}
-          </Link>
+        <p className="bt-auth-sublink">
+          <Link href="/forgot-password">{t("login.forgotPwd")}</Link>
         </p>
-      </div>
-    </AuthBackground>
+
+        <FormNote tone="error">{error}</FormNote>
+
+        <button className="bt-auth-primary" disabled={busy} aria-busy={busy}>
+          {busy && <span className="bt-button-spinner" aria-hidden="true" />}
+          {busy ? t("login.connecting") : t("login.signin")}
+        </button>
+      </form>
+
+      <p className="bt-auth-footnote">{t("login.repairHint")}</p>
+    </AuthShell>
   );
 }

@@ -2,6 +2,16 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-22 — Claude Code — Connexion, inscription et configuration : refonte finale
+
+- Remplace le rendu de la Phase 2 (refusé) et l'ancien fond photo + carte blanche sur toute la famille : connexion, inscription, email à confirmer, mot de passe oublié/réinitialisation, configuration (chargement, erreur, reprise). Un seul cadre `components/auth/AuthShell` + `styles/auth.css` ; `AuthBackground`, `AuthBrand`, `PasswordInput`, `StudySetupShell`, `SetupCourseColor`, `SetupUsernameStatus` et `styles/setup.css` supprimés.
+- Parcours visible en 3 étapes : Compte (prénom, nom facultatif, pseudo, email, mot de passe, CGU — la confirmation du mot de passe disparaît au profit de l'œil), Études (établissement + domaine + année + spécialisation facultative, un seul écran et une seule écriture), Cours. Les 5 états serveur de la Phase 1 restent la vérité (`setupStageFor`) ; reprise, confirmation email, réparation des anciens comptes, CGU/parrainage et idempotence inchangés. Aucune migration.
+- Desktop : formulaire à gauche, fiche encre « ton espace » à droite, remplie en direct (nom, pseudo, blason de l'établissement, disque de la filière, cours avec leur couleur). Sur la connexion, la même fiche vide invite à créer un compte. Mobile : barre compacte avec les 3 étapes, formulaire directement dessous.
+- Cours : Entrée ajoute et garde le focus, liste collée = un cours par ligne, doublon signalé sur le cours existant, Retour arrière ×2 retire le dernier, renommage en place, couleur sur la pastille. Enregistrements optimistes en file, un à la fois, id client stable. Couleurs automatiques espacées (`COURSE_COLOR_SEQUENCE`) au lieu de rouge/orange/ambre/jaune.
+- 21st.dev : « Tag Input » (ddoemonn) pour la grammaire clavier de la saisie des cours, « Inline Edit Settings » (felipemenezes098) pour les lignes éditées une à une ; réécrits dans le vocabulaire Blocus, sans dépendance ajoutée.
+- Bandeau « Installer l'app » masqué sur connexion et récupération (il couvrait le bouton sur téléphone). Trappe QA hors ligne `bt_offline_confirm_email = 1` pour voir l'écran « Vérifie tes emails ».
+- Vérifié hors ligne : parcours complet inscription → études → 6 cours → Chrono, doublons, collage, renommage/Échap, couleur, suppressions, retour arrière, réparation d'ancien compte, fin avec un cours tapé non validé ; 320/390/1280/1440, FR/EN, clair/sombre ; arbre d'accessibilité Chrome sans contrôle sans nom, un seul h1 par page. Envoi réel d'email non testé.
+
 ## 2026-09-22 — Codex — Signup/onboarding Phase 2 : Study Space Setup
 
 - Shell commun `/signup` et `/onboarding` : réponses réelles à gauche sur desktop, question à droite ; mobile compact, retour et progression x/5. Retrait du fond photo et de la carte centrale sur ces deux routes uniquement.

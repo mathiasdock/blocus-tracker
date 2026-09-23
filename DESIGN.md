@@ -284,6 +284,17 @@ Rarity can have a restrained material treatment and a word, not a new UI palette
 - **Empty and non-member states.** One truthful sentence, no illustration — and never a blank workspace: the institution space opens on a wide screen when no course space is joined yet. A non-member sees what joining means and one primary *Rejoindre*; messages stay members-only.
 - **Layout.** Desktop keeps the full-height Social shell shared with Friends (list a third, room two thirds, one hairline). Phones: list inside the Social tab (the tab names the page, so the list title is for screen readers only), then the room full screen with its own back control and a composer that follows the keyboard.
 
+### Sign-in and setup — your space, filled in
+
+Every page before the app — sign in, sign up, check email, forgot/reset password, onboarding with its loading, error and resume states — is one family (`components/auth/*`, `styles/auth.css`, `.impeccable/surfaces/pages-signup-js.md`, shipped 2026-09-22). No photo and no white card around a form.
+
+- **Frame.** Warm canvas, the app's own Quicksand wordmark top left, the other door top right (*Se connecter* ↔ *Créer un compte*). Titles in Quicksand, controls in Nunito. Secondary text on this canvas uses `#655E58` (light) so hints and labels keep 4.5:1; the app's `#7C746E` stops at 4.0:1 on `--bt-bg`.
+- **Three visible steps.** *Compte → Études → Cours*, named, as three short bars (in the top bar from 768px, under it on phones). They map the server's five states (`setupStageFor` in `lib/onboarding.mjs`): an identity repair resumes on *Compte*, a university saved without its field on *Études*. Institution, field and year are one screen and one write; all three stay required.
+- **Grouped rows.** A form is one surface of rows: the label above its value, inset hairlines, the control radius. The focused row takes the mint surface and its label the accent text; an error turns the row's label and message red inside the row. Two short answers can share a row (first and last name). Inside a row the row is the touch target, so the value line stays compact on phones.
+- **The student's space (desktop only).** One brand-ink sheet beside the task, drawn with the product's marks: avatar initial, name, @username, the institution's crest (`UniversityMark`), the program's disc, the course markers. It shows only what the student has answered, live as they type; what is still to come is a dashed outline of the same shape. Never study time, a mascot, a Study Block or an example course — there is none yet. On the sign-in page the same sheet, empty, describes the three parts and holds *Créer un compte*; forgot/reset stay single-column.
+- **Courses.** Type → Enter → the course lands in the list and in the sheet, the entry keeps the focus. A pasted list adds one course per line; a duplicate lights the course it repeats; Backspace on an empty entry selects the last course, a second one removes it. Rename in place (Enter saves, Escape cancels), colour on the dot, remove on ×, one edit at a time. Saves run one after another with a stable client id (Phase 1 idempotency); Finish waits for them and still needs one course. Automatic colours follow `COURSE_COLOR_SEQUENCE` (`lib/courseColors.js`) so the first courses get far-apart hues; the picker keeps the palette in hue order.
+- **Green.** The primary action, the progress bars, the focused row, *Disponible*. Nothing decorative; course hues only on real courses.
+
 ## Do's and Don'ts
 
 ### Correct / incorrect usage

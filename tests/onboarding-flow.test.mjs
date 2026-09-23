@@ -3,13 +3,17 @@ import assert from "node:assert/strict";
 import {
   ONBOARDING_STEPS,
   buildSignupMetadata,
+  cleanCourseName,
   deriveOnboardingState,
   hasDuplicateCourse,
   mergeCourseById,
   nextCourseColor,
   normalizeCourseName,
+  planCourseAdds,
+  setupStageFor,
   signupNeedsEmailConfirmation,
   shouldCheckOnboarding,
+  splitCourseNames,
 } from "../lib/onboarding.mjs";
 
 const managedUser = { id: "new-user", user_metadata: { onboarding_version: 1 } };
@@ -139,4 +143,54 @@ test("only managed new accounts are guarded outside onboarding routes", () => {
   assert.equal(shouldCheckOnboarding({ ...base, user: managedUser }), true);
   assert.equal(shouldCheckOnboarding({ ...base, user: legacyUser }), false);
   assert.equal(shouldCheckOnboarding({ ...base, user: managedUser, pathname: "/onboarding" }), false);
+});
+
+test("the five server steps resume on three visible steps", () => {
+  assert.equal(setupStageFor(ONBOARDING_STEPS.ACCOUNT), 0);
+  assert.equal(setupStageFor(ONBOARDING_STEPS.YOU), 0);
+  assert.equal(setupStageFor(ONBOARDING_STEPS.UNIVERSITY), 1);
+  assert.equal(setupStageFor(ONBOARDING_STEPS.STUDIES), 1);
+  assert.equal(setupStageFor(ONBOARDING_STEPS.COURSES), 2);
+  // A university saved without its field still asks for Studies, on the same screen.
+  const state = deriveOnboardingState({ user: managedUser, profile: { ...baseProfile, broad_field: null }, courses: [] });
+  assert.equal(setupStageFor(state.step), 1);
+});
+
+test("a course name is stored trimmed, on one line, within the column limit", () => {
+  assert.equal(cleanCourseName("  Droit   civil \n"), "Droit civil");
+  assert.equal(cleanCourseName("x".repeat(120)).length, 80);
+});
+
+test("a pasted list becomes one course per line, without list markers", () => {
+  assert.deepEqual(
+    splitCourseNames("- Macroéconomie\n• Droit des obligations\r\n3. Statistiques\n\n  Finance d'entreprise  "),
+    ["Macroéconomie", "Droit des obligations", "Statistiques", "Finance d'entreprise"],
+  );
+  // A comma belongs to the name.
+  assert.deepEqual(splitCourseNames("Droit civil, obligations"), ["Droit civil, obligations"]);
+  assert.deepEqual(splitCourseNames("Maths;Physique\tChimie"), ["Maths", "Physique", "Chimie"]);
+});
+
+test("adding skips names already in the list or repeated in the same paste", () => {
+  const plan = planCourseAdds([course], ["marketing ", "Finance", "FINANCE", "Économie", ""]);
+  assert.deepEqual(plan.accepted, ["Finance", "Économie"]);
+  assert.equal(plan.duplicate.id, "course-1");
+  assert.deepEqual(planCourseAdds([], ["Stats"]), { accepted: ["Stats"], duplicate: null });
+});
+
+test("automatic colours start far apart instead of walking the palette's neighbouring hues", async () => {
+  const { COURSE_COLORS, COURSE_COLOR_SEQUENCE } = await import("../lib/courseColors.js");
+  assert.deepEqual([...COURSE_COLOR_SEQUENCE].sort(), [...COURSE_COLORS].sort());
+  let list = [];
+  const picked = [];
+  for (let i = 0; i < 6; i += 1) {
+    const color = nextCourseColor(list, COURSE_COLOR_SEQUENCE);
+    picked.push(color);
+    list = [...list, { id: `c${i}`, name: `Course ${i}`, color, archived_at: null }];
+  }
+  assert.equal(new Set(picked).size, 6);
+  for (let i = 1; i < picked.length; i += 1) {
+    const distance = Math.abs(COURSE_COLORS.indexOf(picked[i]) - COURSE_COLORS.indexOf(picked[i - 1]));
+    assert.ok(distance > 1, `${picked[i - 1]} then ${picked[i]} are palette neighbours`);
+  }
 });

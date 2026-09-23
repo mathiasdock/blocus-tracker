@@ -2,31 +2,31 @@
 version: 1
 slug: "pages-signup-js"
 primary_target: "pages/signup.js"
-related_targets: ["pages/onboarding.js", "components/StudySetupShell.js", "components/SetupUsernameStatus.js", "components/SetupCourseColor.js", "styles/setup.css"]
+related_targets: ["pages/login.js","pages/onboarding.js","pages/forgot-password.js","pages/reset-password.js","components/auth/AuthShell.js","components/auth/SpaceSheet.js","components/auth/CourseComposer.js","styles/auth.css"]
 ---
 
 ## Job and direction
 
-Study Space Setup: the student builds their actual academic space, not a dashboard preview. Account → You → University → Studies → Courses remains the canonical five-step model established in Phase 1. This surface changes presentation and course-entry interactions, not completion/auth semantics.
+One auth family: sign in, sign up, check email, forgot/reset password and onboarding share a single shell (`components/auth/AuthShell`). Visible setup is three steps — Compte → Études → Cours — mapped onto Phase 1's server-derived steps (ACCOUNT/YOU → Compte, UNIVERSITY/STUDIES → Études, COURSES → Cours). Operate mode: the student completes a task; brand lives in precise details.
 
-## Composition
+## Direction contract
 
-Desktop (1024px+): actual answers accumulate on the left; the current question sits on the right, without a floating form card. Only supplied name, university, field, year, optional program and saved courses appear. Missing answers leave intentional space. Warm neutral foundation, current typography, restrained green progress/action, course colors only for actual courses. No photo, mascot, Study Blocks, fictional content or decorative illustration.
+THESIS: Setting up Blocus is filling in your own space. Every answer lands at once in a real object — name, institution crest, program disc, coloured courses — so three short steps read as building, not form-filling. Refuses the desk photo + white card and the marketing split screen.
+OWN-WORLD: warm canvas; Quicksand wordmark and titles; Nunito controls in grouped rows (label over value, inset hairlines, 16px radius); action green only on the primary action and progress; one brand-ink sheet as the student's space; course hues only on real courses.
+STORY: see three named steps, type your name and watch it become yours, add courses with Enter, arrive in the Chrono ready.
+FIRST VIEWPORT: desktop — wordmark and steps across the top, task column (≤440px) left, ink sheet (≤460px) right, primary action closing the task column. Mobile — compact top bar with steps, task directly below, no sheet.
+FORM: grouped-row form + live ink sheet; chosen directly (user asked to implement without a proposal round), no seed.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
-Mobile: one question column, compact wordmark, Back when available, localized x of 5 and a thin line. No miniature summary card. University can remain as quiet context in later steps. Safe-area padding, wrapping names, 44px controls and 48px inputs; the page scrolls naturally with keyboard/content height.
+## States and interactions
 
-## Interactions and states
-
-Username checking/availability is debounced, announced politely and never replaces authoritative submit validation. Optional surname is secondary. Broad field precedes year and optional specialization; preserve the existing university and program pickers.
-
-Courses are a dense editable list. Enter adds using Phase 1 idempotency and duplicate rules, then restores entry focus. Colors are automatic; a course dot opens an optional palette. Name opens inline rename; Save/Cancel or Escape resolves it. Removal and mutations are serialized through disabled controls; Finish cannot discard an active rename. At least one course remains required.
-
-Loading, recoverable errors and check-email use the same shell. Phase 1 owns server completion, cross-device resume, legacy/repair, legal/referral and email confirmation. Do not replace these with local completion flags. No migration.
-
-## Accessibility and verification
-
-Visible keyboard focus, labeled controls, status live regions, step-heading focus, readable secondary text and reduced-motion overrides. Local offline browser journey verified through six courses and app entry, including duplicate prevention, color/edit/remove, keyboard university selection and resume at incomplete academic steps. Layout sampled at 320/390/1280/1440, FR/EN, light/dark. Course screen axe scan: no violations. Real email delivery and physical mobile keyboard behavior remain external verification items; do not present offline fixtures as production evidence.
+Courses: type → Enter → the course takes the next colour, lands in the list and in the sheet, focus stays in the entry. Pasting a multi-line list adds each line. Duplicates flash the existing row. Rename inline (Enter saves, Escape cancels), colour on the dot, remove on ×; Backspace on an empty entry arms the last course, a second Backspace removes it. Saves are sequential with stable client ids (Phase 1 idempotency); Finish waits for pending saves and still requires one course.
+Loading, recoverable errors, check-email and resume all use the shell. The login aside is the same sheet, empty, inviting a new student; forgot/reset are single-column.
 
 ## Protected scope
 
-This is the shared signup/onboarding shell only. Login, recovery and other product surfaces retain their existing implementations. Phase 1 logic is closed unless an evidenced regression requires a bounded correction.
+Phase 1 owns server completion, cross-device resume, legacy/repair, legal/referral and email confirmation. No migration. No mascot, no study blocks, no invented data in the sheet.
+
+## Verification (2026-09-22)
+
+Offline build: full journey sign-up → Études → six courses → Chrono, duplicates, pasted list, rename/Escape, colour, both removals, back from Courses, legacy repair, finish with a typed course. 320/390/1280/1440, FR/EN, light/dark. Chrome accessibility tree: no unnamed control, one h1 per page. Detector: advisories only (small radii, the primary button's existing shadow). Finish review ran inline (no reviewer agent in this session): disposition fix → DESIGN.md section added, then ship. Not verifiable offline: real email delivery, a real server error on load, physical phone keyboards.
