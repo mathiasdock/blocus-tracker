@@ -1,6 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
-import { getBearerToken, getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
+import { getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
+import { requireAdmin } from "../../../lib/server/adminAuth";
 
 export const config = {
   api: {
@@ -8,9 +8,6 @@ export const config = {
   },
 };
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
 
@@ -26,37 +23,9 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: "Too many requests" });
   }
 
-  const token = getBearerToken(req);
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  if (!SUPABASE_URL || !ANON_KEY || !SERVICE_ROLE_KEY) {
-    return res.status(500).json({ error: "Server misconfigured" });
-  }
-
-  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser(token);
-  const userId = userData?.user?.id;
-  if (userError || !userId) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { data: adminProfile, error: profileError } = await admin
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (profileError || !adminProfile?.is_admin) {
-    console.warn("admin/signup-dates forbidden", { user: `${userId.slice(0, 8)}...` });
-    return res.status(403).json({ error: "Forbidden" });
-  }
+  const ctx = await requireAdmin(req, res, "admin/signup-dates");
+  if (!ctx) return;
+  const { admin } = ctx;
 
   // La vraie date d'inscription vit dans auth.users, pas dans profiles : une
   // fiche recréée après coup (compte à moitié créé, puis réparé) porte la date

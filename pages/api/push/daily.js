@@ -11,6 +11,8 @@
 // Securite : appelable uniquement avec le secret cron (Vercel injecte
 //   "Authorization: Bearer <CRON_SECRET>" quand CRON_SECRET est defini).
 // Mode test : ?dry=1 → calcule et RENVOIE qui serait notifie, sans rien envoyer.
+// Chaque vrai passage est inscrit dans system_job_runs (page Systeme de l'admin).
+// Les comptes suspendus (v57) ne recoivent aucun rappel.
 //
 // Env vars requises (Vercel, server-only sauf NEXT_PUBLIC_*) :
 //   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
@@ -20,6 +22,7 @@ import { getClientIp, setBaseSecurityHeaders, timingSafeEqualText } from "../../
 import { rateLimit } from "../../../lib/rateLimit";
 import { sendPushToUsers } from "../../../lib/pushServer";
 import { loadAutomations } from "../../../lib/pushAutomations";
+import { finishJobRun, startJobRun } from "../../../lib/server/jobRuns";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -65,6 +68,7 @@ export default async function handler(req, res) {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+  const runId = dry ? null : await startJobRun(admin, "push_daily");
 
   try {
     const today = dayFrom(0);
@@ -140,7 +144,13 @@ export default async function handler(req, res) {
     } else {
       for (const row of optOutRows || []) if (row?.user_id) optedOut.add(row.user_id);
     }
-    const keep = (ids) => ids.filter((id) => !optedOut.has(id));
+    // Un compte suspendu ne recoit plus rien. Ici pas de repli : si la liste
+    // ne peut pas etre lue, le passage echoue plutot que d'ecrire a un suspendu.
+    const suspended = new Set(
+      (await fetchAll(admin.from("profiles").select("id").eq("locked", true).order("id")))
+        .map((row) => row.id)
+    );
+    const keep = (ids) => ids.filter((id) => !optedOut.has(id) && !suspended.has(id));
 
     // Nudge alterne etude / planning selon le jour (variete anti-lassitude).
     const planningDay = parseInt(today.replace(/-/g, ""), 10) % 2 === 0;
@@ -171,6 +181,7 @@ export default async function handler(req, res) {
         comeback: targets.comeback.length,
       },
       optedOut: optedOut.size,
+      suspended: suspended.size,
       totalTargeted: targets.exam.length + targets.streak.length + targets.nudge.length + targets.comeback.length,
     };
 
@@ -193,9 +204,20 @@ export default async function handler(req, res) {
       }
     }
     console.info("push/daily done", { date: today, counts: summary.counts, sent });
+    // Le journal garde des compteurs, jamais le texte d'erreur de OneSignal
+    // (il peut citer des identifiants de membres).
+    const failed = Object.values(sent).some((entry) => entry.error);
+    await finishJobRun(admin, runId, failed ? "error" : "ok", {
+      date: today,
+      counts: summary.counts,
+      optedOut: summary.optedOut,
+      suspended: summary.suspended,
+      sent: Object.fromEntries(Object.entries(sent).map(([key, entry]) => [key, entry.error ? { error: true } : entry])),
+    });
     return res.status(200).json({ ok: true, ...summary, sent });
   } catch (err) {
     console.error("push/daily error:", err?.message || err);
+    await finishJobRun(admin, runId, "error", { stage: "prepare" });
     return res.status(500).json({ error: "Daily push failed" });
   }
 }

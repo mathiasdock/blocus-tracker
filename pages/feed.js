@@ -318,17 +318,30 @@ export default function Feed() {
     if (data) setPosts((prev) => prev.map((row) => (row.id === post.id ? { ...row, comments: [...(row.comments || []), data] } : row)));
   }
 
+  // Supprimer SA publication reste une suppression directe. Un admin qui
+  // retire celle de quelqu'un d'autre passe par la fonction tracée dans le
+  // journal d'audit (v59) : la base n'accepte plus l'autre chemin.
   async function deletePost(id) {
+    const target = posts.find((row) => row.id === id);
+    const moderating = Boolean(target && target.user_id !== user.id);
+    if (moderating && (!isAdmin || !window.confirm(t("feed.adminRemovePostConfirm")))) return;
     const previous = posts;
     setPosts((rows) => rows.filter((row) => row.id !== id));
-    const { error } = await supabase.from("posts").delete().eq("id", id);
-    if (error) setPosts(previous);
+    const { error } = moderating
+      ? await supabase.rpc("admin_remove_post", { p_post_id: id })
+      : await supabase.from("posts").delete().eq("id", id);
+    if (error) { setPosts(previous); alert(t("toast.genericError")); }
   }
 
   async function deleteComment(commentId) {
+    const comment = posts.flatMap((post) => post.comments || []).find((c) => c.id === commentId);
+    const moderating = Boolean(comment && comment.user_id !== user.id);
+    if (moderating && (!isAdmin || !window.confirm(t("feed.adminRemoveCommentConfirm")))) return;
     setPosts((prev) => prev.map((post) => ({ ...post, comments: (post.comments || []).filter((c) => c.id !== commentId) })));
-    const { error } = await supabase.from("comments").delete().eq("id", commentId);
-    if (error) load();
+    const { error } = moderating
+      ? await supabase.rpc("admin_remove_comment", { p_comment_id: commentId })
+      : await supabase.from("comments").delete().eq("id", commentId);
+    if (error) { load(); alert(t("toast.genericError")); }
   }
 
   async function updatePost(postId, newCaption) {

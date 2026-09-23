@@ -1,7 +1,7 @@
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
-import { getBearerToken, getClientIp, requireJson, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
+import { getClientIp, requireJson, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
+import { logAdminAction, requireAdmin } from "../../../lib/server/adminAuth";
 
 export const config = {
   api: {
@@ -9,8 +9,6 @@ export const config = {
   },
 };
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const BUCKETS = ["posts", "avatars", "community", "dm"];
@@ -113,46 +111,6 @@ function summarize(candidates) {
     safeSizeBytes: safe.reduce((sum, candidate) => sum + (candidate.sizeBytes || 0), 0),
     dmPreviewCount: candidates.filter((candidate) => candidate.bucket === "dm").length,
   };
-}
-
-async function requireAdmin(req, res) {
-  if (!SUPABASE_URL || !ANON_KEY || !SERVICE_ROLE_KEY) {
-    res.status(500).json({ error: "Server misconfigured" });
-    return null;
-  }
-
-  const token = getBearerToken(req);
-  if (!token) {
-    res.status(401).json({ error: "Unauthorized" });
-    return null;
-  }
-
-  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser(token);
-  const userId = userData?.user?.id;
-  if (userError || !userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return null;
-  }
-
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { data: profile, error: profileError } = await admin
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (profileError || !profile?.is_admin) {
-    console.warn("admin/storage-cleanup forbidden", { user: `${userId.slice(0, 8)}...` });
-    res.status(403).json({ error: "Forbidden" });
-    return null;
-  }
-
-  return { admin, userId };
 }
 
 async function listBucketFiles(admin, bucket) {
@@ -404,6 +362,14 @@ async function handleDelete(admin, userId, req, res) {
     deletedBytes,
     errors: errors.length,
   });
+  // Journal d'audit : compteurs par bucket, pas la liste des chemins (ils
+  // commencent par l'identifiant du membre).
+  const byBucketCount = {};
+  for (const item of deleted) byBucketCount[item.bucket] = (byBucketCount[item.bucket] || 0) + 1;
+  await logAdminAction(admin, userId, "storage_cleanup_deleted", {
+    targetType: "storage",
+    details: { deleted: deleted.length, deletedBytes, skipped, errors: errors.length, buckets: byBucketCount },
+  });
 
   return res.status(200).json({
     deletedCount: deleted.length,
@@ -432,7 +398,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: "Too many requests" });
   }
 
-  const ctx = await requireAdmin(req, res);
+  const ctx = await requireAdmin(req, res, "admin/storage-cleanup");
   if (!ctx) return;
 
   if (req.method === "GET") return handleScan(ctx.admin, res);

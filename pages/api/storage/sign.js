@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getBearerToken, getClientIp, requireJson, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
 import { storagePathFromReference } from "../../../lib/security";
+import { isUuid } from "../../../lib/adminModeration.mjs";
+import { logAdminAction, requireAdmin } from "../../../lib/server/adminAuth";
 
 export const config = {
   api: {
@@ -55,28 +57,26 @@ async function userCanAccessDmAttachment(admin, userId, path, originalRef) {
     && (message.sender_id === userId || message.receiver_id === userId);
 }
 
-async function userCanAccessPostImage(admin, userId, path, originalRef) {
+// A feed photo is readable exactly when its post is: the check runs AS THE
+// STUDENT, so the posts_read policy decides — audience (public / friends),
+// blocks in either direction, and a suspended author (v57), whose posts are
+// hidden from everyone else.
+async function userCanAccessPostImage(admin, path, originalRef, userScoped) {
   const post = await findReferencedRow(
     admin,
     "posts",
-    "id, user_id, visibility",
+    "id, user_id",
     "image_url",
     referenceVariants("posts", path, originalRef)
   );
   if (!post || !pathBelongsTo(path, post.user_id)) return false;
-  if (post.user_id === userId || !post.visibility || post.visibility === "public") return true;
-  if (post.visibility !== "friends") return false;
 
-  const { data, error } = await admin
-    .from("friendships")
+  const { data, error } = await userScoped
+    .from("posts")
     .select("id")
-    .eq("status", "accepted")
-    .or(
-      `and(requester.eq.${userId},addressee.eq.${post.user_id}),and(requester.eq.${post.user_id},addressee.eq.${userId})`
-    )
+    .eq("id", post.id)
     .limit(1)
     .maybeSingle();
-
   return !error && !!data?.id;
 }
 
@@ -129,9 +129,11 @@ async function userCanAccessGroupPhoto(admin, userId, bucket, path, originalRef)
 
 // A course-room attachment is readable exactly when its message is: the
 // check runs AS THE STUDENT, so the community_messages RLS decides — room
-// members, the author, admins; never a hidden message, a blocked author or a
-// retired academic-space post of someone else. Before course spaces, any
-// signed-in account could sign any community file.
+// members and the author; never a hidden message, a blocked or suspended
+// author or a retired academic-space post of someone else. Admins no longer
+// read rooms (v59): they open a reported attachment through the separate
+// report path below. Before course spaces, any signed-in account could sign
+// any community file.
 async function userCanAccessCommunityAttachment(admin, userId, path, originalRef, userScoped) {
   const message = await findReferencedRow(
     admin,
@@ -156,10 +158,50 @@ async function userCanAccessCommunityAttachment(admin, userId, path, originalRef
 
 async function canAccessAttachment(admin, bucket, userId, path, originalRef, userScoped) {
   if (bucket === "dm") return userCanAccessDmAttachment(admin, userId, path, originalRef);
-  if (bucket === "posts") return userCanAccessPostImage(admin, userId, path, originalRef);
+  if (bucket === "posts") return userCanAccessPostImage(admin, path, originalRef, userScoped);
   if (bucket === "group") return userCanAccessGroupAttachment(admin, userId, path, originalRef);
   if (bucket === "community") return userCanAccessCommunityAttachment(admin, userId, path, originalRef, userScoped);
   return false;
+}
+
+// Moderation of a reported course-room message (v59): an admin may open the
+// attachment of a message that has an OPEN report — and only that one, not
+// the rest of the room. Each opening is written to the audit log.
+async function signReportedAttachment(req, res, messageId) {
+  if (!isUuid(messageId)) return res.status(400).json({ error: "Invalid file reference" });
+
+  const ctx = await requireAdmin(req, res, "storage/sign report");
+  if (!ctx) return undefined;
+
+  const { data: report, error: reportError } = await ctx.admin
+    .from("course_message_reports")
+    .select("message_id")
+    .eq("message_id", messageId)
+    .is("resolved_at", null)
+    .limit(1)
+    .maybeSingle();
+  if (reportError || !report) return res.status(403).json({ error: "Forbidden" });
+
+  const { data: message, error: messageError } = await ctx.admin
+    .from("community_messages")
+    .select("id, user_id, attachment_url")
+    .eq("id", messageId)
+    .not("room_id", "is", null)
+    .maybeSingle();
+  if (messageError || !message?.attachment_url) return res.status(404).json({ error: "No attachment" });
+
+  const path = storagePathFromReference(message.attachment_url, "community");
+  if (!path || path.includes("..") || !pathBelongsTo(path, message.user_id)) {
+    return res.status(404).json({ error: "No attachment" });
+  }
+
+  await logAdminAction(ctx.admin, ctx.userId, "report_attachment_viewed", {
+    targetUserId: message.user_id, targetType: "community_message", targetId: messageId,
+  });
+
+  const { data, error } = await ctx.admin.storage.from("community").createSignedUrl(path, 5 * 60);
+  if (error || !data?.signedUrl) return res.status(500).json({ error: "Could not sign file" });
+  return res.status(200).json({ signedUrl: data.signedUrl });
 }
 
 export default async function handler(req, res) {
@@ -183,6 +225,10 @@ export default async function handler(req, res) {
   const token = getBearerToken(req);
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (req.body?.reportMessageId !== undefined) {
+    return signReportedAttachment(req, res, req.body.reportMessageId);
   }
 
   const { bucket, ref } = req.body || {};

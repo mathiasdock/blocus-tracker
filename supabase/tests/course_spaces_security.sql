@@ -381,12 +381,11 @@ begin
   end;
   reset role;
 
-  -- Admin path: student 6 is made an admin by a real admin identity, inside this rolled-back transaction.
-  select id into v_admin from public.profiles where is_admin = true limit 1;
+  -- Admin path: student 6 is made an admin through the owner-only function
+  -- (migration v56 refuses any other way), inside this rolled-back transaction.
+  perform public.set_admin_role(u[6], true, 'course spaces test fixture');
+  v_admin := u[6];
   if v_admin is not null then
-    perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
-    perform set_config('request.jwt.claim.sub', v_admin::text, true);
-    update public.profiles set is_admin = true where id = u[6];
     perform set_config('request.jwt.claims', json_build_object('sub', u[6], 'role', 'authenticated')::text, true);
     perform set_config('request.jwt.claim.sub', u[6]::text, true);
     set local role authenticated;

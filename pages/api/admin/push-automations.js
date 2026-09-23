@@ -5,44 +5,16 @@
 //   PUT  → enregistre l'activation et les textes d'UNE notification
 //
 // Ces textes partent sur les téléphones de tous les membres : l'écriture est
-// réservée au service role et passe par la vérification profiles.is_admin,
-// comme /api/admin/push.
+// réservée au service role et passe par la garde commune lib/server/adminAuth,
+// comme /api/admin/push. Chaque enregistrement est tracé dans le journal d'audit.
 
-import { createClient } from "@supabase/supabase-js";
-import { getBearerToken, getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
+import { getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
 import { AUTOMATIONS, AUTOMATION_BY_KEY, loadAutomations } from "../../../lib/pushAutomations";
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+import { logAdminAction, requireAdmin } from "../../../lib/server/adminAuth";
 
 const MAX_TITLE = 60;
 const MAX_BODY = 160;
-
-async function requireAdmin(req, res) {
-  const token = getBearerToken(req);
-  if (!token) { res.status(401).json({ error: "Unauthorized" }); return null; }
-  if (!SUPABASE_URL || !ANON_KEY || !SERVICE_ROLE_KEY) {
-    res.status(500).json({ error: "Server misconfigured" }); return null;
-  }
-  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { data: userData, error: userError } = await userClient.auth.getUser(token);
-  const userId = userData?.user?.id;
-  if (userError || !userId) { res.status(401).json({ error: "Unauthorized" }); return null; }
-
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { data: profile, error } = await admin
-    .from("profiles").select("is_admin").eq("id", userId).maybeSingle();
-  if (error || !profile?.is_admin) {
-    res.status(403).json({ error: "Forbidden" }); return null;
-  }
-  return { admin, userId };
-}
 
 const clean = (v, max) => String(v || "").replace(/\s+/g, " ").trim().slice(0, max);
 
@@ -54,7 +26,7 @@ export default async function handler(req, res) {
   const limited = rateLimit(`admin-automations:${getClientIp(req)}`, 40, 60_000);
   if (!limited.ok) return res.status(429).json({ error: "Too many requests" });
 
-  const auth = await requireAdmin(req, res);
+  const auth = await requireAdmin(req, res, "admin/push-automations");
   if (!auth) return;
 
   if (req.method === "GET") {
@@ -111,5 +83,9 @@ export default async function handler(req, res) {
     console.error("admin/push-automations upsert failed:", error.message);
     return res.status(500).json({ error: "Enregistrement impossible.", detail: error.message });
   }
+  await logAdminAction(auth.admin, auth.userId, "push_automation_updated", {
+    targetType: "push_automation", targetId: def.key,
+    details: { enabled: body.enabled !== false },
+  });
   return res.status(200).json({ ok: true });
 }

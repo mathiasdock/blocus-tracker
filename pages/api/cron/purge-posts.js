@@ -37,9 +37,13 @@
 //
 // Auth : secret cron (Vercel injecte "Authorization: Bearer <CRON_SECRET>").
 // Mode test : ?dry=1 → compte ce qui serait supprimé, sans rien toucher.
+//
+// Chaque vrai passage est inscrit dans system_job_runs (page Système de
+// l'admin), et la même tâche efface les passages de plus de 90 jours.
 import { createClient } from "@supabase/supabase-js";
 import { getClientIp, setBaseSecurityHeaders, timingSafeEqualText } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
+import { finishJobRun, purgeOldJobRuns, startJobRun } from "../../../lib/server/jobRuns";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -95,6 +99,7 @@ export default async function handler(req, res) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const cutoff = new Date(Date.now() - EXPIRY_MS).toISOString();
+  const runId = dry ? null : await startJobRun(admin, "purge_posts");
 
   try {
     // Pas de filtre sur image_url : une publication dont le fichier a déjà
@@ -113,7 +118,11 @@ export default async function handler(req, res) {
     if (dry) {
       return res.status(200).json({ dry: true, posts: ids.length, files: paths.length, cutoff });
     }
-    if (!ids.length) return res.status(200).json({ ok: true, posts: 0, files: 0, cutoff });
+    if (!ids.length) {
+      const oldRuns = await purgeOldJobRuns(admin);
+      await finishJobRun(admin, runId, "ok", { posts: 0, files: 0, more: false, oldRuns });
+      return res.status(200).json({ ok: true, posts: 0, files: 0, cutoff });
+    }
 
     // Le fichier d'abord : une ligne supprimée avant son fichier laisserait
     // une image orpheline dont plus rien ne donne le chemin.
@@ -137,6 +146,10 @@ export default async function handler(req, res) {
     if (deleteError) throw deleteError;
 
     console.info("cron/purge-posts done", { posts: ids.length, files: filesRemoved, more: ids.length === BATCH });
+    const oldRuns = await purgeOldJobRuns(admin);
+    await finishJobRun(admin, runId, "ok", {
+      posts: ids.length, files: filesRemoved, filesExpected: paths.length, more: ids.length === BATCH, oldRuns,
+    });
     return res.status(200).json({
       ok: true,
       posts: ids.length,
@@ -147,6 +160,7 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error("cron/purge-posts error:", err?.message || err);
+    await finishJobRun(admin, runId, "error", { stage: "purge" });
     return res.status(500).json({ error: "Purge failed" });
   }
 }

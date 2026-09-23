@@ -59,6 +59,12 @@ test("credential and rate-limit errors keep their distinct classifications", () 
   assert.equal(classifyAuthError({ status: 429 }), "rate_limited");
 });
 
+test("a banned (suspended) account is reported as suspended, not as bad credentials", () => {
+  assert.equal(classifyAuthError({ status: 400, code: "user_banned" }), "suspended");
+  assert.equal(classifyAuthError({ status: 403, code: "user_banned" }), "suspended");
+  assert.equal(classifyAuthError({ status: 400, code: "invalid_credentials" }), "invalid");
+});
+
 test("a stale account callback cannot start after another user becomes active", () => {
   assert.equal(canStartProfileRequest("account-a", "account-b"), false);
   assert.equal(canStartProfileRequest("account-b", "account-b"), true);

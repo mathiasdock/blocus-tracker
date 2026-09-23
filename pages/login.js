@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
 import { guideText, setupGuide } from "../lib/setupGuide.mjs";
+import { LEGAL_CONTACT_EMAIL } from "../lib/legalVersions";
 
 export default function Login() {
   const { signIn, user, loading, profileStatus } = useAuth();
@@ -27,6 +28,13 @@ export default function Login() {
       router.replace(isManagedOnboardingUser(user) ? "/onboarding" : "/dashboard");
     }
   }, [user, loading, profileStatus, router]);
+
+  // Compte suspendu : refusé à la connexion (LOGIN_SUSPENDED) ou session
+  // refermée par AuthContext, qui renvoie ici avec ?suspended=1.
+  const suspendedNotice = t("login.suspended").replace("{email}", LEGAL_CONTACT_EMAIL);
+  useEffect(() => {
+    if (router.query.suspended === "1") setError(suspendedNotice);
+  }, [router.query.suspended, suspendedNotice]);
 
   const loginIdError = touched.loginId && !loginId.trim()
     ? t("login.errIdentifier")
@@ -52,6 +60,8 @@ export default function Login() {
         setError(t("login.invalidCredentials"));
       } else if (signInError === "LOGIN_RATE_LIMITED") {
         setError(t("login.rateLimited"));
+      } else if (signInError === "LOGIN_SUSPENDED") {
+        setError(suspendedNotice);
       } else if (signInError) {
         setError(t("login.unavailable"));
       }

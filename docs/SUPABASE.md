@@ -19,7 +19,9 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `study_groups` | revision groups (name, description, created_by) |
 | `group_members` | group memberships (group_id, user_id, role ∈ {'admin','member'}) |
 | `group_messages` | group chat messages |
-| `deleted_accounts` | audit log of self-deletes (admin-only read) |
+| `deleted_accounts` | anonymous deletion log: kind (`self`/`admin`), account age, signup week (Brussels), `was_activated` (v58) — no name or id |
+| `admin_audit_log` | append-only journal of every admin action (actor, action, target, reason, details) — v55 |
+| `system_job_runs` | one row per scheduled-task run (job, start, end, status, counters), kept 90 days — v60 |
 | `course_offerings` | canonical courses: one real course inside one institution, derived from 2+ students, no personal column (2026-09-17, no UI yet — `docs/canonical-courses.md`) |
 | `course_links` | private decision personal course → canonical course (`auto` / `confirmed` / `rejected`); not a room membership |
 | `course_rooms` | one space per canonical course, per institution or per program inside an institution (`kind`), created lazily (`docs/course-spaces.md`) |
@@ -32,15 +34,18 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 
 | Table | Read | Write |
 |-------|------|-------|
-| `profiles` | all authenticated users | self only, **trigger blocks `is_admin` and `locked` escalation** |
+| `profiles` | all authenticated users | self only. `is_admin` / `locked` change **only** through `set_admin_role` (owner) and `admin_set_suspension` (server) — column UPDATE revoked + trigger (v56). No admin write policy. |
 | `sessions` / `courses` / `objectives` | self + accepted friends + admins | self only |
 | `friendships` | requester or addressee | INSERT forced to `'pending'`; only `addressee` can accept (v8); cannot self-friend |
-| `posts` | all authenticated users (filtered client-side by visibility) | owner only |
-| `likes` / `comments` | all authenticated | owner only |
-| `community_messages` | author, admins, or members of the message's course room (never hidden, blocked-author or self-reported rows); legacy rows author/admin only | no client insert — `post_course_room_message`; author or admin delete |
+| `posts` | audience (public / friends), no blocks either way, **author not suspended** (v57) | owner only; admins remove others' posts via `admin_remove_post` (v59) |
+| `likes` / `comments` | same audience as the post, author not blocked nor suspended | owner only; admins via `admin_remove_comment` |
+| `community_messages` | author, or members of the message's course room (never hidden, blocked-author, suspended-author or self-reported rows). **No admin read** (v59): admins see only an open report's context via `admin_course_report_context` | no client insert — `post_course_room_message`; author delete; admins via `admin_resolve_course_report` |
 | `private_messages` | sender or receiver | INSERT only between accepted friends |
 | `study_groups` / `group_members` / `group_messages` | members only | admin/owner roles |
-| `deleted_accounts` | admins only | trigger on self-delete |
+| `deleted_accounts` | admins only | written by `self_delete_user` / `admin_delete_account` |
+| `admin_audit_log` | admins only | nobody directly — `log_admin_action` (service role) and the admin functions; UPDATE/DELETE/TRUNCATE refused |
+| `system_job_runs` | admins only | service role only (cron routes) |
+| **every public table** | — | trigger `a00_block_suspended_actor` refuses any write whose `auth.uid()` is a suspended account, including through SECURITY DEFINER functions (v57); self-deletion stays allowed |
 | `course_links` | owner only | none for clients — `confirm_course_link` / `reject_course_link` / `resolve_my_course_links` |
 | `course_offerings` | canonical courses the caller has a decision about | none for clients |
 | `course_rooms` | none for clients (functions only) | none — `join_course_room` / `ensure_my_default_rooms` |
@@ -55,7 +60,15 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | Function | Purpose |
 |----------|---------|
 | `prevent_profile_privilege_escalation()` | BEFORE UPDATE trigger — blocks user from setting `is_admin` or `locked` on themselves |
-| `admin_delete_user(target uuid)` | Admin-only — fully removes a user (verified server-side) |
+| `admin_delete_user(target uuid)` | **Retired** (v58): EXECUTE revoked from the app, dropped in phase 4 — it left the member's files online |
+| `set_admin_role(p_target, p_grant, p_reason)` | Grant/remove the admin role. EXECUTE revoked from anon, authenticated **and** service_role: run from the Supabase SQL editor only. Refuses a suspended account and removing the last admin; logged (v56) |
+| `admin_set_suspension(p_actor, p_target, p_suspend, p_reason)` | Service role only, called by `/api/admin/members/[id]/suspension` (which also bans/unbans in Supabase Auth). Refuses self and admins; logged (v57) |
+| `admin_moderate_profile(p_actor, p_target, p_action, p_reason)` | Service role only: `reset_username` / `clear_bio` / `remove_avatar`; logged (v56) |
+| `admin_delete_account(p_actor, p_target, p_reason)` | Service role only, after the route erased the member's files; anonymous snapshot + audit (v58) |
+| `admin_course_report_context(p_message_id)` | Admin, open report only: the reported message + up to 2 before and 2 after; logs `report_context_viewed` (v59) |
+| `admin_remove_post(p_post_id, p_reason)` / `admin_remove_comment(p_comment_id, p_reason)` | Admin removal of others' feed content, logged (v59) |
+| `log_admin_action(...)` | Service role only — server routes write push sends, automation edits, storage cleanups, attachment openings to `admin_audit_log` (v55) |
+| `is_suspended(uuid)` | RLS helper (plain SQL) used by the read policies and the contact rules (v57) |
 | `self_delete_user()` | User deletes their own account |
 | `get_login_email(p_pseudo text)` | Resolves pseudo → email. **v12+: restricted to authenticated** (anti-enumeration). Called from `/api/login` only. |
 | `get_my_email()` | Helper to fetch own email without scanning the table |
@@ -86,7 +99,7 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 
 ## Migrations
 
-All in `supabase/`. **Run manually** in Supabase Dashboard → SQL Editor when needed. They are not automated.
+All in `supabase/`. Since 2026-09-07 Claude writes **and applies** them through the Supabase MCP (`apply_migration`), after checking the live schema; the files stay the written record. Test suites live in `supabase/tests/` (each one rolls itself back).
 
 | File | What it does |
 |------|--------------|
@@ -108,6 +121,14 @@ All in `supabase/`. **Run manually** in Supabase Dashboard → SQL Editor when n
 | `migration_v26_new_universities.sql` | Registers 40 new schools (FR/NL/ES/CH) in `university_communities` so their students can post in their own community — must stay in sync with `lib/universities.js` |
 | `migration_v27_leaderboard_v2.sql` | `get_leaderboard_v2()` — leaderboard with metrics (time / streak / regularity), scope (all / friends via `auth.uid()`) and profile filters (university / study_field / study_year). UI falls back to `get_public_leaderboard` until this is executed |
 | `migration_v42_auth_identity_reliability.sql` | Canonical Auth email sync, safe reconciliation, protected case-insensitive pseudo resolver and collision guard for new signups |
+| `migration_v55_admin_audit_log.sql` | Admin rebuild phase 1 — append-only `admin_audit_log`, `log_admin_action`, audit triggers on announcements and feedback |
+| `migration_v56_admin_privileges.sql` | Admin role and suspension no longer writable by clients; `set_admin_role` (owner only); `admin_moderate_profile` |
+| `migration_v57_real_suspension.sql` | Real suspension: no writes by a suspended account (trigger on every table), content hidden, out of leaderboards, no new contact; `admin_set_suspension` |
+| `migration_v58_account_deletion.sql` | `admin_delete_account` (server only), anonymous cohort snapshot in `deleted_accounts`, `admin_delete_user` revoked |
+| `migration_v59_report_scoped_moderation.sql` | Admins lose general room/feed reading; report-scoped context, logged removals |
+| `migration_v60_system_job_runs.sql` | `system_job_runs` for the two cron tasks |
+
+Phase 1 permission matrix (normal member / suspended member / admin / server-only / owner-only): `supabase/tests/admin_phase1_security.sql` — 92 checks, run on the live schema on 2026-09-23.
 
 > ⚠️ The project has **three v12 files** — confusing but intentional (parallel features). When numbering a new one, jump to **v14** or higher. See `.claude/skills/new-migration.md`.
 

@@ -123,6 +123,19 @@ export function AuthProvider({ children }) {
 
     if (!data || !requestIsCurrent()) return;
 
+    // Compte suspendu (v57) : la base refuse déjà toute écriture et masque ses
+    // contenus aux autres. Une session ouverte avant la suspension est
+    // refermée ici, et la page de connexion explique pourquoi.
+    if (data.locked) {
+      setProfile(null);
+      setProfileStatus("suspended");
+      try { await supabase.auth.signOut({ scope: "local" }); } catch (_) {}
+      if (typeof window !== "undefined" && !/[?&]suspended=1/.test(window.location.search)) {
+        window.location.replace("/login?suspended=1");
+      }
+      return;
+    }
+
     const deviceTimezone = detectTimezone();
     if (deviceTimezone && data.timezone !== deviceTimezone) {
       let timezoneError = null;
@@ -460,6 +473,7 @@ export function AuthProvider({ children }) {
       const kind = classifyAuthError(error);
       if (kind === "rate_limited") return "LOGIN_RATE_LIMITED";
       if (kind === "unavailable") return "LOGIN_UNAVAILABLE";
+      if (kind === "suspended") return "LOGIN_SUSPENDED";
       return "LOGIN_INVALID_CREDENTIALS";
     };
 
@@ -496,6 +510,9 @@ export function AuthProvider({ children }) {
 
       if (res.status === 429) {
         return { error: "LOGIN_RATE_LIMITED" };
+      }
+      if (res.status === 403) {
+        return { error: "LOGIN_SUSPENDED" };
       }
       if (res.status === 400 || res.status === 401) {
         return { error: "LOGIN_INVALID_CREDENTIALS" };

@@ -2,8 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/router";
 import LoadingScreen from "../components/LoadingScreen";
 import Layout, { Avatar } from "../components/Layout";
-import UniPicker from "../components/UniPicker";
-import { STUDY_YEARS, studyYearLabel } from "../lib/studyYears";
+import { studyYearLabel } from "../lib/studyYears";
 import PushConsole from "../components/PushConsole";
 import PushAutomations from "../components/PushAutomations";
 import StudyHeatmap from "../components/StudyHeatmap";
@@ -28,10 +27,9 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import CourseReportsAdmin from "../components/course-spaces/CourseReportsAdmin";
+import MemberActionDialog from "../components/admin/MemberActionDialog";
 
 const ALL_UNI_FULLS = new Set(COUNTRIES.flatMap(c => c.universities).map(u => u.full));
-
-const YEARS = STUDY_YEARS.map(year => year.value);
 
 const SECTIONS = [
   { id: "overview",  label: "Vue d'ensemble" },
@@ -599,7 +597,7 @@ function ActivityRow({ ev }) {
 }
 
 /* ── Recherche globale ─────────────────────────────────────── */
-function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSection }) {
+function GlobalSearch({ users, announcements, feedback, onPickUser, onPickAnnouncement, onPickFeedback }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -672,7 +670,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
             <div>
               <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>Annonces</p>
               {results.anns.map(a => (
-                <button key={a.id} onClick={() => { onPickSection("content"); setOpen(false); setQ(""); }}
+                <button key={a.id} onClick={() => { onPickAnnouncement(); setOpen(false); setQ(""); }}
                   className="w-full px-4 py-2 text-left text-sm transition-colors truncate" style={{ color: "var(--bt-text-2)" }}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>{a.title}</button>
@@ -683,7 +681,7 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
             <div>
               <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>Suggestions</p>
               {results.sugg.map(f => (
-                <button key={f.id} onClick={() => { onPickSection("content"); setOpen(false); setQ(""); }}
+                <button key={f.id} onClick={() => { onPickFeedback(); setOpen(false); setQ(""); }}
                   className="w-full px-4 py-2 text-left text-sm transition-colors truncate" style={{ color: "var(--bt-text-2)" }}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-subtle)"}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = ""}>{f.message}</button>
@@ -697,112 +695,8 @@ function GlobalSearch({ users, announcements, feedback, onPickUser, onPickSectio
   );
 }
 
-/* ── Edit modal ────────────────────────────────────────────── */
-function EditUserModal({ user, onClose, onSaved }) {
-  const { t } = useI18n();
-  const isCustomYear = user.study_year && !YEARS.includes(user.study_year);
-  const [form, setForm] = useState({
-    first_name: user.first_name || "", last_name: user.last_name || "",
-    university: user.university || "", study_field: user.study_field || "",
-    study_year: isCustomYear ? "Autre" : (user.study_year || ""),
-    study_year_custom: isCustomYear ? user.study_year : "", bio: user.bio || "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
-  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
-
-  async function save(e) {
-    e.preventDefault();
-    setSaving(true); setErr("");
-    const actualYear = form.study_year === "Autre" ? (form.study_year_custom.trim() || "Autre") : form.study_year;
-    const { error } = await supabase.from("profiles").update({
-      first_name: form.first_name.trim() || null, last_name: form.last_name.trim() || null,
-      university: form.university.trim() || null, study_field: form.study_field.trim() || null,
-      study_year: actualYear || null, bio: form.bio.trim() || null,
-    }).eq("id", user.id);
-    setSaving(false);
-    if (error) { setErr(error.message); return; }
-    onSaved({ ...user, ...form, study_year: actualYear });
-  }
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="card p-6 w-full max-w-md space-y-4 overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>Modifier @{user.pseudo}</h2>
-        <form onSubmit={save} className="space-y-3">
-          <div className="flex gap-3">
-            <div className="flex-1"><label className="label">Prénom</label><input className="input" value={form.first_name} onChange={e => set("first_name", e.target.value)} /></div>
-            <div className="flex-1"><label className="label">Nom</label><input className="input" value={form.last_name} onChange={e => set("last_name", e.target.value)} /></div>
-          </div>
-          <div><label className="label">Université</label><UniPicker value={form.university} onChange={v => set("university", v)} placeholder="Rechercher une université…" /></div>
-          <div className="flex gap-3">
-            <div className="flex-1"><label className="label">Filière</label><input className="input" value={form.study_field} onChange={e => set("study_field", e.target.value)} /></div>
-            <div className="flex-1"><label className="label">Année</label>
-              <select className="input" value={form.study_year} onChange={e => { set("study_year", e.target.value); set("study_year_custom", ""); }}>
-                <option value="">—</option>{STUDY_YEARS.map(year => <option key={year.value} value={year.value}>{t(year.key)}</option>)}
-              </select>
-            </div>
-          </div>
-          {form.study_year === "Autre" && (
-            <div><label className="label">Précise l&apos;année</label><input className="input" value={form.study_year_custom} onChange={e => set("study_year_custom", e.target.value)} /></div>
-          )}
-          <div><label className="label">Bio</label><textarea className="input" rows={2} maxLength={160} value={form.bio} onChange={e => set("bio", e.target.value)} /></div>
-          {err && <p className="text-xs" style={{ color: "#DC2626" }}>{err}</p>}
-          <div className="flex gap-2 pt-1">
-            <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? "Enregistrement…" : "Enregistrer"}</button>
-            <button type="button" onClick={onClose} className="btn-ghost flex-1">Annuler</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* ── Envoyer un message (notification admin) ───────────────── */
-function SendMessageModal({ user, adminId, onClose }) {
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
-  const [err, setErr] = useState("");
-
-  async function send(e) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    setBusy(true); setErr("");
-    const { error } = await supabase.from("private_messages").insert({
-      sender_id: adminId, receiver_id: user.id, content: text.trim(),
-    });
-    setBusy(false);
-    if (error) { setErr(error.message); return; }
-    setDone(true);
-    setTimeout(onClose, 1200);
-  }
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="card p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold" style={{ color: "var(--bt-text-1)" }}>Message à @{user.pseudo}</h2>
-        <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>Envoyé comme message privé depuis ton compte admin.</p>
-        {done ? (
-          <p className="text-sm font-medium py-4 text-center" style={{ color: "var(--bt-accent-dark)" }}>Message envoyé</p>
-        ) : (
-          <form onSubmit={send} className="space-y-3">
-            <textarea className="input" rows={4} maxLength={1000} autoFocus value={text}
-              onChange={e => setText(e.target.value)} placeholder="Ton message…" />
-            {err && <p className="text-xs" style={{ color: "#DC2626" }}>{err}</p>}
-            <div className="flex gap-2">
-              <button type="submit" disabled={busy || !text.trim()} className="btn-primary flex-1">{busy ? "Envoi…" : "Envoyer"}</button>
-              <button type="button" onClick={onClose} className="btn-ghost flex-1">Annuler</button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ── Fiche utilisateur complète ────────────────────────────── */
-function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessage, onToggleLock }) {
+function UserSheet({ user, userStat, isSelf, onClose, onAction }) {
   const { t } = useI18n();
   const [sessions, setSessions] = useState([]);
   const [heatSessions, setHeatSessions] = useState([]);
@@ -811,7 +705,6 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
   const [referrals, setReferrals] = useState([]);
   const [levelInfo, setLevelInfo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [locking, setLocking] = useState(false);
   const isOnline = isStudyingLive(user.studying_since);
 
   useEffect(() => {
@@ -840,11 +733,8 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
   }, [user.id]);
 
   const lastActivity = userStat?.lastAt;
-  async function toggleLock() {
-    setLocking(true);
-    await onToggleLock(user);
-    setLocking(false);
-  }
+  // Aucune action sur soi-même ni sur un autre admin : la base le refuse aussi.
+  const canModerate = !isSelf && !user.is_admin;
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-end sm:justify-center bg-black/45 sm:p-4" onClick={onClose}>
@@ -937,19 +827,16 @@ function UserSheet({ user, userStat, isSelf, onClose, onEdit, onDelete, onMessag
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="sticky bottom-0 p-4 flex flex-wrap gap-2" style={{ borderTop: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-surface)" }}>
-          <button onClick={onEdit} className="btn-primary flex-1 min-w-[100px]">Éditer</button>
-          <button onClick={() => onMessage(user)} className="btn flex-1 min-w-[100px]" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-border)" }}>Message</button>
-          {!isSelf && !user.is_admin && (
-            <button onClick={toggleLock} disabled={locking} className="btn flex-1 min-w-[100px]" style={{ backgroundColor: user.locked ? "var(--bt-accent-bg)" : "#FFF7ED", color: user.locked ? "#0E8F68" : "#C2410C", border: `1px solid ${user.locked ? "var(--bt-accent-border)" : "#FED7AA"}` }}>
-              {locking ? "…" : user.locked ? "Réactiver" : "Suspendre"}
+        {/* Actions — chacune passe par une route serveur, avec un motif tracé. */}
+        {canModerate && (
+          <div className="sticky bottom-0 p-4 flex flex-wrap gap-2" style={{ borderTop: "1px solid var(--bt-hairline)", backgroundColor: "var(--bt-surface)", paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
+            <button type="button" onClick={() => onAction("moderate", user)} className="btn-ghost flex-1 min-w-[120px] min-h-[44px]">{t("adminMod.actionModerate")}</button>
+            <button type="button" onClick={() => onAction(user.locked ? "unsuspend" : "suspend", user)} className="btn-ghost flex-1 min-w-[120px] min-h-[44px]">
+              {user.locked ? t("adminMod.actionUnsuspend") : t("adminMod.actionSuspend")}
             </button>
-          )}
-          {!isSelf && !user.is_admin && (
-            <button onClick={() => onDelete(user)} className="btn flex-1 min-w-[100px]" style={{ backgroundColor: "#FEF2F2", color: "#DC2626", border: "1px solid #FEE2E2" }}>Supprimer</button>
-          )}
-        </div>
+            <button type="button" onClick={() => onAction("delete", user)} className="btn flex-1 min-w-[120px] min-h-[44px]" style={{ color: "var(--bt-danger)", backgroundColor: "var(--bt-danger-bg)", border: "1px solid var(--bt-danger-border)" }}>{t("adminMod.actionDelete")}</button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -996,8 +883,8 @@ export default function Admin() {
 
   // Modals
   const [detailUser, setDetailUser] = useState(null);
-  const [editingUser, setEditingUser] = useState(null);
-  const [messageUser, setMessageUser] = useState(null);
+  const [memberAction, setMemberAction] = useState(null); // { kind, member }
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Content sub-tab
   const [contentTab, setContentTab] = useState("notifications");
@@ -1224,9 +1111,12 @@ export default function Admin() {
   }, [profile?.is_admin]);
 
   useEffect(() => {
-    if (section !== "technical" || !profile?.is_admin || egressGuard || egressLoading) return;
+    // Pas de relance automatique après un échec : le bouton Rafraîchir du
+    // panneau s'en charge. Sans l'erreur dans cette garde, un appel refusé
+    // relançait le suivant aussitôt, en boucle (~200 requêtes en secondes).
+    if (section !== "technical" || !profile?.is_admin || egressGuard || egressLoading || egressError) return;
     loadEgressGuard();
-  }, [section, profile?.is_admin, egressGuard, egressLoading, loadEgressGuard]);
+  }, [section, profile?.is_admin, egressGuard, egressLoading, egressError, loadEgressGuard]);
 
   const loadStorageCleanup = useCallback(async () => {
     if (!profile?.is_admin) return;
@@ -1316,21 +1206,29 @@ export default function Admin() {
   useEffect(() => { if (section === "members") loadDeleted(); }, [section, loadDeleted]);
 
   /* ── Actions ───────────────────────────────────────────── */
-  async function deleteAccount(u) {
-    if (u.id === profile.id) { alert("Tu ne peux pas supprimer ton propre compte."); return; }
-    if (!confirm(`Supprimer définitivement le compte @${u.pseudo} et toutes ses données ?`)) return;
-    const { error } = await supabase.rpc("admin_delete_user", { target: u.id });
-    if (error) { alert("Échec : " + error.message); return; }
-    setUsers(prev => prev.filter(x => x.id !== u.id));
-    setDetailUser(null);
+  // Résultat d'une action confirmée dans MemberActionDialog (déjà faite par
+  // la route serveur) : on met la liste et la fiche ouverte à jour.
+  function applyMemberAction(result, member) {
+    if (result.kind === "delete") {
+      setUsers(prev => prev.filter(x => x.id !== member.id));
+      setDetailUser(null);
+      loadDeleted();
+      return;
+    }
+    let patch = {};
+    if (result.kind === "suspend") patch = { locked: true, studying_since: null };
+    else if (result.kind === "unsuspend") patch = { locked: false };
+    else if (result.action === "reset_username" && result.pseudo) patch = { pseudo: result.pseudo };
+    else if (result.action === "clear_bio") patch = { bio: null };
+    else if (result.action === "remove_avatar") patch = { avatar_url: null };
+    setUsers(prev => prev.map(x => x.id === member.id ? { ...x, ...patch } : x));
+    setDetailUser(prev => prev && prev.id === member.id ? { ...prev, ...patch } : prev);
   }
 
-  async function toggleLock(u) {
-    const next = !u.locked;
-    const { error } = await supabase.from("profiles").update({ locked: next }).eq("id", u.id);
-    if (error) { alert("Échec : " + error.message); return; }
-    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, locked: next } : x));
-    setDetailUser(prev => prev && prev.id === u.id ? { ...prev, locked: next } : prev);
+  function openFeedbackInbox() {
+    setFeedbackOpen(true);
+    setSection("members");
+    setTimeout(() => document.getElementById("admin-feedback")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   }
 
   async function createAnnouncement(e) {
@@ -1473,16 +1371,19 @@ export default function Admin() {
 
   return (
     <Layout>
-      {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSaved={u => { setUsers(prev => prev.map(x => x.id === u.id ? { ...x, ...u } : x)); setDetailUser(prev => prev && prev.id === u.id ? { ...prev, ...u } : prev); setEditingUser(null); }} />}
-      {messageUser && <SendMessageModal user={messageUser} adminId={profile.id} onClose={() => setMessageUser(null)} />}
       {detailUser && (
         <UserSheet
           user={detailUser} userStat={userStats[detailUser.id]} isSelf={detailUser.id === profile.id}
           onClose={() => setDetailUser(null)}
-          onEdit={() => { setEditingUser(detailUser); }}
-          onDelete={deleteAccount}
-          onMessage={u => setMessageUser(u)}
-          onToggleLock={toggleLock}
+          onAction={(kind, member) => setMemberAction({ kind, member })}
+        />
+      )}
+      {memberAction && (
+        <MemberActionDialog
+          kind={memberAction.kind}
+          member={memberAction.member}
+          onClose={() => setMemberAction(null)}
+          onDone={(result) => applyMemberAction(result, memberAction.member)}
         />
       )}
 
@@ -1495,7 +1396,9 @@ export default function Admin() {
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <GlobalSearch users={users} announcements={announcements} feedback={feedback}
-              onPickUser={u => setDetailUser(u)} onPickSection={s => setSection(s)} />
+              onPickUser={u => setDetailUser(u)}
+              onPickAnnouncement={() => { setContentTab("announcements"); setSection("content"); }}
+              onPickFeedback={openFeedbackInbox} />
             <button type="button" onClick={refreshAdminData} disabled={refreshing} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold shrink-0 disabled:opacity-60" style={{ backgroundColor: "var(--bt-surface)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }} title={lastUpdated ? `Dernière actualisation : ${lastUpdated.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "Actualiser les données"}>
               <Glyph size={16} className={refreshing ? "motion-safe:animate-spin" : ""}><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5" /></Glyph>
               <span className="hidden md:inline">{refreshing ? "Actualisation…" : "Actualiser"}</span>
@@ -1543,7 +1446,7 @@ export default function Admin() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {(queue.newFeedback || 0) > 0 && <ActionRow label="Nouvelles suggestions" detail="Lire et classer les retours reçus" count={queue.newFeedback} onClick={() => { setContentTab("suggestions"); setSection("content"); }} />}
+                        {(queue.newFeedback || 0) > 0 && <ActionRow label="Nouvelles suggestions" detail="Lire et classer les retours reçus" count={queue.newFeedback} onClick={openFeedbackInbox} />}
                         {(queue.lockedAccounts || 0) > 0 && <ActionRow label="Comptes suspendus" detail="Vérifier les comptes actuellement bloqués" count={queue.lockedAccounts} tone="critical" onClick={() => openMemberSegment("locked")} />}
                         {(queue.stalledAfter48h || 0) > 0 && <ActionRow label="Sans première session" detail="Inscrits depuis plus de 48 h à activer" count={queue.stalledAfter48h} tone="warn" onClick={() => openMemberSegment("stalled")} />}
                         {(queue.dormant30d || 0) > 0 && <ActionRow label="Membres dormants" detail="Ont déjà étudié, mais plus depuis 30 jours" count={queue.dormant30d} onClick={() => openMemberSegment("dormant")} />}
@@ -1839,7 +1742,7 @@ export default function Admin() {
               </section>
 
             {/* Repliés par défaut : consultables sans encombrer la liste des membres. */}
-            <details className="card bt-acc overflow-hidden">
+            <details id="admin-feedback" className="card bt-acc overflow-hidden" open={feedbackOpen} onToggle={e => setFeedbackOpen(e.currentTarget.open)}>
               <summary className="px-5 py-3.5 cursor-pointer text-sm font-semibold select-none" style={{ color: "var(--bt-text-1)" }}>
                 {`Suggestions des membres (${feedback.length})`}
               </summary>

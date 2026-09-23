@@ -185,6 +185,11 @@ export default async function handler(req, res) {
     if (kind === "unavailable") {
       return res.status(503).json({ error: "Service unavailable" });
     }
+    // Compte suspendu par un admin : réponse distincte, pour que l'écran de
+    // connexion l'explique au lieu de parler de mot de passe.
+    if (kind === "suspended") {
+      return res.status(403).json({ error: "Account suspended" });
+    }
     return res.status(401).json({ error: "Invalid credentials" });
   }
 

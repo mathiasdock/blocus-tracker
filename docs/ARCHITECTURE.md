@@ -33,7 +33,7 @@
 | Folder | Purpose |
 |--------|---------|
 | `pages/` | One file = one route. Includes server routes under `pages/api/`. |
-| `pages/api/` | Next.js server routes: login, private Storage signing, and push webhooks. Server-only routes may use `SUPABASE_SERVICE_ROLE_KEY`. |
+| `pages/api/` | Next.js server routes: login, private Storage signing, push webhooks, cron tasks and `/api/admin/*` (every admin route goes through `lib/server/adminAuth.js`; member actions live in `/api/admin/members/[id]` — delete, `/suspension`, `/moderation`). Server-only routes may use `SUPABASE_SERVICE_ROLE_KEY`. |
 | `components/` | Shared UI components (Layout, Avatar, BadgeIcon, LevelPill, modals, charts). |
 | `contexts/` | React contexts: Auth, I18n, Notification, Timer. |
 | `lib/` | Pure utilities: supabaseClient, i18n, format, badges, xp, rateLimit, universities. |

@@ -449,6 +449,7 @@ export default function Messages() {
         .select("id, pseudo, first_name, last_name, avatar_url, university, studying_since")
         .or(`pseudo.ilike.%${needle}%,first_name.ilike.%${needle}%,last_name.ilike.%${needle}%`)
         .neq("id", user.id)
+        .eq("locked", false)
         .limit(20);
       if (error) throw error;
       const people = data || [];
@@ -512,6 +513,7 @@ export default function Messages() {
       .from("profiles")
       .select("id, pseudo, first_name, last_name, avatar_url, university, studying_since")
       .neq("id", user.id)
+      .eq("locked", false)
       .limit(200);
     const connected = new Set();
     friendLinks.forEach((l) => { connected.add(l.requester); connected.add(l.addressee); });
@@ -954,7 +956,7 @@ export default function Messages() {
     if (!q.trim()) { setInviteResults([]); return; }
     const { data } = await supabase.from("profiles")
       .select("id, pseudo, first_name, last_name, avatar_url")
-      .ilike("pseudo", `%${q}%`).limit(8);
+      .ilike("pseudo", `%${q}%`).eq("locked", false).limit(8);
     const memberIds = new Set(groupMembers.map(m => m.user_id));
     setInviteResults((data || []).filter(p => !memberIds.has(p.id) && p.id !== user.id));
   }
@@ -1139,7 +1141,7 @@ export default function Messages() {
     if (!q.trim()) { setCreateInviteResults([]); return; }
     const { data } = await supabase.from("profiles")
       .select("id, pseudo, first_name, last_name, avatar_url")
-      .ilike("pseudo", `%${q}%`).limit(8);
+      .ilike("pseudo", `%${q}%`).eq("locked", false).limit(8);
     setCreateInviteResults((data || []).filter(p => p.id !== user.id));
   }
 

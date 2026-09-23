@@ -26,73 +26,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { getBearerToken, getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
+import { countRemoved, purgeUserFiles } from "../../../lib/server/userFiles";
 
 export const config = { api: { bodyParser: false } };
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// Tous les buckets où un utilisateur peut déposer un fichier.
-const USER_BUCKETS = ["avatars", "posts", "dm", "group", "community"];
-const LIST_PAGE = 100;
-const MAX_FILES_PER_BUCKET = 2000;
-
-/**
- * Liste récursivement les fichiers sous `prefix`. L'API Storage ne descend pas
- * d'elle-même dans les sous-dossiers : les pièces jointes de groupe vivent en
- * `<uid>/<groupId>/…`, elles seraient invisibles sans cette descente.
- */
-async function listAllFiles(admin, bucket, prefix, depth = 0) {
-  if (depth > 3) return [];
-  const files = [];
-  for (let offset = 0; offset < MAX_FILES_PER_BUCKET; offset += LIST_PAGE) {
-    const { data, error } = await admin.storage
-      .from(bucket)
-      .list(prefix, { limit: LIST_PAGE, offset });
-    if (error || !data?.length) break;
-
-    for (const entry of data) {
-      const path = `${prefix}/${entry.name}`;
-      // Un dossier n'a pas de métadonnées ; un fichier en a toujours.
-      if (entry.id === null || !entry.metadata) {
-        files.push(...await listAllFiles(admin, bucket, path, depth + 1));
-      } else {
-        files.push(path);
-      }
-    }
-    if (data.length < LIST_PAGE) break;
-  }
-  return files;
-}
-
-async function purgeUserFiles(admin, userId) {
-  const removed = {};
-  const failed = [];
-
-  for (const bucket of USER_BUCKETS) {
-    let paths = [];
-    try {
-      paths = await listAllFiles(admin, bucket, userId);
-    } catch (_) {
-      failed.push({ bucket, reason: "list-failed" });
-      continue;
-    }
-    if (!paths.length) { removed[bucket] = 0; continue; }
-
-    // remove() plafonne par appel : on découpe.
-    let count = 0;
-    for (let i = 0; i < paths.length; i += 100) {
-      const chunk = paths.slice(i, i + 100);
-      const { error } = await admin.storage.from(bucket).remove(chunk);
-      if (error) failed.push({ bucket, reason: "remove-failed", count: chunk.length });
-      else count += chunk.length;
-    }
-    removed[bucket] = count;
-  }
-
-  return { removed, failed };
-}
 
 export default async function handler(req, res) {
   setBaseSecurityHeaders(res);
@@ -141,7 +81,7 @@ export default async function handler(req, res) {
 
   console.info("account/delete completed", {
     user: `${userId.slice(0, 8)}...`,
-    files: Object.values(storage.removed).reduce((a, b) => a + b, 0),
+    files: countRemoved(storage),
     failed: storage.failed.length,
   });
 
