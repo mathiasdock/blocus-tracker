@@ -2,7 +2,7 @@
 // valeurs d'objectif horaire peuvent encore exister en base, mais cette surface
 // ne les expose plus et les nouvelles périodes enregistrent toujours null.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
@@ -11,6 +11,7 @@ import {
   fetchBlocus, createBlocus, archiveBlocus,
   computeProgress, suggestFromExams,
 } from "../lib/blocus";
+import { todayISO } from "../lib/format";
 
 const fmtH = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
 
@@ -77,7 +78,80 @@ function PeriodTimeline({ start, end, locale, days, t }) {
   );
 }
 
-export default function BlocusCard({ sessions, exams, onChange, className = "" }) {
+function daysUntil(date, today) {
+  return Math.round((new Date(`${date}T12:00:00`) - new Date(`${today}T12:00:00`)) / 86400000);
+}
+
+// Les examens qui arrivent, en ordre de date. Sur ordinateur cette carte est
+// posée à côté de « Mes cours » et prend sa hauteur : sans cette liste elle
+// restait une en-tête et un bouton au-dessus d'un grand vide. La liste ne pèse
+// rien dans le calcul de cette hauteur (`basis-0`) : c'est « Mes cours » qui la
+// fixe, et la liste montre autant d'examens que la place le permet — plus de
+// cours à gauche, plus d'examens à droite. Aucune ligne n'est coupée à moitié.
+// Sur téléphone les cartes s'empilent, rien n'est à combler : elle n'y est pas.
+const EXAM_ROW = 56;
+
+function ExamHorizon({ exams, courses, locale, t }) {
+  const boxRef = useRef(null);
+  const headRef = useRef(null);
+  const [fit, setFit] = useState(0);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box || typeof ResizeObserver === "undefined") return undefined;
+    const measure = () => {
+      const head = headRef.current ? headRef.current.offsetHeight + 4 : 0;
+      setFit(Math.max(0, Math.floor((box.clientHeight - head) / EXAM_ROW)));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+
+  const today = todayISO();
+  const upcoming = (exams || []).filter((exam) => String(exam.exam_date).slice(0, 10) >= today);
+  const dayFormat = new Intl.DateTimeFormat(locale, { day: "numeric" });
+  const monthFormat = new Intl.DateTimeFormat(locale, { month: "short" });
+  const visible = upcoming.slice(0, fit);
+
+  return (
+    <div ref={boxRef} className="hidden min-h-0 flex-1 basis-0 overflow-hidden lg:block">
+      {/* Le filet et le titre n'apparaissent que s'il y a la place d'au moins
+          une ligne : un titre « Prochains examens » sans examen dessous serait
+          une promesse vide. */}
+      <div className={fit > 0 ? "mt-5 border-t pt-4" : "invisible mt-5 border-t pt-4"} style={{ borderColor: "var(--bt-accent-border)" }}>
+        <h3 ref={headRef} className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--bt-text-3)" }}>{t("blocus.nextExams")}</h3>
+        {upcoming.length === 0 ? (
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.noUpcomingExams")}</p>
+        ) : (
+          <ul className="mt-1">
+            {visible.map((exam) => {
+              const date = String(exam.exam_date).slice(0, 10);
+              const at = new Date(`${date}T12:00:00`);
+              const course = courses.find((item) => item.id === exam.course_id);
+              const left = daysUntil(date, today);
+              const when = left <= 0 ? t("blocus.examToday") : left === 1 ? t("blocus.examTomorrow") : t("blocus.examIn").replace("{n}", String(left));
+              return (
+                <li key={exam.id} className="flex items-center gap-3" style={{ height: EXAM_ROW }}>
+                  <span className="flex w-11 shrink-0 flex-col items-center rounded-xl py-1" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-accent-border)" }}>
+                    <span className="font-num text-base font-extrabold leading-tight tabular-nums" style={{ color: "var(--bt-text-1)" }}>{dayFormat.format(at)}</span>
+                    <span className="text-[10px] font-semibold uppercase leading-tight" style={{ color: "var(--bt-text-3)" }}>{monthFormat.format(at).replace(".", "")}</span>
+                  </span>
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: course?.color || "var(--bt-text-4)" }} aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{exam.name || course?.name || t("dash.noCourse")}</span>
+                  <span className="font-num shrink-0 text-xs font-bold tabular-nums" style={{ color: left <= 7 ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>{when}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function BlocusCard({ sessions, exams, courses = [], onChange, className = "" }) {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const [state, setState] = useState({ loading: true, supported: true, current: null });
@@ -113,10 +187,12 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
     refresh();
   }
 
+  const horizon = <ExamHorizon exams={exams} courses={courses} locale={locale} t={t} />;
+
   if (form) {
     const days = periodDays(form.start_date, form.end_date);
     return (
-      <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
+      <section className={`card bt-dashboard-card-mint flex min-w-0 flex-col p-4 sm:p-5 ${className}`}>
         <div className="min-w-0">
           <PeriodHeading>{t("blocus.title")}</PeriodHeading>
           <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>
@@ -142,6 +218,8 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
 
         <div className="mt-3 flex justify-center"><DurationBadge days={days} t={t} /></div>
 
+        {horizon}
+
         <div className="mt-4 flex gap-2">
           <button className="btn-primary flex-1 py-2 text-sm" disabled={busy || !days}
             onClick={submit}>
@@ -157,15 +235,18 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
 
   if (!state.current) {
     return (
-      <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
+      <section className={`card bt-dashboard-card-mint flex min-w-0 flex-col p-4 sm:p-5 ${className}`}>
         <div className="min-w-0">
           <PeriodHeading>{t("blocus.title")}</PeriodHeading>
           <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("blocus.none")}</p>
         </div>
-        <button className="btn-primary mt-4 w-full py-2.5 text-sm"
-          onClick={() => setForm(suggestFromExams(exams))}>
-          {t("blocus.start")}
-        </button>
+        {horizon}
+        <div className="mt-4">
+          <button className="btn-primary w-full py-2.5 text-sm"
+            onClick={() => setForm(suggestFromExams(exams))}>
+            {t("blocus.start")}
+          </button>
+        </div>
       </section>
     );
   }
@@ -197,7 +278,7 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
       : t("blocus.daysLeft").replace("{n}", String(progress.daysLeft));
 
   return (
-    <section className={`card bt-dashboard-card-mint min-w-0 p-4 sm:p-5 ${className}`}>
+    <section className={`card bt-dashboard-card-mint flex min-w-0 flex-col p-4 sm:p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <PeriodHeading>{t("blocus.title")}</PeriodHeading>
         <span className="font-num shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
@@ -217,6 +298,8 @@ export default function BlocusCard({ sessions, exams, onChange, className = "" }
           <p className="mt-0.5 font-num text-xl font-extrabold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{progress.activeDays}/{days}</p>
         </div>
       </div>
+
+      {horizon}
     </section>
   );
 }

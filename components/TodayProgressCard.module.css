@@ -8,7 +8,7 @@
 /* La carte est son propre conteneur : la respiration des blocs se décide sur SA
    largeur. Elle est pleine largeur sur téléphone et tablette, puis rangée dans
    un rail de 320 px et plus sur ordinateur — l'inverse d'une requête média. */
-.card { container-type: inline-size; }
+.card { container-type: inline-size; display: flex; flex-direction: column; }
 
 /* Le rembourrage vit ici, pas sur la section : une règle `@container` ne peut
    pas styler le conteneur qui la porte. Posé sur la carte, il serait resté à sa
@@ -18,6 +18,10 @@
   z-index: 2;
   display: grid;
   grid-template-areas: "head" "value" "blocks" "labels" "week";
+  /* Sur ordinateur la carte s'étire jusqu'au bas de la colonne du chrono : la
+     semaine descend en pied de carte au lieu de laisser un trou sous elle. */
+  grid-template-rows: auto auto auto auto 1fr;
+  flex: 1 0 auto;
   padding: 16px;
 }
 
@@ -152,7 +156,7 @@
 .done { color: #5DE0B5; font-weight: 700; opacity: 1; }
 
 /* ── Second plan : la semaine ───────────────────────────────── */
-.week { grid-area: week; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--bt-ink-border); }
+.week { grid-area: week; display: flex; flex-direction: column; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--bt-ink-border); }
 .weekHead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .weekLabel { font-size: 12px; line-height: 1.4; color: var(--bt-ink-muted); }
 .weekValue {
@@ -183,6 +187,40 @@
   transition: transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* La semaine jour par jour : seulement sur ordinateur. Elle prend toute la
+   hauteur que la colonne du chrono laisse à la carte, et les barres grandissent
+   avec elle — même échelle pour les sept jours, plafonnée à l'objectif du jour
+   ou au meilleur jour s'il le dépasse. Aujourd'hui est le seul jour allumé. */
+.weekChart { display: none; }
+@media (min-width: 1024px) {
+  .weekChart {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    min-height: 72px;
+    max-height: 260px;
+    margin-top: 12px;
+  }
+}
+.weekDay { display: flex; min-height: 0; flex-direction: column; align-items: center; gap: 6px; }
+.weekBarSlot { position: relative; flex: 1 1 auto; width: 100%; max-width: 26px; min-height: 40px; }
+.weekBar {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  transform-origin: bottom;
+  transform: scaleY(var(--h));
+  background: rgba(93, 224, 181, 0.42);
+  transition: transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.weekDay[data-today] .weekBar { background-image: linear-gradient(0deg, #0E8F68, #5DE0B5); }
+/* Un jour sans étude reste visible : un socle, pas une absence. */
+.weekBar[data-empty] { top: auto; height: 3px; transform: none; background: var(--bt-ink-border); }
+.weekLetter { font-size: 11px; font-weight: 700; line-height: 1; text-transform: uppercase; color: var(--bt-ink-muted); }
+.weekDay[data-today] .weekLetter { color: var(--bt-ink-text); }
+@media (prefers-reduced-motion: reduce) { .weekBar { transition: none; } }
+
 .paused { margin-top: 12px; font-size: 12px; line-height: 1.4; color: var(--bt-ink-muted); }
 
 /* Sur tablette la carte occupe toute la largeur : les blocs s'épaississent
@@ -194,6 +232,7 @@
   .body {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas: "head head" "value labels" "blocks blocks" "week week";
+    grid-template-rows: auto auto auto 1fr;
     padding: 24px;
   }
   .trackLabels { justify-self: end; align-self: end; padding-bottom: 7px; margin-top: 0; gap: 14px; font-size: 0.875rem; }

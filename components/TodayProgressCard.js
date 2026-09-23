@@ -46,16 +46,23 @@ export default function TodayProgressCard({
   // chiffre, deux fois, dans la même colonne. La mission ne s'écrit plus
   // ailleurs — elle devient l'objectif de la stat qui existait déjà.
   weeklyGoalMin = 0,
+  // Les sept derniers jours, du plus ancien à aujourd'hui : [{ date, secs }].
+  // Dessinés seulement sur ordinateur, où la carte s'étire jusqu'au bas de la
+  // colonne du chrono — la place gagnée devient la semaine jour par jour au
+  // lieu d'un aplat vide.
+  weekDays = [],
   streak,
   streakPaused,
   freezeInfo,
   className = "",
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const dayTotal = totalToday + Math.max(0, liveSecs);
   const goalPct = goalSecs > 0 ? Math.min(100, Math.round((dayTotal / goalSecs) * 100)) : 0;
   const remaining = Math.max(0, goalSecs - dayTotal);
   const reached = dayTotal >= goalSecs;
+  const weekScale = Math.max(goalSecs || 0, ...weekDays.map((d) => d.secs), 1);
+  const dayLetter = new Intl.DateTimeFormat(lang === "en" ? "en-US" : "fr-BE", { weekday: "narrow" });
   const weekPct = weeklyGoalMin > 0
     ? Math.min(100, Math.round((weekSecs / (weeklyGoalMin * 60)) * 100))
     : 0;
@@ -188,6 +195,21 @@ export default function TodayProgressCard({
               )}
             </span>
           </div>
+          {weekDays.length > 0 && (
+            <div className={styles.weekChart} aria-hidden="true">
+              {weekDays.map((day, i) => {
+                const letter = dayLetter.format(new Date(`${day.date}T12:00:00`));
+                return (
+                  <div key={day.date} className={styles.weekDay} data-today={i === weekDays.length - 1 ? "1" : undefined}>
+                    <span className={styles.weekBarSlot}>
+                      <span className={styles.weekBar} style={{ "--h": drawn ? Math.min(1, day.secs / weekScale) : 0 }} data-empty={day.secs > 0 ? undefined : "1"} />
+                    </span>
+                    <span className={styles.weekLetter}>{letter}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {weeklyGoalMin > 0 && (
             <div
               className={styles.weekTrack}

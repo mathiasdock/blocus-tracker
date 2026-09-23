@@ -1070,6 +1070,14 @@ export default function Dashboard() {
   weekStart.setDate(weekStart.getDate() - 6);
   const weekStartISO = weekStart.toISOString().slice(0, 10);
   const weekSecs = Object.entries(dayTotals).reduce((a, [d, v]) => (d >= weekStartISO ? a + v : a), 0);
+  // Les mêmes sept jours, un par un, pour la carte de progression (même clé de
+  // date que `weekSecs` : les barres additionnées donnent exactement le total).
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + i);
+    const date = day.toISOString().slice(0, 10);
+    return { date, secs: dayTotals[date] || 0 };
+  });
 
   // ── Ce que les blocs ne disent pas ───────────────────────────
   // L'en-tete des blocs portait quatre encodages de la meme quantite : le
@@ -1670,13 +1678,14 @@ export default function Dashboard() {
         )}
 
         <TodaySessionsCard
-          // `basis-0` : la carte ne pèse rien dans le calcul de hauteur de la
-          // grille, donc vingt sessions ne poussent plus rien — elles défilent
-          // à l'intérieur. `flex-1` lui fait prendre toute la place restante,
-          // donc zéro session ne laisse plus de creux. Et le plancher est sur
-          // la CARTE, pas sur la zone : posé sur la zone, il laissait la carte
-          // se faire écraser à 82 px avec son contenu qui débordait dehors.
-          className="order-4 lg:order-3 lg:min-h-[11rem] lg:flex-1 lg:basis-0"
+          // Trois sessions au plus, le reste sur l'historique : la carte a
+          // donc une hauteur bornée et n'a plus besoin de défiler en dedans.
+          // `flex-1` lui fait prendre le reste de la colonne quand la colonne
+          // de droite est la plus haute — la Progression du jour fait de même
+          // dans l'autre sens, si bien qu'aucune des deux ne laisse de trou.
+          className="order-4 lg:order-3 lg:flex-1"
+          limit={isGuest ? 0 : 3}
+          seeAllHref={isGuest ? "" : "/historique"}
           sessions={sessions}
           courses={courses}
           selectableCourses={activeCourses}
@@ -1758,11 +1767,12 @@ export default function Dashboard() {
             streak={streak}
           />
           <TodayProgressCard
-            className="order-3 lg:order-none"
+            className="order-3 lg:order-none lg:flex-1"
             totalToday={totalToday}
             liveSecs={liveStudySecs}
             goalSecs={DAILY_GOAL_SECS}
             weekSecs={weekSecs}
+            weekDays={weekDays}
             weeklyGoalMin={weeklyGoalMin}
             streak={streak}
             streakPaused={streakPaused}
@@ -1787,6 +1797,7 @@ export default function Dashboard() {
           <BlocusCard
             sessions={recentSessions}
             exams={normalizedExams}
+            courses={courses}
             onChange={handleBlocusLoaded}
           />
         </div>

@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Chrono sur ordinateur : colonnes sans trou, sessions « Tout voir »
+
+- Sessions du jour : 3 au plus sur le Chrono, lien « Tout voir » vers `/historique` ; plus de défilement dans la carte (le formulaire d'édition y était écrasé). Invités : liste entière, pas de lien.
+- `/historique` refaite avec la même carte, une par jour (Aujourd'hui, Hier, puis la date), total du jour à droite, modifier/supprimer comme sur le Chrono (vide le cache du Chrono). Les en-têtes de tableau codés en dur en français disparaissent.
+- Colonnes du haut : la carte la plus courte s'étire (Sessions à gauche, Progression du jour à droite). La Progression du jour affiche sur ordinateur la semaine jour par jour en barres qui prennent la hauteur disponible, au lieu d'un aplat vide.
+- Rangée du bas : « Ma période d'étude » prend la hauteur de « Mes cours » et la remplit avec les prochains examens (date, cours, J-n), autant que la place le permet, sans ligne coupée (ResizeObserver). Uniquement sur ordinateur ; mobile inchangé.
+- Vérifié hors ligne : 1280/1440 et 375, FR/EN, clair/sombre ; colonnes et cartes du bas à hauteurs égales avec 2 et 7 cours, avec et sans période ; édition d'une session sur le Chrono et sur l'historique enregistrée en base.
+
 ## 2026-09-23 — Claude Code — Connexion/inscription : mascotte guide, fond animé, fiche claire
 
 - Fond : « Gradient Wave » de 21st.dev (fourni par Mathias) porté en JavaScript (`components/ui/GradientWave.js`, pas de TypeScript ni shadcn dans le projet) et durci : demi-résolution, 24 i/s, arrêt onglet caché, image fixe si mouvement réduit, écouteur de redimensionnement retiré (fuite dans l'original). Couleurs claires Blocus (crème, blanc, famille menthe), sombre en thème sombre ; environ 14 fois plus lent que l'original (bouge à peine en 10 s, mesuré). Monté une fois dans `_app` pour toute la famille : pas de redémarrage entre inscription et configuration. Repli CSS sans WebGL. Note : dans l'original, les réglages `deform` n'atteignaient jamais le shader ; l'aperçu choisi correspond aux réglages par défaut, conservés.

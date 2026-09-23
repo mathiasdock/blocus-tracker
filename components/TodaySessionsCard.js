@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
 import { formatMinutesShort } from "../lib/format";
@@ -45,7 +46,12 @@ function formatSessionRange(session, locale) {
 // doit garder son nom) ; `selectableCourses` sert à en CHOISIR un — l'archive
 // n'a rien à faire dans une liste de choix. Sans le second, on retombe sur le
 // premier : les autres appelants n'ont pas d'archive.
-export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, className = "" }) {
+//
+// Sur le Chrono la carte montre les `limit` dernières sessions et renvoie au
+// reste par « Tout voir » : une liste qui défilait À L'INTÉRIEUR de la carte
+// écrasait le formulaire d'édition dans une fenêtre de 80 px. La page
+// Historique réutilise la même carte, une par jour, avec `title` et `aside`.
+export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, title, aside, limit = 0, seeAllHref = "", actionsHint = true, className = "" }) {
   const { t, lang } = useI18n();
   const [menuId, setMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -56,9 +62,9 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
   const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
-    if (!sessions.length) return;
+    if (!sessions.length || !actionsHint) return;
     try { setShowHint(localStorage.getItem(HINT_KEY) !== "1"); } catch {}
-  }, [sessions.length]);
+  }, [sessions.length, actionsHint]);
 
   useEffect(() => {
     if (!menuId) return;
@@ -104,10 +110,9 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
   const optionsFor = (current) =>
     current && !pickable.some((item) => item.id === current.id) ? [...pickable, current] : pickable;
 
-  // Le menu « … » sort du flux dans un PORTAIL. La liste des sessions défile
-  // désormais à l'intérieur de la carte, et un menu en position absolue y
-  // serait tronqué par le bord dès qu'on l'ouvre sur une des dernières lignes.
-  // Il est donc posé sur le body, en position fixe, ancré au bouton qui l'a
+  // Le menu « … » sort du flux dans un PORTAIL : en position absolue il serait
+  // tronqué par le bord de la carte sur la dernière ligne. Il est donc posé
+  // sur le body, en position fixe, ancré au bouton qui l'a
   // ouvert — et il se ferme au défilement plutôt que de dériver.
   const [menuRect, setMenuRect] = useState(null);
   const [portalReady, setPortalReady] = useState(false);
@@ -132,12 +137,13 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
     };
   }, [menuId]);
 
+  const shown = limit > 0 ? sessions.slice(0, limit) : sessions;
   const openSession = sessions.find((item) => item.id === menuId) || null;
   // Assez de place en dessous ? Sinon le menu bascule au-dessus du bouton.
   const flipUp = menuRect ? menuRect.top + 116 > window.innerHeight : false;
 
   return (
-    <section className={`card min-w-0 p-4 sm:p-5 lg:flex lg:min-h-0 lg:flex-col ${className}`}>
+    <section className={`card min-w-0 p-4 sm:p-5 lg:flex lg:flex-col ${className}`}>
       {portalReady && menuId && menuRect && openSession && createPortal(
         <>
           <button type="button" className="fixed inset-0 cursor-default" style={{ zIndex: 60 }}
@@ -167,10 +173,17 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
       )}
 
       <div className="flex shrink-0 items-center justify-between gap-3">
-        <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("dash.todaySessions")}</h2>
-        <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
-          {sessions.length}
-        </span>
+        <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{title || t("dash.todaySessions")}</h2>
+        {aside !== undefined ? aside : seeAllHref ? (
+          <Link href={seeAllHref} className="bt-dashboard-control -mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-semibold" style={{ color: "var(--bt-accent-text)" }}>
+            {t("dash.seeAllSessions")}
+            <Glyph size={16}><path d="m9 18 6-6-6-6" /></Glyph>
+          </Link>
+        ) : (
+          <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
+            {sessions.length}
+          </span>
+        )}
       </div>
 
       {showHint && sessions.length > 0 && (
@@ -182,7 +195,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
         </div>
       )}
 
-      <div className="bt-scroll-y lg:min-h-0 lg:flex-1 lg:basis-0 lg:overflow-y-auto">
+      <div>
       {sessions.length === 0 ? (
         <div className="mt-3 flex items-center gap-3 rounded-2xl px-3 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
           <span className="flex w-8 shrink-0 items-center justify-center" style={{ color: "var(--bt-text-3)" }}>
@@ -194,7 +207,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
         </div>
       ) : (
         <ul className="mt-3 divide-y" style={{ borderColor: "var(--bt-border)" }}>
-          {sessions.map((session) => {
+          {shown.map((session) => {
             const course = courses.find((item) => item.id === session.course_id);
             const maxMinutes = Math.max(1, Math.floor(Number(session.duration_seconds || 0) / 60));
             const range = formatSessionRange(session, locale);
