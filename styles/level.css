@@ -32,3 +32,23 @@
 .bt-level-track { position: relative; display: block; height: 8px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, 0.16); }
 .bt-level-fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--bt-accent), var(--bt-ink-muted)); transform-origin: left; transition: transform 500ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .bt-level-fill { transition: none; } }
+
+/* ── Classement (Stats) ──────────────────────────────────────
+   Bulle de niveau posée sur l'avatar : l'encre de marque du sceau de niveau,
+   cerclée de la surface pour se détacher du visage. */
+.bt-lb-level {
+  background: var(--bt-action);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--bt-surface);
+}
+
+/* Marches du podium : le premier est posé sur un lavis vert, les deux autres
+   sur le fond neutre. Pas de socle en escalier : la hauteur vient de l'avatar
+   plus grand et du décalage de grille. */
+.bt-lb-step { transition: background-color 160ms ease, transform 160ms ease; }
+.bt-lb-step:not(:disabled):hover { background: var(--bt-subtle); }
+.bt-lb-step:not(:disabled):active { transform: scale(0.98); }
+.bt-lb-step:disabled { cursor: default; }
+.bt-lb-step.is-first { background: linear-gradient(180deg, var(--bt-accent-bg), transparent 85%); }
+.bt-lb-step.is-me { background: var(--bt-accent-bg); }
+@media (prefers-reduced-motion: reduce) { .bt-lb-step { transition: none; } }

@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Stats : classement et « Me situer » redessinés
+
+- Classement : période en onglets visibles (Aujourd'hui / 7 j / 30 j ; le 30 j existait déjà dans la RPC v2 mais restait caché dans un menu). Podium des 3 premiers (anneau et médaille or/argent/bronze sur l'avatar, premier au centre, plus grand). Niveau en bulle sur l'avatar au lieu de la pastille à côté du nom. Aperçu mobile : podium + ma ligne.
+- « Me situer » : par mesure, mon chiffre en grand, l'écart en phrase, et une ligne d'échelle unique (moi = point vert, fac/app = repères). Position du jour en pastille. Deux notes de bas fusionnées (`stats.cmpScale`/`stats.cmpCohort` supprimées).
+- DESIGN.md : exception podium actée à la demande de Mathias (métaux sur l'objet de rang uniquement).
+
 ## 2026-09-23 — Claude Code — Planning et Stats : agencement desktop
 
 - Planning : s'ouvre toujours sur le Mois (mobile et desktop) ; la préférence `bt_plan_view` n'est plus relue ni écrite. Sur ordinateur (lg+), la bascule Jour/Semaine/Mois passe à droite du titre, à côté des flèches.

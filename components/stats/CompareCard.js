@@ -34,16 +34,49 @@ function DeltaLine({ mine, other, label, formatDelta }) {
   // En dessous du seuil, l'écart n'est pas un signal mais du bruit.
   if (abs / other < 0.05) {
     return (
-      <span className="text-[11px]" style={{ color: "var(--bt-text-3)" }}>
+      <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>
         {t("stats.cmpOnPar").replace("{who}", label)}
       </span>
     );
   }
   const key = diff > 0 ? "stats.cmpAbove" : "stats.cmpBelow";
   return (
-    <span className="text-[11px]" style={{ color: "var(--bt-text-2)" }}>
+    <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>
       {t(key).replace("{delta}", formatDelta(abs)).replace("{who}", label)}
     </span>
+  );
+}
+
+// ── Refonte 2026-09-23 ───────────────────────────────────────
+// Six barres empilées se lisaient mal : on cherchait « moi » au milieu des
+// références. Chaque mesure devient un CHIFFRE (le mien, en grand), une
+// phrase (l'écart en clair) et UNE ligne d'échelle où l'app et la fac sont
+// des repères, et moi un point vert. Même promesse qu'avant : une échelle
+// partagée qui part de zéro, aucune couleur « favorable », pas de rail à
+// remplir — une position sur une ligne n'est pas une progression.
+function Strip({ me, uni, app, fmt, t }) {
+  const max = Math.max(me, uni || 0, app || 0) * 1.12 || 1;
+  const at = (v) => `${Math.min(100, (v / max) * 100)}%`;
+  const refs = [
+    ...(uni != null ? [{ key: "uni", label: t("stats.cmpUni"), val: uni }] : []),
+    { key: "app", label: t("stats.cmpApp"), val: app },
+  ].sort((a, b) => a.val - b.val);
+  // Deux repères trop proches : le second libellé descend d'une ligne.
+  const close = refs.length === 2 && Math.abs(refs[1].val - refs[0].val) / max < 0.22;
+  return (
+    <div className="relative mt-3 h-[58px]" aria-hidden="true">
+      <span className="absolute inset-x-0 top-[14px] h-px" style={{ backgroundColor: "var(--bt-border)" }} />
+      {refs.map((r, i) => (
+        <span key={r.key} className="absolute top-[8px] flex -translate-x-1/2 flex-col items-center" style={{ left: at(r.val) }}>
+          <span className="block h-[13px] w-[2px] rounded-full" style={{ backgroundColor: "var(--bt-text-3)" }} />
+          <span className="whitespace-nowrap text-[11px] tabular-nums" style={{ color: "var(--bt-text-2)", marginTop: close && i === 1 ? 18 : 4 }}>
+            {r.label} · {fmt(r.val)}
+          </span>
+        </span>
+      ))}
+      <span className="absolute top-[7px] block h-[15px] w-[15px] -translate-x-1/2 rounded-full"
+        style={{ left: at(me), backgroundColor: "var(--bt-accent)", boxShadow: "0 0 0 3px var(--bt-surface), 0 0 0 4px var(--bt-accent-border)" }} />
+    </div>
   );
 }
 
@@ -56,6 +89,8 @@ export default function CompareCard({ comparison, position = null, className = "
     {
       key: "avgDaily",
       label: t("stats.cmpAvgDaily"),
+      big: formatStudyTime(comparison.me.avg_daily_min * 60),
+      unit: t("stats.cmpPerDay"),
       me: comparison.me.avg_daily_min,
       uni: comparison.uni?.avg_daily_min,
       app: comparison.app.avg_daily_min,
@@ -65,6 +100,8 @@ export default function CompareCard({ comparison, position = null, className = "
     {
       key: "activeDays",
       label: t("stats.cmpActiveDays"),
+      big: `${Math.round(comparison.me.active_days)} ${t("stats.dayUnit")}`,
+      unit: t("stats.cmpOfDays"),
       me: comparison.me.active_days,
       uni: comparison.uni?.active_days,
       app: comparison.app.active_days,
@@ -74,92 +111,48 @@ export default function CompareCard({ comparison, position = null, className = "
   ];
 
   return (
-    <section className={`card p-4 sm:p-5 ${className}`}>
-      <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.compareTitle")}</h3>
-
-      {/* Position du jour. La cohorte n'est PAS « tous les étudiants » : la
-          RPC ne compte que ceux qui ont une session aujourd'hui, et le
-          libellé le dit. Masquée sous huit étudiants (voir pages/stats.js). */}
+    <section className={`card flex flex-col p-4 sm:p-5 ${className}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.compareTitle")}</h3>
+          {hasAverages && <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("stats.cmpSub")}</p>}
+        </div>
+        {/* Position du jour : la cohorte ne compte que ceux qui ont étudié
+            aujourd'hui, et le libellé le dit. Masquée sous huit étudiants. */}
+        {position && (
+          <span className="font-num inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-bold tabular-nums"
+            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
+            {t("stats.lbToday")} · {t("stats.rankTop").replace("{pct}", String(position.percentile))}
+          </span>
+        )}
+      </div>
       {position && (
-        <div className="mt-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-            {t("stats.lbToday")}
-          </p>
-          <p className="mt-1 text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
-            <span className="font-num font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-              {t("stats.rankTop").replace("{pct}", String(position.percentile))}
-            </span>
-            {" · "}
-            <span className="tabular-nums">
-              {t("stats.rankPositionToday")
-                .replace("{rank}", String(position.rank))
-                .replace("{total}", String(position.cohort))}
-            </span>
-          </p>
+        <p className="mt-2 text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>
+          {t("stats.rankPositionToday").replace("{rank}", String(position.rank)).replace("{total}", String(position.cohort))}
+        </p>
+      )}
+
+      {hasAverages && (
+        <div className="mt-2 flex-1 divide-y divide-[color:var(--bt-border)]">
+          {metrics.map((m) => (
+            <div key={m.key} className="py-4 last:pb-1">
+              <p className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>{m.label}</p>
+              <p className="mt-1 flex flex-wrap items-baseline gap-x-2">
+                <span className="font-num text-2xl font-extrabold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{m.big}</span>
+                <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>{m.unit}</span>
+              </p>
+              <p className="mt-0.5"><DeltaLine mine={m.me} other={m.app} label={t("stats.cmpAppLong")} formatDelta={m.fmtDelta} /></p>
+              <Strip me={m.me} uni={m.uni} app={m.app} fmt={m.fmt} t={t} />
+              <p className="sr-only">
+                {`${t("stats.cmpYou")} ${m.fmt(m.me)}, ${m.uni != null ? `${t("stats.cmpUni")} ${m.fmt(m.uni)}, ` : ""}${t("stats.cmpApp")} ${m.fmt(m.app)}`}
+              </p>
+            </div>
+          ))}
         </div>
       )}
 
       {hasAverages && (
-      <div className={position ? "mt-4 border-t pt-4" : "mt-3"} style={{ borderColor: "var(--bt-border)" }}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-        {t("stats.cmpSub")}
-      </p>
-      <div className="mt-3 space-y-5">
-        {metrics.map((m) => {
-          const max = Math.max(m.me, m.uni || 0, m.app || 0) || 1;
-          const bars = [
-            // La couleur porte ici un sens précis : « c'est toi ». Les
-            // références restent en encre neutre — une cohorte n'est pas un
-            // vert plus pâle, ce n'est pas une version moins réussie de soi.
-            { key: "me", label: t("stats.cmpYou"), val: m.me, color: "var(--bt-accent-text)", strong: true },
-            ...(m.uni != null ? [{ key: "uni", label: t("stats.cmpUni"), val: m.uni, color: "var(--bt-text-2)" }] : []),
-            { key: "app", label: t("stats.cmpApp"), val: m.app, color: "var(--bt-text-2)" },
-          ];
-          return (
-            <div key={m.key}>
-              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <span className="text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>{m.label}</span>
-                <DeltaLine mine={m.me} other={m.app} label={t("stats.cmpAppLong")} formatDelta={m.fmtDelta} />
-              </div>
-              <div className="space-y-2">
-                {bars.map((b) => (
-                  <div key={b.key} className="flex items-center gap-2">
-                    <span className="w-16 shrink-0 text-[11px]"
-                      style={{ color: b.strong ? "var(--bt-text-1)" : "var(--bt-text-2)", fontWeight: b.strong ? 600 : 400 }}>
-                      {b.label}
-                    </span>
-                    {/* Aucun rail derrière : la barre EST la quantité. Une
-                        valeur nulle ne dessine rien du tout ; une valeur
-                        minuscule garde deux pixels pour rester visible. */}
-                    <span className="flex h-2.5 min-w-0 flex-1 items-center">
-                      <span className="bt-stats-quantity block h-full rounded-sm"
-                        style={{
-                          inlineSize: b.val > 0 ? `max(2px, ${(b.val / max) * 100}%)` : 0,
-                          backgroundColor: b.color,
-                        }} />
-                    </span>
-                    <span className="w-14 shrink-0 text-right font-num text-[11px] font-bold tabular-nums"
-                      style={{ color: b.strong ? "var(--bt-text-1)" : "var(--bt-text-2)" }}>
-                      {m.fmt(b.val)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Ce que l'échelle veut dire, et de QUI on parle. « Toute l'app » se
-          lisait comme « tous les étudiants inscrits » : la requête ne compte
-          que ceux qui ont étudié au moins une fois sur la fenêtre. */}
-      <p className="mt-4 text-[11px] leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-        {t("stats.cmpScale")}
-      </p>
-      <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-        {t("stats.cmpCohort")}
-      </p>
-      </div>
+        <p className="mt-3 text-[11px] leading-relaxed" style={{ color: "var(--bt-text-3)" }}>{t("stats.cmpCohortShort")}</p>
       )}
     </section>
   );

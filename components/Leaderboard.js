@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Avatar } from "./Layout";
-import LevelPill from "./LevelPill";
+import SegmentedGlide from "./SegmentedGlide";
 import { SkeletonList } from "./Skeleton";
 import EmptyState from "./EmptyState";
 import { useI18n } from "../contexts/I18nContext";
@@ -24,6 +24,70 @@ export function RankBadge({ rank, isMe = false }) {
       style={{ color: isMe ? "var(--bt-text-1)" : "var(--bt-text-2)" }}>
       {rank}
     </span>
+  );
+}
+
+// ── Avatar du classement ─────────────────────────────────────
+// Le niveau n'est plus une pastille à côté du nom (elle poussait les noms
+// longs à la troncature) : c'est une petite bulle posée en bas à droite du
+// visage, comme une notification. Même encre que le sceau de niveau du profil.
+function RankAvatar({ row, size, level, medal, t }) {
+  return (
+    <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
+      <span className="block rounded-full" style={medal ? { boxShadow: `0 0 0 2px var(--bt-surface), 0 0 0 4px ${medal.ring}` } : undefined}>
+        <Avatar url={row.avatar_url} pseudo={row.name} size={size} />
+      </span>
+      {level > 0 && (
+        <span className="bt-lb-level font-num absolute -bottom-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none tabular-nums"
+          aria-label={t("stats.levelAria").replace("{n}", String(level))}>
+          {level}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// ── Podium ───────────────────────────────────────────────────
+// Demande de Mathias (2026-09-23) : les trois premiers doivent se voir. Les
+// métaux vivent sur l'OBJET du rang (anneau autour du visage, médaille
+// chiffrée), jamais sur la durée, qui reste en encre de texte. Chiffres de
+// médaille en encre sombre : lisibles sur l'or comme sur le bronze.
+const MEDALS = {
+  1: { ring: "#E2B53A", disc: "linear-gradient(145deg, #F6D774, #D9A521)" },
+  2: { ring: "#B9C2CB", disc: "linear-gradient(145deg, #E6EBEF, #AEB8C2)" },
+  3: { ring: "#C98B5A", disc: "linear-gradient(145deg, #EDB98E, #BF7A45)" },
+};
+
+function Podium({ entries, levelOf, userId, onViewUser, Value, t }) {
+  // Ordre visuel 2 · 1 · 3 : le premier au centre, un cran plus haut.
+  const order = [entries[1], entries[0], entries[2]].filter(Boolean);
+  return (
+    <ol className="bt-lb-podium mb-2 grid grid-cols-3 items-end gap-2" aria-label={t("stats.podiumLabel")}>
+      {order.map(({ row, rank }) => {
+        const first = rank === 1;
+        const isMe = row.user_id === userId;
+        const medal = MEDALS[rank];
+        return (
+          <li key={row.user_id} className={first ? "order-2" : rank === 2 ? "order-1" : "order-3"}>
+            <button type="button" disabled={isMe} onClick={() => onViewUser(row.user_id)}
+              className={`bt-lb-step flex w-full flex-col items-center rounded-2xl px-1.5 text-center ${first ? "is-first pb-3 pt-4" : "pb-3 pt-3"} ${isMe ? "is-me" : ""}`}>
+              <span className="relative">
+                <RankAvatar row={row} size={first ? 60 : 46} level={levelOf(row.user_id)} medal={medal} t={t} />
+                <span className="font-num absolute -top-2 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full text-[11px] font-extrabold tabular-nums"
+                  style={{ background: medal.disc, color: "#2A1F08", boxShadow: "0 0 0 2px var(--bt-surface)" }} aria-hidden="true">
+                  {rank}
+                </span>
+              </span>
+              <span className="mt-2.5 w-full truncate text-xs font-semibold" style={{ color: "var(--bt-text-1)" }}>
+                {row.name}
+              </span>
+              {isMe && <span className="text-[11px]" style={{ color: "var(--bt-text-1)" }}>{t("stats.me")}</span>}
+              <span className="mt-0.5"><Value row={row} rank={rank} /></span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -272,20 +336,18 @@ export default function Leaderboard({
     { value: "regularity", label: t("stats.metricRegularity") },
   ];
 
-  // En aperçu mobile : le podium, puis ma ligne si je n'y suis pas déjà.
-  // Le rail desktop rend toute la liste immédiatement ; les lignes qui ne font
-  // pas partie de cet aperçu restent simplement masquées sous xl.
+  // Le podium porte les trois premiers dès qu'il y en a trois ; la liste
+  // commence alors au 4e. En aperçu mobile, la liste se réduit à ma ligne si
+  // je suis hors du podium ; le rail desktop rend tout et défile.
   const myIndex = rows.findIndex(r => r.user_id === user?.id);
-  const compactRows = isCompact
-    ? [
-        ...rows.slice(0, 3).map((row, i) => ({ row, rank: i + 1 })),
-        ...(myIndex >= 3 ? [{ row: rows[myIndex], rank: myIndex + 1 }] : []),
-      ]
-    : rows.map((row, i) => ({ row, rank: i + 1 }));
-  const compactRowIds = new Set(compactRows.map(({ row }) => row.user_id));
-  const visibleRows = desktopTall && isCompact
-    ? rows.map((row, i) => ({ row, rank: i + 1, desktopOnly: !compactRowIds.has(row.user_id) }))
-    : compactRows;
+  const podium = rows.length >= 3 ? rows.slice(0, 3).map((row, i) => ({ row, rank: i + 1 })) : [];
+  const listStart = podium.length;
+  const visibleRows = rows.slice(listStart).map((row, j) => {
+    const rank = listStart + j + 1;
+    const keep = !isCompact || (podium.length ? rank - 1 === myIndex : rank <= 3 || rank - 1 === myIndex);
+    return { row, rank, desktopOnly: !keep && desktopTall, hidden: !keep && !desktopTall };
+  }).filter(r => !r.hidden);
+  const levelOf = (id) => (Number(levels[id]?.totalXP) > 0 ? levels[id].current.level : 0);
 
   return (
     // `max-h` et non une hauteur fixe : avec deux ou trois lignes, la carte
@@ -314,15 +376,6 @@ export default function Leaderboard({
             ariaLabel={t("stats.audienceFilterLabel")}
             buttonClassName="bt-tap-44"
           />
-          {(!v2Available || metric !== "streak") && (
-            <FilterMenu
-              value={period}
-              options={periodOptions}
-              onChange={setPeriod}
-              ariaLabel={t("stats.periodFilterLabel")}
-              buttonClassName="bt-tap-44"
-            />
-          )}
           {v2Available && (
             <FilterMenu
               value={metric}
@@ -335,6 +388,24 @@ export default function Leaderboard({
         </div>
       </div>
 
+      {/* La période en onglets visibles plutôt que dans un menu : « 30 jours »
+          existait mais restait caché derrière « Aujourd'hui ». La série n'a pas
+          de période, les onglets disparaissent alors. */}
+      {(!v2Available || metric !== "streak") && (
+        <div className={`mb-4 ${desktopTall ? "xl:shrink-0" : ""}`}>
+          <SegmentedGlide
+            className="flex w-full"
+            buttonClassName="flex-1 px-3 py-2 text-xs"
+            options={periodOptions.map(o => ({
+              ...o,
+              label: o.value === "week" ? t("stats.lbTab7") : o.value === "month" ? t("stats.lbTab30") : o.label,
+            }))}
+            value={period}
+            onChange={setPeriod}
+          />
+        </div>
+      )}
+
       {/* Liste */}
       <div
         className={`${desktopTall ? "xl:min-h-0 xl:flex-1 xl:overscroll-contain xl:overflow-y-auto xl:pr-1 xl:focus-visible:outline xl:focus-visible:outline-2 xl:focus-visible:outline-offset-2 xl:focus-visible:outline-[var(--bt-accent)]" : "[&::-webkit-scrollbar]:hidden"}`}
@@ -344,31 +415,27 @@ export default function Leaderboard({
         {loading ? (
           <div className="py-1"><SkeletonList rows={isCompact ? 3 : 6} avatar={32} lines={1} /></div>
         ) : (
-          <ul className="space-y-1.5">
-            {visibleRows.map(({ row, rank: i0, desktopOnly = false }) => {
-              const i = i0 - 1;
+          <>
+          {podium.length > 0 && (
+            <Podium entries={podium} levelOf={levelOf} userId={user?.id} onViewUser={onViewUser} Value={ValueCell} t={t} />
+          )}
+          <ul className="space-y-1">
+            {visibleRows.map(({ row, rank, desktopOnly = false }) => {
               const isMe = row.user_id === user?.id;
               return (
                 <li key={row.user_id}
-                  className={`${desktopOnly ? "hidden xl:flex" : "flex"} items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors`}
+                  className={`${desktopOnly ? "hidden xl:flex" : "flex"} items-center gap-3 rounded-2xl px-3 py-2 transition-colors`}
                   style={isMe ? { backgroundColor: "var(--bt-accent-bg)" } : { cursor: "pointer" }}
                   onClick={() => { if (!isMe) onViewUser(row.user_id); }}
                   onMouseEnter={e => { if (!isMe) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                   onMouseLeave={e => { if (!isMe) e.currentTarget.style.backgroundColor = ""; }}>
-                  <RankBadge rank={i + 1} isMe={isMe} />
-                  <Avatar url={row.avatar_url} pseudo={row.name} size={32} />
-                  <span className="flex-1 min-w-0 text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
-                    <span className="inline-flex items-center gap-1.5 max-w-full">
-                      <span className="truncate">{row.name}</span>
-                      {Number(levels[row.user_id]?.totalXP) > 0 && (
-                        <LevelPill level={levels[row.user_id].current.level} />
-                      )}
-                    </span>
-                    {/* Sur le fond vert de sa propre ligne, l'encre secondaire ne
-                        tenait que 4,3:1. */}
-                    {isMe && <span className="font-normal" style={{ color: "var(--bt-text-1)" }}> {t("stats.me")}</span>}
+                  <RankBadge rank={rank} isMe={isMe} />
+                  <RankAvatar row={row} size={36} level={levelOf(row.user_id)} t={t} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
+                    {row.name}
+                    {isMe && <span className="font-normal"> {t("stats.me")}</span>}
                   </span>
-                  <ValueCell row={row} rank={i + 1} />
+                  <ValueCell row={row} rank={rank} />
                 </li>
               );
             })}
@@ -378,6 +445,7 @@ export default function Leaderboard({
               </li>
             )}
           </ul>
+          </>
         )}
       </div>
 
