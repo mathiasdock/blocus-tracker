@@ -2,6 +2,10 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Activité : surfaces
+
+- Le fil n'est plus posé à même le fond : chaque jour devient une carte (titre du jour en tête, lignes séparées par un filet), la zone de publication, le partage automatique et les messages d'état sont sur des surfaces. Badge débloqué sur lavis vert dans la carte. « Bravo » devient un vrai bouton (fond neutre, vert quand actif). CSS seul (`styles/activity.css`), aucune logique touchée.
+
 ## 2026-09-23 — Claude Code — Classement : « 30 derniers jours » absent et niveaux faux (cause racine)
 
 - Cause : `gamification_timezone()` relisait `pg_timezone_names` à chaque appel (~60 ms). `get_leaderboard_v2` (15 s) et `get_gamification_levels` (11 s pour 5 personnes) dépassaient le délai de 8 s du rôle authenticated → 500. Le client passait alors sur l'ancienne RPC (sans 30 jours) et sur le calcul de niveau de secours (13 au lieu de 15 pour Mathias). Explique aussi les niveaux « parfois justes, parfois faux » ailleurs.
