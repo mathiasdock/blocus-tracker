@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Classement : « 30 derniers jours » absent et niveaux faux (cause racine)
+
+- Cause : `gamification_timezone()` relisait `pg_timezone_names` à chaque appel (~60 ms). `get_leaderboard_v2` (15 s) et `get_gamification_levels` (11 s pour 5 personnes) dépassaient le délai de 8 s du rôle authenticated → 500. Le client passait alors sur l'ancienne RPC (sans 30 jours) et sur le calcul de niveau de secours (13 au lieu de 15 pour Mathias). Explique aussi les niveaux « parfois justes, parfois faux » ailleurs.
+- v53 (appliquée) : `get_leaderboard_v2` lit la liste des fuseaux une fois, total historique limité au pool. 15 s → 73 ms, résultats identiques (empreinte md5 avant/après).
+- v54 (appliquée) : `gamification_timezone()` valide le fuseau en l'appliquant. Sorties identiques sur les 254 profils ; `get_gamification_levels` 11 s → 0,4 s, niveau 15 correct.
+- Client : seule une RPC absente fait basculer durablement sur l'ancienne version ; en repli, pas de niveau plutôt qu'un niveau calculé sur la période.
+
 ## 2026-09-23 — Claude Code — Classement : vrai podium, période en menu
 
 - Retour au menu déroulant pour la période (Aujourd'hui / 7 derniers jours / 30 derniers jours), les onglets sont retirés à la demande de Mathias.

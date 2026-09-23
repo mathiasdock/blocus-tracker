@@ -196,8 +196,13 @@ export default function Leaderboard({
           p_study_year:  fYear  ? (profile?.study_year  || null) : null,
         });
         if (error || data == null) {
-          // RPC absente (migration v27 pas encore exécutée) → repli legacy.
-          if (!cancelled) setV2Available(false);
+          // Seule une RPC ABSENTE bascule durablement sur l'ancienne version.
+          // Avant, n'importe quelle erreur (un dépassement de délai, par
+          // exemple) la condamnait pour toute la visite : « 30 derniers
+          // jours » disparaissait et les niveaux étaient faux.
+          const missing = error && (error.code === "PGRST202" || error.code === "42883");
+          if (!cancelled && missing) setV2Available(false);
+          if (!cancelled && !missing) { setRows([]); setLoading(false); }
           return;
         }
         list = data.map(r => ({
@@ -220,7 +225,9 @@ export default function Leaderboard({
           name: [r.first_name, r.last_name].filter(Boolean).join(" ") || r.pseudo,
           avatar_url: r.avatar_url,
           total_seconds: Number(r.total_seconds),
-          alltime_seconds: Number(r.alltime_seconds ?? r.total_seconds ?? 0),
+          // L'ancienne RPC ne connaît pas le total historique : sans lui, pas
+          // de niveau du tout plutôt qu'un niveau calculé sur la seule période.
+          alltime_seconds: Number(r.alltime_seconds ?? 0),
           streak_days: 0,
           active_days: 0,
         }));
