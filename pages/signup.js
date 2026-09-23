@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import AuthBackground from "../components/AuthBackground";
-import AuthBrand from "../components/AuthBrand";
+import StudySetupShell from "../components/StudySetupShell";
+import SetupUsernameStatus from "../components/SetupUsernameStatus";
 import PasswordInput from "../components/PasswordInput";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -167,11 +167,9 @@ export default function Signup() {
 
   if (awaitingEmail) {
     return (
-      <AuthBackground className="min-h-dvh flex items-center justify-center px-4 py-7 sm:py-10">
-        <div className="w-full max-w-md bt-stagger">
-          <AuthBrand subtitle={t("signup.subtitle")} compact />
-          <section className="card p-6 sm:p-7" aria-live="polite">
-            <h1 className="text-2xl">{t("signup.checkEmailTitle")}</h1>
+      <StudySetupShell step={1} firstName={firstName}>
+          <section aria-live="polite">
+            <h1 tabIndex={-1}>{t("signup.checkEmailTitle")}</h1>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
               {t("signup.checkEmailBody").replace("{email}", awaitingEmail)}
             </p>
@@ -182,44 +180,22 @@ export default function Signup() {
               {t("signup.checkEmailLogin")}
             </Link>
           </section>
-        </div>
-      </AuthBackground>
+      </StudySetupShell>
     );
   }
 
   return (
-    <AuthBackground className="min-h-dvh flex items-center justify-center px-4 py-7 sm:py-10">
-      <div className="w-full max-w-md bt-stagger">
-        <AuthBrand subtitle={t("signup.subtitle")} compact />
-
-        <form onSubmit={handleSubmit} className="card p-6 sm:p-7" noValidate>
+    <StudySetupShell step={step} firstName={firstName} onBack={step === 1 && !busy ? showAccountStep : undefined}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="mb-5">
-            <div className="mb-4 flex items-center justify-between text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>
-              <span>{t("signup.step")} {step + 1} / 5</span>
-              <span>{step === 0 ? t("signup.stepAccount") : t("signup.stepYou")}</span>
-            </div>
-            <div
-              className="mb-6 h-1.5 overflow-hidden rounded-full"
-              style={{ backgroundColor: "var(--bt-border)" }}
-              role="progressbar"
-              aria-label={`${t("signup.step")} ${step + 1} / 5`}
-              aria-valuemin="1"
-              aria-valuemax="5"
-              aria-valuenow={step + 1}
-            >
-              <div
-                className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out motion-reduce:transition-none"
-                style={{ width: `${((step + 1) / 5) * 100}%` }}
-              />
-            </div>
-            <h1 className="text-2xl">{step === 0 ? t("signup.accountTitle") : t("signup.youTitle")}</h1>
+            <h1 tabIndex={-1}>{step === 0 ? t("signup.accountTitle") : t("signup.youTitle")}</h1>
             <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
               {step === 0 ? t("signup.accountSubtitle") : t("signup.youSubtitle")}
             </p>
           </div>
 
           {step === 0 && (
-            <div className="bt-rise space-y-4">
+            <div className="space-y-4">
               <div>
                 <label className="label" htmlFor="signup-email">{t("signup.email")}</label>
                 <input
@@ -299,8 +275,8 @@ export default function Signup() {
           )}
 
           {step === 1 && (
-            <div className="bt-rise space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-4">
+              <div>
                 <div>
                   <label className="label" htmlFor="signup-firstName">{t("profile.firstName")}</label>
                   <input
@@ -318,22 +294,7 @@ export default function Signup() {
                   />
                   <FieldMessage id="signup-firstName-message" error={touched.firstName ? errors.firstName : ""} />
                 </div>
-                <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <label className="label mb-0" htmlFor="signup-lastName">{t("profile.lastName")}</label>
-                    <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.optional")}</span>
-                  </div>
-                  <input
-                    id="signup-lastName"
-                    className="input"
-                    value={lastName}
-                    onChange={event => { setLastName(event.target.value); clearServerError(); }}
-                    autoComplete="family-name"
-                    maxLength={80}
-                    aria-describedby="signup-lastName-message"
-                  />
-                  <FieldMessage id="signup-lastName-message" helper={t("signup.lastNameHint")} />
-                </div>
+
               </div>
 
               <div>
@@ -353,15 +314,28 @@ export default function Signup() {
                   aria-invalid={Boolean(touched.pseudo && errors.pseudo)}
                   aria-describedby="signup-pseudo-message"
                 />
-                <FieldMessage id="signup-pseudo-message" error={touched.pseudo ? errors.pseudo : ""} helper={t("signup.pseudoHint")} />
+                {touched.pseudo && errors.pseudo ? <FieldMessage id="signup-pseudo-message" error={errors.pseudo} /> : <SetupUsernameStatus value={pseudo} id="signup-pseudo-message" />}
               </div>
+
+              <details className="setup-optional"><summary>{t("profile.lastName")} · {t("signup.optional")}</summary>
+                <div>
+                  <label className="sr-only" htmlFor="signup-lastName">{t("profile.lastName")}</label>
+                  <input
+                    id="signup-lastName"
+                    className="input"
+                    value={lastName}
+                    onChange={event => { setLastName(event.target.value); clearServerError(); }}
+                    autoComplete="family-name"
+                    maxLength={80}
+                    aria-describedby="signup-lastName-message"
+                  />
+                  <FieldMessage id="signup-lastName-message" helper={t("signup.lastNameHint")} />
+                </div>
+              </details>
 
               {error && <div className="bt-form-alert" role="alert" aria-live="polite">{error}</div>}
 
-              <div className="flex gap-3 pt-2">
-                <button type="button" className="btn-ghost flex-1" onClick={showAccountStep} disabled={busy}>
-                  {t("comm.back")}
-                </button>
+              <div className="setup-actions">
                 <button className="btn-primary flex-[1.35]" disabled={busy} aria-busy={busy}>
                   {busy ? (
                     <><span className="bt-button-spinner" aria-hidden="true" />{t("signup.creating")}</>
@@ -381,7 +355,6 @@ export default function Signup() {
             {t("login.signin")}
           </Link>
         </p>
-      </div>
-    </AuthBackground>
+    </StudySetupShell>
   );
 }

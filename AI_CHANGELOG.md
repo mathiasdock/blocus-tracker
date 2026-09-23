@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-22 — Codex — Signup/onboarding Phase 2 : Study Space Setup
+
+- Shell commun `/signup` et `/onboarding` : réponses réelles à gauche sur desktop, question à droite ; mobile compact, retour et progression x/5. Retrait du fond photo et de la carte centrale sur ces deux routes uniquement.
+- Identité : disponibilité du pseudo annoncée après debounce, nom facultatif secondaire. Études : domaine puis année puis spécialisation facultative, pickers existants conservés.
+- Cours : liste dense, Entrée pour ajouter avec retour du focus, couleur automatique/modifiable sur demande, renommage en ligne et suppression. Mutations sérialisées, fin impossible pendant une édition non validée. Idempotence et logique serveur Phase 1 conservées.
+- Même shell pour chargement, erreur et confirmation email ; aucune migration, aucune modification du modèle de completion, legal/referral ou legacy/repair.
+- Vérification locale offline du parcours jusqu’à l’app, six cours, doublons, couleurs/renommage/suppression, reprise aux étapes académiques incomplètes. Échantillons 320/390/1280/1440, FR/EN et clair/sombre ; axe sans violation sur l’étape cours. Envoi réel d’email et clavier de téléphone physique non testés.
+- Validation finale : 142 tests réussis, lint sans avertissement, builds production et `NEXT_PUBLIC_OFFLINE_DEV=true` réussis. Revue ciblée : risques de mutations concurrentes et de renommage abandonné résolus.
+
 ## 2026-09-22 — Codex — Nettoyage UX transversal ciblé
 
 - Un sélecteur commun détermine le prochain examen d'un cours : examen structuré futur prioritaire, `courses.exam_date` en repli, tri stable date/heure/ID. Planning (résumé et révisions) et Chrono l'utilisent ; le calendrier conserve tous les événements distincts. Chrono recharge cours et examens même lorsqu'il réutilise son court cache de sessions. Tests couvrant sources, doublons, plusieurs examens et passé/futur.

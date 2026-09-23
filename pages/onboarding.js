@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import Glyph from "../components/Glyph";
 import { useRouter } from "next/router";
-import AuthBrand from "../components/AuthBrand";
+import StudySetupShell from "../components/StudySetupShell";
+import SetupCourseColor from "../components/SetupCourseColor";
 import UniPicker from "../components/UniPicker";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -30,17 +31,9 @@ function PlusIcon() {
   );
 }
 
-function CheckIcon() {
-  return (
-    <Glyph size={13} strokeWidth={3}>
-      <path d="M5 12l4 4L19 6" />
-    </Glyph>
-  );
-}
-
 function LoadingState({ label }) {
   return (
-    <div className="card p-6 sm:p-8" aria-busy="true" aria-label={label}>
+    <div aria-busy="true" aria-label={label}>
       <div className="bt-skeleton h-7 w-2/3 rounded-lg" />
       <div className="bt-skeleton mt-3 h-4 w-full rounded-lg" />
       <div className="bt-skeleton mt-2 h-4 w-4/5 rounded-lg" />
@@ -337,6 +330,7 @@ export default function Onboarding() {
   }
 
   async function createCourse() {
+    if (savingCourse || courseActionId || editingCourseId) return null;
     const name = newCourse.trim();
     setCourseError("");
     if (!name) {
@@ -372,6 +366,7 @@ export default function Onboarding() {
       const nextCourses = mergeCourseById(courses, data);
       setCourses(nextCourses);
       setNewCourse("");
+      requestAnimationFrame(() => document.getElementById("onboarding-course")?.focus());
       setNewColor(nextCourseColor(nextCourses, COURSE_COLORS) || COURSE_COLORS[0]);
       try { localStorage.removeItem(draftKey); } catch (_) {}
       return data;
@@ -389,6 +384,7 @@ export default function Onboarding() {
   }
 
   async function saveCourseEdit(course) {
+    if (savingCourse || courseActionId || finishing) return;
     const name = editingCourseName.trim();
     setCourseError("");
     if (!name || hasDuplicateCourse(courses, name, course.id)) {
@@ -416,7 +412,23 @@ export default function Onboarding() {
     }
   }
 
+  async function changeCourseColor(course, color) {
+    if (savingCourse || courseActionId || editingCourseId || finishing) return;
+    setCourseActionId(course.id);
+    setCourseError("");
+    try {
+      const { error } = await supabase.from("courses").update({ color }).eq("id", course.id).eq("user_id", user.id);
+      if (error) throw error;
+      const nextCourses = courses.map(item => item.id === course.id ? { ...item, color } : item);
+      setCourses(nextCourses);
+      setNewColor(nextCourseColor(nextCourses, COURSE_COLORS) || COURSE_COLORS[0]);
+      clearClientCache(`dashboard:${user.id}:`);
+    } catch (_) { setCourseError(t("onboarding.courses.saveError")); }
+    finally { setCourseActionId(null); }
+  }
+
   async function removeCourse(course) {
+    if (savingCourse || courseActionId || editingCourseId || finishing) return;
     setCourseError("");
     setCourseActionId(course.id);
     try {
@@ -439,6 +451,7 @@ export default function Onboarding() {
   }
 
   async function finish() {
+    if (savingCourse || courseActionId || editingCourseId || finishing) return;
     setCourseError("");
     setFinishing(true);
     let courseCount = courses.length;
@@ -472,42 +485,15 @@ export default function Onboarding() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className="min-h-dvh bg-[var(--bt-bg)] px-4 py-7 sm:py-10">
-        <div className="mx-auto w-full max-w-md">
-          <AuthBrand compact subtitle={t("onboarding.subtitle")} />
-          <LoadingState label={t("loading.preparing")} />
-        </div>
-      </main>
-    );
-  }
-  if (!user) return null;
+  if (!loading && !user) return null;
 
   return (
-    <main className="min-h-dvh bg-[var(--bt-bg)] px-4 py-7 sm:py-10">
-      <div className="mx-auto w-full max-w-md">
-        <AuthBrand
-          compact
-          subtitle={firstName ? `${t("onboarding.hello")} ${firstName}. ${t("onboarding.subtitle")}` : t("onboarding.subtitle")}
-        />
-
-        <div className="mb-5">
-          <div className="mb-2 flex items-center justify-between text-xs font-semibold" style={{ color: "var(--bt-text-1)" }}>
-            <span>{t("onboarding.stepLabel")} {step + 1} / 5</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-border)" }} role="progressbar" aria-label={`${t("onboarding.stepLabel")} ${step + 1} / 5`} aria-valuemin="1" aria-valuemax="5" aria-valuenow={step + 1}>
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out motion-reduce:transition-none"
-              style={{ width: `${((step + 1) / 5) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {!ready ? (
+    <StudySetupShell step={step} firstName={firstName} university={selectedUniversity} broadField={broadField} year={studyYear === "Autre" ? studyYearCustom : studyYear} program={studyField} courses={courses}
+      onBack={ready && !savingStudyInfo && !savingCourse && !courseActionId && !editingCourseId && !finishing && step > ONBOARDING_STEPS.UNIVERSITY ? () => goToStep(step - 1) : undefined}>
+        {loading || !ready ? (
           <LoadingState label={t("loading.preparing")} />
         ) : loadError ? (
-          <div className="card p-6 text-center sm:p-8">
+          <div className="setup-error">
             <h1 className="text-xl">{t("onboarding.loadErrorTitle")}</h1>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{loadError}</p>
             <button className="btn-primary mt-6 w-full" onClick={() => setReloadKey(key => key + 1)}>
@@ -515,11 +501,11 @@ export default function Onboarding() {
             </button>
           </div>
         ) : (
-          <div key={step} className="card bt-rise p-6 sm:p-8">
+          <div key={step} className="setup-step">
             {step === ONBOARDING_STEPS.YOU && (
               <form onSubmit={saveIdentity} noValidate>
                 <div className="mb-6">
-                  <h1 className="text-2xl">{t("onboarding.repair.title")}</h1>
+                  <h1 tabIndex={-1}>{t("onboarding.repair.title")}</h1>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                     {t("onboarding.repair.subtitle")}
                   </p>
@@ -564,7 +550,7 @@ export default function Onboarding() {
             {step === ONBOARDING_STEPS.UNIVERSITY && (
               <form onSubmit={saveUniversity} noValidate>
                 <div className="mb-6">
-                  <h1 className="text-2xl">{t("onboarding.university.title")}</h1>
+                  <h1 tabIndex={-1}>{t("onboarding.university.title")}</h1>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("onboarding.university.subtitle")}</p>
                 </div>
 
@@ -634,7 +620,7 @@ export default function Onboarding() {
             {step === ONBOARDING_STEPS.STUDIES && (
               <form onSubmit={saveStudyInfo} noValidate>
                 <div className="mb-6">
-                  <h1 className="text-2xl">{t("onboarding.field.title")}</h1>
+                  <h1 tabIndex={-1}>{t("onboarding.field.title")}</h1>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
                     {t("onboarding.field.subtitle")}
                   </p>
@@ -642,7 +628,6 @@ export default function Onboarding() {
 
                 <div className="space-y-4">
                   <StudyFieldPicker value={broadField} onChange={value => { setBroadField(value); setStudyInfoError(""); }} id="onboarding-broad-field" required />
-                  <StudyProgramInput id="onboarding-field" value={studyField} onChange={setStudyField} maxLength={100} />
 
                   <div>
                     <label className="label" htmlFor="onboarding-year">{t("onboarding.year.label")}</label>
@@ -677,12 +662,11 @@ export default function Onboarding() {
                   )}
                 </div>
 
+                  <StudyProgramInput id="onboarding-field" value={studyField} onChange={setStudyField} maxLength={100} />
+
                 {studyInfoError && <div className="bt-form-alert mt-5" role="alert">{studyInfoError}</div>}
 
-                <div className="mt-6 flex gap-3">
-                  <button type="button" className="btn-ghost flex-1" onClick={() => goToStep(ONBOARDING_STEPS.UNIVERSITY)}>
-                    {t("comm.back")}
-                  </button>
+                <div className="setup-actions">
                   <button className="btn-primary flex-1" disabled={savingStudyInfo} aria-busy={savingStudyInfo}>
                     {savingStudyInfo ? t("onboarding.saving") : t("onboarding.saveContinue")}
                   </button>
@@ -696,18 +680,20 @@ export default function Onboarding() {
             {step === ONBOARDING_STEPS.COURSES && (
               <div>
                 <div className="mb-6">
-                  <h1 className="text-2xl">{t("onboarding.courses.title")}</h1>
+                  <h1 tabIndex={-1}>{t("setup.coursesTitle")}</h1>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                    {t("onboarding.courses.subtitle")}
+                    {t("setup.coursesSubtitle")}
                   </p>
                 </div>
 
                 <form onSubmit={addCourse} className="space-y-3">
-                  <div className="flex items-stretch gap-2">
+                  <div className="setup-course-entry">
                     <input
                       id="onboarding-course"
+                      disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing}
+                      aria-label={t("setup.addCourse")}
                       className={`input ${courseError && courses.length === 0 ? "input-error" : ""}`}
-                      placeholder={t("onboarding.courses.placeholder")}
+                      placeholder={t("setup.addCourse")}
                       value={newCourse}
                       onChange={event => { setNewCourse(event.target.value); setCourseError(""); }}
                       maxLength={80}
@@ -718,7 +704,7 @@ export default function Onboarding() {
                     <button
                       type="submit"
                       className="btn-primary w-12 shrink-0 px-0"
-                      disabled={savingCourse || !newCourse.trim()}
+                      disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing || !newCourse.trim()}
                       aria-label={t("onboarding.courses.add")}
                       title={t("onboarding.courses.add")}
                     >
@@ -726,27 +712,7 @@ export default function Onboarding() {
                     </button>
                   </div>
 
-                  <fieldset>
-                    <legend className="sr-only">{t("onboarding.courses.color")}</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {COURSE_COLORS.slice(0, 12).map((color, index) => {
-                        const selected = newColor === color;
-                        return (
-                          <button
-                            type="button"
-                            key={color}
-                            onClick={() => setNewColor(color)}
-                            className={`bt-tap inline-flex w-9 items-center justify-center rounded-full border-2 transition-transform ${selected ? "scale-105 border-[var(--bt-text-1)]" : "border-transparent"}`}
-                            style={{ backgroundColor: color }}
-                            aria-label={`${t("onboarding.courses.color")} ${index + 1}`}
-                            aria-pressed={selected}
-                          >
-                            {selected && <span className="text-white drop-shadow"><CheckIcon /></span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
+
                 </form>
 
                 {courses.length > 0 && (
@@ -754,16 +720,17 @@ export default function Onboarding() {
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--bt-text-2)" }}>
                       {t("onboarding.courses.added")} · {courses.length}
                     </p>
-                    <ul className="space-y-2">
+                    <ul className="setup-course-list">
                       {courses.map(course => (
-                        <li key={course.id} className="min-h-11 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                        <li key={course.id} className="setup-course-row">
                           {editingCourseId === course.id ? (
                             <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); saveCourseEdit(course); }}>
-                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
+                              <SetupCourseColor color={course.color} name={course.name} disabled onChange={color => changeCourseColor(course, color)} />
                               <input
                                 className="input min-w-0 flex-1 py-1.5"
                                 value={editingCourseName}
                                 onChange={event => { setEditingCourseName(event.target.value); setCourseError(""); }}
+                                onKeyDown={event => { if (event.key === "Escape") { setEditingCourseId(null); setEditingCourseName(""); } }}
                                 maxLength={80}
                                 autoFocus
                                 aria-label={t("onboarding.courses.editName")}
@@ -771,27 +738,20 @@ export default function Onboarding() {
                               <button type="submit" className="bt-accent-link min-h-11 px-2 text-xs font-semibold" disabled={courseActionId === course.id}>
                                 {t("common.save")}
                               </button>
+                              <button type="button" className="setup-course-remove" aria-label={t("common.cancel")} disabled={!!courseActionId} onClick={() => { setEditingCourseId(null); setEditingCourseName(""); }}><Glyph size={16}><path d="m6 6 12 12M18 6 6 18" /></Glyph></button>
                             </form>
                           ) : (
                             <div className="flex items-center gap-3">
-                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
-                              <span className="min-w-0 flex-1 truncate text-sm font-medium">{course.name}</span>
+                              <SetupCourseColor color={course.color} name={course.name} disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing} onChange={color => changeCourseColor(course, color)} />
+                              <button type="button" className="setup-course-name" disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing} aria-label={t("setup.rename").replace("{course}", course.name)} onClick={() => { setEditingCourseId(course.id); setEditingCourseName(course.name); setCourseError(""); }}>{course.name}</button>
                               <button
                                 type="button"
-                                className="min-h-11 px-2 text-xs font-semibold"
-                                style={{ color: "var(--bt-text-2)" }}
-                                onClick={() => { setEditingCourseId(course.id); setEditingCourseName(course.name); setCourseError(""); }}
-                              >
-                                {t("common.edit")}
-                              </button>
-                              <button
-                                type="button"
-                                className="min-h-11 px-2 text-xs font-semibold"
-                                style={{ color: "var(--bt-danger)" }}
+                                className="setup-course-remove"
+                                aria-label={t("setup.remove").replace("{course}", course.name)}
                                 onClick={() => removeCourse(course)}
-                                disabled={courseActionId === course.id}
+                                disabled={savingCourse || !!courseActionId || !!editingCourseId || finishing}
                               >
-                                {t("common.remove")}
+                                <Glyph size={16}><path d="m6 6 12 12M18 6 6 18" /></Glyph>
                               </button>
                             </div>
                           )}
@@ -803,15 +763,12 @@ export default function Onboarding() {
 
                 {courseError && <p id="course-error" className="bt-form-error mt-4 text-sm" role="alert">{courseError}</p>}
 
-                <div className="mt-6 flex gap-3">
-                  <button type="button" className="btn-ghost flex-1" onClick={() => goToStep(ONBOARDING_STEPS.STUDIES)}>
-                    {t("comm.back")}
-                  </button>
+                <div className="setup-actions">
                   <button
                     type="button"
                     className="btn-primary flex-[1.35]"
                     onClick={finish}
-                    disabled={finishing || savingCourse || (courses.length === 0 && !newCourse.trim())}
+                    disabled={finishing || savingCourse || !!courseActionId || !!editingCourseId || (courses.length === 0 && !newCourse.trim())}
                     aria-busy={finishing}
                   >
                     {finishing ? t("onboarding.saving") : t("onboarding.done.cta")}
@@ -824,7 +781,6 @@ export default function Onboarding() {
             )}
           </div>
         )}
-      </div>
-    </main>
+    </StudySetupShell>
   );
 }

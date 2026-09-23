@@ -4,6 +4,7 @@ import "../styles/planning.css";
 import "../styles/activity.css";
 import "../styles/level.css";
 import "../styles/profile.css";
+import "../styles/setup.css";
 import Glyph from "../components/Glyph";
 import Head from "next/head";
 import { useRouter } from "next/router";
