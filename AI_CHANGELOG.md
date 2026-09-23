@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Classement : vrai podium, période en menu
+
+- Retour au menu déroulant pour la période (Aujourd'hui / 7 derniers jours / 30 derniers jours), les onglets sont retirés à la demande de Mathias.
+- Podium en marches (2 · 1 · 3, hauteurs différentes) : marches or/argent/bronze avec numéro gravé, couronne chiffrée au-dessus de l'avatar cerclé du même métal, temps en pastille verte. Sans confettis.
+- Bulle de niveau plus petite pour les lignes à partir de la 4e place.
+
 ## 2026-09-23 — Claude Code — Stats : classement et « Me situer » redessinés
 
 - Classement : période en onglets visibles (Aujourd'hui / 7 j / 30 j ; le 30 j existait déjà dans la RPC v2 mais restait caché dans un menu). Podium des 3 premiers (anneau et médaille or/argent/bronze sur l'avatar, premier au centre, plus grand). Niveau en bulle sur l'avatar au lieu de la pastille à côté du nom. Aperçu mobile : podium + ma ligne.

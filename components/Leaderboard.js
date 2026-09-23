@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Avatar } from "./Layout";
-import SegmentedGlide from "./SegmentedGlide";
 import { SkeletonList } from "./Skeleton";
 import EmptyState from "./EmptyState";
 import { useI18n } from "../contexts/I18nContext";
@@ -31,14 +30,14 @@ export function RankBadge({ rank, isMe = false }) {
 // Le niveau n'est plus une pastille à côté du nom (elle poussait les noms
 // longs à la troncature) : c'est une petite bulle posée en bas à droite du
 // visage, comme une notification. Même encre que le sceau de niveau du profil.
-function RankAvatar({ row, size, level, medal, t }) {
+function RankAvatar({ row, size, level, medal, small = false, t }) {
   return (
     <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
       <span className="block rounded-full" style={medal ? { boxShadow: `0 0 0 2px var(--bt-surface), 0 0 0 4px ${medal.ring}` } : undefined}>
         <Avatar url={row.avatar_url} pseudo={row.name} size={size} />
       </span>
       {level > 0 && (
-        <span className="bt-lb-level font-num absolute -bottom-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none tabular-nums"
+        <span className={`bt-lb-level font-num absolute flex items-center justify-center rounded-full font-bold leading-none tabular-nums ${small ? "-bottom-0.5 -right-0.5 h-[14px] min-w-[14px] px-[3px] text-[8px]" : "-bottom-1 -right-1 h-[20px] min-w-[20px] px-1 text-[10px]"}`}
           aria-label={t("stats.levelAria").replace("{n}", String(level))}>
           {level}
         </span>
@@ -48,42 +47,54 @@ function RankAvatar({ row, size, level, medal, t }) {
 }
 
 // ── Podium ───────────────────────────────────────────────────
-// Demande de Mathias (2026-09-23) : les trois premiers doivent se voir. Les
-// métaux vivent sur l'OBJET du rang (anneau autour du visage, médaille
-// chiffrée), jamais sur la durée, qui reste en encre de texte. Chiffres de
-// médaille en encre sombre : lisibles sur l'or comme sur le bronze.
+// Demande de Mathias (2026-09-23, référence image) : un VRAI podium. Trois
+// marches de hauteurs différentes (2 · 1 · 3), chacune dans son métal avec son
+// numéro gravé ; au-dessus, le visage cerclé du même métal et coiffé d'une
+// couronne, le nom, puis le temps dans une pastille. Les métaux restent sur
+// l'objet du rang (marche, anneau, couronne) ; le temps garde l'encre verte.
 const MEDALS = {
-  1: { ring: "#E2B53A", disc: "linear-gradient(145deg, #F6D774, #D9A521)" },
-  2: { ring: "#B9C2CB", disc: "linear-gradient(145deg, #E6EBEF, #AEB8C2)" },
-  3: { ring: "#C98B5A", disc: "linear-gradient(145deg, #EDB98E, #BF7A45)" },
+  1: { ring: "#E4B63C", crown: ["#FFE08A", "#E0A91E"], step: "bt-lb-step-gold", h: 76 },
+  2: { ring: "#B8C1CA", crown: ["#F1F4F7", "#A9B4BF"], step: "bt-lb-step-silver", h: 56 },
+  3: { ring: "#CF915F", crown: ["#F3C49B", "#C47C45"], step: "bt-lb-step-bronze", h: 42 },
 };
 
+function Crown({ rank }) {
+  const [a, b] = MEDALS[rank].crown;
+  const id = `bt-crown-${rank}`;
+  return (
+    <svg width="30" height="24" viewBox="0 0 30 24" aria-hidden="true" className="block">
+      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={a} /><stop offset="1" stopColor={b} /></linearGradient></defs>
+      <path d="M3 8.5 9.2 13 15 3.5 20.8 13 27 8.5 24.6 21H5.4Z" fill={`url(#${id})`} stroke="rgba(60,40,5,.25)" strokeWidth=".8" strokeLinejoin="round" />
+      <circle cx="3" cy="8" r="1.8" fill={b} /><circle cx="15" cy="3" r="1.8" fill={b} /><circle cx="27" cy="8" r="1.8" fill={b} />
+      <text x="15" y="19" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#3A2A06" fontFamily="inherit">{rank}</text>
+    </svg>
+  );
+}
+
 function Podium({ entries, levelOf, userId, onViewUser, Value, t }) {
-  // Ordre visuel 2 · 1 · 3 : le premier au centre, un cran plus haut.
   const order = [entries[1], entries[0], entries[2]].filter(Boolean);
   return (
-    <ol className="bt-lb-podium mb-2 grid grid-cols-3 items-end gap-2" aria-label={t("stats.podiumLabel")}>
+    <ol className="bt-lb-podium mb-3 grid grid-cols-3 items-end" aria-label={t("stats.podiumLabel")}>
       {order.map(({ row, rank }) => {
         const first = rank === 1;
         const isMe = row.user_id === userId;
         const medal = MEDALS[rank];
         return (
-          <li key={row.user_id} className={first ? "order-2" : rank === 2 ? "order-1" : "order-3"}>
+          <li key={row.user_id} className="flex min-w-0 flex-col items-center">
             <button type="button" disabled={isMe} onClick={() => onViewUser(row.user_id)}
-              className={`bt-lb-step flex w-full flex-col items-center rounded-2xl px-1.5 text-center ${first ? "is-first pb-3 pt-4" : "pb-3 pt-3"} ${isMe ? "is-me" : ""}`}>
-              <span className="relative">
-                <RankAvatar row={row} size={first ? 60 : 46} level={levelOf(row.user_id)} medal={medal} t={t} />
-                <span className="font-num absolute -top-2 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full text-[11px] font-extrabold tabular-nums"
-                  style={{ background: medal.disc, color: "#2A1F08", boxShadow: "0 0 0 2px var(--bt-surface)" }} aria-hidden="true">
-                  {rank}
-                </span>
+              className="bt-lb-person flex w-full min-w-0 flex-col items-center px-1 pb-2 text-center">
+              <span className="relative flex flex-col items-center">
+                <span className="-mb-1.5 relative z-[1]"><Crown rank={rank} /></span>
+                <RankAvatar row={row} size={first ? 64 : 50} level={levelOf(row.user_id)} medal={medal} t={t} />
               </span>
-              <span className="mt-2.5 w-full truncate text-xs font-semibold" style={{ color: "var(--bt-text-1)" }}>
-                {row.name}
+              <span className="mt-2 w-full truncate text-xs font-semibold sm:text-sm" style={{ color: "var(--bt-text-1)" }}>
+                {row.name}{isMe && <span className="font-normal"> {t("stats.me")}</span>}
               </span>
-              {isMe && <span className="text-[11px]" style={{ color: "var(--bt-text-1)" }}>{t("stats.me")}</span>}
-              <span className="mt-0.5"><Value row={row} rank={rank} /></span>
+              <span className="bt-lb-time mt-1 rounded-full px-2.5 py-0.5"><Value row={row} rank={rank} /></span>
             </button>
+            <span className={`bt-lb-block ${medal.step} ${first ? "is-first" : ""} font-num`} style={{ height: medal.h }} aria-hidden="true">
+              {rank}
+            </span>
           </li>
         );
       })}
@@ -376,6 +387,15 @@ export default function Leaderboard({
             ariaLabel={t("stats.audienceFilterLabel")}
             buttonClassName="bt-tap-44"
           />
+          {(!v2Available || metric !== "streak") && (
+            <FilterMenu
+              value={period}
+              options={periodOptions}
+              onChange={setPeriod}
+              ariaLabel={t("stats.periodFilterLabel")}
+              buttonClassName="bt-tap-44"
+            />
+          )}
           {v2Available && (
             <FilterMenu
               value={metric}
@@ -387,24 +407,6 @@ export default function Leaderboard({
           )}
         </div>
       </div>
-
-      {/* La période en onglets visibles plutôt que dans un menu : « 30 jours »
-          existait mais restait caché derrière « Aujourd'hui ». La série n'a pas
-          de période, les onglets disparaissent alors. */}
-      {(!v2Available || metric !== "streak") && (
-        <div className={`mb-4 ${desktopTall ? "xl:shrink-0" : ""}`}>
-          <SegmentedGlide
-            className="flex w-full"
-            buttonClassName="flex-1 px-3 py-2 text-xs"
-            options={periodOptions.map(o => ({
-              ...o,
-              label: o.value === "week" ? t("stats.lbTab7") : o.value === "month" ? t("stats.lbTab30") : o.label,
-            }))}
-            value={period}
-            onChange={setPeriod}
-          />
-        </div>
-      )}
 
       {/* Liste */}
       <div
@@ -430,7 +432,7 @@ export default function Leaderboard({
                   onMouseEnter={e => { if (!isMe) e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                   onMouseLeave={e => { if (!isMe) e.currentTarget.style.backgroundColor = ""; }}>
                   <RankBadge rank={rank} isMe={isMe} />
-                  <RankAvatar row={row} size={36} level={levelOf(row.user_id)} t={t} />
+                  <RankAvatar row={row} size={34} level={levelOf(row.user_id)} small t={t} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>
                     {row.name}
                     {isMe && <span className="font-normal"> {t("stats.me")}</span>}

@@ -42,13 +42,25 @@
   box-shadow: 0 0 0 2px var(--bt-surface);
 }
 
-/* Marches du podium : le premier est posé sur un lavis vert, les deux autres
-   sur le fond neutre. Pas de socle en escalier : la hauteur vient de l'avatar
-   plus grand et du décalage de grille. */
-.bt-lb-step { transition: background-color 160ms ease, transform 160ms ease; }
-.bt-lb-step:not(:disabled):hover { background: var(--bt-subtle); }
-.bt-lb-step:not(:disabled):active { transform: scale(0.98); }
-.bt-lb-step:disabled { cursor: default; }
-.bt-lb-step.is-first { background: linear-gradient(180deg, var(--bt-accent-bg), transparent 85%); }
-.bt-lb-step.is-me { background: var(--bt-accent-bg); }
-@media (prefers-reduced-motion: reduce) { .bt-lb-step { transition: none; } }
+/* Podium : trois marches pleines, jointes, chacune dans son métal. Dégradé
+   vertical + reflet en haut + ombre portée douce : un volume, sans 3D criarde.
+   Le numéro est gravé (encre sombre du métal, léger reflet dessous). */
+.bt-lb-person { border-radius: 16px; transition: background-color 160ms ease; }
+.bt-lb-person:not(:disabled):hover { background: var(--bt-subtle); }
+.bt-lb-person:disabled { cursor: default; }
+.bt-lb-time { background: var(--bt-accent-bg); }
+.bt-lb-block {
+  display: flex; align-items: center; justify-content: center; width: 100%;
+  font-size: 28px; font-weight: 800; line-height: 1;
+  border-radius: 12px 12px 4px 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 -3px 0 rgba(0,0,0,.08), 0 10px 18px -12px rgba(40,30,10,.45);
+  text-shadow: 0 1px 0 rgba(255,255,255,.45);
+}
+.bt-lb-block.is-first { font-size: 36px; position: relative; z-index: 1; margin-inline: -2px; }
+.bt-lb-step-gold   { background: linear-gradient(180deg, #FBDC7C, #E8B43A); color: #8A5F0B; }
+.bt-lb-step-silver { background: linear-gradient(180deg, #E9EDF1, #BCC5CE); color: #5E6A76; }
+.bt-lb-step-bronze { background: linear-gradient(180deg, #F0BE93, #CF8C58); color: #7A4420; }
+.bt-lb-podium > li:first-child .bt-lb-block { border-top-right-radius: 4px; }
+.bt-lb-podium > li:last-child .bt-lb-block { border-top-left-radius: 4px; }
+:root.dark .bt-lb-block { box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 -3px 0 rgba(0,0,0,.18), 0 10px 18px -12px rgba(0,0,0,.7); filter: saturate(.9) brightness(.92); }
+@media (prefers-reduced-motion: reduce) { .bt-lb-person { transition: none; } }
