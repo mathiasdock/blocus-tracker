@@ -1,125 +1,143 @@
 // Génère l'image Open Graph (aperçu de partage de lien) : public/seo-preview.png
 //   node scripts/generate-og.js
 //
-// Rendu 100% vectoriel via sharp (librsvg) → PNG net à 1200×630.
-// On réutilise l'identité réelle de l'app : surface "ink" vert profond,
-// le vrai logo (public/app-icon.svg), les Blocus Blocks et la police de marque
-// Quicksand (accent) + Nunito Sans (interface et chiffres). Les polices locales
-// sont embarquées en base64 dans le SVG (librsvg les honore) — aucune requête
-// réseau et aucune dépendance aux polices système.
-const sharp = require("sharp");
+// La composition reprend les sources de vérité du produit, sans faux écran :
+// le logo PWA, les polices locales, les vrais Blocus Blocks horizontaux et la
+// mascotte Focus rendue directement depuis components/Mascot.js.
+const babel = require("@babel/core");
 const fs = require("fs");
 const path = require("path");
+const React = require("react");
+const { renderToStaticMarkup } = require("react-dom/server");
+const sharp = require("sharp");
 
-const LOCAL_FONTS = path.join(__dirname, "..", "public", "fonts");
+const ROOT = path.join(__dirname, "..");
+const LOCAL_FONTS = path.join(ROOT, "public", "fonts");
 const FONTS = {
   nunito: path.join(LOCAL_FONTS, "nunito-sans-latin.woff2"),
   quicksand: path.join(LOCAL_FONTS, "quicksand-latin.woff2"),
 };
 
-// Tuile du logo officiel, rendue directement depuis sa source vectorielle.
 async function makeLogoTile(size) {
-  const src = path.join(__dirname, "..", "public", "app-icon.svg");
-  const tile = await sharp(src).resize(size, size).png().toBuffer();
-  const rounded = Buffer.from(
+  const source = path.join(ROOT, "public", "app-icon.svg");
+  const tile = await sharp(source).resize(size, size).png().toBuffer();
+  const roundedMask = Buffer.from(
     `<svg width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${Math.round(size * 0.22)}" fill="#fff"/></svg>`
   );
-  return sharp(tile).composite([{ input: rounded, blend: "dest-in" }]).png().toBuffer();
+  return sharp(tile)
+    .composite([{ input: roundedMask, blend: "dest-in" }])
+    .png()
+    .toBuffer();
 }
 
-// Les Blocus Blocks — motif de marque (barres d'étude). done = plein, active =
-// plein + glow, todo = faible. Rendu à des hauteurs variables (rythme).
-function blocks(x, baseY, states) {
-  const w = 13, gap = 8, hDone = 44, hTodo = 20, r = 6;
-  return states.map((s, i) => {
-    const h = s === "todo" ? hTodo : hDone;
-    const bx = x + i * (w + gap);
-    const fill = s === "todo" ? "rgba(255,255,255,0.16)" : "#14B885";
-    const glow = s === "active" ? ` filter="url(#blockGlow)"` : "";
-    return `<rect x="${bx}" y="${baseY - h}" width="${w}" height="${h}" rx="${r}" fill="${fill}"${glow}/>`;
+// Le composant React reste l'unique source de la mascotte. Le script le
+// transpile en mémoire uniquement pour pouvoir produire un SVG statique ;
+// aucune copie de l'illustration ne peut donc dériver de l'app.
+async function makeMascot(size) {
+  const source = path.join(ROOT, "components", "Mascot.js");
+  const motion = await import(path.join(ROOT, "lib", "mascotMotion.mjs"));
+  const transformed = babel.transformFileSync(source, {
+    babelrc: false,
+    configFile: false,
+    filename: source,
+    presets: [[require("next/babel"), { "preset-env": { modules: "commonjs" } }]],
+  });
+
+  const mascotModule = { exports: {} };
+  const scopedRequire = (request) => (
+    request === "../lib/mascotMotion.mjs" ? motion : require(request)
+  );
+  new Function("require", "module", "exports", "__filename", "__dirname", transformed.code)(
+    scopedRequire,
+    mascotModule,
+    mascotModule.exports,
+    source,
+    path.dirname(source)
+  );
+
+  const Mascot = mascotModule.exports.default;
+  const markup = renderToStaticMarkup(React.createElement(Mascot, {
+    mood: "focused",
+    size: size * 2,
+    animated: false,
+    ariaLabel: "Mascotte Blocus Tracker qui étudie",
+  }));
+  return sharp(Buffer.from(markup)).resize(size, size).png().toBuffer();
+}
+
+// Huit quarts d'heure : 1 h 45 réellement étudiée, puis un dernier logement
+// prévu. L'écart central regroupe les unités par heure comme dans l'app.
+function studyBlocks(x, y) {
+  const unitWidth = 33;
+  const unitHeight = 16;
+  const gap = 6;
+  const hourGap = 14;
+  return Array.from({ length: 8 }, (_, index) => {
+    const clusterOffset = index >= 4 ? hourGap : 0;
+    const bx = x + index * (unitWidth + gap) + clusterOffset;
+    if (index === 7) {
+      return `<rect x="${bx}" y="${y}" width="${unitWidth}" height="${unitHeight}" rx="5" fill="#153D31" stroke="#8FD4B8" stroke-opacity="0.55"/>`;
+    }
+    return `<rect x="${bx}" y="${y}" width="${unitWidth}" height="${unitHeight}" rx="5" fill="#14B885"/>`;
   }).join("");
 }
 
 async function main() {
   const nunito = fs.readFileSync(FONTS.nunito).toString("base64");
   const quicksand = fs.readFileSync(FONTS.quicksand).toString("base64");
-
-  const W = 1200, H = 630;
+  const W = 1200;
+  const H = 630;
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * 2}" height="${H * 2}" viewBox="0 0 ${W} ${H}">
   <defs>
     <style>
       @font-face { font-family: 'Nunito Sans'; src: url(data:font/woff2;base64,${nunito}); font-weight: 400 800; }
       @font-face { font-family: 'Quicksand'; src: url(data:font/woff2;base64,${quicksand}); font-weight: 600 700; }
-      .head { font-family: 'Quicksand'; font-weight: 700; }
-      .word { font-family: 'Quicksand'; font-weight: 700; }
-      .num  { font-family: 'Nunito Sans'; font-weight: 700; }
+      .display { font-family: 'Quicksand'; font-weight: 700; }
+      .body { font-family: 'Nunito Sans'; }
+      .numeric { font-family: 'Nunito Sans'; font-weight: 700; font-variant-numeric: tabular-nums; }
     </style>
-
-    <linearGradient id="bg" x1="0" y1="0" x2="0.25" y2="1">
-      <stop offset="0" stop-color="#114134"/>
-      <stop offset="0.7" stop-color="#0B2E23"/>
-      <stop offset="1" stop-color="#092018"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.86" cy="-0.05" r="0.7">
-      <stop offset="0" stop-color="#14B885" stop-opacity="0.42"/>
-      <stop offset="0.55" stop-color="#14B885" stop-opacity="0"/>
-    </radialGradient>
-
-    <filter id="grain">
-      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
-      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.035 0"/>
-    </filter>
-    <filter id="blockGlow" x="-120%" y="-120%" width="340%" height="340%">
-      <feGaussianBlur stdDeviation="5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="cardShadow" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#04140F" flood-opacity="0.45"/>
-    </filter>
   </defs>
 
-  <!-- Fond de marque -->
-  <rect width="${W}" height="${H}" fill="url(#bg)"/>
-  <rect width="${W}" height="${H}" fill="url(#glow)"/>
-  <rect width="${W}" height="${H}" fill="#fff" filter="url(#grain)" opacity="0.5"/>
+  <rect width="${W}" height="${H}" fill="#F4F1EA"/>
 
-  <!-- Anneau d'horloge géant ghosté en haut à droite (rappel du logo) -->
-  <g opacity="0.1" stroke="#8FD4B8" fill="none">
-    <circle cx="1066" cy="132" r="172" stroke-width="7"/>
-    <circle cx="1066" cy="132" r="118" stroke-width="2" stroke-opacity="0.6"/>
-    <line x1="1066" y1="132" x2="1066" y2="24" stroke-width="8" stroke-linecap="round"/>
-    <line x1="1066" y1="132" x2="1146" y2="172" stroke-width="8" stroke-linecap="round"/>
-    <circle cx="1066" cy="132" r="9" fill="#8FD4B8" stroke="none"/>
-  </g>
+  <!-- Une seule surface forte : le chrono, centre de gravité du produit. -->
+  <rect x="720" y="56" width="408" height="518" rx="32" fill="#0B2E23"/>
 
-  <!-- Wordmark (la tuile du vrai logo est compositée par-dessus après rendu) -->
-  <text x="182" y="107" class="word" font-size="38" fill="#F2FBF7">blocus<tspan fill="#14B885">·</tspan>tracker</text>
+  <!-- Wordmark -->
+  <text x="154" y="102" class="display" font-size="34" letter-spacing="-1.1" fill="#1F1A17">blocus<tspan fill="#087454">·</tspan>tracker</text>
 
-  <!-- Titre -->
-  <text x="72" y="292" class="head" font-size="70" fill="#F2FBF7" letter-spacing="-2">Le chrono qui rend</text>
-  <text x="72" y="372" class="head" font-size="70" letter-spacing="-2"><tspan fill="#F2FBF7">ton blocus</tspan><tspan fill="#34D399" dx="19">plus clair.</tspan></text>
+  <!-- Promesse -->
+  <text x="72" y="246" class="display" font-size="54" letter-spacing="-1.4" fill="#1F1A17">Le chrono qui rend</text>
+  <text x="72" y="312" class="display" font-size="54" letter-spacing="-1.4" fill="#1F1A17">ton blocus <tspan fill="#087454">plus clair</tspan></text>
+  <text x="73" y="378" class="body" font-size="23" font-weight="600" fill="#655E58">Chrono, planning, stats et entraide pour étudiants.</text>
 
-  <!-- Sous-titre -->
-  <text x="74" y="436" font-family="Nunito Sans" font-weight="600" font-size="27" fill="#8FD4B8">Chrono, planning, stats et entraide pour étudiants.</text>
+  <!-- Instrument de mesure : temps + unités de quinze minutes. -->
+  <text x="924" y="208" text-anchor="middle" class="numeric" font-size="55" letter-spacing="0.6" fill="#F2FBF7">01:45:00</text>
+  ${studyBlocks(760, 452)}
 
-  <!-- Signature chrono : Blocus Blocks + timer -->
-  ${blocks(74, 566, ["done", "done", "done", "done", "active", "todo", "todo", "todo"])}
-  <text x="258" y="562" class="num" font-size="34" fill="#F2FBF7" letter-spacing="1">1:47:12</text>
-
-  <!-- URL -->
-  <text x="${W - 72}" y="562" text-anchor="end" font-family="Nunito Sans" font-weight="600" font-size="24" fill="#8FD4B8">blocus-tracker.com</text>
+  <text x="72" y="560" class="body" font-size="22" font-weight="700" fill="#087454">blocus-tracker.com</text>
 </svg>`;
 
-  const out = path.join(__dirname, "..", "public", "seo-preview.png");
-  const base = await sharp(Buffer.from(svg)).resize(W, H).png().toBuffer(); // 2x → net
-  const tile = await makeLogoTile(90);
+  const out = path.join(ROOT, "public", "seo-preview.png");
+  const base = await sharp(Buffer.from(svg)).resize(W, H).png().toBuffer();
+  const [logo, mascot] = await Promise.all([makeLogoTile(64), makeMascot(182)]);
+
   await sharp(base)
-    .composite([{ input: tile, left: 72, top: 48 }])
+    .composite([
+      { input: logo, left: 72, top: 54 },
+      // Le chien est posé sur la septième unité : le progrès lui donne sa place.
+      { input: mascot, left: 927, top: 270 },
+    ])
     .png({ compressionLevel: 9 })
     .toFile(out);
+
+  const metadata = await sharp(out).metadata();
   const kb = Math.round(fs.statSync(out).size / 1024);
-  console.log(`✓ public/seo-preview.png (${W}×${H}, ${kb} KB)`);
+  console.log(`✓ public/seo-preview.png (${metadata.width}×${metadata.height}, ${kb} KB)`);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
