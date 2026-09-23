@@ -6,6 +6,11 @@ import {
   isCurrentProfileRequest,
 } from "../lib/authProfile.mjs";
 import { getSiteUrl } from "../lib/siteUrl";
+import {
+  buildSignupMetadata,
+  signupNeedsEmailConfirmation,
+} from "../lib/onboarding.mjs";
+import { loadPrivacySettings, recordLegalAcceptance } from "../lib/privacySettings";
 
 const AuthContext = createContext(null);
 
@@ -138,6 +143,67 @@ export function AuthProvider({ children }) {
     setProfileStatus("ready");
   }, []);
 
+  const completePendingSignup = useCallback(async (authUser) => {
+    if (!authUser?.id) return { ok: false };
+    const metadata = authUser.user_metadata || {};
+    const termsVersion = metadata.pending_terms_version || null;
+    const privacyVersion = metadata.pending_privacy_version || null;
+    const referralCode = String(metadata.pending_referral_code || "").trim().toUpperCase() || null;
+    if (!termsVersion && !privacyVersion && !referralCode) return { ok: true, referralApplied: true };
+
+    let legalRecorded = !termsVersion && !privacyVersion;
+    if (termsVersion || privacyVersion) {
+      const { settings } = await loadPrivacySettings(supabase, authUser.id);
+      const legalAlreadyRecorded = (
+        (!termsVersion || settings?.terms_version === termsVersion)
+        && (!privacyVersion || settings?.privacy_version === privacyVersion)
+      );
+      if (!legalAlreadyRecorded) {
+        const result = await recordLegalAcceptance(supabase, authUser.id, {
+          termsVersion,
+          privacyVersion,
+        });
+        legalRecorded = result.ok;
+      } else {
+        legalRecorded = true;
+      }
+    }
+
+    let referralApplied = !referralCode;
+    if (referralCode) {
+      try {
+        const { error } = await supabase.rpc("apply_referral", { p_code: referralCode });
+        referralApplied = !error;
+      } catch (_) {
+        referralApplied = false;
+      }
+      if (referralApplied) {
+        try { localStorage.removeItem("bt_ref_code"); } catch (_) {}
+      }
+    }
+
+    // Clear replay markers only after their work succeeded. A temporarily
+    // unavailable privacy table or referral RPC stays pending for the next
+    // confirmed session instead of losing the signup intent.
+    const nextMetadata = { ...metadata };
+    let metadataChanged = false;
+    if (legalRecorded) {
+      if (nextMetadata.pending_terms_version) metadataChanged = true;
+      if (nextMetadata.pending_privacy_version) metadataChanged = true;
+      delete nextMetadata.pending_terms_version;
+      delete nextMetadata.pending_privacy_version;
+    }
+    if (referralApplied && nextMetadata.pending_referral_code) metadataChanged = true;
+    if (referralApplied) delete nextMetadata.pending_referral_code;
+    if (metadataChanged) {
+      try {
+        await supabase.auth.updateUser({ data: nextMetadata });
+      } catch (_) {}
+    }
+
+    return { ok: true, referralApplied };
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -185,13 +251,19 @@ export function AuthProvider({ children }) {
   // signUp — nouveaux utilisateurs avec vrai email
   //   Anciens utilisateurs : toujours via pseudoToEmail (inchangé)
   // ---------------------------------------------------------------
-  const signUp = useCallback(async (pseudo, password, email, firstName, lastName, university, referralCode, studyField = "", studyYear = "") => {
+  const signUp = useCallback(async ({
+    pseudo,
+    password,
+    email,
+    firstName,
+    lastName,
+    referralCode,
+    termsVersion,
+    privacyVersion,
+  }) => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
     const ln    = (lastName   || "").trim();
-    const uni   = (university || "").trim() || null;
-    const field = (studyField || "").trim() || null;
-    const year  = (studyYear  || "").trim() || null;
     const em    = (email      || "").trim().toLowerCase();
     const ref   = (referralCode || "").trim().toUpperCase() || null;
 
@@ -200,7 +272,6 @@ export function AuthProvider({ children }) {
     // membres connectés, et le pseudo suffit à identifier quelqu'un dans
     // l'app. Un champ laissé vide doit devenir NULL, pas une chaîne vide.
     if (!fn)                 return { error: "Le prénom est obligatoire." };
-    if (!uni)                return { error: "L'établissement est obligatoire." };
     if (password.length < 6) return { error: "Le mot de passe doit faire au moins 6 caractères." };
     if (!em)                 return { error: "L'adresse email est obligatoire." };
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em))
@@ -238,6 +309,8 @@ export function AuthProvider({ children }) {
     // une session valide sans profil. Réutiliser cette session permet au même
     // formulaire de terminer l'inscription au lieu d'afficher "email pris".
     let uid = null;
+    let authUser = null;
+    let sessionReady = false;
     const { data: currentAuthData } = await supabase.auth.getUser();
     const currentAuthUser = currentAuthData?.user || null;
 
@@ -258,11 +331,22 @@ export function AuthProvider({ children }) {
         return { error: "Cet email est déjà utilisé.", errorCode: "EMAIL_TAKEN" };
       }
       uid = currentAuthUser.id;
+      authUser = currentAuthUser;
+      sessionReady = true;
     }
 
     if (!uid) {
       // Créer le compte Supabase Auth avec le vrai email.
       const siteUrl = getSiteUrl();
+      const signupMetadata = buildSignupMetadata({
+        pseudo: clean,
+        firstName: fn,
+        lastName: ln,
+        timezone: detectTimezone(),
+        referralCode: ref,
+        termsVersion,
+        privacyVersion,
+      });
       // `data` alimente raw_user_meta_data, que le trigger v43
       // (create_profile_for_new_user) lit pour créer la fiche DANS la même
       // transaction que le compte. Sans ces métadonnées le trigger ne fait
@@ -273,15 +357,7 @@ export function AuthProvider({ children }) {
         password,
         options: {
           emailRedirectTo: `${siteUrl}/onboarding`,
-          data: {
-            pseudo: clean,
-            first_name: fn,
-            last_name: ln || null,
-            university: uni,
-            study_field: field,
-            study_year: year,
-            timezone: detectTimezone(),
-          },
+          data: signupMetadata,
         },
       });
 
@@ -315,8 +391,12 @@ export function AuthProvider({ children }) {
           };
         }
         uid = recoveredAuth.user.id;
+        authUser = recoveredAuth.user;
+        sessionReady = Boolean(recoveredAuth.session);
       } else {
         uid = data.user?.id || null;
+        authUser = data.user || null;
+        sessionReady = !signupNeedsEmailConfirmation(data);
       }
     }
 
@@ -324,7 +404,7 @@ export function AuthProvider({ children }) {
       return { error: "Le compte n'a pas pu être initialisé.", errorCode: "AUTH_SIGNUP_FAILED" };
     }
 
-    if (uid) {
+    if (uid && sessionReady) {
       // upsert et non insert : une fois la migration v43 passée, le trigger a
       // déjà créé la ligne et un insert échouerait sur la clé primaire — ce qui
       // afficherait une erreur alors que l'inscription a réussi. L'upsert
@@ -335,7 +415,6 @@ export function AuthProvider({ children }) {
         .from("profiles")
         .upsert({
           id: uid, pseudo: clean, email: em, first_name: fn, last_name: ln || null,
-          university: uni, study_field: field, study_year: year,
           timezone: detectTimezone(),
         }, { onConflict: "id" });
       if (pErr) {
@@ -356,22 +435,17 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // Parrainage : si un code valide a été stocké à l'arrivée, on l'applique
-      // côté serveur via RPC SECURITY DEFINER. Erreurs silencieuses : un code
-      // invalide ne doit pas bloquer la création du compte.
-      if (ref) {
-        try {
-          await supabase.rpc("apply_referral", { p_code: ref });
-        } catch (_) {
-          // Pas critique. Le code reste en localStorage si jamais on veut retry.
-        }
-        try { localStorage.removeItem("bt_ref_code"); } catch (_) {}
-      }
-
+      await completePendingSignup(authUser || currentAuthUser);
       await loadProfile(uid);
     }
-    return { error: null, errorCode: null, userId: uid || null };
-  }, [loadProfile]);
+    return {
+      error: null,
+      errorCode: null,
+      userId: uid || null,
+      confirmationRequired: !sessionReady,
+      email: em,
+    };
+  }, [completePendingSignup, loadProfile]);
 
   // ---------------------------------------------------------------
   // signIn — accepte un pseudo OU un email directement.
@@ -490,7 +564,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, profileStatus, loading, signUp, signIn, signOut, refreshProfile, updateEmail }}
+      value={{ user, profile, profileStatus, loading, signUp, signIn, signOut, refreshProfile, updateEmail, completePendingSignup }}
     >
       {children}
     </AuthContext.Provider>

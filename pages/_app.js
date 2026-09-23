@@ -16,6 +16,7 @@ import { I18nProvider, useI18n } from "../contexts/I18nContext";
 import { ConsentProvider, useConsent } from "../contexts/ConsentContext";
 import { supabase, isOfflineDev } from "../lib/supabaseClient";
 import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
+import { deriveOnboardingState, shouldCheckOnboarding } from "../lib/onboarding.mjs";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
 import { disablePush, initOneSignal, loginUser } from "../lib/onesignal";
@@ -45,7 +46,7 @@ function highestStreakMilestone(streak) {
 const BADGE_BY_ID = Object.fromEntries(BADGES.map((b) => [b.id, b]));
 
 function IncompleteProfileGuard() {
-  const { user, loading, profileStatus, refreshProfile } = useAuth();
+  const { user, profile, loading, profileStatus, refreshProfile } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
 
@@ -57,8 +58,30 @@ function IncompleteProfileGuard() {
       pathname: router.pathname,
     })) {
       router.replace({ pathname: "/onboarding", query: { repair: "1" } });
+      return undefined;
     }
-  }, [loading, profileStatus, router, user]);
+
+    if (!shouldCheckOnboarding({
+      authLoading: loading,
+      user,
+      profileStatus,
+      pathname: router.pathname,
+    })) return undefined;
+
+    let cancelled = false;
+    supabase
+      .from("courses")
+      .select("id,archived_at")
+      .eq("user_id", user.id)
+      .is("archived_at", null)
+      .limit(1)
+      .then(({ data, error }) => {
+        if (cancelled || error) return;
+        const state = deriveOnboardingState({ user, profile, courses: data || [] });
+        if (!state.complete) router.replace("/onboarding");
+      });
+    return () => { cancelled = true; };
+  }, [loading, profile, profileStatus, router, user]);
 
   if (
     !loading
@@ -547,6 +570,8 @@ function InstallBanner() {
 
 export default function App({ Component, pageProps }) {
   useEffect(() => initSensoryFeedback(), []);
+  const router = useRouter();
+  const setupInProgress = router.pathname === "/signup" || router.pathname === "/onboarding";
 
   return (
     <AuthProvider>
@@ -583,14 +608,14 @@ export default function App({ Component, pageProps }) {
         <PageTransition />
         <IncompleteProfileGuard />
         <Component {...pageProps} />
-        <GlobalLevelUpWatcher />
+        {!setupInProgress && <GlobalLevelUpWatcher />}
         <AppVersionRefresh />
         <ReferralCapture />
         <PushInit />
         <ConsentSync />
-        <InstallBanner />
-        <ConsentManager />
-        <LegalUpdateNotice />
+        {!setupInProgress && <InstallBanner />}
+        {!setupInProgress && <ConsentManager />}
+        {!setupInProgress && <LegalUpdateNotice />}
       </ToastProvider>
       </NotificationProvider>
       </TimerProvider>

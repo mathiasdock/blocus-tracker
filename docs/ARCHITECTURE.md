@@ -48,10 +48,10 @@
 |-------|------|------|
 | `/` | `index.js` | Landing / redirect to /dashboard if logged in |
 | `/login` | `login.js` | Pseudo + password sign-in |
-| `/signup` | `signup.js` | Account creation (pseudo + email + university) |
+| `/signup` | `signup.js` | Steps 1–2 of the canonical setup (account + identity) |
 | `/forgot-password` | `forgot-password.js` | Send reset email |
 | `/reset-password` | `reset-password.js` | Set new password from email link |
-| `/onboarding` | `onboarding.js` | Post-signup quick setup |
+| `/onboarding` | `onboarding.js` | Steps 3–5 (university + studies + courses), resume and profile repair |
 | `/dashboard` | `dashboard.js` | **Main page** — pomodoro timer |
 | `/planning` | `planning.js` | Objectives, schedule |
 | `/stats` | `stats.js` | Heatmap, charts, leaderboard, goals |
@@ -66,10 +66,14 @@
 ## Auth flows
 
 ### Signup (new users)
-1. `signup.js` collects: first name, last name, pseudo, **email**, university, password.
-2. `AuthContext.signUp()` calls `supabase.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL/onboarding } })`.
-3. Profile row inserted in `public.profiles` with the real email column.
-4. Resend SMTP sends confirmation email (if "Confirm email" is enabled in Supabase).
+1. `signup.js` presents one five-step journey: Account → You → University → Studies → Courses. The first two live on `/signup`; the last three live on `/onboarding`.
+2. `AuthContext.signUp()` sends identity metadata plus `onboarding_version=1` to `supabase.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL/onboarding } })`.
+3. The v43 trigger creates the minimal profile in the same transaction. University, `broad_field`, year and courses are then saved by their real onboarding steps.
+4. If Supabase returns a session, setup continues immediately. If `session` is null, `/signup` shows a dedicated email-confirmation state; the callback resumes `/onboarding`.
+5. Referral and legal-version work is stored as pending Auth metadata until a usable session exists, then replayed idempotently.
+6. `lib/onboarding.mjs` derives the first incomplete step from Auth metadata, canonical profile fields and at least one active course. `localStorage` is never completion authority.
+
+> Existing accounts without `onboarding_version` are legacy and remain valid even when they predate `broad_field`. Only new versioned accounts and missing-profile repair accounts are guarded by the canonical requirements.
 
 ### Login (all users)
 1. An email signs in directly with Supabase Auth. A pseudo POSTs to `/api/login` with `{ pseudo, password }`.
@@ -91,14 +95,14 @@
 ### Incomplete legacy signup repair
 1. `AuthContext` distinguishes a truly missing profile from a temporary profile-load error.
 2. An authenticated account with no `profiles` row is sent to `/onboarding` (never auto-deleted or recreated).
-3. The user confirms their name, pseudo and university. Onboarding inserts the missing profile with the existing Auth UUID and canonical Auth email.
-4. Existing sessions, courses and other data remain attached to the same account.
+3. The user confirms their name and pseudo. Onboarding inserts the missing profile with the existing Auth UUID and canonical Auth email, then marks that account for the canonical University → Studies → Courses journey.
+4. Existing sessions, courses and other data remain attached to the same account; retries first look for the user's own repaired profile to avoid duplicate creation.
 
 ## Contexts
 
 | Context | Purpose | Key exports |
 |---------|---------|-------------|
-| `AuthContext` | Auth state, profile | `user`, `profile`, `profileStatus`, `signIn`, `signUp`, `signOut`, `updateEmail`, `refreshProfile` |
+| `AuthContext` | Auth state, profile | `user`, `profile`, `profileStatus`, `signIn`, `signUp`, `signOut`, `updateEmail`, `refreshProfile`, `completePendingSignup` |
 | `I18nContext` | FR/EN i18n | `t`, `lang`, `setLang` |
 | `NotificationContext` | Unread badges (feed, friends, communities, messages, comments) | `feedCount`, `commentCount`, `friendCount`, `totalCommunity`, `messageCount`, `markSeen` |
 | `TimerContext` | Global pomodoro timer state | `running`, `elapsed`, `start`, `pause`, `stop` |

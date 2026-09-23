@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useAuth } from "../contexts/AuthContext";
+import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
 import { useI18n } from "../contexts/I18nContext";
 import { useConsent } from "../contexts/ConsentContext";
 import { COUNTRIES } from "../lib/universities";
@@ -223,7 +224,7 @@ export default function Home() {
     if (profileStatus === "missing") {
       router.replace({ pathname: "/onboarding", query: { repair: "1" } });
     } else if (profileStatus === "ready") {
-      router.replace("/dashboard");
+      router.replace(isManagedOnboardingUser(user) ? "/onboarding" : "/dashboard");
     }
   }, [loading, profileStatus, router, user]);
 

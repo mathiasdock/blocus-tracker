@@ -6,6 +6,7 @@ import AuthBrand from "../components/AuthBrand";
 import PasswordInput from "../components/PasswordInput";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
+import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
 
 export default function Login() {
   const { signIn, user, loading, profileStatus } = useAuth();
@@ -22,7 +23,7 @@ export default function Login() {
     if (profileStatus === "missing") {
       router.replace({ pathname: "/onboarding", query: { repair: "1" } });
     } else if (profileStatus === "ready") {
-      router.replace("/dashboard");
+      router.replace(isManagedOnboardingUser(user) ? "/onboarding" : "/dashboard");
     }
   }, [user, loading, profileStatus, router]);
 

@@ -11,6 +11,16 @@ import { supabase } from "../lib/supabaseClient";
 import { STUDY_YEARS } from "../lib/studyYears";
 import StudyProgramInput from "../components/StudyProgramInput";
 import StudyFieldPicker from "../components/StudyFieldPicker";
+import {
+  ONBOARDING_VERSION,
+  ONBOARDING_STEPS,
+  deriveOnboardingState,
+  hasDuplicateCourse,
+  mergeCourseById,
+  nextCourseColor,
+  normalizeCourseName,
+} from "../lib/onboarding.mjs";
+import { newClientId } from "../lib/timerDraft";
 
 function PlusIcon() {
   return (
@@ -41,13 +51,12 @@ function LoadingState({ label }) {
 }
 
 export default function Onboarding() {
-  const { user, loading, refreshProfile } = useAuth();
+  const { user, loading, refreshProfile, completePendingSignup } = useAuth();
   const { t } = useI18n();
   const router = useRouter();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(ONBOARDING_STEPS.UNIVERSITY);
   const [ready, setReady] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [profileMissing, setProfileMissing] = useState(false);
   const [pseudo, setPseudo] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -73,6 +82,9 @@ export default function Onboarding() {
   const [savingCourse, setSavingCourse] = useState(false);
   const [courseError, setCourseError] = useState("");
   const [finishing, setFinishing] = useState(false);
+  const [editingCourseId, setEditingCourseId] = useState(null);
+  const [editingCourseName, setEditingCourseName] = useState("");
+  const [courseActionId, setCourseActionId] = useState(null);
 
   function goToStep(nextStep) {
     setStep(nextStep);
@@ -92,6 +104,7 @@ export default function Onboarding() {
       setReady(false);
       setLoadError("");
       try {
+        await completePendingSignup(user);
         const [profileResult, coursesResult] = await Promise.all([
           supabase
             .from("profiles")
@@ -100,8 +113,9 @@ export default function Onboarding() {
             .maybeSingle(),
           supabase
             .from("courses")
-            .select("id,name,color,created_at")
+            .select("id,name,color,created_at,archived_at")
             .eq("user_id", user.id)
+            .is("archived_at", null)
             .order("created_at", { ascending: true })
             .limit(30),
         ]);
@@ -114,21 +128,20 @@ export default function Onboarding() {
         const currentCourses = coursesResult.data || [];
         const currentYear = currentProfile.study_year || "";
         const knownYear = STUDY_YEARS.some(year => year.value === currentYear);
-        let savedStep = 0;
-        try {
-          // Never trust a local completion flag when the database profile is
-          // missing: that is exactly how legacy half-created accounts became
-          // stuck outside the repair flow.
-          if (!missingProfile && localStorage.getItem(`bt_onboarded_${user.id}`) === "true") {
-            router.replace("/dashboard");
-            return;
-          }
-          if (!missingProfile) {
-            savedStep = Number(localStorage.getItem(`bt_onboarding_step_${user.id}`)) || 0;
-          }
-        } catch (_) {}
+        // A repair URL is only a hint. Server state remains authoritative so
+        // an existing legacy profile is never forced into the new journey.
+        const repair = missingProfile;
+        const onboardingState = deriveOnboardingState({
+          user,
+          profile: profileResult.data,
+          courses: currentCourses,
+          repair,
+        });
+        if (onboardingState.complete) {
+          router.replace("/dashboard");
+          return;
+        }
 
-        setProfileMissing(missingProfile);
         setPseudo(currentProfile.pseudo || "");
         setFirstName(currentProfile.first_name || "");
         setLastName(currentProfile.last_name || "");
@@ -138,10 +151,15 @@ export default function Onboarding() {
         setStudyYear(knownYear ? currentYear : (currentYear ? "Autre" : ""));
         setStudyYearCustom(knownYear ? "" : currentYear);
         setCourses(currentCourses);
-
-        if (missingProfile || !currentProfile.university) setStep(0);
-        else if (savedStep >= 1 && savedStep <= 2) setStep(savedStep);
-        else setStep(2);
+        setNewColor(nextCourseColor(currentCourses, COURSE_COLORS) || COURSE_COLORS[0]);
+        try {
+          const draftKey = `bt_onboarding_course_draft_${user.id}`;
+          const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
+          if (draft?.id && currentCourses.some(course => course.id === draft.id)) {
+            localStorage.removeItem(draftKey);
+          }
+        } catch (_) {}
+        setStep(onboardingState.step);
 
         setReady(true);
       } catch (_) {
@@ -154,77 +172,54 @@ export default function Onboarding() {
 
     loadSetup();
     return () => { cancelled = true; };
-  }, [user, loading, router, reloadKey, t]);
+  }, [user, loading, router, reloadKey, t, completePendingSignup]);
 
   const selectedUniversity = useCustomUniversity
     ? customUniversity.trim()
     : university.trim();
 
-  async function saveUniversity(event) {
+  async function saveIdentity(event) {
     event.preventDefault();
-    setUniversityError("");
     setIdentityError("");
-    if (!selectedUniversity) {
-      setUniversityError(t("onboarding.university.required"));
-      return;
-    }
-
     const cleanPseudo = pseudo.trim();
     const cleanFirstName = firstName.trim();
     const cleanLastName = lastName.trim();
-    if (profileMissing) {
-      if (!cleanFirstName) {
-        setIdentityError(t("signup.errFirstName"));
-        return;
-      }
-      if (cleanPseudo.length < 3 || cleanPseudo.length > 30 || /\s/.test(cleanPseudo)) {
-        setIdentityError(t("signup.errPseudo"));
-        return;
-      }
+    if (!cleanFirstName) {
+      setIdentityError(t("signup.errFirstName"));
+      return;
+    }
+    if (cleanPseudo.length < 3 || cleanPseudo.length > 30 || /\s/.test(cleanPseudo)) {
+      setIdentityError(t("signup.errPseudo"));
+      return;
     }
 
     setSavingUniversity(true);
     try {
-      if (profileMissing) {
-        const loadOwnProfile = () => supabase
-          .from("profiles")
-          .select("id,pseudo,first_name,last_name,university")
-          .eq("id", user.id)
-          .maybeSingle();
-        const resumeExistingProfile = async (existingProfile) => {
-          setProfileMissing(false);
-          setPseudo(existingProfile.pseudo || cleanPseudo);
-          setFirstName(existingProfile.first_name || cleanFirstName);
-          setLastName(existingProfile.last_name || cleanLastName);
-          setUniversity(existingProfile.university || selectedUniversity);
-          setUseCustomUniversity(false);
-          await refreshProfile();
-          goToStep(1);
-        };
+      const loadOwnProfile = () => supabase
+        .from("profiles")
+        .select("id,pseudo,first_name,last_name,university")
+        .eq("id", user.id)
+        .maybeSingle();
 
-        // Idempotency: another device, or an INSERT whose response was lost,
-        // may already have completed the repair for this same Auth UUID.
-        const initialOwnProfile = await loadOwnProfile();
-        if (initialOwnProfile.error) throw initialOwnProfile.error;
-        if (initialOwnProfile.data) {
-          await resumeExistingProfile(initialOwnProfile.data);
-          return;
-        }
-
+      const initialOwnProfile = await loadOwnProfile();
+      if (initialOwnProfile.error) throw initialOwnProfile.error;
+      let ownProfile = initialOwnProfile.data || null;
+      if (!ownProfile) {
         const { data: pseudoAvailable, error: pseudoError } = await supabase
           .rpc("is_pseudo_available", { p_pseudo: cleanPseudo });
         if (pseudoError) throw pseudoError;
         if (pseudoAvailable !== true) {
           const racedOwnProfile = await loadOwnProfile();
           if (racedOwnProfile.error) throw racedOwnProfile.error;
-          if (racedOwnProfile.data) {
-            await resumeExistingProfile(racedOwnProfile.data);
+          ownProfile = racedOwnProfile.data || null;
+          if (!ownProfile) {
+            setIdentityError(t("signup.errPseudoTaken"));
             return;
           }
-          setIdentityError(t("signup.errPseudoTaken"));
-          return;
         }
+      }
 
+      if (!ownProfile) {
         const timezone = typeof Intl === "undefined"
           ? "Europe/Paris"
           : (Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris");
@@ -235,7 +230,6 @@ export default function Onboarding() {
             pseudo: cleanPseudo,
             first_name: cleanFirstName,
             last_name: cleanLastName || null,
-            university: selectedUniversity,
             email: user.email,
             timezone,
           })
@@ -245,35 +239,64 @@ export default function Onboarding() {
           if (error.code === "23505") {
             const racedOwnProfile = await loadOwnProfile();
             if (racedOwnProfile.error) throw racedOwnProfile.error;
-            if (racedOwnProfile.data) {
-              await resumeExistingProfile(racedOwnProfile.data);
-              return;
-            }
+            ownProfile = racedOwnProfile.data || null;
           }
-          throw error;
+          if (!ownProfile) throw error;
         }
-        if (data?.id !== user.id) throw new Error("profile_repair_failed");
-        setProfileMissing(false);
-      } else {
+        if (!ownProfile && data?.id !== user.id) throw new Error("profile_repair_failed");
+      } else if (!ownProfile.first_name || !ownProfile.pseudo) {
         const { data, error } = await supabase
           .from("profiles")
-          .update({ university: selectedUniversity })
+          .update({ pseudo: cleanPseudo, first_name: cleanFirstName, last_name: cleanLastName || null })
           .eq("id", user.id)
           .select("id")
           .single();
-        if (error || data?.id !== user.id) throw error || new Error("profile_update_failed");
+        if (error || data?.id !== user.id) throw error || new Error("profile_repair_failed");
       }
 
-      setUniversity(selectedUniversity);
-      setUseCustomUniversity(false);
+      // A repaired ghost account now follows the same server-derived journey
+      // as a fresh signup, including refresh and another-device resume.
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { ...(user.user_metadata || {}), onboarding_version: ONBOARDING_VERSION },
+      });
+      if (metadataError) throw metadataError;
       await refreshProfile();
-      goToStep(1);
+      goToStep(ONBOARDING_STEPS.UNIVERSITY);
     } catch (error) {
       if (error?.code === "23505" && /pseudo/i.test(`${error.message || ""} ${error.details || ""}`)) {
         setIdentityError(t("signup.errPseudoTaken"));
       } else {
-        setUniversityError(t("onboarding.saveError"));
+        setIdentityError(t("onboarding.saveError"));
       }
+    } finally {
+      setSavingUniversity(false);
+    }
+  }
+
+  async function saveUniversity(event) {
+    event.preventDefault();
+    setUniversityError("");
+    if (!selectedUniversity) {
+      setUniversityError(t("onboarding.university.required"));
+      return;
+    }
+
+    setSavingUniversity(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ university: selectedUniversity })
+        .eq("id", user.id)
+        .select("id")
+        .single();
+      if (error || data?.id !== user.id) throw error || new Error("profile_update_failed");
+
+      setUniversity(selectedUniversity);
+      setUseCustomUniversity(false);
+      await refreshProfile();
+      goToStep(ONBOARDING_STEPS.STUDIES);
+    } catch (_) {
+      setUniversityError(t("onboarding.saveError"));
     } finally {
       setSavingUniversity(false);
     }
@@ -285,6 +308,10 @@ export default function Onboarding() {
     const actualYear = studyYear === "Autre"
       ? (studyYearCustom.trim() || "Autre")
       : studyYear;
+    if (!broadField || !actualYear) {
+      setStudyInfoError(t("onboarding.field.required"));
+      return;
+    }
 
     setSavingStudyInfo(true);
     try {
@@ -301,7 +328,7 @@ export default function Onboarding() {
       if (error || data?.id !== user.id) throw error || new Error("profile_update_failed");
 
       await refreshProfile();
-      goToStep(2);
+      goToStep(ONBOARDING_STEPS.COURSES);
     } catch (_) {
       setStudyInfoError(t("onboarding.saveError"));
     } finally {
@@ -316,23 +343,37 @@ export default function Onboarding() {
       setCourseError(t("onboarding.courses.needOne"));
       return null;
     }
-    if (courses.some(course => course.name.trim().toLowerCase() === name.toLowerCase())) {
+    if (hasDuplicateCourse(courses, name)) {
       setCourseError(t("onboarding.courses.duplicate"));
       return null;
     }
 
     setSavingCourse(true);
     try {
+      const draftKey = `bt_onboarding_course_draft_${user.id}`;
+      let courseId = null;
+      try {
+        const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
+        if (draft?.id && draft?.nameKey === normalizeCourseName(name)) courseId = draft.id;
+      } catch (_) {}
+      courseId ||= newClientId();
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({ id: courseId, nameKey: normalizeCourseName(name) }));
+      } catch (_) {}
+
       const { data, error } = await supabase
         .from("courses")
-        .insert({ user_id: user.id, name, color: newColor })
-        .select("id,name,color,created_at")
+        .upsert({ id: courseId, user_id: user.id, name, color: newColor }, { onConflict: "id" })
+        .select("id,name,color,created_at,archived_at")
         .single();
       if (error || !data) throw error || new Error("course_create_failed");
 
       clearClientCache(`dashboard:${user.id}:`);
-      setCourses(current => [...current, data]);
+      const nextCourses = mergeCourseById(courses, data);
+      setCourses(nextCourses);
       setNewCourse("");
+      setNewColor(nextCourseColor(nextCourses, COURSE_COLORS) || COURSE_COLORS[0]);
+      try { localStorage.removeItem(draftKey); } catch (_) {}
       return data;
     } catch (_) {
       setCourseError(t("onboarding.courses.saveError"));
@@ -345,6 +386,56 @@ export default function Onboarding() {
   async function addCourse(event) {
     event.preventDefault();
     await createCourse();
+  }
+
+  async function saveCourseEdit(course) {
+    const name = editingCourseName.trim();
+    setCourseError("");
+    if (!name || hasDuplicateCourse(courses, name, course.id)) {
+      setCourseError(name ? t("onboarding.courses.duplicate") : t("onboarding.courses.needOne"));
+      return;
+    }
+    setCourseActionId(course.id);
+    try {
+      const { data, error } = await supabase
+        .from("courses")
+        .update({ name })
+        .eq("id", course.id)
+        .eq("user_id", user.id)
+        .select("id,name,color,created_at,archived_at")
+        .single();
+      if (error || !data) throw error || new Error("course_update_failed");
+      setCourses(current => current.map(item => item.id === data.id ? data : item));
+      setEditingCourseId(null);
+      setEditingCourseName("");
+      clearClientCache(`dashboard:${user.id}:`);
+    } catch (_) {
+      setCourseError(t("onboarding.courses.saveError"));
+    } finally {
+      setCourseActionId(null);
+    }
+  }
+
+  async function removeCourse(course) {
+    setCourseError("");
+    setCourseActionId(course.id);
+    try {
+      const { error } = await supabase
+        .from("courses")
+        .delete()
+        .eq("id", course.id)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      const nextCourses = courses.filter(item => item.id !== course.id);
+      setCourses(nextCourses);
+      setNewColor(nextCourseColor(nextCourses, COURSE_COLORS) || COURSE_COLORS[0]);
+      if (editingCourseId === course.id) setEditingCourseId(null);
+      clearClientCache(`dashboard:${user.id}:`);
+    } catch (_) {
+      setCourseError(t("onboarding.courses.removeError"));
+    } finally {
+      setCourseActionId(null);
+    }
   }
 
   async function finish() {
@@ -401,15 +492,14 @@ export default function Onboarding() {
           subtitle={firstName ? `${t("onboarding.hello")} ${firstName}. ${t("onboarding.subtitle")}` : t("onboarding.subtitle")}
         />
 
-        <div className="mb-5" aria-label={`${t("onboarding.stepLabel")} ${step + 1} / 3`}>
-          <div className="mb-2 flex items-center justify-between text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>
-            <span>{t("onboarding.stepLabel")} {step + 1} / 3</span>
-            <span>{t("onboarding.duration")}</span>
+        <div className="mb-5">
+          <div className="mb-2 flex items-center justify-between text-xs font-semibold" style={{ color: "var(--bt-text-1)" }}>
+            <span>{t("onboarding.stepLabel")} {step + 1} / 5</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-border)" }}>
+          <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-border)" }} role="progressbar" aria-label={`${t("onboarding.stepLabel")} ${step + 1} / 5`} aria-valuemin="1" aria-valuemax="5" aria-valuenow={step + 1}>
             <div
               className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out motion-reduce:transition-none"
-              style={{ width: `${((step + 1) / 3) * 100}%` }}
+              style={{ width: `${((step + 1) / 5) * 100}%` }}
             />
           </div>
         </div>
@@ -426,77 +516,57 @@ export default function Onboarding() {
           </div>
         ) : (
           <div key={step} className="card bt-rise p-6 sm:p-8">
-            {step === 0 && (
-              <form onSubmit={saveUniversity} noValidate>
+            {step === ONBOARDING_STEPS.YOU && (
+              <form onSubmit={saveIdentity} noValidate>
                 <div className="mb-6">
-                  <h1 className="text-2xl">
-                    {profileMissing ? t("onboarding.repair.title") : t("onboarding.university.title")}
-                  </h1>
+                  <h1 className="text-2xl">{t("onboarding.repair.title")}</h1>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                    {profileMissing ? t("onboarding.repair.subtitle") : t("onboarding.university.subtitle")}
+                    {t("onboarding.repair.subtitle")}
                   </p>
                 </div>
 
-                {profileMissing && (
-                  <div className="mb-5 space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="label" htmlFor="onboarding-first-name">{t("profile.firstName")}</label>
-                        <input
-                          id="onboarding-first-name"
-                          className="input"
-                          value={firstName}
-                          onChange={event => { setFirstName(event.target.value); setIdentityError(""); }}
-                          maxLength={80}
-                          autoComplete="given-name"
-                        />
-                      </div>
-                      <div>
-                        <div className="mb-1 flex items-center justify-between">
-                          <label className="label mb-0" htmlFor="onboarding-last-name">{t("profile.lastName")}</label>
-                          <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.optional")}</span>
-                        </div>
-                        <input
-                          id="onboarding-last-name"
-                          className="input"
-                          value={lastName}
-                          onChange={event => { setLastName(event.target.value); setIdentityError(""); }}
-                          maxLength={80}
-                          autoComplete="family-name"
-                        />
-                      </div>
-                    </div>
-
+                <div className="mb-5 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="label" htmlFor="onboarding-pseudo">{t("signup.pseudo")}</label>
-                      <input
-                        id="onboarding-pseudo"
-                        className="input"
-                        value={pseudo}
-                        onChange={event => { setPseudo(event.target.value); setIdentityError(""); }}
-                        maxLength={30}
-                        autoComplete="username"
-                        autoCapitalize="none"
-                        spellCheck="false"
-                      />
-                      <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.pseudoHint")}</p>
+                      <label className="label" htmlFor="onboarding-first-name">{t("profile.firstName")}</label>
+                      <input id="onboarding-first-name" className="input" value={firstName} onChange={event => { setFirstName(event.target.value); setIdentityError(""); }} maxLength={80} autoComplete="given-name" autoFocus />
                     </div>
-
                     <div>
-                      <label className="label" htmlFor="onboarding-email">{t("signup.email")}</label>
-                      <input
-                        id="onboarding-email"
-                        className="input"
-                        value={user.email || ""}
-                        readOnly
-                        autoComplete="email"
-                      />
-                      <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("onboarding.repair.emailHelp")}</p>
+                      <div className="mb-1 flex items-center justify-between">
+                        <label className="label mb-0" htmlFor="onboarding-last-name">{t("profile.lastName")}</label>
+                        <span className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.optional")}</span>
+                      </div>
+                      <input id="onboarding-last-name" className="input" value={lastName} onChange={event => { setLastName(event.target.value); setIdentityError(""); }} maxLength={80} autoComplete="family-name" />
                     </div>
-
-                    {identityError && <div className="bt-form-alert" role="alert">{identityError}</div>}
                   </div>
-                )}
+
+                  <div>
+                    <label className="label" htmlFor="onboarding-pseudo">{t("signup.pseudo")}</label>
+                    <input id="onboarding-pseudo" className="input" value={pseudo} onChange={event => { setPseudo(event.target.value); setIdentityError(""); }} maxLength={30} autoComplete="username" autoCapitalize="none" spellCheck="false" />
+                    <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.pseudoHint")}</p>
+                  </div>
+
+                  <div>
+                    <label className="label" htmlFor="onboarding-email">{t("signup.email")}</label>
+                    <input id="onboarding-email" className="input" value={user.email || ""} readOnly autoComplete="email" />
+                    <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("onboarding.repair.emailHelp")}</p>
+                  </div>
+
+                  {identityError && <div className="bt-form-alert" role="alert">{identityError}</div>}
+                </div>
+
+                <button className="btn-primary w-full min-h-11" disabled={savingUniversity} aria-busy={savingUniversity}>
+                  {savingUniversity ? t("onboarding.saving") : t("onboarding.continue")}
+                </button>
+              </form>
+            )}
+
+            {step === ONBOARDING_STEPS.UNIVERSITY && (
+              <form onSubmit={saveUniversity} noValidate>
+                <div className="mb-6">
+                  <h1 className="text-2xl">{t("onboarding.university.title")}</h1>
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("onboarding.university.subtitle")}</p>
+                </div>
 
                 <label className="label" htmlFor="onboarding-university">{t("signup.university")}</label>
                 {!useCustomUniversity ? (
@@ -561,7 +631,7 @@ export default function Onboarding() {
               </form>
             )}
 
-            {step === 1 && (
+            {step === ONBOARDING_STEPS.STUDIES && (
               <form onSubmit={saveStudyInfo} noValidate>
                 <div className="mb-6">
                   <h1 className="text-2xl">{t("onboarding.field.title")}</h1>
@@ -571,7 +641,7 @@ export default function Onboarding() {
                 </div>
 
                 <div className="space-y-4">
-                  <StudyFieldPicker value={broadField} onChange={setBroadField} id="onboarding-broad-field" />
+                  <StudyFieldPicker value={broadField} onChange={value => { setBroadField(value); setStudyInfoError(""); }} id="onboarding-broad-field" required />
                   <StudyProgramInput id="onboarding-field" value={studyField} onChange={setStudyField} maxLength={100} />
 
                   <div>
@@ -583,6 +653,7 @@ export default function Onboarding() {
                       onChange={event => {
                         setStudyYear(event.target.value);
                         setStudyYearCustom("");
+                        setStudyInfoError("");
                       }}
                     >
                       <option value="">{t("onboarding.year.choose")}</option>
@@ -609,22 +680,20 @@ export default function Onboarding() {
                 {studyInfoError && <div className="bt-form-alert mt-5" role="alert">{studyInfoError}</div>}
 
                 <div className="mt-6 flex gap-3">
-                  <button type="button" className="btn-ghost flex-1" onClick={() => goToStep(0)}>
+                  <button type="button" className="btn-ghost flex-1" onClick={() => goToStep(ONBOARDING_STEPS.UNIVERSITY)}>
                     {t("comm.back")}
                   </button>
                   <button className="btn-primary flex-1" disabled={savingStudyInfo} aria-busy={savingStudyInfo}>
-                    {savingStudyInfo
-                      ? t("onboarding.saving")
-                      : (studyField.trim() || broadField || studyYear ? t("onboarding.saveContinue") : t("onboarding.skip"))}
+                    {savingStudyInfo ? t("onboarding.saving") : t("onboarding.saveContinue")}
                   </button>
                 </div>
                 <p className="mt-3 text-center text-xs" style={{ color: "var(--bt-text-2)" }}>
-                  {t("onboarding.field.optional")}
+                  {t("onboarding.field.programOptional")}
                 </p>
               </form>
             )}
 
-            {step === 2 && (
+            {step === ONBOARDING_STEPS.COURSES && (
               <div>
                 <div className="mb-6">
                   <h1 className="text-2xl">{t("onboarding.courses.title")}</h1>
@@ -687,10 +756,45 @@ export default function Onboarding() {
                     </p>
                     <ul className="space-y-2">
                       {courses.map(course => (
-                        <li key={course.id} className="flex min-h-11 items-center gap-3 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                          <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium">{course.name}</span>
-                          <span className="bt-accent-link" aria-hidden="true"><CheckIcon /></span>
+                        <li key={course.id} className="min-h-11 rounded-xl px-3 py-2" style={{ backgroundColor: "var(--bt-subtle)" }}>
+                          {editingCourseId === course.id ? (
+                            <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); saveCourseEdit(course); }}>
+                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
+                              <input
+                                className="input min-w-0 flex-1 py-1.5"
+                                value={editingCourseName}
+                                onChange={event => { setEditingCourseName(event.target.value); setCourseError(""); }}
+                                maxLength={80}
+                                autoFocus
+                                aria-label={t("onboarding.courses.editName")}
+                              />
+                              <button type="submit" className="bt-accent-link min-h-11 px-2 text-xs font-semibold" disabled={courseActionId === course.id}>
+                                {t("common.save")}
+                              </button>
+                            </form>
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
+                              <span className="min-w-0 flex-1 truncate text-sm font-medium">{course.name}</span>
+                              <button
+                                type="button"
+                                className="min-h-11 px-2 text-xs font-semibold"
+                                style={{ color: "var(--bt-text-2)" }}
+                                onClick={() => { setEditingCourseId(course.id); setEditingCourseName(course.name); setCourseError(""); }}
+                              >
+                                {t("common.edit")}
+                              </button>
+                              <button
+                                type="button"
+                                className="min-h-11 px-2 text-xs font-semibold"
+                                style={{ color: "var(--bt-danger)" }}
+                                onClick={() => removeCourse(course)}
+                                disabled={courseActionId === course.id}
+                              >
+                                {t("common.remove")}
+                              </button>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -700,7 +804,7 @@ export default function Onboarding() {
                 {courseError && <p id="course-error" className="bt-form-error mt-4 text-sm" role="alert">{courseError}</p>}
 
                 <div className="mt-6 flex gap-3">
-                  <button type="button" className="btn-ghost flex-1" onClick={() => goToStep(1)}>
+                  <button type="button" className="btn-ghost flex-1" onClick={() => goToStep(ONBOARDING_STEPS.STUDIES)}>
                     {t("comm.back")}
                   </button>
                   <button

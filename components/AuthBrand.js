@@ -22,7 +22,7 @@ export default function AuthBrand({ subtitle, compact = false }) {
         </span>
       </div>
       {subtitle && (
-        <p className="mx-auto mt-2 max-w-xs text-sm font-medium leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+        <p className="mx-auto mt-2 max-w-xs text-sm font-medium leading-relaxed" style={{ color: "var(--bt-text-1)" }}>
           {subtitle}
         </p>
       )}
