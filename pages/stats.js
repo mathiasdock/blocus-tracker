@@ -339,8 +339,15 @@ export default function Stats() {
           {/* Volume et répartition côte à côte à partir de xl : deux lectures
               de la même période récente. Le graphique prend la largeur, parce
               qu'une tendance se lit en comparant des barres voisines. */}
+          {/* Les deux cartes ont toujours la même hauteur, et c'est « Par
+              cours » qui la décide : le graphique est posé en absolu dans sa
+              case et ne pèse rien. Plus de cours, graphique plus haut. Le
+              plancher de la case (18rem) garde le graphique lisible quand il
+              n'y a que deux cours — « Par cours » s'allonge alors d'autant. */}
           <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="min-w-0 xl:relative xl:min-h-[18rem]">
             <StudyTimeChart
+              className="xl:absolute xl:inset-0"
               series={series}
               goalMinutes={DAILY_GOAL_SECS / 60}
               periodLabel={rangeLabel(chartPeriod, chartRange)}
@@ -348,8 +355,8 @@ export default function Stats() {
               periodOptions={periodOptions}
               onPeriodChange={setChartPeriod}
             />
+            </div>
             <StudyByCourse
-              className="xl:self-start"
               rows={breakdown.rows}
               totalSecs={breakdown.totalSecs}
               periodLabel={rangeLabel(coursePeriod, courseRange)}
@@ -395,14 +402,17 @@ export default function Stats() {
                 {t("stats.compareSectionSub")}
               </p>
             </div>
-            <div className="flex flex-col gap-4 xl:grid xl:grid-cols-2 xl:items-start xl:gap-5">
-              <Leaderboard
-                user={user}
-                profile={profile}
-                onViewUser={setViewUserId}
-                compact
-                desktopTall
-              />
+            {/* Le classement fait la hauteur de « Comparer » et défile dedans. */}
+            <div className="flex flex-col gap-4 xl:grid xl:grid-cols-2 xl:gap-5">
+              <div className="min-w-0 xl:relative">
+                <Leaderboard
+                  user={user}
+                  profile={profile}
+                  onViewUser={setViewUserId}
+                  compact
+                  desktopTall
+                />
+              </div>
               <CompareCard comparison={comparison} position={position} />
             </div>
           </section>

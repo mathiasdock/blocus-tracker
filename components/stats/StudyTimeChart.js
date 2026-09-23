@@ -240,15 +240,16 @@ export default function StudyTimeChart({
 
         {hasData ? (
           <>
-            <div className="mt-3">
-              {chartRegion("h-52 sm:h-56 xl:h-60")}
+            {/* Sur ordinateur la carte prend la hauteur de « Par cours » à côté
+                (voir stats.js) : le graphique occupe ce qui reste. */}
+            <div className="mt-3 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col">
+              {chartRegion("h-52 sm:h-56 xl:h-auto xl:min-h-0 xl:flex-1")}
             </div>
-            <div className="mt-auto pt-3">
-              <p className="text-[11px] leading-snug" style={{ color: "var(--bt-text-4)" }}>
-                {t("stats.chartTapHint")}
-                {hasPartial && <><br />{t("stats.chartPartialHint")}</>}
+            {hasPartial && (
+              <p className="mt-3 text-[11px] leading-snug" style={{ color: "var(--bt-text-4)" }}>
+                {t("stats.chartPartialHint")}
               </p>
-            </div>
+            )}
           </>
         ) : (
           <p className="py-10 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>{t("stats.chartNoData")}</p>

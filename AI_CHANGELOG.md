@@ -2,6 +2,11 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Planning et Stats : agencement desktop
+
+- Planning : s'ouvre toujours sur le Mois (mobile et desktop) ; la préférence `bt_plan_view` n'est plus relue ni écrite. Sur ordinateur (lg+), la bascule Jour/Semaine/Mois passe à droite du titre, à côté des flèches.
+- Stats : « Temps d'étude » prend la hauteur de « Étude par cours » (graphique en absolu dans sa case, plancher 18rem pour rester lisible avec deux cours) ; phrase « Touche une barre… » retirée (clé `stats.chartTapHint` supprimée) ; bande de répartition des cours en pied de « Étude par cours » sur xl. Le classement prend la hauteur de « Comparer » et défile dedans.
+
 ## 2026-09-23 — Claude Code — Chrono : retouches après retour de Mathias
 
 - Séparateurs des listes (Mes cours, À faire, sessions) : `divide-[color:var(--bt-border)]` au lieu du gris clair Tailwind par défaut, qui sortait blanc en mode sombre (le `borderColor` posé sur la liste ne s'appliquait pas aux lignes).

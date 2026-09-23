@@ -149,8 +149,21 @@ export default function StudyByCourse({
         )}
       </ul>
 
+      {/* Pied de carte sur ordinateur : la répartition en une seule bande.
+          La carte y prend la hauteur du graphique voisin ; avec deux cours,
+          cette bande occupe le bas au lieu d'un vide, et dit d'un coup d'œil
+          quel cours domine la période. */}
+      <div className="mt-auto hidden pt-5 xl:block" aria-hidden="true">
+        <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
+          {rows.map((r) => (
+            <span key={r.id} className="h-full first:rounded-l-full last:rounded-r-full"
+              style={{ width: `${(r.secs / total) * 100}%`, backgroundColor: r.id === "__none__" ? "var(--bt-text-4)" : r.color }} />
+          ))}
+        </div>
+      </div>
+
       {collapsible && open && (
-        <div className="mt-auto pt-3">
+        <div className="pt-3">
           <button type="button" onClick={() => setOpen(false)} aria-expanded
             className="bt-stats-quiet-btn bt-tap-44 w-full rounded-xl py-2 text-xs font-semibold">
             {t("stats.showFewerCourses")}

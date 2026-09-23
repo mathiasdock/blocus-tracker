@@ -1682,6 +1682,19 @@ function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, on
         </h1>
 
         <div className="bt-plan-toolbar-actions flex shrink-0 items-center gap-1 no-print">
+          <div className="mr-2 hidden lg:block">
+            <SegmentedGlide
+          className="inline-flex"
+          buttonClassName="px-4 py-2 text-xs"
+          options={[
+            { value: "day", label: t("plan.day") },
+            { value: "week", label: t("plan.week") },
+            { value: "month", label: t("plan.month") },
+          ]}
+          value={view}
+          onChange={onViewChange}
+        />
+          </div>
           <button onClick={onPrev} aria-label={t("plan.prevPeriod")}
             className="bt-plan-nav-btn flex h-9 w-9 items-center justify-center rounded-xl">
             <IconChevron dir="left" />
@@ -1723,7 +1736,9 @@ function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, on
         </div>
       </div>
 
-      <div className="mt-3 no-print">
+      {/* Sous le titre sur téléphone et tablette ; sur ordinateur la bascule
+          jour/semaine/mois remonte à droite du titre, dans la place libre. */}
+      <div className="mt-3 no-print lg:hidden">
         <SegmentedGlide
           className="w-full sm:w-auto sm:inline-flex"
           buttonClassName="flex-1 sm:flex-none px-4 py-2 text-xs"
@@ -1775,22 +1790,11 @@ export default function Planning() {
   const [togglingShare, setTogglingShare] = useState(false); // pilote l'UI (disabled/opacité)
   const togglingShareRef = useRef(false); // verrou synchrone anti double-clic (cf. togglePlanningPublic)
 
-  // Vue par défaut adaptée au support : sur un téléphone la grille MOIS ne
-  // montre que des points anonymes (aucun texte ne rentre dans une case de
-  // ~50 px), alors que la vue JOUR répond à « qu'est-ce que je révise là ».
-  // Le desktop garde le mois, qui y est lisible. Un choix explicite gagne
-  // toujours : on le mémorise et on ne le réécrase jamais.
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bt_plan_view");
-      if (saved && ["day", "week", "month"].includes(saved)) { setView(saved); return; }
-      if (window.matchMedia("(max-width: 1023px)").matches) setView("day");
-    } catch {}
-  }, []);
-
+  // Le planning s'ouvre toujours sur le MOIS, téléphone comme ordinateur :
+  // c'est la vue d'ensemble du blocus. Changer de vue vaut pour la visite en
+  // cours, pas pour la suivante.
   const changeView = useCallback((v) => {
     setView(v);
-    try { localStorage.setItem("bt_plan_view", v); } catch {}
   }, []);
 
   const load = useCallback(async () => {

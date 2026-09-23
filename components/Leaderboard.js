@@ -290,7 +290,7 @@ export default function Leaderboard({
   return (
     // `max-h` et non une hauteur fixe : avec deux ou trois lignes, la carte
     // gardait 486 px de haut et la moitié basse restait vide.
-    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"} ${desktopTall ? "xl:flex xl:max-h-[486px] xl:flex-col 2xl:max-h-[540px]" : ""}`}>
+    <section className={`card p-4 sm:p-5 ${compact ? "" : "mt-6"} ${desktopTall ? "xl:absolute xl:inset-0 xl:flex xl:flex-col" : ""}`}>
       {/* Titre + les deux filtres, dans le même en-tête. Ils y restent même en
           aperçu : savoir QUI on regarde et SUR QUELLE PÉRIODE fait partie de
           la lecture du classement, ce n'est pas un réglage avancé. */}
