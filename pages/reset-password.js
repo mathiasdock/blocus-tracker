@@ -14,6 +14,8 @@ import {
 import { useI18n } from "../contexts/I18nContext";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { FieldGroup, FormNote, PasswordField } from "../components/auth/Field";
+import MascotGuide from "../components/auth/MascotGuide";
+import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 
 export default function ResetPassword() {
   const { t } = useI18n();
@@ -206,11 +208,13 @@ export default function ResetPassword() {
   }
 
   const alternate = { text: "", cta: t("auth.forgotBack"), href: "/login" };
+  const guide = setupGuide({ page: "reset", invalid, success, checking: !invalid && !ready });
+  const guideNode = <MascotGuide message={guideText(guide, t)} mood={guide.mood} reaction={guide.reaction} />;
 
   // Lien invalide / expiré
   if (invalid) {
     return (
-      <AuthShell alternate={alternate} contentKey="invalid">
+      <AuthShell layout="single" alternate={alternate} guide={guideNode} contentKey="invalid">
         <AuthHeading title={t("auth.resetInvalidTitle")} lead={t("auth.resetInvalidLead")} />
         <Link href="/forgot-password" className="bt-auth-primary">{t("auth.resetRequestNew")}</Link>
       </AuthShell>
@@ -220,10 +224,11 @@ export default function ResetPassword() {
   // En attente de la session PASSWORD_RECOVERY
   if (!ready) {
     return (
-      <AuthShell alternate={alternate} contentKey="checking">
-        <div className="bt-auth-waiting" role="status" aria-live="polite">
-          <span className="bt-pseudo-spinner" aria-hidden="true" />
-          {t("auth.resetChecking")}
+      <AuthShell layout="single" alternate={alternate} guide={guideNode} contentKey="checking">
+        <div className="bt-auth-skeleton" aria-busy="true">
+          <span className="bt-skeleton" style={{ width: "62%", height: 30 }} />
+          <span className="bt-skeleton bt-auth-skeleton-group is-short" />
+          <span className="sr-only" role="status">{t("auth.resetChecking")}</span>
         </div>
       </AuthShell>
     );
@@ -231,15 +236,15 @@ export default function ResetPassword() {
 
   if (success) {
     return (
-      <AuthShell contentKey="success">
-        <AuthHeading title={t("auth.resetSuccessTitle")} lead={t("auth.resetSuccess")} />
+      <AuthShell layout="single" guide={guideNode} contentKey="success">
+        <AuthHeading title={t("auth.resetSuccessTitle")} />
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell alternate={alternate} contentKey="form">
-      <AuthHeading title={t("auth.resetTitle")} lead={t("auth.resetSubtitle")} />
+    <AuthShell layout="single" alternate={alternate} guide={guideNode} contentKey="form">
+      <AuthHeading title={t("auth.resetTitle")} />
       <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>
           <PasswordField

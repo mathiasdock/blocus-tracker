@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-23 — Claude Code — Connexion/inscription : mascotte guide, fond animé, fiche claire
+
+- Fond : « Gradient Wave » de 21st.dev (fourni par Mathias) porté en JavaScript (`components/ui/GradientWave.js`, pas de TypeScript ni shadcn dans le projet) et durci : demi-résolution, 24 i/s, arrêt onglet caché, image fixe si mouvement réduit, écouteur de redimensionnement retiré (fuite dans l'original). Couleurs claires Blocus (crème, blanc, famille menthe), sombre en thème sombre ; environ 14 fois plus lent que l'original (bouge à peine en 10 s, mesuré). Monté une fois dans `_app` pour toute la famille : pas de redémarrage entre inscription et configuration. Repli CSS sans WebGL. Note : dans l'original, les réglages `deform` n'atteignaient jamais le shader ; l'aperçu choisi correspond aux réglages par défaut, conservés.
+- Mascotte guide (`components/auth/MascotGuide`, `lib/setupGuide.mjs`, testé) : une phrase courte par étape et par événement réel (prénom donné, université choisie, premier cours = moment « prêt à étudier »), geste de la mascotte à chaque réaction. Nouvelle bulle : une seule silhouette corps + pointe (ombres en drop-shadow), texte qui glisse au changement. Sur la fiche à droite sur ordinateur, au-dessus du formulaire sur téléphone. DESIGN.md : 3e mode de mascotte « guide d'inscription », limité à ces pages.
+- Connexion : titre « Connexion », bouton secondaire « Créer un compte » sous « Se connecter » (séparateur « Nouveau sur Blocus ? »), la carte d'invitation vert foncé supprimée.
+- Fiche « ton espace » : claire et translucide au lieu du vert foncé, la mascotte debout dessus. Retour arrière sur téléphone : chevron à gauche des étapes.
+- Vérifié hors ligne : parcours complet inscription → études → cours → Chrono avec répliques contrôlées à chaque étape, fond conservé entre les pages et retiré dans l'app ; 320/390/1280/1440, FR/EN, clair/sombre ; accessibilité Chrome (aucun contrôle sans nom, un h1, contrastes ≥ 4,5:1).
+
 ## 2026-09-22 — Claude Code — Connexion, inscription et configuration : refonte finale
 
 - Remplace le rendu de la Phase 2 (refusé) et l'ancien fond photo + carte blanche sur toute la famille : connexion, inscription, email à confirmer, mot de passe oublié/réinitialisation, configuration (chargement, erreur, reprise). Un seul cadre `components/auth/AuthShell` + `styles/auth.css` ; `AuthBackground`, `AuthBrand`, `PasswordInput`, `StudySetupShell`, `SetupCourseColor`, `SetupUsernameStatus` et `styles/setup.css` supprimés.

@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FieldSplit, FormNote, messageId } from "../components/auth/Field";
 import SpaceSheet from "../components/auth/SpaceSheet";
+import MascotGuide from "../components/auth/MascotGuide";
 import CourseComposer from "../components/auth/CourseComposer";
 import useCourseSetup from "../components/auth/useCourseSetup";
 import UniPicker from "../components/UniPicker";
@@ -18,6 +19,7 @@ import {
   deriveOnboardingState,
   setupStageFor,
 } from "../lib/onboarding.mjs";
+import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 
 function TaskSkeleton({ label }) {
   return (
@@ -332,6 +334,14 @@ export default function Onboarding() {
   const pending = loading || !ready;
   const stage = setupStageFor(step);
   const coursesBusy = courseSetup.courses.some(course => course.status === "saving") || Boolean(courseSetup.busyId);
+  const guide = setupGuide({
+    page: "onboarding",
+    loading: pending,
+    error: Boolean(loadError),
+    step,
+    university,
+    courseCount: courseSetup.courses.length,
+  });
   const sheet = (
     <SpaceSheet
       loading={pending}
@@ -362,7 +372,7 @@ export default function Onboarding() {
   } else if (step === ONBOARDING_STEPS.YOU) {
     content = (
       <>
-        <AuthHeading title={t("onboarding.repair.title")} lead={t("onboarding.repair.subtitle")} />
+        <AuthHeading title={t("onboarding.repair.title")} />
         <form onSubmit={saveIdentity} noValidate>
           <FieldGroup>
             <FieldSplit>
@@ -390,7 +400,7 @@ export default function Onboarding() {
   } else if (stage === 1) {
     content = (
       <>
-        <AuthHeading title={t("setup.studiesTitle")} lead={t("setup.studiesLead")} />
+        <AuthHeading title={t("setup.studiesTitle")} />
         <form onSubmit={saveStudies} noValidate>
           <FieldGroup>
             <Field id="onboarding-university" label={t("signup.university")} error={studiesShown("university")} className="bt-field-uni">
@@ -460,13 +470,14 @@ export default function Onboarding() {
           <button className="bt-auth-primary" disabled={savingStudies} aria-busy={savingStudies}>
             {savingStudies ? t("onboarding.saving") : t("onboarding.continue")}
           </button>
+          <p className="bt-auth-footnote">{t("onboarding.university.help")}</p>
         </form>
       </>
     );
   } else {
     content = (
       <>
-        <AuthHeading title={t("setup.coursesTitle")} lead={t("setup.coursesLead")} />
+        <AuthHeading title={t("setup.coursesTitle")} />
         <CourseComposer setup={courseSetup} draft={courseDraft} onDraftChange={setCourseDraft} disabled={finishing} />
         <FormNote tone="error">{finishError}</FormNote>
         <button
@@ -487,6 +498,7 @@ export default function Onboarding() {
   return (
     <AuthShell
       stage={stage}
+      guide={<MascotGuide message={guideText(guide, t)} mood={guide.mood} reaction={guide.reaction} />}
       aside={sheet}
       contentKey={pending ? "loading" : loadError ? "error" : `stage-${stage}-${step}`}
       onBack={!pending && !loadError && step === ONBOARDING_STEPS.COURSES && !finishing ? () => goToStep(ONBOARDING_STEPS.STUDIES) : undefined}

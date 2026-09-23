@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { useI18n } from "../../contexts/I18nContext";
 import { UniversityMark } from "../course-spaces/CourseSpaceList";
 import { communityIdForUniversity, universityShortName } from "../../lib/universities";
@@ -9,8 +8,11 @@ import { studyYearShortLabel } from "../../lib/studyYears";
 // The student's space, drawn with the product's own marks: the avatar, the
 // institution's crest, the program's disc, the course markers. It holds only
 // what the student has actually answered; a mark still to come is a dashed
-// outline of the same shape. It never shows study time, a mascot or an
+// outline of the same shape. It never shows study time, a Study Block or an
 // example course — there is nothing of that to show yet.
+//
+// A light sheet on the page's ground (it replaced a brand-ink card that
+// weighed more than the form beside it). The mascot stands on its top edge.
 
 const VISIBLE_COURSES = 8;
 
@@ -60,18 +62,18 @@ export default function SpaceSheet({
 
   if (loading) {
     return (
-      <div className="bt-sheet card-ink is-loading" aria-hidden="true">
+      <div className="bt-sheet is-loading" aria-hidden="true">
         <div className="bt-sheet-id">
           <span className="bt-sheet-avatar is-empty" />
           <div className="bt-sheet-id-text">
-            <span className="bt-sheet-bone" style={{ width: "58%" }} />
-            <span className="bt-sheet-bone is-small" style={{ width: "34%" }} />
+            <span className="bt-skeleton bt-sheet-bone" style={{ width: "58%" }} />
+            <span className="bt-skeleton bt-sheet-bone is-small" style={{ width: "34%" }} />
           </div>
         </div>
         <div className="bt-sheet-sec">
-          <span className="bt-sheet-bone is-small" style={{ width: "22%" }} />
-          <span className="bt-sheet-bone" style={{ width: "70%" }} />
-          <span className="bt-sheet-bone" style={{ width: "52%" }} />
+          <span className="bt-skeleton bt-sheet-bone is-small" style={{ width: "22%" }} />
+          <span className="bt-skeleton bt-sheet-bone" style={{ width: "70%" }} />
+          <span className="bt-skeleton bt-sheet-bone" style={{ width: "52%" }} />
         </div>
       </div>
     );
@@ -80,7 +82,7 @@ export default function SpaceSheet({
   return (
     // The same answers are in the form beside it: the sheet is a picture of
     // them, so assistive technology reads the form only.
-    <div className="bt-sheet card-ink" data-stage={stage} aria-hidden="true">
+    <div className="bt-sheet" data-stage={stage} aria-hidden="true">
       <div className="bt-sheet-id" data-filled={name ? "true" : undefined}>
         <span className={`bt-sheet-avatar${name ? "" : " is-empty"}`}>{initialOf(name)}</span>
         <div className="bt-sheet-id-text">
@@ -129,34 +131,5 @@ export default function SpaceSheet({
         ) : <Ghost shape="dots">{t("setup.sheetCourses")}</Ghost>}
       </section>
     </div>
-  );
-}
-
-// The same sheet on the sign-in page, for someone who has none yet: the three
-// parts it will hold, and the door to start it.
-export function SpaceInvite() {
-  const { t } = useI18n();
-  const parts = [
-    { shape: "avatar", title: "setup.inviteAccount", hint: "setup.inviteAccountHint" },
-    { shape: "plate", title: "setup.inviteStudies", hint: "setup.inviteStudiesHint" },
-    { shape: "dots", title: "setup.inviteCourses", hint: "setup.inviteCoursesHint" },
-  ];
-  return (
-    <section className="bt-sheet card-ink is-invite" aria-labelledby="bt-invite-title">
-      <h2 id="bt-invite-title" className="bt-sheet-invite-title">{t("setup.inviteTitle")}</h2>
-      <p className="bt-sheet-invite-lead">{t("setup.inviteLead")}</p>
-      <ol className="bt-sheet-plan">
-        {parts.map(part => (
-          <li key={part.title}>
-            <GhostMark shape={part.shape} />
-            <span>
-              <strong>{t(part.title)}</strong>
-              <small>{t(part.hint)}</small>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <Link href="/signup" className="bt-sheet-cta">{t("login.create")}</Link>
-    </section>
   );
 }

@@ -1,10 +1,10 @@
 /* ── Auth family ──────────────────────────────────────────────────────
    Sign in, sign up, check email, password recovery and the three setup
-   steps share one frame (components/auth/AuthShell). Warm canvas, the app's
-   wordmark, the task on the left; on a wide screen the student's space on
-   the right, drawn in brand ink (components/auth/SpaceSheet). The desk photo
-   and the white card it held are gone. .impeccable/surfaces/pages-signup-js.md
-   records the direction. */
+   steps share one frame (components/auth/AuthShell) on one animated ground
+   (components/auth/AuthBackdrop). The task on the left; on a wide screen the
+   mascot guide standing on the student's light space on the right; on a phone
+   the guide above the form. .impeccable/surfaces/pages-signup-js.md records
+   the direction. */
 
 .bt-auth {
   /* Secondary text measured on this canvas: the app's #7C746E stops at 4.0:1
@@ -13,10 +13,12 @@
   --bt-text-3: #655E58;
   --bt-auth-width: 1040px;
   --bt-auth-radius: var(--bt-r-control, 14px);
+  position: relative;
+  z-index: 1;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--bt-bg);
+  background: transparent;
   color: var(--bt-text-1);
   padding:
     max(8px, env(safe-area-inset-top))
@@ -70,12 +72,32 @@
 }
 .bt-auth-alt-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-.bt-auth-steps {
+.bt-auth-progress {
   grid-area: steps;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 2px;
+}
+.bt-auth-back-mini {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 44px;
+  margin: -6px 0 -6px -10px;
+  border-radius: var(--bt-r-inset, 12px);
+  color: var(--bt-text-1);
+}
+.bt-auth-back-mini:hover { background: var(--bt-subtle); }
+.bt-auth-steps {
+  flex: 1;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  margin: 2px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -102,15 +124,24 @@
 .bt-auth-steps li[data-state="current"] .bt-auth-step-name { color: var(--bt-text-1); font-weight: 800; }
 .bt-auth-step-check { flex: none; color: var(--bt-accent-text); }
 
-/* ── Task column ──────────────────────────────────────────────────── */
+/* ── Layout ───────────────────────────────────────────────────────────
+   One DOM order (guide, task, space), placed by grid areas. Phones: the
+   guide above the task, the space not drawn — the form is the space. */
 .bt-auth-main {
   flex: 1;
   width: 100%;
   max-width: 440px;
   margin: 0 auto;
-  padding-top: 22px;
+  padding-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "guide" "task";
+  align-content: start;
+  row-gap: 16px;
 }
-.bt-auth-aside { display: none; }
+.bt-auth-guide { grid-area: guide; min-width: 0; }
+.bt-auth-task { grid-area: task; min-width: 0; }
+.bt-auth-aside { grid-area: aside; display: none; min-width: 0; }
 .bt-auth-body { animation: bt-auth-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes bt-auth-in {
   from { opacity: 0.35; transform: translateY(6px); }
@@ -155,6 +186,7 @@
   transition: background-color 140ms ease, color 140ms ease;
 }
 .bt-auth-back:hover { color: var(--bt-text-1); background: var(--bt-subtle); }
+.bt-auth.has-steps .bt-auth-back { display: none; }
 
 .bt-auth-primary {
   display: flex;
@@ -213,18 +245,10 @@
 }
 .bt-form-note[data-tone="error"] { color: var(--bt-danger); font-weight: 650; }
 
-.bt-auth-waiting {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 18px 0;
-  font-size: 15px;
-  color: var(--bt-text-2);
-}
-
 .bt-auth-skeleton { display: grid; }
 .bt-auth-skeleton .bt-skeleton { display: block; border-radius: 8px; }
 .bt-auth-skeleton .bt-auth-skeleton-group { height: 184px; margin-top: 26px; border-radius: var(--bt-auth-radius); }
+.bt-auth-skeleton .bt-auth-skeleton-group.is-short { height: 124px; }
 
 /* ── Grouped rows ─────────────────────────────────────────────────── */
 .bt-fields {
@@ -650,63 +674,162 @@
 }
 .bt-setup-add:hover:not(:disabled) { background: var(--bt-action-deep); }
 
-/* ── The student's space (brand ink) ──────────────────────────────── */
-.bt-sheet {
-  --sheet-ghost: rgba(236, 250, 244, 0.3);
-  --sheet-quiet: rgba(236, 250, 244, 0.62);
-  position: relative;
-  padding: 26px 26px 24px;
-  border-radius: var(--bt-r-sheet, 28px);
-  color: var(--bt-ink-text);
+/* ── The animated ground ──────────────────────────────────────────────
+   Fixed behind the frame. Its own background is the still version of the
+   same colours: what shows before WebGL starts, and instead of it when the
+   device has none. */
+.bt-auth-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 55% at 82% 8%, #E2F7ED 0%, rgba(226, 247, 237, 0) 70%),
+    radial-gradient(60% 50% at 8% 92%, #E6F7EE 0%, rgba(230, 247, 238, 0) 70%),
+    #F4F1EA;
 }
-.bt-sheet > * { position: relative; z-index: 1; }
+.dark .bt-auth-backdrop {
+  background:
+    radial-gradient(70% 55% at 82% 8%, #0F2A21 0%, rgba(15, 42, 33, 0) 70%),
+    radial-gradient(60% 50% at 8% 92%, #0D2B22 0%, rgba(13, 43, 34, 0) 70%),
+    #12100E;
+}
+.bt-gradient-wave { position: absolute; inset: 0; overflow: hidden; }
+.bt-gradient-wave canvas { opacity: 0; transition: opacity 900ms ease; }
+.bt-gradient-wave canvas[data-ready] { opacity: 1; }
+
+/* ── The guide: the mascot and its bubble ─────────────────────────────
+   Body and tail are one silhouette: the shadow and the hairline are drawn by
+   drop-shadow filters on the bubble, so the tail is part of the same object
+   instead of a square rotated behind it. */
+.bt-guide {
+  --guide-size: 58px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.bt-guide-art {
+  flex: none;
+  display: grid;
+  place-items: end center;
+  width: var(--guide-size);
+  height: var(--guide-size);
+}
+.bt-guide-art .bt-m { width: var(--guide-size); height: var(--guide-size); }
+.bt-guide-bubble {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 360px;
+  margin-left: 14px;
+  padding: 11px 15px 12px;
+  border-radius: 18px;
+  background: var(--bt-surface);
+  filter: drop-shadow(0 0 0.6px rgba(31, 26, 23, 0.30)) drop-shadow(0 8px 18px rgba(38, 32, 26, 0.12));
+}
+.dark .bt-guide-bubble {
+  filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.34)) drop-shadow(0 10px 24px rgba(0, 0, 0, 0.5));
+}
+.bt-guide-tail {
+  position: absolute;
+  left: -11px;
+  top: 50%;
+  width: 14px;
+  height: 18px;
+  transform: translateY(-50%);
+  fill: var(--bt-surface);
+}
+.bt-guide-text {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--bt-text-1);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  animation: bt-guide-say 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes bt-guide-say {
+  from { opacity: 0; transform: translateY(4px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* ── The student's space ──────────────────────────────────────────────
+   A light sheet on the ground, lifted by a soft shadow; the ground shows
+   faintly through it. The mascot stands on its top edge. */
+.bt-sheet {
+  --sheet-line: var(--bt-border);
+  position: relative;
+  padding: 30px 26px 22px;
+  border-radius: var(--bt-r-sheet, 28px);
+  background: rgba(255, 253, 251, 0.78);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  backdrop-filter: blur(22px) saturate(1.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 0 0 1px rgba(31, 26, 23, 0.06),
+    0 2px 6px rgba(38, 32, 26, 0.04),
+    0 28px 56px -28px rgba(38, 32, 26, 0.22);
+  color: var(--bt-text-1);
+}
+.dark .bt-sheet {
+  background: rgba(31, 27, 24, 0.74);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 28px 56px -28px rgba(0, 0, 0, 0.7);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .bt-sheet { background: var(--bt-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 
 .bt-sheet-id {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
   align-items: center;
   gap: 14px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--bt-ink-border);
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--sheet-line);
 }
 .bt-sheet-avatar {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: var(--bt-ink-muted);
-  color: var(--bt-ink);
+  background: var(--bt-accent-bg);
+  box-shadow: inset 0 0 0 1px var(--bt-accent-border);
+  color: var(--bt-accent-text);
   font-family: 'Quicksand', 'Avenir Next', ui-rounded, ui-sans-serif, system-ui, sans-serif;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
 }
-.bt-sheet-avatar.is-empty { background: transparent; box-shadow: inset 0 0 0 1.5px var(--sheet-ghost); }
-.bt-sheet-id-text { display: grid; gap: 3px; min-width: 0; }
+.bt-sheet-avatar.is-empty { background: transparent; box-shadow: none; border: 1.5px dashed rgba(31, 26, 23, 0.22); }
+.dark .bt-sheet-avatar.is-empty { border-color: rgba(255, 255, 255, 0.2); }
+.bt-sheet-id-text { display: grid; gap: 2px; min-width: 0; }
 .bt-sheet-name {
   font-family: 'Quicksand', 'Avenir Next', ui-rounded, ui-sans-serif, system-ui, sans-serif;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.12;
+  line-height: 1.15;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
 }
-.bt-sheet-id:not([data-filled]) .bt-sheet-name { color: var(--sheet-quiet); }
-.bt-sheet-handle { font-size: 14px; line-height: 1.3; color: var(--bt-ink-muted); overflow-wrap: anywhere; }
+.bt-sheet-id:not([data-filled]) .bt-sheet-name { color: var(--bt-text-2); font-weight: 600; }
+.bt-sheet-handle { font-size: 14px; line-height: 1.3; color: var(--bt-text-2); overflow-wrap: anywhere; }
 
-.bt-sheet-sec { padding-top: 18px; }
-.bt-sheet-sec + .bt-sheet-sec { margin-top: 18px; border-top: 1px solid var(--bt-ink-border); }
+.bt-sheet-sec { padding-top: 16px; }
+.bt-sheet-sec + .bt-sheet-sec { margin-top: 16px; border-top: 1px solid var(--sheet-line); }
 .bt-sheet-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: var(--bt-ink-muted);
+  color: var(--bt-text-2);
 }
-.bt-sheet-sec[data-current] .bt-sheet-label { color: var(--bt-ink-text); }
+.bt-sheet-sec[data-current] .bt-sheet-label { color: var(--bt-accent-text); }
 .bt-sheet-count {
   display: inline-grid;
   place-items: center;
@@ -714,8 +837,8 @@
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: rgba(143, 212, 184, 0.16);
-  color: var(--bt-ink-text);
+  background: var(--bt-accent-bg);
+  color: var(--bt-accent-text);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -731,21 +854,22 @@
   overflow-wrap: anywhere;
   animation: bt-sheet-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.bt-sheet-row + .bt-sheet-row { margin-top: 6px; }
+.bt-sheet-row + .bt-sheet-row { margin-top: 4px; }
 .bt-sheet-row small {
   display: block;
   margin-top: 1px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--bt-ink-muted);
+  color: var(--bt-text-2);
 }
-.bt-sheet-row.is-ghost { color: var(--sheet-quiet); font-weight: 500; animation: none; }
+.bt-sheet-row.is-ghost { color: var(--bt-text-2); font-weight: 500; animation: none; }
 .bt-sheet-ghost {
   justify-self: center;
   width: 30px;
   height: 30px;
-  box-shadow: inset 0 0 0 1.5px var(--sheet-ghost);
+  border: 1.5px dashed rgba(31, 26, 23, 0.22);
 }
+.dark .bt-sheet-ghost { border-color: rgba(255, 255, 255, 0.2); }
 .bt-sheet-ghost.is-plate { border-radius: 8px; }
 .bt-sheet-ghost.is-disc,
 .bt-sheet-ghost.is-avatar { border-radius: 50%; }
@@ -754,15 +878,12 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  box-shadow: none;
+  border: 0;
 }
-.bt-sheet-ghost.is-dots i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--sheet-ghost); }
-/* Institution and program marks on ink: the crest keeps its paper plate, the
-   program disc turns light so it does not sink into the ink. */
-.bt-sheet .bt-course-monogram { background: #FFFDFB; color: #1F1A17; }
-.bt-sheet .bt-course-disc { background: var(--bt-ink-text); color: var(--bt-ink); }
+.bt-sheet-ghost.is-dots i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid rgba(31, 26, 23, 0.22); }
+.dark .bt-sheet-ghost.is-dots i { border-color: rgba(255, 255, 255, 0.18); }
 
-.bt-sheet-courses { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.bt-sheet-courses { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .bt-sheet-courses li {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
@@ -770,7 +891,7 @@
   gap: 12px;
   min-height: 32px;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
   animation: bt-sheet-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -780,57 +901,57 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 1px rgba(31, 26, 23, 0.08);
   transition: opacity 160ms ease;
 }
-.bt-sheet-courses li[data-saving] .bt-sheet-dot { opacity: 0.5; }
-.bt-sheet-courses .bt-sheet-more { display: block; padding-left: 42px; font-weight: 500; color: var(--bt-ink-muted); animation: none; }
+.dark .bt-sheet-dot { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2); }
+.bt-sheet-courses li[data-saving] .bt-sheet-dot { opacity: 0.45; }
+.bt-sheet-courses .bt-sheet-more { display: block; padding-left: 42px; font-weight: 500; color: var(--bt-text-2); animation: none; }
 @keyframes bt-sheet-in {
-  from { opacity: 0.25; transform: translateY(5px); }
+  from { opacity: 0.2; transform: translateY(5px); }
   to { opacity: 1; transform: none; }
 }
-
 .bt-sheet.is-loading .bt-sheet-sec { display: grid; gap: 10px; }
-.bt-sheet-bone {
-  display: block;
-  height: 18px;
-  border-radius: 6px;
-  background: rgba(236, 250, 244, 0.1);
-  animation: bt-sheet-pulse 1.4s ease-in-out infinite;
-}
-.bt-sheet-bone.is-small { height: 12px; }
-@keyframes bt-sheet-pulse { 50% { opacity: 0.55; } }
+.bt-sheet-bone { display: block; height: 16px; border-radius: 6px; }
+.bt-sheet-bone.is-small { height: 11px; }
 
-/* The sheet on the sign-in page: what a space holds, and the way in. */
-.bt-sheet.is-invite { padding: 28px; }
-.bt-sheet-invite-title {
-  font-family: 'Quicksand', 'Avenir Next', ui-rounded, ui-sans-serif, system-ui, sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+/* ── Sign in: the other door, right under the only button ─────────── */
+.bt-auth-door { margin-top: 22px; }
+.bt-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--bt-text-2);
+  white-space: nowrap;
 }
-.bt-sheet-invite-lead { margin-top: 6px; font-size: 15px; line-height: 1.45; color: var(--bt-ink-muted); }
-.bt-sheet-plan { display: grid; gap: 14px; margin: 22px 0 0; padding: 0; list-style: none; }
-.bt-sheet-plan li { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 14px; }
-.bt-sheet-plan strong { display: block; font-size: 15.5px; font-weight: 700; }
-.bt-sheet-plan small { display: block; margin-top: 1px; font-size: 13.5px; color: var(--bt-ink-muted); }
-.bt-sheet-cta {
+.bt-auth-divider::before,
+.bt-auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(31, 26, 23, 0.14);
+}
+.dark .bt-auth-divider::before,
+.dark .bt-auth-divider::after { background: rgba(255, 255, 255, 0.14); }
+.bt-auth-secondary {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  margin-top: 24px;
-  border-radius: 14px;
-  background: rgba(236, 250, 244, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(236, 250, 244, 0.18);
-  color: var(--bt-ink-text);
-  font-size: 15px;
+  min-height: 48px;
+  margin-top: 12px;
+  border-radius: var(--bt-r-control, 14px);
+  background: var(--bt-surface);
+  box-shadow: inset 0 0 0 1.5px var(--bt-accent-border), var(--bt-elev-1);
+  color: var(--bt-accent-text);
+  font-size: 15.5px;
   font-weight: 700;
-  transition: background-color 140ms ease;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 120ms ease;
 }
-.bt-sheet-cta:hover { background: rgba(236, 250, 244, 0.16); }
-.bt-sheet-cta:focus-visible { outline: 2px solid var(--bt-ink-muted); outline-offset: 3px; border-radius: 14px; }
+.bt-auth-secondary:hover { background: var(--bt-mint-surface); box-shadow: inset 0 0 0 1.5px var(--bt-accent-text), var(--bt-elev-1); }
+.bt-auth-secondary:active { transform: scale(0.985); }
+.bt-auth-secondary:focus-visible { outline: 2px solid var(--bt-accent); outline-offset: 3px; border-radius: var(--bt-r-control, 14px); }
 
 /* ── Narrow phones ────────────────────────────────────────────────── */
 @media (max-width: 479px) {
@@ -851,33 +972,55 @@
     min-height: 52px;
   }
   .bt-auth-mark { justify-self: start; font-size: 19px; }
-  .bt-auth-steps { width: min(360px, 40vw); margin: 0; }
-  .bt-auth-main { max-width: 460px; padding-top: clamp(32px, 8vh, 72px); }
-  .bt-auth:not(.has-aside):not(.has-steps) .bt-auth-main { display: flex; flex-direction: column; justify-content: center; padding-bottom: 12vh; }
+  .bt-auth-progress { width: min(380px, 42vw); margin: 0; }
+  .bt-auth-main { max-width: 460px; padding-top: clamp(28px, 7vh, 64px); }
+  .bt-auth:not(.has-steps) .bt-auth-main { align-content: center; padding-bottom: 10vh; }
   .bt-auth-heading h1 { font-size: 28px; }
+  .bt-guide { --guide-size: 68px; }
 }
 
-/* ── Desktop: the task beside the student's space ─────────────────── */
+/* ── Desktop: the task beside the guide ───────────────────────────── */
 @media (min-width: 1024px) {
   .bt-auth { padding: 24px 48px 48px; }
   .bt-auth-heading { margin-bottom: 24px; }
   .bt-auth-heading h1 { font-size: 32px; }
-  .bt-auth.has-aside .bt-auth-main {
+  .bt-guide-text { font-size: 16px; }
+
+  /* Sign-up and onboarding: the guide stands on the student's space. */
+  .bt-auth.is-split.has-aside .bt-auth-main {
     max-width: var(--bt-auth-width);
-    display: grid;
-    grid-template-columns: minmax(0, 440px) minmax(0, 460px);
+    grid-template-columns: minmax(0, 440px) minmax(0, 440px);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "task guide" "task aside";
     justify-content: space-between;
     align-items: start;
     column-gap: 48px;
-    padding-top: clamp(40px, 9vh, 96px);
+    row-gap: 0;
+    padding-top: clamp(28px, 7vh, 80px);
   }
-  .bt-auth.has-aside .bt-auth-aside { display: block; }
-  /* Sign in and check-email are short: the pair sits mid-height. The setup
-     steps keep a fixed top so the heading never jumps from one step to the next. */
-  .bt-auth.has-aside:not(.has-steps) .bt-auth-main { align-content: center; align-items: center; padding-bottom: clamp(40px, 9vh, 96px); }
-  .bt-auth-alt.is-compact-only { display: none; }
-  /* The sheet stays in view while a long course list scrolls the task. */
-  .bt-auth-aside { position: sticky; top: 32px; }
+  .bt-auth.is-split.has-aside .bt-auth-aside { display: block; }
+  .bt-auth.is-split.has-aside .bt-guide { --guide-size: 116px; padding-left: 18px; }
+  .bt-auth.has-steps .bt-auth-back { display: inline-flex; }
+  .bt-auth-back-mini { display: none; }
+  /* Its feet on the sheet's edge: the guide is part of the space, not a
+     sticker beside it. */
+  .bt-auth.is-split.has-aside .bt-auth-guide { position: relative; z-index: 2; margin-bottom: -16px; }
+
+  /* Sign in: the guide alone, larger, level with the form. */
+  .bt-auth.is-split:not(.has-aside) .bt-auth-main {
+    max-width: var(--bt-auth-width);
+    grid-template-columns: minmax(0, 440px) minmax(0, 460px);
+    grid-template-areas: "task guide";
+    justify-content: space-between;
+    align-items: center;
+    column-gap: 48px;
+  }
+  .bt-auth.is-split:not(.has-aside) .bt-guide { --guide-size: 168px; }
+  .bt-auth.is-split:not(.has-aside) .bt-guide-text { font-size: 18px; }
+  .bt-auth.is-split:not(.has-aside) .bt-guide-bubble { padding: 14px 18px 15px; }
+
+  /* Recovery pages: one centred column, the guide above it. */
+  .bt-auth.is-single .bt-guide { --guide-size: 72px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

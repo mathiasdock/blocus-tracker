@@ -4,10 +4,12 @@ import { useRouter } from "next/router";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FieldSplit, FormNote, PasswordField, messageId } from "../components/auth/Field";
 import SpaceSheet from "../components/auth/SpaceSheet";
+import MascotGuide from "../components/auth/MascotGuide";
 import { PseudoStatus, isPseudoShapeValid, usePseudoAvailability } from "../components/auth/UsernameStatus";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
+import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -123,15 +125,17 @@ export default function Signup() {
   }
 
   const sheet = <SpaceSheet firstName={firstName} lastName={lastName} pseudo={pseudo} stage={awaitingEmail ? 1 : 0} />;
+  // The guide greets a name once it is given (field left), not at each keystroke.
+  const guide = setupGuide({ page: "signup", awaitingEmail, firstName, named: Boolean(touched.firstName) });
+  const guideNode = <MascotGuide message={guideText(guide, t)} mood={guide.mood} reaction={guide.reaction} />;
 
   if (awaitingEmail) {
     return (
-      <AuthShell stage={1} aside={sheet} contentKey="check-email">
+      <AuthShell stage={1} guide={guideNode} aside={sheet} contentKey="check-email">
         <AuthHeading
           title={t("signup.checkEmailTitle")}
           lead={t("signup.checkEmailBody").replace("{email}", awaitingEmail)}
         />
-        <p className="bt-auth-text">{t("signup.checkEmailResume")}</p>
         <Link href="/login" className="bt-auth-primary">{t("signup.checkEmailLogin")}</Link>
       </AuthShell>
     );
@@ -141,10 +145,11 @@ export default function Signup() {
     <AuthShell
       stage={0}
       alternate={{ text: t("signup.alreadyAccount"), cta: t("login.signin"), href: "/login" }}
+      guide={guideNode}
       aside={sheet}
       contentKey="account"
     >
-      <AuthHeading title={t("setup.accountTitle")} lead={t("setup.accountLead")} />
+      <AuthHeading title={t("setup.accountTitle")} />
 
       <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>

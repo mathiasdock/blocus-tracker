@@ -2,6 +2,8 @@ import { useState } from "react";
 import Link from "next/link";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FormNote } from "../components/auth/Field";
+import MascotGuide from "../components/auth/MascotGuide";
+import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { supabase } from "../lib/supabaseClient";
 import { classifyAuthError } from "../lib/authLogin.mjs";
 import { getSiteUrl } from "../lib/siteUrl";
@@ -43,10 +45,12 @@ export default function ForgotPassword() {
   }
 
   const alternate = { text: "", cta: t("auth.forgotBack"), href: "/login" };
+  const guide = setupGuide({ page: "forgot", sent });
+  const guideNode = <MascotGuide message={guideText(guide, t)} mood={guide.mood} reaction={guide.reaction} />;
 
   if (sent) {
     return (
-      <AuthShell alternate={alternate} contentKey="sent">
+      <AuthShell layout="single" alternate={alternate} guide={guideNode} contentKey="sent">
         <AuthHeading title={t("auth.forgotSentTitle")} lead={t("auth.forgotSent")} />
         <Link href="/login" className="bt-auth-primary">{t("auth.forgotBack")}</Link>
       </AuthShell>
@@ -54,8 +58,8 @@ export default function ForgotPassword() {
   }
 
   return (
-    <AuthShell alternate={alternate} contentKey="form">
-      <AuthHeading title={t("auth.forgotTitle")} lead={t("auth.forgotSubtitle")} />
+    <AuthShell layout="single" alternate={alternate} guide={guideNode} contentKey="form">
+      <AuthHeading title={t("auth.forgotTitle")} />
       <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>
           <Field id="forgot-email" label={t("auth.forgotEmail")}>

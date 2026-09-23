@@ -28,6 +28,7 @@ import { recordConsentChoice } from "../lib/privacySettings";
 import { autoSharePost, flushAutoShare, loadAutoShare } from "../lib/autoShare";
 import SeoHead from "../components/SeoHead";
 import AppSplash from "../components/AppSplash";
+import AuthBackdrop from "../components/auth/AuthBackdrop";
 import { appleSplashEntries } from "../lib/splashScreens.mjs";
 import PageTransition from "../components/PageTransition";
 import { initSensoryFeedback } from "../lib/sensoryFeedback";
@@ -611,6 +612,9 @@ export default function App({ Component, pageProps }) {
         <AppSplash />
         <PageTransition />
         <IncompleteProfileGuard />
+        {/* One animated ground for every page before the app: mounted here so
+            sign-up → onboarding keeps it running instead of restarting it. */}
+        {authPage && <AuthBackdrop />}
         <Component {...pageProps} />
         {!setupInProgress && <GlobalLevelUpWatcher />}
         <AppVersionRefresh />

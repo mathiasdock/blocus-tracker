@@ -3,10 +3,11 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FormNote, PasswordField, messageId } from "../components/auth/Field";
-import { SpaceInvite } from "../components/auth/SpaceSheet";
+import MascotGuide from "../components/auth/MascotGuide";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
+import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 
 export default function Login() {
   const { signIn, user, loading, profileStatus } = useAuth();
@@ -59,12 +60,14 @@ export default function Login() {
     }
   }
 
+  const guide = setupGuide({ page: "login" });
+
   return (
     <AuthShell
-      alternate={{ text: t("login.noaccount"), cta: t("login.create"), href: "/signup", compactOnly: true }}
-      aside={<SpaceInvite />}
+      guide={<MascotGuide message={guideText(guide, t)} mood={guide.mood} reaction={guide.reaction} variant="hero" />}
+      contentKey="login"
     >
-      <AuthHeading title={t("login.title")} lead={t("login.subtitle")} />
+      <AuthHeading title={t("setup.loginTitle")} />
 
       <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>
@@ -116,6 +119,13 @@ export default function Login() {
           {busy ? t("login.connecting") : t("login.signin")}
         </button>
       </form>
+
+      {/* The other door, where a newcomer's eye already is: right under the
+          only button of the page, before anything else. */}
+      <div className="bt-auth-door">
+        <p className="bt-auth-divider"><span>{t("setup.newHere")}</span></p>
+        <Link href="/signup" className="bt-auth-secondary">{t("login.create")}</Link>
+      </div>
 
       <p className="bt-auth-footnote">{t("login.repairHint")}</p>
     </AuthShell>
