@@ -308,6 +308,7 @@ Every page before the app — sign in, sign up, check email, forgot/reset passwo
 - **Colour means state.** Neutral ink everywhere; red only for "to fix / destructive", green only for "done / active", the warning ink for "watch". A state is always a dot + a word. The only pill in the navigation is the Inbox count; filters are pills because they are filters.
 - **Density.** 14px rows, 13px metadata in `--bt-text-2` (never the faint roles for essential text), tabular figures, 44px targets. Tables switch to two-line rows when their panel is narrower than 760px (container query), so the sidebar never forces a sideways scroll.
 - **Irreversible actions** (suspend, delete, remove a reported message, send or cancel a notification, delete files or an announcement) always go through a confirmation that names the consequence; member actions keep the Phase 1 dialog with a mandatory reason.
+- **Communications** (notification control centre, v62). Before any send, "who will receive it" comes from the server with the same rules as the send — targeted, each exclusion on its own line, eligible, known reachable devices — in the order the calculation applies them, so every subtraction adds up. Text is written in French with optional English (the French is the fallback) and previewed in both. Dates are typed and read in Brussels time. A number OneSignal does not reliably measure (clicks) reads "not available", never a zero.
 
 ## Do's and Don'ts
 

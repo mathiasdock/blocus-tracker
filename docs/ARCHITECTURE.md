@@ -33,7 +33,7 @@
 | Folder | Purpose |
 |--------|---------|
 | `pages/` | One file = one route. Includes server routes under `pages/api/`. |
-| `pages/api/` | Next.js server routes: login, private Storage signing, push webhooks, cron tasks and `/api/admin/*` (every admin route goes through `lib/server/adminAuth.js`; member actions live in `/api/admin/members/[id]` — delete, `/suspension`, `/moderation`). Server-only routes may use `SUPABASE_SERVICE_ROLE_KEY`. |
+| `pages/api/` | Next.js server routes: login, private Storage signing, push (`/api/push/notify` friend-request webhook, `/api/push/daily` evening reminder), cron tasks and `/api/admin/*` (every admin route goes through `lib/server/adminAuth.js`; member actions live in `/api/admin/members/[id]` — delete, `/suspension`, `/moderation`, `/notifications`). Server-only routes may use `SUPABASE_SERVICE_ROLE_KEY`. |
 | `components/` | Shared UI components (Layout, Avatar, BadgeIcon, LevelPill, modals, charts). |
 | `contexts/` | React contexts: Auth, I18n, Notification, Timer. |
 | `lib/` | Pure utilities: supabaseClient, i18n, format, badges, xp, rateLimit, universities. |
@@ -104,8 +104,25 @@
 |---------|---------|-------------|
 | `AuthContext` | Auth state, profile | `user`, `profile`, `profileStatus`, `signIn`, `signUp`, `signOut`, `updateEmail`, `refreshProfile`, `completePendingSignup` |
 | `I18nContext` | FR/EN i18n | `t`, `lang`, `setLang` |
-| `NotificationContext` | Unread badges (feed, friends, communities, messages, comments) | `feedCount`, `commentCount`, `friendCount`, `totalCommunity`, `messageCount`, `markSeen` |
+| `NotificationContext` | In-app bell and unread badges (feed, friends, communities, messages, comments, announcements in FR/EN) — polled, not pushed | `feedCount`, `commentCount`, `friendCount`, `totalCommunity`, `messageCount`, `markSeen` |
 | `TimerContext` | Global pomodoro timer state | `running`, `elapsed`, `start`, `pause`, `stop` |
+
+## Notifications (v62)
+
+Two separate systems, on purpose:
+
+- **In-app bell** (`contexts/NotificationContext.js`, `components/Layout.js`): computed in the browser from the source tables (friend requests, comments, reactions, messages, announcements); nothing is sent to a phone.
+- **Push** (OneSignal), always through **one server path**, `lib/server/notify.mjs`:
+  1. audience decided by the database (`notification_audience`): account exists, not suspended, overall switch, category (reminders / social / announcements), blocked sender;
+  2. send-specific reasons: weekly nudge cap, quiet hours (22 h – 8 h in the member's time zone), automation switched off;
+  3. registry row (`notification_sends`) and anti-duplicate reservation of each recipient (`notification_claim`);
+  4. OneSignal, by external ids in batches of 2 000 — never a segment, so never a device without an account, signed out or deleted;
+  5. result per recipient (`notification_mark`) and per send.
+
+  Callers: `lib/server/dailyReminders.mjs` (evening reminder, Vercel Cron), `lib/server/friendRequestPush.mjs` (database trigger → `/api/push/notify`), `/api/admin/push` (manual FR/EN send, self-test, pushed announcement, preview, cancel, delivery). OneSignal REST calls live in `lib/server/oneSignalRest.mjs`; pure rules (time zones, cap, keys, bilingual text, validation) in `lib/notificationRules.mjs`, tested in `tests/notification-*.test.mjs`.
+- **Device lifecycle** (browser, `lib/onesignal.js` + `lib/pushOwner.mjs` + `lib/pushDevice.js`): the device remembers **which account** turned notifications on; only that account is re-linked at start-up. Sign-out detaches the device (OneSignal `logout`, device register `detached`); a detach that could not finish is completed at the next launch. Account deletion erases the OneSignal user and all its subscriptions (queue `push_identity_cleanup`, retried nightly by `/api/cron/purge-posts`).
+- **Preferences** (`user_privacy_settings`): overall switch + reminders + social + announcements, in the profile's Notifications card, applied server-side.
+- **Admin > Communications**: send (FR required, EN optional with FR fallback, "who will receive it" from the server, self-test), history from the registry, automations (last / next run, cap, dry run), announcements (FR/EN, dates in Brussels time, school targeting, optional push); member detail shows the member's notification state and checks OneSignal live.
 
 ## Deployment
 
@@ -115,5 +132,7 @@
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `NEXT_PUBLIC_SITE_URL` (used for email redirects + CORS)
   - `SUPABASE_SERVICE_ROLE_KEY` (server-only, for `/api/login`, `/api/storage/sign`, and trusted webhook helpers)
+  - `NEXT_PUBLIC_ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY` (server-only) — push
+  - `CRON_SECRET` (server-only) — evening reminder and nightly purge
 
 - Migrations are **not** automated — user runs them manually in Supabase SQL Editor after pushing the code that depends on them. See `docs/SUPABASE.md`.
