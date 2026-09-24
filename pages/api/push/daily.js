@@ -1,49 +1,27 @@
-// Rappels push quotidiens, declenches par un Vercel Cron (voir vercel.json).
+// Rappel du soir, déclenché chaque jour par le cron Vercel (vercel.json,
+// 18 h UTC). Toute la décision vit dans lib/server/dailyReminders.mjs :
+// un rappel par membre et par jour, dans son fuseau, hors heures calmes,
+// préférences et suspension respectées, plafond de relances sur 7 jours,
+// anti-doublon — le relancer le même jour ne renvoie rien.
 //
-// Un seul rappel par utilisateur et par jour, par ordre de priorite :
-//   1. Examen demain      → "Ton examen est demain"
-//   2. Serie en danger    → a etudie hier mais pas aujourd'hui
-//   3. Nudge etude/planning → actif recemment mais pas etudie aujourd'hui
-//   4. Relance des nouveaux → inscrit il y a 3 jours, jamais reparti
+// Sécurité : secret cron uniquement (Vercel envoie « Authorization: Bearer
+// <CRON_SECRET> »). Mode test : ?dry=1 calcule sans rien écrire ni envoyer.
+// Chaque vrai passage est inscrit dans system_job_runs (page Système).
 //
-// Textes et activation modifiables depuis l'admin (lib/pushAutomations.js).
-//
-// Securite : appelable uniquement avec le secret cron (Vercel injecte
-//   "Authorization: Bearer <CRON_SECRET>" quand CRON_SECRET est defini).
-// Mode test : ?dry=1 → calcule et RENVOIE qui serait notifie, sans rien envoyer.
-// Chaque vrai passage est inscrit dans system_job_runs (page Systeme de l'admin).
-// Les comptes suspendus (v57) ne recoivent aucun rappel.
-//
-// Env vars requises (Vercel, server-only sauf NEXT_PUBLIC_*) :
-//   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
-//   NEXT_PUBLIC_ONESIGNAL_APP_ID, ONESIGNAL_REST_API_KEY, CRON_SECRET
+// Env : NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+//       NEXT_PUBLIC_ONESIGNAL_APP_ID, ONESIGNAL_REST_API_KEY, CRON_SECRET
 import { createClient } from "@supabase/supabase-js";
 import { getClientIp, setBaseSecurityHeaders, timingSafeEqualText } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
-import { sendPushToUsers } from "../../../lib/pushServer";
-import { loadAutomations } from "../../../lib/pushAutomations";
+import { loadAutomations } from "../../../lib/pushAutomations.mjs";
+import { createNotificationStore } from "../../../lib/server/notify.mjs";
+import { createActivityLoader, jobRunDetails, runDailyReminders } from "../../../lib/server/dailyReminders.mjs";
+import { oneSignalFromEnv } from "../../../lib/server/oneSignalRest.mjs";
 import { finishJobRun, startJobRun } from "../../../lib/server/jobRuns";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const CRON_SECRET = process.env.CRON_SECRET;
-
-const TZ = "Europe/Brussels";
-const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }); // → "YYYY-MM-DD"
-const dayFrom = (msOffset) => fmt.format(new Date(Date.now() + msOffset));
-const dayOf = (ts) => fmt.format(new Date(ts));
-
-// Recupere toutes les lignes (PostgREST plafonne a 1000 → pagination).
-async function fetchAll(query) {
-  const rows = [];
-  for (let from = 0; from < 200000; from += 1000) {
-    const { data, error } = await query.range(from, from + 999);
-    if (error) throw error;
-    rows.push(...(data || []));
-    if (!data || data.length < 1000) break;
-  }
-  return rows;
-}
 
 function authorized(req) {
   if (!CRON_SECRET) return false;
@@ -54,15 +32,13 @@ function authorized(req) {
 export default async function handler(req, res) {
   setBaseSecurityHeaders(res);
   if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "method_not_allowed" });
   }
   if (!rateLimit(`push-daily:${getClientIp(req)}`, 20, 60_000).ok) {
-    return res.status(429).json({ error: "Too many requests" });
+    return res.status(429).json({ error: "rate_limited" });
   }
-  if (!authorized(req)) return res.status(401).json({ error: "Unauthorized" });
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    return res.status(500).json({ error: "Server misconfigured" });
-  }
+  if (!authorized(req)) return res.status(401).json({ error: "unauthorized" });
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return res.status(500).json({ error: "misconfigured" });
 
   const dry = req.query.dry === "1" || req.query.dry === "true";
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
@@ -71,153 +47,20 @@ export default async function handler(req, res) {
   const runId = dry ? null : await startJobRun(admin, "push_daily");
 
   try {
-    const today = dayFrom(0);
-    const tomorrow = dayFrom(864e5);
-    const yesterday = dayFrom(-864e5);
-    const day2 = dayFrom(-2 * 864e5);
-    const day3 = dayFrom(-3 * 864e5);
-
-    // 1. Examen demain → user_ids
-    const exams = await fetchAll(
-      admin.from("exams").select("user_id").eq("exam_date", tomorrow)
-    );
-    const examUsers = new Set(exams.map((e) => e.user_id).filter(Boolean));
-
-    // 2. Sessions des 4 derniers jours → jours d'etude (heure de Bruxelles) par user
-    const since = new Date(Date.now() - 4 * 864e5).toISOString();
-    const sessions = await fetchAll(
-      admin.from("sessions").select("user_id, started_at").gte("started_at", since)
-    );
-    const daysByUser = new Map();
-    for (const s of sessions) {
-      if (!s.user_id || !s.started_at) continue;
-      let set = daysByUser.get(s.user_id);
-      if (!set) daysByUser.set(s.user_id, (set = new Set()));
-      set.add(dayOf(s.started_at));
-    }
-
-    // 3. Inscrits il y a 3 jours → relance unique s'ils n'ont pas demarre.
-    // Fenetre d'un jour : la relance ne part qu'une fois, jamais en boucle.
-    const windowStart = new Date(Date.now() - 4 * 864e5).toISOString();
-    const windowEnd = new Date(Date.now() - 3 * 864e5).toISOString();
-    const newcomers = await fetchAll(
-      admin.from("profiles").select("id, created_at")
-        .gte("created_at", windowStart).lt("created_at", windowEnd)
-    );
-
-    // Repartition en groupes exclusifs (un seul rappel / user).
-    const streakAtRisk = [];
-    const studyNudge = [];
-    const comeback = [];
-    for (const [uid, days] of daysByUser) {
-      if (examUsers.has(uid)) continue;           // priorite a l'examen
-      if (days.has(today)) continue;              // deja etudie aujourd'hui → rien
-      if (days.has(yesterday)) { streakAtRisk.push(uid); continue; } // serie en danger
-      if (days.has(day2) || days.has(day3)) studyNudge.push(uid);    // actif il y a 2-3j → nudge doux
-      // >3 jours sans etudier : on ne relance pas (evite le harcelement).
-    }
-    const examList = [...examUsers];
-
-    // Nouveaux inscrits n'ayant rien lance depuis leur premier jour. Places
-    // APRES les groupes ci-dessus et exclus de ceux-ci : un rappel par personne.
-    const alreadyTargeted = new Set([...examUsers, ...streakAtRisk, ...studyNudge]);
-    for (const p of newcomers) {
-      if (!p.id || alreadyTargeted.has(p.id)) continue;
-      const days = daysByUser.get(p.id);
-      if (days && (days.has(today) || days.has(yesterday))) continue; // deja reparti
-      comeback.push(p.id);
-    }
-
-    // ── Refus de rappels : appliqués ICI, cote serveur ────────────────────
-    // Un interrupteur qui ne changerait que l'affichage ne vaut rien : la
-    // liste des refus est retiree AVANT tout envoi. Le RPC renvoie uniquement
-    // les personnes ayant explicitement dit non ; une absence de ligne (compte
-    // cree avant la migration v44) vaut donc « pas de refus », jamais
-    // « exclu » — c'est le sens sur en cas d'echec de lecture.
-    const optedOut = new Set();
-    const { data: optOutRows, error: optOutError } = await admin
-      .rpc("push_opted_out_users", { p_channel: "reminders" });
-    if (optOutError) {
-      // Migration v44 pas encore passee : on continue avec le comportement
-      // d'avant plutot que d'annuler tous les rappels du jour.
-      console.warn("push/daily opt-out lookup unavailable", { code: optOutError.code || null });
-    } else {
-      for (const row of optOutRows || []) if (row?.user_id) optedOut.add(row.user_id);
-    }
-    // Un compte suspendu ne recoit plus rien. Ici pas de repli : si la liste
-    // ne peut pas etre lue, le passage echoue plutot que d'ecrire a un suspendu.
-    const suspended = new Set(
-      (await fetchAll(admin.from("profiles").select("id").eq("locked", true).order("id")))
-        .map((row) => row.id)
-    );
-    const keep = (ids) => ids.filter((id) => !optedOut.has(id) && !suspended.has(id));
-
-    // Nudge alterne etude / planning selon le jour (variete anti-lassitude).
-    const planningDay = parseInt(today.replace(/-/g, ""), 10) % 2 === 0;
-
-    // Textes et activation pilotés depuis l'admin ; sans réglage enregistré,
-    // ce sont les valeurs de lib/pushAutomations.js qui s'appliquent.
-    const automations = await loadAutomations(admin);
-    const MESSAGES = {
-      exam: automations.exam_tomorrow,
-      streak: automations.streak_at_risk,
-      nudge: planningDay ? automations.nudge_planning : automations.nudge_study,
-      comeback: automations.comeback_day3,
-    };
-
-    const targets = {
-      exam: keep(examList),
-      streak: keep(streakAtRisk),
-      nudge: keep(studyNudge),
-      comeback: keep(comeback),
-    };
-
-    const summary = {
-      date: today,
-      counts: {
-        exam: targets.exam.length,
-        streak: targets.streak.length,
-        nudge: targets.nudge.length,
-        comeback: targets.comeback.length,
-      },
-      optedOut: optedOut.size,
-      suspended: suspended.size,
-      totalTargeted: targets.exam.length + targets.streak.length + targets.nudge.length + targets.comeback.length,
-    };
-
-    if (dry) {
-      return res.status(200).json({ dry: true, ...summary, nudgeVariant: planningDay ? "planning" : "study" });
-    }
-
-    // Envoi batché, résilient (un groupe qui échoue n'annule pas les autres).
-    const sent = {};
-    for (const [key, ids] of Object.entries(targets)) {
-      if (!ids.length) { sent[key] = { recipients: 0 }; continue; }
-      // Une relance coupée depuis l'admin ne part pas, mais son décompte reste
-      // visible dans le récapitulatif : on saurait ce qu'on se prive d'envoyer.
-      if (!MESSAGES[key]?.enabled) { sent[key] = { skipped: "désactivé" }; continue; }
-      try {
-        const r = await sendPushToUsers(ids, MESSAGES[key]);
-        sent[key] = { recipients: r.recipients, batches: r.batches };
-      } catch (e) {
-        sent[key] = { error: e?.message || "send-failed" };
-      }
-    }
-    console.info("push/daily done", { date: today, counts: summary.counts, sent });
-    // Le journal garde des compteurs, jamais le texte d'erreur de OneSignal
-    // (il peut citer des identifiants de membres).
-    const failed = Object.values(sent).some((entry) => entry.error);
-    await finishJobRun(admin, runId, failed ? "error" : "ok", {
-      date: today,
-      counts: summary.counts,
-      optedOut: summary.optedOut,
-      suspended: summary.suspended,
-      sent: Object.fromEntries(Object.entries(sent).map(([key, entry]) => [key, entry.error ? { error: true } : entry])),
+    const summary = await runDailyReminders({
+      store: createNotificationStore(admin),
+      onesignal: oneSignalFromEnv(),
+      loadActivity: createActivityLoader(admin),
+      automations: await loadAutomations(admin),
+      dryRun: dry,
     });
-    return res.status(200).json({ ok: true, ...summary, sent });
-  } catch (err) {
-    console.error("push/daily error:", err?.message || err);
-    await finishJobRun(admin, runId, "error", { stage: "prepare" });
-    return res.status(500).json({ error: "Daily push failed" });
+    const details = jobRunDetails(summary);
+    if (!dry) await finishJobRun(admin, runId, summary.failed > 0 ? "error" : "ok", details);
+    console.info("push/daily done", { dry, date: details.date, sent: details.sent, failed: details.failed });
+    return res.status(200).json({ ok: true, dry, ...details });
+  } catch (error) {
+    console.error("push/daily failed", { code: error?.code || "unknown" });
+    await finishJobRun(admin, runId, "error", { stage: "prepare", error: error?.code || "unknown" });
+    return res.status(500).json({ error: "daily_failed" });
   }
 }

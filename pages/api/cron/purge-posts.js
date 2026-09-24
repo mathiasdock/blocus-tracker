@@ -39,11 +39,16 @@
 // Mode test : ?dry=1 → compte ce qui serait supprimé, sans rien toucher.
 //
 // Chaque vrai passage est inscrit dans system_job_runs (page Système de
-// l'admin), et la même tâche efface les passages de plus de 90 jours.
+// l'admin), et la même tâche efface les passages de plus de 90 jours. Elle
+// fait aussi le ménage des notifications (registre : 180 jours par
+// destinataire, un an par envoi ; comptes supprimés effacés chez OneSignal —
+// lib/server/notificationHousekeeping.mjs).
 import { createClient } from "@supabase/supabase-js";
 import { getClientIp, setBaseSecurityHeaders, timingSafeEqualText } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
 import { finishJobRun, purgeOldJobRuns, startJobRun } from "../../../lib/server/jobRuns";
+import { notificationHousekeeping } from "../../../lib/server/notificationHousekeeping.mjs";
+import { oneSignalFromEnv } from "../../../lib/server/oneSignalRest.mjs";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -120,7 +125,8 @@ export default async function handler(req, res) {
     }
     if (!ids.length) {
       const oldRuns = await purgeOldJobRuns(admin);
-      await finishJobRun(admin, runId, "ok", { posts: 0, files: 0, more: false, oldRuns });
+      const notifications = await notificationHousekeeping(admin, oneSignalFromEnv());
+      await finishJobRun(admin, runId, "ok", { posts: 0, files: 0, more: false, oldRuns, notifications });
       return res.status(200).json({ ok: true, posts: 0, files: 0, cutoff });
     }
 
@@ -147,8 +153,9 @@ export default async function handler(req, res) {
 
     console.info("cron/purge-posts done", { posts: ids.length, files: filesRemoved, more: ids.length === BATCH });
     const oldRuns = await purgeOldJobRuns(admin);
+    const notifications = await notificationHousekeeping(admin, oneSignalFromEnv());
     await finishJobRun(admin, runId, "ok", {
-      posts: ids.length, files: filesRemoved, filesExpected: paths.length, more: ids.length === BATCH, oldRuns,
+      posts: ids.length, files: filesRemoved, filesExpected: paths.length, more: ids.length === BATCH, oldRuns, notifications,
     });
     return res.status(200).json({
       ok: true,

@@ -19,6 +19,10 @@
 //      PERSONNE. On ne recrée pas un chemin de suppression privilégié : la
 //      règle « on ne peut supprimer que soi-même » reste appliquée par la base.
 //
+//   4. Effacer le compte chez OneSignal (utilisateur + abonnements). La base a
+//      déjà mis l'identifiant en file (déclencheur v62) : un échec ici est
+//      repris par la purge quotidienne, jamais au prix de la suppression.
+//
 // Un échec à l'étape 2 ne bloque JAMAIS l'étape 3 : le droit à l'effacement
 // prime sur la propreté du ménage. Ce qui n'a pas pu être supprimé est
 // renvoyé dans `storage.failed` et reste rattrapable par l'outil admin
@@ -27,6 +31,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getBearerToken, getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
 import { countRemoved, purgeUserFiles } from "../../../lib/server/userFiles";
+import { createIdentityQueue, processIdentityCleanup } from "../../../lib/server/pushIdentity.mjs";
+import { oneSignalFromEnv } from "../../../lib/server/oneSignalRest.mjs";
 
 export const config = { api: { bodyParser: false } };
 
@@ -79,10 +85,20 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Deletion failed", storage });
   }
 
+  let onesignal = null;
+  try {
+    onesignal = await processIdentityCleanup({
+      queue: createIdentityQueue(admin), onesignal: oneSignalFromEnv(), externalId: userId,
+    });
+  } catch (_) {
+    // Reste en file : la purge quotidienne réessaiera.
+  }
+
   console.info("account/delete completed", {
     user: `${userId.slice(0, 8)}...`,
     files: countRemoved(storage),
     failed: storage.failed.length,
+    onesignal: onesignal ? (onesignal.failed ? "queued" : "done") : "queued",
   });
 
   return res.status(200).json({ ok: true, storage });

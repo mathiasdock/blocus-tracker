@@ -4,7 +4,9 @@
 // contre le clic de trop. Ordre des opérations :
 //   1. effacer TOUS ses fichiers (avatar, photos, pièces jointes) ;
 //   2. seulement si l'effacement est complet, supprimer le compte en base
-//      (admin_delete_account, v58 : journal anonyme + journal d'audit).
+//      (admin_delete_account, v58 : journal anonyme + journal d'audit) ;
+//   3. effacer le compte chez OneSignal (utilisateur + abonnements). La base
+//      l'a mis en file (v62) : un échec ici est repris par la purge du jour.
 // Contrairement à la suppression par la personne elle-même, un échec de
 // l'étape 1 arrête tout : on ne crée pas de fichiers orphelins d'un compte
 // qui n'existe plus. L'admin peut simplement réessayer.
@@ -14,6 +16,8 @@ import {
   loadTargetProfile, requireAdmin, sendAdminError,
 } from "../../../../../lib/server/adminAuth";
 import { countRemoved, purgeUserFiles } from "../../../../../lib/server/userFiles";
+import { createIdentityQueue, processIdentityCleanup } from "../../../../../lib/server/pushIdentity.mjs";
+import { oneSignalFromEnv } from "../../../../../lib/server/oneSignalRest.mjs";
 import {
   classifyAdminDbError, deletionConfirmed, isUuid, validateReason,
 } from "../../../../../lib/adminModeration.mjs";
@@ -55,6 +59,13 @@ export default async function handler(req, res) {
   });
   if (error) return sendAdminError(res, classifyAdminDbError(error));
 
-  console.info("admin/members/delete completed", { files: countRemoved(storage) });
+  const onesignal = await processIdentityCleanup({
+    queue: createIdentityQueue(ctx.admin), onesignal: oneSignalFromEnv(), externalId: targetId,
+  }).catch(() => null);
+
+  console.info("admin/members/delete completed", {
+    files: countRemoved(storage),
+    onesignal: onesignal && !onesignal.failed ? "done" : "queued",
+  });
   return res.status(200).json({ ok: true, files: countRemoved(storage) });
 }
