@@ -1,6 +1,6 @@
 // Fiche d'un membre — panneau à droite sur ordinateur, plein écran sur
 // téléphone. Lecture seule : admin_member_detail (v61), qui ne renvoie jamais
-// l'email. Les seules actions sont celles de la phase 1 (modérer, suspendre,
+// l'email ; l'état de ses notifications vient de MemberNotifications (v62). Les seules actions sont celles de la phase 1 (modérer, suspendre,
 // réactiver, supprimer), confirmées et motivées dans MemberActionDialog, et
 // un lien vers l'envoi d'une notification ciblée. Pas d'édition libre du
 // profil, pas de messagerie.
@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Avatar } from "../Layout";
 import useDialogFocus from "../useDialogFocus";
 import MemberActionDialog from "./MemberActionDialog";
+import MemberNotifications from "./MemberNotifications";
 import {
   BellIcon, CloseIcon, ErrorLine, SkeletonRows, StateMark, adminStyles as s, plural,
 } from "./AdminUi";
@@ -133,10 +134,12 @@ function DetailBody({ data, t, lang, onAction }) {
 
       <div className={s.drawerSection}>
         <h3 className={s.h3}>{t("adm.member.push")}</h3>
-        <Facts rows={[
-          [t("adm.member.pushFailures"), formatCount(push.failures_30d, lang)],
-          push.last_failure && [t("adm.member.pushLast"), `${pushReason(t, push.last_failure.reason)} · ${formatAgo(push.last_failure.at, now, lang)}`],
-        ]} />
+        <MemberNotifications userId={data.user_id} pushReason={pushReason} />
+        {push.failures_30d > 0 && (
+          <p className={s.note} style={{ marginTop: 8 }}>
+            {t("adm.member.pushFailures")}{" : "}{formatCount(push.failures_30d, lang)}
+          </p>
+        )}
       </div>
 
       <div className={s.drawerSection}>

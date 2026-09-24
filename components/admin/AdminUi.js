@@ -185,6 +185,47 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, b
   );
 }
 
+// Choix exclusif compact (aperçu FR / EN…). Un vrai groupe radio : Tab entre
+// dans le groupe, les flèches changent l'option — le motif accessible des
+// « segmented controls », dessiné avec les rôles neutres de l'admin.
+export function Segmented({ label, value, options, onChange, className = "" }) {
+  const refs = useRef([]);
+  function onKeyDown(event, index) {
+    const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
+      : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+    if (!step) return;
+    event.preventDefault();
+    const next = (index + step + options.length) % options.length;
+    onChange(options[next].value);
+    refs.current[next]?.focus();
+  }
+  return (
+    <div role="radiogroup" aria-label={label} className={`${s.segmented} ${className}`}>
+      {options.map((option, index) => {
+        const checked = option.value === value;
+        return (
+          <button key={option.value} ref={(node) => { refs.current[index] = node; }}
+            type="button" role="radio" aria-checked={checked} tabIndex={checked ? 0 : -1}
+            className={s.segment} onClick={() => onChange(option.value)} onKeyDown={(event) => onKeyDown(event, index)}>
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Une ligne de décompte : libellé à gauche, chiffre aligné à droite.
+// `tone` suit la règle de l'admin : neutre, sauf ce qui demande une action.
+export function CountRow({ label, value, strong = false, muted = false, note = null }) {
+  return (
+    <div className={`${s.countRow} ${strong ? s.countStrong : ""} ${muted ? s.countMuted : ""}`}>
+      <dt>{label}{note && <span className={s.countNote}>{note}</span>}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
 /* ── Icônes (Glyph : trait et couleur partagés) ───────────────────── */
 export function ChevronIcon({ direction = "right", size = 18 }) {
   const d = { right: "M9 6l6 6-6 6", left: "M15 6l-6 6 6 6", down: "M6 9l6 6 6-6", up: "M6 15l6-6 6 6" }[direction];

@@ -20,7 +20,7 @@ import {
 import { useI18n } from "../../contexts/I18nContext";
 import { adminFetch, adminRpc } from "../../lib/adminApi";
 import { formatAgo, formatCount, formatDate, formatDuration, shortSha } from "../../lib/adminFormat.mjs";
-import { AUTOMATION_BY_KEY } from "../../lib/pushAutomations";
+import { AUTOMATION_BY_KEY } from "../../lib/pushAutomations.mjs";
 
 const BUILD = {
   sha: process.env.BT_BUILD_SHA || "",
@@ -40,15 +40,17 @@ function jobDetail(t, lang, job, run) {
       .replace("{posts}", formatCount(details.posts ?? 0, lang))
       .replace("{files}", formatCount(details.files ?? 0, lang));
   }
-  if (job === "push_daily" && details.sent) {
-    const parts = Object.entries(details.sent).map(([key, entry]) => {
+  // Rappel du soir (v62) : éligibles, envoyés, erreurs, puis le détail par type.
+  if (job === "push_daily" && typeof details.sent === "number") {
+    const head = t("adm.system.dailyDetail")
+      .replace("{eligible}", formatCount(details.eligible ?? 0, lang))
+      .replace("{sent}", formatCount(details.sent, lang))
+      .replace("{failed}", formatCount(details.failed ?? 0, lang));
+    const parts = Object.entries(details.kinds || {}).filter(([, entry]) => entry?.planned).map(([key, entry]) => {
       const label = AUTOMATION_BY_KEY[key]?.label?.[lang === "en" ? "en" : "fr"] || key;
-      const pair = (value) => t("adm.common.labelValue").replace("{label}", label).replace("{value}", value);
-      if (entry?.skipped) return pair(t("adm.system.off"));
-      if (entry?.error) return pair(t("adm.system.failedShort"));
-      return pair(formatCount(entry?.recipients ?? 0, lang));
+      return t("adm.common.labelValue").replace("{label}", label).replace("{value}", formatCount(entry.sent ?? 0, lang));
     });
-    return parts.join(" · ");
+    return [head, ...parts].join(" · ");
   }
   return null;
 }

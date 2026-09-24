@@ -144,3 +144,16 @@ test("bytes and commit hashes", () => {
   assert.equal(shortSha(""), null);
   assert.equal(shortSha("main"), null);
 });
+
+test("admin date fields are read in Brussels time, whatever the admin's computer says", async () => {
+  const { adminInputToIso, isoToAdminInput } = await import("../lib/adminFormat.mjs");
+  // Heure d'été (UTC+2), heure d'hiver (UTC+1).
+  assert.equal(adminInputToIso("2026-10-04T18:00"), "2026-10-04T16:00:00.000Z");
+  assert.equal(adminInputToIso("2026-12-04T18:00"), "2026-12-04T17:00:00.000Z");
+  // Aller-retour : ce que l'admin a tapé est ce qu'il relit.
+  assert.equal(isoToAdminInput(adminInputToIso("2026-10-04T18:00")), "2026-10-04T18:00");
+  assert.equal(isoToAdminInput(adminInputToIso("2026-03-29T12:30")), "2026-03-29T12:30");
+  assert.equal(adminInputToIso(""), null);
+  assert.equal(adminInputToIso("04/10/2026 18:00"), null);
+  assert.equal(isoToAdminInput(null), "");
+});

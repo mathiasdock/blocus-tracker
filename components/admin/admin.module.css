@@ -638,6 +638,95 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
   font-size: 12.5px;
 }
 
+/* ── Centre de contrôle des notifications ─────────────────────────── */
+/* Formulaire à gauche, « qui recevra » et l'aperçu à droite ; une colonne
+   sous 1024 px. Le panneau de droite suit le défilement sur ordinateur. */
+.split { display: grid; gap: 16px; align-items: start; }
+@media (min-width: 1024px) {
+  .split { grid-template-columns: minmax(0, 1fr) 340px; }
+  .sticky { position: sticky; top: 16px; }
+}
+/* Français | anglais côte à côte dès qu'il y a la place. */
+.langGrid { display: grid; gap: 16px; }
+@media (min-width: 720px) { .langGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.langHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bt-text-2);
+}
+.langHead span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 999px;
+  background-color: var(--bt-subtle);
+  border: 1px solid var(--bt-border);
+}
+.segment {
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bt-text-2);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.segment[aria-checked="true"] {
+  background-color: var(--bt-surface);
+  color: var(--bt-text-1);
+  box-shadow: 0 1px 2px var(--bt-shadow);
+}
+.segment:focus-visible { outline: 2px solid var(--bt-accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .segment { transition: none; } }
+
+/* Décompte « qui recevra » : des lignes, un total, jamais des tuiles. */
+.counts { margin: 0; }
+.countRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 14px;
+  color: var(--bt-text-1);
+}
+.countRow + .countRow { border-top: 1px solid var(--bt-border); }
+.countRow dt { margin: 0; min-width: 0; }
+.countRow dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.countStrong { font-weight: 700; }
+.countMuted { color: var(--bt-text-2); font-size: 13px; }
+.countMuted dd { color: var(--bt-text-2); }
+.countNote { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--bt-text-2); }
+
+.details {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--bt-r-inset);
+  background-color: var(--bt-subtle);
+  font-size: 13px;
+  color: var(--bt-text-2);
+}
+.details dl { margin: 0; }
+.stack { display: flex; flex-direction: column; gap: 4px; }
+.inlineField { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--bt-text-1);
+  cursor: pointer;
+}
+.checkRow input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--bt-action); flex-shrink: 0; }
+.nameList { margin-top: 4px; font-size: 13px; line-height: 1.6; color: var(--bt-text-2); overflow-wrap: anywhere; }
+
 /* ── Fenêtre de confirmation ──────────────────────────────────────── */
 .dialogScrim {
   position: fixed;

@@ -1,36 +1,38 @@
-// Console de notifications push de l'admin.
+// Notifications push de l'admin — Communications.
 //
-//   GET  → audience (nombre d'abonnés), universités ciblables + historique
-//   POST → envoi ciblé : tous les abonnés, une université, ou des membres choisis
+//   GET                         → abonnements OneSignal (chiffres de l'app) + écoles ciblables
+//   POST { action: "preview" }  → qui recevrait : ciblés, exclus (préférence,
+//                                 suspension…), éligibles, appareils connus
+//   POST { action: "send" }     → envoi (ou envoi programmé) FR/EN
+//   POST { action: "test" }     → « M'envoyer un test » : à l'admin seul
+//   POST { action: "announcement", announcementId } → pousse une annonce
+//   POST { action: "delivery", sendId } → relit la livraison chez OneSignal
+//   DELETE ?id=<envoi>          → annule un envoi programmé
 //
-// Les erreurs sont des codes stables (« invalid_link », « empty_target »…) :
-// la page admin les traduit, aucune phrase n'est écrite ici.
-//
-// Sécurité : garde commune lib/server/adminAuth (jeton vérifié, admin non
-// suspendu). La clé REST OneSignal reste server-only, elle n'apparaît jamais
-// dans une réponse. Chaque envoi et chaque annulation est tracé dans le
-// journal d'audit. Les comptes suspendus ne reçoivent rien.
+// Tout passe par le point d'envoi unique (lib/server/notify.mjs) : comptes
+// Blocus Tracker éligibles seulement (jamais un segment OneSignal), refus des
+// annonces appliqué à TOUS les ciblages, suspendus et comptes supprimés
+// exclus, registre + journal d'audit. Garde commune lib/server/adminAuth
+// (jeton vérifié, admin non suspendu). Erreurs : des codes stables.
 
 import { getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
-import { getPushAudience, listRecentPushes, sendAnnouncement, sendPushToUsers, cancelPush } from "../../../lib/pushServer";
+import {
+  announcementPushContent, isUuidLike, parseAdminTarget, validatePushContent, validateSchedule,
+} from "../../../lib/notificationRules.mjs";
+import {
+  cancelScheduledSend, createNotificationStore, dispatchNotification, refreshDelivery,
+} from "../../../lib/server/notify.mjs";
+import { oneSignalFromEnv } from "../../../lib/server/oneSignalRest.mjs";
 import { logAdminAction, requireAdmin } from "../../../lib/server/adminAuth";
-import { isSafeInternalHref } from "../../../lib/security";
 
-const MAX_TITLE = 60;
-const MAX_BODY = 160;
-
-// Une notification part sur des téléphones et ne se rattrape pas : on plafonne
-// bas plutôt que de laisser un clic répété partir cinq fois.
+// Une notification part sur des téléphones et ne se rattrape pas : on
+// plafonne bas plutôt que de laisser un clic répété partir cinq fois.
 const SEND_LIMIT = { max: 6, windowMs: 10 * 60 * 1000 };
+const TEST_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 };
 
-function cleanText(value, max) {
-  return String(value || "").replace(/\s+/g, " ").trim().slice(0, max);
-}
-
-// Universités ciblables : celles des membres non suspendus (admins exclus),
-// avec leur nombre de membres. Comptées ici, côté serveur, pour que la page
-// n'ait jamais à charger la liste des membres.
+// Écoles ciblables : celles des membres non suspendus (admins exclus), avec
+// leur nombre de membres. Comptées ici : la page ne charge jamais la liste.
 async function listTargetUniversities(admin) {
   const counts = new Map();
   for (let from = 0; ; from += 1000) {
@@ -50,131 +52,213 @@ async function listTargetUniversities(admin) {
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 }
 
+function targetLabel(target) {
+  if (target.type === "university") return target.university;
+  if (target.type === "users") return String(target.userIds.length);
+  return null;
+}
+
+// L'aperçu d'un envoi : aucun identifiant, seulement des comptes.
+function previewPayload(result) {
+  const { targeted, excluded, eligible, reachable, devices } = result.summary;
+  return { targeted, excluded, eligible, reachable, devices };
+}
+
 export default async function handler(req, res) {
   setBaseSecurityHeaders(res);
-
   if (!["GET", "POST", "DELETE"].includes(req.method)) {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "method_not_allowed" });
   }
-
-  const limited = rateLimit(`admin-push:${getClientIp(req)}`, 30, 60_000);
-  if (!limited.ok) return res.status(429).json({ error: "Too many requests" });
+  if (!rateLimit(`admin-push:${getClientIp(req)}`, 60, 60_000).ok) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
 
   const auth = await requireAdmin(req, res, "admin/push");
   if (!auth) return;
+  const store = createNotificationStore(auth.admin);
+  const onesignal = oneSignalFromEnv();
 
-  // ── Lecture : audience + historique ───────────────────────────────────────
+  // ── Lecture ───────────────────────────────────────────────────────────────
   if (req.method === "GET") {
-    const [audience, history, universities] = await Promise.all([
-      getPushAudience().catch((e) => ({ error: e.message })),
-      listRecentPushes(20).catch(() => []),
+    const [app, universities] = await Promise.all([
+      onesignal.app().catch(() => null),
       listTargetUniversities(auth.admin).catch(() => []),
     ]);
-    if (audience?.error) {
-      console.error("admin/push audience failed:", audience.error);
-      return res.status(502).json({ error: "onesignal_unreachable", universities });
-    }
-    return res.status(200).json({ audience, history, universities });
+    // Le chiffre OneSignal compte des appareils, tous comptes confondus ; son
+    // absence ne bloque rien (l'audience réelle vient de la base).
+    return res.status(200).json({ configured: onesignal.configured, app, universities });
   }
 
   // ── Annulation d'un envoi programmé ───────────────────────────────────────
   if (req.method === "DELETE") {
     const id = String(req.query.id || "").trim();
-    if (!id) return res.status(400).json({ error: "failed" });
+    if (!isUuidLike(id)) return res.status(400).json({ error: "invalid" });
     try {
-      await cancelPush(id);
-      await logAdminAction(auth.admin, auth.userId, "push_cancelled", { targetType: "push", targetId: id });
+      const { send } = await cancelScheduledSend({ store, onesignal, sendId: id });
+      await logAdminAction(auth.admin, auth.userId, "push_cancelled", {
+        targetType: "push", targetId: id, details: { title: send?.title?.fr || null },
+      });
       return res.status(200).json({ ok: true });
     } catch (error) {
-      console.error("admin/push cancel failed:", error.message);
-      return res.status(502).json({ error: "cancel_refused" });
+      const code = error?.code === "not_cancellable" || error?.code === "not_found" ? error.code : "cancel_refused";
+      return res.status(code === "not_found" ? 404 : 409).json({ error: code });
     }
-  }
-
-  // ── Envoi ─────────────────────────────────────────────────────────────────
-  const sendLimited = rateLimit(`admin-push-send:${auth.userId}`, SEND_LIMIT.max, SEND_LIMIT.windowMs);
-  if (!sendLimited.ok) {
-    return res.status(429).json({ error: "rate_limited" });
   }
 
   const body = req.body || {};
-  const title = cleanText(body.title, MAX_TITLE);
-  const message = cleanText(body.message, MAX_BODY);
-  const target = body.target || {};
+  const action = body.action;
 
-  if (!title || !message) {
-    return res.status(400).json({ error: "title_required" });
-  }
-  // Seuls des chemins internes : un lien externe dans une notification de
-  // l'app serait un vecteur d'hameçonnage si le compte admin était compromis.
-  // « //site.com » commence aussi par « / » : isSafeInternalHref le refuse.
-  const rawUrl = String(body.url || "").trim();
-  if (!isSafeInternalHref(rawUrl)) {
-    return res.status(400).json({ error: "invalid_link" });
-  }
-  // Envoi différé. On refuse une date passée : OneSignal partirait aussitôt,
-  // sans que l'admin comprenne pourquoi. Plafonné à 90 jours — au-delà, c'est
-  // une erreur de saisie plus probablement qu'une intention.
-  let sendAfter;
-  if (body.sendAfter) {
-    const when = new Date(body.sendAfter);
-    if (Number.isNaN(when.getTime())) return res.status(400).json({ error: "invalid_date" });
-    if (when.getTime() < Date.now() + 60_000) {
-      return res.status(400).json({ error: "date_too_soon" });
+  // ── Livraison relue chez OneSignal ────────────────────────────────────────
+  if (action === "delivery") {
+    if (!isUuidLike(body.sendId)) return res.status(400).json({ error: "invalid" });
+    try {
+      const { delivery } = await refreshDelivery({ store, onesignal, sendId: body.sendId });
+      return res.status(200).json({ delivery });
+    } catch (error) {
+      return res.status(502).json({ error: error?.code === "not_found" ? "not_found" : "onesignal_unreachable" });
     }
-    if (when.getTime() > Date.now() + 90 * 864e5) {
-      return res.status(400).json({ error: "date_too_far" });
-    }
-    sendAfter = when.toISOString();
   }
 
-  const opts = { title, body: message, url: rawUrl || undefined, sendAfter };
+  // ── Aperçu : qui recevrait ────────────────────────────────────────────────
+  if (action === "preview") {
+    const parsed = parseAdminTarget(body.target);
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    try {
+      const result = await dispatchNotification({
+        store, onesignal,
+        spec: {
+          source: "admin", category: "announcement", kind: "admin_message", trigger: "admin:composer",
+          target: parsed.target, content: null, dryRun: true,
+        },
+      });
+      return res.status(200).json({ audience: previewPayload(result) });
+    } catch (_) {
+      return res.status(500).json({ error: "members_unreadable" });
+    }
+  }
+
+  // ── Test à soi-même ───────────────────────────────────────────────────────
+  if (action === "test") {
+    if (!rateLimit(`admin-push-test:${auth.userId}`, TEST_LIMIT.max, TEST_LIMIT.windowMs).ok) {
+      return res.status(429).json({ error: "rate_limited" });
+    }
+    const content = validatePushContent(body.content);
+    if (!content.ok) return res.status(400).json({ error: content.error });
+    try {
+      const result = await dispatchNotification({
+        store, onesignal,
+        spec: {
+          source: "admin", category: "test", kind: "admin_test", trigger: "admin:test",
+          authorId: auth.userId, target: { type: "self", userIds: [auth.userId], label: null },
+          content: content.content, langs: content.langs, recordEmpty: true,
+          recipientKey: null,
+        },
+      });
+      await logAdminAction(auth.admin, auth.userId, "push_test_sent", {
+        targetType: "push", targetId: result.sendId || null,
+        details: { title: content.content.title.fr, status: result.status },
+      });
+      return res.status(200).json({ ok: true, status: result.status, reachable: (result.counts?.sent || 0) > 0 });
+    } catch (error) {
+      return res.status(502).json({ error: error?.code === "onesignal_unconfigured" ? "onesignal_unconfigured" : "onesignal_rejected" });
+    }
+  }
+
+  // ── Envoi (manuel ou annonce poussée) ─────────────────────────────────────
+  if (action !== "send" && action !== "announcement") return res.status(400).json({ error: "invalid" });
+  if (!rateLimit(`admin-push-send:${auth.userId}`, SEND_LIMIT.max, SEND_LIMIT.windowMs).ok) {
+    return res.status(429).json({ error: "rate_limited" });
+  }
+
+  let payload;          // { content: { title, body, url }, langs }
+  let target;
+  let sendAfter = null;
+  let announcementId = null;
+  let kind = "admin_message";
+  let trigger = "admin:composer";
+
+  if (action === "announcement") {
+    if (!isUuidLike(body.announcementId)) return res.status(400).json({ error: "invalid" });
+    const { data: row, error } = await auth.admin.from("app_announcements")
+      .select("id, title, message, title_en, message_en, href, is_active, starts_at, ends_at, audience, audience_university")
+      .eq("id", body.announcementId).maybeSingle();
+    if (error) return res.status(500).json({ error: "failed" });
+    if (!row) return res.status(404).json({ error: "not_found" });
+    if (!row.is_active || (row.ends_at && new Date(row.ends_at).getTime() <= Date.now())) {
+      return res.status(409).json({ error: "announcement_inactive" });
+    }
+    const pushed = announcementPushContent(row);
+    payload = { content: { title: pushed.title, body: pushed.body, url: pushed.url }, langs: pushed.langs };
+    target = row.audience === "university"
+      ? { type: "university", university: row.audience_university }
+      : { type: "all" };
+    // Une annonce qui commence plus tard : la notification part à sa date.
+    if (row.starts_at && new Date(row.starts_at).getTime() > Date.now() + 60_000) {
+      const schedule = validateSchedule(row.starts_at);
+      if (!schedule.ok) return res.status(400).json({ error: schedule.error });
+      sendAfter = schedule.sendAfter;
+    }
+    announcementId = row.id;
+    kind = "announcement";
+    trigger = "admin:announcement";
+  } else {
+    const validated = validatePushContent(body.content);
+    if (!validated.ok) return res.status(400).json({ error: validated.error });
+    const parsed = parseAdminTarget(body.target);
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    const schedule = validateSchedule(body.sendAfter);
+    if (!schedule.ok) return res.status(400).json({ error: schedule.error });
+    payload = { content: validated.content, langs: validated.langs };
+    target = parsed.target;
+    sendAfter = schedule.sendAfter;
+  }
+
+  // Un identifiant de requête fourni par la page : un double clic ou un
+  // nouvel essai après une coupure réseau ne part qu'une fois.
+  const requestId = isUuidLike(body.requestId) ? body.requestId : null;
+  const idempotencyKey = announcementId ? `announcement:${announcementId}` : requestId ? `admin:${requestId}` : null;
 
   try {
-    if (target.type === "all") {
-      // « Tous » veut dire tous ceux qui n'ont pas dit non : le refus des
-      // annonces est appliqué ici, pas seulement affiché dans le profil.
-      const r = await sendAnnouncement(auth.admin, opts);
-      await logAdminAction(auth.admin, auth.userId, "push_sent", {
-        targetType: "push", targetId: r.id || (r.notificationIds || [])[0] || null,
-        details: { scope: "all", title, scheduled: Boolean(sendAfter), recipients: r.recipients ?? null },
-      });
-      return res.status(200).json({ ok: true, recipients: r.recipients ?? null, scope: "all", optedOut: r.optedOut ?? null });
-    }
-
-    let userIds = [];
-    if (target.type === "university" && target.university) {
-      const { data, error } = await auth.admin
-        .from("profiles").select("id").eq("university", target.university).eq("locked", false);
-      if (error) return res.status(500).json({ error: "members_unreadable" });
-      userIds = (data || []).map((r) => r.id);
-    } else if (target.type === "users") {
-      const picked = [...new Set((target.userIds || []).filter(Boolean).map(String))].slice(0, 2000);
-      // Un compte suspendu ne reçoit plus rien, même désigné nommément. Par
-      // paquets : 2000 identifiants dans une seule URL dépasseraient sa taille.
-      for (let i = 0; i < picked.length; i += 150) {
-        const { data, error } = await auth.admin
-          .from("profiles").select("id").in("id", picked.slice(i, i + 150)).eq("locked", false);
-        if (error) return res.status(500).json({ error: "members_unreadable" });
-        userIds.push(...(data || []).map((r) => r.id));
-      }
-    } else {
-      return res.status(400).json({ error: "invalid_target" });
-    }
-
-    if (!userIds.length) return res.status(400).json({ error: "empty_target" });
-
-    const r = await sendPushToUsers(userIds, opts);
-    await logAdminAction(auth.admin, auth.userId, "push_sent", {
-      targetType: "push", targetId: (r.notificationIds || [])[0] || null,
-      details: {
-        scope: target.type, title, scheduled: Boolean(sendAfter), targeted: userIds.length,
-        university: target.type === "university" ? target.university : undefined,
+    const result = await dispatchNotification({
+      store, onesignal,
+      spec: {
+        source: "admin", category: "announcement", kind, trigger,
+        authorId: auth.userId, announcementId,
+        target: { ...target, label: targetLabel(target) },
+        content: payload.content, langs: payload.langs,
+        sendAfter, idempotencyKey, recordEmpty: true,
+        recipientKey: null,
       },
     });
-    return res.status(200).json({ ok: true, recipients: r.recipients ?? null, targeted: userIds.length, scope: target.type });
+    if (result.duplicate) {
+      return res.status(200).json({ ok: true, duplicate: true, status: result.status, sendId: result.sendId });
+    }
+    await logAdminAction(auth.admin, auth.userId, "push_sent", {
+      targetType: announcementId ? "announcement" : "push",
+      targetId: announcementId || result.sendId || null,
+      details: {
+        scope: target.type,
+        university: target.type === "university" ? target.university : undefined,
+        title: payload.content.title.fr,
+        scheduled: Boolean(sendAfter),
+        targeted: result.summary?.targeted ?? null,
+        eligible: result.summary?.eligible ?? null,
+        recipients: result.counts?.sent ?? 0,
+        status: result.status,
+      },
+    });
+    return res.status(200).json({
+      ok: true,
+      status: result.status,
+      sendId: result.sendId,
+      audience: previewPayload(result),
+      counts: result.counts || null,
+    });
   } catch (error) {
-    console.error("admin/push send failed:", error.message);
-    return res.status(502).json({ error: "onesignal_rejected" });
+    console.error("admin/push send failed", { code: error?.code || "unknown" });
+    const code = error?.code === "onesignal_unconfigured" ? "onesignal_unconfigured"
+      : error?.code === "audience_failed" ? "members_unreadable"
+      : "onesignal_rejected";
+    return res.status(502).json({ error: code });
   }
 }
