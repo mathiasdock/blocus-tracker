@@ -13,6 +13,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { isOfflineDev, supabase } from "../lib/supabaseClient";
 import { displayName, timeAgo, formatDuration, formatMinutesShort } from "../lib/format";
 import { readSessionShare } from "../lib/sessionShare";
+import { isUuidLike } from "../lib/notificationRules.mjs";
 import { isStudyingLive } from "../lib/presence";
 import { optimizeFeedImage } from "../lib/imageCompression";
 import { notifyXPChanged } from "../lib/xpEvents";
@@ -789,6 +790,14 @@ export default function Messages() {
     if (router.query.tab === "relations") openRelations();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.query.tab]);
+  // Liens des notifications : ?dm=<id> ouvre la conversation (message privé),
+  // ?profile=<id> le profil (demande acceptée). Autre chose est ignoré.
+  useEffect(() => {
+    const { dm, profile } = router.query;
+    if (typeof dm === "string" && isUuidLike(dm)) openDM(dm);
+    else if (typeof profile === "string" && isUuidLike(profile)) openProfile(profile);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.query.dm, router.query.profile]);
 
   // Realtime DMs
   const loadMessagesRef = useRef(loadMessages);
