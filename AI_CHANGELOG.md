@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-24 — Codex — Planning : cours plus présents, examens comme jalons
+
+- Le Mois garde ses cases entièrement teintées par le cours dominant, avec une présence chromatique renforcée (28 % clair / 26 % sombre). La bande de minutes prévues reste en pied de case, ramenée à 3 px ; elle continue de comparer la charge et les cours sans concurrencer le contenu.
+- L'examen reprend une même forme de calendrier estampillé sur fond sable/terracotta dans Mois, Semaine, Jour, Aujourd'hui et le détail du jour. Le rail vertical et le rose d'alerte disparaissent ; l'icône reste visible même dans les cases étroites. Les dates d'examen révolues disent désormais « Date passée » / « Exam date passed », sans suggérer que l'étudiant a réussi l'épreuve.
+- `DESIGN.md` et le brief Planning décrivent cette grammaire. Aucune logique de planning, donnée ou vue n'a été changée. Vérification : 24 tests Planning, lint et builds offline/production ; rendu réel à 320, 390, 1280 et 1440 px, clair/sombre, mois dense, semaine, jour et détail avec trois examens.
+
 ## 2026-09-24 — Claude Code — La cloche devient un vrai centre de notifications
 
 - Une seule liste, faite par la base (v64, `notification_items` / `notification_inbox`) là où les choses vivent déjà : demande d'ami reçue (tant qu'elle attend), demande acceptée, message privé (une ligne par personne, jamais le texte), commentaire et réaction sur mes publications, annonce (active, dans ses dates, ciblée). Rien n'est recopié. Pas de nouvelle catégorie ; XP, niveaux, badges, missions, classement, sessions et planning restent hors de la cloche ; messages de groupe et d'espaces gardent leurs compteurs d'onglet.

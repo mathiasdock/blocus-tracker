@@ -1,19 +1,20 @@
-/* Exam semantics are scoped to Planning, including its day-detail sheet, and
-   to course rooms, where a shared exam date reuses the same vocabulary.
-   Warm ink derives from the existing palette, never error/Timer-pause tokens. */
+/* An exam is a fixed academic date: a warm paper surface and a compact
+   calendar stamp. Shared course-room dates use the same vocabulary. */
 .bt-planning, .bt-planning-dialog, .bt-course-room {
-  --bt-exam-ink: #963e32;
-  --bt-exam-rail: #ad493b;
-  --bt-exam-bg: #fff6f1;
-  --bt-exam-border: #d7aaa0;
+  --bt-exam-ink: #6d3723;
+  --bt-exam-bg: #e8cfba;
+  --bt-exam-border: #c99e7a;
+  --bt-exam-stamp-bg: #8a4c33;
+  --bt-exam-stamp-text: #fff4e9;
 }
 .dark .bt-planning, .dark .bt-planning-dialog, .dark .bt-course-room {
-  --bt-exam-ink: #f5b5ad;
-  --bt-exam-rail: #eea194;
-  --bt-exam-bg: #30231f;
-  --bt-exam-border: #885a50;
+  --bt-exam-ink: #f6d9c4;
+  --bt-exam-bg: #4d352a;
+  --bt-exam-border: #9b6d53;
+  --bt-exam-stamp-bg: #d5a57d;
+  --bt-exam-stamp-text: #3b2419;
 }
-.bt-planning-next-exam { --bt-exam-ink: #f5b5ad; --bt-exam-rail: #f5b5ad; }
+.bt-planning-next-exam { --bt-exam-stamp-bg: #d5a57d; --bt-exam-stamp-text: #3b2419; }
 .bt-planning { --bt-segment-track: var(--bt-border); }
 .bt-planning .bt-plan-nav-btn {
   background-color: var(--bt-surface);
@@ -38,23 +39,23 @@
 .bt-planning .bt-plan-day-cell { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; min-width: 0; container-type: inline-size; }
 .bt-planning .bt-plan-day-cell[data-fill="exam"] {
   background: var(--bt-exam-bg);
-  /* A bounded exam-day frame, independently of today's/selection outline. */
+  /* A bounded milestone, independent of today's/selection outline. */
   outline: 1px solid var(--bt-exam-border);
-  outline-offset: -3px;
+  outline-offset: -2px;
 }
 .bt-planning .bt-plan-day-cell[data-fill="planned"] { background: var(--bt-surface); }
 .bt-planning .bt-plan-day-cell:not([data-fill="exam"]):not([data-fill="planned"]):not([data-fill="course"]) { background: var(--bt-surface); }
-/* One representative course tint; the existing count ordering is unchanged.
-   No date slash or multi-course split. Other identities stay in the markers. */
+/* One course owns the whole cell. The stronger wash keeps a busy month legible
+   as a study plan; other courses stay in the measured load and day detail. */
 .bt-planning .bt-plan-day-cell[data-fill="course"] {
-  --bt-course-tint-strength: .14;
+  --bt-course-tint-strength: .28;
   background-color: var(--bt-surface);
   background-image: linear-gradient(rgba(var(--bt-day-tint), var(--bt-course-tint-strength)), rgba(var(--bt-day-tint), var(--bt-course-tint-strength)));
 }
 .dark .bt-planning .bt-plan-day-cell[data-fill="course"] {
-  --bt-course-tint-strength: .20;
+  --bt-course-tint-strength: .26;
 }
-.bt-plan-exam-mark { display: inline-flex; align-items: center; gap: 5px; padding-inline-start: 7px; border-inline-start: 3px solid var(--bt-exam-rail); color: var(--bt-exam-ink); font-size: 12px; font-weight: 800; line-height: 20px; vertical-align: middle; }
+.bt-plan-exam-mark { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; border-radius: 4px; background: var(--bt-exam-stamp-bg); color: var(--bt-exam-stamp-text); font-size: 11px; font-weight: 800; line-height: 18px; vertical-align: middle; }
 .bt-plan-exam-mark svg { flex: none; }
 .bt-plan-exam-count { font-variant-numeric: tabular-nums; }
 .bt-plan-exam-count::before { content: "×"; margin-inline-end: 2px; }
@@ -72,13 +73,13 @@
 .bt-plan-objective-chip[data-done="1"] { text-decoration: line-through; }
 .bt-plan-objective-chip:focus-visible, .bt-plan-day-cell:focus-visible, .bt-planning-agenda-exam:focus-visible, .bt-planning-week-exam:focus-visible { outline: 2px solid var(--bt-action); outline-offset: -2px; }
 @media (max-width: 639px) {
-  .bt-plan-exam-mark--compact { gap: 3px; padding-inline-start: 3px; font-size: 11px; }
+  .bt-plan-exam-mark--compact { gap: 3px; padding-inline: 4px; font-size: 11px; }
   .bt-plan-exam-mark--compact svg { width: 14px; height: 16px; }
   .bt-plan-exam-mark--compact .bt-plan-exam-mark-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .bt-plan-exam-mark--compact .bt-plan-exam-count::before { content: none; }
 }
 @container (max-width: 100px) {
-  .bt-plan-exam-mark--compact { gap: 3px; padding-inline-start: 3px; }
+  .bt-plan-exam-mark--compact { gap: 3px; padding-inline: 4px; }
   .bt-plan-exam-mark--compact .bt-plan-exam-mark-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .bt-plan-exam-mark--compact .bt-plan-exam-count::before { content: none; }
 }
@@ -194,8 +195,9 @@
   .bt-plan-week-total { font-size: 14px; }
 }
 
-/* Le mois pose sa bande au bas de la case, sous les titres. */
-.bt-planning .bt-plan-day-cell .bt-plan-load { block-size: 5px; }
+/* The month keeps the absolute workload scale as a quiet baseline below the
+   plan. Week retains the larger band needed for seven-row comparison. */
+.bt-planning .bt-plan-day-cell .bt-plan-load { block-size: 3px; }
 
 .bt-planning-task { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--bt-hairline, var(--bt-border)); }
 .bt-planning .bt-plan-revision-row { padding: 12px 4px; min-height: 44px; }
@@ -209,7 +211,7 @@
 @media (hover: hover) and (pointer: fine) {
   .bt-planning-next-exam:hover { opacity: .85; }
   .bt-planning-task:hover { background: var(--bt-subtle); }
-  .bt-planning-agenda-exam:hover, .bt-planning-week-exam:hover { border-color: var(--bt-exam-rail); }
+  .bt-planning-agenda-exam:hover, .bt-planning-week-exam:hover { border-color: var(--bt-exam-ink); }
   .bt-plan-objective-chip:hover { background: var(--bt-subtle); }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -362,9 +362,8 @@ function ObjectiveForm({ value, onChange, onSubmit, onCancel, minDate, submitLab
 // ── ExamForm ──────────────────────────────────────────────────
 // Ajout ET édition d'un examen (le même formulaire était écrit deux fois,
 // à l'identique, dans le modal — d'où deux occasions de diverger).
-// Le rouge n'est plus la couleur du formulaire : il identifie le TYPE
-// (liseré + pastille), l'action reste au vert de l'app. Un formulaire
-// entièrement rouge se lit comme une erreur, pas comme « examen ».
+// The calendar stamp identifies an exam without borrowing error styling;
+// the form action keeps the app's primary green.
 const EMPTY_EXAM_FORM = { name: "", courseId: "", time: "", location: "" };
 function ExamForm({ value, onChange, onSubmit, onCancel, submitLabel, title, dateLabel }) {
   const { activeCourses: courses, t } = usePlan();
@@ -1009,7 +1008,7 @@ function DayDetailModal() {
                 )}
                 <button onClick={() => setShowAddExamForm(true)}
                   className="btn-ghost flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm font-semibold">
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--bt-exam-rail)" }} />
+                  <span style={{ color: "var(--bt-exam-ink)" }}><IconCalendar size={15} /></span>
                   {t("plan.addExamShort")}
                 </button>
               </div>
@@ -1113,7 +1112,7 @@ function CalendarLegend() {
 // Une carte de la charge de travail. Le fond porte l'IDENTITÉ (le cours qui
 // pèse le plus de minutes ce jour-là), la bande du bas porte la QUANTITÉ et la
 // part de chaque cours. L'examen garde la priorité sur le fond et conserve sa
-// bande : un jour d'examen montre à la fois l'échéance et la révision prévue.
+// discrète mesure de charge : échéance et révision restent toutes deux lisibles.
 function MonthView() {
   const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);

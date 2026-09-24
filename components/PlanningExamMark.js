@@ -1,8 +1,8 @@
 import Glyph from "./Glyph";
 
 // Shared by Planning surfaces and by course rooms (a shared exam date). The
-// rail + calendar silhouette persists in a narrow month cell; the full label
-// stays available to assistive tech.
+// Calendar stamp persists in a narrow month cell; the full label stays
+// available to assistive tech.
 export default function PlanningExamMark({ label, count = 1, compact = false }) {
   return <span className={`bt-plan-exam-mark${compact ? " bt-plan-exam-mark--compact" : ""}`}>
     <Glyph size={16}>

@@ -90,7 +90,7 @@ Read [PRODUCT.md](PRODUCT.md) for product constraints and [docs/UI.md](docs/UI.m
 | --- | --- | --- |
 | Primary action / positive / active | `--bt-action`, `--bt-accent`, `--bt-accent-text`, `--bt-accent-bg` | Differentiate action, selection and information by structure too. Bright green is not a default text color. |
 | Course identity | Saved `course.color`; palette in `lib/courseColors.js` | Follow the course, never task completion or urgency. |
-| Exam priority | Planning `--bt-exam-*` in `styles/planning.css` | Warm academic surface, deadline rail and calendar glyph; independent of danger and pause tokens. |
+| Exam priority | Planning `--bt-exam-*` in `styles/planning.css` | Warm sand surface and compact terracotta calendar stamp; independent of danger and pause tokens. |
 | Error / destructive action | `--bt-danger*` | Error copy, warning/action semantics; no exam marker. |
 | Paused Timer | `--bt-pause*` in `styles/globals.css` | Attention state, **not** an error. Timer surfaces only — card, digits, badge, in-progress unit ring, Focus field. Never borrow it for failures, and never borrow `--bt-danger*` for a pause. See § The Paused-Timer Exception. |
 | Routine interface | Surface/text/border `--bt-*` roles | Search, settings, back, fields, ordinary messaging. |
@@ -109,8 +109,8 @@ A saved course owns its hue across Timer, objectives, Planning, Stats and Activi
 | Light surface | Original hue in a marker or chart; light derived tint for a larger region, neutral readable text. |
 | Dark surface | Preserve hue identity; adjust tint/marker luminance only as needed for contrast. Do not recolor the entire course green. |
 | Selected | Preserve course hue; add a check, outline or selected control state independent of the course fill. |
-| Calendar: one course | One uniform subtle tint across the cell. Current 14% light / 20% dark opacity is a starting point, not a contrast guarantee. |
-| Calendar: multiple courses | One representative tint, selected deterministically using the existing objective-count ordering and stable ID tie-break. Show a few named/dotted identities plus a count/detail affordance. No diagonal split or rainbow. The representative tint is not a claim about time share. |
+| Calendar: one course | One uniform course tint across the cell. Current 28% light / 26% dark opacity gives study days a visible presence; check contrast against actual hues. |
+| Calendar: multiple courses | One representative tint, selected deterministically by planned minutes and stable ID tie-break. Other identities remain in the measured load band and day detail. No diagonal split or rainbow; the tint alone does not quantify time share. |
 | Charts | Course hues identify series; labels/values and a shared scale carry quantity. Never change series colors with sort order. |
 | Activity | **Surfaces (2026-09-23, user request):** each day is one surface card (day title opens it), composer and sharing settings sit on their own surfaces; an accomplishment gets an accent wash inside the day card. Two registers. **Ordinary study is one row** — person, course marker, duration, time — with no card, no shadow, no level pill, no icon tile. **An accomplishment is the product's own object** (BadgeIcon, StreakEmblem, LevelSeal) and may interrupt the timeline. Preserve an existing historical event snapshot if no reliable live course reference exists. |
 | Text/icons | Use semantic neutral text unless the actual course-color/background pair passes contrast; retain identity in an adjacent marker. Never place white text on every course hue. |
@@ -177,22 +177,22 @@ Soft geometry is supporting infrastructure, not the identity. Reuse the four rad
 
 Compression changes rendering, not stored data or reward eligibility. A caption such as “1 unit = 1h” is required when the unit would otherwise be ambiguous. Do not change scale independently for each leaderboard row. On live views, avoid rearranging all units every minute; change scale at stable boundaries. The current Timer's capped overflow and daily goal cells are evidence to evolve, not this full policy already implemented.
 
-Completed time is filled; a live measured fraction is partial; paused time stops accumulating and uses an explicit pause state (§ The Paused-Timer Exception), not an exam/error rail. A paused unit keeps its earned fill in the ordinary colour — the time was studied; what is wrong is that it stopped growing — and carries the warning on its ring. Planned time is an outline/unfilled allocation labeled “planned,” never shown as earned. Unknown duration stays unknown; completing a checklist does not prove time studied.
+Completed time is filled; a live measured fraction is partial; paused time stops accumulating and uses an explicit pause state (§ The Paused-Timer Exception), not an exam/error marker. A paused unit keeps its earned fill in the ordinary colour — the time was studied; what is wrong is that it stopped growing — and carries the warning on its ring. Planned time is an outline/unfilled allocation labeled “planned,” never shown as earned. Unknown duration stays unknown; completing a checklist does not prove time studied.
 
 **Blocks are quantities; progress bars are ratios.** A labeled time-target view may show studied units against planned capacity because both are durations. Do not turn “3/5 objectives” or “40% setup” into study blocks. Do not duplicate the same duration as blocks, a bar and a percentage without a different question. No target means no invented empty capacity. Over-target time remains in the total even when a goal track stops at 100%.
 
 ### Exams — interrupt the ordinary system
 
-**EXAM STATE > COURSE COLOR.** Adopt one vocabulary: a **deadline marker** comprising a short solid leading rail aligned with the calendar glyph + explicit “Exam” label, followed by the date/event identity. The rail belongs to the exam header/event, not an arbitrary full-height colored card edge. Use the existing warm Planning family; color reinforces a recognizable structure.
+**EXAM STATE > COURSE COLOR.** The shared marker is a compact **calendar stamp** with an explicit “Exam” label, followed by the date/event identity. Its straight-edged terracotta plate reads as a fixed academic milestone, without a vertical rail or an error-like pink wash. Use the warm sand Planning surface behind it; color reinforces the calendar glyph and label rather than carrying meaning alone.
 
 - Month cell: exam header/marker and date remain visible; warm treatment owns the cell. Course identity is a small named/dotted secondary signal. No competing course-colored background.
-- Mobile/narrow cells: preserve the rail and calendar glyph, plus the count for multiple exams. The full Exam label stays accessible to assistive technology when visually omitted for lack of space; day detail exposes names/date/time without hover. Never truncate the exam identity into an ambiguous fragment.
+- Mobile/narrow cells: preserve the calendar stamp, plus the count for multiple exams. The full Exam label stays accessible to assistive technology when visually omitted for lack of space; day detail exposes names/date/time without hover. Never truncate the exam identity into an ambiguous fragment.
 - Day/Week/list/Activity/course space: reuse the same header vocabulary at the available size. A date-bearing mark can include the actual date; never fabricate a date. In a course space an exam date exists only as a message a student shared (`PlanningExamMark` + warm exam tokens, scoped to `.bt-course-room`); it enters Planning only on the reader's own course, by their action, and is never presented as a consensus.
 - Today and selection remain independently visible, for example on the date indicator/outline; neither replaces the exam treatment.
 - Multiple exams: one marker with count and accessible event names, not stacked stripes. Other objectives remain secondary and available.
 - Error/delete UI uses its own icon, action and message; a warm exam is not an error.
 
-This contract evolves Planning's existing calendar label and occasional leading stripe. The shared renderer/aliases and mobile treatment are **not implemented by this documentation task**.
+`PlanningExamMark` carries this stamp across Planning and course rooms. Month keeps a small absolute planned-workload band below the content, including on exam days; it remains secondary to the milestone.
 
 ### The Paused-Timer Exception — loud on purpose
 
