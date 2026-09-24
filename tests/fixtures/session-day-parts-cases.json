@@ -1,0 +1,400 @@
+{
+  "_comment": "Cas limites partagés par tests/session-day-parts.test.mjs (JavaScript) et supabase/tests/session_day_parts.sql (SQL). Les valeurs attendues sont celles de public.compute_session_day_parts (v65), la référence de production. Ne modifier qu'en regénérant les deux côtés.",
+  "parts": [
+    {
+      "name": "14:00-15:30 Bruxelles",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T12:00:00Z",
+      "ended_at": "2026-09-24T13:30:00Z",
+      "duration_seconds": 5400,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 5400
+        }
+      ]
+    },
+    {
+      "name": "23:30-00:30 Bruxelles",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T21:30:00Z",
+      "ended_at": "2026-09-24T22:30:00Z",
+      "duration_seconds": 3600,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 1800
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 1800
+        }
+      ]
+    },
+    {
+      "name": "23:30-01:30 Bruxelles, nuit du passage à l'heure d'hiver (25 oct)",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-10-24T21:30:00Z",
+      "ended_at": "2026-10-24T23:30:00Z",
+      "duration_seconds": 7200,
+      "expected": [
+        {
+          "local_date": "2026-10-24",
+          "seconds": 1800
+        },
+        {
+          "local_date": "2026-10-25",
+          "seconds": 5400
+        }
+      ]
+    },
+    {
+      "name": "23:30-03:30 Bruxelles, traverse le recul d'une heure (5 h réelles)",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-10-24T21:30:00Z",
+      "ended_at": "2026-10-25T02:30:00Z",
+      "duration_seconds": 18000,
+      "expected": [
+        {
+          "local_date": "2026-10-24",
+          "seconds": 1800
+        },
+        {
+          "local_date": "2026-10-25",
+          "seconds": 16200
+        }
+      ]
+    },
+    {
+      "name": "23:30-01:30 (second 01:30) New York, nuit du 1er novembre",
+      "timezone": "America/New_York",
+      "started_at": "2026-11-01T03:30:00Z",
+      "ended_at": "2026-11-01T06:30:00Z",
+      "duration_seconds": 10800,
+      "expected": [
+        {
+          "local_date": "2026-10-31",
+          "seconds": 1800
+        },
+        {
+          "local_date": "2026-11-01",
+          "seconds": 9000
+        }
+      ]
+    },
+    {
+      "name": "23:30-03:30 New York, nuit du passage à l'heure d'été (8 mars)",
+      "timezone": "America/New_York",
+      "started_at": "2026-03-08T04:30:00Z",
+      "ended_at": "2026-03-08T07:30:00Z",
+      "duration_seconds": 10800,
+      "expected": [
+        {
+          "local_date": "2026-03-07",
+          "seconds": 1800
+        },
+        {
+          "local_date": "2026-03-08",
+          "seconds": 9000
+        }
+      ]
+    },
+    {
+      "name": "Santiago, minuit qui n'existe pas (6 sept)",
+      "timezone": "America/Santiago",
+      "started_at": "2026-09-06T03:30:00Z",
+      "ended_at": "2026-09-06T04:30:00Z",
+      "duration_seconds": 3600,
+      "expected": [
+        {
+          "local_date": "2026-09-05",
+          "seconds": 1800
+        },
+        {
+          "local_date": "2026-09-06",
+          "seconds": 1800
+        }
+      ]
+    },
+    {
+      "name": "Santiago, fin de l'heure d'été (avril)",
+      "timezone": "America/Santiago",
+      "started_at": "2026-04-05T02:30:00Z",
+      "ended_at": "2026-04-05T05:30:00Z",
+      "duration_seconds": 10800,
+      "expected": [
+        {
+          "local_date": "2026-04-04",
+          "seconds": 5400
+        },
+        {
+          "local_date": "2026-04-05",
+          "seconds": 5400
+        }
+      ]
+    },
+    {
+      "name": "Démarrée à New York 22:30-23:45, synchronisée plus tard en Belgique",
+      "timezone": "America/New_York",
+      "started_at": "2026-09-25T02:30:00Z",
+      "ended_at": "2026-09-25T03:45:00Z",
+      "duration_seconds": 4500,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 4500
+        }
+      ]
+    },
+    {
+      "name": "Chrono de groupe : intervalle 2 h, 1 h 30 étudiée",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T21:00:00Z",
+      "ended_at": "2026-09-24T23:00:00Z",
+      "duration_seconds": 5400,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 2700
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 2700
+        }
+      ]
+    },
+    {
+      "name": "Arrondi : 20 s réparties sur 23 s d'intervalle",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T21:59:50Z",
+      "ended_at": "2026-09-24T22:00:13Z",
+      "duration_seconds": 20,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 8
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 12
+        }
+      ]
+    },
+    {
+      "name": "Intervalle nul",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T21:59:59Z",
+      "ended_at": "2026-09-24T21:59:59Z",
+      "duration_seconds": 5,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 5
+        }
+      ]
+    },
+    {
+      "name": "Finit pile à minuit",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T21:00:00Z",
+      "ended_at": "2026-09-24T22:00:00Z",
+      "duration_seconds": 3600,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 3600
+        }
+      ]
+    },
+    {
+      "name": "Commence pile à minuit",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T22:00:00Z",
+      "ended_at": "2026-09-24T23:00:00Z",
+      "duration_seconds": 3600,
+      "expected": [
+        {
+          "local_date": "2026-09-25",
+          "seconds": 3600
+        }
+      ]
+    },
+    {
+      "name": "Kolkata (+05:30) 23:45-00:15",
+      "timezone": "Asia/Kolkata",
+      "started_at": "2026-09-24T18:15:00Z",
+      "ended_at": "2026-09-24T18:45:00Z",
+      "duration_seconds": 1800,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 900
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 900
+        }
+      ]
+    },
+    {
+      "name": "Kiritimati (+14) 23:40-00:20",
+      "timezone": "Pacific/Kiritimati",
+      "started_at": "2026-09-24T09:40:00Z",
+      "ended_at": "2026-09-24T10:20:00Z",
+      "duration_seconds": 2400,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 1200
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 1200
+        }
+      ]
+    },
+    {
+      "name": "Pago Pago (-11) 23:40-00:20",
+      "timezone": "Pacific/Pago_Pago",
+      "started_at": "2026-09-25T10:40:00Z",
+      "ended_at": "2026-09-25T11:20:00Z",
+      "duration_seconds": 2400,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 1200
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 1200
+        }
+      ]
+    },
+    {
+      "name": "UTC 23:30-00:30",
+      "timezone": "UTC",
+      "started_at": "2026-09-24T23:30:00Z",
+      "ended_at": "2026-09-25T00:30:00Z",
+      "duration_seconds": 3600,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 1800
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 1800
+        }
+      ]
+    },
+    {
+      "name": "Intervalle plus court que la durée (tolérance 5 min)",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T21:50:00Z",
+      "ended_at": "2026-09-24T22:10:00Z",
+      "duration_seconds": 1400,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 700
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 700
+        }
+      ]
+    },
+    {
+      "name": "Intervalle de 27 h sur trois jours, 1 h étudiée",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-23T20:00:00Z",
+      "ended_at": "2026-09-24T23:00:00Z",
+      "duration_seconds": 3600,
+      "expected": [
+        {
+          "local_date": "2026-09-23",
+          "seconds": 266
+        },
+        {
+          "local_date": "2026-09-24",
+          "seconds": 3200
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 134
+        }
+      ]
+    },
+    {
+      "name": "Millisecondes (horodatage de l'app)",
+      "timezone": "Europe/Brussels",
+      "started_at": "2026-09-24T21:40:12.345Z",
+      "ended_at": "2026-09-24T22:20:12.345Z",
+      "duration_seconds": 2400,
+      "expected": [
+        {
+          "local_date": "2026-09-24",
+          "seconds": 1187
+        },
+        {
+          "local_date": "2026-09-25",
+          "seconds": 1213
+        }
+      ]
+    }
+  ],
+  "timezones": [
+    {
+      "timezone": "Europe/Brussels",
+      "valid": true
+    },
+    {
+      "timezone": "America/New_York",
+      "valid": true
+    },
+    {
+      "timezone": "America/Argentina/Buenos_Aires",
+      "valid": true
+    },
+    {
+      "timezone": "America/Port-au-Prince",
+      "valid": true
+    },
+    {
+      "timezone": "Asia/Calcutta",
+      "valid": true
+    },
+    {
+      "timezone": "Etc/GMT+5",
+      "valid": true
+    },
+    {
+      "timezone": "UTC",
+      "valid": true
+    },
+    {
+      "timezone": "EST",
+      "valid": false
+    },
+    {
+      "timezone": "EST5EDT",
+      "valid": false
+    },
+    {
+      "timezone": "+02",
+      "valid": false
+    },
+    {
+      "timezone": "Mars/Olympus_Mons",
+      "valid": false
+    },
+    {
+      "timezone": "",
+      "valid": false
+    },
+    {
+      "timezone": "Europe/Brussels; drop table sessions",
+      "valid": false
+    }
+  ]
+}

@@ -200,6 +200,7 @@ export default function Dashboard() {
     setNote,
     running,
     elapsed,
+    timezone: timerTimezone,
     start,
     pause,
     reset,
@@ -683,6 +684,8 @@ export default function Dashboard() {
         note: note || null,
         started_at: startedAt,
         ended_at: endedAt,
+        // Fuseau du démarrage (v65) ; absent → la base prend celui du profil.
+        ...(timerTimezone ? { timezone: timerTimezone } : {}),
       };
 
       pause();
@@ -748,6 +751,8 @@ export default function Dashboard() {
       note: note || null,
       started_at: startedAt,
       ended_at: endedAt,
+      // Fuseau du démarrage (v65) ; absent → la base prend celui du profil.
+      ...(timerTimezone ? { timezone: timerTimezone } : {}),
     };
 
     // 2) Reset UI : le travail est capturé dans la queue, l'utilisateur voit

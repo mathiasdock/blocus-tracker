@@ -9,6 +9,7 @@ import {
 } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
+import { deviceTimezone, isValidSessionTimezone } from "../lib/sessionDayParts.mjs";
 
 const TimerContext = createContext(null);
 const LEGACY_KEY = "bt_timer_v1";
@@ -21,7 +22,7 @@ function timerStorageKey(owner) {
 }
 
 function emptyTimerSnapshot() {
-  return { courseId: "", note: "", running: false, startMs: 0, baseSeconds: 0 };
+  return { courseId: "", note: "", running: false, startMs: 0, baseSeconds: 0, timezone: "" };
 }
 
 export function TimerProvider({ children }) {
@@ -32,6 +33,10 @@ export function TimerProvider({ children }) {
   const [running, setRunning] = useState(false);
   const [startMs, setStartMs] = useState(0);
   const [baseSeconds, setBaseSeconds] = useState(0);
+  // Fuseau IANA de l'appareil au PREMIER démarrage de la session : il la suit à
+  // travers pauses, rechargements et file hors ligne, et c'est lui qui fixe ses
+  // jours locaux (session_day_parts, v65) — pas le fuseau du moment de l'envoi.
+  const [timezone, setTimezone] = useState("");
   const [, forceRender] = useReducer((x) => x + 1, 0);
   // `hydratedOwner` est un STATE (pas une ref) : il est appliqué dans le même
   // batch que les valeurs restaurées. Avec une ref, le double-effect de
@@ -91,6 +96,7 @@ export function TimerProvider({ children }) {
         snapshot.running = nextRunning;
         snapshot.startMs = nextStartMs;
         snapshot.baseSeconds = nextBase;
+        snapshot.timezone = isValidSessionTimezone(s.timezone) ? s.timezone : "";
       }
     } catch {}
 
@@ -106,6 +112,7 @@ export function TimerProvider({ children }) {
     setRunning(snapshot.running);
     setStartMs(snapshot.startMs);
     setBaseSeconds(snapshot.baseSeconds);
+    setTimezone(snapshot.timezone);
     setHydratedOwner(timerOwner);
     forceRender();
   }, [loading, timerOwner, user?.id]);
@@ -117,10 +124,10 @@ export function TimerProvider({ children }) {
     try {
       localStorage.setItem(
         timerStorageKey(timerOwner),
-        JSON.stringify({ courseId, note, running, startMs, baseSeconds })
+        JSON.stringify({ courseId, note, running, startMs, baseSeconds, timezone })
       );
     } catch {}
-  }, [hydrated, timerOwner, courseId, note, running, startMs, baseSeconds]);
+  }, [hydrated, timerOwner, courseId, note, running, startMs, baseSeconds, timezone]);
 
   // Re-render every 500ms while running and pause at the same 12-hour cap
   // enforced by the database. This also prevents a sleeping device from
@@ -186,9 +193,11 @@ export function TimerProvider({ children }) {
   ));
 
   const start = useCallback(() => {
+    // Premier démarrage d'une session (rien d'accumulé) : on fige le fuseau.
+    if (!baseSeconds && !startMs) setTimezone(deviceTimezone() || "");
     setStartMs(Date.now());
     setRunning(true);
-  }, []);
+  }, [baseSeconds, startMs]);
 
   const pause = useCallback(() => {
     setBaseSeconds((b) => b + (startMs ? (Date.now() - startMs) / 1000 : 0));
@@ -200,12 +209,13 @@ export function TimerProvider({ children }) {
     setRunning(false);
     setStartMs(0);
     setBaseSeconds(0);
+    setTimezone("");
     setNote("");
   }, []);
 
   return (
     <TimerContext.Provider
-      value={{ courseId, setCourseId, note, setNote, running, elapsed, start, pause, reset }}
+      value={{ courseId, setCourseId, note, setNote, running, elapsed, timezone, start, pause, reset }}
     >
       {children}
     </TimerContext.Provider>
