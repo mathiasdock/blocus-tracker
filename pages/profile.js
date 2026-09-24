@@ -22,6 +22,8 @@ import { fetchCanonicalBadgeIds } from "../lib/badgeTruth.mjs";
 import { computeTotalXP, getLevelInfo } from "../lib/xp";
 import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
 import ProfileAchievementCards from "../components/ProfileAchievementCards";
+import ProfileExchange from "../components/ProfileExchange";
+import { exchangeState } from "../lib/exchange.mjs";
 import Glyph from "../components/Glyph";
 import DetailSheet from "../components/DetailSheet";
 import { optimizeAvatarImage } from "../lib/imageCompression";
@@ -554,7 +556,7 @@ function PushRow({ t, user }) {
 }
 
 // ── Modal d'édition du profil (infos personnelles) ───────────
-function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locked, t }) {
+function EditProfileModal({ open, onClose, onOpenExchange, exchangeSummary, form, set, saveInfo, busy, msg, locked, t }) {
   if (!open) return null;
   return (
     <>
@@ -595,6 +597,12 @@ function EditProfileModal({ open, onClose, form, set, saveInfo, busy, msg, locke
                 <label className="label">{t("profile.university")}</label>
                 <UniPicker value={form.university} onChange={v => set("university", v)} disabled={!!locked} placeholder={t("profile.choose")} />
               </div>
+              <button type="button" onClick={onOpenExchange} disabled={!!locked}
+                className="bt-tap flex w-full items-center justify-between gap-3 border-t py-3 text-left text-sm disabled:opacity-50"
+                style={{ borderColor: "var(--bt-border)", color: "var(--bt-text-1)" }}>
+                <span className="font-semibold">{t("profile.exchangeTitle")}</span>
+                <span className="text-right" style={{ color: "var(--bt-text-2)" }}>{exchangeSummary}</span>
+              </button>
               <StudyFieldPicker value={form.broad_field} onChange={value => set("broad_field", value)} disabled={!!locked} id="profile-broad-field" />
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 min-w-0">
@@ -646,6 +654,7 @@ export default function Profile() {
   const [freezeStock, setFreezeStock] = useState(null); // stock restant (null = pas encore lu)
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showExchange, setShowExchange] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showPwa, setShowPwa] = useState(false);
@@ -957,6 +966,11 @@ export default function Profile() {
     studyYearShortLabel(profile?.study_year, t),
     universityShortName(profile?.university),
   ].filter(Boolean);
+  const exchangeStatus = exchangeState(profile, new Date(), profile?.timezone);
+  const exchangeSummary = exchangeStatus === "active"
+    ? t("profile.exchangeActiveShort").replace("{university}", universityShortName(profile?.exchange_university))
+    : exchangeStatus === "upcoming" ? t("profile.exchangeUpcomingShort")
+      : profile?.exchange_university ? t("profile.exchangeEndedShort") : t("profile.exchangeAdd");
 
   // Two facts, written as information rather than drawn as tiles: the time
   // studied and the streak. The weekly rank left — empty for anyone who has
@@ -1002,6 +1016,9 @@ export default function Profile() {
           <div className="bt-profile-id-text">
             <h1 className="font-display">{displayName(profile)}</h1>
             <p className="bt-profile-id-line"><Parts items={[`@${profile?.pseudo || ""}`, ...identityParts]} /></p>
+            {exchangeStatus === "active" && <p className="bt-profile-id-line">
+              {t("profile.exchangeActiveShort").replace("{university}", universityShortName(profile?.exchange_university))}
+            </p>}
             {profile?.bio && <p className="bt-profile-bio">{profile.bio}</p>}
             {metrics.length > 0 && <p className="bt-profile-metrics"><Parts items={metrics} /></p>}
             {avatarMsg && (
@@ -1281,9 +1298,15 @@ export default function Profile() {
       <EditProfileModal
         open={showEditProfile}
         onClose={() => setShowEditProfile(false)}
+        onOpenExchange={() => { setShowEditProfile(false); setShowExchange(true); }}
+        exchangeSummary={exchangeSummary}
         form={form} set={set} saveInfo={saveInfo} busy={busy} msg={msg}
         locked={!!profile?.locked} t={t}
       />
+      {showExchange && <ProfileExchange profile={profile}
+        onClose={() => setShowExchange(false)}
+        onSaved={async () => { await refreshProfile(); toast(t("profile.exchangeSaved")); }}
+        t={t} />}
     </Layout>
   );
 }

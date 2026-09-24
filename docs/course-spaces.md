@@ -12,7 +12,7 @@ Since 2026-09-17 (second migration below) every student also belongs to two spac
 
 | Space | Identity | Created |
 |---|---|---|
-| Institution | the university of the profile (`course_institution_of`, the same resolution as everywhere else) | at the first `ensure_my_default_rooms()` for that institution |
+| Institution | the current university (`course_institution_of`): temporary exchange host during its date range, otherwise permanent home | at the first `ensure_my_default_rooms()` for that institution |
 | Program **inside** that institution | the broad field's English name (`study_spaces` row `field-<id>`, 22 stable ids) or, without one, the free-text `study_field` | idem, per institution + normalized program key |
 
 Rules that keep this simple:
@@ -24,6 +24,8 @@ Rules that keep this simple:
 - **Identity.** Two shapes, 40px in the list and 34px in a room header. The institution is a square plate: its real logo when the project ships one (`lib/universities.js`), its initials otherwise. The program is an ink disc carrying the initials of its own name (`programInitials`: one letter for a one-word name, two for a real pair), with its institution as the secondary line. No icon tile, no invented pictogram.
 
 The list therefore reads: **Tes espaces** (institution, program) → **Tes cours** (joined course spaces) → **Pour tes cours** (suggestions and match questions). On a wide screen the page opens on the first joined course space, or on the institution space when there is none.
+
+A dated exchange is configured in Profile. The default university/program rooms follow the host during the exchange and return to home after its end date. Personal-course matching is separately scoped to the university where that course was last actually studied (or created before any session); see `canonical-courses.md`. Existing voluntary course-room memberships are not deleted when the exchange ends.
 
 ## Model
 

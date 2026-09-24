@@ -3016,3 +3016,9 @@ Vérification : routes visiteur en FR/EN, clair/sombre, 464 px et 1440 px ; navi
 Les pages ouvertes depuis les deux cartes du Profil retirent leur grand titre visible et leur phrase explicative. Elles gardent une barre utilitaire compacte avec le retour vers Profil, le compteur sur Badges, et un `h1` masqué visuellement pour préserver la structure accessible. Le niveau, les sources d'XP et la collection deviennent immédiatement le premier contenu lu à l'écran.
 
 Vérification : rendu mobile 390 px et desktop 1280 px, arbre d'accessibilité, lint et build production.
+
+## 2026-09-24 — Codex — Échange universitaire daté et cours rattachés à leur campus d'étude
+
+Le Profil permet d'indiquer une université d'accueil et des dates inclusives sans remplacer l'université principale. L'état « en échange » et les espaces Université/Programme suivent automatiquement le calendrier local puis reviennent au campus principal après la fin. La recherche canonique des cours considère désormais le campus de chaque cours : dernière session positive enregistrée, ou date d'ajout avant toute session. Une session hors échange rattache le cours à l'université principale ; un cours étudié pendant l'échange reste associé à l'accueil après la fin, jusqu'à une éventuelle nouvelle session hors période. Les liens canoniques devenus incompatibles sont retirés, sans toucher à l'historique d'étude. Aucun choix manuel cours par cours.
+
+Migration additive, fonctions internes protégées, test SQL transactionnel annulé, tests JS, lint et build production. Le fuseau enregistré sur chaque session est utilisé pour ses bornes locales ; le système global de fuseaux horaires, audité séparément, n'a pas été modifié.

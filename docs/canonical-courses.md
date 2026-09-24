@@ -27,6 +27,14 @@ The institution of a student is the `study_spaces` row of kind `university` whos
 
 Consequences: a student without a resolvable university (4 profiles on 2026-09-17) is never matched; two spellings of the same school entered as custom text ("Univ. de Lille" / "Université de Lille") are two institutions and never match (safe side). Solvay and ULB are distinct institutions.
 
+### Temporary exchange affiliation (2026-09-24)
+
+`profiles.university` remains the permanent home university. An optional host university and inclusive start/end dates are stored separately. During those dates, `course_institution_of(user)` resolves to the host for the default Communities rooms; on the next local day after the end date it resolves home again without a scheduled cleanup. The student's home university is never overwritten. The host is resolved through the same `study_spaces` university registry, with no second institution system.
+
+Matching is **per personal course**, not blindly per profile: `courses.study_institution_id` is the host only if that course's latest positive-duration study session falls within the exchange dates. Before its first session, its creation date is used. A session's recorded timezone determines its local date, falling back to the profile timezone and then UTC; this is independent of the separate timezone audit. A course studied outside the exchange dates is attributed to the home institution. Session edits/deletions and changes to the exchange dates recalculate the assignment. Thus an exchange course does not silently become a home course simply because the exchange ended. If the same personal course is studied both at home and on exchange, its **latest** real study session determines its one current Communities association; session history remains unchanged. This single-association limit comes from the existing canonical matcher, not a claim that the course was taught at only one school historically.
+
+The exchange is edited from Profile through `save_my_exchange`; no user-visible course checklist or manual affiliation is required. Cancelling an exchange after confirmation reassigns affected courses to home. The migration and rolled-back test are `20260924200404_temporary_exchange_affiliation.sql` and `supabase/tests/exchange_affiliation.sql`.
+
 ## Lifecycle of a canonical course
 
 - **Emergence.** A canonical course exists once **2+ distinct students** of the institution share the same course identity or the same course code. One student alone never creates one. Creation happens lazily and institution-wide whenever a student of that institution calls `resolve_my_course_links()`. There was **no backfill**: on 2026-09-17 both tables are empty.
