@@ -4,11 +4,14 @@
 // ses chiffres (évalués, éligibles, envoyés, erreurs, exclusions), prochain
 // passage, plafond de relances réglable, et « Voir qui recevrait ce soir » —
 // le vrai calcul, sans rien écrire ni envoyer.
-// Ensuite, chaque notification automatique dit D'ABORD quand elle part et
-// combien elle a envoyé. Couper se fait sans déplier ; le texte (FR et EN) se
-// modifie ensuite. Le déclencheur reste fixé par le code
-// (lib/pushAutomations.mjs). Lecture et écriture passent par
-// /api/admin/push-automations (service role, journal d'audit).
+// Puis deux listes qui ne se mélangent pas : les notifications PROGRAMMÉES
+// du soir, dans leur ordre de priorité (fait ou relance), et les
+// notifications SOCIALES, envoyées au moment de l'événement (ce ne sont pas
+// des tâches planifiées). Chacune dit d'abord quand elle part et combien
+// elle a envoyé ; couper se fait sans déplier, le texte (FR et EN) se modifie
+// ensuite. Le déclencheur reste fixé par le code (lib/pushAutomations.mjs).
+// Lecture et écriture passent par /api/admin/push-automations (service role,
+// journal d'audit).
 
 import { useId, useState } from "react";
 import {
@@ -20,6 +23,8 @@ import { useI18n } from "../../contexts/I18nContext";
 import { adminFetch } from "../../lib/adminApi";
 import { formatAgo, formatCount, formatDate } from "../../lib/adminFormat.mjs";
 import { isSafeInternalHref } from "../../lib/safeHref.mjs";
+import { EVENING_KINDS_ORDER, renderEveningContent } from "../../lib/eveningPlan.mjs";
+import { fillVars } from "../../lib/notificationRules.mjs";
 
 const MAX_TITLE = 60;
 const MAX_BODY = 160;
@@ -33,6 +38,22 @@ function formFrom(current) {
   };
 }
 
+// Exemple lisible d'un modèle à jetons ({exams}, {days}, {name}) : ce que le
+// membre lit vraiment, avec des valeurs d'exemple (jamais de vraies données).
+const SAMPLE = {
+  exams: [{ name: "Économie", time: "09:00:00" }],
+  days: 5,
+  name: "Léa",
+};
+function exampleOf(item, saved, lang) {
+  const conf = { title: { fr: saved.titleFr, en: saved.titleEn }, body: { fr: saved.bodyFr, en: saved.bodyEn }, url: saved.url };
+  const rendered = item.category === "social"
+    ? { title: fillVars(conf.title, { name: SAMPLE.name }), body: fillVars(conf.body, { name: SAMPLE.name }) }
+    : renderEveningContent(item.key, conf, { exams: SAMPLE.exams, days: SAMPLE.days });
+  if (!rendered) return null;
+  return { title: lang === "en" ? rendered.title.en : rendered.title.fr, body: lang === "en" ? rendered.body.en : rendered.body.fr };
+}
+
 function AutomationRow({ item, stats }) {
   const { t, lang } = useI18n();
   const ids = useId();
@@ -44,6 +65,7 @@ function AutomationRow({ item, stats }) {
   const [notice, setNotice] = useState(null);
   const pick = (value) => (lang === "en" ? value.en : value.fr) || value.fr;
   const modified = saved.titleFr !== item.defaults.title.fr || saved.bodyFr !== item.defaults.body.fr;
+  const example = item.vars.length > 0 ? exampleOf(item, saved, lang) : null;
 
   async function persist(values) {
     if (!isSafeInternalHref(values.url)) { setError("invalid_link"); return false; }
@@ -84,9 +106,13 @@ function AutomationRow({ item, stats }) {
     <li>
       <div className={s.row} style={{ alignItems: "flex-start", paddingTop: 14, paddingBottom: 14 }}>
         <div className={s.rowMain}>
-          <p className={s.rowTitle}>{pick(item.label)}</p>
+          <p className={s.rowTitle}>
+            {item.schedule === "evening" && item.priority ? <span className={s.muted}>{`${item.priority}. `}</span> : null}
+            {pick(item.label)}
+          </p>
           <p className={s.rowMeta}>{pick(item.trigger)}</p>
           <p className={s.rowMeta}>
+            {item.schedule === "evening" ? `${t(`adm.notif.auto.nature.${item.nature}`)} · ` : ""}
             {t(`adm.notif.auto.pref.${item.category || "reminder"}`)}
             {" · "}
             {stats
@@ -98,7 +124,9 @@ function AutomationRow({ item, stats }) {
             {stats?.failed7d ? <span style={{ color: "var(--bt-danger)" }}>{` · ${t("adm.notif.auto.failed").replace("{n}", formatCount(stats.failed7d, lang))}`}</span> : null}
           </p>
           <p className={s.rowMeta} style={{ marginTop: 6, color: "var(--bt-text-1)" }}>
-            <strong>{lang === "en" ? saved.titleEn : saved.titleFr}</strong>{" — "}{lang === "en" ? saved.bodyEn : saved.bodyFr}
+            {item.vars.length > 0 && example ? <span className={s.muted}>{`${t("adm.notif.auto.example")} `}</span> : null}
+            <strong>{example ? example.title : lang === "en" ? saved.titleEn : saved.titleFr}</strong>
+            {" — "}{example ? example.body : lang === "en" ? saved.bodyEn : saved.bodyFr}
           </p>
           <p className={s.rowMeta} style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
             {!saved.enabled && <StateMark tone="quiet">{t("adm.auto.off")}</StateMark>}
@@ -126,11 +154,15 @@ function AutomationRow({ item, stats }) {
           <p className={s.h3} style={{ paddingTop: 4 }}>{t("adm.auto.english")}</p>
           {field("titleEn", t("adm.push.title"), MAX_TITLE)}
           {field("bodyEn", t("adm.push.body"), MAX_BODY, true)}
-          <div>
-            <div className={s.fieldHead}><label htmlFor={`${ids}-url`} className={s.fieldLabel}>{t("adm.auto.page")}</label></div>
-            <input id={`${ids}-url`} className="input" style={{ fontSize: 16 }} value={form.url} placeholder={item.defaults.url}
-              onChange={(event) => setForm((previous) => ({ ...previous, url: event.target.value }))} />
-          </div>
+          {item.fixedUrl ? (
+            <p className={s.hint}>{t(`adm.notif.auto.fixedUrl.${item.key}`)}</p>
+          ) : (
+            <div>
+              <div className={s.fieldHead}><label htmlFor={`${ids}-url`} className={s.fieldLabel}>{t("adm.auto.page")}</label></div>
+              <input id={`${ids}-url`} className="input" style={{ fontSize: 16 }} value={form.url} placeholder={item.defaults.url}
+                onChange={(event) => setForm((previous) => ({ ...previous, url: event.target.value }))} />
+            </div>
+          )}
           {error && <p className="text-sm" role="alert" style={{ color: "var(--bt-danger)" }}>{errorText(t, error).replace("{token}", item.vars.join(", "))}</p>}
           {notice && <p className="text-sm" role="status" style={{ color: "var(--bt-accent-text)" }}>{notice}</p>}
           <div className={s.actions}>
@@ -156,7 +188,7 @@ function AutomationRow({ item, stats }) {
   );
 }
 
-const KIND_ORDER = ["exam_tomorrow", "streak_at_risk", "nudge_planning", "nudge_study", "comeback_day3"];
+const KIND_ORDER = EVENING_KINDS_ORDER;
 
 // Dans l'ordre du calcul : évalués → rappels prévus → exclus avant l'envoi →
 // éligibles → écartés au moment de l'envoi → envoyés. Chaque soustraction
@@ -171,7 +203,10 @@ function RunNumbers({ details, preview = false }) {
       <CountRow label={t("adm.notif.auto.evaluated")} value={formatCount(details?.evaluated ?? 0, lang)}
         note={t("adm.notif.auto.evaluatedNote")} />
       <CountRow label={t("adm.notif.auto.planned")} value={formatCount(details?.planned ?? 0, lang)}
-        note={t("adm.notif.auto.plannedNote").replace("{quiet}", formatCount(details?.skipped?.quiet_hours ?? 0, lang))} />
+        note={t("adm.notif.auto.plannedNote")
+          .replace("{nothing}", formatCount(details?.skipped?.nothing ?? 0, lang))
+          .replace("{quiet}", formatCount(details?.skipped?.quiet_hours ?? 0, lang))
+          .replace("{already}", formatCount(details?.skipped?.already_sent ?? 0, lang))} />
       {before.map((reason) => (
         <CountRow key={reason} muted label={`− ${exclusionLabel(t, reason, "reminder")}`} value={formatCount(excluded[reason], lang)} />
       ))}
@@ -281,21 +316,44 @@ function EveningRun({ status, onSaved }) {
   );
 }
 
+function AutomationGroup({ title, lead, items, stats }) {
+  if (!items.length) return null;
+  return (
+    <section className="space-y-2" aria-label={title}>
+      <div>
+        <h3 className={s.h3}>{title}</h3>
+        <p className={s.hint}>{lead}</p>
+      </div>
+      <div className={s.panel}>
+        <ul className={s.rows}>{items.map((item) => <AutomationRow key={item.key} item={item} stats={stats?.[item.key]} />)}</ul>
+      </div>
+    </section>
+  );
+}
+
 export default function AutomationsList() {
   const { t } = useI18n();
   const load = useAdminLoad(() => adminFetch("/api/admin/push-automations"), []);
   const items = load.data?.automations;
   const status = load.data?.status;
+  const evening = (items || []).filter((item) => item.schedule === "evening")
+    .sort((a, b) => (a.priority || 99) - (b.priority || 99));
+  const social = (items || []).filter((item) => item.schedule === "event");
   return (
     <div className="space-y-4">
       <p className={s.note}>{t("adm.auto.lead")}</p>
       {status && <EveningRun key={status.cap} status={status} onSaved={load.reload} />}
-      <div className={s.panel}>
-        {load.error ? <ErrorLine code={load.error} onRetry={load.reload} />
-          : !items ? <SkeletonRows rows={4} />
-          : items.length === 0 ? <EmptyLine>{t("adm.auto.empty")}</EmptyLine>
-          : <ul className={s.rows}>{items.map((item) => <AutomationRow key={item.key} item={item} stats={status?.stats?.[item.key]} />)}</ul>}
-      </div>
+      {load.error ? <div className={s.panel}><ErrorLine code={load.error} onRetry={load.reload} /></div>
+        : !items ? <div className={s.panel}><SkeletonRows rows={4} /></div>
+        : items.length === 0 ? <div className={s.panel}><EmptyLine>{t("adm.auto.empty")}</EmptyLine></div>
+        : (
+          <>
+            <AutomationGroup title={t("adm.notif.auto.scheduledTitle")} lead={t("adm.notif.auto.scheduledLead")}
+              items={evening} stats={status?.stats} />
+            <AutomationGroup title={t("adm.notif.auto.socialTitle")} lead={t("adm.notif.auto.socialLead")}
+              items={social} stats={status?.stats} />
+          </>
+        )}
     </div>
   );
 }

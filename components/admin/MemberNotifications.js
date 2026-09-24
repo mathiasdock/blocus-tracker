@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SkeletonRows, StateMark, adminStyles as s, errorText, plural } from "./AdminUi";
-import { kindLabel } from "./NotificationHistory";
+import { kindLabel, readableTemplate } from "./NotificationHistory";
 import { useI18n } from "../../contexts/I18nContext";
 import { adminFetch, adminRpc } from "../../lib/adminApi";
 import { formatAgo } from "../../lib/adminFormat.mjs";
@@ -100,7 +100,7 @@ export default function MemberNotifications({ userId, pushReason }) {
             {data.recent.map((entry) => (
               <li key={`${entry.at}-${entry.kind}`} style={{ padding: "8px 0" }} className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
-                  <span className={s.rowTitle} style={{ display: "block" }}>{entry.title?.fr || kindLabel(t, entry.kind)}</span>
+                  <span className={s.rowTitle} style={{ display: "block" }}>{readableTemplate(t, entry.title?.fr) || kindLabel(t, entry.kind)}</span>
                   <span className={s.rowMeta} style={{ display: "block" }}>{`${kindLabel(t, entry.kind)} · ${formatAgo(entry.at, now, lang)}`}</span>
                 </span>
                 <StateMark tone={RECIPIENT_TONE[entry.status] || "neutral"}>{t(`adm.notif.recipientStatus.${entry.status}`)}</StateMark>

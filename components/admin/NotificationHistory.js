@@ -2,7 +2,9 @@
 //
 // Source : notre registre (notification_sends, v62) via admin_notification_sends,
 // pas l'historique OneSignal (30 jours, 20 lignes, rappels automatiques
-// mêlés aux envois manuels). Filtres : origine, période, auteur. Chaque envoi
+// mêlés aux envois manuels). Filtres : Rappels (rappel du soir), Social
+// (demande reçue, acceptée, message privé), Annonces (envois admin), période,
+// auteur — chaque origine correspond à une seule catégorie. Chaque envoi
 // dit ce qui a été ciblé, exclu (et pourquoi), confié à OneSignal, échoué.
 // La livraison aux appareils se relit chez OneSignal à la demande ; les clics
 // restent « non disponible » tant qu'aucune mesure fiable n'est vérifiée —
@@ -18,7 +20,8 @@ import { adminFetch, adminRpc } from "../../lib/adminApi";
 import { formatCount, formatDate } from "../../lib/adminFormat.mjs";
 
 const PAGE = 20;
-const SOURCES = ["", "admin", "automation", "social"];
+// Origine → catégorie : automation = Rappels, social = Social, admin = Annonces.
+const SOURCES = ["", "automation", "social", "admin"];
 const PERIODS = { "7": 7, "30": 30, "90": 90, all: null };
 const STATUS_TONE = { sent: "ok", scheduled: "ok", partial: "warn", failed: "danger", cancelled: "quiet", skipped: "quiet", pending: "quiet" };
 
@@ -26,6 +29,16 @@ export function kindLabel(t, kind) {
   const key = `adm.notif.kind.${kind}`;
   const text = t(key);
   return text === key ? kind : text;
+}
+
+// Le registre garde les modèles, jamais le prénom, l'examen ou la série :
+// on les montre comme des emplacements lisibles.
+export function readableTemplate(t, text) {
+  return String(text || "")
+    .split("{at}").join("")
+    .split("{exams}").join(t("adm.notif.token.exams"))
+    .split("{days}").join(t("adm.notif.token.days"))
+    .split("{name}").join(t("adm.notif.token.name"));
 }
 
 function targetText(t, lang, row) {
@@ -44,7 +57,7 @@ function whoText(t, row) {
 function HistoryRow({ row, onCancel, onDelivery, deliveryBusy }) {
   const { t, lang } = useI18n();
   const [open, setOpen] = useState(false);
-  const title = row.title?.fr || row.title?.en || t("adm.history.untitled");
+  const title = readableTemplate(t, row.title?.fr || row.title?.en) || t("adm.history.untitled");
   const excluded = row.excluded || {};
   const before = PRE_SEND_REASONS.filter((reason) => excluded[reason] > 0);
   const atSend = AT_SEND_REASONS.filter((reason) => excluded[reason] > 0);
@@ -58,7 +71,8 @@ function HistoryRow({ row, onCancel, onDelivery, deliveryBusy }) {
         <div className={s.rowMain}>
           <p className={s.rowTitle}>{title}</p>
           <p className={s.rowMeta}>
-            {kindLabel(t, row.kind)}{" · "}{when}{" · "}{whoText(t, row)}{" · "}{targetText(t, lang, row)}
+            <span className={s.rowTitle} style={{ fontSize: "inherit" }}>{t(`adm.notif.category.${row.category}`)}</span>
+            {" · "}{kindLabel(t, row.kind)}{" · "}{when}{" · "}{whoText(t, row)}{" · "}{targetText(t, lang, row)}
           </p>
           <p className={s.rowMeta} style={{ marginTop: 2 }}>
             {t("adm.notif.history.numbers")
