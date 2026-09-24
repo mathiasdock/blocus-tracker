@@ -16,6 +16,7 @@ import { I18nProvider, useI18n } from "../contexts/I18nContext";
 import { ConsentProvider, useConsent } from "../contexts/ConsentContext";
 import { supabase, isOfflineDev } from "../lib/supabaseClient";
 import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
+import { shouldCaptureAuthCallback } from "../lib/authRecovery.mjs";
 import { deriveOnboardingState, shouldCheckOnboarding } from "../lib/onboarding.mjs";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
@@ -424,6 +425,12 @@ function AppVersionRefresh() {
 
     const onControllerChange = () => {
       if (!hadController || reloading) return;
+      // Le lien de réinitialisation n'est lisible qu'au premier chargement :
+      // Supabase le consomme et l'efface de l'adresse. Recharger ici laissait
+      // une session valide mais la page affichait « lien expiré », et le lien
+      // de l'e-mail, déjà utilisé, ne marchait plus. La mise à jour attendra
+      // la page suivante.
+      if (shouldCaptureAuthCallback(window.location.pathname)) return;
       // `reloading` ne protège que le chargement EN COURS — et un rechargement
       // en crée précisément un neuf, avec un drapeau remis à zéro. L'intention
       // ici a toujours été « recharger UNE fois » ; il manquait une mémoire qui
