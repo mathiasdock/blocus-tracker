@@ -15,10 +15,10 @@ import { getClientIp, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
 import { AUTOMATIONS, AUTOMATION_BY_KEY, loadAutomations } from "../../../lib/pushAutomations.mjs";
 import {
-  DEFAULT_REMINDER_CAP, PUSH_BODY_MAX, PUSH_TITLE_MAX, REMINDER_CAP_MAX, REMINDER_CAP_MIN,
-  cleanText, nextDailyRun, normalizeCap,
+  PUSH_BODY_MAX, PUSH_TITLE_MAX, cleanText, nextDailyRun,
 } from "../../../lib/notificationRules.mjs";
 import { isSafeInternalHref } from "../../../lib/safeHref.mjs";
+import { NUDGE_CAP_MIN, NUDGE_WEEKLY_CAP, normalizeNudgeCap } from "../../../lib/eveningPlan.mjs";
 import { createNotificationStore } from "../../../lib/server/notify.mjs";
 import { createActivityLoader, runDailyReminders } from "../../../lib/server/dailyReminders.mjs";
 import { oneSignalFromEnv } from "../../../lib/server/oneSignalRest.mjs";
@@ -42,8 +42,8 @@ async function automationStatus(admin) {
     byKind[row.kind] = { ...(byKind[row.kind] || {}), sent7d: row.sent, failed7d: row.failed };
   }
   return {
-    cap: settingsRes.data?.reminders_weekly_cap ?? DEFAULT_REMINDER_CAP,
-    capRange: [REMINDER_CAP_MIN, REMINDER_CAP_MAX],
+    cap: normalizeNudgeCap(settingsRes.data?.reminders_weekly_cap ?? NUDGE_WEEKLY_CAP),
+    capRange: [NUDGE_CAP_MIN, NUDGE_WEEKLY_CAP],
     capUpdatedAt: settingsRes.data?.updated_at ?? null,
     lastRun: runRes.data || null,
     nextRunAt: nextDailyRun(new Date()),
@@ -73,6 +73,10 @@ export default async function handler(req, res) {
       automations: AUTOMATIONS.map((a) => ({
         key: a.key,
         category: a.category,
+        schedule: a.schedule,
+        nature: a.nature,
+        priority: a.priority ?? null,
+        fixedUrl: Boolean(a.linkParam),
         label: a.label,
         trigger: a.trigger,
         vars: a.vars,
@@ -116,8 +120,11 @@ export default async function handler(req, res) {
 
   // ── Plafond de relances ───────────────────────────────────────────────────
   if (body.settings) {
-    const cap = normalizeCap(body.settings.remindersWeeklyCap);
-    if (!cap) return res.status(400).json({ error: "invalid_cap" });
+    const requested = Math.round(Number(body.settings.remindersWeeklyCap));
+    if (!Number.isFinite(requested) || requested < NUDGE_CAP_MIN || requested > NUDGE_WEEKLY_CAP) {
+      return res.status(400).json({ error: "invalid_cap" });
+    }
+    const cap = requested;
     const { error } = await auth.admin.from("notification_settings")
       .upsert({ id: true, reminders_weekly_cap: cap, updated_at: new Date().toISOString(), updated_by: auth.userId }, { onConflict: "id" });
     if (error) return res.status(500).json({ error: "save_failed" });
@@ -143,10 +150,8 @@ export default async function handler(req, res) {
   const titleEn = cleanText(body.titleEn, PUSH_TITLE_MAX) || def.title.en;
   const bodyEn = cleanText(body.bodyEn, PUSH_BODY_MAX) || def.body.en;
   for (const token of def.vars || []) {
-    if (def.body.fr.includes(token) && !bodyFr.includes(token)) {
-      return res.status(400).json({ error: "token_missing", token });
-    }
-    if (def.body.en.includes(token) && !bodyEn.includes(token)) {
+    const pairs = [[def.title.fr, titleFr], [def.title.en, titleEn], [def.body.fr, bodyFr], [def.body.en, bodyEn]];
+    if (pairs.some(([original, edited]) => original.includes(token) && !edited.includes(token))) {
       return res.status(400).json({ error: "token_missing", token });
     }
   }
@@ -158,7 +163,8 @@ export default async function handler(req, res) {
     title_en: titleEn,
     body_fr: bodyFr,
     body_en: bodyEn,
-    url: url || def.url,
+    // Un lien qui vise une personne (?dm=, ?profile=) reste celui du code.
+    url: def.linkParam ? def.url : url || def.url,
     updated_at: new Date().toISOString(),
     updated_by: auth.userId,
   }, { onConflict: "key" });

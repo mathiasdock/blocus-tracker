@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  CAP_EXEMPT_KINDS, PUSH_BODY_MAX, PUSH_TITLE_MAX, announcementPushContent, announcementWindowState,
-  bilingual, fillVars, friendRequestKey, friendRequestVerdict, friendshipIdFromWebhook, isCappedReminder,
-  isQuietHour, localCalendar, nextDailyRun, normalizeCap, nudgeKindFor, parseAdminTarget, planReminders,
-  reminderKey, summarizeAudience, validateAnnouncement, validatePushContent, validateSchedule, writtenLanguages,
+  MESSAGE_COOLDOWN_MS, PUSH_BODY_MAX, PUSH_TITLE_MAX, SOCIAL_DAILY_CAP, announcementPushContent,
+  announcementWindowState, bilingual, fillVars, firstNameOf, friendAcceptedKey, friendAcceptedVerdict,
+  friendRequestKey, friendRequestVerdict, isQuietHour, localCalendar, nextDailyRun, parseAdminTarget,
+  privateMessageKey, privateMessageKeyPrefix, privateMessageVerdict, reminderKey, socialEventFromWebhook,
+  summarizeAudience, validateAnnouncement, validatePushContent, validateSchedule, writtenLanguages,
 } from "../lib/notificationRules.mjs";
 
 const EVENING = new Date("2026-09-24T18:00:00Z"); // 20:00 à Bruxelles (heure d'été)
@@ -76,65 +77,6 @@ test("each member's day and hour come from their own time zone", () => {
   assert.equal(localCalendar(new Date("2026-10-25T18:00:00Z"), "Europe/Brussels").yesterday, "2026-10-24");
 });
 
-test("the evening plan gives one reminder per member, by priority", () => {
-  const members = new Map([
-    [A, { timezone: "Europe/Brussels" }], // examen demain (même s'il a étudié aujourd'hui)
-    [B, { timezone: "Europe/Brussels" }], // a étudié aujourd'hui → rien
-    [C, { timezone: "Europe/Brussels" }], // a étudié hier → série en danger
-    [D, { timezone: "Europe/Brussels" }], // il y a 3 jours → relance douce
-    [E, { timezone: "Europe/Brussels" }], // nouveau, jamais reparti → relance des nouveaux
-  ]);
-  const sessions = [
-    { user_id: A, started_at: "2026-09-24T09:00:00Z" },
-    { user_id: B, started_at: "2026-09-24T09:00:00Z" },
-    { user_id: C, started_at: "2026-09-23T20:00:00Z" },
-    { user_id: D, started_at: "2026-09-21T10:00:00Z" },
-  ];
-  const exams = [{ user_id: A, exam_date: "2026-09-25" }];
-  const { entries, skipped } = planReminders({ now: EVENING, members, sessions, exams, newcomerIds: [E] });
-  const byUser = Object.fromEntries(entries.map((entry) => [entry.userId, entry.kind]));
-  assert.deepEqual(byUser, {
-    [A]: "exam_tomorrow",
-    [C]: "streak_at_risk",
-    [D]: nudgeKindFor("2026-09-24"),
-    [E]: "comeback_day3",
-  });
-  assert.equal(skipped.studied_today, 1);
-  assert.equal(entries.every((entry) => entry.localDate === "2026-09-24"), true);
-});
-
-test("a session late at night counts for the member's own day, and quiet hours hold", () => {
-  // 23:30 à Bruxelles le 23 = 21:30 UTC : c'est bien « hier » pour elle.
-  const members = new Map([[A, { timezone: "Europe/Brussels" }], [B, { timezone: "Asia/Hong_Kong" }]]);
-  const sessions = [
-    { user_id: A, started_at: "2026-09-23T21:30:00Z" },
-    { user_id: B, started_at: "2026-09-24T01:00:00Z" },
-  ];
-  const { entries, skipped } = planReminders({ now: EVENING, members, sessions, exams: [], newcomerIds: [] });
-  assert.deepEqual(entries.map((entry) => [entry.userId, entry.kind]), [[A, "streak_at_risk"]]);
-  // À Hong Kong il est 2 h du matin : pas de rappel.
-  assert.equal(skipped.quiet_hours, 1);
-});
-
-test("more than three days without studying: no reminder (no harassment)", () => {
-  const members = new Map([[A, { timezone: "Europe/Brussels" }]]);
-  const { entries, skipped } = planReminders({
-    now: EVENING, members, sessions: [{ user_id: A, started_at: "2026-09-19T10:00:00Z" }], exams: [], newcomerIds: [],
-  });
-  assert.equal(entries.length, 0);
-  assert.equal(skipped.inactive, 1);
-});
-
-test("the weekly cap stops nudges but never an exam reminder", () => {
-  assert.deepEqual([...CAP_EXEMPT_KINDS], ["exam_tomorrow"]);
-  assert.equal(isCappedReminder("streak_at_risk", 3, 3), true);
-  assert.equal(isCappedReminder("streak_at_risk", 2, 3), false);
-  assert.equal(isCappedReminder("exam_tomorrow", 9, 3), false);
-  assert.equal(normalizeCap("4"), 4);
-  assert.equal(normalizeCap(0), null);
-  assert.equal(normalizeCap(8), null);
-});
-
 test("anti-duplicate keys: one reminder per member and local day, one friend push per pair and day", () => {
   assert.equal(reminderKey(A, "2026-09-24"), reminderKey(A, "2026-09-24"));
   assert.notEqual(reminderKey(A, "2026-09-24"), reminderKey(A, "2026-09-25"));
@@ -152,11 +94,50 @@ test("a friend request is notified only when pending, fresh and between two peop
   assert.equal(friendRequestVerdict({ ...fresh, status: "accepted" }, now).reason, "not_pending");
   assert.equal(friendRequestVerdict({ ...fresh, created_at: "2026-09-24T10:00:00Z" }, now).reason, "stale");
   assert.equal(friendRequestVerdict({ ...fresh, addressee: A }, now).reason, "invalid");
-  // Le webhook ne fournit qu'un identifiant ; tout le reste est relu en base.
-  assert.equal(friendshipIdFromWebhook({ type: "friend_request", friendship_id: A }), A);
-  assert.equal(friendshipIdFromWebhook({ type: "INSERT", table: "friendships", record: { id: B, requester: C } }), B);
-  assert.equal(friendshipIdFromWebhook({ type: "INSERT", table: "posts", record: { id: B } }), null);
-  assert.equal(friendshipIdFromWebhook({ friendship_id: "'; drop table" }), null);
+});
+
+test("the database event gives only a type and an id; everything else is re-read", () => {
+  assert.deepEqual(socialEventFromWebhook({ type: "friend_request", friendship_id: A }), { type: "friend_request", id: A });
+  assert.deepEqual(socialEventFromWebhook({ type: "INSERT", table: "friendships", record: { id: B, requester: C } }), { type: "friend_request", id: B });
+  assert.deepEqual(socialEventFromWebhook({ type: "friend_accepted", friendship_id: A }), { type: "friend_accepted", id: A });
+  assert.deepEqual(socialEventFromWebhook({ type: "private_message", message_id: C }), { type: "private_message", id: C });
+  assert.equal(socialEventFromWebhook({ type: "INSERT", table: "posts", record: { id: B } }), null);
+  assert.equal(socialEventFromWebhook({ friendship_id: "'; drop table" }), null);
+  assert.equal(socialEventFromWebhook({ type: "private_message", message_id: "x", content: "hi" }), null);
+});
+
+test("an accepted request is notified only for a real, fresh acceptance", () => {
+  const now = Date.parse("2026-09-24T12:00:00Z");
+  const accepted = { requester: A, addressee: B, status: "accepted", accepted_at: "2026-09-24T11:59:00Z" };
+  assert.deepEqual(friendAcceptedVerdict(accepted, now), { ok: true });
+  assert.equal(friendAcceptedVerdict({ ...accepted, status: "pending" }, now).reason, "not_accepted");
+  assert.equal(friendAcceptedVerdict({ ...accepted, accepted_at: "2026-09-24T10:00:00Z" }, now).reason, "stale");
+  assert.equal(friendAcceptedVerdict({ ...accepted, accepted_at: null }, now).reason, "stale");
+  assert.equal(friendAcceptedVerdict(null, now).reason, "not_found");
+  // Une amitié = une seule notification, pour toujours.
+  assert.equal(friendAcceptedKey("f-1"), "friend_accepted:f-1");
+});
+
+test("a private message is notified fresh, between two people, per conversation window", () => {
+  const now = Date.parse("2026-09-24T12:00:00Z");
+  const message = { sender_id: A, receiver_id: B, created_at: "2026-09-24T11:59:30Z" };
+  assert.deepEqual(privateMessageVerdict(message, now), { ok: true });
+  assert.equal(privateMessageVerdict({ ...message, receiver_id: A }, now).reason, "invalid");
+  assert.equal(privateMessageVerdict({ ...message, created_at: "2026-09-24T09:00:00Z" }, now).reason, "stale");
+  assert.equal(MESSAGE_COOLDOWN_MS, 10 * 60_000);
+  // Deux messages dans la même tranche de 10 minutes : même clé → un seul push.
+  const t0 = new Date("2026-09-24T12:00:30Z");
+  assert.equal(privateMessageKey(A, B, t0), privateMessageKey(A, B, new Date("2026-09-24T12:09:00Z")));
+  assert.notEqual(privateMessageKey(A, B, t0), privateMessageKey(A, B, new Date("2026-09-24T12:11:00Z")));
+  assert.notEqual(privateMessageKey(A, B, t0), privateMessageKey(B, A, t0));
+  assert.equal(privateMessageKey(A, B, t0).startsWith(privateMessageKeyPrefix(A, B)), true);
+  assert.equal(SOCIAL_DAILY_CAP, 20);
+});
+
+test("a social notification names the first name, the pseudo otherwise", () => {
+  assert.equal(firstNameOf({ first_name: "Léa", last_name: "Martin", pseudo: "lea" }), "Léa");
+  assert.equal(firstNameOf({ first_name: " ", pseudo: "lea_v" }), "lea_v");
+  assert.equal(firstNameOf(null), null);
 });
 
 test("audience counts come from reasons, reachability from known devices", () => {

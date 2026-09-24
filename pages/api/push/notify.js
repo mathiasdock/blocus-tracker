@@ -1,23 +1,27 @@
-// Demande d'ami → notification push. Appelée par la base (déclencheur
-// push_friend_request, v62_1) à chaque nouvelle demande.
+// Événements sociaux → notification push. Appelée par la base :
+//   • push_friend_request  (v62_1) : nouvelle demande d'ami ;
+//   • push_friend_accepted (v63)   : demande passée d'en attente à acceptée ;
+//   • push_private_message (v63)   : nouveau message privé (id seulement).
 //
 // Sécurité :
 //   • secret fort, tiré au hasard dans Vault et vérifié par la base
 //     (push_webhook_secret_ok) — l'ancien secret faible n'ouvre plus rien ;
-//   • le corps reçu ne sert qu'à connaître l'identifiant de la demande : elle
-//     est relue en base, doit être en attente et fraîche. Un appel forgé ne
-//     peut donc ni choisir le destinataire ni le texte ;
+//   • le corps reçu ne sert qu'à connaître le type et l'identifiant :
+//     l'événement est relu en base et doit être frais. Un appel forgé ne peut
+//     donc ni choisir le destinataire ni le texte ;
+//   • un message privé est relu SANS son contenu (jamais sélectionné) ;
 //   • tout le reste (préférences, suspension, blocage, fréquence, anti-doublon)
 //     passe par le point d'envoi unique (lib/server/notify.mjs).
-// Lecture profiles limitée au nom affiché (jamais l'email).
+// Lecture profiles limitée au prénom / pseudo (jamais l'email).
 import { createClient } from "@supabase/supabase-js";
 import { getClientIp, requireJson, setBaseSecurityHeaders } from "../../../lib/apiSecurity";
 import { rateLimit } from "../../../lib/rateLimit";
-import { displayName } from "../../../lib/format";
 import { loadAutomations } from "../../../lib/pushAutomations.mjs";
-import { friendshipIdFromWebhook } from "../../../lib/notificationRules.mjs";
+import { socialEventFromWebhook } from "../../../lib/notificationRules.mjs";
 import { createNotificationStore } from "../../../lib/server/notify.mjs";
-import { isWebhookAuthorized, notifyFriendRequest } from "../../../lib/server/friendRequestPush.mjs";
+import {
+  isWebhookAuthorized, notifyFriendAccepted, notifyFriendRequest, notifyPrivateMessage,
+} from "../../../lib/server/socialPush.mjs";
 import { oneSignalFromEnv } from "../../../lib/server/oneSignalRest.mjs";
 
 export const config = {
@@ -34,7 +38,9 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
   if (!requireJson(req, res)) return;
-  if (!rateLimit(`push-notify:${getClientIp(req)}`, 120, 60_000).ok) {
+  // Tous les appels viennent de la base (même adresse) : demandes, acceptations
+  // et messages confondus.
+  if (!rateLimit(`push-notify:${getClientIp(req)}`, 300, 60_000).ok) {
     return res.status(429).json({ error: "rate_limited" });
   }
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return res.status(500).json({ error: "misconfigured" });
@@ -60,28 +66,44 @@ export default async function handler(req, res) {
   if (typeof payload === "string") {
     try { payload = JSON.parse(payload); } catch (_) { return res.status(400).json({ error: "invalid_payload" }); }
   }
-  const friendshipId = friendshipIdFromWebhook(payload);
-  if (!friendshipId) return res.status(200).json({ skipped: true, reason: "unsupported_event" });
+  const event = socialEventFromWebhook(payload);
+  if (!event) return res.status(200).json({ skipped: true, reason: "unsupported_event" });
+
+  const loadProfile = async (id) => {
+    const { data } = await admin.from("profiles").select("pseudo, first_name, locked").eq("id", id).maybeSingle();
+    return data || null;
+  };
+  const loadFriendship = async (id) => {
+    const { data } = await admin.from("friendships")
+      .select("id, requester, addressee, status, created_at, accepted_at").eq("id", id).maybeSingle();
+    return data || null;
+  };
 
   try {
-    const result = await notifyFriendRequest({
+    const deps = {
       store: createNotificationStore(admin),
       onesignal: oneSignalFromEnv(),
       automations: await loadAutomations(admin),
-      nameOf: displayName,
-      friendshipId,
-      loadFriendship: async (id) => {
-        const { data } = await admin.from("friendships")
-          .select("id, requester, addressee, status, created_at").eq("id", id).maybeSingle();
-        return data || null;
-      },
-      loadProfile: async (id) => {
-        const { data } = await admin.from("profiles")
-          .select("pseudo, first_name, last_name, locked").eq("id", id).maybeSingle();
-        return data || null;
-      },
-    });
-    console.info("push/notify friend_request", { status: result.status, reason: result.reason || null });
+      loadProfile,
+    };
+    let result;
+    if (event.type === "private_message") {
+      result = await notifyPrivateMessage({
+        ...deps,
+        messageId: event.id,
+        loadMessage: async (id) => {
+          // Jamais le contenu : seulement qui, à qui, quand.
+          const { data } = await admin.from("private_messages")
+            .select("id, sender_id, receiver_id, created_at").eq("id", id).maybeSingle();
+          return data || null;
+        },
+      });
+    } else if (event.type === "friend_accepted") {
+      result = await notifyFriendAccepted({ ...deps, friendshipId: event.id, loadFriendship });
+    } else {
+      result = await notifyFriendRequest({ ...deps, friendshipId: event.id, loadFriendship });
+    }
+    console.info("push/notify", { type: event.type, status: result.status, reason: result.reason || null });
     return res.status(200).json({ ok: true, status: result.status });
   } catch (error) {
     console.error("push/notify failed", { code: error?.code || "unknown" });

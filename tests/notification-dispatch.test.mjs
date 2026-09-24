@@ -5,7 +5,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { cancelScheduledSend, dispatchNotification, NotifyError } from "../lib/server/notify.mjs";
 import { runDailyReminders } from "../lib/server/dailyReminders.mjs";
-import { isWebhookAuthorized, notifyFriendRequest } from "../lib/server/friendRequestPush.mjs";
+import {
+  isWebhookAuthorized, notifyFriendAccepted, notifyFriendRequest, notifyPrivateMessage,
+} from "../lib/server/socialPush.mjs";
 import { processIdentityCleanup } from "../lib/server/pushIdentity.mjs";
 import { AUTOMATIONS } from "../lib/pushAutomations.mjs";
 import {
@@ -19,8 +21,9 @@ const REUSABLE = new Set(["failed", "unreachable", "cancelled"]);
 
 // Même contrat que la base : notification_audience décide les raisons,
 // notification_claim refuse une clé déjà prise par un envoi non échoué.
-function fakeStore(rowsByUser = {}, { cap = 3 } = {}) {
-  const state = { sends: [], keys: new Map(), audienceCalls: [] };
+function fakeStore(rowsByUser = {}, { cap = 2, history = [] } = {}) {
+  // clock : l'heure à laquelle le faux registre date ce qu'il réserve.
+  const state = { sends: [], keys: new Map(), audienceCalls: [], clock: new Date() };
   const rowFor = (userId) => ({
     user_id: userId, reason: null, lang: "fr", timezone: "Europe/Brussels",
     devices: 1, recent_reminders: 0, recent_social: 0, ...(rowsByUser[userId] || {}),
@@ -47,7 +50,11 @@ function fakeStore(rowsByUser = {}, { cap = 3 } = {}) {
         const key = row.key || `${sendId}:${row.user_id}`;
         const existing = state.keys.get(key);
         if (existing && !REUSABLE.has(existing.status)) continue;
-        state.keys.set(key, { sendId, userId: row.user_id, status: "queued" });
+        const send = state.sends.find((item) => item.id === sendId);
+        state.keys.set(key, {
+          sendId, userId: row.user_id, status: "queued", kind: send?.kind, category: send?.category,
+          createdAt: state.clock.toISOString(), key,
+        });
         out.push(row.user_id);
       }
       return out;
@@ -59,6 +66,16 @@ function fakeStore(rowsByUser = {}, { cap = 3 } = {}) {
       }
     },
     async finishSend(sendId, patch) { Object.assign(state.sends.find((send) => send.id === sendId), patch); },
+    async history({ userIds, since }) {
+      const claimed = [...state.keys.values()]
+        .filter((entry) => entry.category === "reminder" && ["sent", "scheduled"].includes(entry.status))
+        .map((entry) => ({ user_id: entry.userId, kind: entry.kind, created_at: entry.createdAt }));
+      return [...history, ...claimed].filter((row) => userIds.includes(row.user_id) && row.created_at >= since);
+    },
+    async recentRecipientKey({ userId, kind, keyPrefix, since }) {
+      return [...state.keys.values()].some((entry) => entry.userId === userId && entry.kind === kind
+        && entry.key.startsWith(keyPrefix) && ["queued", "sent", "scheduled"].includes(entry.status) && entry.createdAt >= since);
+    },
   };
 }
 
@@ -218,24 +235,39 @@ test("a scheduled send can be cancelled, a sent one cannot", async () => {
 // ── Rappel du soir ─────────────────────────────────────────────────────────
 const automations = Object.fromEntries(AUTOMATIONS.map((a) => [a.key, { enabled: true, title: a.title, body: a.body, url: a.url }]));
 const EVENING = new Date("2026-09-24T18:00:00Z");
+const DAY = 864e5;
+const at = (day) => `${day}T10:00:00Z`;
+const streakOf = (userId) => ["2026-09-21", "2026-09-22", "2026-09-23"].map((day) => ({ user_id: userId, started_at: at(day), duration_seconds: 1800 }));
 const activity = {
   sessions: [
-    { user_id: id(1), started_at: "2026-09-23T18:00:00Z" }, // hier → série en danger
-    { user_id: id(2), started_at: "2026-09-23T18:00:00Z" }, // hier, mais a coupé les rappels
-    { user_id: id(3), started_at: "2026-09-23T18:00:00Z" }, // hier, mais plafond atteint
-    { user_id: id(4), started_at: "2026-09-23T18:00:00Z" }, // hier, suspendu
-    { user_id: id(6), started_at: "2026-09-23T18:00:00Z" }, // hier, Hong Kong (2 h du matin)
+    ...streakOf(id(1)), // série de 3 jours en danger
+    ...streakOf(id(2)), // idem, mais a coupé les rappels
+    ...streakOf(id(3)), // idem, mais déjà 2 relances cette semaine
+    ...streakOf(id(4)), // idem, suspendu
+    ...streakOf(id(6)), // idem, à Hong Kong (2 h du matin)
   ],
-  exams: [{ user_id: id(5), exam_date: "2026-09-25" }], // examen demain, plafond atteint mais exempté
-  newcomerIds: [],
+  // Examen demain : un fait, jamais plafonné (id 5 a aussi 2 relances cette semaine).
+  exams: [{ user_id: id(5), name: "Économie", exam_date: "2026-09-25", exam_time: "09:00:00" }],
+  newcomers: [],
+  frozenDays: new Map(),
+  configured: new Set(),
 };
+const twoNudges = (userId) => [
+  { user_id: userId, kind: "reactivation_7d", created_at: new Date(EVENING.getTime() - 3 * DAY).toISOString() },
+  { user_id: userId, kind: "streak_at_risk", created_at: new Date(EVENING.getTime() - 5 * DAY).toISOString() },
+];
 const reminderRows = {
-  [id(1)]: {}, [id(2)]: { reason: "category_off" }, [id(3)]: { recent_reminders: 3 },
-  [id(4)]: { reason: "suspended" }, [id(5)]: { recent_reminders: 5 }, [id(6)]: { timezone: "Asia/Hong_Kong" },
+  [id(1)]: {}, [id(2)]: { reason: "category_off" }, [id(3)]: {},
+  [id(4)]: { reason: "suspended" }, [id(5)]: {}, [id(6)]: { timezone: "Asia/Hong_Kong" },
+};
+const eveningStore = () => {
+  const store = fakeStore(reminderRows, { history: [...twoNudges(id(3)), ...twoNudges(id(5))] });
+  store.state.clock = EVENING;
+  return store;
 };
 
 test("the evening run respects preferences, suspension, cap, quiet hours — and the exam", async () => {
-  const store = fakeStore(reminderRows);
+  const store = eveningStore();
   const onesignal = fakeOneSignal();
   const summary = await runDailyReminders({ store, onesignal, loadActivity: async () => activity, automations, now: EVENING });
   const sentTo = onesignal.calls.flatMap((call) => call.externalIds).sort();
@@ -249,30 +281,60 @@ test("the evening run respects preferences, suspension, cap, quiet hours — and
   assert.equal(summary.kinds.streak_at_risk.sent, 1);
 });
 
-test("running the evening job twice the same day sends nothing the second time", async () => {
-  const store = fakeStore(reminderRows);
+test("personalised texts go out, the registry keeps only the templates", async () => {
+  const store = eveningStore();
   const onesignal = fakeOneSignal();
   await runDailyReminders({ store, onesignal, loadActivity: async () => activity, automations, now: EVENING });
+  const titles = onesignal.calls.map((call) => call.title.fr).sort((a, b) => a.localeCompare(b, "fr"));
+  assert.deepEqual(titles, ["Économie demain à 9 h 📚", "Ta série de 3 jours est en danger 🔥"]);
+  const examSend = store.state.sends.find((send) => send.kind === "exam_tomorrow");
+  assert.equal(examSend.title.fr, "{exams} demain{at} 📚");
+  assert.equal(JSON.stringify(store.state.sends).includes("Économie"), false);
+});
+
+test("two members, two exams: two texts, still one registry row for the kind", async () => {
+  const store = fakeStore({ [id(1)]: {}, [id(2)]: {} });
+  store.state.clock = EVENING;
+  const onesignal = fakeOneSignal();
+  const twoExams = {
+    ...activity, sessions: [],
+    exams: [
+      { user_id: id(1), name: "Droit", exam_date: "2026-09-25", exam_time: null },
+      { user_id: id(2), name: "Chimie", exam_date: "2026-09-25", exam_time: "14:30:00" },
+    ],
+  };
+  await runDailyReminders({ store, onesignal, loadActivity: async () => twoExams, automations, now: EVENING });
+  assert.deepEqual(onesignal.calls.map((call) => [call.externalIds, call.title.en]).sort(), [
+    [[id(1)], "Droit tomorrow 📚"],
+    [[id(2)], "Chimie tomorrow at 2:30 pm 📚"],
+  ]);
+  assert.equal(store.state.sends.filter((send) => send.kind === "exam_tomorrow").length, 1);
+});
+
+test("running the evening job twice the same day sends nothing the second time", async () => {
+  const store = eveningStore();
+  const onesignal = fakeOneSignal();
+  await runDailyReminders({ store, onesignal, loadActivity: async () => activity, automations, now: EVENING });
+  store.state.clock = new Date("2026-09-24T19:30:00Z");
   const second = await runDailyReminders({
     store, onesignal, loadActivity: async () => activity, automations, now: new Date("2026-09-24T19:30:00Z"),
   });
   assert.equal(onesignal.calls.length, 2);
   assert.equal(second.sent, 0);
-  assert.equal(second.excluded.duplicate, 2);
+  assert.equal(second.skipped.already_sent, 2);
 });
 
 test("a reminder switched off in the admin is counted, not sent", async () => {
-  const store = fakeStore(reminderRows);
+  const store = eveningStore();
   const onesignal = fakeOneSignal();
   const off = { ...automations, streak_at_risk: { ...automations.streak_at_risk, enabled: false } };
   const summary = await runDailyReminders({ store, onesignal, loadActivity: async () => activity, automations: off, now: EVENING });
   assert.deepEqual(onesignal.calls.flatMap((call) => call.externalIds), [id(5)]);
-  // Les deux relances « série en danger » prévues (dont une déjà plafonnée).
   assert.equal(summary.excluded.disabled, 2);
 });
 
-test("« who would receive today » is a dry run that names members, without sending", async () => {
-  const store = fakeStore(reminderRows);
+test("« who would receive tonight » is a dry run that names members, without sending", async () => {
+  const store = eveningStore();
   const onesignal = fakeOneSignal();
   const summary = await runDailyReminders({
     store, onesignal, loadActivity: async () => activity, automations, now: EVENING, dryRun: true,
@@ -284,14 +346,21 @@ test("« who would receive today » is a dry run that names members, without sen
   assert.deepEqual(summary.members.exam_tomorrow, { total: 1, pseudos: ["pseudo-05"] });
 });
 
+test("a registry that cannot be read stops the run: never a nudge sent blind", async () => {
+  const store = eveningStore();
+  store.history = async () => { throw new NotifyError("history_failed"); };
+  const onesignal = fakeOneSignal();
+  await assert.rejects(runDailyReminders({ store, onesignal, loadActivity: async () => activity, automations, now: EVENING }));
+  assert.equal(onesignal.calls.length, 0);
+});
+
 // ── Demandes d'ami ─────────────────────────────────────────────────────────
 const NOW = new Date("2026-09-24T12:00:00Z");
 const friendship = { id: id(90), requester: id(1), addressee: id(2), status: "pending", created_at: "2026-09-24T11:59:00Z" };
 const friendDeps = (store, onesignal, extra = {}) => ({
   store, onesignal, automations, now: NOW, friendshipId: friendship.id,
   loadFriendship: async () => friendship,
-  loadProfile: async () => ({ pseudo: "lea", first_name: "Léa", last_name: null, locked: false }),
-  nameOf: (profile) => profile.first_name || profile.pseudo,
+  loadProfile: async () => ({ pseudo: "lea", first_name: "Léa", locked: false }),
   ...extra,
 });
 
@@ -300,9 +369,11 @@ test("a friend request push names the author, but the registry keeps only the te
   const onesignal = fakeOneSignal();
   const result = await notifyFriendRequest(friendDeps(store, onesignal));
   assert.equal(result.status, "sent");
-  assert.equal(onesignal.calls[0].body.fr, "Léa t'a envoyé une demande d'ami");
-  assert.equal(onesignal.calls[0].body.en, "Léa sent you a friend request");
-  assert.equal(store.state.sends[0].body.fr, "{name} t'a envoyé une demande d'ami");
+  assert.equal(onesignal.calls[0].title.fr, "Léa veut t'ajouter 👋");
+  assert.equal(onesignal.calls[0].title.en, "Léa wants to add you 👋");
+  assert.equal(onesignal.calls[0].body.fr, "Tu as reçu une nouvelle demande d'ami.");
+  assert.equal(onesignal.calls[0].url, "/messages?tab=relations");
+  assert.equal(store.state.sends[0].title.fr, "{name} veut t'ajouter 👋");
   assert.equal(store.state.audienceCalls[0].actorId, id(1));
   // Supprimer puis refaire la demande le même jour ne relance pas de notification.
   const again = await notifyFriendRequest(friendDeps(store, onesignal));
@@ -326,8 +397,138 @@ test("no friend request push when blocked, opted out of social, stale, or from a
     loadProfile: async () => ({ pseudo: "x", locked: true }),
   }));
   assert.equal(suspended.reason, "requester_unavailable");
-  const tooMany = await notifyFriendRequest(friendDeps(fakeStore({ [id(2)]: { recent_social: 10 } }), onesignal));
+  const tooMany = await notifyFriendRequest(friendDeps(fakeStore({ [id(2)]: { recent_social: 20 } }), onesignal));
   assert.equal(tooMany.status, "skipped");
+  assert.equal(onesignal.calls.length, 0);
+});
+
+// ── Demande acceptée ───────────────────────────────────────────────────────
+const accepted = { id: id(91), requester: id(1), addressee: id(2), status: "accepted", created_at: "2026-09-20T10:00:00Z", accepted_at: "2026-09-24T11:59:30Z" };
+const acceptedDeps = (store, onesignal, extra = {}) => ({
+  store, onesignal, automations, now: NOW, friendshipId: accepted.id,
+  loadFriendship: async () => accepted,
+  loadProfile: async (userId) => (userId === id(2) ? { pseudo: "tom", first_name: "Tom", locked: false } : null),
+  ...extra,
+});
+
+test("an accepted request notifies the person who sent it — exactly once", async () => {
+  const store = fakeStore({ [id(1)]: {} });
+  const onesignal = fakeOneSignal();
+  const result = await notifyFriendAccepted(acceptedDeps(store, onesignal));
+  assert.equal(result.status, "sent");
+  assert.deepEqual(onesignal.calls[0].externalIds, [id(1)]);
+  assert.equal(onesignal.calls[0].title.fr, "Tom a accepté ta demande 🤝");
+  assert.equal(onesignal.calls[0].title.en, "Tom accepted your request 🤝");
+  assert.equal(onesignal.calls[0].body.fr, "Vous êtes maintenant amis sur BLOCUS TRACKER.");
+  assert.equal(onesignal.calls[0].url, `/messages?profile=${id(2)}`);
+  assert.equal(store.state.sends[0].url, "/messages");
+  assert.equal(store.state.audienceCalls[0].actorId, id(2));
+  // Le même événement relu (nouvel essai réseau, double appel) : jamais deux fois.
+  const again = await notifyFriendAccepted(acceptedDeps(store, onesignal, { now: new Date("2026-09-24T12:05:00Z") }));
+  assert.equal(again.status, "skipped");
+  assert.equal(onesignal.calls.length, 1);
+});
+
+test("no accepted push for a request still pending, an old acceptance, a block or a suspended account", async () => {
+  const onesignal = fakeOneSignal();
+  const pending = await notifyFriendAccepted(acceptedDeps(fakeStore({ [id(1)]: {} }), onesignal, {
+    loadFriendship: async () => ({ ...accepted, status: "pending" }),
+  }));
+  assert.equal(pending.reason, "not_accepted");
+  const old = await notifyFriendAccepted(acceptedDeps(fakeStore({ [id(1)]: {} }), onesignal, {
+    loadFriendship: async () => ({ ...accepted, accepted_at: "2026-09-23T10:00:00Z" }),
+  }));
+  assert.equal(old.reason, "stale");
+  for (const reason of ["blocked", "category_off", "general_off", "suspended"]) {
+    const result = await notifyFriendAccepted(acceptedDeps(fakeStore({ [id(1)]: { reason } }), onesignal));
+    assert.equal(result.status, "skipped", reason);
+  }
+  const suspendedActor = await notifyFriendAccepted(acceptedDeps(fakeStore({ [id(1)]: {} }), onesignal, {
+    loadProfile: async () => ({ pseudo: "tom", first_name: "Tom", locked: true }),
+  }));
+  assert.equal(suspendedActor.reason, "actor_unavailable");
+  assert.equal(onesignal.calls.length, 0);
+});
+
+// ── Messages privés ────────────────────────────────────────────────────────
+const SECRET = "rendez-vous à 14 h, code 4242";
+const message = (n, createdAt) => ({ id: id(100 + n), sender_id: id(1), receiver_id: id(2), created_at: createdAt, content: SECRET });
+const messageDeps = (store, onesignal, msg, extra = {}) => ({
+  store, onesignal, automations, now: new Date(msg.created_at), messageId: msg.id,
+  loadMessage: async () => msg,
+  loadProfile: async () => ({ pseudo: "lea", first_name: "Léa", locked: false }),
+  ...extra,
+});
+const messageStore = (rows = { [id(2)]: {} }) => fakeStore(rows);
+
+test("a private message notifies the receiver, without its content anywhere", async () => {
+  const store = messageStore();
+  const onesignal = fakeOneSignal();
+  const first = message(1, "2026-09-24T12:00:00Z");
+  store.state.clock = new Date(first.created_at);
+  const result = await notifyPrivateMessage(messageDeps(store, onesignal, first));
+  assert.equal(result.status, "sent");
+  assert.deepEqual(onesignal.calls[0].externalIds, [id(2)]);
+  assert.equal(onesignal.calls[0].title.fr, "Léa t'a envoyé un message 💬");
+  assert.equal(onesignal.calls[0].title.en, "Léa sent you a message 💬");
+  assert.equal(onesignal.calls[0].body.en, "Open BLOCUS TRACKER to reply.");
+  assert.equal(onesignal.calls[0].url, `/messages?dm=${id(1)}`);
+  // Ni le texte, ni le prénom dans le registre ; ni le texte dans la notification.
+  assert.equal(JSON.stringify(store.state).includes(SECRET), false);
+  assert.equal(JSON.stringify(store.state.sends).includes("Léa"), false);
+  assert.equal(JSON.stringify(onesignal.calls).includes(SECRET), false);
+  assert.equal(store.state.sends[0].title.fr, "{name} t'a envoyé un message 💬");
+  assert.equal(store.state.sends[0].url, "/messages");
+});
+
+test("several messages close together ring once; after 10 minutes, again", async () => {
+  const store = messageStore();
+  const onesignal = fakeOneSignal();
+  const send = async (n, time) => {
+    const msg = message(n, time);
+    store.state.clock = new Date(time);
+    return notifyPrivateMessage(messageDeps(store, onesignal, msg));
+  };
+  assert.equal((await send(1, "2026-09-24T12:00:00Z")).status, "sent");
+  assert.equal((await send(2, "2026-09-24T12:01:00Z")).reason, "cooldown");
+  assert.equal((await send(3, "2026-09-24T12:08:00Z")).reason, "cooldown");
+  assert.equal((await send(4, "2026-09-24T12:11:00Z")).status, "sent");
+  assert.equal(onesignal.calls.length, 2);
+  // Une autre conversation n'est pas freinée par celle-ci.
+  const other = { ...message(5, "2026-09-24T12:11:30Z"), sender_id: id(3) };
+  store.state.clock = new Date(other.created_at);
+  assert.equal((await notifyPrivateMessage(messageDeps(store, onesignal, other))).status, "sent");
+});
+
+test("two messages at the same instant still ring once (anti-duplicate key)", async () => {
+  const store = messageStore();
+  store.recentRecipientKey = async () => false; // la course : aucun des deux ne voit l'autre
+  const onesignal = fakeOneSignal();
+  store.state.clock = new Date("2026-09-24T12:00:00Z");
+  await notifyPrivateMessage(messageDeps(store, onesignal, message(1, "2026-09-24T12:00:00Z")));
+  const twin = await notifyPrivateMessage(messageDeps(store, onesignal, message(2, "2026-09-24T12:00:01Z")));
+  assert.equal(twin.status, "skipped");
+  assert.equal(onesignal.calls.length, 1);
+});
+
+test("no message push with Social off, General off, a suspended account or a block", async () => {
+  const onesignal = fakeOneSignal();
+  for (const reason of ["category_off", "general_off", "suspended", "blocked"]) {
+    const result = await notifyPrivateMessage(messageDeps(messageStore({ [id(2)]: { reason } }), onesignal, message(1, "2026-09-24T12:00:00Z")));
+    assert.equal(result.status, "skipped", reason);
+  }
+  const suspendedSender = await notifyPrivateMessage(messageDeps(messageStore(), onesignal, message(1, "2026-09-24T12:00:00Z"), {
+    loadProfile: async () => ({ pseudo: "lea", first_name: "Léa", locked: true }),
+  }));
+  assert.equal(suspendedSender.reason, "actor_unavailable");
+  const toSelf = await notifyPrivateMessage(messageDeps(messageStore(), onesignal, { ...message(1, "2026-09-24T12:00:00Z"), receiver_id: id(1) }));
+  assert.equal(toSelf.reason, "invalid");
+  const tooMany = await notifyPrivateMessage(messageDeps(messageStore({ [id(2)]: { recent_social: 20 } }), onesignal, message(1, "2026-09-24T12:00:00Z")));
+  assert.equal(tooMany.status, "skipped");
+  const off = await notifyPrivateMessage(messageDeps(messageStore(), onesignal, message(1, "2026-09-24T12:00:00Z"), {
+    automations: { ...automations, private_message: { ...automations.private_message, enabled: false } },
+  }));
+  assert.equal(off.reason, "disabled");
   assert.equal(onesignal.calls.length, 0);
 });
 
