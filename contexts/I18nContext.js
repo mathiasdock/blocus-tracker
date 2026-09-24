@@ -13,19 +13,14 @@ const PREF_KEY = "bt_lang_pref"; // "fr" | "en" — présent UNIQUEMENT si choix
 const LEGACY_KEY = "bt_lang";    // ancien key (pollué en "fr" pour tout le monde par l'ancien sync profil)
 const SUPPORTED = ["fr", "en"];
 
-// Langue de l'appareil → "fr" ou "en". Tout ce qui n'est ni anglais ni
-// français retombe sur le français (public principal francophone).
+// Langue de l'appareil → "fr" ou "en". Seule la langue principale compte :
+// un appareil allemand qui accepte aussi le français reste un appareil
+// allemand. Français → français ; toute autre langue → anglais.
 export function detectDeviceLang() {
-  if (typeof navigator === "undefined") return "fr";
-  const list = navigator.languages && navigator.languages.length
-    ? navigator.languages
-    : [navigator.language];
-  for (const raw of list) {
-    const code = String(raw || "").toLowerCase();
-    if (code.startsWith("en")) return "en";
-    if (code.startsWith("fr")) return "fr";
-  }
-  return "fr";
+  if (typeof navigator === "undefined") return "en";
+  const primary = (navigator.languages && navigator.languages[0]) || navigator.language;
+  const code = String(primary || "").toLowerCase();
+  return code === "fr" || code.startsWith("fr-") ? "fr" : "en";
 }
 
 // Préférence de langue enregistrée localement, sinon "auto" (= suivre l'appareil).
@@ -72,6 +67,11 @@ export function I18nProvider({ children }) {
   const setLang = useCallback((l) => {
     if (l === "fr" || l === "en") setLangPref(l);
   }, [setLangPref]);
+
+  // _document.js sert toujours lang="fr" : on aligne la page sur la langue réelle.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const t = useCallback((key) => translate(lang, key), [lang]);
 
