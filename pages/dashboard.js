@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatDuration, formatMinutesShort, todayISO, computeStreak, isStreakPaused } from "../lib/format";
+import { formatDuration, formatMinutesShort, todayISO, localISO, localDayStartISO, computeStreak, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost, shareSavedSession } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
@@ -309,7 +309,7 @@ export default function Dashboard() {
   // du semestre dernier n'a rien à faire dans la liste du chrono.
   const activeCourses = useMemo(() => courses.filter((c) => !c.archived_at), [courses]);
   const normalizedExams = useMemo(() => normalizePlanningExams(courses, examRows), [courses, examRows]);
-  const nextCourseExam = useCallback((id) => nextExamForCourse(normalizedExams, id, todayISO()), [normalizedExams]);
+  const nextCourseExam = useCallback((id) => nextExamForCourse(normalizedExams, id, localISO(new Date())), [normalizedExams]);
 
   // Le TimerProvider hydrate son dernier cours indépendamment des données du
   // dashboard. Si ce cours a depuis été archivé ou supprimé, ou si le jeu de
@@ -393,7 +393,7 @@ export default function Dashboard() {
       applyDashboardData(readGuestDashboardData(lang));
       return;
     }
-    const cacheKey = `${dashboardCachePrefix}${todayISO()}`;
+    const cacheKey = `${dashboardCachePrefix}${localISO(new Date())}`;
     const cached = getClientCache(cacheKey);
     if (cached) applyDashboardData(cached);
 
@@ -412,7 +412,7 @@ export default function Dashboard() {
         .from("sessions")
         .select("*")
         .eq("user_id", user.id)
-        .gte("started_at", todayISO())
+        .gte("started_at", localDayStartISO())
         .order("started_at", { ascending: false }),
       cached ? Promise.resolve({ data: cached.recentSessions || [] }) : supabase
         .from("sessions")
@@ -423,7 +423,7 @@ export default function Dashboard() {
         .from("objectives")
         .select("*")
         .eq("user_id", user.id)
-        .eq("scheduled_date", todayISO())
+        .eq("scheduled_date", localISO(new Date()))
         .order("done"),
     ]);
 
@@ -1078,21 +1078,21 @@ export default function Dashboard() {
   // ── Records (fenêtre 90 jours) ────────────────────────────────
   const dayTotals = {};
   recentSessions.forEach(s => {
-    const d = (s.started_at || "").slice(0, 10);
+    const d = s.started_at ? localISO(s.started_at) : "";
     if (d) dayTotals[d] = (dayTotals[d] || 0) + (s.duration_seconds || 0);
   });
   const bestDaySecs = Object.values(dayTotals).reduce((m, v) => Math.max(m, v), 0);
   const longestSessionSecs = recentSessions.reduce((m, s) => Math.max(m, s.duration_seconds || 0), 0);
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - 6);
-  const weekStartISO = weekStart.toISOString().slice(0, 10);
+  const weekStartISO = localISO(weekStart);
   const weekSecs = Object.entries(dayTotals).reduce((a, [d, v]) => (d >= weekStartISO ? a + v : a), 0);
   // Les mêmes sept jours, un par un, pour la carte de progression (même clé de
   // date que `weekSecs` : les barres additionnées donnent exactement le total).
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(weekStart);
     day.setDate(weekStart.getDate() + i);
-    const date = day.toISOString().slice(0, 10);
+    const date = localISO(day);
     return { date, secs: dayTotals[date] || 0 };
   });
 

@@ -679,7 +679,7 @@ function DayDetailModal() {
   const doneCount  = objectives.filter(o => o.done).length;
 
   const totalStudiedSecs = sessions
-    .filter(s => s.started_at.slice(0, 10) === modalDate)
+    .filter(s => ymd(new Date(s.started_at)) === modalDate)
     .reduce((a, s) => a + s.duration_seconds, 0);
   const totalTargetMin = objectives.reduce((a, o) => a + (o.target_minutes || 0), 0);
   const studiedPct = totalTargetMin > 0
@@ -857,7 +857,7 @@ function DayDetailModal() {
               <div className="space-y-2">
                 {objectives.map(o => {
                   const realSecs = o.course_id
-                    ? sessions.filter(s => s.course_id === o.course_id && s.started_at.slice(0, 10) === o.scheduled_date)
+                    ? sessions.filter(s => s.course_id === o.course_id && ymd(new Date(s.started_at)) === o.scheduled_date)
                         .reduce((a, s) => a + s.duration_seconds, 0)
                     : 0;
                   const recurLabel  = recurrenceBadgeLabel(o, t, lang);

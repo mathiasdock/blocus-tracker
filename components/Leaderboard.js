@@ -4,7 +4,7 @@ import { SkeletonList } from "./Skeleton";
 import EmptyState from "./EmptyState";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatStudyTime, displayName, lastNDates, todayISO } from "../lib/format";
+import { formatStudyTime, displayName, lastNDates, localISO } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
 import AnimatedNumber from "./AnimatedNumber";
 import FilterMenu from "./FilterMenu";
@@ -245,7 +245,7 @@ export default function Leaderboard({
           supabase.from("sessions").select("user_id, duration_seconds, started_at").eq("user_id", user.id).gte("started_at", since7),
         ]);
         const secsOf = (sess) => period === "day"
-          ? sess.filter(s => s.started_at.slice(0, 10) === todayISO()).reduce((a, s) => a + s.duration_seconds, 0)
+          ? sess.filter(s => localISO(s.started_at) === localISO(new Date())).reduce((a, s) => a + s.duration_seconds, 0)
           : sess.reduce((a, s) => a + s.duration_seconds, 0);
         list = [
           { user_id: user.id, name: displayName(profile), avatar_url: profile?.avatar_url,
