@@ -19,7 +19,7 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `study_groups` | revision groups (name, description, created_by) |
 | `group_members` | group memberships (group_id, user_id, role ∈ {'admin','member'}) |
 | `group_messages` | group chat messages |
-| `deleted_accounts` | anonymous deletion log: kind (`self`/`admin`), account age, signup week (Brussels), `was_activated` (v58) — no name or id |
+| `deleted_accounts` | anonymous deletion log: kind (`self`/`admin`), account age, signup week (Brussels), `was_activated` (v58), `returned_week2`, `was_admin`, `was_suspended` (v61) — no name or id |
 | `admin_audit_log` | append-only journal of every admin action (actor, action, target, reason, details) — v55 |
 | `system_job_runs` | one row per scheduled-task run (job, start, end, status, counters), kept 90 days — v60 |
 | `course_offerings` | canonical courses: one real course inside one institution, derived from 2+ students, no personal column (2026-09-17, no UI yet — `docs/canonical-courses.md`) |
@@ -67,6 +67,7 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `admin_delete_account(p_actor, p_target, p_reason)` | Service role only, after the route erased the member's files; anonymous snapshot + audit (v58) |
 | `admin_course_report_context(p_message_id)` | Admin, open report only: the reported message + up to 2 before and 2 after; logs `report_context_viewed` (v59) |
 | `admin_remove_post(p_post_id, p_reason)` / `admin_remove_comment(p_comment_id, p_reason)` | Admin removal of others' feed content, logged (v59) |
+| `admin_today()` / `admin_members(p_search, p_segment, p_sort, p_limit, p_offset)` / `admin_member_detail(p_user)` / `admin_activation()` | Admin read layer (v61): each call starts with `assert_admin()`; one shared source of truth (`admin_member_facts`, `admin_signup_cohorts`, not callable by the app); Europe/Brussels days and weeks, exact 168 h / 336 h windows, no email returned, server-side search / segments / sort / pagination (`p_limit` null = every row). Tests: `supabase/tests/admin_analytics.sql` |
 | `log_admin_action(...)` | Service role only — server routes write push sends, automation edits, storage cleanups, attachment openings to `admin_audit_log` (v55) |
 | `is_suspended(uuid)` | RLS helper (plain SQL) used by the read policies and the contact rules (v57) |
 | `self_delete_user()` | User deletes their own account |
@@ -127,8 +128,11 @@ All in `supabase/`. Since 2026-09-07 Claude writes **and applies** them through 
 | `migration_v58_account_deletion.sql` | `admin_delete_account` (server only), anonymous cohort snapshot in `deleted_accounts`, `admin_delete_user` revoked |
 | `migration_v59_report_scoped_moderation.sql` | Admins lose general room/feed reading; report-scoped context, logged removals |
 | `migration_v60_system_job_runs.sql` | `system_job_runs` for the two cron tasks |
+| `migration_v61_admin_analytics.sql` | Admin rebuild phase 2 — analytics read layer (`admin_today`, `admin_members`, `admin_member_detail`, `admin_activation`), index `sessions_user_started_idx`, week-2 return and admin/suspended flags in the deletion snapshot. Definitions in the file header |
 
-Phase 1 permission matrix (normal member / suspended member / admin / server-only / owner-only): `supabase/tests/admin_phase1_security.sql` — 92 checks, run on the live schema on 2026-09-23.
+Phase 1 permission matrix (normal member / suspended member / admin / server-only / owner-only): `supabase/tests/admin_phase1_security.sql` — 92 checks, run on the live schema on 2026-09-23 and again after v61.
+
+Phase 2 analytics definitions and edge cases: `supabase/tests/admin_analytics.sql` — 88 checks on a dated synthetic dataset replayed with `blocus.analytics_now` (the functions read that setting, clients cannot set it).
 
 > ⚠️ The project has **three v12 files** — confusing but intentional (parallel features). When numbering a new one, jump to **v14** or higher. See `.claude/skills/new-migration.md`.
 
