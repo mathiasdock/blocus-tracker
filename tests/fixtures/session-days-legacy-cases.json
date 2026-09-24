@@ -1,0 +1,22 @@
+{
+  "_comment": "Règle legacy de public.session_days (v70) : jour de début selon 'Europe/Brussels'. Valeurs attendues calculées par PostgreSQL ((started_at at time zone 'Europe/Brussels')::date) le 2026-09-24 ; le miroir JavaScript (lib/sessionDayParts.mjs, mode démo) doit donner exactement les mêmes.",
+  "cases": [
+    { "started_at": "2026-01-15T22:59:59.999Z", "expected_local_date": "2026-01-15" },
+    { "started_at": "2026-01-15T23:00:00Z", "expected_local_date": "2026-01-16" },
+    { "started_at": "2026-03-28T22:59:59Z", "expected_local_date": "2026-03-28" },
+    { "started_at": "2026-03-28T23:00:00Z", "expected_local_date": "2026-03-29" },
+    { "started_at": "2026-03-29T00:59:59Z", "expected_local_date": "2026-03-29" },
+    { "started_at": "2026-03-29T01:00:00Z", "expected_local_date": "2026-03-29" },
+    { "started_at": "2026-05-20T21:59:59.999Z", "expected_local_date": "2026-05-20" },
+    { "started_at": "2026-05-20T22:00:00Z", "expected_local_date": "2026-05-21" },
+    { "started_at": "2026-05-21T10:00:00Z", "expected_local_date": "2026-05-21" },
+    { "started_at": "2026-10-24T21:59:59Z", "expected_local_date": "2026-10-24" },
+    { "started_at": "2026-10-24T22:00:00Z", "expected_local_date": "2026-10-25" },
+    { "started_at": "2026-10-25T00:59:59Z", "expected_local_date": "2026-10-25" },
+    { "started_at": "2026-10-25T01:00:00Z", "expected_local_date": "2026-10-25" },
+    { "started_at": "2026-10-25T22:59:59Z", "expected_local_date": "2026-10-25" },
+    { "started_at": "2026-10-25T23:00:00Z", "expected_local_date": "2026-10-26" },
+    { "started_at": "2026-12-31T22:59:59Z", "expected_local_date": "2026-12-31" },
+    { "started_at": "2026-12-31T23:00:00Z", "expected_local_date": "2027-01-01" }
+  ]
+}
