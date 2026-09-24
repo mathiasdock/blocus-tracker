@@ -107,7 +107,7 @@
 | `NotificationContext` | In-app bell and unread badges (feed, friends, communities, messages, comments, announcements in FR/EN) — polled, not pushed | `feedCount`, `commentCount`, `friendCount`, `totalCommunity`, `messageCount`, `markSeen` |
 | `TimerContext` | Global pomodoro timer state | `running`, `elapsed`, `start`, `pause`, `stop` |
 
-## Notifications (v62)
+## Notifications (v62, catalogue V1 in v63)
 
 Two separate systems, on purpose:
 
@@ -119,9 +119,13 @@ Two separate systems, on purpose:
   4. OneSignal, by external ids in batches of 2 000 — never a segment, so never a device without an account, signed out or deleted;
   5. result per recipient (`notification_mark`) and per send.
 
-  Callers: `lib/server/dailyReminders.mjs` (evening reminder, Vercel Cron), `lib/server/friendRequestPush.mjs` (database trigger → `/api/push/notify`), `/api/admin/push` (manual FR/EN send, self-test, pushed announcement, preview, cancel, delivery). OneSignal REST calls live in `lib/server/oneSignalRest.mjs`; pure rules (time zones, cap, keys, bilingual text, validation) in `lib/notificationRules.mjs`, tested in `tests/notification-*.test.mjs`.
+  Callers: `lib/server/dailyReminders.mjs` (evening reminder, Vercel Cron), `lib/server/socialPush.mjs` (database triggers → `/api/push/notify`), `/api/admin/push` (manual FR/EN send, self-test, pushed announcement, preview, cancel, delivery). OneSignal REST calls live in `lib/server/oneSignalRest.mjs`; pure rules (time zones, keys, bilingual text, social verdicts, validation) in `lib/notificationRules.mjs`, tested in `tests/notification-*.test.mjs`.
+- **Catalogue V1** (`lib/pushAutomations.mjs`, texts editable in the admin):
+  - *Evening* (`lib/eveningPlan.mjs`, pure): one notification per member per evening, the first that applies — exam tomorrow (fact), streak at risk (≥ 3 days counted like Stats, no session today), exam in 7 days (fact), first start 48–72 h after signing up (two variants: empty planning → Planning, already set up → Chrono; once), second start ~7 days (once, after the first), comeback after 7 days without a real session (≥ 10 min; once per absence, 30 days between cycles), comeback after 21 days (then nothing until they come back). Facts are never capped; nudges: 2 over 7 rolling days, never the same two evenings in a row, none on a day the member studied. Texts are personalised (exam name and time, streak length); the registry keeps the template only.
+  - *Social* (at the event, not scheduled): friend request received, request accepted (once per friendship, only on a real pending → accepted change), private message (never its content; one notification per conversation every 10 minutes). Links open the right place: `/messages?tab=relations`, `/messages?profile=<id>`, `/messages?dm=<id>`.
+  - *In-app only*: badges, XP, levels, missions, records, reactions, comments, leaderboard, communities, group messages.
 - **Device lifecycle** (browser, `lib/onesignal.js` + `lib/pushOwner.mjs` + `lib/pushDevice.js`): the device remembers **which account** turned notifications on; only that account is re-linked at start-up. Sign-out detaches the device (OneSignal `logout`, device register `detached`); a detach that could not finish is completed at the next launch. Account deletion erases the OneSignal user and all its subscriptions (queue `push_identity_cleanup`, retried nightly by `/api/cron/purge-posts`).
-- **Preferences** (`user_privacy_settings`): overall switch + reminders + social + announcements, in the profile's Notifications card, applied server-side.
+- **Preferences** (`user_privacy_settings`): overall switch (off = no push at all) + reminders + social (requests received and accepted, private messages) + announcements, in the profile's Notifications card, applied server-side.
 - **Admin > Communications**: send (FR required, EN optional with FR fallback, "who will receive it" from the server, self-test), history from the registry, automations (last / next run, cap, dry run), announcements (FR/EN, dates in Brussels time, school targeting, optional push); member detail shows the member's notification state and checks OneSignal live.
 
 ## Deployment
