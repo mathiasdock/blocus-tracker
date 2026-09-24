@@ -22,6 +22,15 @@ test("demonstration UI cannot reach persistence or production analytics", async 
   assert.doesNotMatch(source, /supabase|fetch\s*\(|localStorage|analytics|leaderboard/i);
 });
 
+test("previews reuse the shipped product structures instead of marketing page scaffolds", async () => {
+  const source = await readFile(COMPONENT_PATH, "utf8");
+  for (const reused of ["ActivityTimeline", "StudyTimeChart", "StudyByCourse", "PlanningExamMark", "SegmentedGlide", "CourseMarker"]) {
+    assert.match(source, new RegExp(`\\b${reused}\\b`), `${reused} should stay part of the preview`);
+  }
+  assert.doesNotMatch(source, /function DemoHeader|<DemoHeader/);
+  assert.doesNotMatch(source, /guest\.(planning|stats|feed|messages|communautes)\.(eyebrow|title|text|f\d)/);
+});
+
 test("every discovery and gate sentence exists in French and English", async () => {
   const source = await readFile(COMPONENT_PATH, "utf8");
   const literalKeys = [...source.matchAll(/t\(["'](guest\.[^"']+)["']\)/g)].map((match) => match[1]);
@@ -37,10 +46,28 @@ test("every discovery and gate sentence exists in French and English", async () 
 
 test("the stats preview is coherent: 8h15 equals the seven daily bars", async () => {
   const source = await readFile(COMPONENT_PATH, "utf8");
-  const match = source.match(/const week = \[([^\]]+)\]/);
+  const match = source.match(/const WEEK_MINUTES = \[([^\]]+)\]/);
   assert.ok(match, "weekly data should stay explicit and reviewable");
   const minutes = match[1].split(",").map((value) => Number(value.trim()));
   assert.equal(minutes.reduce((total, value) => total + value, 0), 8 * 60 + 15);
+  assert.match(source, /new Intl\.DateTimeFormat\(lang === "en" \? "en-GB" : "fr-BE", \{ weekday: "narrow" \}\)/);
+});
+
+test("reading demo planning items stays open while personal changes are gated", async () => {
+  const source = await readFile(COMPONENT_PATH, "utf8");
+  for (const className of ["bt-planning-next-exam", "bt-planning-week-exam", "bt-plan-objective-chip", "bt-planning-agenda-exam"]) {
+    const line = source.split("\n").find((candidate) => candidate.includes(`className=\"${className}`));
+    assert.ok(line, `missing ${className}`);
+    assert.doesNotMatch(line, /onGate/, `${className} should remain consultable without a gate`);
+  }
+  assert.match(source, /aria-label=\{t\("guest\.demo\.add"\)\} onClick=\{\(\) => onGate\("planning"\)\}/);
+});
+
+test("commenting gates on the first click instead of opening a fake input", async () => {
+  const source = await readFile(COMPONENT_PATH, "utf8");
+  assert.match(source, /onClickCapture=\{\(event\) => \{/);
+  assert.match(source, /event\.target\.closest\("\.bt-activity-quiet-btn"\)/);
+  assert.match(source, /event\.stopPropagation\(\)/);
 });
 
 test("the guest timer uses only local demo courses and a separate storage version", async () => {
@@ -55,12 +82,14 @@ test("the guest timer uses only local demo courses and a separate storage versio
   assert.doesNotMatch(guestSave[1], /supabase|xpGained|setCompletionToast/i);
 });
 
-test("the contextual gate becomes a bottom sheet and keeps dark exam semantics", async () => {
+test("the contextual gate becomes a bottom sheet while previews use the real exam vocabulary", async () => {
+  const component = await readFile(COMPONENT_PATH, "utf8");
   const css = await readFile(CSS_PATH, "utf8");
   assert.match(css, /@media \(max-width: 639px\)/);
   assert.match(css, /place-items: end center/);
-  assert.match(css, /:global\(\.dark\) \.page/);
-  assert.match(css, /--guest-exam-bg: #30231f/);
+  assert.match(component, /PlanningExamMark/);
+  assert.match(component, /bt-planning-week-exam/);
+  assert.doesNotMatch(css, /--guest-exam-/);
 });
 
 test("guest and account timers have separate owners and guest time is discarded at sign-in", async () => {

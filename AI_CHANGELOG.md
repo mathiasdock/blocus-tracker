@@ -2963,3 +2963,9 @@ Verification : 5 tests unitaires des etats direct/iOS/session fermee/installe, l
 ## 2026-09-23 — Codex — L'image de partage devient un vrai instrument Blocus Tracker
 
 L'aperçu Open Graph 1200×630 abandonne le fond dégradé, l'horloge fantôme, le texte de bannière et la grande carte d'encre. La composition reprend le canevas crème, les polices locales et le vrai logo, puis fait de la donnée la scène : `01:45:00`, exactement sept Study Blocks de quinze minutes groupés après la première heure, et une trajectoire ascendante sur un sol menthe. La mascotte Focus est rendue directement depuis `components/Mascot.js` et se tient sur la dernière unité gagnée, sans illustration dupliquée ni faux écran produit. L'URL de l'image Open Graph est versionnée pour forcer les plateformes de partage à récupérer le nouveau rendu.
+
+## 2026-09-24 — Codex — Le mode découverte montre enfin les vraies pages
+
+Les cinq aperçus visiteurs cessent d'être des maquettes parallèles avec un titre de page ajouté. Planning reprend sa carte Aujourd'hui, sa barre de période et ses vraies lignes Jour/Semaine ; Stats réutilise `StudyTimeChart` et `StudyByCourse` ; Activité rend le vrai `ActivityTimeline` ; Amis reprend l'inbox actuelle sans inventer une messagerie complète ; Communautés reprend la liste et le salon de cours, y compris le plein écran mobile. Chaque aperçu ne garde que deux à quatre éléments de démonstration, explicitement locaux, et toute action personnelle ouvre le gate contextuel existant. Aucun accès Supabase, aucune écriture, analytics, XP ou notification n'entre dans ces vues.
+
+Vérification : routes visiteur en FR/EN, clair/sombre, 464 px et 1440 px ; navigation Planning Jour/Semaine, salon Communautés mobile, gates Planning/Activité/Amis/Communautés, absence de débordement et d'overlay d'erreur. Tests ciblés, suite Node, lint et build production passés.
