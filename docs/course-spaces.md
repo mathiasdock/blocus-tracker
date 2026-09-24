@@ -102,7 +102,7 @@ Not built, on purpose: weekly presence, "X students studied", exam consensus, pi
 - **Block** (message menu): the blocked student's messages disappear for the blocker in every room; *Étudiants bloqués (n)* at the bottom of the list reopens them for unblocking.
 - **Delete**: authors delete their own messages (and their own stored file); admins can delete any.
 - **Spam limits in `post_course_room_message`**: 6 messages per 30 s and 200 per day per student across rooms, identical text in the same room within 2 minutes refused, 1,000 characters, exam date between yesterday and 730 days ahead, attachment path and type validated.
-- **Admin path**: `/admin` → Membres → *Signalements · espaces de cours* (`components/course-spaces/CourseReportsAdmin.js`): open reports grouped by message (room title, author pseudo, content, reasons, count, hidden state) with *Garder le message* (resolves reports, unhides) or *Supprimer le message*. Reporter identities are not shown.
+- **Admin path**: `/admin/inbox` (one queue with member suggestions; `pages/admin/inbox.js`): open reports grouped by message (room title, author pseudo linking to the member page, content, reasons, count, hidden state), *Voir le contexte* (2 messages before and after, logged), *Ouvrir la pièce jointe* (signed, logged), *Garder le message* (resolves reports, unhides) or *Supprimer le message* (confirmation). Reporter identities are not shown.
 
 ## Legacy data (academic spaces)
 

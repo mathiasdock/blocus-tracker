@@ -299,6 +299,16 @@ Every page before the app — sign in, sign up, check email, forgot/reset passwo
 - **Courses.** Type → Enter → the course lands in the list and in the sheet, the entry keeps the focus. A pasted list adds one course per line; a duplicate lights the course it repeats; Backspace on an empty entry selects the last course, a second one removes it. Rename in place (Enter saves, Escape cancels), colour on the dot, remove on ×, one edit at a time. Saves run one after another with a stable client id (Phase 1 idempotency); Finish waits for them and still needs one course. Automatic colours follow `COURSE_COLOR_SEQUENCE` (`lib/courseColors.js`) so the first courses get far-apart hues; the picker keeps the palette in hue order.
 - **Green.** The primary action, the progress bars, the focused row, *Disponible*, the mint of the ground. Course hues only on real courses.
 
+### Admin — an internal tool, read fast
+
+`/admin/*` (six pages: Today, Members, Activation, Inbox, Communications, System; shipped 2026-09-24, admin rebuild phase 3) is operate-only: it answers "what needs me now?" and "is this number true?". It is not a product surface and borrows none of the study grammar — no Study Blocks, mascot, course tints, reward objects or LIVE badges.
+
+- **Source.** Every number comes from the `admin_*` read functions (v61 / v61_3); the page never counts or recomputes. When the base gives no rate (fewer than 5 people, window not over, unknown), the page writes the raw "n of m" or says why the cell is empty — it never invents a percentage.
+- **Structure before containers.** Rows, tables and hairline separators. One surface per interactive group (a list, a table, a form), radius `--bt-r-inset`; never a card per number. Key figures sit in one strip divided by hairlines, not in tiles. `components/admin/admin.module.css` (CSS module: no global class).
+- **Colour means state.** Neutral ink everywhere; red only for "to fix / destructive", green only for "done / active", the warning ink for "watch". A state is always a dot + a word. The only pill in the navigation is the Inbox count; filters are pills because they are filters.
+- **Density.** 14px rows, 13px metadata in `--bt-text-2` (never the faint roles for essential text), tabular figures, 44px targets. Tables switch to two-line rows when their panel is narrower than 760px (container query), so the sidebar never forces a sideways scroll.
+- **Irreversible actions** (suspend, delete, remove a reported message, send or cancel a notification, delete files or an announcement) always go through a confirmation that names the consequence; member actions keep the Phase 1 dialog with a mandatory reason.
+
 ## Do's and Don'ts
 
 ### Correct / incorrect usage

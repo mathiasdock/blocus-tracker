@@ -314,7 +314,7 @@ async function handleDelete(admin, userId, req, res) {
   if (!requireJson(req, res)) return;
   const ids = req.body?.ids;
   if (!Array.isArray(ids) || ids.length < 1 || ids.length > MAX_DELETE_IDS || ids.some((id) => typeof id !== "string" || !/^[a-f0-9]{32}$/.test(id))) {
-    return res.status(400).json({ error: "Invalid cleanup selection" });
+    return res.status(400).json({ error: "invalid_selection" });
   }
 
   const scan = await scanCleanupCandidates(admin);
@@ -324,7 +324,7 @@ async function handleDelete(admin, userId, req, res) {
   const skipped = selected.length - safe.length + ids.length - selected.length;
 
   if (!safe.length) {
-    return res.status(400).json({ error: "No safe cleanup candidate selected" });
+    return res.status(400).json({ error: "nothing_selected" });
   }
 
   const deleted = [];

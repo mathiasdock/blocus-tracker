@@ -585,7 +585,8 @@ export default function Layout({ children }) {
   }
 
   function renderDesktopNavItem(n) {
-    const active = router.pathname === n.href;
+    // L'admin a six pages (/admin, /admin/members…) : toutes allument l'entrée.
+    const active = n.href === "/admin" ? router.pathname.startsWith("/admin") : router.pathname === n.href;
     const badge  = badgeFor(n.href);
     return (
       <Link key={n.href} href={n.href}

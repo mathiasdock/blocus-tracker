@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-24 — Claude Code — Admin, phase 3 : la nouvelle interface
+
+- Six pages remplacent l'ancienne admin (`pages/admin.js`, 1 936 lignes) : **Aujourd'hui** (seulement ce qui demande une action, puis 4 chiffres de la semaine), **Membres** (recherche, 7 filtres, 6 tris et pages côté serveur, fiche en panneau, export CSV sans email, actions de la phase 1 inchangées), **Activation** (un entonnoir, cohortes par semaine, usage des fonctions ; aucun taux inventé sous 5 personnes), **Boîte de réception** (signalements + suggestions en une file ; contexte et pièce jointe limités comme en phase 1), **Communications** (envoi ciblé avec recherche serveur, historique OneSignal, automatiques FR/EN, annonces), **Système** (tâches planifiées, échecs d'activation des notifications, fonctions lentes, anomalies de données, stockage à la demande, journal admin paginé, version déployée).
+- v61_3 (appliquée après test à blanc : refus membre et anonyme, 161 ms) : `admin_system()`, `admin_audit_page()`.
+- Chiffres : uniquement les lectures `admin_*` ; `lib/adminFormat.mjs` ne fait qu'écrire (heures, taux, dates de Bruxelles, CSV protégé contre les formules). Routes push : codes d'erreur au lieu de phrases en français, écoles ciblables comptées côté serveur, lien `//site` refusé (`isSafeInternalHref`). `next.config.js` inscrit le commit Vercel au build.
+- i18n : 486 clés `adm.*` FR+EN ; 54 anciennes clés `admin.*`/`courseSpaces.admin.*` retirées. Retirés : `pages/admin.js`, `PushConsole`, `PushAutomations`, `CourseReportsAdmin`, `lib/adminAnalytics.js`, `/api/admin/insights`, `/api/admin/signup-dates` (plus de chargement de toute la base dans le navigateur, plus de flux « LIVE », plus de graphiques dans l'admin).
+- Aperçu hors ligne : données de démonstration dans `lib/offlineAdmin.js`, chargées à la demande et seulement en mode hors ligne.
+- Constats : `get_gamification_levels` en moyenne 1,97 s, maximum 8,0 s sur 24 944 appels (au bord du délai de 8 s) ; journal des tâches vide jusqu'au premier passage enregistré (suivi installé en phase 1).
+
 ## 2026-09-24 — Claude Code — Admin : plafond de 8 h dans les sommes de temps (fin de phase 2)
 
 - v61_2 (appliquée) : pour les SOMMES de temps d'étude de l'admin uniquement (total, 7 j, 7 j précédents, 30 j), une vraie session compte au plus 8 h. Activation, actifs, jours distincts, retour S2 : inchangés. Sessions stockées, stats perso, XP, séries : inchangées. Les sessions > 8 h restent détectées (nombre et durée brute) ; les chevauchements ne sont pas corrigés (anomalie).

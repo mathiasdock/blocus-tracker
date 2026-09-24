@@ -61,7 +61,7 @@
 | `/communautes` | `communautes.js` | Course spaces: the student's own courses matched to canonical courses of their institution, voluntary join, one member-only conversation per course (`docs/course-spaces.md`) |
 | `/feed` | `feed.js` | Photo feed (sessions, reactions, comments) |
 | `/profile` | `profile.js` | Profile, badges, XP, settings |
-| `/admin` | `admin.js` | Admin dashboard (gated by `profiles.is_admin`) |
+| `/admin` … `/admin/system` | `admin/*.js` | Admin tool, six pages (Today, Members, Activation, Inbox, Communications, System) in `components/admin/AdminShell.js`; data only from the `admin_*` read functions and `/api/admin/*` (gated by `profiles.is_admin` in the page, enforced by the database and the routes) |
 
 ## Auth flows
 

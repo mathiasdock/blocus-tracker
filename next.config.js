@@ -9,6 +9,18 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: { unoptimized: true },
+  // Version affichée dans l'admin (page Système) : le commit que Vercel est
+  // en train de construire. Vide en local. Aucun secret : Vercel expose ces
+  // variables à chaque build.
+  env: {
+    BT_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || "",
+    BT_BUILD_REF: process.env.VERCEL_GIT_COMMIT_REF || "",
+    BT_BUILD_ENV: process.env.VERCEL_ENV || "",
+    BT_BUILD_REPO: process.env.VERCEL_GIT_REPO_OWNER && process.env.VERCEL_GIT_REPO_SLUG
+      ? `${process.env.VERCEL_GIT_REPO_OWNER}/${process.env.VERCEL_GIT_REPO_SLUG}`
+      : "",
+    BT_BUILD_AT: process.env.VERCEL_GIT_COMMIT_SHA ? new Date().toISOString() : "",
+  },
   async headers() {
     const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
       ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host

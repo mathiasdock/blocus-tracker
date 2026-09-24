@@ -68,6 +68,7 @@ This document is the **detailed reference** for the database. `CLAUDE.md` keeps 
 | `admin_course_report_context(p_message_id)` | Admin, open report only: the reported message + up to 2 before and 2 after; logs `report_context_viewed` (v59) |
 | `admin_remove_post(p_post_id, p_reason)` / `admin_remove_comment(p_comment_id, p_reason)` | Admin removal of others' feed content, logged (v59) |
 | `admin_today()` / `admin_members(p_search, p_segment, p_sort, p_limit, p_offset)` / `admin_member_detail(p_user)` / `admin_activation()` | Admin read layer (v61): each call starts with `assert_admin()`; one shared source of truth (`admin_member_facts`, `admin_signup_cohorts`, not callable by the app); Europe/Brussels days and weeks, exact 168 h / 336 h windows, no email returned, server-side search / segments / sort / pagination (`p_limit` null = every row). Tests: `supabase/tests/admin_analytics.sql` |
+| `admin_system()` / `admin_audit_page(p_limit, p_offset, p_action)` | Admin System page (v61_3): scheduled job runs, push activation failures, slowest app functions from `pg_stat_statements` (completed calls only — errors and timeouts are not recorded there), data anomalies (sessions > 8 h, overlaps, short sessions, accounts without profile, placeholder emails…); the admin log one page at a time with actor/target pseudos, never an email |
 | `log_admin_action(...)` | Service role only — server routes write push sends, automation edits, storage cleanups, attachment openings to `admin_audit_log` (v55) |
 | `is_suspended(uuid)` | RLS helper (plain SQL) used by the read policies and the contact rules (v57) |
 | `self_delete_user()` | User deletes their own account |
@@ -130,6 +131,7 @@ All in `supabase/`. Since 2026-09-07 Claude writes **and applies** them through 
 | `migration_v60_system_job_runs.sql` | `system_job_runs` for the two cron tasks |
 | `migration_v61_admin_analytics.sql` | Admin rebuild phase 2 — analytics read layer (`admin_today`, `admin_members`, `admin_member_detail`, `admin_activation`), index `sessions_user_started_idx`, week-2 return and admin/suspended flags in the deletion snapshot. Definitions in the file header |
 | `migration_v61_2_admin_study_cap.sql` | Admin study-time SUMS count each real session for at most 8 h; sessions > 8 h stay counted everywhere else and remain flagged as anomalies |
+| `migration_v61_3_admin_system.sql` | Admin rebuild phase 3 — read-only `admin_system()` and `admin_audit_page()` for the System page |
 
 Phase 1 permission matrix (normal member / suspended member / admin / server-only / owner-only): `supabase/tests/admin_phase1_security.sql` — 92 checks, run on the live schema on 2026-09-23 and again after v61.
 
