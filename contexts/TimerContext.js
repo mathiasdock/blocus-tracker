@@ -11,36 +11,74 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 
 const TimerContext = createContext(null);
-const KEY = "bt_timer_v1";
+const LEGACY_KEY = "bt_timer_v1";
+const KEY_PREFIX = "bt_timer_v2";
+const GUEST_OWNER = "guest";
 const MAX_SESSION_SECONDS = 12 * 60 * 60;
 
+function timerStorageKey(owner) {
+  return `${KEY_PREFIX}:${owner}`;
+}
+
+function emptyTimerSnapshot() {
+  return { courseId: "", note: "", running: false, startMs: 0, baseSeconds: 0 };
+}
+
 export function TimerProvider({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const timerOwner = user?.id || GUEST_OWNER;
   const [courseId, setCourseId] = useState("");
   const [note, setNote] = useState("");
   const [running, setRunning] = useState(false);
   const [startMs, setStartMs] = useState(0);
   const [baseSeconds, setBaseSeconds] = useState(0);
   const [, forceRender] = useReducer((x) => x + 1, 0);
-  // `hydrated` est un STATE (pas une ref) : il est appliqué dans le même
+  // `hydratedOwner` est un STATE (pas une ref) : il est appliqué dans le même
   // batch que les valeurs restaurées. Avec une ref, le double-effect de
   // React StrictMode (dev) réécrivait le storage avec les états par défaut
   // AVANT la relecture du restore → le chrono ne survivait pas au reload.
-  const [hydrated, setHydrated] = useState(false);
+  const [hydratedOwner, setHydratedOwner] = useState(null);
+  const hydrated = hydratedOwner === timerOwner;
+  const activeOwnerRef = useRef(null);
 
-  // Restore from localStorage on first mount.
+  // Restore from localStorage once Auth knows which space owns the timer, then
+  // again whenever that owner changes. Guest and account snapshots must never
+  // share a key: a discovery session cannot become a production session after
+  // sign-in, and two accounts on one device cannot inherit each other's timer.
   //
   // ⚠️ Sanity cap : si le timer était "running" mais que l'appareil a dormi /
   // l'app a été fermée pendant > 12h, on ne compte PAS ce gap (sinon la session
   // est artificiellement gonflée à plusieurs heures). On fige le timer en pause
   // sur la dernière valeur connue ; l'utilisateur peut reprendre ou stopper.
   useEffect(() => {
+    if (loading) return;
+    let snapshot = emptyTimerSnapshot();
     try {
-      const raw = localStorage.getItem(KEY);
+      const key = timerStorageKey(timerOwner);
+      let raw = localStorage.getItem(key);
+
+      // One-time migration for timers created before ownership was recorded.
+      // A legacy guest course is recognisable; any other legacy timer belongs
+      // only to the account already authenticated at migration time.
+      if (!raw) {
+        const legacyRaw = localStorage.getItem(LEGACY_KEY);
+        if (legacyRaw) {
+          const legacy = JSON.parse(legacyRaw);
+          const legacyOwner = String(legacy.courseId || "").startsWith("guest-course-")
+            ? GUEST_OWNER
+            : user?.id || null;
+          if (legacyOwner === timerOwner) {
+            raw = legacyRaw;
+            localStorage.setItem(key, legacyRaw);
+          }
+          localStorage.removeItem(LEGACY_KEY);
+        }
+      }
+
       if (raw) {
         const s = JSON.parse(raw);
-        setCourseId(s.courseId || "");
-        setNote(s.note || "");
+        snapshot.courseId = s.courseId || "";
+        snapshot.note = s.note || "";
         let nextRunning = !!s.running;
         let nextStartMs = s.startMs || 0;
         const nextBase = Math.min(s.baseSeconds || 0, MAX_SESSION_SECONDS);
@@ -50,26 +88,39 @@ export function TimerProvider({ children }) {
           nextStartMs = 0;
           // baseSeconds inchangé : on n'inclut PAS le gap suspect.
         }
-        setRunning(nextRunning);
-        setStartMs(nextStartMs);
-        setBaseSeconds(nextBase);
+        snapshot.running = nextRunning;
+        snapshot.startMs = nextStartMs;
+        snapshot.baseSeconds = nextBase;
       }
     } catch {}
-    setHydrated(true);
+
+    // A guest timer is deliberately temporary. Once an account takes over,
+    // discard it instead of letting it resume after a later sign-out.
+    if (activeOwnerRef.current === GUEST_OWNER && timerOwner !== GUEST_OWNER) {
+      try { localStorage.removeItem(timerStorageKey(GUEST_OWNER)); } catch {}
+    }
+
+    activeOwnerRef.current = timerOwner;
+    setCourseId(snapshot.courseId);
+    setNote(snapshot.note);
+    setRunning(snapshot.running);
+    setStartMs(snapshot.startMs);
+    setBaseSeconds(snapshot.baseSeconds);
+    setHydratedOwner(timerOwner);
     forceRender();
-  }, []);
+  }, [loading, timerOwner, user?.id]);
 
   // Persist any change — jamais avant l'hydration (sinon on écrase le
   // storage avec les états par défaut).
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || activeOwnerRef.current !== timerOwner) return;
     try {
       localStorage.setItem(
-        KEY,
+        timerStorageKey(timerOwner),
         JSON.stringify({ courseId, note, running, startMs, baseSeconds })
       );
     } catch {}
-  }, [hydrated, courseId, note, running, startMs, baseSeconds]);
+  }, [hydrated, timerOwner, courseId, note, running, startMs, baseSeconds]);
 
   // Re-render every 500ms while running and pause at the same 12-hour cap
   // enforced by the database. This also prevents a sleeping device from
@@ -91,17 +142,17 @@ export function TimerProvider({ children }) {
 
   // ── Live presence: update studying_since on start/stop ──────
   useEffect(() => {
-    if (!user) return;
+    if (!user || !hydrated || activeOwnerRef.current !== timerOwner) return;
     supabase
       .from("profiles")
       .update({ studying_since: running ? new Date().toISOString() : null })
       .eq("id", user.id)
       .then();
-  }, [running, user]);
+  }, [hydrated, running, timerOwner, user]);
 
   // Heartbeat: keep studying_since fresh every 5 min while running
   useEffect(() => {
-    if (!running || !user) return;
+    if (!running || !user || !hydrated || activeOwnerRef.current !== timerOwner) return;
     const id = setInterval(() => {
       supabase
         .from("profiles")
@@ -110,14 +161,14 @@ export function TimerProvider({ children }) {
         .then();
     }, 5 * 60 * 1000);
     return () => clearInterval(id);
-  }, [running, user]);
+  }, [hydrated, running, timerOwner, user]);
 
   // Les navigateurs (surtout mobile/PWA) gèlent les intervals en arrière-plan :
   // le heartbeat prend du retard et la présence expire (fenêtre 10 min, cf.
   // lib/presence.js) alors que le chrono tourne toujours. On rafraîchit
   // studying_since dès le retour au premier plan pour "ressusciter" la présence.
   useEffect(() => {
-    if (!running || !user) return;
+    if (!running || !user || !hydrated || activeOwnerRef.current !== timerOwner) return;
     function onVisible() {
       if (document.visibilityState !== "visible") return;
       supabase
@@ -128,7 +179,7 @@ export function TimerProvider({ children }) {
     }
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [running, user]);
+  }, [hydrated, running, timerOwner, user]);
 
   const elapsed = Math.min(MAX_SESSION_SECONDS, Math.floor(
     baseSeconds + (running && startMs ? (Date.now() - startMs) / 1000 : 0)

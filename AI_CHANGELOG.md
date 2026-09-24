@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-24 — Codex — Mode Découverte : un produit limité, pas une landing page
+
+- Le Chrono invité reste le vrai chrono utilisable, recentré sur l'essentiel avec deux cours de démonstration, des sessions locales en lecture seule et une invitation discrète à conserver la progression après une première session. Aucun objectif, XP, série, classement, défi, notification ou donnée connectée ne fuit dans ce mode. Le chrono local est maintenant séparé par propriétaire : une session découverte est jetée à la connexion et ne peut ni activer la présence ni devenir une session du compte.
+- Planning, Stats, Activité, Amis et Communautés ont désormais de petits aperçus produit cohérents et isolés : navigation de semaine et examen, 8 h 15 de statistiques mathématiquement cohérentes, activité courte, trois profils, trois espaces et un mini-salon. Les données sont statiques, traduites et sans import Supabase, requête réseau, analytics ou écriture de production.
+- Toute action qui demande un compte ouvre une barrière contextuelle compacte : modale sur ordinateur, bottom sheet sur téléphone, focus piégé, Échap et restitution du focus. La mascotte n'apparaît que dans cette explication. Les pages réellement privées gardent une sortie directe vers la création de compte ou le Chrono.
+- Vérifié hors ligne sur les six routes à 1440 × 900 et 390 × 844, en FR/EN et clair/sombre ; parcours complet du chrono, rechargement local, passage visiteur → compte → visiteur, changement de semaine et barrières Activité/Amis/Communautés/ajout de cours. Console propre, lint propre, suite Node complète et build de production isolé réussis.
+
 ## 2026-09-24 — Claude Code — Admin, phase 3 : la nouvelle interface
 
 - Six pages remplacent l'ancienne admin (`pages/admin.js`, 1 936 lignes) : **Aujourd'hui** (seulement ce qui demande une action, puis 4 chiffres de la semaine), **Membres** (recherche, 7 filtres, 6 tris et pages côté serveur, fiche en panneau, export CSV sans email, actions de la phase 1 inchangées), **Activation** (un entonnoir, cohortes par semaine, usage des fonctions ; aucun taux inventé sous 5 personnes), **Boîte de réception** (signalements + suggestions en une file ; contexte et pièce jointe limités comme en phase 1), **Communications** (envoi ciblé avec recherche serveur, historique OneSignal, automatiques FR/EN, annonces), **Système** (tâches planifiées, échecs d'activation des notifications, fonctions lentes, anomalies de données, stockage à la demande, journal admin paginé, version déployée).

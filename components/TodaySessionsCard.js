@@ -51,7 +51,7 @@ function formatSessionRange(session, locale) {
 // reste par « Tout voir » : une liste qui défilait À L'INTÉRIEUR de la carte
 // écrasait le formulaire d'édition dans une fenêtre de 80 px. La page
 // Historique réutilise la même carte, une par jour, avec `title` et `aside`.
-export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, title, aside, limit = 0, seeAllHref = "", actionsHint = true, className = "" }) {
+export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, title, aside, limit = 0, seeAllHref = "", actionsHint = true, readOnly = false, className = "" }) {
   const { t, lang } = useI18n();
   const [menuId, setMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -223,7 +223,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
                   <span className="font-num shrink-0 text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
                     {formatMinutesShort(session.duration_seconds)}
                   </span>
-                  <button
+                  {!readOnly && <button
                     type="button"
                     onClick={(event) => openMenu(session.id, event)}
                     className="bt-dashboard-control relative z-30 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
@@ -233,7 +233,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
                     aria-expanded={menuId === session.id}
                   >
                     <IconMore />
-                  </button>
+                  </button>}
                 </div>
 
                 {isEditing && (

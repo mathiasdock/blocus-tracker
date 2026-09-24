@@ -46,10 +46,12 @@ export default function useDialogFocus(open, onClose) {
       }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const active = document.activeElement;
+      const focusIsOutside = !dialogRef.current.contains(active);
+      if (event.shiftKey && (active === first || active === dialogRef.current || focusIsOutside)) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (active === last || active === dialogRef.current || focusIsOutside)) {
         event.preventDefault();
         first.focus();
       }

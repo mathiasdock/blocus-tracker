@@ -8,11 +8,11 @@ import { useI18n } from "../contexts/I18nContext";
 import { useConsent } from "../contexts/ConsentContext";
 import { formatDuration, displayName, timeAgo } from "../lib/format";
 import LegacyEmailBanner from "./LegacyEmailBanner";
-import Mascot from "./Mascot";
 import PageSkeleton from "./PageSkeleton";
 import { isOfflineDev } from "../lib/supabaseClient";
 import Glyph from "./Glyph";
 import useSocialSwipe from "./useSocialSwipe";
+import GuestDiscovery from "./guest/GuestDiscovery";
 
 // ── Icônes ─────────────────────────────────────────────────
 // Dessins seulement : grille, épaisseur et accessibilité viennent de
@@ -333,9 +333,11 @@ function NotificationPanel({
               const ts = when(item);
 
               if (item.type === "announcement") {
-                // Annonces figées : clés i18n. Annonces BDD : texte littéral.
-                const annTitle = item.titleKey ? t(item.titleKey) : item.title;
-                const annBody  = item.bodyKey  ? t(item.bodyKey)  : item.body;
+                // Annonces figées : clés i18n. Annonces BDD : texte littéral,
+                // en anglais quand il existe, sinon le français (v62).
+                const english = lang === "en";
+                const annTitle = item.titleKey ? t(item.titleKey) : (english && item.titleEn) || item.title;
+                const annBody  = item.bodyKey  ? t(item.bodyKey)  : (english && item.bodyEn) || item.body;
                 // L'icône se tient seule dans la rangée, en encre : le type se
                 // lit à sa forme — étincelles, info, alerte — pas à une pastille
                 // de couleur derrière. Seule l'alerte garde une teinte, parce
@@ -450,70 +452,6 @@ const MOBILE_5 = [
 ];
 
 const GUEST_PUBLIC_PATHS = ["/dashboard", "/legal"];
-// Chaque valeur est une CLÉ i18n, résolue au rendu via t() (FR + EN).
-const GUEST_PAGE_PREVIEWS = {
-  "/planning":     { eyebrow: "guest.planning.eyebrow",     title: "guest.planning.title",     text: "guest.planning.text",     features: ["guest.planning.f1", "guest.planning.f2", "guest.planning.f3"] },
-  "/stats":        { eyebrow: "guest.stats.eyebrow",        title: "guest.stats.title",        text: "guest.stats.text",        features: ["guest.stats.f1", "guest.stats.f2", "guest.stats.f3"] },
-  "/historique":   { eyebrow: "guest.historique.eyebrow",   title: "guest.historique.title",   text: "guest.historique.text",   features: ["guest.historique.f1", "guest.historique.f2", "guest.historique.f3"] },
-  "/feed":         { eyebrow: "guest.feed.eyebrow",         title: "guest.feed.title",         text: "guest.feed.text",         features: ["guest.feed.f1", "guest.feed.f2", "guest.feed.f3"] },
-  "/messages":     { eyebrow: "guest.messages.eyebrow",     title: "guest.messages.title",     text: "guest.messages.text",     features: ["guest.messages.f1", "guest.messages.f2", "guest.messages.f3"] },
-  "/communautes":  { eyebrow: "guest.communautes.eyebrow",  title: "guest.communautes.title",  text: "guest.communautes.text",  features: ["guest.communautes.f1", "guest.communautes.f2", "guest.communautes.f3"] },
-  "/profile":      { eyebrow: "guest.profile.eyebrow",      title: "guest.profile.title",      text: "guest.profile.text",      features: ["guest.profile.f1", "guest.profile.f2", "guest.profile.f3"] },
-};
-
-const GUEST_DEFAULT_PREVIEW = {
-  eyebrow: "guest.default.eyebrow", title: "guest.default.title", text: "guest.default.text",
-  features: ["guest.default.f1", "guest.default.f2", "guest.default.f3"],
-};
-
-function GuestLockedPanel({ pathname }) {
-  const { t } = useI18n();
-  const page = GUEST_PAGE_PREVIEWS[pathname] || GUEST_DEFAULT_PREVIEW;
-
-  return (
-    <div className="mx-auto max-w-3xl bt-rise">
-      <section className="card overflow-hidden p-0">
-        <div className="grid items-stretch md:grid-cols-[0.78fr_1.22fr]">
-          <div className="relative flex min-h-[230px] items-end justify-center overflow-hidden px-6 pt-8"
-            style={{ backgroundColor: "var(--bt-accent-bg)", borderRight: "1px solid var(--bt-accent-border)" }}>
-            <div aria-hidden="true" className="absolute inset-x-0 top-0 h-28"
-              style={{ background: "radial-gradient(circle at 50% 0%, rgba(20,184,133,0.2), transparent 70%)" }} />
-            <div className="relative flex items-end gap-2">
-              <Mascot streak={12} size={132} className="h-32 w-32" />
-              <div className="relative mb-16 max-w-[170px] rounded-2xl px-3.5 py-3 text-xs leading-relaxed"
-                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", color: "var(--bt-text-2)", boxShadow: "0 12px 28px var(--bt-shadow)" }}>
-                <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
-                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-hairline)", borderLeft: "1px solid var(--bt-hairline)" }} />
-                <span className="relative">{t("guest.tooltip")}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 sm:p-8">
-            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--bt-accent-dark)" }}>{t(page.eyebrow)}</p>
-            <h1 className="mt-3 text-2xl sm:text-3xl" style={{ color: "var(--bt-text-1)" }}>{t(page.title)}</h1>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t(page.text)}</p>
-            <ul className="mt-5 grid gap-2 sm:grid-cols-3">
-              {page.features.map((feature) => (
-                <li key={feature} className="rounded-xl px-3 py-2.5 text-xs font-semibold"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
-                  {t(feature)}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-              <Link href="/signup" className="btn-primary px-5 py-3 text-sm">{t("guest.createAccount")}</Link>
-              <Link href="/dashboard" className="btn-ghost px-5 py-3 text-sm">{t("guest.backToTimer")}</Link>
-            </div>
-            <p className="mt-4 text-xs" style={{ color: "var(--bt-text-3)" }}>
-              {t("guest.browseHint")}
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
 
 // ── Layout ────────────────────────────────────────────────────
 
@@ -839,7 +777,7 @@ export default function Layout({ children }) {
 
         <main data-bt-route-content className={`${fillsSocialViewport ? "bt-social-fill-main" : ""} w-full max-w-[1280px] mx-auto px-5 pt-7 pb-28 lg:px-9 lg:pb-10 overflow-x-clip`}>
           {!guestLocked && <LegacyEmailBanner />}
-          {guestLocked ? <GuestLockedPanel pathname={router.pathname} /> : children}
+          {guestLocked ? <GuestDiscovery pathname={router.pathname} /> : children}
         </main>
         {/* Pas de pied de page sous Friends et Communautés : ce sont des interfaces
             en pleine hauteur, et il faudrait défiler la page pour l'atteindre. */}

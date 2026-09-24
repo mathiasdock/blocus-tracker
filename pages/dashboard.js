@@ -45,6 +45,7 @@ import { normalizePlanningExams, nextExamForCourse } from "../lib/planningExams.
 import { buildSessionShareMessage } from "../lib/sessionShare";
 import { clientRateLimit } from "../lib/security";
 import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
+import { GuestGate } from "../components/guest/GuestDiscovery";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -120,16 +121,34 @@ const POMO_BREAK_OPTIONS = [3, 5, 10, 15];
 const COLORS = COURSE_COLORS;
 
 const GUEST_USER_ID = "guest-local";
-const GUEST_DASHBOARD_KEY = "bt_guest_dashboard_v1";
+const GUEST_DASHBOARD_KEY = "bt_guest_dashboard_v2";
 
-function defaultGuestDashboardData() {
+function guestCourseName(id, lang) {
+  if (id === "guest-course-physics") return lang === "en" ? "Physics" : "Physique";
+  if (id === "guest-course-economics") return lang === "en" ? "Economics" : "Économie";
+  return null;
+}
+
+function localizeGuestCourses(courses, lang) {
+  return (courses || []).map((course) => ({ ...course, name: guestCourseName(course.id, lang) || course.name }));
+}
+
+function defaultGuestDashboardData(lang = "fr") {
   return {
     courses: [
       {
-        id: "guest-course-discovery",
+        id: "guest-course-physics",
         user_id: GUEST_USER_ID,
-        name: "Session découverte",
-        color: "#14b8a6",
+        name: guestCourseName("guest-course-physics", lang),
+        color: COURSE_COLORS[11],
+        exam_date: null,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: "guest-course-economics",
+        user_id: GUEST_USER_ID,
+        name: guestCourseName("guest-course-economics", lang),
+        color: COURSE_COLORS[1],
         exam_date: null,
         created_at: new Date().toISOString(),
       },
@@ -140,20 +159,21 @@ function defaultGuestDashboardData() {
   };
 }
 
-function readGuestDashboardData() {
-  if (typeof window === "undefined") return defaultGuestDashboardData();
+function readGuestDashboardData(lang) {
+  if (typeof window === "undefined") return defaultGuestDashboardData(lang);
   try {
     const raw = localStorage.getItem(GUEST_DASHBOARD_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        ...defaultGuestDashboardData(),
+        ...defaultGuestDashboardData(lang),
         ...parsed,
+        courses: localizeGuestCourses(parsed.courses, lang),
         recentSessions: parsed.recentSessions || parsed.sessions || [],
       };
     }
   } catch {}
-  const seed = defaultGuestDashboardData();
+  const seed = defaultGuestDashboardData(lang);
   try { localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(seed)); } catch {}
   return seed;
 }
@@ -171,7 +191,7 @@ function writeGuestDashboardData(data) {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { toast } = useToast();
   const {
     courseId,
@@ -247,6 +267,7 @@ export default function Dashboard() {
   // session — la plupart des sessions ne sont pas partagées.
   const [shareFriends, setShareFriends] = useState(null);
   const [showCourseMenu, setShowCourseMenu] = useState(false);
+  const [guestGate, setGuestGate] = useState(null);
   const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
   const [checklistCourse, setChecklistCourse] = useState(null);
   const [recentSessions, setRecentSessions] = useState([]); // 90 jours — records & semaine
@@ -369,7 +390,7 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     if (!user) {
-      applyDashboardData(readGuestDashboardData());
+      applyDashboardData(readGuestDashboardData(lang));
       return;
     }
     const cacheKey = `${dashboardCachePrefix}${todayISO()}`;
@@ -415,7 +436,7 @@ export default function Dashboard() {
     };
     setClientCache(cacheKey, data, 45000);
     applyDashboardData(data);
-  }, [applyDashboardData, dashboardCachePrefix, user]);
+  }, [applyDashboardData, dashboardCachePrefix, lang, user]);
 
   async function toggleObjective(o) {
     if (isGuest) return;
@@ -738,9 +759,6 @@ export default function Dashboard() {
 
     if (isGuest) {
       savingRef.current = false;
-      const currentTotal = sessions.reduce((a, s) => a + s.duration_seconds, 0);
-      const newGoalPct = Math.min(100, Math.round(((currentTotal + seconds) / DAILY_GOAL_SECS) * 100));
-      const xpGained = Math.floor(seconds / 60);
       const nextSessions = [payload, ...sessions];
       writeGuestDashboardData({
         courses,
@@ -751,7 +769,6 @@ export default function Dashboard() {
       setSessions(nextSessions);
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2500);
-      setCompletionToast(buildCompletionData({ seconds, goalPct: newGoalPct, xpGained, courseId, note }));
       return;
     }
 
@@ -1197,7 +1214,10 @@ export default function Dashboard() {
     hapticBlockRef.current = milestone;
   }, [elapsed, running]);
 
-  const timerMoment = moment ? { key: `timer-${moment.id}`, message: moment.text } : null;
+  // En découverte la mascotte est réservée aux gates contextuels. Les petits
+  // jalons du chrono restent textuels et le récap XP n'existe pas : le visiteur
+  // teste le cœur sans simuler une progression de compte.
+  const timerMoment = !isGuest && moment ? { key: `timer-${moment.id}`, message: moment.text } : null;
   // Ce que la mascotte ne dit plus, l'écran le dit en texte : l'état de pause
   // et l'invitation à démarrer, qui n'ont jamais été des exploits.
   // Le libellé « En pause · mm:ss » dit déjà l'état et sa durée : la phrase de
@@ -1209,8 +1229,6 @@ export default function Dashboard() {
       : (!running && elapsed === 0)
         ? t("coach.timer.ready")
         : null;
-  const showGuestIntro = isGuest && !running && elapsed === 0;
-
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
 
   // Anti-effacement accidentel : demande confirmation si une session > 60s est
@@ -1246,7 +1264,7 @@ export default function Dashboard() {
       {/* Mobile suit l'urgence quotidienne. Desktop assemble un vrai poste de
           travail : action et historique à gauche, motivation et résultat à
           droite, réglages durables sous les deux colonnes. */}
-      <div className="bt-dashboard-grid grid min-w-0 grid-cols-1 items-start gap-4 sm:gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)] lg:items-stretch lg:gap-6">
+      <div className={`bt-dashboard-grid grid min-w-0 grid-cols-1 items-start gap-4 sm:gap-5 lg:items-stretch lg:gap-6 ${isGuest ? "mx-auto max-w-3xl lg:grid-cols-1" : "lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)]"}`}>
 
         {/* ══════════════════════════════════════════
             COLONNE GAUCHE — Chronomètre + Sessions/À faire du jour
@@ -1294,7 +1312,7 @@ export default function Dashboard() {
             <div className="flex min-w-0 items-center gap-2">
               <div className="relative min-w-0 flex-1">
                 {activeCourses.length === 0 ? (
-                  <button type="button" onClick={() => openCourseEditor()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
+                  <button type="button" onClick={() => isGuest ? setGuestGate("course") : openCourseEditor()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
                     {t("courseEditor.addTitle")}
                   </button>
                 ) : (
@@ -1341,7 +1359,7 @@ export default function Dashboard() {
                     <div className="border-t p-1" style={{ borderColor: "var(--bt-border)" }}>
                       <button
                         type="button"
-                        onClick={() => { setShowCourseMenu(false); openCourseEditor(); }}
+                        onClick={() => { setShowCourseMenu(false); isGuest ? setGuestGate("course") : openCourseEditor(); }}
                         className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold"
                         style={{ color: "var(--bt-accent-text)" }}
                       >
@@ -1392,7 +1410,7 @@ export default function Dashboard() {
               liste : un bouton qui ne sélectionne rien, ou qui sélectionne un
               cours supprimé pour se faire corriger à la frame suivante, vaut
               moins qu'une simple ligne de texte. */}
-          {challenge && !running && elapsed === 0 && (
+          {challenge && !isGuest && !running && elapsed === 0 && (
             <div className="relative z-20 mt-3 px-4 sm:px-6">
               <ChallengeStrip
                 challenge={challenge}
@@ -1483,8 +1501,8 @@ export default function Dashboard() {
             {/* Coach visible uniquement avant, en pause ou lors d'un vrai
                 accomplissement. Pendant le travail normal, la ligne reste
                 textuelle pour ne pas distraire. */}
-            <div className={`${showGuestIntro ? "h-2 mt-2" : (timerMoment || liveMessage || timerHint) ? "min-h-[58px] mt-4" : "mt-0"} flex items-center justify-center`}>
-              {timerMoment && !focusMode && !showGuestIntro ? (
+            <div className={`${(timerMoment || liveMessage || timerHint) ? "min-h-[58px] mt-4" : "mt-0"} flex items-center justify-center`}>
+              {timerMoment && !focusMode ? (
                 <MascotMoment
                   message={timerMoment.message}
                   mood="proud"
@@ -1549,7 +1567,7 @@ export default function Dashboard() {
                     />
                   </>
                 )}
-                {(!pomodoro || pomoPhase === "work") && !noteOpen && !note && (
+                {!isGuest && (!pomodoro || pomoPhase === "work") && !noteOpen && !note && (
                   <button type="button" onClick={() => setNoteOpen(true)}
                     className="bt-filter-btn inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold">
                     <Glyph size={12}>
@@ -1563,7 +1581,7 @@ export default function Dashboard() {
           )}
 
           {/* ── Note — champ discret, souligné au focus seulement ── */}
-          {(!pomodoro || pomoPhase === "work") && (noteOpen || note || running || elapsed > 0) && (
+          {!isGuest && (!pomodoro || pomoPhase === "work") && (noteOpen || note || running || elapsed > 0) && (
             <div className="mt-3 px-4 sm:px-6">
               <label htmlFor="dashboard-session-note" className="sr-only">{t("dash.noteLabel")}</label>
               <input
@@ -1649,32 +1667,10 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {showGuestIntro && (
-          <section className="order-2 overflow-hidden rounded-2xl px-4 py-4 sm:px-5 lg:order-2"
-            style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
-            <div className="flex items-end gap-3 sm:items-center">
-              <Mascot streak={12} size={64} className="h-14 w-14 shrink-0" ariaLabel="Mascotte de Blocus Tracker" />
-              <div className="relative min-w-0 flex-1 rounded-2xl px-4 py-3"
-                style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 8px 24px var(--bt-shadow)" }}>
-                <span aria-hidden="true" className="absolute -left-2 bottom-4 h-4 w-4 rotate-45"
-                  style={{ backgroundColor: "var(--bt-surface)", borderBottom: "1px solid var(--bt-hairline)", borderLeft: "1px solid var(--bt-hairline)" }} />
-                <p className="relative text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.discoveryTitle")}</p>
-                <p className="relative mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
-                  {t("guest.discoveryText")}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 sm:ml-[68px]">
-              <Link href="/planning" className="btn-ghost min-h-11 px-3 py-2 text-xs">{t("guest.viewPlanning")}</Link>
-              <Link href="/stats" className="btn-ghost min-h-11 px-3 py-2 text-xs">{t("guest.viewStats")}</Link>
-              <Link href="/feed" className="btn-ghost min-h-11 px-3 py-2 text-xs">{t("guest.discoverSocial")}</Link>
-              <span className="hidden flex-1 sm:block" />
-              <Link href="/signup" className="btn-primary min-h-11 px-3 py-2 text-xs">{t("guest.keepProgress")}</Link>
-              <Link href="/login" className="inline-flex min-h-11 items-center px-2 py-2 text-xs font-semibold" style={{ color: "var(--bt-accent-text)" }}>
-                {t("guest.signIn")}
-              </Link>
-            </div>
-          </section>
+        {isGuest && sessions.length > 0 && (
+          <p className="order-2 px-2 text-center text-sm" style={{ color: "var(--bt-text-2)" }}>
+            <Link href="/signup" className="font-semibold" style={{ color: "var(--bt-accent-text)" }}>{t("guest.timerProgressHint")}</Link>
+          </p>
         )}
 
         <TodaySessionsCard
@@ -1684,13 +1680,15 @@ export default function Dashboard() {
           // de droite est la plus haute — la Progression du jour fait de même
           // dans l'autre sens, si bien qu'aucune des deux ne laisse de trou.
           className="order-4 lg:order-3 lg:flex-1"
-          limit={isGuest ? 0 : 3}
+          limit={isGuest ? 2 : 3}
           seeAllHref={isGuest ? "" : "/historique"}
           sessions={sessions}
           courses={courses}
           selectableCourses={activeCourses}
           onUpdate={updateSession}
           onDelete={deleteSession}
+          actionsHint={!isGuest}
+          readOnly={isGuest}
         />
 
         {todayObjectives.length > 0 && (
@@ -1757,7 +1755,7 @@ export default function Dashboard() {
         {/* ══════════════════════════════════════════
             SIDE — Missions + progression du jour
         ══════════════════════════════════════════ */}
-        <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
+        {!isGuest && <aside className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
           <MissionSummary
             className="order-2 lg:order-none"
             missions={dailyMissions}
@@ -1778,17 +1776,17 @@ export default function Dashboard() {
             streakPaused={streakPaused}
             freezeInfo={freezeInfo}
           />
-        </aside>
+        </aside>}
 
-        <div className="order-6 grid min-w-0 gap-4 sm:gap-5 lg:col-span-2 lg:grid-cols-2 lg:gap-6">
+        {!isGuest && <div className="order-6 grid min-w-0 gap-4 sm:gap-5 lg:col-span-2 lg:grid-cols-2 lg:gap-6">
           <DashboardCoursesCard
             courses={activeCourses}
             nextExamForCourse={nextCourseExam}
             checklistCounts={checklistCounts}
-            onAdd={() => openCourseEditor()}
+            onAdd={() => isGuest ? setGuestGate("course") : openCourseEditor()}
             onOpen={(course) => {
               if (isGuest) {
-                openCourseEditor(course);
+                setGuestGate("course");
                 return;
               }
               setChecklistCourse(course);
@@ -1800,7 +1798,7 @@ export default function Dashboard() {
             courses={courses}
             onChange={handleBlocusLoaded}
           />
-        </div>
+        </div>}
       </div>
 
       {courseEditorOpen && (
@@ -1814,6 +1812,8 @@ export default function Dashboard() {
           onDelete={deleteCourse}
         />
       )}
+
+      <GuestGate gate={guestGate} onClose={() => setGuestGate(null)} />
 
       {/* Checklist de révision (depuis la carte Mes cours) */}
       {checklistCourse && user && (
