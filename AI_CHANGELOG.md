@@ -2998,3 +2998,9 @@ L'aperçu Open Graph 1200×630 abandonne le fond dégradé, l'horloge fantôme, 
 Les cinq aperçus visiteurs cessent d'être des maquettes parallèles avec un titre de page ajouté. Planning reprend sa carte Aujourd'hui, sa barre de période et ses vraies lignes Jour/Semaine ; Stats réutilise `StudyTimeChart` et `StudyByCourse` ; Activité rend le vrai `ActivityTimeline` ; Amis reprend l'inbox actuelle sans inventer une messagerie complète ; Communautés reprend la liste et le salon de cours, y compris le plein écran mobile. Chaque aperçu ne garde que deux à quatre éléments de démonstration, explicitement locaux, et toute action personnelle ouvre le gate contextuel existant. Aucun accès Supabase, aucune écriture, analytics, XP ou notification n'entre dans ces vues.
 
 Vérification : routes visiteur en FR/EN, clair/sombre, 464 px et 1440 px ; navigation Planning Jour/Semaine, salon Communautés mobile, gates Planning/Activité/Amis/Communautés, absence de débordement et d'overlay d'erreur. Tests ciblés, suite Node, lint et build production passés.
+
+## 2026-09-24 — Codex — Progression et Badges commencent par le produit, pas par une introduction
+
+Les pages ouvertes depuis les deux cartes du Profil retirent leur grand titre visible et leur phrase explicative. Elles gardent une barre utilitaire compacte avec le retour vers Profil, le compteur sur Badges, et un `h1` masqué visuellement pour préserver la structure accessible. Le niveau, les sources d'XP et la collection deviennent immédiatement le premier contenu lu à l'écran.
+
+Vérification : rendu mobile 390 px et desktop 1280 px, arbre d'accessibilité, lint et build production.

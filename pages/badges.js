@@ -85,7 +85,7 @@ export default function BadgesPage() {
         <PageHeader
           backHref="/profile"
           title={t("badgePage.title")}
-          subtitle={t("badgePage.subtitle")}
+          visuallyHiddenTitle
           right={
             <span className="font-num shrink-0 rounded-full px-3 py-1.5 text-sm font-bold tabular-nums"
               style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>

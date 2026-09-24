@@ -9,8 +9,24 @@ import { useI18n } from "../contexts/I18nContext";
 // donc son titre ET le chemin du retour. Sans ce retour on ne sait plus d'où
 // l'on vient, et sur téléphone la barre du bas ramène à l'onglet, pas à la
 // page précédente.
-export default function PageHeader({ backHref, backLabel, title, subtitle, right }) {
+export default function PageHeader({ backHref, backLabel, title, subtitle, right, visuallyHiddenTitle = false }) {
   const { t } = useI18n();
+
+  if (visuallyHiddenTitle) {
+    return (
+      <header className="mb-4 flex min-h-9 items-center justify-between gap-3">
+        <h1 className="sr-only">{title}</h1>
+        <Link href={backHref}
+          className="bt-press -ml-1.5 inline-flex min-h-9 items-center gap-1.5 rounded-full pl-1.5 pr-3 text-sm font-semibold transition-colors"
+          style={{ color: "var(--bt-text-3)" }}>
+          <Glyph size={17}><polyline points="15 18 9 12 15 6" /></Glyph>
+          {backLabel || t("common.back")}
+        </Link>
+        {right}
+      </header>
+    );
+  }
+
   return (
     <header className="mb-6">
       <Link href={backHref}

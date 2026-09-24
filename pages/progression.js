@@ -120,7 +120,7 @@ export default function ProgressionPage() {
   return (
     <Layout>
       <div className="bt-stagger mx-auto w-full" style={{ maxWidth: 900 }}>
-        <PageHeader backHref="/profile" title={t("prog.title")} subtitle={t("prog.subtitle")} />
+        <PageHeader backHref="/profile" title={t("prog.title")} visuallyHiddenTitle />
 
         {/* Le niveau sur surface de marque : c'est un moment de progression
             acquise, exactement ce à quoi l'encre verte est réservée. */}

@@ -27,6 +27,8 @@ The progression card uses Brand Ink, a large tabular level number and the curren
 
 The collection card uses the existing semantic surface and a loose, overlapping arrangement of shared `BadgeIcon` objects. The rarest selected object leads the composition; family diversity makes the smaller objects distinguishable. Existing artwork, fonts, semantic color tokens, corner and elevation tokens remain the visual authority. Design decisions were delegated by the user; implementation uses the existing assets directly, without raster compositions or a global redesign.
 
+The linked Progression and Badges detail pages begin with their real content rather than repeating a visible page title and explanatory subtitle. Their utility header keeps the return to Profile, the Badges count when relevant, and a screen-reader-only `h1` so the visual simplification does not remove document structure.
+
 ## Responsive behavior and accessibility
 
 The level scene includes a small mint-tinted elliptical platform, a quiet dotted orbit and four static spark/dot accents around the existing shiba. These details stay decorative and introduce no animation timers. Three quarter marks on the XP track and a small flag beside the next level reinforce the progression motif. At the narrowest width, extra title spacing keeps the platform clear of the text.
