@@ -16,6 +16,13 @@ Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avan
 - v61_2 (appliquée) : pour les SOMMES de temps d'étude de l'admin uniquement (total, 7 j, 7 j précédents, 30 j), une vraie session compte au plus 8 h. Activation, actifs, jours distincts, retour S2 : inchangés. Sessions stockées, stats perso, XP, séries : inchangées. Les sessions > 8 h restent détectées (nombre et durée brute) ; les chevauchements ne sont pas corrigés (anomalie).
 - Heures étudiées sur 7 jours : 23,8 h plafonnées (26,8 h brutes, une session de 11,1 h ramenée à 8 h) ; semaine précédente 15,0 h ; total historique 3 593,6 h plafonnées (3 834,7 h brutes, 48 sessions > 8 h). Vérifié : tests plafonds rejoués, comparaison indépendante des 287 comptes, 0 écart.
 
+## 2026-09-24 — Codex — Profil : upload de photo fiable, y compris iPhone
+
+- Cause reproduite : les photos JPEG iPhone dépassant 3 Mo et tous les HEIC/HEIF étaient refusés avant compression. En plus, l'upload demandait `upsert: true` alors que le chemin est unique et que le bucket réel n'a pas de politique `SELECT`, requise par Supabase pour l'upsert.
+- Le sélecteur accepte maintenant JPEG/PNG/WebP/AVIF/HEIC/HEIF jusqu'à 15 Mo en entrée. HEIC/HEIF est converti localement ; tout avatar est ramené à 320 px et 400 Ko maximum, en WebP ou JPEG compatible avec le bucket. Les erreurs de préparation, d'envoi et de sauvegarde ont chacune un message FR/EN actionnable.
+- Le chemin Storage reste unique et utilise un upload simple (`upsert: false`). La nouvelle URL est confirmée par la ligne `profiles` avant affichage ; sur échec de sauvegarde, le nouveau fichier est supprimé et l'ancien avatar reste intact. Après succès, l'ancien fichier est nettoyé. Un avatar distant cassé retombe sur l'initiale au lieu d'afficher une image brisée.
+- Vérifié avec le bucket/policies Supabase réels en lecture, 9 tests ciblés, build de production, puis parcours navigateur hors ligne desktop et 390 px : sélection, compression/upload, sauvegarde, nouvelle sélection du même fichier, rechargement et avatar toujours visible, sans erreur console ni overlay.
+
 ## 2026-09-24 — Claude Code — Admin, phase 2 : des chiffres justes (couche de lecture en base)
 
 - Base de référence recalculée avec la vraie session (10 min ou plus), par deux requêtes indépendantes identiques, et utilisée comme oracle. Mesure du 24/09 à 00:34 UTC, hors 1 admin : 287 comptes, 255 profils, 198 études renseignées, 246 avec au moins un cours, 103 avec une vraie session, 74 sur 2 jours ou plus, 55 sur 5 jours ou plus, 100 activés sur 281 éligibles (35,6 %), 46 revenus en semaine 2 sur 278 (16,5 %), 3 actifs sur 7 jours, 26,8 h étudiées sur 7 jours. Les chiffres de l'audit (286/254/115/80/55, toutes sessions confondues) ne servent plus.

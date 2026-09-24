@@ -167,12 +167,19 @@ function NavIcon({ href, size = 20 }) {
 // ── Avatar ────────────────────────────────────────────────────
 
 function Avatar({ url, pseudo, size = 32 }) {
-  if (url) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  if (url && !failed) {
     return (
       <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt={pseudo || "avatar"}
           loading="lazy" decoding="async"
+          onError={() => setFailed(true)}
           className="rounded-full object-cover shrink-0"
           style={{ width: size, height: size, border: "1.5px solid var(--bt-border)" }} />
       </>

@@ -12,6 +12,7 @@
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
     "@supabase/supabase-js": "^2.45.4",
+    "heic-to": "^1.5.2",
     "next": "^14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

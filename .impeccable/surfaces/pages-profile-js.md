@@ -2,7 +2,7 @@
 version: 1
 slug: "pages-profile-js"
 primary_target: "pages/profile.js"
-related_targets: ["components/ProfileAchievementCards.js", "components/ProfileAchievementCards.module.css", "components/Mascot.js", "components/BadgeIcon.jsx", "lib/badgeGroups.js"]
+related_targets: ["components/ProfileAchievementCards.js", "components/ProfileAchievementCards.module.css", "components/Mascot.js", "components/BadgeIcon.jsx", "components/Layout.js", "lib/avatarUpload.mjs", "lib/badgeGroups.js", "lib/imageCompression.js"]
 ---
 
 ## Scope and visitor mode
@@ -18,6 +18,8 @@ Students should recognize their current level, remaining XP and earned collectio
 Use the profile's canonical level information, with its existing fallback, and actual earned badge IDs. Show the current level and translated title, XP toward the next level, or the maximum-level state. The collection count represents all recognized earned badges, even when only five objects are previewed.
 
 Preview up to five actually earned badges, ranked by rarity. Select one from each available `BADGE_GROUPS` family first, then fill remaining places from the ranked collection. This is a representative collection, with no claim that these are the most recently earned badges. With zero unlocked badges, retain the zero count and show the recognizable, unearned first-session badge as a first-badge teaser.
+
+Profile-photo changes preserve the existing identity layout. The picker accepts common iPhone HEIC/HEIF sources as well as JPEG, PNG, WebP and AVIF, processes them locally to a maximum 320 px side and 400 KiB, then changes the profile only after both Storage upload and database save are confirmed. The previous avatar remains authoritative on any failure. Error copy is specific, recoverable and translated in French and English.
 
 ## Chosen direction and memorable moment
 
@@ -36,6 +38,8 @@ Provide visible keyboard focus, semantic navigation links and an accessible prog
 ## Verification
 
 Implementation verification for this task covered 390px mobile and 1440px desktop layouts, plus a 320px compact case with dark theme, maximum level, English copy and reduced motion. The compact check specifically covers separation of the level number and mascot. This brief records that task verification; it does not introduce a separate global verification requirement.
+
+Avatar-flow verification additionally covers a desktop and 390 px mobile selection, repeat selection of the same file, processing/upload/save, browser reload persistence, and absence of runtime error overlays. Automated cases cover JPEG sources above the previous 3 MiB ceiling, HEIC/HEIF recognition, network failure, database-save rollback and old-file cleanup.
 
 ## Unresolved decisions
 

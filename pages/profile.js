@@ -25,9 +25,9 @@ import ProfileAchievementCards from "../components/ProfileAchievementCards";
 import Glyph from "../components/Glyph";
 import DetailSheet from "../components/DetailSheet";
 import { optimizeAvatarImage } from "../lib/imageCompression";
+import { avatarUploadErrorMessage, uploadProfileAvatar, validateAvatarSourceFile } from "../lib/avatarUpload.mjs";
 import { isPushSupported, isIOS, isStandalone, enablePush, getAppId, collectPushDiagnostics } from "../lib/onesignal";
 import { pushErrorMessage } from "../lib/pushMessages";
-import { safeStoragePath, uploadErrorMessage, validateFinalUploadFile, validateUploadFile } from "../lib/security";
 import { buildDataExport, downloadJson } from "../lib/dataExport";
 import {
   DEFAULT_PRIVACY_SETTINGS,
@@ -803,33 +803,36 @@ export default function Profile() {
   }
 
   async function uploadAvatar(e) {
-    const rawFile = e.target.files?.[0];
+    const input = e.currentTarget;
+    const rawFile = input.files?.[0];
     if (!rawFile) return;
-    const precheck = validateUploadFile(rawFile, "avatar");
-    if (!precheck.ok) { setAvatarMsg({ kind: "error", text: uploadErrorMessage(t, precheck) }); return; }
+    const precheck = validateAvatarSourceFile(rawFile);
+    if (!precheck.ok) {
+      setAvatarMsg({ kind: "error", text: avatarUploadErrorMessage(t, precheck) });
+      input.value = "";
+      return;
+    }
     setBusy(true); setAvatarMsg(null);
-
-    // Compresse l'avatar (≤ 320×320 px, WebP si possible) avant l'upload.
-    // Chute silencieuse : on utilise le fichier original si la compression échoue.
-    let uploadFile = rawFile;
     try {
-      const optimized = await optimizeAvatarImage(rawFile);
-      uploadFile = optimized.file || rawFile;
-    } catch (_) {}
-
-    const finalCheck = validateFinalUploadFile(uploadFile, "avatar");
-    if (!finalCheck.ok) { setBusy(false); setAvatarMsg({ kind: "error", text: uploadErrorMessage(t, finalCheck) }); return; }
-    const pathInfo = safeStoragePath(user.id, uploadFile, ["avatars"], "avatar");
-    if (!pathInfo.ok) { setBusy(false); setAvatarMsg({ kind: "error", text: uploadErrorMessage(t, pathInfo) }); return; }
-    const { error: upErr } = await supabase.storage
-      .from("avatars")
-      .upload(pathInfo.path, uploadFile, { upsert: true, cacheControl: "31536000", contentType: pathInfo.contentType });
-    if (upErr) { setBusy(false); setAvatarMsg({ kind: "error", text: t("profile.avatarError") }); return; }
-    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(pathInfo.path);
-    const { error: updErr } = await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", user.id);
-    setBusy(false);
-    if (updErr) setAvatarMsg({ kind: "error", text: t("profile.avatarError") });
-    else { setAvatarMsg({ kind: "success", text: t("profile.avatarUpdated") }); refreshProfile(); }
+      const result = await uploadProfileAvatar({
+        client: supabase,
+        userId: user.id,
+        sourceFile: rawFile,
+        previousAvatarUrl: profile?.avatar_url,
+        processImage: optimizeAvatarImage,
+      });
+      if (!result.ok) {
+        setAvatarMsg({ kind: "error", text: avatarUploadErrorMessage(t, result) });
+        return;
+      }
+      await refreshProfile();
+      setAvatarMsg({ kind: "success", text: t("profile.avatarUpdated") });
+    } catch {
+      setAvatarMsg({ kind: "error", text: t("profile.avatarUploadError") });
+    } finally {
+      setBusy(false);
+      input.value = "";
+    }
   }
 
   async function saveEmail(e) {
@@ -984,7 +987,7 @@ export default function Profile() {
               className="bt-profile-photo-btn">
               {busy ? <span className="block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <IconCamera />}
             </button>
-            <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" onChange={uploadAvatar} disabled={busy} />
+            <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,.heic,.heif" className="hidden" onChange={uploadAvatar} disabled={busy} />
           </div>
 
           <div className="bt-profile-id-text">
