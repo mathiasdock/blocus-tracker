@@ -23,7 +23,7 @@
 --   A12 placeholder email (@blocus.local)
 --   A13 studies filled in and one course; searchable as « Éloïse »
 --   A14 dormant: one real session 40 days ago
---   A15 one 9-hour session (long) 3 days ago
+--   A15 one 9-hour session (long) 3 days ago: counts 8 h in study-time sums (v61_2)
 --   A16 signed up Sunday 23:30 Brussels → week of Monday 2000-03-20
 --   A17 signed up Monday 00:30 Brussels (same UTC date) → week of 2000-03-27
 --   A18 self-deletes (v61 snapshot), A19 suspended then deleted by the admin
@@ -211,7 +211,8 @@ begin
     'a6', public.admin_member_detail(u[6]),
     'a7', public.admin_member_detail(u[7]),
     'a8', public.admin_member_detail(u[8]),
-    'a14', public.admin_member_detail(u[14])
+    'a14', public.admin_member_detail(u[14]),
+    'a15', public.admin_member_detail(u[15])
   );
 
   begin
@@ -298,7 +299,7 @@ begin
   perform pg_temp.expect('today active previous', j_today #> '{active_members,previous}', '3');
   perform pg_temp.expect('today new accounts', j_today #> '{new_accounts,current}', '2');
   perform pg_temp.expect('today new accounts previous', j_today #> '{new_accounts,previous}', '0');
-  perform pg_temp.expect('today study seconds', j_today #> '{study_seconds,current}', '38700');
+  perform pg_temp.expect('today study seconds', j_today #> '{study_seconds,current}', '35100');
   perform pg_temp.expect('today study seconds previous', j_today #> '{study_seconds,previous}', '5500');
   perform pg_temp.expect('today long sessions', j_today #> '{study_seconds,long_sessions_current}', '1');
   perform pg_temp.expect('today long seconds', j_today #> '{study_seconds,long_session_seconds_current}', '32400');
@@ -401,7 +402,9 @@ begin
   perform pg_temp.expect('A7 early', jsonb_build_array(j_details #> '{a7,activation,status}', j_details #> '{a7,activation,returned_week2}'), '["activated", null]');
   perform pg_temp.expect('A8 without profile', jsonb_build_array(j_details #> '{a8,account,has_profile}', j_details #> '{a8,profile,pseudo}'), '[false, null]');
   perform pg_temp.expect('A14 dormant', j_details #> '{a14,study,dormant}', 'true');
-  checks := checks + 14;
+  -- v61_2 : une session de 9 h compte 8 h dans les sommes, reste brute ailleurs.
+  perform pg_temp.expect('A15 capped totals', jsonb_build_array(j_details #> '{a15,study,real_seconds_7d}', j_details #> '{a15,study,real_seconds_total}', j_details #> '{a15,study,long_sessions_total}', j_details #> '{a15,recent_sessions,0,duration_seconds}'), '[28800, 28800, 1, 32400]');
+  checks := checks + 15;
 
   -- ── No email ever leaves the database ─────────────────────────────────
   if (j_today::text || j_act::text || j_lists::text || j_details::text) ~ '"email"\s*:'

@@ -2,6 +2,11 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-24 — Claude Code — Admin : plafond de 8 h dans les sommes de temps (fin de phase 2)
+
+- v61_2 (appliquée) : pour les SOMMES de temps d'étude de l'admin uniquement (total, 7 j, 7 j précédents, 30 j), une vraie session compte au plus 8 h. Activation, actifs, jours distincts, retour S2 : inchangés. Sessions stockées, stats perso, XP, séries : inchangées. Les sessions > 8 h restent détectées (nombre et durée brute) ; les chevauchements ne sont pas corrigés (anomalie).
+- Heures étudiées sur 7 jours : 23,8 h plafonnées (26,8 h brutes, une session de 11,1 h ramenée à 8 h) ; semaine précédente 15,0 h ; total historique 3 593,6 h plafonnées (3 834,7 h brutes, 48 sessions > 8 h). Vérifié : tests plafonds rejoués, comparaison indépendante des 287 comptes, 0 écart.
+
 ## 2026-09-24 — Claude Code — Admin, phase 2 : des chiffres justes (couche de lecture en base)
 
 - Base de référence recalculée avec la vraie session (10 min ou plus), par deux requêtes indépendantes identiques, et utilisée comme oracle. Mesure du 24/09 à 00:34 UTC, hors 1 admin : 287 comptes, 255 profils, 198 études renseignées, 246 avec au moins un cours, 103 avec une vraie session, 74 sur 2 jours ou plus, 55 sur 5 jours ou plus, 100 activés sur 281 éligibles (35,6 %), 46 revenus en semaine 2 sur 278 (16,5 %), 3 actifs sur 7 jours, 26,8 h étudiées sur 7 jours. Les chiffres de l'audit (286/254/115/80/55, toutes sessions confondues) ne servent plus.

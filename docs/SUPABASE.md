@@ -129,6 +129,7 @@ All in `supabase/`. Since 2026-09-07 Claude writes **and applies** them through 
 | `migration_v59_report_scoped_moderation.sql` | Admins lose general room/feed reading; report-scoped context, logged removals |
 | `migration_v60_system_job_runs.sql` | `system_job_runs` for the two cron tasks |
 | `migration_v61_admin_analytics.sql` | Admin rebuild phase 2 — analytics read layer (`admin_today`, `admin_members`, `admin_member_detail`, `admin_activation`), index `sessions_user_started_idx`, week-2 return and admin/suspended flags in the deletion snapshot. Definitions in the file header |
+| `migration_v61_2_admin_study_cap.sql` | Admin study-time SUMS count each real session for at most 8 h; sessions > 8 h stay counted everywhere else and remain flagged as anomalies |
 
 Phase 1 permission matrix (normal member / suspended member / admin / server-only / owner-only): `supabase/tests/admin_phase1_security.sql` — 92 checks, run on the live schema on 2026-09-23 and again after v61.
 
