@@ -260,9 +260,10 @@ export function NotificationProvider({ children }) {
             .limit(100),
           // Admin announcements (active only). Safe before the migration runs:
           // a missing table returns { data: null } and is treated as "none".
+          // Dates and school targeting are applied by the database (v62).
           supabase
             .from("app_announcements")
-            .select("id, title, message, type, href, created_at")
+            .select("id, title, message, title_en, message_en, type, href, created_at")
             .eq("is_active", true)
             .order("created_at", { ascending: false })
             .limit(20),
@@ -332,6 +333,9 @@ export function NotificationProvider({ children }) {
               id: row.id,
               title: row.title,
               body: row.message,
+              // English version when written; the panel falls back to French.
+              titleEn: row.title_en || null,
+              bodyEn: row.message_en || null,
               annType: row.type || "info",
               href: row.href || null,
               created_at: row.created_at,

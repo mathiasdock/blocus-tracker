@@ -28,6 +28,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useConsent } from "../contexts/ConsentContext";
 import { isIOS, isStandalone, isPushSupported, getAppId, enablePush } from "../lib/onesignal";
+import { readPushOwner } from "../lib/pushOwner.mjs";
 import { pushErrorMessage } from "../lib/pushMessages";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 import { isOfflineDev } from "../lib/supabaseClient";
@@ -122,7 +123,8 @@ export default function PushOptInPrompt() {
     let never = false, enabled = false, closedThisSession = false, count = 0;
     try {
       never = localStorage.getItem(NEVER_KEY) === "1";
-      enabled = localStorage.getItem("bt_push_enabled") === "1";
+      // Activées par CE compte sur cet appareil (lib/pushOwner.mjs).
+      enabled = readPushOwner(localStorage, user.id).mine;
       closedThisSession = sessionStorage.getItem(SESSION_KEY) === "1";
       count = Number(localStorage.getItem(COUNT_KEY) || 0);
     } catch (_) {}
@@ -163,11 +165,9 @@ export default function PushOptInPrompt() {
       // Ne rien attendre avant cet appel : il demande la permission, et iOS
       // n'affiche l'invite que dans le geste qui vient d'avoir lieu.
       const res = await enablePush(user?.id, { onStage: setPhase });
+      // enablePush a déjà rattaché l'appareil à ce compte.
       if (res?.ok) {
-        try {
-          localStorage.setItem("bt_push_enabled", "1");
-          localStorage.removeItem("bt_push_last_error");
-        } catch (_) {}
+        try { localStorage.removeItem("bt_push_last_error"); } catch (_) {}
         setPhase("done");
         playSensoryCue("notification");
         window.setTimeout(() => close({ forever: true }), DONE_HOLD_MS);

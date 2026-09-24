@@ -11,6 +11,7 @@ import {
   signupNeedsEmailConfirmation,
 } from "../lib/onboarding.mjs";
 import { loadPrivacySettings, recordLegalAcceptance } from "../lib/privacySettings";
+import { detachPushForSignOut } from "../lib/onesignal";
 
 const AuthContext = createContext(null);
 
@@ -129,6 +130,9 @@ export function AuthProvider({ children }) {
     if (data.locked) {
       setProfile(null);
       setProfileStatus("suspended");
+      // L'appareil ne reste pas rattaché à un compte suspendu (le serveur ne
+      // lui envoie déjà plus rien : c'est une question de propreté).
+      try { await detachPushForSignOut(uid); } catch (_) {}
       try { await supabase.auth.signOut({ scope: "local" }); } catch (_) {}
       if (typeof window !== "undefined" && !/[?&]suspended=1/.test(window.location.search)) {
         window.location.replace("/login?suspended=1");
@@ -572,6 +576,9 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(async () => {
     if (user) {
       await supabase.from("profiles").update({ studying_since: null }).eq("id", user.id);
+      // Avant de fermer la session : l'appareil cesse de recevoir les
+      // notifications de ce compte (borné à quelques secondes, jamais bloquant).
+      try { await detachPushForSignOut(user.id); } catch (_) {}
     }
     await supabase.auth.signOut({ scope: "local" });
     await loadProfile(null);

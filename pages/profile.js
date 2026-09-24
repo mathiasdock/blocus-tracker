@@ -27,6 +27,7 @@ import DetailSheet from "../components/DetailSheet";
 import { optimizeAvatarImage } from "../lib/imageCompression";
 import { avatarUploadErrorMessage, uploadProfileAvatar, validateAvatarSourceFile } from "../lib/avatarUpload.mjs";
 import { isPushSupported, isIOS, isStandalone, enablePush, getAppId, collectPushDiagnostics } from "../lib/onesignal";
+import { clearPushOwner, readPushOwner } from "../lib/pushOwner.mjs";
 import { pushErrorMessage } from "../lib/pushMessages";
 import { buildDataExport, downloadJson } from "../lib/dataExport";
 import {
@@ -157,6 +158,8 @@ const IconMegaphone = () => <Glyph size={22}><path d="M3.4 9.6v4.8h3l6.6 4V5.6l-
 const IconDownload = () => <Glyph size={22}><path d="M20.6 15.4v3.2a2.2 2.2 0 0 1-2.2 2.2H5.6a2.2 2.2 0 0 1-2.2-2.2v-3.2"/><path d="m7.6 10.6 4.4 4.4 4.4-4.4"/><path d="M12 15V3.4"/></Glyph>;
 const IconLock = () => <Glyph size={22}><rect x="4" y="10.6" width="16" height="10.4" rx="2.6"/><path d="M7.8 10.6V7.6a4.2 4.2 0 0 1 8.4 0v3"/></Glyph>;
 const IconAlert = () => <Glyph size={16}><path d="M10.5 4 2.6 17.8a1.7 1.7 0 0 0 1.5 2.6h15.8a1.7 1.7 0 0 0 1.5-2.6L13.5 4a1.7 1.7 0 0 0-3 0Z"/><path d="M12 9.6v4M12 16.9h.01"/></Glyph>;
+const IconPower = () => <Glyph size={22}><path d="M12 3.4v8"/><path d="M6.4 6.6a7.6 7.6 0 1 0 11.2 0"/></Glyph>;
+const IconUsers = () => <Glyph size={22}><circle cx="9" cy="8" r="3.6"/><path d="M2.6 20a6.4 6.4 0 0 1 12.8 0"/><path d="M15.6 4.6a3.6 3.6 0 0 1 0 6.8M18 14.2a6.4 6.4 0 0 1 3.4 5.8"/></Glyph>;
 const IconBell = () => <Glyph size={22}><path d="M18 9.6a6 6 0 0 0-12 0c0 5.4-2.2 6.4-2.6 7a.6.6 0 0 0 .5.9h16.2a.6.6 0 0 0 .5-.9c-.4-.6-2.6-1.6-2.6-7Z"/><path d="M13.8 20.4a2 2 0 0 1-3.6 0"/></Glyph>;
 const IconEdit = () => <Glyph size={14}><path d="M16.6 3.4a2.7 2.7 0 0 1 3.8 3.8L7.6 20 2.8 21.2 4 16.4Z"/></Glyph>;
 const IconAward = () => <Glyph size={22}><circle cx="12" cy="9.2" r="6"/><path d="m8.4 14.4-1.2 7 4.8-2.6 4.8 2.6-1.2-7"/></Glyph>;
@@ -310,11 +313,12 @@ function Segmented({ options, value, onChange }) {
   );
 }
 
-function MiniSwitch({ checked, onChange, label }) {
+function MiniSwitch({ checked, onChange, label, disabled = false }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="relative h-6 w-10 shrink-0 rounded-full transition-colors bt-press"
+      className="relative h-6 w-10 shrink-0 rounded-full transition-colors bt-press disabled:opacity-40"
       style={{ backgroundColor: checked ? "var(--bt-accent)" : "var(--bt-border)" }}>
       <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform"
         style={{ transform: checked ? "translateX(16px)" : "translateX(0)", boxShadow: "0 1px 3px rgba(0,0,0,0.18)" }} />
@@ -435,12 +439,14 @@ function PushRow({ t, user }) {
       .map(([k, v]) => `${k}: ${Array.isArray(v) ? (v.join(" | ") || "aucun") : String(v)}`)
       .join("\n");
     try { await navigator.clipboard.writeText(text); }
-    catch (_) { window.prompt("Copie ce texte :", text.replace(/\n/g, " · ")); }
+    catch (_) { window.prompt(t("push.copyPrompt"), text.replace(/\n/g, " · ")); }
     setDiagCopied(true);
     setTimeout(() => setDiagCopied(false), 4000);
   }
   // Une permission accordée ne prouve rien : seul ce drapeau, posé après une
-  // inscription OneSignal vérifiée, autorise l'affichage "activé".
+  // inscription OneSignal vérifiée, autorise l'affichage "activé". Il est
+  // propre au COMPTE (lib/pushOwner.mjs) : sur un appareil partagé, le compte
+  // suivant n'hérite pas de l'activation du précédent.
   const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
@@ -448,7 +454,7 @@ function PushRow({ t, user }) {
     setEnv({ ready: true, supported, ios: isIOS(), standalone: isStandalone() });
     if (typeof Notification !== "undefined") setPermission(Notification.permission);
     try {
-      const ok = localStorage.getItem("bt_push_enabled") === "1";
+      const ok = readPushOwner(localStorage, user?.id).mine;
       setConfirmed(ok);
       if (!ok) {
         const [reason, origin] = (localStorage.getItem(PUSH_ERROR_KEY) || "").split("|");
@@ -461,7 +467,7 @@ function PushRow({ t, user }) {
     // revanche réécrire le worker par OneSignal à la simple ouverture de la
     // page : c'était le point de départ de la boucle de rechargement du profil,
     // et une initialisation lancée trop tôt dont l'activation héritait.
-  }, []);
+  }, [user?.id]);
 
   async function enable() {
     setBusy(true); setFailure(null);
@@ -478,11 +484,9 @@ function PushRow({ t, user }) {
 
       // Permission accordée ≠ inscription créée : sans ce garde-fou l'écran
       // affichait "activé" alors qu'aucune notification ne pouvait arriver.
+      // enablePush a déjà rattaché l'appareil à ce compte (lib/pushOwner.mjs).
       if (res?.ok && perm === "granted") {
-        try {
-          localStorage.setItem("bt_push_enabled", "1");
-          localStorage.removeItem(PUSH_ERROR_KEY);
-        } catch (_) {}
+        try { localStorage.removeItem(PUSH_ERROR_KEY); } catch (_) {}
         setConfirmed(true);
         return;
       }
@@ -864,12 +868,17 @@ export default function Profile() {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (res.ok) { await signOut(); return; }
+        if (res.ok) {
+          try { clearPushOwner(localStorage); } catch (_) {}
+          await signOut();
+          return;
+        }
       }
     } catch (_) {}
 
     const { error } = await supabase.rpc("self_delete_user");
     if (error) { console.error("Account deletion failed:", error); setDeleting(false); setMsg({ kind: "error", text: t("profile.deleteError") }); setDeleteConfirm(false); return; }
+    try { clearPushOwner(localStorage); } catch (_) {}
     await signOut();
   }
 
@@ -1072,15 +1081,32 @@ export default function Profile() {
               {privacyAvailable && (
                 <>
                   {sep}
-                  <SettingsRow icon={<IconBell />} label={t("privacy.pushReminders")}
+                  {/* L'interrupteur général vaut pour tous les appareils du
+                      compte ; les catégories ne comptent que s'il est allumé. */}
+                  <SettingsRow icon={<IconPower />} label={t("privacy.pushGeneral")}
+                    description={privacy.push_enabled !== false ? t("privacy.pushGeneralDesc") : t("privacy.pushGeneralOff")}
+                    right={<MiniSwitch checked={privacy.push_enabled !== false}
+                      onChange={value => setPushPreference("push_enabled", value)}
+                      label={t("privacy.pushGeneral")} />} />
+                  {sep}
+                  <SettingsRow icon={<IconActivity />} label={t("privacy.pushReminders")}
                     description={t("privacy.pushRemindersDesc")}
-                    right={<MiniSwitch checked={privacy.push_reminders !== false}
+                    right={<MiniSwitch checked={privacy.push_enabled !== false && privacy.push_reminders !== false}
+                      disabled={privacy.push_enabled === false}
                       onChange={value => setPushPreference("push_reminders", value)}
                       label={t("privacy.pushReminders")} />} />
                   {sep}
+                  <SettingsRow icon={<IconUsers />} label={t("privacy.pushSocial")}
+                    description={t("privacy.pushSocialDesc")}
+                    right={<MiniSwitch checked={privacy.push_enabled !== false && privacy.push_social !== false}
+                      disabled={privacy.push_enabled === false}
+                      onChange={value => setPushPreference("push_social", value)}
+                      label={t("privacy.pushSocial")} />} />
+                  {sep}
                   <SettingsRow icon={<IconMegaphone />} label={t("privacy.pushAnnouncements")}
                     description={t("privacy.pushAnnouncementsDesc")}
-                    right={<MiniSwitch checked={privacy.push_announcements !== false}
+                    right={<MiniSwitch checked={privacy.push_enabled !== false && privacy.push_announcements !== false}
+                      disabled={privacy.push_enabled === false}
                       onChange={value => setPushPreference("push_announcements", value)}
                       label={t("privacy.pushAnnouncements")} />} />
                 </>

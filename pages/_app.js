@@ -19,7 +19,14 @@ import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
 import { deriveOnboardingState, shouldCheckOnboarding } from "../lib/onboarding.mjs";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
-import { disablePush, initOneSignal, loginUser } from "../lib/onesignal";
+import {
+  deviceSubscriptionStatus, disablePush, finishPendingLogout, initOneSignal, loginUser,
+} from "../lib/onesignal";
+import { reportPushDevice } from "../lib/pushDevice";
+import {
+  claimPushOwner, clearPendingLogout, markPresenceReported, pendingLogoutFor, readPushOwner,
+  shouldReassociate, shouldReportPresence,
+} from "../lib/pushOwner.mjs";
 import { ensureAppWorker, SW_RELOADED_KEY } from "../lib/appWorker";
 import ConsentManager from "../components/ConsentManager";
 import LegalUpdateNotice from "../components/LegalUpdateNotice";
@@ -459,14 +466,18 @@ function AppVersionRefresh() {
   return null;
 }
 
-// Ré-associe l'abonnement push à l'utilisateur uniquement s'il l'a déjà activé
-// (flag localStorage) ET tant que le consentement « fonctionnel » tient. N'init
-// RIEN sinon → aucun chargement du SDK OneSignal, donc aucune donnée envoyée
-// chez un tiers, pour qui n'a rien demandé.
+// Ré-associe l'abonnement push au compte uniquement si C'EST CE COMPTE qui
+// l'a activé sur cet appareil (lib/pushOwner.mjs) ET tant que le consentement
+// « fonctionnel » tient. N'init RIEN sinon → aucun chargement du SDK
+// OneSignal, donc aucune donnée envoyée chez un tiers, pour qui n'a rien
+// demandé — ni pour la personne suivante sur un appareil partagé.
 //
 // Le retrait du consentement doit AGIR : quand la catégorie repasse à false, on
 // désinscrit vraiment l'appareil au lieu de se contenter de ne plus initialiser
 // (l'abonnement existant continuerait sinon de recevoir des notifications).
+//
+// L'appareil se déclare aussi au registre (push_devices, deux fois par jour
+// au plus) : actif si la permission et l'abonnement tiennent, détaché sinon.
 function PushInit() {
   const { user } = useAuth();
   const { allows, hydrated } = useConsent();
@@ -474,19 +485,32 @@ function PushInit() {
 
   useEffect(() => {
     if (typeof window === "undefined" || !hydrated) return undefined;
+    const storage = window.localStorage;
 
     if (!functionalAllowed) {
-      if (localStorage.getItem("bt_push_enabled") === "1") disablePush();
+      const owner = readPushOwner(storage, user?.id);
+      if (owner.owner || owner.legacy) disablePush(user?.id || null);
       return undefined;
     }
-    if (!user) return undefined;
-    if (localStorage.getItem("bt_push_enabled") !== "1") return undefined;
 
     let cancelled = false;
     (async () => {
       try {
+        // Une déconnexion précédente n'a pas pu finir de détacher l'appareil.
+        const pending = pendingLogoutFor(storage, user?.id);
+        if (pending.pending && !pending.finish) clearPendingLogout(storage);
+        if (pending.finish) await finishPendingLogout();
+        if (cancelled || !user) return;
+        if (!shouldReassociate({ storage, userId: user.id, functionalConsent: true })) return;
+
         await initOneSignal();
-        if (!cancelled) await loginUser(user.id);
+        if (cancelled) return;
+        await loginUser(user.id);
+        claimPushOwner(storage, user.id);
+        if (shouldReportPresence(storage, user.id)) {
+          const recorded = await reportPushDevice(deviceSubscriptionStatus());
+          if (recorded) markPresenceReported(storage, user.id);
+        }
       } catch (_) {}
     })();
     return () => { cancelled = true; };
