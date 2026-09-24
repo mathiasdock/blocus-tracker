@@ -210,7 +210,7 @@ const MOBILE_5 = [
   { href: "/dashboard", key: "nav.chrono",   iconKey: "/dashboard" },
   { href: "/planning",  key: "nav.planning", iconKey: "/planning"  },
   { href: "/stats",     key: "nav.stats",    iconKey: "/stats"     },
-  { href: "/feed",      key: "nav.social",   iconKey: "social",    isSocial: true },
+  { href: "/messages",  key: "nav.social",   iconKey: "social",    isSocial: true },
   { href: "/profile",   key: "nav.profile",  iconKey: "/profile"   },
 ];
 
