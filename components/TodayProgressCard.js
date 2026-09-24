@@ -102,23 +102,33 @@ export default function TodayProgressCard({
           <h2 className={`bt-dashboard-title-accent ${styles.title}`}>{t("dash.todayProgress")}</h2>
 
           {(streak > 0 || freezeInfo?.supported) && (
-            <div className={styles.chips}>
+            <div className={styles.signals}>
               {freezeInfo?.supported && (
                 <span
-                  className={`font-num ${styles.chip} ${freezeInfo.stock > 0 ? styles.chipFreeze : styles.chipFreezeEmpty}`}
+                  className={`font-num ${styles.signal} ${freezeInfo.stock > 0 ? styles.signalFreeze : styles.signalMuted}`}
                   title={t("streak.freezeStock")}
-                  aria-label={`${t("streak.stockLabel")} : ${t("streak.stockCount").replace("{n}", String(freezeInfo.stock))}`}
                 >
-                  <Glyph size={12}>
-                    <path d="M12 2v20M4 6l16 12M20 6 4 18M12 2 9.5 4.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5" />
-                  </Glyph>
-                  <span className="tabular-nums">{freezeInfo.stock}/2</span>
+                  <span className="sr-only">{`${t("streak.stockLabel")} : ${t("streak.stockCount").replace("{n}", String(freezeInfo.stock))}`}</span>
+                  <span className={styles.signalVisual} aria-hidden="true">
+                    <Glyph size={16} className={styles.signalIcon}>
+                      <path d="M12 3 5 6v5.2c0 4.5 2.8 7.6 7 9.8 4.2-2.2 7-5.3 7-9.8V6Z" />
+                      <path d="m8.8 11.8 2.1 2.1 4.5-4.8" />
+                    </Glyph>
+                    <span className={`tabular-nums ${styles.signalValue}`}>{freezeInfo.stock}<span className={styles.signalSuffix}>/2</span></span>
+                  </span>
                 </span>
               )}
+              {freezeInfo?.supported && streak > 0 && <span className={styles.signalDivider} aria-hidden="true" />}
               {streak > 0 && (
-                <span className={`font-num ${styles.chip} ${styles.chipStreak}`}>
-                  <Flame size={12} style={{ color: streakPaused ? "rgba(251,191,36,0.48)" : "#FBBF24" }} />
-                  <span className="tabular-nums"><AnimatedNumber value={streak} /></span>
+                <span
+                  className={`font-num ${styles.signal} ${styles.signalStreak}`}
+                  title={t("stats.streakLabel")}
+                >
+                  <span className="sr-only">{t("dash.msgStreak").replace("{n}", String(streak))}</span>
+                  <span className={styles.signalVisual} aria-hidden="true">
+                    <Flame size={16} variant="outline" animated={false} className={styles.signalIcon} style={{ opacity: streakPaused ? 0.48 : 1 }} />
+                    <span className={`tabular-nums ${styles.signalValue}`}><AnimatedNumber value={streak} /><span className={styles.signalSuffix}> {t("stats.dayUnit")}</span></span>
+                  </span>
                 </span>
               )}
             </div>

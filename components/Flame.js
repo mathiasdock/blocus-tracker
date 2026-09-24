@@ -1,5 +1,6 @@
-// Flamme de série — une seule flamme vivante, TOUJOURS en mouvement, partagée
-// partout où la série apparait (stats, classement, landing, celebration).
+// Flamme de série — une seule silhouette partagée partout où la série apparait
+// (stats, classement, landing, celebration). Elle vit par défaut ; les rares
+// contextes utilitaires compacts peuvent la poser avec `animated={false}`.
 //
 // Monochrome `currentColor` par defaut : elle herite la couleur de son contexte
 // (blanche sur une puce ambre, ambre en ligne dans le classement, attenuee dans
@@ -16,7 +17,8 @@ import { memo } from "react";
 const FLAME_D =
   "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z";
 
-function Flame({ size = 16, className = "", style, title }) {
+function Flame({ size = 16, className = "", style, title, variant = "filled", animated = true }) {
+  const outlined = variant === "outline";
   return (
     <svg
       className={`bt-flame ${className}`}
@@ -28,7 +30,15 @@ function Flame({ size = 16, className = "", style, title }) {
       aria-hidden={title ? undefined : true}
       style={style}
     >
-      <path className="bt-flame-body" d={FLAME_D} fill="currentColor" />
+      <path
+        className={animated ? "bt-flame-body" : undefined}
+        d={FLAME_D}
+        fill={outlined ? "none" : "currentColor"}
+        stroke={outlined ? "currentColor" : undefined}
+        strokeWidth={outlined ? 2 : undefined}
+        strokeLinecap={outlined ? "round" : undefined}
+        strokeLinejoin={outlined ? "round" : undefined}
+      />
     </svg>
   );
 }

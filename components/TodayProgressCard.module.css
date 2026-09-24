@@ -38,25 +38,32 @@
 }
 
 .head { grid-area: head; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.title { font-size: 1.125rem; font-weight: 700; line-height: 1.4; letter-spacing: -0.015em; color: var(--bt-ink-text); }
-.chips { display: flex; flex-shrink: 0; align-items: center; gap: 6px; }
-.chip {
+.title { min-width: 0; font-size: 1.125rem; font-weight: 700; line-height: 1.4; letter-spacing: -0.015em; color: var(--bt-ink-text); }
+.signals {
+  display: flex;
+  min-height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+.signal {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 28px;
-  padding: 0 9px;
-  border-radius: 999px;
-  font-size: 12px;
+  color: var(--bt-ink-text);
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-/* Le bleu glace et l'ambre de la flamme sont les deux couleurs de statut déjà
-   en service ici : elles disent « gel » et « série », pas « décoration ». */
-.chipFreeze { background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.34); color: #BAE6FD; }
-.chipFreezeEmpty { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.10); color: rgba(255, 255, 255, 0.55); }
-.chipStreak { background: rgba(251, 191, 36, 0.14); border: 1px solid rgba(251, 191, 36, 0.28); color: #FFF7D6; }
+.signalVisual { display: inline-flex; align-items: center; gap: 4px; }
+.signalIcon { flex: 0 0 auto; }
+.signalValue { color: var(--bt-ink-text); }
+.signalSuffix { color: var(--bt-ink-muted); font-size: 11px; font-weight: 700; }
+.signalFreeze { color: #BAE6FD; }
+.signalMuted { color: var(--bt-ink-muted); }
+.signalMuted .signalValue { color: var(--bt-ink-muted); }
+.signalStreak { color: #FCD34D; }
+.signalDivider { width: 1px; height: 16px; background: var(--bt-ink-border); }
 
 /* ── Le chiffre du jour ─────────────────────────────────────── */
 .value {
