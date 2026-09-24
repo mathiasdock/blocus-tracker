@@ -189,8 +189,8 @@ CRON_SECRET                    = <random secret>    ← server-only, gates /api/
 > segment), résultat par destinataire. Rappel du soir (V1,
 > `lib/eveningPlan.mjs`) : Vercel Cron (`vercel.json`, 18:00 UTC), UNE
 > notification au plus par membre et par soir dans SON fuseau, jamais entre
-> 22 h et 8 h chez lui, dans cet ordre : examen demain, série en danger (≥ 3
-> jours, comme Stats), examen dans 7 jours, premier démarrage (48–72 h),
+> 22 h et 8 h chez lui, dans cet ordre : examen demain, examen dans 7 jours,
+> série en danger (≥ 3 jours, comme Stats), premier démarrage (48–72 h),
 > second démarrage (~7 j), reprise à 7 jours, reprise à 21 jours puis stop.
 > Examens = faits, jamais plafonnés ; relances = 2 au plus sur 7 jours,
 > jamais la même deux soirs de suite ; relancer le cron le même jour ne

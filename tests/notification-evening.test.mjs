@@ -185,9 +185,11 @@ test("priority: one notification per evening, the first that applies", () => {
   const tomorrow = { user_id: U, name: "Droit", exam_date: "2026-09-25" };
   const nextWeek = { user_id: U, name: "Économie", exam_date: "2026-10-01" };
   assert.equal(only(plan({ sessions: streak, exams: [tomorrow, nextWeek] })).kind, "exam_tomorrow");
-  assert.equal(only(plan({ sessions: streak, exams: [nextWeek] })).kind, "streak_at_risk");
+  // Les faits d'examen passent avant les relances : J-7 n'a qu'un seul soir.
+  assert.equal(only(plan({ sessions: streak, exams: [nextWeek] })).kind, "exam_in_7_days");
+  assert.equal(only(plan({ sessions: streak })).kind, "streak_at_risk");
   assert.deepEqual(EVENING_KINDS, [
-    "exam_tomorrow", "streak_at_risk", "exam_in_7_days", "first_activation_plan", "first_activation_start",
+    "exam_tomorrow", "exam_in_7_days", "streak_at_risk", "first_activation_plan", "first_activation_start",
     "second_activation", "reactivation_7d", "reactivation_21d",
   ]);
 });
