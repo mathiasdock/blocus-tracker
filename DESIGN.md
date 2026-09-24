@@ -109,8 +109,8 @@ A saved course owns its hue across Timer, objectives, Planning, Stats and Activi
 | Light surface | Original hue in a marker or chart; light derived tint for a larger region, neutral readable text. |
 | Dark surface | Preserve hue identity; adjust tint/marker luminance only as needed for contrast. Do not recolor the entire course green. |
 | Selected | Preserve course hue; add a check, outline or selected control state independent of the course fill. |
-| Calendar: one course | One uniform course tint across the cell. Current 28% light / 26% dark opacity gives study days a visible presence; check contrast against actual hues. |
-| Calendar: multiple courses | One representative tint, selected deterministically by planned minutes and stable ID tie-break. Other identities remain in the measured load band and day detail. No diagonal split or rainbow; the tint alone does not quantify time share. |
+| Calendar: one course | One uniform course tint across the cell. Current 28% light / 26% dark opacity gives upcoming study days a visible presence; past days with all objectives completed use a slightly quieter 21% / 19% tint. |
+| Calendar: multiple courses | One representative tint, selected deterministically by planned minutes and stable ID tie-break. Other identities remain in day detail and the Week load band. No diagonal split or rainbow; the tint alone does not quantify time share. |
 | Charts | Course hues identify series; labels/values and a shared scale carry quantity. Never change series colors with sort order. |
 | Activity | **Surfaces (2026-09-23, user request):** each day is one surface card (day title opens it), composer and sharing settings sit on their own surfaces; an accomplishment gets an accent wash inside the day card. Two registers. **Ordinary study is one row** — person, course marker, duration, time — with no card, no shadow, no level pill, no icon tile. **An accomplishment is the product's own object** (BadgeIcon, StreakEmblem, LevelSeal) and may interrupt the timeline. Preserve an existing historical event snapshot if no reliable live course reference exists. |
 | Text/icons | Use semantic neutral text unless the actual course-color/background pair passes contrast; retain identity in an adjacent marker. Never place white text on every course hue. |
@@ -192,7 +192,7 @@ Completed time is filled; a live measured fraction is partial; paused time stops
 - Multiple exams: one marker with count and accessible event names, not stacked stripes. Other objectives remain secondary and available.
 - Error/delete UI uses its own icon, action and message; a warm exam is not an error.
 
-`PlanningExamMark` carries this stamp across Planning and course rooms. Month keeps a small absolute planned-workload band below the content, including on exam days; it remains secondary to the milestone.
+`PlanningExamMark` carries this stamp across Planning and course rooms. Month relies on course tint, planned titles and accessible exact load; the measured workload band belongs to Week, where days can be compared on a shared axis. In Week, the exam card carries the warm surface rather than repeating it on the entire row.
 
 ### The Paused-Timer Exception — loud on purpose
 

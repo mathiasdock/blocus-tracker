@@ -55,6 +55,12 @@
 .dark .bt-planning .bt-plan-day-cell[data-fill="course"] {
   --bt-course-tint-strength: .26;
 }
+.bt-planning .bt-plan-day-cell[data-fill="course"][data-past-complete="1"] {
+  --bt-course-tint-strength: .21;
+}
+.dark .bt-planning .bt-plan-day-cell[data-fill="course"][data-past-complete="1"] {
+  --bt-course-tint-strength: .19;
+}
 .bt-plan-exam-mark { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; border-radius: 4px; background: var(--bt-exam-stamp-bg); color: var(--bt-exam-stamp-text); font-size: 11px; font-weight: 800; line-height: 18px; vertical-align: middle; }
 .bt-plan-exam-mark svg { flex: none; }
 .bt-plan-exam-count { font-variant-numeric: tabular-nums; }
@@ -133,7 +139,6 @@
   border-top: 1px solid var(--bt-border);
 }
 .bt-plan-week-row:first-child { border-top: 0; }
-.bt-plan-week-row[data-exam="1"] { background: var(--bt-exam-bg); }
 /* Journée vide : la date sur une ligne, rien d'autre. La hauteur suit la
    quantité d'information, et la semaine garde ses sept jours. */
 .bt-plan-week-row[data-empty="1"] { padding-block: 2px; }
@@ -194,10 +199,6 @@
   .bt-plan-week-meter .bt-plan-load { block-size: 12px; }
   .bt-plan-week-total { font-size: 14px; }
 }
-
-/* The month keeps the absolute workload scale as a quiet baseline below the
-   plan. Week retains the larger band needed for seven-row comparison. */
-.bt-planning .bt-plan-day-cell .bt-plan-load { block-size: 3px; }
 
 .bt-planning-task { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--bt-hairline, var(--bt-border)); }
 .bt-planning .bt-plan-revision-row { padding: 12px 4px; min-height: 44px; }

@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-24 — Codex — Planning : micro-raffinement du Mois et de la Semaine
+
+- Mois : la bande de charge de 3 px et sa légende ont été retirées ; la teinte de cours, les titres et le libellé accessible avec la durée exacte restent. La bande de charge reste en Semaine pour comparer les journées.
+- Les journées passées dont tous les objectifs sont terminés gardent leur vraie couleur de cours avec une teinte légèrement atténuée (21 % clair / 19 % sombre). Les examens et les journées inachevées ne changent pas.
+- Semaine : seul le contenu de la carte d'examen porte le fond sable ; la rangée n'a plus un second aplat chaud. Aucune logique de planning modifiée.
+
 ## 2026-09-24 — Codex — Planning : cours plus présents, examens comme jalons
 
 - Le Mois garde ses cases entièrement teintées par le cours dominant, avec une présence chromatique renforcée (28 % clair / 26 % sombre). La bande de minutes prévues reste en pied de case, ramenée à 3 px ; elle continue de comparer la charge et les cours sans concurrencer le contenu.

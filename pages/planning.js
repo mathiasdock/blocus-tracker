@@ -1075,25 +1075,9 @@ function DayDetailModal() {
 
 // ── CalendarLegend ────────────────────────────────────────────
 function CalendarLegend() {
-  const { activeCourses: courses, t } = usePlan();
-  // La bande est la nouvelle unité de lecture du calendrier : sa longueur est
-  // du TEMPS, ses segments sont des cours. Un échantillon vaut mieux qu'une
-  // phrase — on reprend les vraies couleurs des cours de l'étudiant, donc la
-  // légende sert aussi de mini-index.
-  const swatches = courses.slice(0, 2).map(c => c.color).filter(Boolean);
-  const loadNode = (
-    <span className="bt-plan-load" aria-hidden="true" style={{ inlineSize: 34 }}>
-      <span className="bt-plan-load-fill" style={{ inlineSize: "72%" }}>
-        {(swatches.length ? swatches : [null]).map((color, i) => (
-          <span key={i} className={`bt-plan-load-seg${color ? "" : " is-unassigned"}`}
-            style={{ flexGrow: i === 0 ? 2 : 1, backgroundColor: color || undefined }} />
-        ))}
-      </span>
-    </span>
-  );
+  const { t } = usePlan();
 
   const items = [
-    { label: t("plan.legendLoad"), node: loadNode },
     { label: t("plan.legendExam"),      node: <PlanningExamMark label={t("plan.examTag")} /> },
     { label: t("common.today"),         node: <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--bt-accent)" }} /> },
   ];
@@ -1166,9 +1150,8 @@ function MonthView() {
                 : items.length ? "planned"
                 : null;
 
-              // Le libellé accessible porte la quantité exacte : la bande dit
-              // « beaucoup », elle ne dit pas « 3 h 15 ». Et la couleur n'est
-              // jamais la seule source de sens.
+              // La couleur n'est jamais la seule source de sens : le libellé
+              // accessible garde la quantité exacte, même sans bande en Month.
               const loadAria = load.minutes > 0
                 ? t("plan.loadAria")
                     .replace("{t}", formatMinutesShort(load.minutes * 60))
@@ -1187,6 +1170,7 @@ function MonthView() {
                   // reste repérable par sa pastille et par `aria-current`.
                   data-fill={fill || undefined} data-selected={isSel && !isToday ? "1" : undefined}
                   data-past={key < today ? "1" : undefined}
+                  data-past-complete={key < today && !examItems.length && items.length > 0 && items.every(o => o.done) ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
                     "--bt-day-tint": tint || undefined,
@@ -1219,21 +1203,6 @@ function MonthView() {
                       </div>
                     ))}
                   </div>
-
-                  {/* La bande de charge, collée au bas de la case. Elle remplace
-                      la rangée de pastilles et le « +N » : sa LONGUEUR dit
-                      combien de travail est prévu (échelle absolue, la même
-                      dans tout le calendrier et dans la semaine), ses segments
-                      disent à quels cours il appartient et dans quelles
-                      proportions. Deux « +N » de sens différents vivaient ici —
-                      objectifs cachés sur grand écran, cours cachés sur
-                      téléphone ; il n'en reste aucun.
-                      Elle survit à la case d'examen : le jour garde sa priorité
-                      d'examen ET montre la révision prévue, au lieu de perdre
-                      l'une pour l'autre. */}
-                  <span className="mt-auto pt-1">
-                    <PlanningLoadBar load={load} courseColor={courseColor} max={2} label={loadAria} />
-                  </span>
                 </button>
               );
             })}
