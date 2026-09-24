@@ -135,6 +135,12 @@ function achievementCopy(entry, t) {
   };
 }
 
+// Les publications qu'une ligne montre (une ligne de sessions en regroupe
+// plusieurs) : un lien ?post=<id> retrouve ainsi sa ligne.
+function postIdsOf(entry) {
+  return (entry.posts || [entry.post]).map((post) => post.id).join(" ");
+}
+
 export default function ActivityTimeline({
   items, t, lang, user, isAdmin, profiles, photoUrls, signingPhotos,
   onOpenProfile, onEncourage, onRevealPhoto, onDeletePost, onEditPost,
@@ -169,7 +175,7 @@ export default function ActivityTimeline({
         // ORDINARY STUDY — a row, not a card.
         if (entry.type === "session") {
           return (
-            <li key={entry.key} className="bt-activity-item is-study">
+            <li key={entry.key} className="bt-activity-item is-study" data-post-ids={postIdsOf(entry)}>
               <button type="button" className="bt-activity-face" onClick={openAuthor} aria-label={displayName(author)}>
                 <Avatar url={author.avatar_url} pseudo={displayName(author)} size={34} />
               </button>
@@ -206,7 +212,7 @@ export default function ActivityTimeline({
         // A completed objective: the student's own words about their own plan.
         if (entry.type === "goal") {
           return (
-            <li key={entry.key} className="bt-activity-item is-goal">
+            <li key={entry.key} className="bt-activity-item is-goal" data-post-ids={postIdsOf(entry)}>
               <button type="button" className="bt-activity-face" onClick={openAuthor} aria-label={displayName(author)}>
                 <Avatar url={author.avatar_url} pseudo={displayName(author)} size={34} />
               </button>
@@ -232,7 +238,7 @@ export default function ActivityTimeline({
           const copy = achievementCopy(entry, t);
           if (!copy) return null;
           return (
-            <li key={entry.key} className="bt-activity-item is-achievement">
+            <li key={entry.key} className="bt-activity-item is-achievement" data-post-ids={postIdsOf(entry)}>
               <div className="bt-activity-object" aria-hidden="true"><AchievementObject entry={entry} t={t} /></div>
               <div className="bt-activity-line">
                 <p className="bt-activity-achievement-kind">{copy.kind}</p>
@@ -255,7 +261,7 @@ export default function ActivityTimeline({
         // Someone's own words (and their photo, if any).
         const hasPhoto = entry.post.hasPhoto;
         return (
-          <li key={entry.key} className="bt-activity-item is-note">
+          <li key={entry.key} className="bt-activity-item is-note" data-post-ids={postIdsOf(entry)}>
             <button type="button" className="bt-activity-face" onClick={openAuthor} aria-label={displayName(author)}>
               <Avatar url={author.avatar_url} pseudo={displayName(author)} size={34} />
             </button>

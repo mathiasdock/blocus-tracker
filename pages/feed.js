@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
 import ActivityTimeline from "../components/ActivityTimeline";
@@ -22,6 +23,7 @@ import { SkeletonRow } from "../components/Skeleton";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 import { buildActivityTimeline, emptyStateKind } from "../lib/activityFeed.mjs";
+import { isUuidLike } from "../lib/notificationRules.mjs";
 import {
   AUTO_SHARE_EVENTS,
   DEFAULT_AUTO_SHARE,
@@ -118,6 +120,12 @@ export default function Feed() {
   const isAdmin = profile?.is_admin === true;
   const { markSeen } = useNotifications();
   const { t, lang } = useI18n();
+  const router = useRouter();
+  // Lien d'une notification (commentaire, réaction) : ?post=<id> montre la
+  // publication, même plus vieille que les 24 h du fil. Disparue ou
+  // invisible pour moi : le fil s'affiche simplement, sans erreur.
+  const focusPostId = typeof router.query.post === "string" && isUuidLike(router.query.post) ? router.query.post : null;
+  const focusedRef = useRef(null);
   const [posts, setPosts] = useState([]);
   const [blockedIds, setBlockedIds] = useState([]);
   // Three states, never two: "nothing to show" and "we could not load" are
@@ -168,13 +176,20 @@ export default function Feed() {
       if (postsResult.error) throw postsResult.error;
       if (blocksResult.error) throw blocksResult.error;
 
+      let fetched = postsResult.data || [];
+      if (focusPostId && !fetched.some((post) => post.id === focusPostId)) {
+        const { data: focused } = await supabase.from("posts").select("*, likes(*), comments(*)")
+          .eq("id", focusPostId).maybeSingle();
+        if (focused) fetched = [...fetched, focused];
+      }
+
       const myFriendIds = new Set((friendsResult.data || [])
         .map((link) => (link.requester === user.id ? link.addressee : link.requester)));
       const blocked = (blocksResult.data || [])
         .map((row) => (row.blocker_id === user.id ? row.blocked_id : row.blocker_id));
       setBlockedIds(blocked);
 
-      const visible = (postsResult.data || []).filter((post) =>
+      const visible = fetched.filter((post) =>
         post.visibility === "public"
         || post.user_id === user.id
         || (post.visibility === "friends" && myFriendIds.has(post.user_id)));
@@ -208,7 +223,26 @@ export default function Feed() {
       console.error("Activity load failed:", error);
       setLoadState("error");
     }
-  }, [user]);
+  }, [user, focusPostId]);
+
+  // Une fois la publication visée affichée : on la montre et on la signale
+  // brièvement. Une seule fois par lien.
+  useEffect(() => {
+    if (!focusPostId || loadState !== "ready" || focusedRef.current === focusPostId) return;
+    const target = document.querySelector(`[data-post-ids~="${focusPostId}"]`);
+    if (!target) return;
+    focusedRef.current = focusPostId;
+    // Saut direct : un défilement animé sur toute la page est lent, et
+    // s'interrompt dès que la page bouge encore (images, profils).
+    target.scrollIntoView({ block: "center" });
+    const tint = getComputedStyle(document.documentElement).getPropertyValue("--bt-accent-bg").trim();
+    if (tint && typeof target.animate === "function") {
+      target.animate(
+        [{ backgroundColor: tint, borderRadius: "16px" }, { backgroundColor: "transparent", borderRadius: "16px" }],
+        { duration: 2200, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+      );
+    }
+  }, [focusPostId, loadState, posts]);
 
   useEffect(() => {
     load();

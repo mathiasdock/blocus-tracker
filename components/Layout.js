@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useI18n } from "../contexts/I18nContext";
 import { useConsent } from "../contexts/ConsentContext";
-import { formatDuration, displayName, timeAgo } from "../lib/format";
+import { formatDuration, displayName } from "../lib/format";
 import LegacyEmailBanner from "./LegacyEmailBanner";
 import PageSkeleton from "./PageSkeleton";
 import { isOfflineDev } from "../lib/supabaseClient";
 import Glyph from "./Glyph";
 import useSocialSwipe from "./useSocialSwipe";
 import GuestDiscovery from "./guest/GuestDiscovery";
+import Avatar from "./Avatar";
+import NotificationCenter from "./NotificationCenter";
 
 // ── Icônes ─────────────────────────────────────────────────
 // Dessins seulement : grille, épaisseur et accessibilité viennent de
@@ -165,40 +167,7 @@ function NavIcon({ href, size = 20 }) {
 }
 
 // ── Avatar ────────────────────────────────────────────────────
-
-function Avatar({ url, pseudo, size = 32 }) {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [url]);
-
-  if (url && !failed) {
-    return (
-      <>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={pseudo || "avatar"}
-          loading="lazy" decoding="async"
-          onError={() => setFailed(true)}
-          className="rounded-full object-cover shrink-0"
-          style={{ width: size, height: size, border: "1.5px solid var(--bt-border)" }} />
-      </>
-    );
-  }
-  return (
-    <div className="rounded-full flex items-center justify-center font-semibold shrink-0"
-      style={{
-        width: size, height: size,
-        fontSize: size * 0.4,
-        backgroundColor: "var(--bt-accent-bg)",
-        color: "var(--bt-accent-dark)",
-        border: "1.5px solid var(--bt-accent-border)",
-      }}>
-      {(pseudo || "?").slice(0, 1).toUpperCase()}
-    </div>
-  );
-}
-
+// Dans ./Avatar ; réexporté ici pour les imports existants.
 export { Avatar };
 
 // ── Badge ─────────────────────────────────────────────────────
@@ -215,212 +184,6 @@ function Badge({ count, small = false }) {
     <span className={`${base} min-w-[18px] h-[18px] text-[10px] px-1`}>
       {count > 99 ? "99+" : count}
     </span>
-  );
-}
-
-// Glyphes d'activité (remplis) posés en pastille sur l'avatar : chaque type de
-// notif "de personne" se reconnaît d'un coup d'œil sans lire le texte.
-function NotifBadgeGlyph({ name, size = 11 }) {
-  const paths = {
-    friend: <><circle cx="9" cy="8.5" r="3.4" /><path d="M3 20a6 6 0 0 1 12 0z" /><path d="M18.5 8.5v6M21.5 11.5h-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></>,
-    chat: <path d="M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V5a1 1 0 0 1 1-1z" />,
-    heart: <path d="M12 21 3.6 12.6a5.4 5.4 0 1 1 7.6-7.6l.8.8.8-.8a5.4 5.4 0 1 1 7.6 7.6z" />,
-  };
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      {paths[name]}
-    </svg>
-  );
-}
-
-// Glyphes d'annonce au trait, posés seuls dans la rangée : nouveauté / info /
-// alerte. La forme porte le type ; la couleur ne vient que du parent.
-function AnnGlyph({ name, size = 17 }) {
-  const paths = {
-    sparkles: <path d="M12 3l1.9 4.9L19 9.8l-5.1 1.9L12 17l-1.9-5.3L5 9.8l5.1-1.9zM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8z" />,
-    info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-4.5M12 8h.02" /></>,
-    alert: <><path d="M10.3 4 2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z" /><path d="M12 9.5v4M12 17.5h.02" /></>,
-  };
-  return <Glyph size={size}>{paths[name]}</Glyph>;
-}
-
-// Avatar + pastille d'activité colorée dans le coin.
-function NotifAvatar({ item, name }) {
-  const badge = {
-    friend_request: { bg: "var(--bt-accent)", glyph: "friend" },
-    comment:        { bg: "#0369a1", glyph: "chat" },
-    reaction:       { bg: "#DC2626", glyph: "heart" },
-  }[item.type];
-  return (
-    <span className="relative shrink-0">
-      <Avatar url={item.actor?.avatar_url} pseudo={name} size={40} />
-      {badge && (
-        <span className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full"
-          style={{ width: 18, height: 18, backgroundColor: badge.bg, color: "#fff", border: "2px solid var(--bt-surface)" }}>
-          <NotifBadgeGlyph name={badge.glyph} />
-        </span>
-      )}
-    </span>
-  );
-}
-
-function NotificationPanel({
-  items,
-  t,
-  onClose,
-  onAcceptFriend,
-  onRefuseFriend,
-  onOpenFeed,
-  onDismissAnnouncement,
-}) {
-  const { lang } = useI18n();
-  const nameOf = (profile) => displayName(profile) || t("notif.someone");
-  const when = (item) => (item.created_at ? timeAgo(item.created_at, lang) : null);
-
-  const rowHover = {
-    onMouseEnter: (e) => (e.currentTarget.style.backgroundColor = "var(--bt-subtle)"),
-    onMouseLeave: (e) => (e.currentTarget.style.backgroundColor = ""),
-  };
-
-  return (
-    <div
-      className="bt-rise fixed z-50 left-3 right-3 lg:left-[244px] lg:right-auto lg:w-[400px] rounded-3xl overflow-hidden"
-      style={{
-        top: "calc(58px + env(safe-area-inset-top))",
-        backgroundColor: "var(--bt-surface)",
-        border: "1px solid var(--bt-hairline)",
-        boxShadow: "0 24px 60px var(--bt-shadow)",
-      }}>
-      <div className="flex items-center justify-between px-4 py-3.5"
-        style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
-        <div className="flex items-center gap-2.5">
-          <span className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
-            <IconBell size={16} />
-          </span>
-          <p className="text-[15px] font-bold" style={{ color: "var(--bt-text-1)" }}>{t("notif.title")}</p>
-          {items.length > 0 && (
-            <span className="text-[11px] font-bold font-num tabular-nums px-1.5 py-0.5 rounded-full"
-              style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
-              {items.length}
-            </span>
-          )}
-        </div>
-        <button type="button" onClick={onClose}
-          className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-          style={{ color: "var(--bt-text-3)", backgroundColor: "var(--bt-subtle)" }}
-          aria-label={t("common.close")}>
-          <Glyph size={13}>
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </Glyph>
-        </button>
-      </div>
-
-      <div className="overflow-y-auto" style={{ maxHeight: "min(70vh, 520px)" }}>
-        {items.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <span className="mx-auto mb-3.5 flex w-14 h-14 items-center justify-center rounded-full"
-              style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-4)" }}>
-              <IconBell size={24} />
-            </span>
-            <p className="text-sm font-semibold" style={{ color: "var(--bt-text-2)" }}>{t("notif.empty")}</p>
-            <p className="mt-1 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("notif.emptyHint")}</p>
-          </div>
-        ) : (
-          <ul>
-            {items.map((item, idx) => {
-              const bordered = idx > 0 ? { borderTop: "1px solid var(--bt-hairline)" } : {};
-              const ts = when(item);
-
-              if (item.type === "announcement") {
-                // Annonces figées : clés i18n. Annonces BDD : texte littéral,
-                // en anglais quand il existe, sinon le français (v62).
-                const english = lang === "en";
-                const annTitle = item.titleKey ? t(item.titleKey) : (english && item.titleEn) || item.title;
-                const annBody  = item.bodyKey  ? t(item.bodyKey)  : (english && item.bodyEn) || item.body;
-                // L'icône se tient seule dans la rangée, en encre : le type se
-                // lit à sa forme — étincelles, info, alerte — pas à une pastille
-                // de couleur derrière. Seule l'alerte garde une teinte, parce
-                // que c'est un statut et non une décoration.
-                const ann = {
-                  new:       { tone: "var(--bt-accent-dark)", glyph: "sparkles" },
-                  info:      { tone: "var(--bt-text-2)",      glyph: "info" },
-                  important: { tone: "var(--bt-danger)",      glyph: "alert" },
-                }[item.annType || "info"] || { tone: "var(--bt-text-2)", glyph: "info" };
-                return (
-                  <li key={item.key} style={bordered}>
-                    <button type="button"
-                      onClick={() => { onDismissAnnouncement(item.id, item.href); onClose(); }}
-                      className="w-full text-left flex items-start gap-3 px-4 py-3.5 transition-colors" {...rowHover}>
-                      <span className="mt-0.5 flex w-6 shrink-0 justify-center" style={{ color: ann.tone }}>
-                        <AnnGlyph name={ann.glyph} size={19} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-start justify-between gap-2">
-                          <span className="text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{annTitle}</span>
-                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
-                        </span>
-                        <span className="block text-xs mt-1 leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{annBody}</span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              }
-
-              const name = nameOf(item.actor);
-
-              if (item.type === "friend_request") {
-                return (
-                  <li key={item.key} className="px-4 py-3.5" style={bordered}>
-                    <div className="flex gap-3 items-start">
-                      <NotifAvatar item={item} name={name} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
-                            <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>{name}</span>{" "}
-                            {t("notif.friendRequest")}
-                          </p>
-                          {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
-                        </div>
-                        <div className="flex gap-2 mt-2.5">
-                          <button type="button" onClick={() => onAcceptFriend(item.id).catch(console.error)}
-                            className="btn-primary text-xs px-4 py-1.5">
-                            {t("friends.accept")}
-                          </button>
-                          <button type="button" onClick={() => onRefuseFriend(item.id).catch(console.error)}
-                            className="btn-ghost text-xs px-4 py-1.5">
-                            {t("friends.refuse")}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                );
-              }
-
-              const textKey = item.type === "comment" ? "notif.commentedPost" : "notif.reactedPost";
-              return (
-                <li key={item.key} style={bordered}>
-                  <button type="button"
-                    onClick={() => { onOpenFeed(); onClose(); }}
-                    className="w-full text-left flex gap-3 px-4 py-3.5 transition-colors" {...rowHover}>
-                    <NotifAvatar item={item} name={name} />
-                    <span className="min-w-0 flex-1 flex items-start justify-between gap-2">
-                      <span className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>
-                        <span className="font-semibold" style={{ color: "var(--bt-text-1)" }}>{name}</span>{" "}
-                        {t(textKey)}
-                        {item.type === "reaction" && item.emoji && <span className="ml-1 text-base align-middle">{item.emoji}</span>}
-                      </span>
-                      {ts && <span className="text-[11px] shrink-0 pt-0.5" style={{ color: "var(--bt-text-4)" }}>{ts}</span>}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -452,6 +215,7 @@ const MOBILE_5 = [
 ];
 
 const GUEST_PUBLIC_PATHS = ["/dashboard", "/legal"];
+const NOTIFICATION_PANEL_ID = "bt-notification-center";
 
 // ── Layout ────────────────────────────────────────────────────
 
@@ -460,27 +224,20 @@ export default function Layout({ children }) {
   const { running, elapsed } = useTimer();
   const {
     feedCount,
-    commentCount,
-    reactionCount,
     friendCount,
     totalCommunity,
     messageCount,
     totalGroups,
-    notificationItems,
     notificationUnreadCount,
     msgToast,
     clearMsgToast,
-    refreshNotifications,
-    acceptFriendRequest,
-    refuseFriendRequest,
-    openFeedNotification,
-    dismissAnnouncement,
   } = useNotifications();
   const { t } = useI18n();
   const { openSettings: openConsentSettings } = useConsent();
   const router = useRouter();
   const socialSurfaceRef = useSocialSwipe(router, SOCIAL_PATHS);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
   const isGuest = !user;
   const guestLocked = isGuest && !GUEST_PUBLIC_PATHS.includes(router.pathname);
   const fillsSocialViewport = !guestLocked && (router.pathname === "/messages" || router.pathname === "/communautes");
@@ -510,13 +267,13 @@ export default function Layout({ children }) {
 
   function badgeFor(href) {
     if (isGuest) return 0;
-    if (href === "/feed")        return feedCount + commentCount + reactionCount;
+    if (href === "/feed")        return feedCount;
     if (href === "/communautes") return totalCommunity;
     if (href === "/messages")    return messageCount + totalGroups + friendCount;
     return 0;
   }
 
-  const socialBadge = feedCount + commentCount + reactionCount + friendCount + totalCommunity + messageCount + totalGroups;
+  const socialBadge = feedCount + friendCount + totalCommunity + messageCount + totalGroups;
 
   useEffect(() => {
     setNotificationsOpen(false);
@@ -558,23 +315,29 @@ export default function Layout({ children }) {
     );
   }
 
-  function renderDesktopNotificationsBell() {
+  // La cloche, dans la barre latérale (ordinateur) et l'en-tête (téléphone).
+  // Visuel de 36 px, zone de toucher de 44 px (le ::after déborde de 4 px).
+  function renderNotificationsBell() {
+    const unread = notificationUnreadCount;
+    const label = unread > 0
+      ? `${t("nav.notifications")}, ${unread === 1 ? t("notif.unreadOne") : t("notif.unreadMany").replace("{n}", String(unread))}`
+      : t("nav.notifications");
     return (
       <button
         type="button"
-        onClick={() => {
-          refreshNotifications();
-          setNotificationsOpen((open) => !open);
-        }}
-        className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0"
+        data-notif-trigger=""
+        onClick={() => setNotificationsOpen((open) => !open)}
+        className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 after:absolute after:-inset-1 after:content-['']"
         style={{
           color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
           backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
           border: "1px solid var(--bt-hairline)",
         }}
-        aria-label={t("nav.notifications")}>
+        aria-haspopup="dialog"
+        aria-expanded={notificationsOpen}
+        aria-label={label}>
         <IconBell size={18} />
-        {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} small />}
+        {unread > 0 && <Badge count={unread} small />}
       </button>
     );
   }
@@ -595,7 +358,7 @@ export default function Layout({ children }) {
             style={{ color: "var(--bt-text-1)" }}>
             blocus<span style={{ color: "#14B885" }}>·</span>tracker
           </Link>
-          {!isGuest && renderDesktopNotificationsBell()}
+          {!isGuest && renderNotificationsBell()}
         </div>
 
         {/* Nav items */}
@@ -712,22 +475,7 @@ export default function Layout({ children }) {
               </Link>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    refreshNotifications();
-                    setNotificationsOpen((open) => !open);
-                  }}
-                  className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                  style={{
-                    color: notificationsOpen ? "var(--bt-accent-dark)" : "var(--bt-text-2)",
-                    backgroundColor: notificationsOpen ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-                    border: "1px solid var(--bt-hairline)",
-                  }}
-                  aria-label={t("nav.notifications")}>
-                  <IconBell size={18} />
-                  {notificationUnreadCount > 0 && <Badge count={notificationUnreadCount} small />}
-                </button>
+                {renderNotificationsBell()}
                 <Link href="/profile" style={{ position: "relative", display: "inline-block" }}>
                   <Avatar url={profile?.avatar_url} pseudo={displayName(profile)} size={32} />
                   {userLevel && (
@@ -831,16 +579,8 @@ export default function Layout({ children }) {
         </div>
       </nav>
 
-      {!isGuest && notificationsOpen && (
-        <NotificationPanel
-          items={notificationItems}
-          t={t}
-          onClose={() => setNotificationsOpen(false)}
-          onAcceptFriend={acceptFriendRequest}
-          onRefuseFriend={refuseFriendRequest}
-          onOpenFeed={openFeedNotification}
-          onDismissAnnouncement={dismissAnnouncement}
-        />
+      {!isGuest && (
+        <NotificationCenter open={notificationsOpen} onClose={closeNotifications} panelId={NOTIFICATION_PANEL_ID} />
       )}
 
       {/* ══ Chrono flottant desktop ══════════════════════════════ */}

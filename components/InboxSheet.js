@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import Glyph from "./Glyph";
 
 // Native modal behavior supplies focus containment, inert background and Escape.
-export default function InboxSheet({ open, title, closeLabel, onClose, children }) {
+// `subheader` (optionnel) : une ligne d'actions qui reste collée sous le titre.
+export default function InboxSheet({ open, title, closeLabel, onClose, subheader = null, children }) {
   const ref = useRef(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -20,10 +21,13 @@ export default function InboxSheet({ open, title, closeLabel, onClose, children 
   return <dialog ref={ref} className="bt-inbox-sheet" aria-label={title}
     onCancel={event => { event.preventDefault(); onClose(); }}
     onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <div className="bt-inbox-sheet-body">
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 py-3" style={{ background: "var(--bt-surface)" }}>
-        <h2 className="text-lg font-bold">{title}</h2>
-        <button className="bt-feed-icon-btn" aria-label={closeLabel} onClick={onClose}><Glyph size={18}><path d="m6 6 12 12M6 18 18 6" /></Glyph></button>
+    <div className={`bt-inbox-sheet-body${open ? " bt-rise" : ""}`}>
+      <header className="sticky top-0 z-10 px-4 py-3" style={{ background: "var(--bt-surface)" }}>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">{title}</h2>
+          <button className="bt-feed-icon-btn" aria-label={closeLabel} onClick={onClose}><Glyph size={18}><path d="m6 6 12 12M6 18 18 6" /></Glyph></button>
+        </div>
+        {subheader}
       </header>
       {open && children}
     </div>
