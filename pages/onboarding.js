@@ -227,8 +227,10 @@ export default function Onboarding() {
 
       // A repaired ghost account now follows the same server-derived journey
       // as a fresh signup, including refresh and another-device resume.
+      // Auth merges `data` into user_metadata: sending only the new key keeps
+      // the rest, and never writes back pending markers already cleared.
       const { error: metadataError } = await supabase.auth.updateUser({
-        data: { ...(user.user_metadata || {}), onboarding_version: ONBOARDING_VERSION },
+        data: { onboarding_version: ONBOARDING_VERSION },
       });
       if (metadataError) throw metadataError;
       await refreshProfile();

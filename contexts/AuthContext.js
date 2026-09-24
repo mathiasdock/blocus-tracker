@@ -50,6 +50,7 @@ export function AuthProvider({ children }) {
   const [profileStatus, setProfileStatus] = useState("idle");
   const profileRequestRef = useRef(0);
   const activeUserIdRef = useRef(null);
+  const pendingClearedRef = useRef(new Set());
 
   const loadProfile = useCallback(async (uid) => {
     if (!uid) {
@@ -202,19 +203,22 @@ export function AuthProvider({ children }) {
     // Clear replay markers only after their work succeeded. A temporarily
     // unavailable privacy table or referral RPC stays pending for the next
     // confirmed session instead of losing the signup intent.
-    const nextMetadata = { ...metadata };
-    let metadataChanged = false;
+    // Supabase Auth MERGES `data` into user_metadata: a key missing from the
+    // payload is kept, only an explicit null removes it. Omitting the keys left
+    // them in place, and every USER_UPDATED re-ran this through the onboarding
+    // effect — one PUT /user per second until the 429 (2026-09-23).
+    const clearedMetadata = {};
     if (legalRecorded) {
-      if (nextMetadata.pending_terms_version) metadataChanged = true;
-      if (nextMetadata.pending_privacy_version) metadataChanged = true;
-      delete nextMetadata.pending_terms_version;
-      delete nextMetadata.pending_privacy_version;
+      if (metadata.pending_terms_version) clearedMetadata.pending_terms_version = null;
+      if (metadata.pending_privacy_version) clearedMetadata.pending_privacy_version = null;
     }
-    if (referralApplied && nextMetadata.pending_referral_code) metadataChanged = true;
-    if (referralApplied) delete nextMetadata.pending_referral_code;
-    if (metadataChanged) {
+    if (referralApplied && metadata.pending_referral_code) clearedMetadata.pending_referral_code = null;
+    // Once per account and session: even if the server kept the keys, the
+    // resulting USER_UPDATED can no longer re-trigger another write.
+    if (Object.keys(clearedMetadata).length && !pendingClearedRef.current.has(authUser.id)) {
       try {
-        await supabase.auth.updateUser({ data: nextMetadata });
+        const { error } = await supabase.auth.updateUser({ data: clearedMetadata });
+        if (!error) pendingClearedRef.current.add(authUser.id);
       } catch (_) {}
     }
 
