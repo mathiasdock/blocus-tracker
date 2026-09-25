@@ -24,6 +24,7 @@ import { coursePlanning, dayWorkload, dayLoad, loadSegments } from "../lib/plann
 import PlanningLoadBar from "../components/PlanningLoadBar";
 import { normalizePlanningExams, relevantUpcomingExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
 import PlanningExamMark from "../components/PlanningExamMark";
+import usePlanningSwipe from "../components/usePlanningSwipe";
 
 // ── Constants ─────────────────────────────────────────────────
 // Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
@@ -2071,6 +2072,7 @@ export default function Planning() {
   function goToday() { const now = localToday(); setSelectedDate(now); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
   function handlePrev() { if (view==="day") shiftDays(-1); else if (view==="week") shiftDays(-7); else shiftMonth(-1); }
   function handleNext() { if (view==="day") shiftDays(1);  else if (view==="week") shiftDays(7);  else shiftMonth(1); }
+  const planningSwipe = usePlanningSwipe(handlePrev, handleNext);
 
   // « Aujourd'hui » ne sert qu'à revenir : inutile quand on y est déjà.
   const isOnToday = view === "day"
@@ -2163,11 +2165,13 @@ export default function Planning() {
 
             {/* Keyed on the view so switching mois/semaine/jour plays a soft fade.
                 Calendrier pleine largeur : le détail d'un jour vit dans le modal. */}
-            <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-tab-fade order-5 min-w-0">
-              {view === "month" && <MonthView />}
-              {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
-              {view === "day"   && <DayAgenda />}
-              {view !== "day" && <CalendarLegend />}
+            <div {...planningSwipe} className="order-5 min-w-0">
+              <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-tab-fade">
+                {view === "month" && <MonthView />}
+                {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
+                {view === "day"   && <DayAgenda />}
+                {view !== "day" && <CalendarLegend />}
+              </div>
             </div>
           </div>
 

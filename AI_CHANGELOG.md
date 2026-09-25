@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-25 — Codex — Planning : navigation horizontale
+
+- Glisser à gauche/droite sur le calendrier passe à la période suivante/précédente dans la vue active : jour, semaine ou mois. Fonctionne au toucher, au glisser de souris et au pavé tactile ; les flèches existantes restent inchangées.
+- Le défilement vertical, les contrôles de formulaire et la grille horaire horizontalement défilante gardent leurs gestes. Le clic déclenché juste après un glissement ne peut pas ouvrir une journée par accident.
+- Vérifié sur les données de démonstration locales à 390 px et sur desktop ; tests Planning et lint ciblé. La compilation globale est actuellement bloquée par une erreur de syntaxe dans un changement non lié de `components/BlocusCard.js`.
+
 ## 2026-09-24 — Codex — Planning : micro-raffinement du Mois et de la Semaine
 
 - Mois : la bande de charge de 3 px et sa légende ont été retirées ; la teinte de cours, les titres et le libellé accessible avec la durée exacte restent. La bande de charge reste en Semaine pour comparer les journées.
