@@ -2,6 +2,10 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-25 — Codex — Boutons du thème à l'échelle de Language
+
+- Les trois boutons du thème utilisent désormais exactement le même espacement interne et la même hauteur visuelle que les choix de langue ; l'ancienne taille fixe de 44 × 44 px est retirée. Les icônes restent à 16 px et les libellés accessibles sont conservés.
+
 ## 2026-09-25 — Codex — Icônes du thème ajustées
 
 - Les dessins soleil / appareil / lune dans le choix du thème passent de 22 à 16 px, à une échelle visuelle proche des choix de langue. Les zones tactiles de 44 px, les noms accessibles et l'alignement mobile restent inchangés.

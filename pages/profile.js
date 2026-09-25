@@ -308,7 +308,7 @@ function Segmented({ options, value, onChange, label }) {
       {options.map(o => (
         <button key={o.value} type="button" onClick={() => onChange(o.value)} title={o.title || o.label}
           aria-label={o.label} aria-pressed={value === o.value}
-          className={`rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 ${o.icon ? "h-11 w-11" : "px-2.5 py-1"}`}
+          className="rounded-lg px-2.5 py-1 text-xs font-bold transition-colors flex items-center justify-center gap-1"
           style={value === o.value ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: o.icon ? "var(--bt-text-2)" : "var(--bt-text-3)" }}>
           {o.icon || o.label}
         </button>

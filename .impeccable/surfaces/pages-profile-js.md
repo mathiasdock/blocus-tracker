@@ -31,7 +31,7 @@ The linked Progression and Badges detail pages begin with their real content rat
 
 ## Responsive behavior and accessibility
 
-The Preferences sheet keeps Theme on one row even at 320px. Its three 44px choices use compact 16px sun, device and moon glyphs instead of visible words; translated accessible names and pressed states preserve clarity for assistive technology. Other settings rows retain their existing wrapping behavior.
+The Preferences sheet keeps Theme on one row even at 320px. Its three choices use the same segmented-button padding and visual height as Language, with compact 16px sun, device and moon glyphs instead of visible words; translated accessible names and pressed states preserve clarity for assistive technology. Other settings rows retain their existing wrapping behavior.
 
 The level scene includes a small mint-tinted elliptical platform, a quiet dotted orbit and four static spark/dot accents around the existing shiba. These details stay decorative and introduce no animation timers. Three quarter marks on the XP track and a small flag beside the next level reinforce the progression motif. At the narrowest width, extra title spacing keeps the platform clear of the text.
 
