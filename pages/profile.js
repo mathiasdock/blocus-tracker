@@ -126,9 +126,9 @@ const YEARS = STUDY_YEARS.map(year => year.value);
 // pastille, les icônes ne peuvent plus compter sur un fond pour se faire voir.
 
 const IconGlobe = () => <Glyph size={22}><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4a13.4 13.4 0 0 1 0 17.2 13.4 13.4 0 0 1 0-17.2Z"/></Glyph>;
-const IconMoon = () => <Glyph size={22}><path d="M20.4 13.6A8.6 8.6 0 1 1 10.4 3.6a6.8 6.8 0 0 0 10 10Z"/></Glyph>;
-const IconSun = () => <Glyph size={22}><circle cx="12" cy="12" r="4.4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4 6 6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6"/></Glyph>;
-const IconSystem = () => <Glyph size={22}><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></Glyph>;
+const IconMoon = ({ size = 22 }) => <Glyph size={size}><path d="M20.4 13.6A8.6 8.6 0 1 1 10.4 3.6a6.8 6.8 0 0 0 10 10Z"/></Glyph>;
+const IconSun = ({ size = 22 }) => <Glyph size={size}><circle cx="12" cy="12" r="4.4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4 6 6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6"/></Glyph>;
+const IconSystem = ({ size = 22 }) => <Glyph size={size}><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></Glyph>;
 const IconSmartphone = () => <Glyph size={22}><rect x="6.2" y="2.6" width="11.6" height="18.8" rx="2.8"/><path d="M10.6 5.8h2.8M12 18.2h.01"/></Glyph>;
 const IconVolume = () => <Glyph size={22}><path d="M11.4 4.6 6.6 8.8H3.2v6.4h3.4l4.8 4.2Z"/><path d="M15.4 9.2a4 4 0 0 1 0 5.6M18.2 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
 const IconVibration = () => <Glyph size={22}><rect x="8.4" y="3.2" width="7.2" height="17.6" rx="2.2"/><path d="M4.8 8.6v6.8M19.2 8.6v6.8M2 10.6v2.8M22 10.6v2.8"/></Glyph>;
@@ -1179,9 +1179,9 @@ export default function Profile() {
         <SettingsRow icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} inlineControl right={
           <Segmented value={theme} onChange={setTheme} label={t("profile.theme")}
             options={[
-              { value: "light", label: t("profile.themeLight"), icon: <IconSun /> },
-              { value: "system", label: t("profile.themeSystem"), icon: <IconSystem /> },
-              { value: "dark", label: t("profile.themeDark"), icon: <IconMoon /> },
+              { value: "light", label: t("profile.themeLight"), icon: <IconSun size={16} /> },
+              { value: "system", label: t("profile.themeSystem"), icon: <IconSystem size={16} /> },
+              { value: "dark", label: t("profile.themeDark"), icon: <IconMoon size={16} /> },
             ]} />
         } />
         {sep}
