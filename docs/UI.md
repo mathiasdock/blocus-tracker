@@ -11,6 +11,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | --- | --- |
 | Product constraints | `PRODUCT.md` |
 | Colors, surfaces, controls, navigation tokens | `styles/globals.css` (`:root` / `.dark`) |
+| Shared navigation | `components/Layout.js` (desktop sidebar and route data), `components/ui/floating-nav.jsx` + `FloatingNav.module.css` (mobile tab indicator) |
 | Font families and responsive utilities | `tailwind.config.js`; self-hosted `public/fonts/` |
 | Timer units / daily time | `pages/dashboard.js`, `components/TodayProgressCard.js` |
 | Goal-linked mascot position | `components/stats/StatsHero.js` |

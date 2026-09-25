@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-25 — Codex — Navigation mobile adaptée au produit
+
+- La barre flottante mobile conserve les cinq destinations réelles, les libellés toujours visibles, les badges et les icônes Blocus. Sa sélection occupe maintenant l'onglet entier et glisse vers la destination touchée ; le chemin courant reste la source de vérité de l'état accessible. Social reste sélectionné dans Activité, Amis et Communautés.
+- Le matériau, les marges et les safe areas existants restent. Le mode mouvement réduit coupe la transition ; le thème sombre et le contraste élevé ont un état prévu. Desktop conserve la barre latérale fixe à gauche et gagne `aria-current` sur ses liens actifs.
+- Implémentation JSX/Tailwind existante dans `components/ui`, sans installer Framer Motion, Lucide, TypeScript ou shadcn pour un seul indicateur ; leurs versions de démonstration auraient dupliqué le système d'icônes et les tokens de Blocus.
+- Vérifié dans le navigateur à 320/390px et 1280px, clair/sombre, FR/EN, invité et compte de démonstration (badge Social), ainsi qu'en mouvement réduit. Audit d'accessibilité ciblé : aucune violation ; lint, tests du swipe Social et build de production réussis.
+
 ## 2026-09-25 — Codex — Planning : navigation horizontale
 
 - Glisser à gauche/droite sur le calendrier passe à la période suivante/précédente dans la vue active : jour, semaine ou mois. Fonctionne au toucher, au glisser de souris et au pavé tactile ; les flèches existantes restent inchangées.

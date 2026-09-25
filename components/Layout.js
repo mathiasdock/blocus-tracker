@@ -15,6 +15,7 @@ import useSocialSwipe from "./useSocialSwipe";
 import GuestDiscovery from "./guest/GuestDiscovery";
 import Avatar from "./Avatar";
 import NotificationCenter from "./NotificationCenter";
+import FloatingNav from "./ui/floating-nav";
 
 // ── Icônes ─────────────────────────────────────────────────
 // Dessins seulement : grille, épaisseur et accessibilité viennent de
@@ -292,6 +293,7 @@ export default function Layout({ children }) {
     const badge  = badgeFor(n.href);
     return (
       <Link key={n.href} href={n.href}
+        aria-current={active ? "page" : undefined}
         className="relative flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-medium transition-all"
         style={active ? {
           backgroundColor: "var(--bt-accent-bg)",
@@ -405,6 +407,7 @@ export default function Layout({ children }) {
           ) : (
             <>
               <Link href="/profile"
+                aria-current={router.pathname === "/profile" ? "page" : undefined}
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl transition-all"
                 style={router.pathname === "/profile" ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
                 onMouseEnter={e => { if (router.pathname !== "/profile") e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
@@ -550,34 +553,23 @@ export default function Layout({ children }) {
         </footer>
       </div>
 
-      {/* ══ Bottom nav mobile — 5 onglets ════════════════════════ */}
-      {/* Structure en deux couches pour le safe-area-inset-bottom (indicateur home iPhone) */}
-      {/* Barre FLOTTANTE : detachee des bords, translucide, le contenu defile
-          dessous. Avant, une barre pleine largeur collee en bas avec un filet
-          superieur — la forme d'un site web, pas d'une app. Le style vit en
-          CSS (.bt-nav*) : en inline il ne pouvait pas s'adapter au theme, au
-          mode contraste eleve ni a `prefers-reduced-transparency`. */}
-      <nav className="bt-nav lg:hidden" aria-label={t("nav.primary")}>
-        <div className="bt-nav-bar">
-        {mobileNav.map(n => {
-          const active = n.isSocial
-            ? SOCIAL_PATHS.includes(router.pathname)
-            : router.pathname === n.href;
+      {/* Même cinq destinations et même matériau flottant ; la sélection
+          occupe désormais tout l'onglet et glisse sous l'icône et son nom. */}
+      <FloatingNav
+        label={t("nav.primary")}
+        activeIndex={mobileNav.findIndex(n => n.isSocial
+          ? SOCIAL_PATHS.includes(router.pathname)
+          : router.pathname === n.href)}
+        items={mobileNav.map(n => {
           const badge = isGuest ? 0 : n.isSocial ? socialBadge : badgeFor(n.href);
-          return (
-            <Link key={n.href} href={n.href}
-              aria-current={active ? "page" : undefined}
-              className={`bt-nav-item ${active ? "is-active" : ""}`}>
-              <span className="bt-nav-pill">
-                <NavIcon href={n.iconKey} size={22} />
-                {badge > 0 && <Badge count={badge} small />}
-              </span>
-              <span className="bt-nav-label">{t(n.key)}</span>
-            </Link>
-          );
+          return {
+            href: n.href,
+            label: t(n.key),
+            icon: <NavIcon href={n.iconKey} size={22} />,
+            badge: badge > 0 ? <Badge count={badge} small /> : null,
+          };
         })}
-        </div>
-      </nav>
+      />
 
       {!isGuest && (
         <NotificationCenter open={notificationsOpen} onClose={closeNotifications} panelId={NOTIFICATION_PANEL_ID} />
