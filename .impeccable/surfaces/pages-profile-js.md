@@ -31,6 +31,8 @@ The linked Progression and Badges detail pages begin with their real content rat
 
 ## Responsive behavior and accessibility
 
+The Preferences sheet keeps Theme on one row even at 320px. Its three 44px choices use sun, device and moon glyphs instead of visible words; translated accessible names and pressed states preserve clarity for assistive technology. Other settings rows retain their existing wrapping behavior.
+
 The level scene includes a small mint-tinted elliptical platform, a quiet dotted orbit and four static spark/dot accents around the existing shiba. These details stay decorative and introduce no animation timers. Three quarter marks on the XP track and a small flag beside the next level reinforce the progression motif. At the narrowest width, extra title spacing keeps the platform clear of the text.
 
 Keep two equal columns at compact and desktop widths. Size artwork to each card's available width. When the card content narrows to 120px or less, place the mascot lower so it does not obscure a two-digit level number. Let long translated titles and XP labels wrap. Preserve the bottom XP and collection summaries.

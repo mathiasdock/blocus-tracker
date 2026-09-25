@@ -128,6 +128,7 @@ const YEARS = STUDY_YEARS.map(year => year.value);
 const IconGlobe = () => <Glyph size={22}><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2"/><path d="M12 3.4a13.4 13.4 0 0 1 0 17.2 13.4 13.4 0 0 1 0-17.2Z"/></Glyph>;
 const IconMoon = () => <Glyph size={22}><path d="M20.4 13.6A8.6 8.6 0 1 1 10.4 3.6a6.8 6.8 0 0 0 10 10Z"/></Glyph>;
 const IconSun = () => <Glyph size={22}><circle cx="12" cy="12" r="4.4"/><path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4 6 6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6 6 18M18 6l1.6-1.6"/></Glyph>;
+const IconSystem = () => <Glyph size={22}><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></Glyph>;
 const IconSmartphone = () => <Glyph size={22}><rect x="6.2" y="2.6" width="11.6" height="18.8" rx="2.8"/><path d="M10.6 5.8h2.8M12 18.2h.01"/></Glyph>;
 const IconVolume = () => <Glyph size={22}><path d="M11.4 4.6 6.6 8.8H3.2v6.4h3.4l4.8 4.2Z"/><path d="M15.4 9.2a4 4 0 0 1 0 5.6M18.2 6.4a8 8 0 0 1 0 11.2"/></Glyph>;
 const IconVibration = () => <Glyph size={22}><rect x="8.4" y="3.2" width="7.2" height="17.6" rx="2.2"/><path d="M4.8 8.6v6.8M19.2 8.6v6.8M2 10.6v2.8M22 10.6v2.8"/></Glyph>;
@@ -221,15 +222,15 @@ function CardHead({ icon, tone, label, right }) {
 //  • onClick + right=<IconChevronDown> → se déplie sur place (accordéon)
 //  • href + right=<IconChevronRight>   → mène à une autre page
 //  • right=<contrôle>                  → s'ajuste sur place (toggle/segmented)
-function SettingsRow({ icon, tone, label, description, right, onClick, href, danger }) {
+function SettingsRow({ icon, tone, label, description, right, onClick, href, danger, inlineControl = false }) {
   const inner = (
     // Le contrôle passe à la ligne plutôt que d'écraser le texte : sur 375 px,
     // un bouton large ne laissait qu'une centaine de pixels au libellé et à la
     // description, tous deux tronqués. « Autorisation accordée, mais
     // l'inscription a échoué » s'affichait « Autorisation a... » — le
     // diagnostic était à l'écran, illisible, et nous a coûté plusieurs essais.
-    <div className="flex flex-wrap items-center justify-between gap-3 px-[18px] py-4">
-      <div className="flex min-w-[55%] flex-1 items-center gap-3.5">
+    <div className={`flex items-center justify-between px-[18px] py-4 ${inlineControl ? "gap-2" : "flex-wrap gap-3"}`}>
+      <div className={`flex flex-1 items-center gap-3.5 ${inlineControl ? "min-w-0" : "min-w-[55%]"}`}>
         <RowIcon tone={danger ? "danger" : tone}>{icon}</RowIcon>
         <div className="min-w-0">
           <span className="block text-sm font-medium" style={{ color: danger ? "var(--bt-danger)" : "var(--bt-text-1)" }}>{label}</span>
@@ -301,14 +302,15 @@ function NavGroup({ children }) {
 
 // Segmented control générique (langue, thème…) — le pattern de réglage
 // moderne de la page : état visible d'un coup d'œil, bascule en un tap.
-function Segmented({ options, value, onChange }) {
+function Segmented({ options, value, onChange, label }) {
   return (
-    <div className="flex gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 10, padding: 2 }}>
+    <div role="group" aria-label={label} className="flex gap-0.5" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-border)", borderRadius: 10, padding: 2 }}>
       {options.map(o => (
-        <button key={o.value} onClick={() => onChange(o.value)} title={o.title || undefined}
-          className="px-2.5 py-1 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-          style={value === o.value ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: "var(--bt-text-3)" }}>
-          {o.label}
+        <button key={o.value} type="button" onClick={() => onChange(o.value)} title={o.title || o.label}
+          aria-label={o.label} aria-pressed={value === o.value}
+          className={`rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 ${o.icon ? "h-11 w-11" : "px-2.5 py-1"}`}
+          style={value === o.value ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: o.icon ? "var(--bt-text-2)" : "var(--bt-text-3)" }}>
+          {o.icon || o.label}
         </button>
       ))}
     </div>
@@ -1174,12 +1176,12 @@ export default function Profile() {
             options={[{ value: "auto", label: t("profile.languageAuto") }, { value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
         } />
         {sep}
-        <SettingsRow icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} right={
-          <Segmented value={theme} onChange={setTheme}
+        <SettingsRow icon={theme === "dark" ? <IconMoon /> : <IconSun />} label={t("profile.theme")} inlineControl right={
+          <Segmented value={theme} onChange={setTheme} label={t("profile.theme")}
             options={[
-              { value: "light", label: t("profile.themeLight") },
-              { value: "system", label: t("profile.themeSystem") },
-              { value: "dark", label: t("profile.themeDark") },
+              { value: "light", label: t("profile.themeLight"), icon: <IconSun /> },
+              { value: "system", label: t("profile.themeSystem"), icon: <IconSystem /> },
+              { value: "dark", label: t("profile.themeDark"), icon: <IconMoon /> },
             ]} />
         } />
         {sep}

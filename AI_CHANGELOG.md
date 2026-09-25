@@ -2,6 +2,11 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-25 — Codex — Profil : sélecteur de thème compact
+
+- Dans Préférences, Clair / Système / Sombre deviennent des boutons à icônes soleil / appareil / lune. Les noms traduits restent accessibles et `aria-pressed` indique le choix actuel.
+- Le réglage Thème garde son contrôle à droite du libellé dès 320 px ; les autres rangées conservent leur retour à la ligne lorsque nécessaire. La persistance et le suivi du thème système ne changent pas.
+
 ## 2026-09-25 — Codex — Chrono : listes sans séparateurs
 
 - Les traits entre les cours de « Mes cours » et entre les sessions de « Sessions du jour » ont été retirés. Le trait au-dessus de « Tout voir » disparaît également sur le Chrono.
