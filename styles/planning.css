@@ -45,6 +45,10 @@
 }
 .bt-planning .bt-plan-day-cell[data-fill="planned"] { background: var(--bt-surface); }
 .bt-planning .bt-plan-day-cell:not([data-fill="exam"]):not([data-fill="planned"]):not([data-fill="course"]) { background: var(--bt-surface); }
+.bt-planning .bt-plan-day-cell[data-outside-month="1"]:not([data-fill="exam"]):not([data-fill="course"]) { background: var(--bt-subtle); }
+.bt-plan-adjacent-month-label { color: var(--bt-text-2); font-size: 10px; font-weight: 700; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+.bt-plan-month-objective-title { min-width: 0; font-size: 11px; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.bt-plan-month-objective .bt-plan-course-mark { margin-top: 4px; }
 /* One course owns the whole cell. The stronger wash keeps a busy month legible
    as a study plan; other courses stay in the measured load and day detail. */
 .bt-planning .bt-plan-day-cell[data-fill="course"] {
@@ -79,6 +83,8 @@
 .bt-plan-objective-chip[data-done="1"] { text-decoration: line-through; }
 .bt-plan-objective-chip:focus-visible, .bt-plan-day-cell:focus-visible, .bt-planning-agenda-exam:focus-visible, .bt-planning-week-exam:focus-visible { outline: 2px solid var(--bt-action); outline-offset: -2px; }
 @media (max-width: 639px) {
+  .bt-plan-month-date--labelled { flex-direction: column; align-items: flex-start; gap: 0; }
+  .bt-plan-adjacent-month-label { font-size: 9px; line-height: 10px; }
   .bt-plan-exam-mark--compact { gap: 3px; padding-inline: 4px; font-size: 11px; }
   .bt-plan-exam-mark--compact svg { width: 14px; height: 16px; }
   .bt-plan-exam-mark--compact .bt-plan-exam-mark-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

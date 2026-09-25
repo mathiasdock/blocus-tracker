@@ -20,6 +20,7 @@ Today answers what remains and when the next exam is. The month/week/day toolbar
 - Month tints the cell with the course owning the most minutes that day, and never tints when unassigned work leads — no borrowed identity. The 3px load bar was removed from Month because it duplicated the colored cell at this scale; exact planned time remains in the accessible day label and Week retains the shared-scale band. No dots row and no `+N`. Week exam rows stay neutral so the exam card alone carries the warm surface.
 - Today's two next actions only appear when the visible period does not already contain today; otherwise the calendar below shows the same work with its load, and the week's first day fell under the fold.
 - Month omits wholly out-of-month weeks; Day preserves all management through the existing day detail modal.
+- Month day objectives wrap to multiple lines instead of being forced into one truncated line. Dates outside the displayed month use a quieter date numeral and neutral empty-cell surface; the first visible adjacent date names its month. Exam and course surfaces retain their semantic priority, even outside the month.
 - Revision progress means checklist completion only. Missing checklist data never produces an empty decorative bar. Upcoming exams sort first; overdue/pending objectives stay visible.
 - The ink exam text uses a local warm light foreground on the dark brand surface. Existing compact calendar font sizes and inherited modal treatments remain bounded incumbent conventions, not a new site-wide type/color system.
 

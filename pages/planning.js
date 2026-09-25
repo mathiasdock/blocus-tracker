@@ -1095,9 +1095,7 @@ function CalendarLegend() {
 
 // ── MonthView ─────────────────────────────────────────────────
 // Une carte de la charge de travail. Le fond porte l'IDENTITÉ (le cours qui
-// pèse le plus de minutes ce jour-là), la bande du bas porte la QUANTITÉ et la
-// part de chaque cours. L'examen garde la priorité sur le fond et conserve sa
-// discrète mesure de charge : échéance et révision restent toutes deux lisibles.
+// pèse le plus de minutes ce jour-là). L'examen garde la priorité sur le fond.
 function MonthView() {
   const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
@@ -1126,6 +1124,9 @@ function MonthView() {
             {week.map((d, di) => {
               const key       = ymd(d);
               const inMonth   = d.getMonth() === cursor.month;
+              const adjacentMonthLabel = !inMonth && ((wi === 0 && di === 0) || d.getDate() === 1)
+                ? new Intl.DateTimeFormat(lang === "fr" ? "fr-BE" : "en-US", { month: "short" }).format(d).replace(/\.$/, "")
+                : null;
               const isToday   = key === today;
               const isSel     = key === selectedDate;
               const items     = byDate[key]      || [];
@@ -1170,20 +1171,20 @@ function MonthView() {
                   // Sélectionner un autre jour garde son contour ; aujourd'hui
                   // reste repérable par sa pastille et par `aria-current`.
                   data-fill={fill || undefined} data-selected={isSel && !isToday ? "1" : undefined}
+                  data-outside-month={!inMonth ? "1" : undefined}
                   data-past={key < today ? "1" : undefined}
                   data-past-complete={key < today && !examItems.length && items.length > 0 && items.every(o => o.done) ? "1" : undefined}
                   className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
                   style={{
                     "--bt-day-tint": tint || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
-                    opacity: inMonth || examItems.length ? 1 : 0.75,
                   }}>
                   {/* Day number */}
-                  <span className="mb-1 inline-flex h-6 w-6 items-center justify-center rounded-full font-num text-xs font-bold tabular-nums"
-                    style={isToday
-                      ? { backgroundColor: "var(--bt-action)", color: "#fff" }
-                      : { color: "var(--bt-text-1)" }}>
-                    {d.getDate()}
+                  <span className={`bt-plan-month-date mb-1 inline-flex min-h-6 items-center gap-1 font-num text-xs font-bold tabular-nums${adjacentMonthLabel ? " bt-plan-month-date--labelled" : ""}`}
+                    style={{ color: inMonth ? "var(--bt-text-1)" : "var(--bt-text-2)" }}>
+                    <span className="bt-plan-month-date-number inline-flex h-6 w-6 items-center justify-center rounded-full"
+                      style={isToday ? { backgroundColor: "var(--bt-action)", color: "#fff" } : undefined}>{d.getDate()}</span>
+                    {adjacentMonthLabel && <span className="bt-plan-adjacent-month-label">{adjacentMonthLabel}</span>}
                   </span>
 
                   {examItems.length > 0 && <div className="bt-planning-month-exam">
@@ -1194,9 +1195,9 @@ function MonthView() {
                   {/* Titres — sm+ seulement, quand la case est assez large. */}
                   <div className="hidden space-y-0.5 sm:block">
                     {items.slice(0, 2).map(o => (
-                      <div key={o.id} className="flex items-center gap-1 truncate" title={o.title || courseName(o.course_id) || ""}>
+                      <div key={o.id} className="bt-plan-month-objective flex min-w-0 items-start gap-1" title={o.title || courseName(o.course_id) || ""}>
                         <CourseMark id={o.course_id} />
-                        <span className="truncate text-[10px] leading-tight"
+                        <span className="bt-plan-month-objective-title"
                           style={{ color: "var(--bt-text-1)",
                             textDecoration: o.done ? "line-through" : "none" }}>
                           {o.title || courseName(o.course_id) || "—"}

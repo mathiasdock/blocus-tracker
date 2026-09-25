@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-25 — Codex — Planning : lisibilité des cases du mois
+
+- Les titres d'objectifs du Mois peuvent occuper plusieurs lignes ; les intitulés ordinaires ne sont plus réduits à une seule ligne avec points de suspension.
+- Les dates des mois adjacents sont atténuées sans rendre leurs contenus transparents. Le premier jour visible de chaque mois adjacent nomme ce mois ; les cases vides hors mois ont une surface neutre discrète. Un examen hors mois conserve son fond et son estampille prioritaires.
+- Aucun changement des données, vues ou interactions du Planning.
+
 ## 2026-09-25 — Codex — Navigation mobile adaptée au produit
 
 - La barre flottante mobile conserve les cinq destinations réelles, les libellés toujours visibles, les badges et les icônes Blocus. Sa sélection occupe maintenant l'onglet entier et glisse vers la destination touchée ; le chemin courant reste la source de vérité de l'état accessible. Social reste sélectionné dans Activité, Amis et Communautés.
