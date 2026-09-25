@@ -62,7 +62,7 @@ function shiftISO(iso, days) {
 // ↑ ↓ d'un jour). La case active porte son libellé complet, et la ligne de
 // détail sous la grille écrit la même chose pour tout le monde — souris,
 // doigt ou clavier.
-export default function StudyHeatmap({ sessions = [] }) {
+export default function StudyHeatmap({ days = [] }) {
   const { t, lang } = useI18n();
   const [activeIso, setActiveIso] = useState(null);
   const [hoverIso, setHoverIso] = useState(null);
@@ -77,18 +77,17 @@ export default function StudyHeatmap({ sessions = [] }) {
     }
   }, []);
 
-  // Dates LOCALES des deux côtés (clés et cases) : `slice(0,10)` donnait la date
-  // UTC, donc en UTC+1/+2 une session de fin de soirée tombait la veille — et le
-  // calcul de série (computeStreak) utilise déjà localISO. Les deux doivent
-  // parler la même langue, sinon la grille est décalée d'un jour.
+  // Une case = un jour de session_days (lib/studyDays.mjs) : une session qui
+  // passe minuit colore ses deux jours, chacun pour sa part, et le jour d'une
+  // session ne bouge plus quand l'appareil change de fuseau. Les cases, elles,
+  // restent datées dans le calendrier local de l'appareil.
   const daySecs = useMemo(() => {
     const out = {};
-    sessions.forEach((s) => {
-      const d = localISO(s.started_at);
-      out[d] = (out[d] || 0) + (s.duration_seconds || 0);
+    days.forEach((row) => {
+      out[row.local_date] = (out[row.local_date] || 0) + (Number(row.seconds) || 0);
     });
     return out;
-  }, [sessions]);
+  }, [days]);
 
   const { weeks, todayIso, firstIso } = useMemo(() => {
     const today = new Date();

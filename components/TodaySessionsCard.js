@@ -51,6 +51,12 @@ function formatSessionRange(session, locale) {
 // reste par « Tout voir » : une liste qui défilait À L'INTÉRIEUR de la carte
 // écrasait le formulaire d'édition dans une fenêtre de 80 px. La page
 // Historique réutilise la même carte, une par jour, avec `title` et `aside`.
+//
+// Le Chrono passe pour chaque session `day_seconds`, sa part du jour affiché
+// (session_days) : une session 23:30 → 00:30 y affiche 30 min, avec ses vraies
+// heures. L'édition, elle, porte toujours sur la session ENTIÈRE. `pending`
+// marque une session pas encore en base : elle compte, mais ne se modifie
+// qu'une fois synchronisée.
 export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, title, aside, limit = 0, seeAllHref = "", actionsHint = true, readOnly = false, className = "" }) {
   const { t, lang } = useI18n();
   const [menuId, setMenuId] = useState(null);
@@ -221,9 +227,10 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
                     </p>
                   </div>
                   <span className="font-num shrink-0 text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
-                    {formatMinutesShort(session.duration_seconds)}
+                    {formatMinutesShort(session.day_seconds ?? session.duration_seconds)}
                   </span>
-                  {!readOnly && <button
+                  {!readOnly && session.pending && <span className="h-11 w-11 shrink-0" aria-hidden="true" />}
+                  {!readOnly && !session.pending && <button
                     type="button"
                     onClick={(event) => openMenu(session.id, event)}
                     className="bt-dashboard-control relative z-30 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"

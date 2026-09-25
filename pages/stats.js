@@ -20,6 +20,8 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
 import { computeInsights, regularityTrend } from "../lib/statsInsights.mjs";
+import { fetchStudyDays, mergeStudyDays, secondsOn } from "../lib/studyDays.mjs";
+import { listPending } from "../lib/timerDraft";
 import {
   PERIOD_KEYS, resolvePeriod, buildTimeSeries, courseBreakdown, activeDaysIn,
 } from "../lib/statsPeriod";
@@ -67,6 +69,13 @@ export default function Stats() {
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
   const [sessions, setSessions] = useState([]);
+  // Lignes de session_days : la source de TOUT ce qui se compte par jour.
+  // `sessions` ne sert plus qu'à la série, aux gels et aux habitudes de
+  // session (heure de début, durée moyenne) — leur source d'avant.
+  const [serverDays, setServerDays] = useState([]);
+  // Sessions arrêtées hors ligne, pas encore en base : elles comptent déjà dans
+  // les totaux, exactement comme sur le Chrono.
+  const [queued, setQueued] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]);
   const [comparison, setComparison] = useState(undefined); // undefined=chargement, null=indispo
   // Une lecture qui ÉCHOUE et un compte qui n'a PAS ENCORE de session sont deux
@@ -96,18 +105,21 @@ export default function Stats() {
     // notes de session et l'identifiant client transitaient pour rien), et plus
     // de fenêtre à 370 jours : « Tout » doit pouvoir dire tout. Le total
     // all-time se déduit désormais de ces lignes — une requête de moins.
-    const [coursesRes, sessionsRes] = await Promise.all([
+    const [coursesRes, sessionsRes, daysRes] = await Promise.all([
       // Volontairement SANS filtre sur archived_at : un cours archivé est
       // justement celui dont on veut retrouver les heures du semestre passé.
       supabase.from("courses").select("id, name, color, archived_at").eq("user_id", user.id),
       supabase.from("sessions").select("course_id, duration_seconds, started_at").eq("user_id", user.id),
+      fetchStudyDays(supabase, user.id),
     ]);
-    // Les deux lectures alimentent toute la page : si l'une manque, aucun
-    // chiffre n'est fiable. On ne remplace pas les données par des zéros.
-    if (coursesRes.error || sessionsRes.error) { setLoadFailed(true); return; }
+    // Les lectures alimentent toute la page : si l'une manque, aucun chiffre
+    // n'est fiable. On ne remplace pas les données par des zéros.
+    if (coursesRes.error || sessionsRes.error || daysRes.error) { setLoadFailed(true); return; }
     setLoadFailed(false);
     setCourses(coursesRes.data || []);
     setSessions(sessionsRes.data || []);
+    setServerDays(daysRes.data || []);
+    setQueued(listPending(user.id));
   }, [user]);
 
   useEffect(() => { load().finally(() => setReady(true)); }, [load]);
@@ -122,18 +134,20 @@ export default function Stats() {
   // choisie plus haut : un cours du semestre passé n'a par définition aucune
   // heure dans « 7 derniers jours », et l'afficher à 0 h ne dirait rien de ce
   // qu'il a représenté.
+  const days = useMemo(() => mergeStudyDays(serverDays, { unsynced: queued }), [serverDays, queued]);
+
   const archivedRows = useMemo(() => {
     const secsById = {};
-    sessions.forEach((session) => {
-      if (session.course_id) {
-        secsById[session.course_id] = (secsById[session.course_id] || 0) + (session.duration_seconds || 0);
+    days.forEach((row) => {
+      if (row.course_id) {
+        secsById[row.course_id] = (secsById[row.course_id] || 0) + (Number(row.seconds) || 0);
       }
     });
     return courses
       .filter((course) => course.archived_at)
       .map((course) => ({ id: course.id, name: course.name, secs: secsById[course.id] || 0 }))
       .sort((a, b) => b.secs - a.secs || a.name.localeCompare(b.name));
-  }, [courses, sessions]);
+  }, [courses, days]);
 
   async function restoreArchivedCourse(id) {
     setArchiveBusyId(id);
@@ -163,6 +177,7 @@ export default function Stats() {
     clearClientCache(`dashboard:${user.id}:`);
     setCourses((prev) => prev.filter((c) => c.id !== id));
     setSessions((prev) => prev.map((s2) => s2.course_id === id ? { ...s2, course_id: null } : s2));
+    setServerDays((prev) => prev.map((row) => row.course_id === id ? { ...row, course_id: null } : row));
     toast(t("stats.archivedDeleted"), "success");
   }
 
@@ -208,13 +223,13 @@ export default function Stats() {
   }, [user]);
 
   // ── Dérivés : une plage par section ────────────────────────────
-  const chartRange = useMemo(() => resolvePeriod(chartPeriod, { sessions }), [chartPeriod, sessions]);
-  const courseRange = useMemo(() => resolvePeriod(coursePeriod, { sessions }), [coursePeriod, sessions]);
-  const consistencyRange = useMemo(() => resolvePeriod(CONSISTENCY_PERIOD, { sessions }), [sessions]);
+  const chartRange = useMemo(() => resolvePeriod(chartPeriod, { days }), [chartPeriod, days]);
+  const courseRange = useMemo(() => resolvePeriod(coursePeriod, { days }), [coursePeriod, days]);
+  const consistencyRange = useMemo(() => resolvePeriod(CONSISTENCY_PERIOD, { days }), [days]);
 
-  const series = useMemo(() => buildTimeSeries(sessions, chartRange, lang), [sessions, chartRange, lang]);
-  const breakdown = useMemo(() => courseBreakdown(sessions, courses, courseRange), [sessions, courses, courseRange]);
-  const activeDays = useMemo(() => activeDaysIn(sessions, consistencyRange), [sessions, consistencyRange]);
+  const series = useMemo(() => buildTimeSeries(days, chartRange, lang), [days, chartRange, lang]);
+  const breakdown = useMemo(() => courseBreakdown(days, courses, courseRange), [days, courses, courseRange]);
+  const activeDays = useMemo(() => activeDaysIn(days, consistencyRange), [days, consistencyRange]);
 
   // Libellés explicites : « 7 jours » ne disait pas si la fenêtre était
   // glissante ou calendaire. « 30 derniers jours » et « Ce mois-ci » sont deux
@@ -238,21 +253,20 @@ export default function Stats() {
     : t("stats.periodRange").replace("{from}", fmtDay(range.fromISO)).replace("{to}", fmtDay(range.toISO));
 
   // ── Chiffres du héros (indépendants du filtre : c'est « maintenant ») ──
-  const todayISOLocal = localISO(new Date());
-  const todaySecs = sessions
-    .filter((s) => localISO(s.started_at) === todayISOLocal)
-    .reduce((a, s) => a + s.duration_seconds, 0);
+  // La date de l'appareil choisit QUEL jour est aujourd'hui ; le jour de
+  // chaque session, lui, vient de session_days.
+  const todaySecs = secondsOn(days, localISO(new Date()));
   const thisWeekDates = getWeekDates(0);
-  const weekSecs = sessions
-    .filter((s) => thisWeekDates.includes(localISO(s.started_at)))
-    .reduce((a, s) => a + s.duration_seconds, 0);
-  const allTimeSecs = sessions.reduce((a, s) => a + s.duration_seconds, 0);
+  const weekSecs = days
+    .filter((row) => thisWeekDates.includes(row.local_date))
+    .reduce((a, row) => a + (Number(row.seconds) || 0), 0);
+  const allTimeSecs = days.reduce((a, row) => a + (Number(row.seconds) || 0), 0);
 
   const streak = computeStreak(sessions, frozenDays);
   const bestStreak = computeBestStreak(sessions, frozenDays);
   const sessionCount = sessions.length;
 
-  const insights = useMemo(() => computeInsights(sessions), [sessions]);
+  const insights = useMemo(() => computeInsights(sessions, days), [sessions, days]);
   // L'ancienne carte « insight » répétait, en tête de page, un chiffre que sa
   // section affiche désormais à sa place (créneau dominant, part du premier
   // cours, jour le plus étudié). Seule l'évolution de la régularité n'était
@@ -278,7 +292,7 @@ export default function Stats() {
 
   if (!ready || forceSkeleton) return <Layout><PageContentSkeleton pathname="/stats" /></Layout>;
 
-  const empty = sessionCount === 0;
+  const empty = sessionCount === 0 && days.length === 0;
 
   return (
     <Layout>
@@ -367,7 +381,7 @@ export default function Stats() {
           </div>
 
           <ConsistencyCard
-            sessions={sessions}
+            days={days}
             streak={streak}
             bestStreak={bestStreak}
             activeDays={activeDays}

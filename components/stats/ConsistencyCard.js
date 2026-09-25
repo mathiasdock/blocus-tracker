@@ -20,7 +20,7 @@ import { useI18n } from "../../contexts/I18nContext";
 // Sur grand écran, les faits se rangent à gauche de la grille qu'ils résument :
 // l'année entière tient alors d'un seul regard, sans défilement horizontal.
 export default function ConsistencyCard({
-  sessions,
+  days,
   streak,
   bestStreak,
   activeDays,
@@ -83,7 +83,7 @@ export default function ConsistencyCard({
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
             {t("heatmap.title")}
           </p>
-          <StudyHeatmap sessions={sessions} />
+          <StudyHeatmap days={days} />
         </div>
       </div>
     </section>

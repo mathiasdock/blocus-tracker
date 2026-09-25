@@ -127,7 +127,7 @@ function ExamHorizon({ exams, courses, locale, t }) {
   );
 }
 
-export default function BlocusCard({ sessions, exams, courses = [], onChange, className = "" }) {
+export default function BlocusCard({ studyDays, exams, courses = [], onChange, className = "" }) {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const [state, setState] = useState({ loading: true, supported: true, current: null });
@@ -147,7 +147,7 @@ export default function BlocusCard({ sessions, exams, courses = [], onChange, cl
   // Migration v40 pas encore exécutée : on n'affiche rien plutôt qu'une carte cassée.
   if (state.loading || !state.supported || !user) return null;
 
-  const progress = computeProgress(state.current, sessions);
+  const progress = computeProgress(state.current, studyDays);
 
   async function submit() {
     setBusy(true);

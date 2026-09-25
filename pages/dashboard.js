@@ -13,7 +13,8 @@ import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost, shareSavedSession } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
-import { newClientId, enqueueSession, removeFromQueue, flushPending } from "../lib/timerDraft";
+import { newClientId, enqueueSession, removeFromQueue, flushPending, listPending } from "../lib/timerDraft";
+import { fetchStudyDays, mergeStudyDays, secondsByDay, secondsOn, sessionsOnDay, unsyncedSessionDays } from "../lib/studyDays.mjs";
 import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey } from "../lib/streakFreezes";
@@ -223,7 +224,15 @@ export default function Dashboard() {
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
   const [examRows, setExamRows] = useState([]);
+  // Lignes de session du jour (celles que la liste affiche) : commencées
+  // aujourd'hui, plus celles que session_days place aujourd'hui sans qu'elles
+  // aient commencé aujourd'hui (23:30 → 00:30).
   const [sessions, setSessions] = useState([]);
+  // Lignes de session_days sur 90 jours : la source de TOUT ce qui se compte
+  // par jour sur cette page (aujourd'hui, semaine, meilleur jour, blocus).
+  const [serverDays, setServerDays] = useState([]);
+  // File hors ligne (lib/timerDraft) : sessions arrêtées, pas encore en base.
+  const [queuedSessions, setQueuedSessions] = useState([]);
   const [streak, setStreak] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   // Garde l'écran allumé tant qu'une session tourne (inline ou mode focus) :
@@ -257,10 +266,11 @@ export default function Dashboard() {
   const [courseEditorBusy, setCourseEditorBusy] = useState(false);
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle"|"saving"|"success"|"error"
   const savingRef = useRef(false);
-  // Sessions arrêtées dont la ligne n'est pas encore revenue dans `sessions` :
+  // Sessions arrêtées dont les jours ne sont pas encore revenus de la base :
   // sans elles le total du jour RETOMBERAIT le temps d'un aller-retour réseau,
-  // juste après avoir été crédité par le chrono. L'entrée porte l'id de la
-  // session, donc elle ne peut pas compter deux fois.
+  // juste après avoir été crédité par le chrono. L'entrée porte la session
+  // entière (ses jours se calculent comme en base) et son id, donc elle ne
+  // peut pas compter deux fois.
   const [pendingCredits, setPendingCredits] = useState([]);
   const [completionToast, setCompletionToast] = useState(null);
   // Amis pour l'envoi depuis le récapitulatif. `null` = pas encore chargés ;
@@ -299,6 +309,7 @@ export default function Dashboard() {
     setExamRows(data.examRows || []);
     setCourseId(current => active.some((course) => course.id === current) ? current : active[0]?.id || "");
     setSessions(data.sessions || []);
+    setServerDays(data.days || []);
     setRecentSessions(data.recentSessions || []);
     setStreak(computeStreak(data.recentSessions || []));
     setTodayObjectives(data.objectives || []);
@@ -400,8 +411,9 @@ export default function Dashboard() {
 
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const todayDate = localISO(new Date());
 
-    const [coursesRes, examsRes, sessionsRes, recentRes, objectivesRes] = await Promise.all([
+    const [coursesRes, examsRes, sessionsRes, recentRes, objectivesRes, daysRes] = await Promise.all([
       supabase
         .from("courses")
         .select("*")
@@ -424,16 +436,33 @@ export default function Dashboard() {
         .from("objectives")
         .select("*")
         .eq("user_id", user.id)
-        .eq("scheduled_date", localISO(new Date()))
+        .eq("scheduled_date", todayDate)
         .order("done"),
+      cached ? Promise.resolve({ data: cached.days || [] }) : fetchStudyDays(supabase, user.id, { fromISO: localISO(ninetyDaysAgo) }),
     ]);
+
+    // Une session peut appartenir à aujourd'hui sans avoir commencé
+    // aujourd'hui (23:30 → 00:30) : session_days dit lesquelles, `sessions`
+    // donne leurs heures, leur cours et leur note.
+    let todaySessions = sessionsRes.data || [];
+    const days = daysRes.data || [];
+    const loadedIds = new Set(todaySessions.map((session) => session.id));
+    const missingIds = [...new Set(days
+      .filter((row) => row.local_date === todayDate && !loadedIds.has(row.session_id))
+      .map((row) => row.session_id))];
+    if (missingIds.length) {
+      const { data: extra } = await supabase.from("sessions").select("*").in("id", missingIds);
+      if (extra?.length) todaySessions = [...todaySessions, ...extra];
+    }
+    setQueuedSessions(listPending(user.id));
 
     const data = {
       courses: coursesRes.error ? cached?.courses || [] : coursesRes.data || [],
       examRows: examsRes.error ? cached?.examRows || [] : examsRes.data || [],
-      sessions: sessionsRes.data || [],
+      sessions: todaySessions,
       recentSessions: recentRes.data || [],
       objectives: objectivesRes.data || [],
+      days,
     };
     setClientCache(cacheKey, data, 45000);
     applyDashboardData(data);
@@ -532,7 +561,16 @@ export default function Dashboard() {
 
   // Repli local pour les missions du dashboard : sert uniquement quand le RPC
   // serveur n'est pas joignable (mode hors-ligne, migration pas encore passée).
+  // Les missions gardent leur source : les sessions COMMENCÉES depuis minuit
+  // (heure de l'appareil). `sessions` contient aussi celles d'hier qui débordent
+  // sur aujourd'hui — utiles à la liste et aux totaux, pas aux missions.
+  const missionSessions = useMemo(() => {
+    if (isGuest) return sessions;
+    const dayStart = new Date(localDayStartISO()).getTime();
+    return sessions.filter((s) => new Date(s.started_at).getTime() >= dayStart);
+  }, [isGuest, sessions]);
   const missionStats = useMemo(() => {
+    const sessions = missionSessions;
     // Minutes par cours, pas simple présence : deux minutes sur un second
     // cours validaient « étudie 2 cours différents », ce qui récompensait le
     // clic plutôt que le travail.
@@ -551,7 +589,7 @@ export default function Dashboard() {
       streak,
       studiedBeforeNoon: sessions.some(s => new Date(s.started_at).getHours() < 12),
     };
-  }, [sessions, streak]);
+  }, [missionSessions, streak]);
 
   // Missions : le chargement est remonté ici parce que trois surfaces en
   // dépendent désormais — la bande de défi contre le bouton Start, le résumé
@@ -690,7 +728,7 @@ export default function Dashboard() {
 
       pause();
       reset();
-      setPendingCredits((prev) => [...prev, { id: payload.id, secs }]);
+      setPendingCredits((prev) => [...prev, { id: payload.id, session: payload }]);
 
       if (isGuest) {
         const nextSessions = [payload, ...sessions];
@@ -760,7 +798,7 @@ export default function Dashboard() {
     //    elapsed (id idempotent via PK). Le total du jour prend le relais du
     //    chrono dans le même geste : il ne redescend pas en attendant la base.
     reset();
-    setPendingCredits((prev) => [...prev, { id: payload.id, secs: seconds }]);
+    setPendingCredits((prev) => [...prev, { id: payload.id, session: payload }]);
 
     if (isGuest) {
       savingRef.current = false;
@@ -802,15 +840,20 @@ export default function Dashboard() {
     // Succès : on retire le draft de la queue.
     removeFromQueue(payload.id);
 
-    const currentTotal = sessions.reduce((a, s) => a + s.duration_seconds, 0);
-    const newGoalPct = Math.min(100, Math.round(((currentTotal + seconds) / DAILY_GOAL_SECS) * 100));
+    // Seule la part d'AUJOURD'HUI compte pour l'objectif du jour : une session
+    // commencée avant minuit en laisse une partie à hier.
+    const todayPart = secondsOn(unsyncedSessionDays(inserted || payload), localISO(new Date()));
+    const newGoalPct = Math.min(100, Math.round(((totalToday + todayPart) / DAILY_GOAL_SECS) * 100));
     const xpGained = Math.floor(seconds / 60);
 
     // Optimistic update — use the server row si dispo, sinon notre payload
     // (cas du 23505 idempotent où inserted === null mais la ligne existe).
+    // Seule la ligne renvoyée par la base entre dans `sessions` : elle porte le
+    // fuseau que la base a retenu. Le payload seul reste un crédit en attente
+    // jusqu'au rechargement, pour ne pas être pris pour une session historique.
     const sessionRow = inserted || payload;
     clearDashboardCache();
-    setSessions(prev => prev.some(s => s.id === sessionRow.id) ? prev : [sessionRow, ...prev]);
+    if (inserted) setSessions(prev => prev.some(s => s.id === inserted.id) ? prev : [inserted, ...prev]);
     notifyXPChanged();
     setSaveStatus("success");
     setTimeout(() => setSaveStatus("idle"), 2500);
@@ -897,6 +940,7 @@ export default function Dashboard() {
     }
     await supabase.from("sessions").delete().eq("id", id);
     setSessions(prev => prev.filter(s => s.id !== id));
+    setServerDays(prev => prev.filter(row => row.session_id !== id));
   }
 
   async function updateSession(session, { minutes, courseId: nextCourseId }) {
@@ -929,6 +973,10 @@ export default function Dashboard() {
       ? { ...s, duration_seconds: newSecs, course_id: nextCourseId || null, started_at: adjustedStartedAt }
       : s
     ));
+    // Ses anciens jours ne valent plus : la session modifiée est recalculée
+    // localement avec la règle de la base (même fuseau, figé à la création)
+    // jusqu'au prochain chargement.
+    setServerDays(prev => prev.filter(row => row.session_id !== session.id));
     return true;
   }
 
@@ -1040,8 +1088,6 @@ export default function Dashboard() {
     }
   }
 
-  const recordedToday = sessions.reduce((a, s) => a + s.duration_seconds, 0);
-
   // Objectif effectif des Blocus Blocks : phase pomodoro > objectif de
   // session > mode libre (null → les blocs poussent sans fin).
   const pomoTargetSecs = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
@@ -1069,23 +1115,36 @@ export default function Dashboard() {
   // « Chrono 16:19 / Aujourd'hui 1 min » était techniquement exact et
   // incompréhensible : le total du jour ne lisait que les sessions ENREGISTRÉES
   // pendant que le chrono tenait du temps non encore sauvé. La journée additionne
-  // donc les trois sources, sans jamais compter deux fois :
-  //   · `recordedToday` — ce que la base connaît déjà ;
-  //   · `pendingCredits` — ce qui vient d'être arrêté et n'est pas encore
-  //     revenu de la base (ou attend dans la file hors ligne) ; une entrée
-  //     s'efface d'elle-même dès que sa session apparaît dans `sessions` ;
+  // donc trois sources, sans jamais compter une session deux fois (son id est
+  // la clé, celle-là même qui rend la file hors ligne idempotente) :
+  //   · session_days — les jours que la base connaît déjà ;
+  //   · les sessions que la base n'a pas encore renvoyées — arrêtées à
+  //     l'instant (`pendingCredits`) ou en file hors ligne — dont les jours sont
+  //     calculés avec la règle de la base (lib/studyDays.mjs) ; elles cèdent la
+  //     place dès que session_days les contient ;
   //   · `liveStudySecs` — la session qui tourne, remise à zéro par `reset()`
   //     à l'instant précis où le crédit prend le relais.
-  const creditedToday = pendingCredits.reduce(
-    (a, c) => (sessions.some((s) => s.id === c.id) ? a : a + c.secs), 0);
-  const totalToday = recordedToday + creditedToday;
+  // « Aujourd'hui » est la date locale de l'appareil : elle choisit quelle
+  // journée afficher, jamais le jour d'une session passée.
+  const todayDate = localISO(new Date());
+  const unsyncedSessions = useMemo(
+    () => [...queuedSessions, ...pendingCredits.map((c) => c.session)],
+    [queuedSessions, pendingCredits],
+  );
+  const studyDays = useMemo(() => (isGuest
+    ? mergeStudyDays([], { unsynced: [...sessions, ...unsyncedSessions] })
+    : mergeStudyDays(serverDays, { synced: sessions, unsynced: unsyncedSessions })),
+  [isGuest, serverDays, sessions, unsyncedSessions]);
+  const totalToday = secondsOn(studyDays, todayDate);
+  // La liste du jour : exactement les sessions qui font ce total, chacune avec
+  // SA part d'aujourd'hui (`day_seconds`) et ses vraies heures.
+  const todaySessionList = useMemo(() => sessionsOnDay(studyDays, todayDate, isGuest
+    ? { unsynced: [...sessions, ...unsyncedSessions] }
+    : { synced: sessions, unsynced: unsyncedSessions }),
+  [studyDays, todayDate, isGuest, sessions, unsyncedSessions]);
 
   // ── Records (fenêtre 90 jours) ────────────────────────────────
-  const dayTotals = {};
-  recentSessions.forEach(s => {
-    const d = s.started_at ? localISO(s.started_at) : "";
-    if (d) dayTotals[d] = (dayTotals[d] || 0) + (s.duration_seconds || 0);
-  });
+  const dayTotals = secondsByDay(studyDays);
   const bestDaySecs = Object.values(dayTotals).reduce((m, v) => Math.max(m, v), 0);
   const longestSessionSecs = recentSessions.reduce((m, s) => Math.max(m, s.duration_seconds || 0), 0);
   const weekStart = new Date();
@@ -1194,14 +1253,15 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, running, pomodoro, pomoPhase]);
 
-  // Un crédit disparaît dès que sa session est dans la liste : le total ne
+  // Un crédit disparaît dès que la base connaît sa session : le total ne
   // bouge pas, il change juste de source.
   useEffect(() => {
+    const known = new Set([...sessions.map((s) => s.id), ...serverDays.map((row) => row.session_id)]);
     setPendingCredits((prev) => {
-      const kept = prev.filter((c) => !sessions.some((s) => s.id === c.id));
+      const kept = prev.filter((c) => !known.has(c.id));
       return kept.length === prev.length ? prev : kept;
     });
-  }, [sessions]);
+  }, [sessions, serverDays]);
 
   // Ce jalon reste indépendant des Blocus Blocks de 15 min : un retour bref
   // accompagne chaque tranche de 25 min réellement franchie.
@@ -1687,7 +1747,7 @@ export default function Dashboard() {
           className="order-4 lg:order-3 lg:flex-1"
           limit={isGuest ? 2 : 3}
           seeAllHref={isGuest ? "" : "/historique"}
-          sessions={sessions}
+          sessions={todaySessionList}
           courses={courses}
           selectableCourses={activeCourses}
           onUpdate={updateSession}
@@ -1798,7 +1858,7 @@ export default function Dashboard() {
             }}
           />
           <BlocusCard
-            sessions={recentSessions}
+            studyDays={studyDays}
             exams={normalizedExams}
             courses={courses}
             onChange={handleBlocusLoaded}

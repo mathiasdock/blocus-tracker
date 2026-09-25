@@ -86,7 +86,7 @@ test("l'evolution de la regularite ne parle que d'un ecart net", () => {
 test("une barre qui compte moins de jours que ses voisines le dit", () => {
   // Historique commence un mercredi : la premiere semaine n'a que 5 jours.
   const range = { fromISO: '2026-06-03', toISO: '2026-07-14', days: 42 };
-  const series = buildTimeSeries([at('2026-06-03T10:00:00', 3600)], range, 'fr');
+  const series = buildTimeSeries([{ session_id: 's', local_date: '2026-06-03', seconds: 3600 }], range, 'fr');
   assert.equal(series[0].gran, 'week');
   assert.equal(series[0].partial, true);
   assert.equal(series[0].days, 5);
