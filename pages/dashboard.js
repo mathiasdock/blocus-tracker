@@ -1744,6 +1744,7 @@ export default function Dashboard() {
           // de droite est la plus haute — la Progression du jour fait de même
           // dans l'autre sens, si bien qu'aucune des deux ne laisse de trou.
           className="order-4 lg:order-3 lg:flex-1"
+          showDividers={false}
           limit={isGuest ? 2 : 3}
           seeAllHref={isGuest ? "" : "/historique"}
           sessions={todaySessionList}

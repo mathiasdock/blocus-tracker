@@ -2,6 +2,11 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-25 — Codex — Chrono : listes sans séparateurs
+
+- Les traits entre les cours de « Mes cours » et entre les sessions de « Sessions du jour » ont été retirés. Le trait au-dessus de « Tout voir » disparaît également sur le Chrono.
+- L'espacement et les repères de cours gardent les rangées distinctes. La même carte réutilisée dans l'Historique conserve ses séparateurs ; aucune action ni donnée ne change.
+
 ## 2026-09-25 — Codex — Planning : lisibilité des cases du mois
 
 - Les titres d'objectifs du Mois peuvent occuper plusieurs lignes ; les intitulés ordinaires ne sont plus réduits à une seule ligne avec points de suspension.

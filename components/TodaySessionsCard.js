@@ -57,7 +57,7 @@ function formatSessionRange(session, locale) {
 // heures. L'édition, elle, porte toujours sur la session ENTIÈRE. `pending`
 // marque une session pas encore en base : elle compte, mais ne se modifie
 // qu'une fois synchronisée.
-export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, title, aside, limit = 0, seeAllHref = "", actionsHint = true, readOnly = false, className = "" }) {
+export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, title, aside, limit = 0, seeAllHref = "", actionsHint = true, readOnly = false, showDividers = true, className = "" }) {
   const { t, lang } = useI18n();
   const [menuId, setMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -207,7 +207,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
           <p className="text-sm leading-snug" style={{ color: "var(--bt-text-2)" }}>{t("dash.noSession")}</p>
         </div>
       ) : (
-        <ul className="mt-3 divide-y divide-[color:var(--bt-border)]">
+        <ul className={`mt-3${showDividers ? " divide-y divide-[color:var(--bt-border)]" : ""}`}>
           {shown.map((session) => {
             const course = courses.find((item) => item.id === session.course_id);
             const maxMinutes = Math.max(1, Math.floor(Number(session.duration_seconds || 0) / 60));
@@ -293,7 +293,7 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
       {/* « Tout voir » en pied de carte, centré, comme la liste d'opérations
           de Revolut : on lit d'abord, puis on descend vers le reste. */}
       {seeAllHref && (
-        <div className="mt-auto flex justify-center border-t pt-1" style={{ borderColor: "var(--bt-border)" }}>
+        <div className={`mt-auto flex justify-center pt-1${showDividers ? " border-t" : ""}`} style={showDividers ? { borderColor: "var(--bt-border)" } : undefined}>
           <Link href={seeAllHref} className="bt-dashboard-control mt-2 inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold" style={{ color: "var(--bt-accent-text)" }}>
             {t("dash.seeAllSessions")}
           </Link>

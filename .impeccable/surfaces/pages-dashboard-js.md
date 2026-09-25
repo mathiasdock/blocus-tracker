@@ -33,6 +33,8 @@ Le chrono est le centre de gravité. Sur mobile, l'ordre est Chrono → Missions
 
 **Sécurité du mouvement.** L'ancien battement plein écran à 1 Hz (opacité 0,14 → 1,0, attaque sèche) est remplacé par des respirations lentes (2,4–2,6 s), sans attaque, d'amplitude réduite, et la vignette du mode Focus garde son centre transparent pour que le chrono ne clignote jamais. Sous `prefers-reduced-motion`, chaque respiration devient sa version POSÉE à pleine force : l'avertissement n'est jamais retiré, le problème de comportement ne disparaissant pas pour ces personnes.
 
+**Listes du Chrono.** « Mes cours » et « Sessions du jour » séparent leurs rangées par l'espace, sans traits horizontaux ; les repères de cours, titres, heures et actions restent inchangés. La liste de l'Historique conserve ses séparateurs, utiles entre journées et sessions plus nombreuses.
+
 ## Mascot frequency
 
 La mascotte ne réagit plus au quart d'heure — une journée de huit heures produisait trente-deux apparitions. L'accumulation ordinaire est portée par les unités elles-mêmes, plus un retour haptique bref toutes les vingt-cinq minutes. Restent les heures pleines, l'objectif de session, l'objectif du jour, la plus longue session et le record du jour : des événements déjà existants, aucun critère nouveau.
