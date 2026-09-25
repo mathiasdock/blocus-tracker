@@ -11,7 +11,7 @@ import {
   fetchBlocus, createBlocus, archiveBlocus,
   computeProgress, suggestFromExams,
 } from "../lib/blocus";
-import { todayISO } from "../lib/format";
+import { localISO } from "../lib/format";
 
 const fmtH = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
 
@@ -91,7 +91,10 @@ function daysUntil(date, today) {
 const EXAM_ROW = 56;
 
 function ExamHorizon({ exams, courses, locale, t }) {
-  const today = todayISO();
+  // Date locale de l'appareil, comparée telle quelle aux dates d'examen (des
+  // dates de calendrier, sans fuseau) : la date UTC passait au lendemain le
+  // soir aux États-Unis et faisait disparaître l'examen du jour.
+  const today = localISO(new Date());
   const upcoming = (exams || []).filter((exam) => String(exam.exam_date).slice(0, 10) >= today);
   const dayFormat = new Intl.DateTimeFormat(locale, { day: "numeric" });
   const monthFormat = new Intl.DateTimeFormat(locale, { month: "short" });

@@ -14,7 +14,7 @@ import { autoSharePost, shareSavedSession } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending, listPending } from "../lib/timerDraft";
-import { fetchStudyDays, mergeStudyDays, secondsByDay, secondsOn, sessionsOnDay, unsyncedSessionDays } from "../lib/studyDays.mjs";
+import { currentWeekDates, fetchStudyDays, mergeStudyDays, secondsByDay, secondsOn, sessionsOnDay, thisWeekSeconds, unsyncedSessionDays } from "../lib/studyDays.mjs";
 import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey } from "../lib/streakFreezes";
@@ -1147,18 +1147,17 @@ export default function Dashboard() {
   const dayTotals = secondsByDay(studyDays);
   const bestDaySecs = Object.values(dayTotals).reduce((m, v) => Math.max(m, v), 0);
   const longestSessionSecs = recentSessions.reduce((m, s) => Math.max(m, s.duration_seconds || 0), 0);
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - 6);
-  const weekStartISO = localISO(weekStart);
-  const weekSecs = Object.entries(dayTotals).reduce((a, [d, v]) => (d >= weekStartISO ? a + v : a), 0);
-  // Les mêmes sept jours, un par un, pour la carte de progression (même clé de
-  // date que `weekSecs` : les barres additionnées donnent exactement le total).
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(weekStart);
-    day.setDate(weekStart.getDate() + i);
-    const date = localISO(day);
-    return { date, secs: dayTotals[date] || 0 };
-  });
+  // « Cette semaine » = du lundi à aujourd'hui (calendrier local), la même
+  // définition que sur /stats et que la mission hebdomadaire dont l'objectif
+  // s'affiche à côté. Les barres montrent lundi → dimanche : les jours passés
+  // additionnés donnent exactement le total, les jours à venir restent vides.
+  const weekSecs = thisWeekSeconds(studyDays);
+  const weekDays = currentWeekDates().map((date) => ({
+    date,
+    secs: dayTotals[date] || 0,
+    isToday: date === todayDate,
+    isFuture: date > todayDate,
+  }));
 
   // ── Ce que les blocs ne disent pas ───────────────────────────
   // L'en-tete des blocs portait quatre encodages de la meme quantite : le

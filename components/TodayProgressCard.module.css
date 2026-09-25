@@ -254,6 +254,9 @@
 .weekDay:hover .weekBar:not([data-empty]) { filter: brightness(1.25); }
 .weekLetter { font-size: 11px; font-weight: 700; line-height: 1; text-transform: uppercase; color: var(--bt-ink-muted); }
 .weekDay[data-today] .weekLetter { color: var(--bt-ink-text); }
+/* Jours pas encore arrivés de la semaine en cours : présents pour la forme, sans valeur. */
+.weekDay[data-future] .weekLetter { opacity: 0.45; }
+.weekDay[data-future] .weekBar[data-empty] { opacity: 0.45; }
 @media (prefers-reduced-motion: reduce) { .weekBar { transition: none; } }
 
 .paused { margin-top: 12px; font-size: 12px; line-height: 1.4; color: var(--bt-ink-muted); }

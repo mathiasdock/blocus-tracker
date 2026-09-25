@@ -46,8 +46,8 @@ export default function TodayProgressCard({
   // chiffre, deux fois, dans la même colonne. La mission ne s'écrit plus
   // ailleurs — elle devient l'objectif de la stat qui existait déjà.
   weeklyGoalMin = 0,
-  // Les sept derniers jours, du plus ancien à aujourd'hui : [{ date, secs }].
-  // Dessinés seulement sur ordinateur, où la carte s'étire jusqu'au bas de la
+  // La semaine en cours, lundi → dimanche : [{ date, secs, isToday, isFuture }].
+  // Les jours à venir restent vides. Dessinés seulement sur ordinateur, où la carte s'étire jusqu'au bas de la
   // colonne du chrono — la place gagnée devient la semaine jour par jour au
   // lieu d'un aplat vide.
   weekDays = [],
@@ -211,14 +211,16 @@ export default function TodayProgressCard({
               {weekDays.map((day, i) => {
                 const letter = dayLetter.format(new Date(`${day.date}T12:00:00`));
                 return (
-                  <div key={day.date} className={styles.weekDay} data-today={i === weekDays.length - 1 ? "1" : undefined}>
+                  <div key={day.date} className={styles.weekDay} data-today={day.isToday ? "1" : undefined} data-future={day.isFuture ? "1" : undefined}>
                     <span className={styles.weekBarSlot} style={{ "--top": Math.min(1, day.secs / weekScale) }}>
                       <span className={styles.weekBar} style={{ "--h": drawn ? Math.min(1, day.secs / weekScale) : 0 }} data-empty={day.secs > 0 ? undefined : "1"} />
                       {/* Au survol : le temps de CE jour-là. La barre donne la
                           forme de la semaine, l'infobulle donne le chiffre. */}
-                      <span className={styles.weekTip} data-align={i < 2 ? "start" : i > 4 ? "end" : undefined}>
-                        {dayName.format(new Date(`${day.date}T12:00:00`))} · {formatMinutesShort(day.secs)}
-                      </span>
+                      {!day.isFuture && (
+                        <span className={styles.weekTip} data-align={i < 2 ? "start" : i > 4 ? "end" : undefined}>
+                          {dayName.format(new Date(`${day.date}T12:00:00`))} · {formatMinutesShort(day.secs)}
+                        </span>
+                      )}
                     </span>
                     <span className={styles.weekLetter}>{letter}</span>
                   </div>

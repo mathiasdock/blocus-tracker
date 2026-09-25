@@ -18,9 +18,9 @@ import { useToast } from "../contexts/ToastContext";
 import { clearClientCache } from "../lib/clientCache";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { getWeekDates, localISO, computeStreak, computeBestStreak } from "../lib/format";
+import { localISO, computeStreak, computeBestStreak } from "../lib/format";
 import { computeInsights, regularityTrend } from "../lib/statsInsights.mjs";
-import { fetchStudyDays, mergeStudyDays, secondsOn } from "../lib/studyDays.mjs";
+import { fetchStudyDays, mergeStudyDays, secondsOn, thisWeekSeconds } from "../lib/studyDays.mjs";
 import { listPending } from "../lib/timerDraft";
 import {
   PERIOD_KEYS, resolvePeriod, buildTimeSeries, courseBreakdown, activeDaysIn,
@@ -256,10 +256,8 @@ export default function Stats() {
   // La date de l'appareil choisit QUEL jour est aujourd'hui ; le jour de
   // chaque session, lui, vient de session_days.
   const todaySecs = secondsOn(days, localISO(new Date()));
-  const thisWeekDates = getWeekDates(0);
-  const weekSecs = days
-    .filter((row) => thisWeekDates.includes(row.local_date))
-    .reduce((a, row) => a + (Number(row.seconds) || 0), 0);
+  // « Cette semaine » = du lundi à aujourd'hui, même calcul que le Chrono.
+  const weekSecs = thisWeekSeconds(days);
   const allTimeSecs = days.reduce((a, row) => a + (Number(row.seconds) || 0), 0);
 
   const streak = computeStreak(sessions, frozenDays);
