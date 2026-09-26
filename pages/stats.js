@@ -18,9 +18,11 @@ import { useToast } from "../contexts/ToastContext";
 import { clearClientCache } from "../lib/clientCache";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { localISO, computeStreak, computeBestStreak } from "../lib/format";
+import { localISO } from "../lib/format";
 import { computeInsights, regularityTrend } from "../lib/statsInsights.mjs";
 import { fetchStudyDays, mergeStudyDays, secondsOn, thisWeekSeconds } from "../lib/studyDays.mjs";
+import { studyDayMinSeconds } from "../lib/studyDayStates.mjs";
+import { useOfficialStreak } from "../lib/useOfficialStreak";
 import { listPending } from "../lib/timerDraft";
 import {
   PERIOD_KEYS, resolvePeriod, buildTimeSeries, courseBreakdown, activeDaysIn,
@@ -229,7 +231,12 @@ export default function Stats() {
 
   const series = useMemo(() => buildTimeSeries(days, chartRange, lang), [days, chartRange, lang]);
   const breakdown = useMemo(() => courseBreakdown(days, courses, courseRange), [days, courses, courseRange]);
-  const activeDays = useMemo(() => activeDaysIn(days, consistencyRange), [days, consistencyRange]);
+  // Série officielle (serveur ; calcul canonique local seulement pour une
+  // session hors ligne pas encore en base). Ses règles disent aussi ce qu'est
+  // un « jour étudié ».
+  const official = useOfficialStreak({ supabase, userId: user?.id || null, serverRows: serverDays, rows: days, freezes: frozenDays });
+  const minSecondsFor = useCallback((date) => studyDayMinSeconds(date, official.rules), [official.rules]);
+  const activeDays = useMemo(() => activeDaysIn(days, consistencyRange, minSecondsFor), [days, consistencyRange, minSecondsFor]);
 
   // Libellés explicites : « 7 jours » ne disait pas si la fenêtre était
   // glissante ou calendaire. « 30 derniers jours » et « Ce mois-ci » sont deux
@@ -260,11 +267,11 @@ export default function Stats() {
   const weekSecs = thisWeekSeconds(days);
   const allTimeSecs = days.reduce((a, row) => a + (Number(row.seconds) || 0), 0);
 
-  const streak = computeStreak(sessions, frozenDays);
-  const bestStreak = computeBestStreak(sessions, frozenDays);
+  const streak = official.current;
+  const bestStreak = official.best;
   const sessionCount = sessions.length;
 
-  const insights = useMemo(() => computeInsights(sessions, days), [sessions, days]);
+  const insights = useMemo(() => computeInsights(sessions, days, minSecondsFor), [sessions, days, minSecondsFor]);
   // L'ancienne carte « insight » répétait, en tête de page, un chiffre que sa
   // section affiche désormais à sa place (créneau dominant, part du premier
   // cours, jour le plus étudié). Seule l'évolution de la régularité n'était

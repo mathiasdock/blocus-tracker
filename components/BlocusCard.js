@@ -12,6 +12,7 @@ import {
   computeProgress, suggestFromExams,
 } from "../lib/blocus";
 import { localISO } from "../lib/format";
+import { studyDayMinSeconds } from "../lib/studyDayStates.mjs";
 
 const fmtH = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
 
@@ -150,7 +151,7 @@ export default function BlocusCard({ studyDays, exams, courses = [], onChange, c
   // Migration v40 pas encore exécutée : on n'affiche rien plutôt qu'une carte cassée.
   if (state.loading || !state.supported || !user) return null;
 
-  const progress = computeProgress(state.current, studyDays);
+  const progress = computeProgress(state.current, studyDays, (date) => studyDayMinSeconds(date));
 
   async function submit() {
     setBusy(true);

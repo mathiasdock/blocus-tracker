@@ -11,7 +11,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatMinutesShort, computeStreak } from "../lib/format";
+import { formatMinutesShort } from "../lib/format";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
 import { parseQuickObjective } from "../lib/planningQuickAdd";

@@ -16,7 +16,9 @@ import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
 import { useConsent } from "../contexts/ConsentContext";
 import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
-import { displayName, formatStudyTime, computeStreak, computeBestStreak } from "../lib/format";
+import { displayName, formatStudyTime } from "../lib/format";
+import { fetchStudyDays } from "../lib/studyDays.mjs";
+import { useOfficialStreak } from "../lib/useOfficialStreak";
 import { BADGES } from "../lib/badges";
 import { fetchCanonicalBadgeIds } from "../lib/badgeTruth.mjs";
 import { computeTotalXP, getLevelInfo } from "../lib/xp";
@@ -653,6 +655,9 @@ export default function Profile() {
   const [earnedBadgeIds, setEarnedBadgeIds] = useState(null);
   const [profileSessions, setProfileSessions] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
+  // Jours session_days : repli local de la série officielle si le serveur ne
+  // répond pas (en ligne, la série vient de get_my_streak).
+  const [studyDayRows, setStudyDayRows] = useState([]);
   const [freezeStock, setFreezeStock] = useState(null); // stock restant (null = pas encore lu)
   const [profileTotalSecs, setProfileTotalSecs] = useState(0);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -777,11 +782,13 @@ export default function Profile() {
     const since370 = new Date();
     since370.setDate(since370.getDate() - 370);
     (async () => {
-      const [{ data: heatSessions }, { data: allSessions }] = await Promise.all([
+      const [{ data: heatSessions }, { data: allSessions }, dayRes] = await Promise.all([
         supabase.from("sessions").select("started_at, duration_seconds, course_id, note").eq("user_id", user.id).gte("started_at", since370.toISOString()),
         supabase.from("sessions").select("duration_seconds").eq("user_id", user.id),
+        fetchStudyDays(supabase, user.id),
       ]);
       setProfileSessions(heatSessions || []);
+      if (!dayRes.error) setStudyDayRows(dayRes.data || []);
       setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
       // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
       const freeze = await runStreakFreezeUpkeep(supabase, user.id, heatSessions || []);
@@ -937,8 +944,9 @@ export default function Profile() {
   }
 
   // ── Computed values ──────────────────────────────────────
-  const streak = computeStreak(profileSessions, frozenDays);
-  const best = computeBestStreak(profileSessions, frozenDays);
+  const official = useOfficialStreak({ supabase, userId: user?.id || null, serverRows: studyDayRows, rows: studyDayRows, freezes: frozenDays });
+  const streak = official.current;
+  const best = official.best;
   const fallbackTotalXP = computeTotalXP({
     totalMinutes: profileTotalSecs / 60,
     completedObjectives: completedObjCount,

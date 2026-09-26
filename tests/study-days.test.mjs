@@ -251,10 +251,9 @@ test("Dashboard et Stats lisent session_days ; séries, gels et missions gardent
     assert.match(src, /mergeStudyDays\(/, name);
     assert.doesNotMatch(src, /localISO\(s\.started_at\)/, `${name} ne range plus une session par son heure de début`);
   }
-  // Inchangés : la série et les gels lisent toujours les sessions.
-  assert.match(dashboard, /setStreak\(computeStreak\(data\.recentSessions \|\| \[\]\)\)/);
+  // Gels (jokers, phase 5A3) : inchangés, ils lisent toujours les sessions.
+  // La série, elle, est officielle depuis 5A2 (tests/official-streak.test.mjs).
   assert.match(dashboard, /runStreakFreezeUpkeep\(supabase, user\.id, recentSessions\)/);
-  assert.match(stats, /const streak = computeStreak\(sessions, frozenDays\);/);
   assert.match(stats, /runStreakFreezeUpkeep\(supabase, user\.id, sessions\)/);
   // Missions (repli local) : sessions commencées depuis minuit, comme avant.
   assert.match(dashboard, /const dayStart = new Date\(localDayStartISO\(\)\)\.getTime\(\);/);

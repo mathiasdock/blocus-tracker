@@ -15,6 +15,8 @@ import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending, listPending } from "../lib/timerDraft";
 import { currentWeekDates, fetchStudyDays, mergeStudyDays, secondsByDay, secondsOn, sessionsOnDay, thisWeekSeconds, unsyncedSessionDays } from "../lib/studyDays.mjs";
+import { studyStreaks } from "../lib/studyDayStates.mjs";
+import { useOfficialStreak } from "../lib/useOfficialStreak";
 import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey } from "../lib/streakFreezes";
@@ -233,7 +235,6 @@ export default function Dashboard() {
   const [serverDays, setServerDays] = useState([]);
   // File hors ligne (lib/timerDraft) : sessions arrêtées, pas encore en base.
   const [queuedSessions, setQueuedSessions] = useState([]);
-  const [streak, setStreak] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   // Garde l'écran allumé tant qu'une session tourne (inline ou mode focus) :
   // sans ça l'iPhone se verrouille après ~30 s et la respiration du mode focus
@@ -311,7 +312,6 @@ export default function Dashboard() {
     setSessions(data.sessions || []);
     setServerDays(data.days || []);
     setRecentSessions(data.recentSessions || []);
-    setStreak(computeStreak(data.recentSessions || []));
     setTodayObjectives(data.objectives || []);
   }, [setCourseId]);
 
@@ -346,7 +346,6 @@ export default function Dashboard() {
     runStreakFreezeUpkeep(supabase, user.id, recentSessions).then((res) => {
       if (!alive || !res.supported) return;
       setFreezeInfo(res);
-      setStreak(computeStreak(recentSessions, res.frozenDays));
       // Le gel ne se consomme plus tout seul : on PROPOSE. Un refus déjà donné
       // pour ce même trou n'est pas redemandé (mais un nouveau trou le sera).
       if (res.canRepair && !freezeToastShown.current) {
@@ -370,10 +369,9 @@ export default function Dashboard() {
     if (!res.ok) { toast(t("streak.offerFailed"), "error"); return; }
     const merged = [...freezeInfo.frozenDays, ...freezeInfo.pendingDays];
     setFreezeInfo({ ...freezeInfo, frozenDays: merged, stock: res.stock, pendingDays: [], canRepair: false });
-    setStreak(computeStreak(recentSessions, merged));
     setFreezeOfferOpen(false);
     toast(t("streak.offerDone"), "success");
-  }, [freezeInfo, freezeBusy, recentSessions, t, toast]);
+  }, [freezeInfo, freezeBusy, t, toast]);
 
   const declineFreeze = useCallback(() => {
     try { localStorage.setItem(FREEZE_DECLINED_KEY, gapKey(freezeInfo?.pendingDays)); } catch {}
@@ -546,18 +544,22 @@ export default function Dashboard() {
   // En pause on rend le chrono TRÈS visible : "Pause depuis mm:ss" +
   // bordeaux doux qui pulse. On mémorise l'instant de mise en pause et on
   // tick chaque seconde (le TimerContext ne re-rend plus quand il est figé).
-  // Périodes de blocus — remontées par BlocusCard, qui les charge déjà. Elles
-  // neutralisent les jours hors blocus dans le calcul de série (cf. computeStreak).
+  // Périodes de blocus — remontées par BlocusCard, qui les charge déjà. Les
+  // jours hors blocus sont neutres pour la série (ne la cassent pas).
   const [blocusRanges, setBlocusRanges] = useState(null);
   const handleBlocusLoaded = useCallback((res) => {
     setBlocusRanges(res.supported ? toRanges(res.periods) : null);
   }, []);
   const streakPaused = isStreakPaused(blocusRanges);
 
-  useEffect(() => {
-    if (!blocusRanges || !recentSessions.length) return;
-    setStreak(computeStreak(recentSessions, freezeInfo?.frozenDays || [], blocusRanges));
-  }, [blocusRanges, recentSessions, freezeInfo]);
+  // LEGACY (5A2) — la série telle que les missions la comptent encore (jour de
+  // début, jokers +1), pour le seul repli local des missions. Les missions
+  // passeront au moteur canonique dans leur propre phase ; d'ici là elles
+  // doivent garder EXACTEMENT leur règle. Rien d'autre ne lit cette valeur.
+  const legacyMissionStreak = useMemo(
+    () => computeStreak(recentSessions, freezeInfo?.frozenDays || [], blocusRanges || undefined),
+    [recentSessions, freezeInfo, blocusRanges],
+  );
 
   // Repli local pour les missions du dashboard : sert uniquement quand le RPC
   // serveur n'est pas joignable (mode hors-ligne, migration pas encore passée).
@@ -586,10 +588,10 @@ export default function Dashboard() {
       todayFocusedCount: sessions.filter(s => Number(s.duration_seconds || 0) >= 1500).length,
       todayCoursesCount: Object.values(minutesOnCourse).filter(m => m >= 15).length,
       minutesOnCourse,
-      streak,
+      streak: legacyMissionStreak,
       studiedBeforeNoon: sessions.some(s => new Date(s.started_at).getHours() < 12),
     };
-  }, [missionSessions, streak]);
+  }, [missionSessions, legacyMissionStreak]);
 
   // Missions : le chargement est remonté ici parce que trois surfaces en
   // dépendent désormais — la bande de défi contre le bouton Start, le résumé
@@ -1136,6 +1138,21 @@ export default function Dashboard() {
     : mergeStudyDays(serverDays, { synced: sessions, unsynced: unsyncedSessions })),
   [isGuest, serverDays, sessions, unsyncedSessions]);
   const totalToday = secondsOn(studyDays, todayDate);
+
+  // Série OFFICIELLE (5A2) : le serveur fait foi ; le calcul local canonique
+  // ne prend le relais que pendant le chrono, pour une session pas encore en
+  // base, en invité ou si le serveur ne répond pas (lib/useOfficialStreak).
+  const frozenDays = freezeInfo?.frozenDays;
+  const officialStreak = useOfficialStreak({
+    supabase,
+    userId: user?.id || null,
+    serverRows: serverDays,
+    rows: studyDays,
+    freezes: frozenDays,
+    blocusRanges: blocusRanges || undefined,
+    liveSeconds: liveStudySecs,
+  });
+  const streak = officialStreak.current;
   // La liste du jour : exactement les sessions qui font ce total, chacune avec
   // SA part d'aujourd'hui (`day_seconds`) et ses vraies heures.
   const todaySessionList = useMemo(() => sessionsOnDay(studyDays, todayDate, isGuest
@@ -1897,15 +1914,22 @@ export default function Dashboard() {
 
       {/* Focus mode overlay */}
       {/* La série annoncée est celle qui serait SAUVÉE, pas la série courante :
-          computeStreak la voit déjà cassée (hier manque), elle vaut donc 0 et
-          l'offre dirait « ta série de 0 jours peut être sauvée ». */}
+          la série officielle la voit déjà cassée (hier manque), elle vaut donc 0
+          et l'offre dirait « ta série de 0 jours peut être sauvée ». Même moteur
+          canonique, avec les jokers proposés comptés comme posés. */}
       {/* Invitation aux notifications — au premier passage seulement, et après
           l'offre de gel pour ne pas empiler deux fenêtres. */}
       <PushOptInPrompt />
 
       <StreakFreezeOffer
         open={freezeOfferOpen}
-        streak={computeStreak(recentSessions, [...(freezeInfo?.frozenDays || []), ...(freezeInfo?.pendingDays || [])])}
+        streak={studyStreaks({
+          rows: studyDays,
+          freezes: [...(freezeInfo?.frozenDays || []), ...(freezeInfo?.pendingDays || [])],
+          blocusRanges: blocusRanges || [],
+          today: officialStreak.today,
+          rules: officialStreak.rules,
+        }).current}
         days={freezeInfo?.pendingDays || []}
         stock={freezeInfo?.stock || 0}
         busy={freezeBusy}

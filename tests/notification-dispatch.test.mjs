@@ -250,6 +250,10 @@ const activity = {
   exams: [{ user_id: id(5), name: "Économie", exam_date: "2026-09-25", exam_time: "09:00:00" }],
   newcomers: [],
   frozenDays: new Map(),
+  // Série officielle telle que la base la renvoie (study_streak_reminder_states).
+  streakStates: new Map([1, 2, 3, 4, 6].map((n) => [id(n), {
+    today: n === 6 ? "2026-09-25" : "2026-09-24", todayPreservesStreak: false, current: 3,
+  }])),
   configured: new Set(),
 };
 const twoNudges = (userId) => [
