@@ -4,7 +4,7 @@ import { SkeletonList } from "./Skeleton";
 import EmptyState from "./EmptyState";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatStudyTime, displayName, lastNDates, localISO } from "../lib/format";
+import { formatStudyTime } from "../lib/format";
 import { loadUserLevelMap } from "../lib/userLevels";
 import AnimatedNumber from "./AnimatedNumber";
 import FilterMenu from "./FilterMenu";
@@ -103,9 +103,11 @@ function Podium({ entries, levelOf, userId, onViewUser, Value, t }) {
 }
 
 // ── Leaderboard ──────────────────────────────────────────────
-// Classement de la page Stats, servi par get_leaderboard_v2 (migration v27).
-// Tant que la migration n'est pas passée en prod, repli automatique sur
-// get_public_leaderboard + calcul amis côté client.
+// Classement de la page Stats, servi par get_leaderboard_v2 (v79) : tous les
+// membres sont comparés sur la MÊME fenêtre — aujourd'hui depuis minuit, la
+// semaine depuis lundi, le mois depuis le 1er — dans le fuseau du classement
+// (celui de l'université choisie, sinon Europe/Brussels), jamais celui de
+// l'appareil. La série affichée est la série officielle.
 //
 // Trois menus compacts remplacent deux rangées d'onglets : l'audience (« je
 // regarde qui ? »), la période (« sur quand ? ») et le classement (temps,
@@ -144,7 +146,6 @@ export default function Leaderboard({
   const fField = false;
   const fYear  = false;
 
-  const [v2Available, setV2Available] = useState(true); // optimiste ; ↓ legacy si RPC absente
   const [rows,    setRows]    = useState([]);
   const [levels,  setLevels]  = useState({});
   const [loading, setLoading] = useState(true);
@@ -165,7 +166,7 @@ export default function Leaderboard({
     if (audience === "uni" && !profile?.university) setAudience("global");
   }, [audience, friendIds.length, profile?.university]);
 
-  // Amis acceptés — sert à afficher l'onglet Amis et au repli legacy.
+  // Amis acceptés — sert à afficher l'audience « Amis ».
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -184,81 +185,28 @@ export default function Leaderboard({
     let cancelled = false;
     setLoading(true);
     (async () => {
-      let list = null;
-
-      if (v2Available) {
-        const { data, error } = await supabase.rpc("get_leaderboard_v2", {
-          p_period:      metric === "streak" ? "week" : period,
-          p_metric:      metric,
-          p_scope:       mode === "friends" ? "friends" : "all",
-          p_university:  fUni   ? (profile?.university  || null) : null,
-          p_study_field: fField ? (profile?.study_field || null) : null,
-          p_study_year:  fYear  ? (profile?.study_year  || null) : null,
-        });
-        if (error || data == null) {
-          // Seule une RPC ABSENTE bascule durablement sur l'ancienne version.
-          // Avant, n'importe quelle erreur (un dépassement de délai, par
-          // exemple) la condamnait pour toute la visite : « 30 derniers
-          // jours » disparaissait et les niveaux étaient faux.
-          const missing = error && (error.code === "PGRST202" || error.code === "42883");
-          if (!cancelled && missing) setV2Available(false);
-          if (!cancelled && !missing) { setRows([]); setLoading(false); }
-          return;
-        }
-        list = data.map(r => ({
-          user_id: r.user_id,
-          name: [r.first_name, r.last_name].filter(Boolean).join(" ") || r.pseudo,
-          avatar_url: r.avatar_url,
-          total_seconds: Number(r.total_seconds),
-          alltime_seconds: Number(r.alltime_seconds),
-          streak_days: Number(r.streak_days),
-          active_days: Number(r.active_days),
-        }));
-      } else if (mode === "public") {
-        // Legacy : ancienne RPC (heures uniquement, filtre école, jour/semaine).
-        const { data } = await supabase.rpc("get_public_leaderboard", {
-          p_period: period === "month" ? "week" : period,
-          p_university: fUni ? (profile?.university || null) : null,
-        });
-        list = (data || []).map(r => ({
-          user_id: r.user_id,
-          name: [r.first_name, r.last_name].filter(Boolean).join(" ") || r.pseudo,
-          avatar_url: r.avatar_url,
-          total_seconds: Number(r.total_seconds),
-          // L'ancienne RPC ne connaît pas le total historique : sans lui, pas
-          // de niveau du tout plutôt qu'un niveau calculé sur la seule période.
-          alltime_seconds: Number(r.alltime_seconds ?? 0),
-          streak_days: 0,
-          active_days: 0,
-        }));
-      } else {
-        // Legacy amis : profils + sessions 7 j des amis, moi inclus.
-        const ids = friendIds;
-        const since7 = lastNDates(7)[0];
-        const [{ data: profs }, { data: fSessions }, { data: mine }] = await Promise.all([
-          ids.length
-            ? supabase.from("profiles").select("id, pseudo, first_name, last_name, avatar_url, university").in("id", ids)
-            : Promise.resolve({ data: [] }),
-          ids.length
-            ? supabase.from("sessions").select("user_id, duration_seconds, started_at").in("user_id", ids).gte("started_at", since7)
-            : Promise.resolve({ data: [] }),
-          supabase.from("sessions").select("user_id, duration_seconds, started_at").eq("user_id", user.id).gte("started_at", since7),
-        ]);
-        const secsOf = (sess) => period === "day"
-          ? sess.filter(s => localISO(s.started_at) === localISO(new Date())).reduce((a, s) => a + s.duration_seconds, 0)
-          : sess.reduce((a, s) => a + s.duration_seconds, 0);
-        list = [
-          { user_id: user.id, name: displayName(profile), avatar_url: profile?.avatar_url,
-            total_seconds: secsOf(mine || []), alltime_seconds: 0, streak_days: 0, active_days: 0 },
-          ...(profs || [])
-            .filter(p => !fUni || !profile?.university || p.university === profile.university)
-            .map(p => ({
-              user_id: p.id, name: displayName(p), avatar_url: p.avatar_url,
-              total_seconds: secsOf((fSessions || []).filter(s => s.user_id === p.id)),
-              alltime_seconds: 0, streak_days: 0, active_days: 0,
-            })),
-        ].sort((a, b) => b.total_seconds - a.total_seconds);
+      const { data, error } = await supabase.rpc("get_leaderboard_v2", {
+        p_period:      metric === "streak" ? "week" : period,
+        p_metric:      metric,
+        p_scope:       mode === "friends" ? "friends" : "all",
+        p_university:  fUni   ? (profile?.university  || null) : null,
+        p_study_field: fField ? (profile?.study_field || null) : null,
+        p_study_year:  fYear  ? (profile?.study_year  || null) : null,
+      });
+      if (error || data == null) {
+        if (!cancelled) { setRows([]); setLevels({}); setLoading(false); }
+        return;
       }
+      const list = data.map(r => ({
+        user_id: r.user_id,
+        name: [r.first_name, r.last_name].filter(Boolean).join(" ") || r.pseudo,
+        avatar_url: r.avatar_url,
+        total_seconds: Number(r.total_seconds),
+        alltime_seconds: Number(r.alltime_seconds),
+        streak_days: Number(r.streak_days),
+        active_days: Number(r.active_days),
+        period_days: Number(r.period_days) || 0,
+      }));
 
       if (cancelled) return;
       setRows(list);
@@ -278,20 +226,18 @@ export default function Leaderboard({
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [user, profile, mode, audience, period, metric, fUni, fField, fYear, v2Available, friendIds]);
+  }, [user, profile, mode, audience, period, metric, fUni, fField, fYear]);
 
   // ── Libellés ───────────────────────────────────────────────
-  // « Jour / Semaine / Mois » mentait : la RPC compte des fenêtres GLISSANTES
-  // (migration v27 : 'week' = CURRENT_DATE - 6 j, 'month' = CURRENT_DATE - 29 j).
-  // « Semaine » se lisait comme la semaine calendaire en cours. Les libellés
-  // disent maintenant ce que la requête fait vraiment.
-  const periodDays = period === "month" ? 30 : 7;
+  // Périodes CALENDAIRES (v79) : « Cette semaine » = depuis lundi, « Ce mois-ci »
+  // = depuis le 1er — plus des fenêtres glissantes de 7 / 30 jours.
+  const periodDays = rows[0]?.period_days || (period === "month" ? 30 : 7);
   const metricLabel = metric === "streak" ? t("stats.metricStreak")
     : metric === "regularity" ? t("stats.metricRegularity")
     : t("stats.metricTime");
   const periodLabel = period === "day" ? t("stats.lbToday")
-    : period === "month" ? t("stats.lbLast30")
-    : t("stats.lbLast7");
+    : period === "month" ? t("stats.lbThisMonth")
+    : t("stats.lbThisWeek");
   const audienceLabel = audience === "friends" ? t("stats.audienceFriends")
     : audience === "uni" ? t("stats.audienceUni")
     : t("stats.audienceGlobal");
@@ -307,7 +253,7 @@ export default function Leaderboard({
     // Encres lisibles : l'ambre (#D97706) et le vert (#0E8F68) écrits en dur
     // tenaient 3,2:1 et 3,8:1 sur la carte. La flamme garde sa teinte chaude —
     // c'est elle qui dit « série » — et le nombre passe en encre de texte.
-    if (v2Available && metric === "streak") {
+    if (metric === "streak") {
       return (
         <span className="inline-flex items-center gap-1 text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
           <Flame size={13} style={{ color: "#F59E0B" }} />
@@ -317,7 +263,7 @@ export default function Leaderboard({
         </span>
       );
     }
-    if (v2Available && metric === "regularity") {
+    if (metric === "regularity") {
       return (
         <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
           {animate ? <AnimatedNumber value={row.active_days} /> : row.active_days}/{periodDays} {t("stats.dayUnit")}
@@ -345,8 +291,8 @@ export default function Leaderboard({
     // La régularité se mesure sur plusieurs jours : « aujourd'hui » n'a pas
     // de sens ici, l'option disparaît au lieu de produire un 0/1.
     ...(metric === "regularity" ? [] : [{ value: "day", label: t("stats.lbToday") }]),
-    { value: "week", label: t("stats.lbLast7") },
-    ...(v2Available ? [{ value: "month", label: t("stats.lbLast30") }] : []),
+    { value: "week", label: t("stats.lbThisWeek") },
+    { value: "month", label: t("stats.lbThisMonth") },
   ];
   const metricOptions = [
     { value: "time", label: t("stats.metricTime") },
@@ -394,7 +340,7 @@ export default function Leaderboard({
             ariaLabel={t("stats.audienceFilterLabel")}
             buttonClassName="bt-tap-44"
           />
-          {(!v2Available || metric !== "streak") && (
+          {metric !== "streak" && (
             <FilterMenu
               value={period}
               options={periodOptions}
@@ -403,15 +349,13 @@ export default function Leaderboard({
               buttonClassName="bt-tap-44"
             />
           )}
-          {v2Available && (
-            <FilterMenu
-              value={metric}
-              options={metricOptions}
-              onChange={pickMetric}
-              ariaLabel={t("stats.metricFilterLabel")}
-              buttonClassName="bt-tap-44"
-            />
-          )}
+          <FilterMenu
+            value={metric}
+            options={metricOptions}
+            onChange={pickMetric}
+            ariaLabel={t("stats.metricFilterLabel")}
+            buttonClassName="bt-tap-44"
+          />
         </div>
       </div>
 
