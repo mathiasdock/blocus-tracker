@@ -93,11 +93,11 @@ test("une seule série dans l'app : plus aucun calcul indépendant", () => {
   assert.doesNotMatch(format, /export function computeBestStreak/);
   assert.doesNotMatch(evening, /streakBefore/);
   assert.match(evening, /streakStates\.get\(userId\)/);
-  // Seul reste LEGACY : le repli local des missions du Chrono (phase 5B).
-  const legacyCalls = dashboard.match(/computeStreak\(/g) || [];
-  assert.equal(legacyCalls.length, 1);
-  assert.match(dashboard, /const legacyMissionStreak = useMemo\(\s*\(\) => computeStreak\(/);
-  assert.match(dashboard, /streak: legacyMissionStreak,/);
+  // 5B : plus aucune série legacy côté client — le repli des missions lit la
+  // série officielle, et computeStreak a disparu.
+  assert.doesNotMatch(dashboard, /computeStreak|legacyMissionStreak/);
+  assert.doesNotMatch(format, /export function computeStreak/);
+  assert.match(dashboard, /missionDayStats\(\{ rows: studyDays, startedToday: missionSessions, today: todayDate, streak \}\)/);
 });
 
 test("v73 : série officielle canonique, missions / badges / défi du jour laissés au calcul legacy", () => {

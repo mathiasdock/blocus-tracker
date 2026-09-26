@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useTimer } from "../contexts/TimerContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatDuration, formatMinutesShort, todayISO, localISO, localDayStartISO, computeStreak, isStreakPaused } from "../lib/format";
+import { formatDuration, formatMinutesShort, todayISO, localISO, localDayStartISO, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost, shareSavedSession } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
@@ -22,6 +22,7 @@ import { COURSE_COLORS } from "../lib/courseColors";
 import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey, invalidateStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { freezeGap, liveChronoDays, pendingSessionDays } from "../lib/streakFreezeGap.mjs";
 import { daysLostByChange } from "../lib/sessionDayImpact.mjs";
+import { missionDayStats } from "../lib/missionStats.mjs";
 import StreakFreezeOffer from "../components/StreakFreezeOffer";
 import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
@@ -528,47 +529,6 @@ export default function Dashboard() {
   }, []);
   const streakPaused = isStreakPaused(blocusRanges);
 
-  // LEGACY (5A2) — la série telle que les missions la comptent encore (jour de
-  // début, jokers +1), pour le seul repli local des missions. Les missions
-  // passeront au moteur canonique dans leur propre phase ; d'ici là elles
-  // doivent garder EXACTEMENT leur règle. Rien d'autre ne lit cette valeur.
-  const legacyMissionStreak = useMemo(
-    () => computeStreak(recentSessions, freezeInfo?.frozenDays || [], blocusRanges || undefined),
-    [recentSessions, freezeInfo, blocusRanges],
-  );
-
-  // Repli local pour les missions du dashboard : sert uniquement quand le RPC
-  // serveur n'est pas joignable (mode hors-ligne, migration pas encore passée).
-  // Les missions gardent leur source : les sessions COMMENCÉES depuis minuit
-  // (heure de l'appareil). `sessions` contient aussi celles d'hier qui débordent
-  // sur aujourd'hui — utiles à la liste et aux totaux, pas aux missions.
-  const missionSessions = useMemo(() => {
-    if (isGuest) return sessions;
-    const dayStart = new Date(localDayStartISO()).getTime();
-    return sessions.filter((s) => new Date(s.started_at).getTime() >= dayStart);
-  }, [isGuest, sessions]);
-  const missionStats = useMemo(() => {
-    const sessions = missionSessions;
-    // Minutes par cours, pas simple présence : deux minutes sur un second
-    // cours validaient « étudie 2 cours différents », ce qui récompensait le
-    // clic plutôt que le travail.
-    const minutesOnCourse = {};
-    for (const s of sessions) {
-      if (!s.course_id) continue;
-      minutesOnCourse[s.course_id] = (minutesOnCourse[s.course_id] || 0) + Number(s.duration_seconds || 0) / 60;
-    }
-    return {
-      todaySecs: sessions.reduce((a, s) => a + Number(s.duration_seconds || 0), 0),
-      todayMaxSessionSecs: sessions.length ? Math.max(...sessions.map(s => Number(s.duration_seconds || 0))) : 0,
-      todaySessionCount: sessions.length,
-      todayFocusedCount: sessions.filter(s => Number(s.duration_seconds || 0) >= 1500).length,
-      todayCoursesCount: Object.values(minutesOnCourse).filter(m => m >= 15).length,
-      minutesOnCourse,
-      streak: legacyMissionStreak,
-      studiedBeforeNoon: sessions.some(s => new Date(s.started_at).getHours() < 12),
-    };
-  }, [missionSessions, legacyMissionStreak]);
-
   // Missions : le chargement est remonté ici parce que trois surfaces en
   // dépendent désormais — la bande de défi contre le bouton Start, le résumé
   // du rail droit, et l'objectif hebdomadaire de la carte « Aujourd'hui ».
@@ -605,25 +565,6 @@ export default function Dashboard() {
     window.addEventListener("bt-xp-changed", onChange);
     return () => window.removeEventListener("bt-xp-changed", onChange);
   }, [refreshMissions]);
-
-  // Repli le temps de l'aller-retour. Cette page ne lit que les sessions du
-  // JOUR : elle ne peut pas calculer un défi qui demande l'historique, et
-  // `pickFallbackChallenge` s'abstient plutôt que d'inventer.
-  const fallbackAll = useMemo(
-    () => evaluateMissions(
-      getDailyMissionDefs(todayISO(), user?.id, { streak: missionStats.streak }),
-      missionStats,
-    ),
-    [user?.id, missionStats],
-  );
-  const allMissions = serverMissions || fallbackAll;
-  const dailyMissions = allMissions.filter(m => m.kind !== "challenge");
-  const challenge = allMissions.find(m => m.kind === "challenge") || null;
-  // w_hours est retirée d'ici : elle s'affiche maintenant comme l'objectif de
-  // la stat « cette semaine » de la carte Aujourd'hui. La laisser aussi dans le
-  // résumé aurait recréé exactement la duplication qu'on vient d'enlever.
-  const weeklyGoalMin = (serverWeekly || []).find(w => w.id === "w_hours")?.target || 0;
-  const weeklyMissions = (serverWeekly || []).filter(w => w.id !== "w_hours");
 
   const isPaused = !running && elapsed > 0;
   const [pausedAt, setPausedAt] = useState(null);
@@ -1134,6 +1075,44 @@ export default function Dashboard() {
     liveSeconds: liveStudySecs,
   });
   const streak = officialStreak.current;
+
+  // ── Missions : repli local (hors ligne, invité, serveur muet) ──
+  // Le serveur fait foi (get_my_daily_missions, v76) ; ce repli applique les
+  // MÊMES règles sur les mêmes sources :
+  //   · durée du jour / par cours → les jours canoniques (`studyDays` :
+  //     session_days + sessions pas encore en base), portion du jour seulement ;
+  //   · une session précise (longue, deux sessions, avant midi) → les sessions
+  //     COMMENCÉES aujourd'hui (heure de l'appareil), en base ou en file ;
+  //   · la série → la série officielle.
+  const missionSessions = useMemo(() => {
+    const dayStart = new Date(localDayStartISO()).getTime();
+    const byId = new Map();
+    for (const s of [...sessions, ...unsyncedSessions]) if (s?.id && !byId.has(s.id)) byId.set(s.id, s);
+    return [...byId.values()].filter((s) => new Date(s.started_at).getTime() >= dayStart);
+  }, [sessions, unsyncedSessions]);
+  const missionStats = useMemo(
+    () => missionDayStats({ rows: studyDays, startedToday: missionSessions, today: todayDate, streak }),
+    [missionSessions, studyDays, todayDate, streak],
+  );
+
+  // Cette page ne lit que les sessions du JOUR : elle ne peut pas calculer un
+  // défi qui demande l'historique, et `pickFallbackChallenge` s'abstient
+  // plutôt que d'inventer.
+  const fallbackAll = useMemo(
+    () => evaluateMissions(
+      getDailyMissionDefs(todayISO(), user?.id, { streak: missionStats.streak }),
+      missionStats,
+    ),
+    [user?.id, missionStats],
+  );
+  const allMissions = serverMissions || fallbackAll;
+  const dailyMissions = allMissions.filter(m => m.kind !== "challenge");
+  const challenge = allMissions.find(m => m.kind === "challenge") || null;
+  // w_hours est retirée d'ici : elle s'affiche maintenant comme l'objectif de
+  // la stat « cette semaine » de la carte Aujourd'hui. La laisser aussi dans le
+  // résumé aurait recréé exactement la duplication qu'on vient d'enlever.
+  const weeklyGoalMin = (serverWeekly || []).find(w => w.id === "w_hours")?.target || 0;
+  const weeklyMissions = (serverWeekly || []).filter(w => w.id !== "w_hours");
 
   // ── Joker : quel trou proposer (Phase 5A3) ──
   // Moteur canonique sur les jours connus de l'app. Jamais tant qu'un jour du
