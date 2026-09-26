@@ -8,6 +8,9 @@ import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
 import { clearClientCache } from "../lib/clientCache";
 import { formatMinutesShort, localISO } from "../lib/format";
+import { mergeStudyDays } from "../lib/studyDays.mjs";
+import { daysLostByChange } from "../lib/sessionDayImpact.mjs";
+import { invalidateStreakFreezeUpkeep } from "../lib/streakFreezes";
 
 const PAGE_SIZE = 25;
 
@@ -60,6 +63,7 @@ export default function Historique() {
   // voir au retour, pas au prochain rechargement.
   const forgetDashboard = useCallback(() => {
     if (user) clearClientCache(`dashboard:${user.id}:`);
+    invalidateStreakFreezeUpkeep(); // un joker rendu a pu être repris (v75)
   }, [user]);
 
   async function deleteSession(id) {
@@ -89,6 +93,12 @@ export default function Historique() {
       : s));
     return true;
   }
+
+  // Jours des sessions chargées, découpés comme la base : suffit pour prévenir
+  // qu'une suppression ou une réduction ferait perdre la validation d'un jour.
+  const loadedDays = useMemo(() => mergeStudyDays([], { synced: sessions }), [sessions]);
+  const sessionDayLoss = useCallback((session, newSeconds) =>
+    daysLostByChange({ rows: loadedDays, session, newSeconds }).length > 0, [loadedDays]);
 
   const days = useMemo(() => {
     const groups = [];
@@ -172,6 +182,7 @@ export default function Historique() {
                 selectableCourses={activeCourses}
                 onUpdate={updateSession}
                 onDelete={deleteSession}
+                dayLossFor={sessionDayLoss}
               />
             ))}
           </div>

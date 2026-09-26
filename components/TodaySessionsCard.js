@@ -57,7 +57,10 @@ function formatSessionRange(session, locale) {
 // heures. L'édition, elle, porte toujours sur la session ENTIÈRE. `pending`
 // marque une session pas encore en base : elle compte, mais ne se modifie
 // qu'une fois synchronisée.
-export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, title, aside, limit = 0, seeAllHref = "", actionsHint = true, readOnly = false, showDividers = true, className = "" }) {
+// `dayLossFor(session, newSeconds | null)` (facultatif) : vrai si la suppression
+// (null) ou la nouvelle durée ferait repasser un jour sous son seuil — une ligne
+// l'annonce avant de confirmer (série, joker rendu repris : v75).
+export default function TodaySessionsCard({ sessions, courses, selectableCourses, onUpdate, onDelete, dayLossFor = null, title, aside, limit = 0, seeAllHref = "", actionsHint = true, readOnly = false, showDividers = true, className = "" }) {
   const { t, lang } = useI18n();
   const [menuId, setMenuId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -259,6 +262,13 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
                       {t("dash.sessionDuration")}
                       <input className="input mt-1 min-h-11 text-center tabular-nums" type="number" inputMode="numeric" min={1} max={maxMinutes} value={editMinutes} onChange={(event) => setEditMinutes(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveEdit(session); if (event.key === "Escape") setEditingId(null); }} />
                     </label>
+                    {(() => {
+                      const minutes = Number.parseInt(editMinutes, 10);
+                      const valid = Number.isFinite(minutes) && minutes >= 1 && minutes < maxMinutes;
+                      return valid && dayLossFor?.(session, minutes * 60) ? (
+                        <p className="text-xs leading-relaxed sm:col-span-2" style={{ color: "var(--bt-text-2)" }}>{t("dash.sessionStreakWarning")}</p>
+                      ) : null;
+                    })()}
                     <div className="flex gap-2 sm:col-span-2">
                       <button type="button" className="btn-primary min-h-11 flex-1" disabled={busyId === session.id} onClick={() => saveEdit(session)}>{busyId === session.id ? t("common.saving") : t("common.save")}</button>
                       <button type="button" className="btn-ghost min-h-11 flex-1" disabled={busyId === session.id} onClick={() => setEditingId(null)}>{t("common.cancel")}</button>
@@ -269,6 +279,9 @@ export default function TodaySessionsCard({ sessions, courses, selectableCourses
                 {isConfirmingDelete && (
                   <div className="mt-3 rounded-2xl p-3" role="alert" style={{ backgroundColor: "var(--bt-danger-bg)", border: "1px solid var(--bt-danger-border)" }}>
                     <p className="text-sm font-semibold" style={{ color: "var(--bt-danger)" }}>{t("dash.deleteSessionConfirm")}</p>
+                    {dayLossFor?.(session, null) && (
+                      <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("dash.sessionStreakWarning")}</p>
+                    )}
                     <div className="mt-3 flex gap-2">
                       <button type="button" className="btn-ghost min-h-11 flex-1" disabled={busyId === session.id} onClick={() => setConfirmDeleteId(null)}>{t("common.cancel")}</button>
                       <button type="button" className="btn min-h-11 flex-1" disabled={busyId === session.id} style={{ backgroundColor: "var(--bt-danger)", color: "#fff" }} onClick={async () => {

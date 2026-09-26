@@ -20,12 +20,15 @@ declare
   sid uuid;
   sid_move uuid;
 begin
+  -- v75 : le contrôle joker tourne à la validation de la transaction. Ici tout
+  -- tient dans une transaction : on le fait tourner à la fin de chaque requête.
+  set constraints all immediate;
   select count(*) into real_freezes_before from public.streak_freeze_days;
 
   -- ── Droits ─────────────────────────────────────────────────────────────────
   if not has_function_privilege('authenticated', 'public.redeem_streak_freezes(date[], date)', 'execute')
      or has_function_privilege('anon', 'public.redeem_streak_freezes(date[], date)', 'execute')
-     or has_function_privilege('authenticated', 'public.refund_streak_freeze_for_day(uuid, date)', 'execute')
+     or has_function_privilege('authenticated', 'public.reconcile_streak_freeze_day(uuid, date)', 'execute')
      or has_table_privilege('authenticated', 'public.streak_freeze_refunds', 'insert')
      or has_table_privilege('authenticated', 'public.streak_freeze_refunds', 'delete')
      or exists (select 1 from pg_proc where proname = 'redeem_streak_freezes' and pronargs = 1) then
@@ -194,24 +197,23 @@ begin
   end if;
   checks := checks + 1;
 
-  -- ── Session supprimée APRÈS le remboursement ───────────────────────────────
-  -- Comportement actuel (décision produit en attente) : rien n'est repris
-  -- automatiquement. Le jour redevient manqué, le joker reste rendu, l'historique
-  -- est intact, et l'étudiant peut en reposer un s'il le souhaite.
+  -- ── Session supprimée APRÈS le remboursement (v75, option B) ─────────────
+  -- Le remboursement avait crédité +1 (stock 1 → 2) : le joker d'origine est
+  -- réactivé et ce +1 repris (2 → 1). L'historique garde use → refund → reprise.
   perform set_config('request.jwt.claims', json_build_object('sub', u[1], 'role', 'authenticated')::text, true);
   set local role authenticated;
   delete from public.sessions where id = sid_move;
   reset role;
   select * into r from public.study_day_states(u[1], t - 6, t - 6, t);
-  if r.state <> 'missed' or (select streak_freezes from public.profiles where id = u[1]) <> 2
-     or (select count(*) from public.streak_freeze_refunds where user_id = u[1] and used_on = t - 6) <> 1 then
+  if r.state <> 'neutral' or not r.has_freeze or (select streak_freezes from public.profiles where id = u[1]) <> 1
+     or (select count(*) from public.streak_freeze_refunds where user_id = u[1] and used_on = t - 6 and reactivated_at is not null) <> 1 then
     raise exception 'FAIL [after delete: %]', to_jsonb(r);
   end if;
   perform set_config('request.jwt.claims', json_build_object('sub', u[1], 'role', 'authenticated')::text, true);
   set local role authenticated;
   select * into r from public.redeem_streak_freezes(array[t - 6], t);
   reset role;
-  if r.used_now <> 1 or r.remaining_stock <> 1 then raise exception 'FAIL [re-redeem after delete: %]', to_jsonb(r); end if;
+  if r.used_now <> 0 or r.remaining_stock <> 1 then raise exception 'FAIL [redeem on reactivated day: %]', to_jsonb(r); end if;
   checks := checks + 2;
 
   -- ── Joker d'un mois de stock précédent : rendu, stock inchangé ─────────────

@@ -21,6 +21,7 @@ import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey, invalidateStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { freezeGap, liveChronoDays, pendingSessionDays } from "../lib/streakFreezeGap.mjs";
+import { daysLostByChange } from "../lib/sessionDayImpact.mjs";
 import StreakFreezeOffer from "../components/StreakFreezeOffer";
 import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
@@ -918,6 +919,9 @@ export default function Dashboard() {
     await supabase.from("sessions").delete().eq("id", id);
     setSessions(prev => prev.filter(s => s.id !== id));
     setServerDays(prev => prev.filter(row => row.session_id !== id));
+    // Un joker rendu a pu être repris par la base (v75) : on relit le stock.
+    invalidateStreakFreezeUpkeep();
+    setFreezeReload((n) => n + 1);
   }
 
   async function updateSession(session, { minutes, courseId: nextCourseId }) {
@@ -954,6 +958,8 @@ export default function Dashboard() {
     // localement avec la règle de la base (même fuseau, figé à la création)
     // jusqu'au prochain chargement.
     setServerDays(prev => prev.filter(row => row.session_id !== session.id));
+    invalidateStreakFreezeUpkeep();
+    setFreezeReload((n) => n + 1);
     return true;
   }
 
@@ -1199,6 +1205,10 @@ export default function Dashboard() {
     setFreezeInfo({ ...freezeInfo, frozenDays: [...freezeInfo.frozenDays, ...days], stock: res.stock });
     toast(t("streak.offerDone"), "success");
   }, [freezeGapInfo, freezeBusy, freezeInfo, t, toast]);
+
+  // Supprimer / raccourcir une session : le jour repasserait-il sous son seuil ?
+  const sessionDayLoss = (session, newSeconds) =>
+    daysLostByChange({ rows: studyDays, session, newSeconds, rules: officialStreak.rules }).length > 0;
 
   const declineFreeze = useCallback(() => {
     try { localStorage.setItem(FREEZE_DECLINED_KEY, gapKey(freezeGapInfo?.days)); } catch {}
@@ -1820,6 +1830,7 @@ export default function Dashboard() {
           selectableCourses={activeCourses}
           onUpdate={updateSession}
           onDelete={deleteSession}
+          dayLossFor={sessionDayLoss}
           actionsHint={!isGuest}
           readOnly={isGuest}
         />
