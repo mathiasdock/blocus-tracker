@@ -791,7 +791,7 @@ export default function Profile() {
       if (!dayRes.error) setStudyDayRows(dayRes.data || []);
       setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
       // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
-      const freeze = await runStreakFreezeUpkeep(supabase, user.id, heatSessions || []);
+      const freeze = await runStreakFreezeUpkeep(supabase, user.id);
       if (freeze.supported) { setFrozenDays(freeze.frozenDays); setFreezeStock(freeze.stock); }
     })();
   }, [user]);

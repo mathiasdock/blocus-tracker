@@ -1785,7 +1785,7 @@ export default function Planning() {
     setExamLoadWarning(!!(courseRes.error || examRes.error));
     setSessions(s || []);
     // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
-    const freeze = await runStreakFreezeUpkeep(supabase, user.id, s || []);
+    const freeze = await runStreakFreezeUpkeep(supabase, user.id);
     if (freeze.supported) setFrozenDays(freeze.frozenDays);
   }, [user]);
 

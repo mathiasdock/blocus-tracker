@@ -15,11 +15,12 @@ import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending, listPending } from "../lib/timerDraft";
 import { currentWeekDates, fetchStudyDays, mergeStudyDays, secondsByDay, secondsOn, sessionsOnDay, thisWeekSeconds, unsyncedSessionDays } from "../lib/studyDays.mjs";
-import { studyStreaks } from "../lib/studyDayStates.mjs";
+import { studyDayMinSeconds, studyStreaks } from "../lib/studyDayStates.mjs";
 import { useOfficialStreak } from "../lib/useOfficialStreak";
 import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
-import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey } from "../lib/streakFreezes";
+import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey, invalidateStreakFreezeUpkeep } from "../lib/streakFreezes";
+import { freezeGap, liveChronoDays, pendingSessionDays } from "../lib/streakFreezeGap.mjs";
 import StreakFreezeOffer from "../components/StreakFreezeOffer";
 import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
@@ -283,7 +284,7 @@ export default function Dashboard() {
   const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
   const [checklistCourse, setChecklistCourse] = useState(null);
   const [recentSessions, setRecentSessions] = useState([]); // 90 jours — records & semaine
-  const [freezeInfo, setFreezeInfo] = useState(null); // gel de série { frozenDays, stock, pendingDays, canRepair }
+  const [freezeInfo, setFreezeInfo] = useState(null); // joker { supported, frozenDays, stock }
   const [freezeOfferOpen, setFreezeOfferOpen] = useState(false);
   const [freezeBusy, setFreezeBusy] = useState(false);
   // Objectif de session — l'intention posée avant de démarrer. Persisté
@@ -336,47 +337,19 @@ export default function Dashboard() {
     if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
   }, [dashboardCachePrefix]);
 
-  // ── Gel de série : recharge mensuelle + consommation si jours manqués ──
+  // ── Joker : stock du mois + jours déjà protégés ──
   // Mémoïsé par jour dans lib/streakFreezes (plusieurs pages peuvent appeler).
-  // Avant migration v29 : supported=false → comportement d'avant, silencieux.
-  const freezeToastShown = useRef(false);
+  // Le « trou » à proposer, lui, se calcule plus bas sur le moteur canonique
+  // (freezeGap), une fois les jours et le chrono connus.
+  const [freezeReload, setFreezeReload] = useState(0);
   useEffect(() => {
-    if (!user || !recentSessions.length) return;
+    if (!user) return;
     let alive = true;
-    runStreakFreezeUpkeep(supabase, user.id, recentSessions).then((res) => {
-      if (!alive || !res.supported) return;
-      setFreezeInfo(res);
-      // Le gel ne se consomme plus tout seul : on PROPOSE. Un refus déjà donné
-      // pour ce même trou n'est pas redemandé (mais un nouveau trou le sera).
-      if (res.canRepair && !freezeToastShown.current) {
-        let declined = null;
-        try { declined = localStorage.getItem(FREEZE_DECLINED_KEY); } catch {}
-        if (declined !== gapKey(res.pendingDays)) {
-          freezeToastShown.current = true;
-          setFreezeOfferOpen(true);
-        }
-      }
+    runStreakFreezeUpkeep(supabase, user.id).then((res) => {
+      if (alive && res.supported) setFreezeInfo(res);
     });
     return () => { alive = false; };
-  }, [user, recentSessions]);
-
-  // Accepter : consomme réellement les gels, puis recalcule la série.
-  const acceptFreeze = useCallback(async () => {
-    if (!freezeInfo?.pendingDays?.length || freezeBusy) return;
-    setFreezeBusy(true);
-    const res = await applyStreakFreezes(supabase, freezeInfo.pendingDays);
-    setFreezeBusy(false);
-    if (!res.ok) { toast(t("streak.offerFailed"), "error"); return; }
-    const merged = [...freezeInfo.frozenDays, ...freezeInfo.pendingDays];
-    setFreezeInfo({ ...freezeInfo, frozenDays: merged, stock: res.stock, pendingDays: [], canRepair: false });
-    setFreezeOfferOpen(false);
-    toast(t("streak.offerDone"), "success");
-  }, [freezeInfo, freezeBusy, t, toast]);
-
-  const declineFreeze = useCallback(() => {
-    try { localStorage.setItem(FREEZE_DECLINED_KEY, gapKey(freezeInfo?.pendingDays)); } catch {}
-    setFreezeOfferOpen(false);
-  }, [freezeInfo]);
+  }, [user, freezeReload]);
 
   const loadChecklistCounts = useCallback(async () => {
     if (!user) {
@@ -547,8 +520,10 @@ export default function Dashboard() {
   // Périodes de blocus — remontées par BlocusCard, qui les charge déjà. Les
   // jours hors blocus sont neutres pour la série (ne la cassent pas).
   const [blocusRanges, setBlocusRanges] = useState(null);
+  const [blocusLoaded, setBlocusLoaded] = useState(false);
   const handleBlocusLoaded = useCallback((res) => {
     setBlocusRanges(res.supported ? toRanges(res.periods) : null);
+    setBlocusLoaded(true);
   }, []);
   const streakPaused = isStreakPaused(blocusRanges);
 
@@ -1153,6 +1128,82 @@ export default function Dashboard() {
     liveSeconds: liveStudySecs,
   });
   const streak = officialStreak.current;
+
+  // ── Joker : quel trou proposer (Phase 5A3) ──
+  // Moteur canonique sur les jours connus de l'app. Jamais tant qu'un jour du
+  // trou peut encore se remplir tout seul : chrono qui déborde sur ce jour
+  // (arrêté maintenant, il y écrirait des secondes), session de ce jour en
+  // file d'attente. Un chrono commencé aujourd'hui ne bloque pas « hier ».
+  const chronoDays = liveChronoDays({ elapsedSeconds: elapsed, timezone: timerTimezone });
+  const chronoDaysKey = chronoDays.join("|");
+  const freezeGapInfo = useMemo(() => {
+    if (isGuest || !freezeInfo?.supported || !blocusLoaded) return null;
+    return freezeGap({
+      rows: studyDays,
+      freezes: freezeInfo.frozenDays,
+      blocusRanges: blocusRanges || [],
+      today: officialStreak.today,
+      rules: officialStreak.rules,
+      stock: freezeInfo.stock,
+      blockedDays: [...(chronoDaysKey ? chronoDaysKey.split("|") : []), ...pendingSessionDays(unsyncedSessions)],
+    });
+  }, [isGuest, freezeInfo, blocusLoaded, studyDays, blocusRanges, officialStreak.today, officialStreak.rules, chronoDaysKey, unsyncedSessions]);
+
+  // Proposé une fois par trou ; un refus n'est pas redemandé pour ce même trou.
+  const freezeOfferShown = useRef(false);
+  useEffect(() => {
+    if (!freezeGapInfo?.canRepair || freezeOfferShown.current) return;
+    let declined = null;
+    try { declined = localStorage.getItem(FREEZE_DECLINED_KEY); } catch {}
+    if (declined === gapKey(freezeGapInfo.days)) return;
+    freezeOfferShown.current = true;
+    setFreezeOfferOpen(true);
+  }, [freezeGapInfo]);
+  // Chrono lancé ou session en attente pendant que l'offre est ouverte : on la
+  // retire, elle reviendra si le jour reste manqué.
+  useEffect(() => {
+    if (freezeOfferOpen && !freezeBusy && !freezeGapInfo?.canRepair) {
+      setFreezeOfferOpen(false);
+      freezeOfferShown.current = false;
+    }
+  }, [freezeOfferOpen, freezeBusy, freezeGapInfo]);
+
+  // Un jour protégé est devenu étudié (session synchronisée) : la base a rendu
+  // le joker (v74) — on relit le stock. Une seule relecture par jour concerné.
+  const freezeRechecked = useRef(new Set());
+  useEffect(() => {
+    const days = freezeInfo?.frozenDays || [];
+    const fresh = days.filter((d) => !freezeRechecked.current.has(d)
+      && secondsOn(studyDays, d) >= studyDayMinSeconds(d, officialStreak.rules));
+    if (!fresh.length || unsyncedSessions.length) return;
+    fresh.forEach((d) => freezeRechecked.current.add(d));
+    invalidateStreakFreezeUpkeep();
+    setFreezeReload((n) => n + 1);
+  }, [freezeInfo, studyDays, officialStreak.rules, unsyncedSessions]);
+
+  // Accepter : pose réellement les jokers (le serveur revérifie chaque jour).
+  const acceptFreeze = useCallback(async () => {
+    const days = freezeGapInfo?.days || [];
+    if (!days.length || freezeBusy || !freezeInfo) return;
+    setFreezeBusy(true);
+    const res = await applyStreakFreezes(supabase, days);
+    setFreezeBusy(false);
+    setFreezeOfferOpen(false);
+    if (!res.ok) {
+      // Refus « déjà étudié / hors blocus » : la série n'a pas besoin de joker.
+      const notNeeded = res.reason === "studied" || res.reason === "outside_blocus";
+      toast(t(notNeeded ? "streak.offerNotNeeded" : "streak.offerFailed"), notNeeded ? "success" : "error");
+      setFreezeReload((n) => n + 1);
+      return;
+    }
+    setFreezeInfo({ ...freezeInfo, frozenDays: [...freezeInfo.frozenDays, ...days], stock: res.stock });
+    toast(t("streak.offerDone"), "success");
+  }, [freezeGapInfo, freezeBusy, freezeInfo, t, toast]);
+
+  const declineFreeze = useCallback(() => {
+    try { localStorage.setItem(FREEZE_DECLINED_KEY, gapKey(freezeGapInfo?.days)); } catch {}
+    setFreezeOfferOpen(false);
+  }, [freezeGapInfo]);
   // La liste du jour : exactement les sessions qui font ce total, chacune avec
   // SA part d'aujourd'hui (`day_seconds`) et ses vraies heures.
   const todaySessionList = useMemo(() => sessionsOnDay(studyDays, todayDate, isGuest
@@ -1925,12 +1976,12 @@ export default function Dashboard() {
         open={freezeOfferOpen}
         streak={studyStreaks({
           rows: studyDays,
-          freezes: [...(freezeInfo?.frozenDays || []), ...(freezeInfo?.pendingDays || [])],
+          freezes: [...(freezeInfo?.frozenDays || []), ...(freezeGapInfo?.days || [])],
           blocusRanges: blocusRanges || [],
           today: officialStreak.today,
           rules: officialStreak.rules,
         }).current}
-        days={freezeInfo?.pendingDays || []}
+        days={freezeGapInfo?.days || []}
         stock={freezeInfo?.stock || 0}
         busy={freezeBusy}
         onAccept={acceptFreeze}

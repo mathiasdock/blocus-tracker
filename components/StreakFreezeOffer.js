@@ -64,7 +64,7 @@ export default function StreakFreezeOffer({ open, streak, days, stock, busy, onA
           {t("streak.offerEyebrow")}
         </p>
         <h2 id="bt-freeze-title" className="text-xl font-bold leading-snug" style={{ color: "var(--bt-text-1)" }}>
-          {t("streak.offerTitle").replace("{n}", String(streak))}
+          {(streak === 1 ? t("streak.offerTitleOne") : t("streak.offerTitle")).replace("{n}", String(streak))}
         </h2>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
           {(count > 1 ? t("streak.offerBodyMany") : t("streak.offerBodyOne")).replace("{n}", String(count))}

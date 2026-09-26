@@ -251,10 +251,10 @@ test("Dashboard et Stats lisent session_days ; séries, gels et missions gardent
     assert.match(src, /mergeStudyDays\(/, name);
     assert.doesNotMatch(src, /localISO\(s\.started_at\)/, `${name} ne range plus une session par son heure de début`);
   }
-  // Gels (jokers, phase 5A3) : inchangés, ils lisent toujours les sessions.
-  // La série, elle, est officielle depuis 5A2 (tests/official-streak.test.mjs).
-  assert.match(dashboard, /runStreakFreezeUpkeep\(supabase, user\.id, recentSessions\)/);
-  assert.match(stats, /runStreakFreezeUpkeep\(supabase, user\.id, sessions\)/);
+  // Jokers (5A3) : le trou se lit sur les jours canoniques, plus sur les
+  // sessions (tests/streak-freezes.test.mjs) ; la série est officielle (5A2).
+  assert.match(dashboard, /runStreakFreezeUpkeep\(supabase, user\.id\)/);
+  assert.match(stats, /runStreakFreezeUpkeep\(supabase, user\.id\)/);
   // Missions (repli local) : sessions commencées depuis minuit, comme avant.
   assert.match(dashboard, /const dayStart = new Date\(localDayStartISO\(\)\)\.getTime\(\);/);
   assert.match(dashboard, /getDailyMissionDefs\(todayISO\(\), user\?\.id, \{ streak: missionStats\.streak \}\)/);

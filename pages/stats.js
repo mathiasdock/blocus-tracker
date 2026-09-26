@@ -187,7 +187,7 @@ export default function Stats() {
   useEffect(() => {
     if (!user || !sessions.length) return;
     let alive = true;
-    runStreakFreezeUpkeep(supabase, user.id, sessions).then((res) => {
+    runStreakFreezeUpkeep(supabase, user.id).then((res) => {
       if (alive && res.supported) setFrozenDays(res.frozenDays);
     });
     return () => { alive = false; };
