@@ -4,12 +4,13 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { listPending, flushPending } from "../lib/timerDraft";
+import { dailyCapMessage } from "../lib/dailyCap.mjs";
 
 const STORAGE_KEY = "bt_pending_sessions_v1";
 
 export default function PendingSessionsBanner({ onSynced }) {
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [count, setCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -23,7 +24,11 @@ export default function PendingSessionsBanner({ onSynced }) {
     setBusy(true);
     try {
       const res = await flushPending(supabase, user.id);
-      if (res.synced + res.alreadyExists > 0) {
+      const capped = res.results.find((r) => r.status === "rejected");
+      if (capped) {
+        setFeedback(dailyCapMessage(t, lang, capped.date));
+        setTimeout(() => setFeedback(""), 6000);
+      } else if (res.synced + res.alreadyExists > 0) {
         onSynced?.();
         setFeedback(t("dash.pendingSynced"));
         setTimeout(() => setFeedback(""), 2500);
@@ -35,7 +40,7 @@ export default function PendingSessionsBanner({ onSynced }) {
       setBusy(false);
       refresh();
     }
-  }, [user, busy, onSynced, refresh, t]);
+  }, [user, busy, onSynced, refresh, t, lang]);
 
   // initial sync + on user change : flush si quelque chose attend
   useEffect(() => {

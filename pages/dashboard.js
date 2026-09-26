@@ -23,6 +23,7 @@ import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey, invalidateStreakFree
 import { freezeGap, liveChronoDays, pendingSessionDays } from "../lib/streakFreezeGap.mjs";
 import { daysLostByChange } from "../lib/sessionDayImpact.mjs";
 import { missionDayStats } from "../lib/missionStats.mjs";
+import { isDailyCapError, dailyCapMessage } from "../lib/dailyCap.mjs";
 import StreakFreezeOffer from "../components/StreakFreezeOffer";
 import { useToast } from "../contexts/ToastContext";
 import PendingSessionsBanner from "../components/PendingSessionsBanner";
@@ -664,6 +665,11 @@ export default function Dashboard() {
         // 2) Tentative d'envoi : la queue se vide d'elle-même via flushPending
         //    (idempotent, dédupe via PK sur 23505).
         flushPending(supabase, user.id).then((res) => {
+          const capped = res.results.find((r) => r.status === "rejected");
+          if (capped) {
+            setPendingCredits((prev) => prev.filter((c) => c.id !== capped.item.id));
+            toast(dailyCapMessage(t, lang, capped.date), "error");
+          }
           if (res.synced + res.alreadyExists > 0) {
             clearDashboardCache();
             notifyXPChanged();
@@ -747,6 +753,16 @@ export default function Dashboard() {
 
     // 23505 = unique violation = déjà insérée → succès idempotent.
     const isDuplicateOk = error && error.code === "23505";
+
+    // Plafond de 16 h dépassé sur une date (v78) : refus définitif. On le dit,
+    // date à l'appui, au lieu de la laisser en file « hors ligne » pour toujours.
+    if (isDailyCapError(error)) {
+      removeFromQueue(payload.id);
+      setPendingCredits((prev) => prev.filter((c) => c.id !== payload.id));
+      setSaveStatus("idle");
+      toast(dailyCapMessage(t, lang, error.details), "error");
+      return;
+    }
 
     if (error && !isDuplicateOk) {
       // Échec réseau/serveur : la session reste dans la queue, le banner prend

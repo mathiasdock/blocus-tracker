@@ -10,7 +10,6 @@ declare
   checks integer := 0;
   r record;
   lv record;
-  legacy_before integer;
 begin
   -- ── Droits ─────────────────────────────────────────────────────────────────
   if not has_function_privilege('authenticated', 'public.get_my_streak(date)', 'execute')
@@ -109,17 +108,16 @@ begin
   end if;
   checks := checks + 1;
 
-  -- ── Les consommateurs legacy ne bougent pas ────────────────────────────────
-  -- Missions, badges et défi du jour lisent toujours gamification_current_streak
-  -- (jour de début, joker +1, aucun seuil).
-  legacy_before := public.gamification_current_streak(u[3]);
-  if legacy_before <> 0 then raise exception 'FAIL [legacy baseline]'; end if;
-  if exists (
-    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
-    where p.proname in ('award_badges_for_user', 'refresh_daily_missions_for_user', 'gamification_pick_challenge')
-      and (pg_get_functiondef(p.oid) ~ 'study_streaks' or pg_get_functiondef(p.oid) !~ 'gamification_current_streak')
-  ) then
-    raise exception 'FAIL [a legacy consumer changed engine]';
+  -- ── Plus de moteur legacy (5C, v78) ───────────────────────────────────────
+  -- Missions, défi du jour (v76) et badges (v78) lisent la série officielle ;
+  -- gamification_current_streak / gamification_best_streak n'existent plus.
+  if exists (select 1 from pg_proc where proname in ('gamification_current_streak', 'gamification_best_streak'))
+     or exists (
+       select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+       where p.proname in ('award_badges_for_user', 'refresh_daily_missions_for_date', 'gamification_pick_challenge')
+         and pg_get_functiondef(p.oid) !~ 'study_streaks|study_day_states'
+     ) then
+    raise exception 'FAIL [legacy streak engine still in use]';
   end if;
   if pg_get_functiondef('public.get_gamification_levels(uuid[])'::regprocedure) ~ 'gamification_(current|best)_streak' then
     raise exception 'FAIL [levels still read the legacy streak]';
