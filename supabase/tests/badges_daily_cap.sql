@@ -1,5 +1,6 @@
--- Badges et plafond quotidien sur les jours canoniques (v78), sur la vraie
--- base. Étudiants jetables, exception finale : RIEN n'est gardé.
+-- Badges et plafond quotidien sur les jours canoniques (v78, seuils v84 :
+-- série de 5 jours, marathon de 8 h — le reste des règles v84 est testé par
+-- badges_v84.sql), sur la vraie base. Étudiants jetables, exception finale : RIEN n'est gardé.
 -- Résultat attendu : « BADGES DAILY CAP TESTS PASSED ».
 -- Dates relatives à aujourd'hui (Bruxelles) ; la bascule des règles est
 -- déplacée le temps du test (la vraie, 2026-10-05, est vérifiée au début).
@@ -41,8 +42,8 @@ declare
 begin
   -- ── Câblage : plus de moteur legacy, badges sur la série officielle ──────
   if exists (select 1 from pg_proc where proname in ('gamification_current_streak', 'gamification_best_streak'))
-     or pg_get_functiondef('public.award_badges_for_user(uuid)'::regprocedure) !~ 'study_streaks'
-     or pg_get_functiondef('public.award_badges_for_user(uuid)'::regprocedure) !~ 'from public.session_days sd'
+     or pg_get_functiondef('public.badge_ids_for_user(uuid)'::regprocedure) !~ 'study_streaks'
+     or pg_get_functiondef('public.badge_ids_for_user(uuid)'::regprocedure) !~ 'from public.session_days sd'
      or pg_get_functiondef('public.validate_new_study_session()'::regprocedure) !~ 'daily_cap'
      or (select new_rules_from from public.study_day_rules) <> date '2026-10-05' then
     raise exception 'FAIL [wiring]';
@@ -61,21 +62,22 @@ begin
   update public.study_day_rules set new_rules_from = t - 30;
 
   -- ── Badges de série ──────────────────────────────────────────────────────
-  -- 3 jours de 10 min → streak_3.
-  perform pg_temp.sess(u[1], t - 3, '10:00', 600);
-  perform pg_temp.sess(u[1], t - 2, '10:00', 600);
-  perform pg_temp.sess(u[1], t - 1, '10:00', 600);
+  -- 5 jours de 10 min → streak_3 (seuil v84 : 5 jours).
+  for i in 1..5 loop perform pg_temp.sess(u[1], t - i, '10:00', 600); end loop;
   if not pg_temp.has(u[1], 'streak_3') then raise exception 'FAIL [streak_3]'; end if;
   -- Après la bascule : 4:59 casse, 5:00 valide.
-  perform pg_temp.sess(u[2], t - 3, '10:00', 600);
-  s1 := pg_temp.sess(u[2], t - 2, '10:00', 299);
-  perform pg_temp.sess(u[2], t - 1, '10:00', 600);
+  for i in 1..5 loop
+    if i = 3 then s1 := pg_temp.sess(u[2], t - i, '10:00', 299);
+    else perform pg_temp.sess(u[2], t - i, '10:00', 600); end if;
+  end loop;
   if pg_temp.has(u[2], 'streak_3') then raise exception 'FAIL [4:59 counted]'; end if;
-  perform pg_temp.sess(u[2], t - 2, '15:00', 1);
+  perform pg_temp.sess(u[2], t - 3, '15:00', 1);
   if not pg_temp.has(u[2], 'streak_3') then raise exception 'FAIL [5:00 not counted]'; end if;
   checks := checks + 3;
 
-  -- Joker historique (avant la bascule) : +1 → 3 jours.
+  -- Joker historique (avant la bascule) : +1 → 5 jours.
+  perform pg_temp.sess(u[3], t - 5, '10:00', 600);
+  perform pg_temp.sess(u[3], t - 4, '10:00', 600);
   perform pg_temp.sess(u[3], t - 3, '10:00', 600);
   perform pg_temp.sess(u[3], t - 1, '10:00', 600);
   insert into public.streak_freeze_days (user_id, used_on) values (u[3], t - 2);
@@ -83,34 +85,38 @@ begin
   perform public.award_badges_for_user(u[3]);
   update public.study_day_rules set new_rules_from = t - 30;
   if not pg_temp.has(u[3], 'streak_3') then raise exception 'FAIL [historical freeze +1]'; end if;
-  -- Nouveau joker (après la bascule) : neutre, +0 → 2 jours.
+  -- Nouveau joker (après la bascule) : neutre, +0 → 4 jours.
+  perform pg_temp.sess(u[4], t - 5, '10:00', 600);
+  perform pg_temp.sess(u[4], t - 4, '10:00', 600);
   perform pg_temp.sess(u[4], t - 3, '10:00', 600);
   perform pg_temp.sess(u[4], t - 1, '10:00', 600);
   insert into public.streak_freeze_days (user_id, used_on) values (u[4], t - 2);
   perform public.award_badges_for_user(u[4]);
   if pg_temp.has(u[4], 'streak_3') then raise exception 'FAIL [new freeze counted +1]'; end if;
-  -- Jour hors blocus : neutre, ne casse pas → 3 jours étudiés.
+  -- Jour hors blocus : neutre, ne casse pas → 5 jours étudiés.
   insert into public.blocus_periods (user_id, start_date, end_date) values (u[5], t - 10, t - 3), (u[5], t - 1, t + 10);
+  perform pg_temp.sess(u[5], t - 6, '10:00', 600);
+  perform pg_temp.sess(u[5], t - 5, '10:00', 600);
   perform pg_temp.sess(u[5], t - 4, '10:00', 600);
   perform pg_temp.sess(u[5], t - 3, '10:00', 600);
   perform pg_temp.sess(u[5], t - 1, '10:00', 600);
   if not pg_temp.has(u[5], 'streak_3') then raise exception 'FAIL [off-blocus day broke the streak]'; end if;
   checks := checks + 3;
 
-  -- ── Marathon (≥ 6 h sur une date) ─────────────────────────────────────────
-  perform pg_temp.sess(u[6], t - 3, '08:00', 10800);
-  if pg_temp.has(u[6], 'marathon_day') then raise exception 'FAIL [3 h is a marathon]'; end if;
-  perform pg_temp.sess(u[6], t - 3, '14:00', 10800);
-  if not pg_temp.has(u[6], 'marathon_day') then raise exception 'FAIL [3 h + 3 h]'; end if;
-  -- 23:00 → 04:00 (1 h la veille, 4 h le jour J) + 2 h le jour J = 6 h le jour J.
-  -- L'ancien calcul (jour de début) voyait 5 h la veille, 2 h le jour J.
+  -- ── Marathon (≥ 8 h sur une date, seuil v84) ──────────────────────────────
+  perform pg_temp.sess(u[6], t - 3, '08:00', 14400);
+  if pg_temp.has(u[6], 'marathon_day') then raise exception 'FAIL [4 h is a marathon]'; end if;
+  perform pg_temp.sess(u[6], t - 3, '14:00', 14400);
+  if not pg_temp.has(u[6], 'marathon_day') then raise exception 'FAIL [4 h + 4 h]'; end if;
+  -- 23:00 → 04:00 (1 h la veille, 4 h le jour J) + 4 h le jour J = 8 h le jour J.
+  -- L'ancien calcul (jour de début) voyait 5 h la veille, 4 h le jour J.
   perform pg_temp.sess(u[7], t - 4, '23:00', 18000);
   if pg_temp.has(u[7], 'marathon_day') then raise exception 'FAIL [5 h split is a marathon]'; end if;
-  perform pg_temp.sess(u[7], t - 3, '10:00', 7200);
+  perform pg_temp.sess(u[7], t - 3, '10:00', 14400);
   if not pg_temp.has(u[7], 'marathon_day') then raise exception 'FAIL [midnight marathon]'; end if;
-  -- 5 h 59 : pas de marathon.
-  perform pg_temp.sess(u[8], t - 3, '08:00', 21540);
-  if pg_temp.has(u[8], 'marathon_day') then raise exception 'FAIL [5:59 is a marathon]'; end if;
+  -- 7 h 59 : pas de marathon.
+  perform pg_temp.sess(u[8], t - 3, '08:00', 28740);
+  if pg_temp.has(u[8], 'marathon_day') then raise exception 'FAIL [7:59 is a marathon]'; end if;
   checks := checks + 3;
 
   -- Un badge gagné n'est jamais retiré.

@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-27 — Claude — Badges : progression v84 (migrations v84 + v84b appliquées)
+
+- Règles serveur uniquement (`public.badge_ids_for_user`, appelée par `award_badges_for_user`, insertion seule) sur les sources canoniques : séries = MEILLEURE série officielle (`study_streaks`), jours étudiés = `study_day_states`, durées = `session_days`, dates > 16 h écartées des critères de durée. `computeEarnedBadgeIds` (calcul client mort) supprimé.
+- Durcis (anciens détenteurs gardés) : streak_3 3 → 5 jours ; marathon_day 6 h → 8 h ; planner / strategist / blocus_architect = 10 / 25 / 75 objectifs cochés ET vérifiés (durée cible étudiée sur le cours, le jour prévu, temps partagé entre objectifs du même jour) ; referrer = 5 filleuls ayant étudié ≥ 1 h (réévalué par le déclencheur des sessions du filleul).
+- Nouveaux : steamroller, iron_month, metronome, regular, relentless, in_the_zone, exam_ready, all_rounder, study_buddy, early_bird. Retirés : motivator, community_pillar (0 détenteur). XP inchangés par palier (50/125/300/600/1200).
+- Fiche d'un badge durci obtenu avant la bascule (2026-09-27T21:09:47.207512Z, `lib/badgeRules.mjs`) : règle d'époque + règle actuelle. Vert d'illustration des badges pris de `brand` (forêt), plus de #14B885 dans `lib/badgeArt.js`.
+- Rétroactif appliqué : 89 badges pour 35 comptes, 534 attributions existantes intactes, second passage 0. Tests : `supabase/tests/badges_v84.sql` (44 checks) et `badges_daily_cap.sql` (seuils v84), `tests/badges-v84.test.mjs`.
+
 ## 2026-09-27 — Codex — Identité forêt : couleurs et rôles sémantiques
 
 - Palette officielle forêt/fougère appliquée aux interfaces, Auth, site public, Focus, PWA et exports ; aucun changement de layout ou de modèle de données. Travail isolé de la session Social/swipe et des suppressions de logos du worktree principal.

@@ -1,6 +1,7 @@
 import Glyph from "./Glyph";
 import BadgeIcon from "./BadgeIcon";
 import { HUES, dominantHue, rarityOf, rgba } from "../lib/badgeArt";
+import { badgeDescKey } from "../lib/badgeRules.mjs";
 
 const RARITY_LABEL_KEYS = {
   discovery: "badge.rarityDiscovery",
@@ -36,7 +37,9 @@ export function RarityChip({ id, t }) {
 // Fiche d'un badge. Un seul objet à regarder de près : c'est le cas où une
 // surface par-dessus se justifie, contrairement à une liste qu'on vient
 // simplement lire.
-export default function BadgeSheet({ badge, earned, t, onClose }) {
+// Un badge gagné avant qu'on durcisse sa règle garde sa fiche d'époque :
+// la règle d'alors, puis celle d'aujourd'hui (lib/badgeRules.mjs).
+export default function BadgeSheet({ badge, earned, earnedAt = null, t, onClose }) {
   if (!badge) return null;
   return (
     <>
@@ -82,7 +85,7 @@ export default function BadgeSheet({ badge, earned, t, onClose }) {
                 {t("badge.howToEarn")}
               </p>
             )}
-            <p className="text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t(badge.descKey)}</p>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t(badgeDescKey(badge, { earned, earnedAt }))}</p>
             <button onClick={onClose} className="btn-ghost w-full mt-5 text-sm">{t("common.close")}</button>
           </div>
         </div>

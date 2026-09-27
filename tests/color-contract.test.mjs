@@ -72,7 +72,7 @@ test('hero and focus keep deliberate scopes; pause/artwork are not migrated', ()
 
 // Deliberate exceptions: character/achievement artwork and real course hues.
 // Historical prose and raster screenshots are documented, not live CSS sources.
-const allowed = new Set(['components/Mascot.js', 'lib/badgeArt.js', 'lib/courseColors.js', 'lib/universities.js']);
+const allowed = new Set(['components/Mascot.js', 'lib/courseColors.js', 'lib/universities.js']);
 const oldHex = /#(?:14b885|0e8f68|087454|0b2e23|114134|eafbf4|c6eed9|2bd9a4|5de0b5|22e4a4|0ea571|0fa173|10a878|082b21|065f46|06694d|f2fbf7|8fd4b8|ecfaf4|7fc7ab|0d2b22|15231e|193128|0f3a2c|0a2a20|0b1f19|071c15|0e2a20|0f2a21|f1fbf6|e2f7ed|54d3a9|20c996|123d31|9fd7c1|061f18|12352d|0a3327|071d17)\b/gi;
 const oldRGB = /rgba?\(\s*(?:20\s*,\s*184\s*,\s*133|8\s*,\s*116\s*,\s*84|143\s*,\s*212\s*,\s*184|43\s*,\s*217\s*,\s*164|159\s*,\s*215\s*,\s*193)\s*[,)]/gi;
 function files(dir) {

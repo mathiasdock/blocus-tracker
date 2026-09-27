@@ -9,7 +9,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { BADGES } from "../lib/badges";
 import { groupBadges } from "../lib/badgeGroups";
-import { fetchCanonicalBadgeIds } from "../lib/badgeTruth.mjs";
+import { fetchCanonicalBadges } from "../lib/badgeTruth.mjs";
 
 const BADGE_IDS = BADGES.map((badge) => badge.id);
 
@@ -58,6 +58,7 @@ export default function BadgesPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const [earnedIds, setEarnedIds] = useState([]);
+  const [earnedAt, setEarnedAt] = useState({});
   const [selected, setSelected] = useState(null);
 
   const load = useCallback(async () => {
@@ -67,8 +68,11 @@ export default function BadgesPage() {
     // plus annoncer deux totaux différents. Un échec de lecture garde ce qu'on
     // avait plutôt que d'afficher une collection vide.
     try {
-      const ids = await fetchCanonicalBadgeIds(supabase, user.id, BADGE_IDS);
-      if (ids) setEarnedIds(ids);
+      const result = await fetchCanonicalBadges(supabase, user.id, BADGE_IDS);
+      if (result) {
+        setEarnedIds(result.ids);
+        setEarnedAt(result.earnedAt);
+      }
     } catch (error) {
       console.warn("Badge load failed:", error);
     }
@@ -113,6 +117,7 @@ export default function BadgesPage() {
       <BadgeSheet
         badge={selected}
         earned={selected ? earnedIds.includes(selected.id) : false}
+        earnedAt={selected ? earnedAt[selected.id] : null}
         t={t}
         onClose={() => setSelected(null)}
       />
