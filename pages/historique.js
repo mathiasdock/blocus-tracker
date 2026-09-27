@@ -11,6 +11,7 @@ import { formatMinutesShort, localISO } from "../lib/format";
 import { mergeStudyDays } from "../lib/studyDays.mjs";
 import { daysLostByChange } from "../lib/sessionDayImpact.mjs";
 import { invalidateStreakFreezeUpkeep } from "../lib/streakFreezes";
+import { notifyXPChanged } from "../lib/xpEvents";
 
 const PAGE_SIZE = 25;
 
@@ -64,6 +65,9 @@ export default function Historique() {
   const forgetDashboard = useCallback(() => {
     if (user) clearClientCache(`dashboard:${user.id}:`);
     invalidateStreakFreezeUpkeep(); // un joker rendu a pu être repris (v75)
+    // Le niveau n'est plus relu toutes les 5 min : une session corrigée ou
+    // supprimée le signale elle-même.
+    notifyXPChanged();
   }, [user]);
 
   async function deleteSession(id) {

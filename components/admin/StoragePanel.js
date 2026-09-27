@@ -1,5 +1,9 @@
 // Stockage — section de la page Système.
 //
+// En tête : l'interrupteur d'urgence des envois (v81). Coupé, Storage refuse
+// tout nouvel envoi de photo ou de fichier ; chrono, planning, stats, sessions
+// et messages texte continuent. Chaque bascule est inscrite au journal.
+//
 // Deux outils serveur repris de l'ancienne admin, lancés à la demande (ils
 // parcourent les buckets : pas au chargement de la page) :
 //   /api/admin/egress-guard     → poids des fichiers par bucket, fichiers
@@ -8,10 +12,10 @@
 //                                  suppression des seuls éléments sûrs
 //                                  sélectionnés (les DM sont toujours exclus).
 
-import { useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { ConfirmDialog, ErrorLine, Panel, StateMark, adminStyles as s, errorText } from "./AdminUi";
 import { useI18n } from "../../contexts/I18nContext";
-import { adminFetch } from "../../lib/adminApi";
+import { adminFetch, adminRpc } from "../../lib/adminApi";
 import { formatBytes, formatCount, formatDate } from "../../lib/adminFormat.mjs";
 
 const BUCKETS = ["posts", "avatars", "dm", "community", "group"];
@@ -147,6 +151,84 @@ function Cleanup({ scan, selected, setSelected, onDelete, result }) {
   );
 }
 
+function MediaUploadsSwitch() {
+  const { t, lang } = useI18n();
+  const ids = useId();
+  const [state, setState] = useState({ data: null, error: null, loading: true });
+  const [confirm, setConfirm] = useState(null); // "pause" | "resume"
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setState((previous) => ({ ...previous, loading: true, error: null }));
+    const response = await adminRpc("admin_media_uploads_state");
+    const row = Array.isArray(response.data) ? response.data[0] || null : response.data;
+    setState({ data: row, error: response.error, loading: false });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function apply() {
+    setBusy(true);
+    setError(null);
+    const response = await adminRpc("admin_set_media_uploads", { p_enabled: confirm === "resume", p_reason: reason.trim() || null });
+    setBusy(false);
+    if (response.error) { setError(errorText(t, response.error)); return; }
+    setConfirm(null);
+    setReason("");
+    load();
+  }
+
+  const enabled = state.data?.enabled !== false;
+  return (
+    <Panel>
+      <div className={s.row}>
+        <span className={s.rowMain}>
+          <span className={s.rowTitle} style={{ display: "block" }}>{t("adm.media.title")}</span>
+          <span className={s.rowMeta} style={{ display: "block" }}>{t("adm.media.hint")}</span>
+          {state.data?.updated_at && (
+            <span className={s.rowMeta} style={{ display: "block" }}>
+              {t("adm.media.since")
+                .replace("{date}", formatDate(state.data.updated_at, lang, "dateTime"))
+                .replace("{who}", state.data.updated_by_pseudo || "—")}
+              {state.data.reason ? ` · ${state.data.reason}` : ""}
+            </span>
+          )}
+        </span>
+        <span className={s.rowEnd}>
+          {state.data && <StateMark tone={enabled ? "ok" : "danger"}>{enabled ? t("adm.media.on") : t("adm.media.off")}</StateMark>}
+          <button type="button" className="btn-ghost min-h-[44px]" disabled={state.loading || !state.data}
+            onClick={() => { setError(null); setConfirm(enabled ? "pause" : "resume"); }}>
+            {enabled ? t("adm.media.pause") : t("adm.media.resume")}
+          </button>
+        </span>
+      </div>
+      {state.data?.cap_bytes > 0 && (
+        <p className={`${s.rowMeta} px-4`}>
+          {t("adm.media.usage")
+            .replace("{used}", formatBytes(state.data.used_bytes, lang))
+            .replace("{cap}", formatBytes(state.data.cap_bytes, lang))}
+        </p>
+      )}
+      <p className={`${s.rowMeta} px-4 pb-3`}>{t("adm.media.limits")}</p>
+      {state.error && <ErrorLine code={state.error} onRetry={load} />}
+      {confirm && (
+        <ConfirmDialog title={confirm === "pause" ? t("adm.media.confirmPause") : t("adm.media.confirmResume")}
+          danger={confirm === "pause"} busy={busy} error={error}
+          confirmLabel={confirm === "pause" ? t("adm.media.pause") : t("adm.media.resume")}
+          onClose={() => setConfirm(null)} onConfirm={apply}>
+          <p>{confirm === "pause" ? t("adm.media.pauseBody") : t("adm.media.resumeBody")}</p>
+          <div className="mt-3">
+            <label className="label" htmlFor={`${ids}-reason`}>{t("adm.media.reasonLabel")}</label>
+            <input id={`${ids}-reason`} className="input" value={reason} maxLength={300} disabled={busy}
+              style={{ fontSize: 16 }} autoComplete="off" onChange={(event) => setReason(event.target.value)} />
+          </div>
+        </ConfirmDialog>
+      )}
+    </Panel>
+  );
+}
+
 export default function StoragePanel() {
   const { t, lang } = useI18n();
   const [egress, setEgress] = useState({ data: null, error: null, loading: false });
@@ -184,6 +266,8 @@ export default function StoragePanel() {
 
   return (
     <div className="space-y-4">
+      <MediaUploadsSwitch />
+
       <Panel>
         <div className={s.row}>
           <span className={s.rowMain}>

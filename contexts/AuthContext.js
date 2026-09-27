@@ -12,6 +12,8 @@ import {
 } from "../lib/onboarding.mjs";
 import { loadPrivacySettings, recordLegalAcceptance } from "../lib/privacySettings";
 import { detachPushForSignOut } from "../lib/onesignal";
+import { profileNeedsReload, sameAuthUser } from "../lib/authUserIdentity.mjs";
+import { forgetSignedMedia } from "../lib/signedMedia";
 
 const AuthContext = createContext(null);
 
@@ -54,11 +56,15 @@ export function AuthProvider({ children }) {
   const [profileStatus, setProfileStatus] = useState("idle");
   const profileRequestRef = useRef(0);
   const activeUserIdRef = useRef(null);
+  // Compte dont la fiche est chargée et à jour : un simple événement Auth du
+  // même compte ne la relit plus.
+  const profileReadyForRef = useRef(null);
   const pendingClearedRef = useRef(new Set());
 
   const loadProfile = useCallback(async (uid) => {
     if (!uid) {
       profileRequestRef.current += 1;
+      profileReadyForRef.current = null;
       setProfile(null);
       setProfileStatus("idle");
       return;
@@ -163,6 +169,7 @@ export function AuthProvider({ children }) {
     if (!requestIsCurrent()) return;
     setProfile({ ...data, email });
     setProfileStatus("ready");
+    profileReadyForRef.current = uid;
   }, []);
 
   const completePendingSignup = useCallback(async (authUser) => {
@@ -242,15 +249,25 @@ export function AuthProvider({ children }) {
     // Awaiting a Supabase query here deadlocks the internal auth lock
     // (this was the cause of the infinite loading on refresh). We defer
     // the profile fetch outside the callback with setTimeout.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       clearTimeout(safety);
-      setUser(session?.user ?? null);
+      const nextUser = session?.user ?? null;
+      // Même compte, mêmes données (TOKEN_REFRESHED horaire, SIGNED_IN à chaque
+      // retour sur l'onglet) : on garde l'objet, sinon toute l'app se recharge.
+      setUser((previous) => (sameAuthUser(previous, nextUser) ? previous : nextUser));
       setLoading(false);
-      const uid = session?.user?.id;
-      if (activeUserIdRef.current !== (uid || null)) setProfile(null);
+      const uid = nextUser?.id;
+      const accountChanged = activeUserIdRef.current !== (uid || null);
+      if (accountChanged) {
+        profileReadyForRef.current = null;
+        // Les liens signés de l'autre compte ne survivent pas au changement.
+        forgetSignedMedia();
+        setProfile(null);
+      }
       activeUserIdRef.current = uid || null;
       if (uid) {
+        if (!profileNeedsReload({ event, accountChanged, readyForUserId: profileReadyForRef.current, userId: uid })) return;
         // Cancel an in-flight request for the previous account immediately;
         // the deferred fetch below receives its own generation number.
         profileRequestRef.current += 1;

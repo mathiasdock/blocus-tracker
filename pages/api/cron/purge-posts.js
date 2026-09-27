@@ -56,6 +56,24 @@ const CRON_SECRET = process.env.CRON_SECRET;
 
 const EXPIRY_MS = 24 * 60 * 60 * 1000;
 const BATCH = 500;
+// Filet de sécurité (v81) : au-delà de 72 h, aucun fichier du bucket posts ne
+// peut appartenir à une publication encore affichable — ceux dont la ligne a
+// disparu autrement (suppression par un admin, échec d'un passage) partent ici.
+const SWEEP_AFTER_MS = 72 * 60 * 60 * 1000;
+
+async function sweepStalePostFiles(admin) {
+  const before = new Date(Date.now() - SWEEP_AFTER_MS).toISOString();
+  const { data, error } = await admin.rpc("post_files_older_than", { p_before: before, p_limit: BATCH });
+  if (error || !Array.isArray(data) || !data.length) return 0;
+  const names = data.map((row) => row.name).filter(Boolean);
+  let removed = 0;
+  for (let i = 0; i < names.length; i += 100) {
+    const chunk = names.slice(i, i + 100);
+    const { error: removeError } = await admin.storage.from("posts").remove(chunk);
+    if (!removeError) removed += chunk.length;
+  }
+  return removed;
+}
 
 function authorized(req) {
   if (!CRON_SECRET) return false;
@@ -124,10 +142,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ dry: true, posts: ids.length, files: paths.length, cutoff });
     }
     if (!ids.length) {
+      const swept = await sweepStalePostFiles(admin);
       const oldRuns = await purgeOldJobRuns(admin);
       const notifications = await notificationHousekeeping(admin, oneSignalFromEnv());
-      await finishJobRun(admin, runId, "ok", { posts: 0, files: 0, more: false, oldRuns, notifications });
-      return res.status(200).json({ ok: true, posts: 0, files: 0, cutoff });
+      await finishJobRun(admin, runId, "ok", { posts: 0, files: swept, swept, more: false, oldRuns, notifications });
+      return res.status(200).json({ ok: true, posts: 0, files: swept, cutoff });
     }
 
     // Le fichier d'abord : une ligne supprimée avant son fichier laisserait
@@ -151,16 +170,17 @@ export default async function handler(req, res) {
       .in("id", ids);
     if (deleteError) throw deleteError;
 
-    console.info("cron/purge-posts done", { posts: ids.length, files: filesRemoved, more: ids.length === BATCH });
+    const swept = await sweepStalePostFiles(admin);
+    console.info("cron/purge-posts done", { posts: ids.length, files: filesRemoved, swept, more: ids.length === BATCH });
     const oldRuns = await purgeOldJobRuns(admin);
     const notifications = await notificationHousekeeping(admin, oneSignalFromEnv());
     await finishJobRun(admin, runId, "ok", {
-      posts: ids.length, files: filesRemoved, filesExpected: paths.length, more: ids.length === BATCH, oldRuns, notifications,
+      posts: ids.length, files: filesRemoved + swept, filesExpected: paths.length, swept, more: ids.length === BATCH, oldRuns, notifications,
     });
     return res.status(200).json({
       ok: true,
       posts: ids.length,
-      files: filesRemoved,
+      files: filesRemoved + swept,
       // Lot plafonné : le prochain passage prendra la suite.
       more: ids.length === BATCH,
       cutoff,

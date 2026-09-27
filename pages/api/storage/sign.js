@@ -11,6 +11,7 @@ export const config = {
   },
 };
 
+const SIGNED_URL_TTL_S = 60 * 60;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -275,11 +276,15 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  const { data, error } = await admin.storage.from(bucket).createSignedUrl(path, 5 * 60);
+  // 1 h, et l'app réutilise ce même lien tant qu'il reste valable
+  // (lib/signedMedia.js) : même adresse → image servie par le cache du
+  // navigateur au lieu d'être retéléchargée à chaque ouverture. Contrepartie
+  // assumée : un membre retiré d'un groupe garde au plus 1 h un lien déjà émis.
+  const { data, error } = await admin.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL_S);
   if (error || !data?.signedUrl) {
     console.warn("storage/sign failed", { bucket, code: error?.statusCode || null });
     return res.status(500).json({ error: "Could not sign file" });
   }
 
-  return res.status(200).json({ signedUrl: data.signedUrl });
+  return res.status(200).json({ signedUrl: data.signedUrl, expiresIn: SIGNED_URL_TTL_S });
 }

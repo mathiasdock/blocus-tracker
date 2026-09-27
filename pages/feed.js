@@ -16,9 +16,11 @@ import {
   trimmedText,
   uploadErrorMessage,
   validateFinalUploadFile,
-  validateUploadFile,
+  validateUploadSource,
   storagePathFromReference,
 } from "../lib/security";
+import { signStorageRef } from "../lib/signedMedia";
+import { uploadRefusalText } from "../lib/mediaUploads";
 import { SkeletonRow } from "../components/Skeleton";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
@@ -283,7 +285,7 @@ export default function Feed() {
     let imageUrl = TEXT_ONLY_ACTIVITY_IMAGE;
     const cleanCaption = trimmedText(caption, TEXT_LIMITS.postCaption);
     if (file) {
-      const precheck = validateUploadFile(file, "postImage");
+      const precheck = validateUploadSource(file, "postImage");
       if (!precheck.ok) { setBusy(false); alert(uploadErrorMessage(t, precheck)); return; }
       let uploadFile = file;
       try {
@@ -296,9 +298,11 @@ export default function Feed() {
       if (!finalCheck.ok) { setBusy(false); alert(uploadErrorMessage(t, finalCheck)); return; }
       const pathInfo = safeStoragePath(user.id, uploadFile, [], "postImage");
       if (!pathInfo.ok) { setBusy(false); alert(uploadErrorMessage(t, pathInfo)); return; }
+      // Une publication vit 24 à 48 h puis disparaît avec sa photo : un cache
+      // d'un an la laisserait servie longtemps après sa suppression.
       const { error: upErr } = await supabase.storage.from("posts")
-        .upload(pathInfo.path, uploadFile, { upsert: false, cacheControl: "31536000", contentType: pathInfo.contentType });
-      if (upErr) { setBusy(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
+        .upload(pathInfo.path, uploadFile, { upsert: false, cacheControl: "86400", contentType: pathInfo.contentType });
+      if (upErr) { setBusy(false); alert(await uploadRefusalText(t, upErr)); return; }
       imageUrl = `posts:${pathInfo.path}`;
     }
     const { error } = await supabase.from("posts").insert({
@@ -364,7 +368,12 @@ export default function Feed() {
     const { error } = moderating
       ? await supabase.rpc("admin_remove_post", { p_post_id: id })
       : await supabase.from("posts").delete().eq("id", id);
-    if (error) { setPosts(previous); alert(t("toast.genericError")); }
+    if (error) { setPosts(previous); alert(t("toast.genericError")); return; }
+    // Sa propre photo part avec la publication (avant : fichier orphelin
+    // jusqu'au nettoyage manuel). Celle d'une publication retirée par un
+    // admin est balayée par la tâche de nuit (> 72 h).
+    const path = !moderating ? storagePathFromReference(target?.image_url, "posts") : null;
+    if (path) supabase.storage.from("posts").remove([path]).catch(() => {});
   }
 
   async function deleteComment(commentId) {
@@ -396,18 +405,10 @@ export default function Feed() {
     }
     setSigningPhotos((current) => ({ ...current, [post.id]: true }));
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error("Missing session");
-      const response = await fetch("/api/storage/sign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ bucket: "posts", ref: post.image_url }),
-      });
-      if (!response.ok) throw new Error("Could not sign post image");
-      const body = await response.json();
-      if (!body?.signedUrl) throw new Error("Missing signed URL");
-      setSignedPostUrls((current) => ({ ...current, [post.id]: body.signedUrl }));
+      // Même lien réutilisé pendant 1 h : revenir sur le feed ne retélécharge
+      // pas une photo déjà vue.
+      const signedUrl = await signStorageRef("posts", post.image_url);
+      setSignedPostUrls((current) => ({ ...current, [post.id]: signedUrl }));
     } catch {
       alert(t("toast.genericError"));
     } finally {

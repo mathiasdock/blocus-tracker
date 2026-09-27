@@ -32,7 +32,7 @@ import { ensureAppWorker, SW_RELOADED_KEY } from "../lib/appWorker";
 import ConsentManager from "../components/ConsentManager";
 import LegalUpdateNotice from "../components/LegalUpdateNotice";
 import { recordConsentChoice } from "../lib/privacySettings";
-import { autoSharePost, flushAutoShare, loadAutoShare } from "../lib/autoShare";
+import { autoSharePost, flushAutoShare } from "../lib/autoShare";
 import SeoHead from "../components/SeoHead";
 import AppSplash from "../components/AppSplash";
 import AuthBackdrop from "../components/auth/AuthBackdrop";
@@ -135,23 +135,25 @@ async function loadCurrentStatus(userId) {
   return { ...info.current, streak: info.streak || 0 };
 }
 
+// Revérification au retour sur l'onglet : seulement si la dernière lecture a
+// plus de 10 min (un changement fait sur un autre appareil). Tout le reste —
+// session, objectif, examen, mission, ami — émet bt-xp-changed.
+const LEVEL_STALE_AFTER_MS = 10 * 60 * 1000;
+
 function GlobalLevelUpWatcher() {
   const { user } = useAuth();
+  // Partage automatique : les préférences ne changent que lorsque le membre les
+  // modifie (writeAutoShare met la copie locale à jour aussitôt), et chaque
+  // publication relit les préférences au moment de publier. Il ne reste donc
+  // qu'à vider la file des publications en attente : au démarrage et au retour
+  // du réseau. Avant : relecture serveur toutes les 60 s par onglet ouvert —
+  // 19 % de tout le trafic (audit du 2026-09-26).
   useEffect(() => {
     if (!user?.id) return;
-    const sync = () => {
-      if (document.visibilityState === "hidden") return;
-      loadAutoShare(supabase, user.id).then(() => flushAutoShare(supabase, user.id)).catch(() => {});
-    };
-    sync();
-    window.addEventListener("online", sync);
-    window.addEventListener("focus", sync);
-    const timer = window.setInterval(sync, 60000);
-    return () => {
-      window.removeEventListener("online", sync);
-      window.removeEventListener("focus", sync);
-      window.clearInterval(timer);
-    };
+    const flush = () => { flushAutoShare(supabase, user.id).catch(() => {}); };
+    flush();
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
   }, [user?.id]);
   // Le partage automatique se greffe ICI et nulle part ailleurs pour le niveau
   // et les paliers de série : ce veilleur sait déjà les détecter, et il porte
@@ -170,6 +172,7 @@ function GlobalLevelUpWatcher() {
   const loadingRef = useRef(false);
   const pendingRef = useRef(null);
   const rerunRef = useRef(false);
+  const lastCheckRef = useRef(0);
 
   const enqueueCelebration = useCallback((item) => {
     setCelebration((cur) => {
@@ -205,6 +208,7 @@ function GlobalLevelUpWatcher() {
     loadingRef.current = true;
     try {
       const current = await loadCurrentStatus(user.id);
+      lastCheckRef.current = Date.now();
       const currentLevel = current.level;
       const streak = current.streak || 0;
       const reachedMilestone = highestStreakMilestone(streak);
@@ -303,8 +307,7 @@ function GlobalLevelUpWatcher() {
   const scheduleCheck = useCallback(() => {
     if (typeof window === "undefined") return;
     clearTimeout(pendingRef.current);
-    // Debounce élargi (1.5s) : coalesce les rafales d'événements realtime en un
-    // seul recalcul au lieu d'un par événement.
+    // Debounce (1.5 s) : plusieurs actions rapprochées → un seul recalcul.
     pendingRef.current = setTimeout(checkLevel, 1500);
   }, [checkLevel]);
 
@@ -320,72 +323,27 @@ function GlobalLevelUpWatcher() {
 
     checkLevel();
 
-    const focus = () => scheduleCheck();
-    const visibility = () => {
-      if (!document.hidden) scheduleCheck();
-    };
-    // Changement XP EXPLICITE → on invalide le cache de niveau pour forcer un
-    // recalcul frais (le level-up reste instantané malgré le cache mémoire).
+    // Plus de sondage toutes les 5 min ni d'abonnement temps réel : le niveau
+    // et les badges ne bougent qu'après une action du membre (session,
+    // objectif, examen, mission, ami, message de salon), et chacune émet
+    // bt-xp-changed → cache invalidé, recalcul frais, level-up immédiat.
+    // Des 14 canaux temps réel ouverts ici, 12 écoutaient des tables que
+    // Supabase ne diffuse pas : ils ne recevaient jamais rien.
     const onXpChanged = () => { clearUserLevelCache(); scheduleCheck(); };
-    window.addEventListener("focus", focus);
+    const onReturn = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastCheckRef.current < LEVEL_STALE_AFTER_MS) return;
+      scheduleCheck();
+    };
     window.addEventListener("bt-xp-changed", onXpChanged);
-    document.addEventListener("visibilitychange", visibility);
-    // Polling de sécurité : 5 min (au lieu de 60s). Les events realtime + le
-    // cache mémoire de loadUserLevelMap couvrent les mises à jour entre-temps.
-    const interval = setInterval(checkLevel, 300000);
-
-    const watchedTables = [
-      ["sessions", "user_id"],
-      ["objectives", "user_id"],
-      ["exams", "user_id"],
-      ["user_badges", "user_id"],
-      ["posts", "user_id"],
-      ["likes", "user_id"],
-      ["comments", "user_id"],
-      ["group_members", "user_id"],
-      ["community_messages", "user_id"],
-      ["profiles", "id"],
-      ["referrals", "referrer_id"],
-      ["xp_ledger", "user_id"],
-    ];
-    const channels = watchedTables.map(([table, column]) =>
-      supabase.channel(`level-watch-${table}-${user.id}`)
-        .on("postgres_changes", {
-          event: "*",
-          schema: "public",
-          table,
-          filter: `${column}=eq.${user.id}`,
-        }, scheduleCheck)
-        .subscribe()
-    );
-    channels.push(
-      supabase.channel(`level-watch-friendships-requester-${user.id}`)
-        .on("postgres_changes", {
-          event: "*",
-          schema: "public",
-          table: "friendships",
-          filter: `requester=eq.${user.id}`,
-        }, scheduleCheck)
-        .subscribe()
-    );
-    channels.push(
-      supabase.channel(`level-watch-friendships-addressee-${user.id}`)
-        .on("postgres_changes", {
-          event: "*",
-          schema: "public",
-          table: "friendships",
-          filter: `addressee=eq.${user.id}`,
-        }, scheduleCheck)
-        .subscribe()
-    );
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
 
     return () => {
-      clearInterval(interval);
       clearTimeout(pendingRef.current);
-      window.removeEventListener("focus", focus);
       window.removeEventListener("bt-xp-changed", onXpChanged);
-      document.removeEventListener("visibilitychange", visibility);
-      channels.forEach(ch => supabase.removeChannel(ch));
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
     };
   }, [checkLevel, scheduleCheck, user]);
 

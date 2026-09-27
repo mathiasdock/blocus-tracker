@@ -57,8 +57,13 @@ const NotificationContext = createContext({
   refreshNotifications: () => {},
 });
 
+// Une seule stratégie : un compteur relu toutes les 2 min tant que l'app est
+// affichée, rien du tout quand l'onglet est caché, et une relecture au retour
+// si la dernière date de plus de 30 s. Avant : une boucle de 2 min + une de
+// 5 min onglet caché, et des boucles « orphelines » qui s'empilaient à chaque
+// renouvellement de connexion (audit du 2026-09-26 : 44 relectures/h la nuit).
 const POLL_VISIBLE_MS = 120000; // 2 min — onglet visible
-const POLL_HIDDEN_MS = 300000;  // 5 min — onglet en arrière-plan
+const POLL_WAKE_AFTER_MS = 30000;
 const POLL_DEBOUNCE_MS = 1200;
 const SEEN_PREFIX = "bt_last_seen_";
 
@@ -99,6 +104,7 @@ export function NotificationProvider({ children }) {
   const [inbox, setInbox] = useState(EMPTY_INBOX);
   const [msgToast, setMsgToast] = useState(false);
   const pollingRef = useRef(false);
+  const lastPollAtRef = useRef(0);
   const pollTimeoutRef = useRef(null);
   const audibleBaselineRef = useRef(null);
   const inboxRef = useRef(inbox);
@@ -128,30 +134,49 @@ export function NotificationProvider({ children }) {
 
   // Realtime : toast immédiat quand un message privé arrive, sur n'importe
   // quelle page (sauf dans Messages). La cloche se met à jour au passage.
+  // Seulement tant que l'app est affichée : un onglet caché ferme son canal
+  // (et, sans autre canal, sa connexion temps réel — la limite gratuite est de
+  // 200 connexions simultanées). Au retour, la relecture du compteur rattrape
+  // ce qui est arrivé entre-temps ; le push, lui, prévient hors de l'app.
   useEffect(() => {
     if (!user) return;
-    const ch = supabase
-      .channel(`notif-dm-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "private_messages",
-          filter: `receiver_id=eq.${user.id}`,
-        },
-        () => {
-          setMessageCount((c) => c + 1);
-          if (audibleBaselineRef.current !== null) audibleBaselineRef.current += 1;
-          if (pathnameRef.current !== "/messages") {
-            setMsgToast(true);
-            if (typeof document === "undefined" || !document.hidden) playSensoryCue("notification");
+    let ch = null;
+    const open = () => {
+      if (ch || document.hidden) return;
+      ch = supabase
+        .channel(`notif-dm-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "private_messages",
+            filter: `receiver_id=eq.${user.id}`,
+          },
+          () => {
+            setMessageCount((c) => c + 1);
+            if (audibleBaselineRef.current !== null) audibleBaselineRef.current += 1;
+            if (pathnameRef.current !== "/messages") {
+              setMsgToast(true);
+              if (typeof document === "undefined" || !document.hidden) playSensoryCue("notification");
+            }
+            schedulePollRef.current?.(POLL_DEBOUNCE_MS);
           }
-          schedulePollRef.current?.(POLL_DEBOUNCE_MS);
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+        )
+        .subscribe();
+    };
+    const close = () => {
+      if (!ch) return;
+      supabase.removeChannel(ch);
+      ch = null;
+    };
+    const onVisibility = () => (document.hidden ? close() : open());
+    open();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      close();
+    };
   }, [user]);
 
   const loadInbox = useCallback(async () => {
@@ -189,6 +214,7 @@ export function NotificationProvider({ children }) {
   const poll = useCallback(async () => {
     if (!user || pollingRef.current) return;
     pollingRef.current = true;
+    lastPollAtRef.current = Date.now();
     try {
       const feedSince = getLastSeen("feed");
       if (!feedSince) setLastSeen("feed");
@@ -304,36 +330,43 @@ export function NotificationProvider({ children }) {
 
   useEffect(() => {
     if (!user) return;
-    let loopId;
+    let loopId = null;
+    let stopped = false;
 
+    function clearLoop() {
+      if (loopId) clearTimeout(loopId);
+      loopId = null;
+    }
+
+    // Une seule boucle à la fois, jamais onglet caché. `stopped` empêche une
+    // relecture encore en cours au démontage de relancer une boucle orpheline.
     function scheduleLoop() {
-      const delay = typeof document !== "undefined" && document.hidden
-        ? POLL_HIDDEN_MS
-        : POLL_VISIBLE_MS;
+      clearLoop();
+      if (stopped || document.hidden) return;
       loopId = setTimeout(async () => {
+        loopId = null;
         await poll();
         scheduleLoop();
-      }, delay);
+      }, POLL_VISIBLE_MS);
     }
 
-    function onFocus() {
-      schedulePoll(100);
-    }
-
-    function onVisibilityChange() {
-      if (!document.hidden) schedulePoll(100);
+    function wake() {
+      if (document.hidden) { clearLoop(); return; }
+      if (Date.now() - lastPollAtRef.current >= POLL_WAKE_AFTER_MS) schedulePoll(100);
+      scheduleLoop();
     }
 
     poll();
     scheduleLoop();
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", wake);
+    document.addEventListener("visibilitychange", wake);
 
     return () => {
-      clearTimeout(loopId);
+      stopped = true;
+      clearLoop();
       if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", wake);
+      document.removeEventListener("visibilitychange", wake);
     };
   }, [poll, schedulePoll, user]);
 

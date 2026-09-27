@@ -17,6 +17,8 @@ import { isUuidLike } from "../lib/notificationRules.mjs";
 import { isStudyingLive } from "../lib/presence";
 import { optimizeFeedImage } from "../lib/imageCompression";
 import { notifyXPChanged } from "../lib/xpEvents";
+import { cachedSignedUrl, signStorageRef } from "../lib/signedMedia";
+import { uploadRefusalText } from "../lib/mediaUploads";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 import {
   TEXT_LIMITS,
@@ -27,7 +29,7 @@ import {
   storagePathFromReference,
   trimmedText,
   uploadErrorMessage,
-  validateUploadFile,
+  validateUploadSource,
 } from "../lib/security";
 
 const CHAT_ACCEPT = [
@@ -46,6 +48,18 @@ const CHAT_ACCEPT = [
 
 function attachmentCacheKey(bucket, ref) {
   return `${bucket}|${ref}`;
+}
+
+// Pièces jointes privées : un jour de cache navigateur suffit — le lien signé
+// (1 h) change ensuite de toute façon, et un fichier supprimé ne doit pas
+// rester servi un an depuis un cache.
+const PRIVATE_MEDIA_CACHE = "86400";
+
+function sortConversations(list) {
+  return [...list].sort((a, b) => {
+    if (a.unread !== b.unread) return b.unread - a.unread;
+    return (b.lastMsg?.created_at || "").localeCompare(a.lastMsg?.created_at || "");
+  });
 }
 
 const IconBack = () => <Glyph size={22}><path d="M15 5.5 8.5 12l6.5 6.5" /></Glyph>;
@@ -168,6 +182,7 @@ export default function Messages() {
   const [dmActiveId, setDmActiveId] = useState(null);
   const [messages, setMessages]     = useState([]);
   const [signedAttachmentUrls, setSignedAttachmentUrls] = useState({});
+  const realtimeRefreshRef = useRef(null);
   const [text, setText]             = useState("");
   const [file, setFile]             = useState(null);
   const [sending, setSending]       = useState(false);
@@ -258,7 +273,7 @@ export default function Messages() {
   function pickFile(setter, input) {
     const f = input.files?.[0] || null;
     if (!f) { setter(null); return; }
-    const check = validateUploadFile(f, "chatAttachment");
+    const check = validateUploadSource(f, "chatAttachment");
     if (!check.ok) {
       alert(uploadErrorMessage(t, check));
       input.value = "";
@@ -289,6 +304,25 @@ export default function Messages() {
   }
 
   // ── DM loading ─────────────────────────────────────────────────
+  const fetchConversationSummaries = useCallback(async () => {
+    const { data, error } = await supabase.rpc("get_my_conversations");
+    // null = lecture impossible : l'appelant garde ce qu'il affiche déjà.
+    if (error || !Array.isArray(data)) return null;
+    const byId = {};
+    data.forEach(row => {
+      byId[row.other_id] = {
+        unread: Number(row.unread_count || 0),
+        lastMsg: {
+          content: row.last_content,
+          attachment_type: row.last_attachment_type,
+          created_at: row.last_created_at,
+          sender_id: row.last_sender_id,
+        },
+      };
+    });
+    return byId;
+  }, []);
+
   const loadFriends = useCallback(async () => {
     if (!user) return;
     const { data: links } = await supabase
@@ -298,42 +332,34 @@ export default function Messages() {
     if (!links?.length) { setFriends([]); return; }
 
     const friendIds = links.map(l => l.requester === user.id ? l.addressee : l.requester);
-    const [{ data: profs }, { data: unreadRows }, { data: lastMsgs }] = await Promise.all([
+    // Une requête pour toutes les conversations (v82) : dernier message et
+    // non-lus par interlocuteur. Avant : non-lus + 100 derniers messages +
+    // une requête par ami absent de ces 100 — 27 requêtes pour 31 amis.
+    const [{ data: profs }, fetched] = await Promise.all([
       supabase.from("profiles").select("id,pseudo,first_name,last_name,avatar_url,studying_since").in("id", friendIds),
-      supabase.from("private_messages").select("sender_id").eq("receiver_id", user.id).eq("read", false),
-      supabase.from("private_messages").select("*")
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-        .order("created_at", { ascending: false }).limit(100),
+      fetchConversationSummaries(),
     ]);
-
-    const unreadBy = {};
-    (unreadRows || []).forEach(m => { unreadBy[m.sender_id] = (unreadBy[m.sender_id] || 0) + 1; });
-    const lastBy = {};
-    (lastMsgs || []).forEach(m => {
-      const other = m.sender_id === user.id ? m.receiver_id : m.sender_id;
-      if (!lastBy[other]) lastBy[other] = m;
-    });
-    // A busy thread can occupy the entire recent-message window. Resolve
-    // missing friends individually so an older conversation never disappears.
-    await Promise.all(friendIds.filter(id => !lastBy[id]).map(async id => {
-      const { data } = await supabase.from("private_messages")
-        .select("content, attachment_type, created_at")
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${user.id})`)
-        .order("created_at", { ascending: false }).limit(1);
-      if (data?.[0]) lastBy[id] = data[0];
-    }));
+    const summaries = fetched || {};
     const profMap = {};
     (profs || []).forEach(p => { profMap[p.id] = p; });
-
-    setFriends(
+    setFriends(sortConversations(
       friendIds.filter(id => profMap[id])
-        .map(id => ({ profile: profMap[id], unread: unreadBy[id] || 0, lastMsg: lastBy[id] || null }))
-        .sort((a, b) => {
-          if (a.unread !== b.unread) return b.unread - a.unread;
-          return (b.lastMsg?.created_at || "").localeCompare(a.lastMsg?.created_at || "");
-        })
-    );
-  }, [user]);
+        .map(id => ({ profile: profMap[id], unread: summaries[id]?.unread || 0, lastMsg: summaries[id]?.lastMsg || null }))
+    ));
+  }, [user, fetchConversationSummaries]);
+
+  // Messages reçus ou envoyés : seuls l'aperçu et les non-lus changent, la
+  // liste d'amis et leurs profils non. Une requête au lieu de trois.
+  const refreshConversations = useCallback(async () => {
+    if (!user) return;
+    const summaries = await fetchConversationSummaries();
+    if (!summaries) return;
+    setFriends(prev => sortConversations(prev.map(f => ({
+      ...f,
+      unread: summaries[f.profile.id]?.unread || 0,
+      lastMsg: summaries[f.profile.id]?.lastMsg || null,
+    }))));
+  }, [user, fetchConversationSummaries]);
 
   const loadFriendLinks = useCallback(async () => {
     if (!user) return;
@@ -532,17 +558,29 @@ export default function Messages() {
 
   const loadMessages = useCallback(async () => {
     if (!dmActiveId || !user) return;
+    // Les 50 DERNIERS messages, affichés du plus ancien au plus récent (avant :
+    // les 50 premiers de la conversation — les nouveaux disparaissaient
+    // passé 50 messages).
     const { data } = await supabase.from("private_messages")
       .select("id, sender_id, receiver_id, content, attachment_url, attachment_type, attachment_name, read, created_at")
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${dmActiveId}),and(sender_id.eq.${dmActiveId},receiver_id.eq.${user.id})`)
-      .order("created_at", { ascending: true }).limit(50);
-    setMessages(data || []);
-    await supabase.from("private_messages")
-      .update({ read: true })
-      .eq("sender_id", dmActiveId).eq("receiver_id", user.id).eq("read", false);
-    refreshNotifications();
-    loadFriends();
-  }, [dmActiveId, user, refreshNotifications, loadFriends]);
+      .order("created_at", { ascending: false }).limit(50);
+    const rows = (data || []).reverse();
+    setMessages(rows);
+    // Marquer comme lu seulement s'il y a du non-lu, et mettre la liste à
+    // jour sur place : relire toute la liste d'amis ici relançait jusqu'à
+    // 27 requêtes à chaque ouverture et toutes les 60 s.
+    if (rows.some(m => m.sender_id === dmActiveId && !m.read)) {
+      await supabase.from("private_messages")
+        .update({ read: true })
+        .eq("sender_id", dmActiveId).eq("receiver_id", user.id).eq("read", false);
+      refreshNotifications();
+    }
+    const last = rows[rows.length - 1];
+    setFriends(prev => prev.map(f => (f.profile.id === dmActiveId
+      ? { ...f, unread: 0, lastMsg: last ? { content: last.content, attachment_type: last.attachment_type, created_at: last.created_at, sender_id: last.sender_id } : f.lastMsg }
+      : f)));
+  }, [dmActiveId, user, refreshNotifications]);
 
   // ── Group loading ──────────────────────────────────────────────
   const loadGroups = useCallback(async () => {
@@ -600,8 +638,8 @@ export default function Messages() {
   const loadGroupMessages = useCallback(async () => {
     if (!grpActiveId) return;
     const { data } = await supabase.from("group_messages").select(GRP_MSG_COLS)
-      .eq("group_id", grpActiveId).order("created_at", { ascending: true }).limit(100);
-    const rows = data || [];
+      .eq("group_id", grpActiveId).order("created_at", { ascending: false }).limit(100);
+    const rows = (data || []).reverse();
     setGroupMessages(rows);
     grpLastCreatedRef.current = rows[rows.length - 1]?.created_at || null;
     await ensureGrpProfiles(rows);
@@ -700,24 +738,22 @@ export default function Messages() {
     if (isOfflineDev) return () => { cancelled = true; };
     if (!refs.length) return () => { cancelled = true; };
 
-    (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) return;
+    // Un lien déjà signé dans cet onglet (valable 1 h) est repris tel quel :
+    // même adresse, donc image servie par le cache du navigateur. Seuls les
+    // manquants sont signés — et rien n'est téléchargé avant « Voir l'image ».
+    const known = {};
+    const missing = [];
+    for (const [key, { bucket, ref }] of refs) {
+      const url = cachedSignedUrl(bucket, ref);
+      if (url) known[key] = url; else missing.push([key, { bucket, ref }]);
+    }
+    if (Object.keys(known).length) setSignedAttachmentUrls((prev) => ({ ...prev, ...known }));
+    if (!missing.length) return () => { cancelled = true; };
 
-      const entries = await Promise.all(refs.map(async ([key, { bucket, ref }]) => {
+    (async () => {
+      const entries = await Promise.all(missing.map(async ([key, { bucket, ref }]) => {
         try {
-          const res = await fetch("/api/storage/sign", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ bucket, ref }),
-          });
-          if (!res.ok) return null;
-          const data = await res.json();
-          return data?.signedUrl ? [key, data.signedUrl] : null;
+          return [key, await signStorageRef(bucket, ref)];
         } catch {
           return null;
         }
@@ -801,21 +837,56 @@ export default function Messages() {
 
   // Realtime DMs
   const loadMessagesRef = useRef(loadMessages);
-  const loadFriendsRef  = useRef(loadFriends);
+  const dmActiveIdRef   = useRef(dmActiveId);
   loadMessagesRef.current = loadMessages;
-  loadFriendsRef.current  = loadFriends;
+  dmActiveIdRef.current   = dmActiveId;
+  const refreshConversationsRef = useRef(refreshConversations);
+  refreshConversationsRef.current = refreshConversations;
+  // Temps réel limité à cette page, et seulement tant qu'elle est affichée :
+  // un onglet caché ferme son canal (limite gratuite : 200 connexions
+  // simultanées) et se remet à jour en revenant. Un message ne relit que la
+  // conversation ouverte s'il la concerne, et l'aperçu de la liste (1 requête).
   useEffect(() => {
     if (!user) return;
-    const refresh = () => { loadMessagesRef.current?.(); loadFriendsRef.current?.(); };
-    const channel = supabase.channel(`dm-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "private_messages", filter: `receiver_id=eq.${user.id}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "private_messages", filter: `sender_id=eq.${user.id}` }, refresh)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    let channel = null;
+    const onChange = (payload) => {
+      const row = payload?.new || payload?.old || {};
+      const other = row.sender_id === user.id ? row.receiver_id : row.sender_id;
+      clearTimeout(realtimeRefreshRef.current);
+      realtimeRefreshRef.current = setTimeout(() => {
+        if (!other || other === dmActiveIdRef.current) loadMessagesRef.current?.();
+        refreshConversationsRef.current?.();
+      }, 400);
+    };
+    const open = () => {
+      if (channel || document.hidden) return;
+      channel = supabase.channel(`dm-${user.id}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "private_messages", filter: `receiver_id=eq.${user.id}` }, onChange)
+        .on("postgres_changes", { event: "*", schema: "public", table: "private_messages", filter: `sender_id=eq.${user.id}` }, onChange)
+        .subscribe();
+    };
+    const close = () => {
+      if (!channel) return;
+      supabase.removeChannel(channel);
+      channel = null;
+    };
+    const onVisibility = () => {
+      if (document.hidden) { close(); return; }
+      open();
+      loadMessagesRef.current?.();
+      refreshConversationsRef.current?.();
+    };
+    open();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      clearTimeout(realtimeRefreshRef.current);
+      close();
+    };
   }, [user]);
   // Filet de sécurité UNIQUEMENT : les DM passent par le realtime ci-dessus.
-  // Poll lent (60s) + garde de visibilité pour rattraper une éventuelle coupure
-  // du canal realtime, sans re-télécharger toutes les 15s pour rien. Egress.
+  // Poll lent (60s), onglet visible, conversation ouverte : relit cette
+  // conversation seule (1 requête), plus la liste entière.
   useEffect(() => {
     if (!dmActiveId) return;
     const id = setInterval(() => { if (!document.hidden) loadMessages(); }, 60000);
@@ -863,10 +934,10 @@ export default function Messages() {
       const pathInfo = safeStoragePath(user.id, uploadFile, [], "chatAttachment");
       if (!pathInfo.ok) { setSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
       const { error: upErr } = await supabase.storage.from("dm").upload(pathInfo.path, uploadFile, {
-        cacheControl: "31536000",
+        cacheControl: PRIVATE_MEDIA_CACHE,
         contentType: pathInfo.contentType,
       });
-      if (upErr) { setSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
+      if (upErr) { setSending(false); alert(await uploadRefusalText(t, upErr)); return; }
       attachment_url = `dm:${pathInfo.path}`;
       attachment_type = attachmentKind(uploadFile);
       attachment_name = sanitizeFileName(file.name);
@@ -886,7 +957,7 @@ export default function Messages() {
     setText(""); setFile(null);
     if (dmFileRef.current) dmFileRef.current.value = "";
     setSending(false);
-    loadMessages(); loadFriends();
+    loadMessages();
   }
 
   // ── Group actions ──────────────────────────────────────────────
@@ -917,10 +988,10 @@ export default function Messages() {
       const pathInfo = safeStoragePath(user.id, uploadFile, [grpActiveId], "chatAttachment");
       if (!pathInfo.ok) { setGrpSending(false); alert(uploadErrorMessage(t, pathInfo)); return; }
       const { error: upErr } = await supabase.storage.from("group").upload(pathInfo.path, uploadFile, {
-        cacheControl: "31536000",
+        cacheControl: PRIVATE_MEDIA_CACHE,
         contentType: pathInfo.contentType,
       });
-      if (upErr) { setGrpSending(false); alert(t("common.uploadFailed") + " " + upErr.message); return; }
+      if (upErr) { setGrpSending(false); alert(await uploadRefusalText(t, upErr)); return; }
       attachment_url = `group:${pathInfo.path}`;
       attachment_type = attachmentKind(uploadFile);
       attachment_name = sanitizeFileName(grpFile.name);
@@ -956,7 +1027,11 @@ export default function Messages() {
   }
 
   async function removeGroupMessage(id) {
-    await supabase.from("group_messages").delete().eq("id", id);
+    const message = groupMessages.find((m) => m.id === id);
+    const { error } = await supabase.from("group_messages").delete().eq("id", id);
+    // Son propre fichier part avec le message (avant : il restait orphelin).
+    const path = !error && message?.user_id === user.id ? storagePathFromReference(message.attachment_url, "group") : null;
+    if (path) supabase.storage.from("group").remove([path]).catch(() => {});
     loadGroupMessages();
   }
 
@@ -994,10 +1069,10 @@ export default function Messages() {
     if (!pathInfo.ok) { alert(uploadErrorMessage(t, pathInfo)); return; }
     const { error: upErr } = await supabase.storage.from("group").upload(pathInfo.path, uploadFile, {
       upsert: true,
-      cacheControl: "31536000",
+      cacheControl: PRIVATE_MEDIA_CACHE,
       contentType: pathInfo.contentType,
     });
-    if (upErr) { alert(upErr.message); return; }
+    if (upErr) { alert(await uploadRefusalText(t, upErr)); return; }
     const photoUrl = `group:${pathInfo.path}`;
     await supabase.from("study_groups").update({ photo_url: photoUrl }).eq("id", grpActiveId);
     setGroups(prev => prev.map(g => g.id === grpActiveId ? { ...g, photo_url: photoUrl } : g));

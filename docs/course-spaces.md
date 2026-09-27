@@ -122,7 +122,7 @@ Local browser verification: `NEXT_PUBLIC_OFFLINE_DEV=true` build with the synthe
 ## Known limits
 
 - Matching quality is Phase 1's: a course nobody else names the same way stays unmatched; search is the way in.
-- Polling, not realtime: new messages can take up to 15 s to appear; unread badges follow the app-wide notification poll.
-- Signed attachment links last 5 minutes.
+- Polling, not realtime: only messages newer than the last one on screen are fetched — every 15 s after activity, backing off to 30 s then 60 s when nothing moves; nothing while the tab is hidden, and a full reload when it comes back (catches deletions). New messages can take up to 60 s to appear in a quiet room; unread badges follow the app-wide notification poll.
+- Signed attachment links last 1 hour and are reused while valid (`lib/signedMedia.js`), so reopening a file is served from the browser cache. A member removed from a room keeps an already-issued link for at most that hour.
 - `resolve_my_course_links()` analyses the whole institution on each page open; materialise identities before institutions reach a few thousand courses (see `canonical-courses.md`).
 - No push notification for rooms; no edit of a sent message (delete and resend).

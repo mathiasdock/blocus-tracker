@@ -34,6 +34,7 @@ import { isPushSupported, isIOS, isStandalone, enablePush, getAppId, collectPush
 import { clearPushOwner, readPushOwner } from "../lib/pushOwner.mjs";
 import { pushErrorMessage } from "../lib/pushMessages";
 import { buildDataExport, downloadJson } from "../lib/dataExport";
+import { mediaUploadStatus, refusalKey } from "../lib/mediaUploads";
 import {
   DEFAULT_PRIVACY_SETTINGS,
   loadPrivacySettings,
@@ -844,7 +845,9 @@ export default function Profile() {
         processImage: optimizeAvatarImage,
       });
       if (!result.ok) {
-        setAvatarMsg({ kind: "error", text: avatarUploadErrorMessage(t, result) });
+        // Refus de Storage : envois suspendus, trop d'envois ou espace plein ?
+        const refusal = result.errorKey === "profile.avatarUploadError" ? refusalKey(await mediaUploadStatus()) : null;
+        setAvatarMsg({ kind: "error", text: refusal ? t(refusal) : avatarUploadErrorMessage(t, result) });
         return;
       }
       await refreshProfile();

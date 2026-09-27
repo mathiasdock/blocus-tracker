@@ -7,14 +7,14 @@ import PlanningExamMark from "../PlanningExamMark";
 import UserProfileModal from "../UserProfileModal";
 import { displayName } from "../../lib/format";
 import { notifyXPChanged } from "../../lib/xpEvents";
-import { uploadErrorMessage, validateUploadFile } from "../../lib/security";
+import { uploadErrorMessage, validateUploadSource } from "../../lib/security";
 import {
   MESSAGE_MAX_LENGTH, courseSpaceErrorKey, examDateBounds, groupRoomMessages, isSharedExamPlanned, localDayKey,
   mergeLatestPage, mergeOlderPage, newMessagesFromOthers, sortMessages, splitFileName,
 } from "../../lib/courseSpaces.mjs";
 import {
   ROOM_PAGE_SIZE, addSharedExamToPlanning, deleteRoomMessage, fetchAuthors, fetchRoomMessages,
-  findPlannedExams, postRoomMessage, reportRoomMessage, signRoomAttachment,
+  fetchRoomMessagesAfter, findPlannedExams, postRoomMessage, reportRoomMessage, signRoomAttachment,
 } from "../../lib/courseSpacesClient";
 import { spaceIdentity, spaceMark } from "./CourseSpaceList";
 
@@ -22,7 +22,13 @@ import { spaceIdentity, spaceMark } from "./CourseSpaceList";
 // write; anyone else sees what joining means and a way to join. Study actions
 // are the only Blocus-specific ones: start the Timer on the student's own
 // course, and put a shared exam date into their own Planning.
+// Relecture d'un salon ouvert : seulement les nouveaux messages, toutes les
+// 15 s après de l'activité, puis de plus en plus espacée quand rien ne bouge
+// (30 s, 60 s). Rien quand l'onglet est caché ; relecture complète au retour
+// (messages supprimés entre-temps). Avant : les 40 derniers messages
+// retéléchargés toutes les 15 s, même sans aucun nouveau message.
 const POLL_MS = 15000;
+const POLL_MAX_MS = 60000;
 const CHAT_ACCEPT = "image/jpeg,image/png,image/webp,image/avif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const REPORT_REASONS = ["spam", "abuse", "other"];
 const SIGNED_URL_REUSE_MS = 4 * 60 * 1000;
@@ -153,7 +159,7 @@ function Composer({ t, title, roomId, onSend }) {
     const selected = input.files?.[0];
     input.value = "";
     if (!selected) return;
-    const check = validateUploadFile(selected, "chatAttachment");
+    const check = validateUploadSource(selected, "chatAttachment");
     if (!check.ok) { setError(uploadErrorMessage(t, check)); return; }
     setFile(selected); setError("");
   }
@@ -167,7 +173,9 @@ function Composer({ t, title, roomId, onSend }) {
       setDraft(""); setFile(null); setExamOpen(false); setExamDate("");
       textRef.current?.focus();
     } catch (failure) {
-      setError(failure?.upload ? uploadErrorMessage(t, failure.upload) : t(courseSpaceErrorKey(failure)));
+      setError(failure?.refusalKey ? t(failure.refusalKey)
+        : failure?.upload ? uploadErrorMessage(t, failure.upload)
+          : t(courseSpaceErrorKey(failure)));
     } finally {
       setSending(false);
     }
@@ -290,13 +298,62 @@ export default function CourseRoom({
     return () => { loadRequest.current += 1; };
   }, [roomId, load, commit]);
 
+  // Nouveaux messages seulement ; renvoie leur nombre.
+  const pollNew = useCallback(async () => {
+    const previous = messagesRef.current;
+    const newest = previous[previous.length - 1];
+    if (!roomId || !newest) { await load(true); return 0; }
+    try {
+      const rows = await fetchRoomMessagesAfter(roomId, newest);
+      if (!rows.length) return 0;
+      // Beaucoup d'un coup : la page complète reprend la main.
+      if (rows.length >= ROOM_PAGE_SIZE) { await load(true); return rows.length; }
+      const stream = streamRef.current;
+      stickToBottom.current = !stream || stream.scrollHeight - stream.scrollTop - stream.clientHeight < 120;
+      const ids = new Set(rows.map((row) => row.id));
+      const merged = sortMessages([...messagesRef.current.filter((message) => !ids.has(message.id)), ...rows]);
+      const fresh = newMessagesFromOthers(previous, merged, user?.id);
+      if (fresh) setAnnouncement(fresh === 1 ? tRef.current("courseSpaces.room.newMessage") : tRef.current("courseSpaces.room.newMessages").replace("{n}", fresh));
+      commit(merged);
+      activityRef.current?.(roomRef.current, merged[merged.length - 1].created_at);
+      return rows.length;
+    } catch {
+      return 0;
+    }
+  }, [roomId, load, commit, user?.id]);
+
+  const pollKickRef = useRef(null);
   useEffect(() => {
     if (!roomId) return undefined;
-    const poll = () => { if (!document.hidden) load(true); };
-    const timer = setInterval(poll, POLL_MS);
-    document.addEventListener("visibilitychange", poll);
-    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", poll); };
-  }, [roomId, load]);
+    let timer = null;
+    let delay = POLL_MS;
+    let stopped = false;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (stopped || document.hidden) return;
+      timer = setTimeout(async () => {
+        const fresh = await pollNew();
+        delay = fresh > 0 ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS);
+        schedule();
+      }, delay);
+    };
+    // Après un envoi, on revient au rythme rapide : une réponse arrive vite.
+    pollKickRef.current = () => { delay = POLL_MS; schedule(); };
+    const onVisibility = () => {
+      if (document.hidden) { clearTimeout(timer); return; }
+      delay = POLL_MS;
+      load(true);
+      schedule();
+    };
+    schedule();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stopped = true;
+      pollKickRef.current = null;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [roomId, load, pollNew]);
 
   useEffect(() => {
     if (roomId && visible && status === "ready") markSeen(`room_${roomId}`);
@@ -363,6 +420,7 @@ export default function CourseRoom({
     stickToBottom.current = true;
     commit(sortMessages([...messagesRef.current.filter((message) => message.id !== row.id), row]));
     onActivity?.(roomId, row.created_at);
+    pollKickRef.current?.();
     notifyXPChanged();
   }
 
