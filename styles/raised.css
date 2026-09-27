@@ -1,0 +1,79 @@
+/* ── Bouton « raised » : relief tactile réservé aux CTA héros ─────────────
+   Une seule action majeure par écran : le Start du Chrono et le CTA principal
+   du site public. Jamais un simple bouton primary, un submit, un filtre ou une
+   action de carte.
+
+   Le relief est une couche pleine (ombre dure, sans flou) d'un vert plus
+   profond de la même famille. Au press, le bouton descend sur cette couche.
+   Toutes les teintes viennent des tokens de styles/colors.css.
+
+   Fichier chargé après globals.css : à spécificité égale, ces règles gagnent
+   sur .btn, .btn-hero, .btn-primary, .bt-dashboard-control et .bt-app-shell. */
+
+.btn-raised {
+  --bt-raised-depth: 4px;
+  --bt-raised-face: var(--bt-brand-primary);
+  --bt-raised-face-hover: var(--bt-brand-light);
+  --bt-raised-edge: var(--bt-brand-hover);
+  --bt-raised-text: var(--bt-on-brand);
+  background-color: var(--bt-raised-face);
+  background-image: none;
+  color: var(--bt-raised-text);
+  box-shadow: 0 var(--bt-raised-depth) 0 var(--bt-raised-edge);
+  transform: translateY(0);
+  transition:
+    transform 0.08s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.08s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.14s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Variante action (vert forêt profond, texte blanc) : CTA principal du site. */
+.btn-raised.btn-raised-action {
+  --bt-raised-face: var(--bt-action);
+  --bt-raised-face-hover: var(--bt-action-hover);
+  --bt-raised-edge: var(--bt-action-deep);
+  --bt-raised-text: var(--bt-on-action);
+  /* Bat « .dark .btn-primary » (liseré inset) à spécificité égale. */
+  box-shadow: 0 var(--bt-raised-depth) 0 var(--bt-raised-edge);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-raised:hover:not(:disabled) {
+    background-color: var(--bt-raised-face-hover);
+    box-shadow: 0 var(--bt-raised-depth) 0 var(--bt-raised-edge);
+    transform: translateY(0);
+  }
+}
+
+.btn-raised:active:not(:disabled) {
+  background-color: var(--bt-raised-face);
+  box-shadow: 0 1px 0 var(--bt-raised-edge);
+  transform: translateY(calc(var(--bt-raised-depth) - 1px));
+}
+
+/* Focus clavier : l'anneau global (écart + contour) reste le signal ; le
+   relief est conservé au lieu d'être effacé par la box-shadow du focus. */
+html body .btn-raised:focus-visible {
+  box-shadow: 0 0 0 2px var(--bt-focus-gap), 0 var(--bt-raised-depth) 0 var(--bt-raised-edge) !important;
+}
+html body .btn-raised:focus-visible:active:not(:disabled) {
+  box-shadow: 0 0 0 2px var(--bt-focus-gap), 0 1px 0 var(--bt-raised-edge) !important;
+}
+
+/* Désactivé : aplati, sans relief ni press — l'opacité et le curseur disent
+   l'état, pas seulement l'absence de relief. */
+.btn-raised:disabled,
+.btn-raised[aria-disabled="true"] {
+  box-shadow: none;
+  transform: none;
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-raised { transition: background-color 0.14s ease; }
+  /* Le press reste lisible sans mouvement : le relief s'aplatit sur place. */
+  .btn-raised:active:not(:disabled) { transform: none !important; box-shadow: none; }
+}

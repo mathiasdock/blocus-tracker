@@ -395,7 +395,7 @@ export default function Home() {
                 {c.hero.subtitle}
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link href="/dashboard" className="btn-primary btn-shine justify-center px-7 py-3.5 text-sm">
+                <Link href="/dashboard" className="btn-primary btn-raised btn-raised-action btn-shine justify-center px-7 py-3.5 text-sm">
                   {c.hero.tryTimer}
                 </Link>
                 <Link href="/signup" className="btn-ghost justify-center px-7 py-3.5 text-sm" style={{ backgroundColor: "var(--bt-surface)" }}>

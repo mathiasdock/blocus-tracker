@@ -1747,7 +1747,7 @@ export default function Dashboard() {
               <div className="flex flex-col xs:flex-row items-stretch justify-center gap-2.5 max-w-md mx-auto">
                 {!running ? (
                   <button
-                    className="bt-dashboard-control btn-hero flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-extrabold"
+                    className="bt-dashboard-control btn-hero btn-raised flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-extrabold"
                     style={{
                       opacity: (!courseId && !pomodoro) ? 0.45 : 1,
                     }}
