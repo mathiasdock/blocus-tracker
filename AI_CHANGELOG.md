@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-27 — Codex — Google OAuth dans l'Auth de l'application
+
+- Login et Signup partagent un bouton Google neutre, bilingue et accessible. L'authentification utilise exclusivement `supabase.auth.signInWithOAuth({ provider: "google" })` et revient sur `/auth/google-callback` du même origin ; aucune clé Google, fusion de comptes ou gestion de token maison dans le frontend.
+- Le callback vérifie la session Supabase liée au fragment reçu, refuse une ancienne session sans callback, respecte les comptes suspendus et reprend le parcours canonique : profil existant → application ou onboarding selon les données serveur ; nouveau profil → identité, acceptation légale, université, études, cours. Prénom/nom Google préremplissent seulement le formulaire vide ; l'avatar n'est pas repris. Destination interne validée et à usage unique ; parrainage conservé jusqu'à la création du profil.
+- L'email/mot de passe, la récupération, le logout et les guards existants restent en place. Aucun schéma modifié et aucun fichier du site public touché.
+- Vérifications : tests Auth ciblés et suite Node complète (426 tests), lint et build production verts ; écrans Login/Signup mobiles et état d'annulation OAuth vérifiés. **Reste externe :** le provider Google est désactivé dans la configuration Supabase du projet ; activer Google Cloud + le provider Supabase et autoriser les URLs de callback avant de pouvoir vérifier un aller-retour réel, notamment la liaison automatique d'une adresse email déjà vérifiée.
+
 ## 2026-09-27 — Claude — Badges : progression v84 (migrations v84 + v84b appliquées)
 
 - Règles serveur uniquement (`public.badge_ids_for_user`, appelée par `award_badges_for_user`, insertion seule) sur les sources canoniques : séries = MEILLEURE série officielle (`study_streaks`), jours étudiés = `study_day_states`, durées = `session_days`, dates > 16 h écartées des critères de durée. `computeEarnedBadgeIds` (calcul client mort) supprimé.

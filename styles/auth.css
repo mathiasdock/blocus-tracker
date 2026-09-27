@@ -918,6 +918,28 @@
 
 /* ── Sign in: the other door, right under the only button ─────────── */
 .bt-auth-door { margin-top: 22px; }
+.bt-auth-google-group { margin-top: 18px; }
+.bt-auth-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-r-control, 14px);
+  background: var(--bt-surface);
+  color: var(--bt-text-1);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.bt-auth-google:hover:not(:disabled) { background: var(--bt-subtle); border-color: var(--bt-brand-border); }
+.bt-auth-google:disabled { opacity: 0.6; cursor: not-allowed; }
+.bt-auth-google:focus-visible { outline: 2px solid var(--bt-focus-ring); outline-offset: 3px; }
+.bt-auth-oauth-divider { margin: 16px 0; }
 .bt-auth-divider {
   display: flex;
   align-items: center;

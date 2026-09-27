@@ -512,7 +512,7 @@ function ConsentSync() {
 export default function App({ Component, pageProps }) {
   useEffect(() => initSensoryFeedback(), []);
   const router = useRouter();
-  const setupInProgress = router.pathname === "/signup" || router.pathname === "/onboarding";
+  const setupInProgress = ["/signup", "/onboarding", "/auth/google-callback"].includes(router.pathname);
   // Sign-in and password recovery share the setup's frame: an install prompt
   // floating over their form hid the submit button on a phone.
   const authPage = setupInProgress || ["/login", "/forgot-password", "/reset-password"].includes(router.pathname);

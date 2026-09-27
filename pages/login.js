@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FormNote, PasswordField, messageId } from "../components/auth/Field";
 import MascotGuide from "../components/auth/MascotGuide";
+import GoogleAuthButton from "../components/auth/GoogleAuthButton";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
@@ -78,6 +79,9 @@ export default function Login() {
       contentKey="login"
     >
       <AuthHeading title={t("setup.loginTitle")} />
+
+      <GoogleAuthButton disabled={busy} next={router.query.next} />
+      <p className="bt-auth-divider bt-auth-oauth-divider"><span>{t("auth.orEmail")}</span></p>
 
       <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>

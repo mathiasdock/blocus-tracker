@@ -5,6 +5,7 @@ import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FieldSplit, FormNote, PasswordField, messageId } from "../components/auth/Field";
 import SpaceSheet from "../components/auth/SpaceSheet";
 import MascotGuide from "../components/auth/MascotGuide";
+import GoogleAuthButton from "../components/auth/GoogleAuthButton";
 import { PseudoStatus, isPseudoShapeValid, usePseudoAvailability } from "../components/auth/UsernameStatus";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -150,6 +151,9 @@ export default function Signup() {
       contentKey="account"
     >
       <AuthHeading title={t("setup.accountTitle")} />
+
+      <GoogleAuthButton disabled={busy} next={router.query.next} />
+      <p className="bt-auth-divider bt-auth-oauth-divider"><span>{t("auth.orEmail")}</span></p>
 
       <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>

@@ -20,6 +20,8 @@ import {
   setupStageFor,
 } from "../lib/onboarding.mjs";
 import { guideText, setupGuide } from "../lib/setupGuide.mjs";
+import { loadPrivacySettings, recordLegalAcceptance } from "../lib/privacySettings";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
 
 function TaskSkeleton({ label }) {
   return (
@@ -46,6 +48,8 @@ export default function Onboarding() {
   const [lastName, setLastName] = useState("");
   const [identityError, setIdentityError] = useState("");
   const [savingIdentity, setSavingIdentity] = useState(false);
+  const [needsLegalAcceptance, setNeedsLegalAcceptance] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [university, setUniversity] = useState("");
   const [broadField, setBroadField] = useState("");
@@ -80,7 +84,6 @@ export default function Onboarding() {
       setReady(false);
       setLoadError("");
       try {
-        await completePendingSignup(user);
         const [profileResult, coursesResult] = await Promise.all([
           supabase
             .from("profiles")
@@ -98,6 +101,18 @@ export default function Onboarding() {
 
         if (cancelled) return;
         if (profileResult.error || coursesResult.error) throw new Error("setup_load_failed");
+
+        // A new OAuth account has no profile until the student chooses a
+        // username. Referral replay needs that profile, so it must wait until
+        // the identity step has saved it. Email signup already has one.
+        if (profileResult.data) await completePendingSignup(user);
+        const { settings: legalSettings } = await loadPrivacySettings(supabase, user.id);
+        if (cancelled) return;
+        setNeedsLegalAcceptance(
+          legalSettings?.terms_version !== TERMS_VERSION
+          || legalSettings?.privacy_version !== PRIVACY_VERSION
+        );
+        setAcceptedTerms(false);
 
         const missingProfile = !profileResult.data;
         const currentProfile = profileResult.data || {};
@@ -119,8 +134,10 @@ export default function Onboarding() {
         }
 
         setPseudo(currentProfile.pseudo || "");
-        setFirstName(currentProfile.first_name || "");
-        setLastName(currentProfile.last_name || "");
+        // Google names only prefill an empty first-run form. They never write
+        // over an existing profile, and the avatar remains a Blocus choice.
+        setFirstName(currentProfile.first_name || (missingProfile ? String(user.user_metadata?.given_name || "").slice(0, 80) : ""));
+        setLastName(currentProfile.last_name || (missingProfile ? String(user.user_metadata?.family_name || "").slice(0, 80) : ""));
         setUniversity(currentProfile.university || "");
         setStudyField(currentProfile.study_field || "");
         setBroadField(currentProfile.broad_field || "");
@@ -163,9 +180,25 @@ export default function Onboarding() {
       setIdentityError(t("signup.errPseudo"));
       return;
     }
+    if (needsLegalAcceptance && !acceptedTerms) {
+      setIdentityError(t("signup.errTerms"));
+      document.getElementById("onboarding-terms")?.focus();
+      return;
+    }
 
     setSavingIdentity(true);
     try {
+      if (needsLegalAcceptance) {
+        const legal = await recordLegalAcceptance(supabase, user.id, {
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
+        });
+        if (!legal.ok) {
+          setIdentityError(t("onboarding.legalSaveError"));
+          return;
+        }
+        setNeedsLegalAcceptance(false);
+      }
       const loadOwnProfile = () => supabase
         .from("profiles")
         .select("id,pseudo,first_name,last_name,university")
@@ -233,6 +266,8 @@ export default function Onboarding() {
         data: { onboarding_version: ONBOARDING_VERSION },
       });
       if (metadataError) throw metadataError;
+      const { data: authData } = await supabase.auth.getUser();
+      await completePendingSignup(authData?.user || user);
       await refreshProfile();
       goToStep(ONBOARDING_STEPS.UNIVERSITY);
     } catch (error) {
@@ -374,7 +409,7 @@ export default function Onboarding() {
   } else if (step === ONBOARDING_STEPS.YOU) {
     content = (
       <>
-        <AuthHeading title={t("onboarding.repair.title")} />
+        <AuthHeading title={needsLegalAcceptance ? t("signup.youTitle") : t("onboarding.repair.title")} />
         <form onSubmit={saveIdentity} noValidate>
           <FieldGroup>
             <FieldSplit>
@@ -392,6 +427,22 @@ export default function Onboarding() {
               <input id="onboarding-email" className="bt-field-input" value={user.email || ""} readOnly autoComplete="email" aria-describedby={messageId("onboarding-email")} />
             </Field>
           </FieldGroup>
+          {needsLegalAcceptance && (
+            <label className="bt-auth-check" htmlFor="onboarding-terms" data-invalid={identityError === t("signup.errTerms") ? "true" : undefined}>
+              <input
+                id="onboarding-terms"
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={event => { setAcceptedTerms(event.target.checked); setIdentityError(""); }}
+              />
+              <span>
+                {t("signup.termsPre")}{" "}
+                <a href="/legal?doc=terms" target="_blank" rel="noopener noreferrer">{t("signup.termsLink")}</a>{" "}
+                {t("signup.termsMid")}{" "}
+                <a href="/legal?doc=privacy" target="_blank" rel="noopener noreferrer">{t("signup.privacyLink")}</a>.
+              </span>
+            </label>
+          )}
           <FormNote tone="error">{identityError}</FormNote>
           <button className="bt-auth-primary" disabled={savingIdentity} aria-busy={savingIdentity}>
             {savingIdentity ? t("onboarding.saving") : t("onboarding.continue")}

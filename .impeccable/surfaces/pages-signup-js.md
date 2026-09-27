@@ -2,7 +2,7 @@
 version: 1
 slug: "pages-signup-js"
 primary_target: "pages/signup.js"
-related_targets: ["pages/login.js","pages/onboarding.js","pages/forgot-password.js","pages/reset-password.js","components/auth/AuthShell.js","components/auth/MascotGuide.js","components/auth/AuthBackdrop.js","components/auth/SpaceSheet.js","components/auth/CourseComposer.js","components/ui/GradientWave.js","lib/setupGuide.mjs","styles/auth.css"]
+related_targets: ["pages/login.js","pages/onboarding.js","pages/auth/google-callback.js","components/auth/GoogleAuthButton.js","pages/forgot-password.js","pages/reset-password.js","components/auth/AuthShell.js","components/auth/MascotGuide.js","components/auth/AuthBackdrop.js","components/auth/SpaceSheet.js","components/auth/CourseComposer.js","components/ui/GradientWave.js","lib/setupGuide.mjs","styles/auth.css"]
 ---
 
 ## Job and direction
@@ -23,6 +23,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 Guide lines come from `lib/setupGuide.mjs` (tested): login, account, named (after the first-name field is left), check email, repair, loading, error, university, field (university chosen), first course, ready (≥1 course; the first one celebrates), forgot, sent, reset, checking, invalid, done. A reaction key changes only on real events, so the mascot never moves per keystroke.
 Courses: type → Enter → the course takes the next colour, lands in the list and in the sheet, focus stays in the entry. Pasting a multi-line list adds each line. Duplicates flash the existing row. Rename inline (Enter saves, Escape cancels), colour on the dot, remove on ×; Backspace on an empty entry arms the last course, a second Backspace removes it. Saves are sequential with stable client ids (Phase 1 idempotency); Finish waits for pending saves and still requires one course.
 Loading, recoverable errors, check-email and resume all use the shell; forgot/reset are single-column with the guide above.
+
+Google OAuth (2026-09-27): Login and Signup now share one quiet Google button before the existing email form. Its fixed same-origin `/auth/google-callback` uses Supabase's native browser OAuth handling; the callback checks the resulting session, then follows server-derived onboarding state. A new Google user completes identity/legal and academic setup; an existing verified identity is left to Supabase's supported automatic linking. Existing names/avatars are never replaced. No public-site CTA was added. Live provider testing remains pending Google Cloud/Supabase configuration.
 
 ## Protected scope
 
