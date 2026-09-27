@@ -17,6 +17,17 @@ function sourceFiles(directory) {
 
 const sources = SOURCE_DIRS.flatMap((directory) => sourceFiles(join(ROOT, directory)));
 
+test("mascot brand accents use the canonical palette without recoloring character artwork", () => {
+  const contents = readFileSync(join(ROOT, "components/Mascot.js"), "utf8");
+  assert.match(contents, /import \{ brand \} from "\.\.\/lib\/colorTokens.cjs"/);
+  assert.match(contents, /const GREEN = brand.primary/);
+  assert.doesNotMatch(contents, /#14b885/i);
+  assert.match(contents, /M90 106 L78 121 L81 109Z" fill=\{brand.deepest\} opacity=".18"/);
+  for (const color of ["#E0A458", "#EDB86F", "#C98942", "#F8EACB", "#39291F", "#EB9B99", "#0B2E23"]) {
+    assert.ok(contents.includes(color), `Preserve non-brand artwork color ${color}`);
+  }
+});
+
 test("the retired mascot drawing cannot be reintroduced in app source", () => {
   const legacySignatures = [
     "M34 80 Q26 110 46 115",

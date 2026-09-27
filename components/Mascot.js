@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { brand } from "../lib/colorTokens.cjs";
 import { createMascotDirector, poseForMood, resolveMascotMood } from "../lib/mascotMotion.mjs";
 
 export { mascotState, poseForMood, MASCOT_MOODS } from "../lib/mascotMotion.mjs";
@@ -9,7 +10,8 @@ const SHADE = "#C98942";
 const CREAM = "#F8EACB";
 const DARK = "#39291F";
 const PINK = "#EB9B99";
-const GREEN = "#14B885";
+// Fixed brand artwork colors also survive the SVG-to-canvas recap export.
+const GREEN = brand.primary;
 const INK = "#0B2E23";
 
 export const MASCOT_CAPTION_KEY = {
@@ -147,7 +149,7 @@ const Mascot = forwardRef(function Mascot({
             <path d="M70 103 Q80 98 92 105 C102 116 101 128 95 135 Q80 143 65 133 C59 123 60 111 70 103Z" fill={CREAM} />
             <path d="M58 91 Q80 101 102 91 L102 102 Q80 114 58 103Z" fill={GREEN} />
             <path d="M69 103 L90 106 L78 121 Q73 115 69 103Z" fill={GREEN} />
-            <path d="M90 106 L78 121 L81 109Z" fill={INK} opacity=".18" />
+            <path d="M90 106 L78 121 L81 109Z" fill={brand.deepest} opacity=".18" />
             <circle cx="83" cy="104" r="4.2" fill={CREAM} />
 
             <g className="bt-m-head-pose">

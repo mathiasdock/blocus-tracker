@@ -67,7 +67,7 @@ test('hero and focus keep deliberate scopes; pause/artwork are not migrated', ()
   assert.equal(light['--bt-pause-strong'], '#DC2626');
   assert.equal(light['--bt-danger'], '#B83E3E');
   assert.match(read('lib/courseColors.js'), /#10b981/);
-  assert.match(read('components/Mascot.js'), /#14B885/);
+  assert.match(read('components/Mascot.js'), /const GREEN = brand.primary/);
 });
 
 // Deliberate exceptions: character/achievement artwork and real course hues.
