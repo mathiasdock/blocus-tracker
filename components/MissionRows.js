@@ -18,12 +18,12 @@ export function MissionRow({ row, t, lead = false }) {
         style={{
           width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "center",
-          backgroundColor: done ? "var(--bt-accent)" : "var(--bt-subtle)",
+          backgroundColor: done ? "var(--bt-success-bg)" : "var(--bt-subtle)",
           border: done ? "none" : "1px solid var(--bt-border)",
         }}
       >
         {done && (
-          <Glyph size={9} strokeWidth={3.5} style={{ color: "var(--bt-on-accent)" }}>
+          <Glyph size={9} strokeWidth={3.5} style={{ color: "var(--bt-success)" }}>
             <polyline points="20 6 9 17 4 12" />
           </Glyph>
         )}
@@ -40,7 +40,7 @@ export function MissionRow({ row, t, lead = false }) {
         <span className="min-w-0 flex-1 truncate">{missionText(t, row).title}</span>
       </span>
       <span className="font-num shrink-0 text-xs font-bold tabular-nums"
-        style={{ color: done ? "var(--bt-text-4)" : "var(--bt-accent-text)" }}>
+        style={{ color: done ? "var(--bt-text-3)" : "var(--bt-progress-text)" }}>
         +{row.xp} XP
       </span>
     </li>
@@ -60,7 +60,7 @@ export function WeeklyRow({ row, t }) {
           {weeklyText(t, row)}
         </span>
         <span className="font-num shrink-0 text-xs font-bold tabular-nums"
-          style={{ color: row.done ? "var(--bt-text-4)" : "var(--bt-accent-text)" }}>
+          style={{ color: row.done ? "var(--bt-text-3)" : "var(--bt-progress-text)" }}>
           +{row.xp} XP
         </span>
       </div>
@@ -69,17 +69,17 @@ export function WeeklyRow({ row, t }) {
           <span className="flex flex-1 gap-1.5" aria-hidden="true">
             {Array.from({ length: row.target }, (_, i) => (
               <span key={i} className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: i < row.progress ? "var(--bt-accent)" : "var(--bt-subtle)" }} />
+                style={{ backgroundColor: i < row.progress ? "var(--bt-progress-fill)" : "var(--bt-subtle)" }} />
             ))}
           </span>
         ) : (
           <span className="h-2 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }} aria-hidden="true">
             <span className="block h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-              style={{ transform: `scaleX(${weeklyRatio(row)})`, backgroundColor: "var(--bt-accent)" }} />
+              style={{ transform: `scaleX(${weeklyRatio(row)})`, backgroundColor: "var(--bt-progress-fill)" }} />
           </span>
         )}
         <span className="font-num shrink-0 text-xs tabular-nums"
-          style={{ color: row.done ? "var(--bt-accent-dark)" : "var(--bt-text-3)" }}>
+          style={{ color: row.done ? "var(--bt-success)" : "var(--bt-text-3)" }}>
           {weeklyProgressLabel(t, row)}
         </span>
       </div>

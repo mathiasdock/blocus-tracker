@@ -16,9 +16,9 @@ export default function LevelPill({ level, size = "xs", solid = false }) {
     ? { padX: 7,   padY: 2,    fs: 11, gap: 3 }
     : { padX: 5.5, padY: 1.5,  fs: 10, gap: 2.5 };
 
-  const bg = solid ? "#14B885" : "rgba(20,184,133,0.14)";
-  const color = solid ? "#fff" : "#0E8F68";
-  const border = solid ? "transparent" : "rgba(20,184,133,0.32)";
+  const bg = solid ? "var(--bt-level-bg)" : "var(--bt-selected-bg)";
+  const color = solid ? "var(--bt-level-text)" : "var(--bt-progress-text)";
+  const border = solid ? "transparent" : "var(--bt-selected-border)";
 
   return (
     <span

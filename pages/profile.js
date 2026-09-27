@@ -312,7 +312,7 @@ function Segmented({ options, value, onChange, label }) {
         <button key={o.value} type="button" onClick={() => onChange(o.value)} title={o.title || o.label}
           aria-label={o.label} aria-pressed={value === o.value}
           className="rounded-lg px-2.5 py-1 text-xs font-bold transition-colors flex items-center justify-center gap-1"
-          style={value === o.value ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: o.icon ? "var(--bt-text-2)" : "var(--bt-text-3)" }}>
+          style={value === o.value ? { backgroundColor: "var(--bt-selected-bg)", color: "var(--bt-selected-text)" } : { color: o.icon ? "var(--bt-text-2)" : "var(--bt-text-3)" }}>
           {o.icon || o.label}
         </button>
       ))}
@@ -326,7 +326,7 @@ function MiniSwitch({ checked, onChange, label, disabled = false }) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className="relative h-6 w-10 shrink-0 rounded-full transition-colors bt-press disabled:opacity-40"
-      style={{ backgroundColor: checked ? "var(--bt-accent)" : "var(--bt-border)" }}>
+      style={{ backgroundColor: checked ? "var(--bt-action)" : "var(--bt-border)" }}>
       <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform"
         style={{ transform: checked ? "translateX(16px)" : "translateX(0)", boxShadow: "0 1px 3px rgba(0,0,0,0.18)" }} />
     </button>
@@ -385,7 +385,7 @@ function ReferralBody({ t, fallbackCode = "" }) {
           </div>
           <button onClick={copy} disabled={!shareLink}
             className="whitespace-nowrap px-3.5 text-xs font-semibold transition-colors"
-            style={{ backgroundColor: copied ? "var(--bt-accent)" : "var(--bt-accent-dark)", color: "#fff" }}>
+            style={{ backgroundColor: copied ? "var(--bt-success-bg)" : "var(--bt-action)", color: copied ? "var(--bt-success)" : "var(--bt-on-action)" }}>
             {copied ? t("referral.copied") : t("referral.copy")}
           </button>
         </div>

@@ -4,16 +4,16 @@
   <desc id="desc">Un b minuscule dont la boucle forme un chronomètre, avec une aiguille beige.</desc>
 
   <!-- Fond de l'icône -->
-  <rect width="1024" height="1024" fill="#14B885"/>
+  <rect width="1024" height="1024" fill="#52B788" data-brand-color="primary"/>
 
   <!-- Le b : silhouette haute, boucle largement fusionnée à la hampe -->
-  <rect x="220" y="110" width="167" height="804" rx="72" fill="#0B2E23"/>
-  <circle cx="515" cy="629" r="285" fill="#0B2E23"/>
-  <circle cx="515" cy="629" r="173" fill="#14B885"/>
+  <rect x="220" y="110" width="167" height="804" rx="72" fill="#081C15" data-brand-color="deepest"/>
+  <circle cx="515" cy="629" r="285" fill="#081C15" data-brand-color="deepest"/>
+  <circle cx="515" cy="629" r="173" fill="#52B788" data-brand-color="primary"/>
 
   <!-- Poussoir incliné du chronomètre -->
   <rect x="648" y="314" width="130" height="60" rx="22"
-        fill="#0B2E23" transform="rotate(36 713 344)"/>
+        fill="#081C15" data-brand-color="deepest" transform="rotate(36 713 344)"/>
 
   <!-- Aiguille entièrement contenue dans le cadran -->
   <g fill="none" stroke="#F4E8D0" stroke-linecap="round">

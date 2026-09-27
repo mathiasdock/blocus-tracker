@@ -149,7 +149,7 @@ export default function ArchivedCourses({ rows, busyId, onRestore, onDelete, bar
                     <span className="bt-stats-quantity block h-full rounded-full"
                       style={{
                         inlineSize: row.secs > 0 ? `max(2px, ${(row.secs / max) * 100}%)` : 0,
-                        backgroundColor: "var(--bt-accent-text)",
+                        backgroundColor: "var(--bt-data-study)",
                       }} />
                   </span>
                   <span className="shrink-0 font-num text-sm font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>

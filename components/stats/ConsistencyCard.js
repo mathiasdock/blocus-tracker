@@ -50,7 +50,7 @@ export default function ConsistencyCard({
                 <span className="mt-0.5 block text-[11px]" style={{ color: "var(--bt-text-3)" }}>{periodLabel}</span>
                 <span className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }} aria-hidden="true">
                   <span className="bt-stats-quantity block h-full rounded-full"
-                    style={{ inlineSize: activeShare > 0 ? `max(2px, ${activeShare * 100}%)` : 0, backgroundColor: "var(--bt-accent)" }} />
+                    style={{ inlineSize: activeShare > 0 ? `max(2px, ${activeShare * 100}%)` : 0, backgroundColor: "var(--bt-data-study)" }} />
                 </span>
               </dd>
             </div>

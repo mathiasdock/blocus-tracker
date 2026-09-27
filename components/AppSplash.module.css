@@ -27,7 +27,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #14b885;
+    background-color: var(--bt-brand-primary);
     pointer-events: none;
     animation: bt-splash-out 340ms ease-out 240ms forwards;
   }

@@ -250,7 +250,7 @@ export default function Leaderboard({
   // Valeur affichée à droite de chaque ligne, selon la métrique active.
   function ValueCell({ row, rank }) {
     const animate = rank <= 10;
-    // Encres lisibles : l'ambre (#D97706) et le vert (#0E8F68) écrits en dur
+    // Encres lisibles : l'ambre (#D97706) et le vert (var(--bt-brand-text)) écrits en dur
     // tenaient 3,2:1 et 3,8:1 sur la carte. La flamme garde sa teinte chaude —
     // c'est elle qui dit « série » — et le nombre passe en encre de texte.
     if (metric === "streak") {

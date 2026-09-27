@@ -1,3 +1,4 @@
+const { brand, light } = require("../lib/colorTokens.cjs");
 // Génère l'image Open Graph (aperçu de partage de lien) : public/seo-preview.png
 //   node scripts/generate-og.js
 //
@@ -79,7 +80,7 @@ function studyBlocks() {
     [740, 395],
   ];
   return positions.map(([x, y]) => (
-    `<rect x="${x}" y="${y}" width="76" height="24" rx="7" fill="#14B885"/>`
+    `<rect x="${x}" y="${y}" width="76" height="24" rx="7" fill="${brand.primary}"/>`
   )).join("");
 }
 
@@ -100,20 +101,20 @@ async function main() {
     </style>
   </defs>
 
-  <rect width="${W}" height="${H}" fill="#F4F1EA"/>
+  <rect width="${W}" height="${H}" fill="${light["--bt-bg"]}"/>
 
   <!-- Le mouvement vient du progrès lui-même : un sol menthe accompagne la
        trajectoire des unités, sans enfermer le chrono dans une carte. -->
-  <path d="M-70 520 C190 538 348 492 512 443 C697 388 865 322 1042 316 C1115 313 1172 329 1240 367 L1240 630 L-70 630Z" fill="#EAFBF4"/>
+  <path d="M-70 520 C190 538 348 492 512 443 C697 388 865 322 1042 316 C1115 313 1172 329 1240 367 L1240 630 L-70 630Z" fill="${brand.surface}"/>
 
   <!-- Wordmark -->
-  <text x="154" y="102" class="display" font-size="34" letter-spacing="-1.1" fill="#1F1A17">blocus<tspan fill="#087454">·</tspan>tracker</text>
+  <text x="154" y="102" class="display" font-size="34" letter-spacing="-1.1" fill="#1F1A17">blocus<tspan fill="${brand.text}">·</tspan>tracker</text>
 
   <!-- Instrument de mesure : le chiffre et sa matérialisation exacte. -->
-  <text x="72" y="320" class="numeric" font-size="128" letter-spacing="-1.5" fill="#0B2E23">01:45:00</text>
+  <text x="72" y="320" class="numeric" font-size="128" letter-spacing="-1.5" fill="${brand.deepest}">01:45:00</text>
   ${studyBlocks()}
 
-  <text x="1128" y="97" text-anchor="end" class="body" font-size="22" font-weight="700" fill="#087454">blocus-tracker.com</text>
+  <text x="1128" y="97" text-anchor="end" class="body" font-size="22" font-weight="700" fill="${brand.text}">blocus-tracker.com</text>
 </svg>`;
 
   const out = path.join(ROOT, "public", "seo-preview.png");

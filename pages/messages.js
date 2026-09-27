@@ -83,7 +83,7 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2
     return (
       <>
         <p className="mt-2 text-[10px] font-semibold"
-          style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--bt-text-3)" }}>
+          style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)" }}>
           {t("attachment.imageLoaded")}
         </p>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -97,18 +97,15 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2
       style={{
         backgroundColor: mine ? "rgba(255,255,255,0.14)" : "var(--bt-surface)",
         border: mine ? "1px solid rgba(255,255,255,0.22)" : "1px solid var(--bt-border)",
-        color: mine ? "rgba(255,255,255,0.86)" : "var(--bt-text-2)",
+        color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)",
       }}>
       <p className="mb-2">{t("attachment.available")}</p>
       <button type="button" onClick={onLoad}
         className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold"
         style={{
-          backgroundColor: mine ? "#fff" : "var(--bt-accent-bg)",
+          backgroundColor: "var(--bt-selected-bg)",
           border: mine ? "none" : "1px solid var(--bt-accent-border)",
-          // Litteral volontaire : ce bouton est pose sur un blanc FIXE, pas
-          // sur une surface de theme. Le tokeniser donnerait du menthe clair
-          // sur blanc en mode sombre — illisible.
-          color: mine ? "#0E8F68" : "var(--bt-accent-dark)",
+          color: "var(--bt-selected-text)",
         }}>
         <span className="inline-flex items-center gap-1.5"><Glyph size={13}><rect x="3.2" y="5.6" width="17.6" height="13.4" rx="2.6"/><circle cx="12" cy="12.3" r="3.4"/></Glyph>{t("attachment.viewImage")}</span>
       </button>
@@ -122,10 +119,10 @@ function AttachmentImageGate({ src, alt, mine, loaded, onLoad, className = "mt-2
 // (payload absent ou trafiqué), l'appelant retombe sur le texte de `content`,
 // qui reste toujours lisible.
 function SessionShareBubble({ share, mine, t }) {
-  const panelBg     = mine ? "rgba(255,255,255,0.16)" : "var(--bt-surface)";
+  const panelBg     = mine ? "var(--bt-message-own-bg)" : "var(--bt-surface)";
   const panelBorder = mine ? "rgba(255,255,255,0.24)" : "var(--bt-border)";
-  const strong      = mine ? "#fff" : "var(--bt-text-1)";
-  const soft        = mine ? "rgba(255,255,255,0.78)" : "var(--bt-text-2)";
+  const strong      = mine ? "var(--bt-message-own-text)" : "var(--bt-text-1)";
+  const soft        = mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)";
   return (
     <div className="rounded-2xl px-3 py-2.5" style={{ backgroundColor: panelBg, border: `1px solid ${panelBorder}` }}>
       <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: soft }}>
@@ -1442,7 +1439,7 @@ export default function Messages() {
                               <Avatar url={s.avatar_url} pseudo={displayName(s)} size={28} />
                               <span className="flex-1 min-w-0">
                                 <span className="block truncate text-sm" style={{ color: "var(--bt-text-1)" }}>{displayName(s)}</span>
-                                {reason && <span className="block truncate text-[10px] font-semibold" style={{ color: "var(--bt-accent)" }}>{reason}</span>}
+                                {reason && <span className="block truncate text-[10px] font-semibold" style={{ color: "var(--bt-brand-text)" }}>{reason}</span>}
                               </span>
                             </button>
                             <button onClick={() => addFriend(s.id)} className="btn-primary text-xs px-2.5 py-1 shrink-0">{t("friends.addBtn")}</button>
@@ -1598,7 +1595,7 @@ export default function Messages() {
                       tabIndex={0}
                       aria-current={c.isActive ? "true" : undefined}
                       className="bt-social-row flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
-                      style={c.isActive ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
+                      style={c.isActive ? { backgroundColor: "var(--bt-selected-bg)" } : {}}
                       onClick={() => (c.type === "dm" ? openDM(c.id) : openGroup(c.id))}
                       onKeyDown={(ev) => {
                         if (ev.key !== "Enter" && ev.key !== " ") return;
@@ -1666,7 +1663,7 @@ export default function Messages() {
                       <Avatar url={activeFriend.profile.avatar_url} pseudo={displayName(activeFriend.profile)} size={36} />
                       {isStudyingLive(activeFriend.profile.studying_since) && (
                         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: "var(--bt-accent)", border: "2px solid var(--bt-surface)" }} />
+                          style={{ backgroundColor: "var(--bt-status-active)", border: "2px solid var(--bt-surface)" }} />
                       )}
                     </button>
                     <button onClick={() => openProfile(activeFriend.profile.id)} className="text-left flex-1 min-w-0">
@@ -1707,7 +1704,7 @@ export default function Messages() {
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className="max-w-[75%] px-3.5 py-2.5 text-sm"
                         style={mine
-                          ? { backgroundColor: "var(--bt-accent)", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                          ? { backgroundColor: "var(--bt-message-own-bg)", color: "var(--bt-message-own-text)", borderRadius: "18px 18px 6px 18px" }
                           : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                         {share
                           ? <SessionShareBubble share={share} mine={mine} t={t} />
@@ -1725,17 +1722,17 @@ export default function Messages() {
                         )}
                         {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
                           <a href={attachmentUrl} target="_blank" rel="noreferrer"
-                            className={`mt-2 inline-flex items-center gap-2 underline ${mine ? "text-white" : "text-accent-dark"}`}>
+                            className="mt-2 inline-flex items-center gap-2 underline" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-brand-text)" }}>
                             <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                           </a>
                         )}
                         {m.attachment_url && !attachmentUrl && (
-                          <p className="mt-2 text-xs" style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--bt-text-3)" }}>
+                          <p className="mt-2 text-xs" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)" }}>
                             {t("security.signingAttachment")}
                           </p>
                         )}
                         <p className="text-[10px] mt-0.5"
-                          style={{ color: mine ? "rgba(255,255,255,0.65)" : "var(--bt-text-3)", textAlign: mine ? "right" : "left" }}>
+                          style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)", textAlign: mine ? "right" : "left" }}>
                           {timeAgo(m.created_at, lang)}
                         </p>
                       </div>
@@ -1895,7 +1892,7 @@ export default function Messages() {
                           {canFinishGroupChrono && (
                             <button onClick={finishGroupChrono}
                               className="text-xs px-2.5 py-1.5 rounded-xl font-semibold"
-                              style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
+                              style={{ backgroundColor: "var(--bt-action)", color: "var(--bt-on-action)" }}>
                               {t("groups.chronoFinish")}
                             </button>
                           )}
@@ -1969,7 +1966,7 @@ export default function Messages() {
                         </span>
                         <div className="rounded-2xl px-3.5 py-2.5 text-sm"
                           style={mine
-                            ? { backgroundColor: "var(--bt-accent)", color: "#fff", borderRadius: "18px 18px 6px 18px" }
+                            ? { backgroundColor: "var(--bt-message-own-bg)", color: "var(--bt-message-own-text)", borderRadius: "18px 18px 6px 18px" }
                             : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
                           {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                           {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
@@ -1985,12 +1982,12 @@ export default function Messages() {
                           {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
                             <a href={attachmentUrl} target="_blank" rel="noreferrer"
                               className="mt-2 inline-flex items-center gap-2 underline"
-                              style={{ color: mine ? "#fff" : "var(--bt-accent-dark)" }}>
+                              style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-brand-text)" }}>
                               <IconPaperclip size={13} /> {m.attachment_name || "Document"}
                             </a>
                           )}
                           {m.attachment_url && !attachmentUrl && (
-                            <p className="mt-2 text-xs" style={{ color: mine ? "rgba(255,255,255,0.75)" : "var(--bt-text-3)" }}>
+                            <p className="mt-2 text-xs" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)" }}>
                               {t("security.signingAttachment")}
                             </p>
                           )}
@@ -2157,7 +2154,7 @@ export default function Messages() {
                         </span>
                         <button onClick={() => inviteUser(p.id)} disabled={inviting === p.id}
                           className="text-xs font-semibold px-3 py-1 rounded-xl shrink-0"
-                          style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
+                          style={{ backgroundColor: "var(--bt-action)", color: "var(--bt-on-action)" }}>
                           {inviting === p.id ? "…" : t("groups.invite")}
                         </button>
                       </div>
@@ -2237,7 +2234,7 @@ export default function Messages() {
                         </span>
                         <button onClick={() => inviteToNewGroup(p.id)}
                           className="text-xs font-semibold px-3 py-1 rounded-lg shrink-0"
-                          style={{ backgroundColor: "var(--bt-accent)", color: "#fff" }}>
+                          style={{ backgroundColor: "var(--bt-action)", color: "var(--bt-on-action)" }}>
                           {t("groups.invite")}
                         </button>
                       </div>

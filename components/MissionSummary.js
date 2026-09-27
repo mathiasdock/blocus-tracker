@@ -41,7 +41,7 @@ function Dots({ items }) {
           style={{
             width: it.lead ? 11 : 9,
             height: it.lead ? 11 : 9,
-            backgroundColor: it.done ? "var(--bt-accent)" : "var(--bt-subtle)",
+            backgroundColor: it.done ? "var(--bt-success)" : "var(--bt-subtle)",
             boxShadow: it.lead
               ? `0 0 0 2px var(--bt-surface), 0 0 0 3.5px var(--bt-accent-${it.done ? "dark" : "border"})`
               : "none",
@@ -137,7 +137,7 @@ export default function MissionSummary({
                 {weekly.map(w => (
                   <span key={w.id} className="h-1.5 w-6 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }}>
                     <span className="block h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-                      style={{ transform: `scaleX(${weeklyRatio(w)})`, backgroundColor: "var(--bt-accent)" }} />
+                      style={{ transform: `scaleX(${weeklyRatio(w)})`, backgroundColor: "var(--bt-progress-fill)" }} />
                   </span>
                 ))}
               </span>
@@ -189,7 +189,7 @@ export default function MissionSummary({
             role="progressbar" aria-label={t("xp.cardTitle")}
             aria-valuemin={0} aria-valuemax={100} aria-valuenow={levelInfo.progressPct || 0}>
             <span className="block h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none"
-              style={{ transform: `scaleX(${(levelInfo.progressPct || 0) / 100})`, backgroundColor: "var(--bt-accent)" }} />
+              style={{ transform: `scaleX(${(levelInfo.progressPct || 0) / 100})`, backgroundColor: "var(--bt-progress-fill)" }} />
           </span>
         </div>
       )}

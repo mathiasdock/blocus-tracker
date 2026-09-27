@@ -296,8 +296,8 @@ export default function Layout({ children }) {
         aria-current={active ? "page" : undefined}
         className="relative flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-medium transition-all"
         style={active ? {
-          backgroundColor: "var(--bt-accent-bg)",
-          color: "var(--bt-accent-dark)",
+          backgroundColor: "var(--bt-selected-bg)",
+          color: "var(--bt-selected-text)",
           fontWeight: 600,
         } : {
           color: "var(--bt-text-2)",
@@ -306,7 +306,7 @@ export default function Layout({ children }) {
         onMouseLeave={e => { if (!active) e.currentTarget.style.backgroundColor = ""; }}>
         {active && (
           <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
-            style={{ backgroundColor: "#14B885" }} />
+            style={{ backgroundColor: "var(--bt-selected-text)" }} />
         )}
         <span>
           <NavIcon href={n.href} size={18} />
@@ -358,7 +358,7 @@ export default function Layout({ children }) {
           <Link href="/dashboard"
             className="font-display font-bold text-xl tracking-tight select-none"
             style={{ color: "var(--bt-text-1)" }}>
-            blocus<span style={{ color: "#14B885" }}>·</span>tracker
+            blocus<span style={{ color: "var(--bt-brand-primary)" }}>·</span>tracker
           </Link>
           {!isGuest && renderNotificationsBell()}
         </div>
@@ -417,7 +417,7 @@ export default function Layout({ children }) {
                   {userLevel && (
                     <span style={{
                       position: "absolute", bottom: -3, right: -7,
-                      backgroundColor: "#14B885", color: "#fff",
+                      backgroundColor: "var(--bt-level-bg)", color: "var(--bt-level-text)",
                       fontSize: 9, fontWeight: 800,
                       borderRadius: 99, padding: "1px 5px",
                       border: "1.5px solid var(--bt-surface)",
@@ -460,20 +460,20 @@ export default function Layout({ children }) {
           <Link href="/dashboard"
             className="font-display font-bold text-lg tracking-tight select-none"
             style={{ color: "var(--bt-text-1)" }}>
-            blocus<span style={{ color: "#14B885" }}>·</span>tracker
+            blocus<span style={{ color: "var(--bt-brand-primary)" }}>·</span>tracker
           </Link>
           <div className="flex items-center gap-3">
             {running && router.pathname !== "/dashboard" && (
               <Link href="/dashboard"
                 className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white"
-                style={{ backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 2px 8px rgba(20,184,133,0.3)" }}>
+                style={{ backgroundImage: "var(--bt-action-gradient)", boxShadow: "0 2px 8px rgba(var(--bt-brand-rgb), 0.3)" }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 <span className="font-num tabular-nums">{formatDuration(elapsed)}</span>
               </Link>
             )}
             {isGuest ? (
               <Link href="/login" className="text-xs font-semibold px-3 py-2 rounded-full"
-                style={{ color: "#0E8F68", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
+                style={{ color: "var(--bt-brand-text)", backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }}>
                 {t("guest.signIn")}
               </Link>
             ) : (
@@ -484,7 +484,7 @@ export default function Layout({ children }) {
                   {userLevel && (
                     <span style={{
                       position: "absolute", bottom: -3, right: -7,
-                      backgroundColor: "#14B885", color: "#fff",
+                      backgroundColor: "var(--bt-level-bg)", color: "var(--bt-level-text)",
                       fontSize: 9, fontWeight: 800,
                       borderRadius: 99, padding: "1px 5px",
                       border: "1.5px solid var(--bt-surface)",
@@ -579,9 +579,9 @@ export default function Layout({ children }) {
       {running && router.pathname !== "/dashboard" && (
         <Link href="/dashboard"
           className="hidden lg:flex fixed bottom-6 right-6 z-40 items-center gap-2 rounded-full text-white pl-4 pr-5 py-2.5 text-sm font-semibold transition-all"
-          style={{ backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 4px 16px rgba(20,184,133,0.35)" }}
-          onMouseEnter={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, #0FA173, #0E8F68 115%)"}
-          onMouseLeave={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, #14B885, #0E8F68 115%)"}>
+          style={{ backgroundImage: "var(--bt-action-gradient)", boxShadow: "0 4px 16px rgba(var(--bt-brand-rgb), 0.35)" }}
+          onMouseEnter={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, var(--bt-action-hover), var(--bt-action))"}
+          onMouseLeave={e => e.currentTarget.style.backgroundImage = "var(--bt-action-gradient)"}>
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
           <span className="font-num tabular-nums">{formatDuration(elapsed)}</span>
         </Link>

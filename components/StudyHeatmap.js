@@ -4,10 +4,10 @@ import { localISO, formatStudyTime } from "../lib/format";
 
 const LEVELS = [
   "var(--bt-border)",
-  "rgba(20, 184, 133, 0.20)",
-  "rgba(20, 184, 133, 0.45)",
-  "rgba(20, 184, 133, 0.70)",
-  "rgba(20, 184, 133, 1.00)",
+  "rgba(var(--bt-heatmap-rgb), 0.20)",
+  "rgba(var(--bt-heatmap-rgb), 0.45)",
+  "rgba(var(--bt-heatmap-rgb), 0.70)",
+  "rgba(var(--bt-heatmap-rgb), 1.00)",
 ];
 
 // Les paliers se lisent sur les SECONDES. Avant, chaque session était arrondie

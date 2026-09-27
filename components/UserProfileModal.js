@@ -129,9 +129,9 @@ export default function UserProfileModal({ userId, onClose }) {
                 const isStudying = isStudyingLive(profile.studying_since);
                 return isStudying ? (
                   <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full"
-                    style={{ backgroundColor: "#EAFBF4", border: "1px solid #C6EED9" }}>
-                    <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "#14B885" }} />
-                    <span className="text-xs font-medium" style={{ color: "#0E8F68" }}>{t("profile.studyingNow")}</span>
+                    style={{ backgroundColor: "var(--bt-brand-surface)", border: "1px solid var(--bt-brand-border)" }}>
+                    <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "var(--bt-brand-primary)" }} />
+                    <span className="text-xs font-medium" style={{ color: "var(--bt-brand-text)" }}>{t("profile.studyingNow")}</span>
                   </div>
                 ) : null;
               })()}
@@ -231,7 +231,7 @@ export default function UserProfileModal({ userId, onClose }) {
             {userId !== user.id && (
               <div className="mt-5">
                 {relStatus === "accepted" ? (
-                  <p className="flex items-center justify-center gap-1.5 text-sm" style={{ color: "var(--bt-accent-dark)" }}>
+                  <p className="flex items-center justify-center gap-1.5 text-sm" style={{ color: "var(--bt-success)" }}>
                     <Glyph size={15}><path d="m5 12.8 4.4 4.4L19 7.6"/></Glyph>
                     {t("modal.alreadyFriends")}
                   </p>
@@ -240,7 +240,7 @@ export default function UserProfileModal({ userId, onClose }) {
                 ) : (
                   <button onClick={addFriend} className="btn-primary w-full">{t("modal.addFriend")}</button>
                 )}
-                {msg && <p className="text-xs text-center mt-2" style={{ color: "#0E8F68" }}>{msg}</p>}
+                {msg && <p className="text-xs text-center mt-2" style={{ color: "var(--bt-brand-text)" }}>{msg}</p>}
               </div>
             )}
           </>

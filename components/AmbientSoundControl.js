@@ -105,9 +105,9 @@ export default function AmbientSoundControl({ active, visible = true }) {
         aria-expanded={open}
         className="bt-tap flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold bt-press"
         style={{
-          color: on ? "#34D399" : "rgba(255,255,255,0.6)",
-          backgroundColor: on ? "rgba(20,184,133,0.18)" : "rgba(255,255,255,0.08)",
-          border: `1px solid ${on ? "rgba(20,184,133,0.35)" : "rgba(255,255,255,0.12)"}`,
+          color: on ? "var(--bt-ink-muted)" : "rgba(255,255,255,0.6)",
+          backgroundColor: on ? "rgba(var(--bt-brand-rgb), 0.18)" : "rgba(255,255,255,0.08)",
+          border: `1px solid ${on ? "rgba(var(--bt-brand-rgb), 0.35)" : "rgba(255,255,255,0.12)"}`,
         }}>
         <IconSound on={on} />
         {on && <span className="tabular-nums">{t(LABEL_KEY[preset])}</span>}
@@ -115,15 +115,15 @@ export default function AmbientSoundControl({ active, visible = true }) {
 
       {open && (
         <div className="mt-2 w-60 rounded-2xl p-3"
-          style={{ backgroundColor: "rgba(12,26,20,0.92)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", boxShadow: "0 12px 40px rgba(0,0,0,0.45)" }}>
-          <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.45)" }}>
+          style={{ backgroundColor: "rgba(var(--bt-brand-deepest-rgb), 0.92)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", boxShadow: "0 12px 40px rgba(0,0,0,0.45)" }}>
+          <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
             {t("sound.label")}
           </p>
           <div className="flex flex-wrap gap-1.5">
             <button type="button" onClick={turnOff}
               className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
               style={!on
-                ? { backgroundColor: "rgba(255,255,255,0.9)", color: "#0E2A20" }
+                ? { backgroundColor: "rgba(255,255,255,0.9)", color: "var(--bt-brand-deepest)" }
                 : { backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>
               {t("sound.off")}
             </button>
@@ -131,19 +131,19 @@ export default function AmbientSoundControl({ active, visible = true }) {
               <button key={p} type="button" onClick={() => choose(p)}
                 className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
                 style={on && preset === p
-                  ? { backgroundColor: "#14B885", color: "#fff" }
+                  ? { backgroundColor: "var(--bt-selected-bg)", color: "var(--bt-selected-text)" }
                   : { backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>
                 {t(LABEL_KEY[p])}
               </button>
             ))}
           </div>
           <div className="mt-3 flex items-center gap-2 px-1">
-            <span className="text-[11px] font-medium shrink-0" style={{ color: "rgba(255,255,255,0.5)" }}>{t("sound.volume")}</span>
+            <span className="text-[11px] font-medium shrink-0" style={{ color: "var(--bt-ink-muted)" }}>{t("sound.volume")}</span>
             <input type="range" min="0" max="1" step="0.05" value={volume}
               onChange={(e) => onVolume(parseFloat(e.target.value))}
               aria-label={t("sound.volume")}
               className="w-full"
-              style={{ accentColor: "#14B885" }} />
+              style={{ accentColor: "var(--bt-brand-primary)" }} />
           </div>
         </div>
       )}

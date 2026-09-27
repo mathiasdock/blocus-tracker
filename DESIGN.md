@@ -7,12 +7,13 @@ colors:
   surface-subtle: "#F6F3EC"
   border: "#E9E3DB"
   text-primary: "#1F1A17"
-  text-secondary: "#7C746E"
-  study-green: "#14B885"
-  action-green: "#087454"
-  mint-surface: "#EAFBF4"
-  brand-ink: "#0B2E23"
-  ink-text: "#F2FBF7"
+  text-secondary: "#746C65"
+  study-green: "#40916C"
+  brand-primary: "#52B788"
+  action-green: "#1B4332"
+  mint-surface: "#D8F3DC"
+  brand-ink: "#081C15"
+  ink-text: "#D8F3DC"
   danger: "#B83E3E"
   danger-solid: "#C43D3D"
   danger-surface: "#FFF1F0"
@@ -84,11 +85,37 @@ Read [PRODUCT.md](PRODUCT.md) for product constraints and [docs/UI.md](docs/UI.m
 
 ## Colors
 
+### Forest identity — 2026-09-27
+
+Official palette: **#D8F3DC · #B7E4C7 · #95D5B2 · #74C69D · #52B788 · #40916C · #2D6A4F · #1B4332 · #081C15**. Warm neutrals, courses, university logos, terracotta exams, red pause, danger and achievement artwork retain their own meanings.
+
+**One source:** `lib/colorTokens.cjs` generates `styles/colors.css` (`npm run colors:generate`); Tailwind references those CSS variables. Shaders, canvas exports, SEO, icon/splash/OG generators import this same source. The build checks that generated color sources are current. Do not edit generated CSS or copy brand hex/RGB values into a component. Generated assets and this documentation are the only literal mirrors.
+
+| Role | Token / treatment |
+| --- | --- |
+| Hero action (Start/Resume) | Explicit `.btn-hero`: `--bt-brand-primary` #52B788 + `--bt-on-brand` #081C15; hover #40916C. Never a Dashboard ancestor override. |
+| Standard primary (Save/Create/Join/Confirm) | `.btn-primary`: `--bt-action` #1B4332 + `--bt-on-action` white; hover #2D6A4F, pressed #081C15. Dark theme adds an inset boundary. |
+| Secondary (Focus/Add) | Brand surface + brand text + brand border; `.btn-secondary` supplies color without dictating geometry. |
+| Tertiary | `--bt-brand-text`, no large surface. Neutral utility controls stay neutral. Destructive stays `--bt-danger*`. |
+| Brand surfaces | `--bt-brand-surface` #D8F3DC, strong #B7E4C7, border #95D5B2; `--bt-brand-deep` #1B4332 and deepest #081C15. |
+| Selection | `--bt-selected-bg/text/border`: independent semantic values; not a success state. |
+| Success / presence | `--bt-success/bg/border`, `--bt-status-active/text`. Never borrow brand-primary for completion or online status. |
+| Progress / level | `--bt-progress-*`, `--bt-level-bg/text`; ratios/XP, not chart series. Ink tracks use the explicit `--bt-progress-ink-gradient`. |
+| Historical data / heatmap | `--bt-data-study`, `--bt-data-goal-met`, `--bt-heatmap-rgb`; independent of the brand even when a palette value is shared today. Course-series still use saved course colors. |
+| Own messages | `--bt-message-own-bg/text/muted`: readable surface/text pair, never white on bright green. |
+| Ink / Focus | `--bt-ink/ink-soft/ink-text/ink-muted`; Focus palette and overlay are centralized. A dark veil keeps text readable through the moving lights. Pause remains red. |
+
+Dark theme: interactive text becomes #95D5B2; soft brand/selected surfaces become #1B4332 (strong #2D6A4F), border #40916C. Hero foreground stays dark; primary foreground stays white. Do not place a dark-mode light text token on a fixed white surface. Warm background/surface colors stay unchanged; small neutral metadata uses #746C65 in light / #9E958D in dark to remain readable. `--bt-text-4` stays decorative/disabled, never essential copy.
+
+Keyboard focus is a **two-tone ring**: `--bt-focus-ring` #2D6A4F in light / #95D5B2 in dark, separated by `--bt-focus-gap`. Ink surfaces use `--bt-focus-on-ink` #95D5B2 with a darkest-green gap. Keep this visible through overflow and on modal surfaces; hover alone is not focus. Disabled opacity is separate from selected/success.
+
+Legacy `--bt-accent*` and `--bt-mint*` are compatibility aliases, not another palette. New code must choose a semantic role. See [docs/color-system.md](docs/color-system.md) for mapping, contrast checks, exceptions and asset regeneration.
+
 ### Semantic roles
 
 | Meaning | Existing source | Boundary |
 | --- | --- | --- |
-| Primary action / positive / active | `--bt-action`, `--bt-accent`, `--bt-accent-text`, `--bt-accent-bg` | Differentiate action, selection and information by structure too. Bright green is not a default text color. |
+| Brand / action / selection | `--bt-brand-*`, `--bt-action*`, `--bt-selected-*` | Differentiate action, selection and information; success and data have independent tokens. Bright green is not a default text color. |
 | Course identity | Saved `course.color`; palette in `lib/courseColors.js` | Follow the course, never task completion or urgency. |
 | Exam priority | Planning `--bt-exam-*` in `styles/planning.css` | Warm sand surface and compact terracotta calendar stamp; independent of danger and pause tokens. |
 | Error / destructive action | `--bt-danger*` | Error copy, warning/action semantics; no exam marker. |
@@ -131,7 +158,7 @@ Quicksand remains defensible as a restrained accent: it relates to the friendly 
 - Default body/control copy stays around 14–16px. Aim for at least 12px for useful secondary text; do not solve density with 9–10px labels. Touch text inputs remain at least 16px.
 - Prefer sentence-case labels. Uppercase is for short categories, not every field or reward.
 - Verify long FR/EN names, multi-digit levels, 8h totals and narrow screens. Fonts are self-hosted; no new CDN requests.
-- Fix contrast, role, wrapping and spacing before blaming the font. The current faint academic metadata and tiny labels are known debt.
+- Fix contrast, role, wrapping and spacing before blaming the font. The forest migration strengthens secondary text; tiny labels and protected artwork still require context-specific checks.
 
 ## Layout
 
@@ -333,17 +360,17 @@ Every page before the app — sign in, sign up, check email, forgot/reset passwo
 | ✅ | ~~Timer capped `+N`; `TodayProgressCard` builds one cell per target quarter-hour~~ — shipped 2026-09-15 in `lib/studyBlocks.mjs` + `components/StudyBlocks.js` (Timer, Focus and Today share one scale; exact fractions; no `+N`; no invented capacity; Pomodoro rest has its own form) | Done. Remaining in this family: Stats' runway and the leaderboard still use their own encodings — Stats Phase 1 (2026-09-16) settled its bar semantics without touching either. |
 | ✅ | Planning Phase 1: both diagonals removed; shared exam marker and semantic tokens; neutral objective chips | Shipped 2026-09-16. Exam read compatibility documented in `docs/planning-exams.md`. Month workload weighting and Week composition remain Phase 2. |
 | ✅ | ~~Planning exam palette vs `--bt-kind-exam`~~ — resolved 2026-09-17 (Communities phase 2): the kind palette and undated exam spaces were retired; course rooms reuse Planning's exam tokens and `PlanningExamMark` | Done. Exam vocabulary now has one source (`styles/planning.css`), shared by Planning and course rooms. |
-| 1 | Faint small metadata; bright-green/white selected text | Measured contrast in both themes; no essential text demoted to disabled-looking gray. Stats Phase 1 scoped this for `/stats` only (`bt-stats-readable` lifts `--bt-text-3/4`, measured 2.5:1 light / 2.9:1 dark before). `RankBadge` numerals and `LevelPill` remain below threshold everywhere. |
+| ✅ / follow-up | Faint small metadata; bright-green/white selected text | Forest migration 2026-09-27 strengthens shared secondary text, supplies selected/message pairs and fixes `LevelPill`. Essential text pairs are regression-tested. Protected rank/badge artwork is not a blanket accessibility certification. |
 | 2 | Level number / circular medallion / square celebration; multiple flames | Shared object family, compact variants, visible milestone identity |
-| ✅ | ~~Stats hierarchy, local badges, podium medals~~ — shipped 2026-09-16 (Stats Phase 2). Personal analysis precedes social comparison at every width; the Stats-only badge universe is replaced by a read-only summary of the canonical collection; gold/silver/bronze no longer decorate study quantities (course breakdown, leaderboard). | Remaining: `LevelPill` contrast (shared), unused Stats badge entries in `lib/badgeArt.js`. |
+| ✅ | ~~Stats hierarchy, local badges, podium medals~~ — shipped 2026-09-16 (Stats Phase 2). Personal analysis precedes social comparison at every width; the Stats-only badge universe is replaced by a read-only summary of the canonical collection; gold/silver/bronze no longer decorate study quantities (course breakdown, leaderboard). | `LevelPill` contrast fixed by forest migration; unused Stats badge entries in `lib/badgeArt.js` remain historical artwork. |
 | ✅ | **Leaderboard podium, reversed on user request 2026-09-23.** The top three get a podium (2 · 1 · 3, first larger on an accent wash) with gold/silver/bronze on the RANK OBJECT only: a ring around the avatar, a numbered crown above it, and stepped podium blocks (gold tallest, centre) with an engraved numeral. Durations stay in text ink, never metal. Level is a small action-green bubble on the avatar's bottom-right, replacing `LevelPill` beside names in the leaderboard. Compare shows one big personal number per metric plus a single shared-scale strip (you = accent dot, uni/app = neutral ticks). | Keep metals off quantities; keep the strip starting at zero. |
 | ✅ | ~~Stats ordinary bars~~ — shipped 2026-09-16 (Stats Phase 1). Three geometries now carry three questions and no longer look interchangeable: filled track with a destination = progress toward a target (the runway alone), filled track = share of a whole, bar with **no** track on a shared left edge = quantity compared on a stated scale. Study-by-course bar length and its printed percentage finally share one denominator; artificial 14 % / 3 % minimum fills are gone and zero draws nothing. Planning's `PlanningLoadBar` (2026-09-16) remains the week/month duration band this document allows, deliberately not a Study Block. | Remaining in this family: the leaderboard rows and XP ticks still use their own encodings, and the runway itself was deliberately left untouched. |
 | 2 | Profile segmented controls vs `SegmentedGlide`; different sheet implementations | Consistent equivalent states; labels, focus trap/restore, Escape, targets and reduced motion |
 | 2 | Profile permanent companion plus event mascot; decorative cover/stage details | Resolve competing characters and information-free emphasis only in an authorized profile task |
-| 3 | Tailwind color literals differ from CSS; historical surface docs/comments | Consolidate at source without repainting unrelated screens; record before/after |
+| ✅ | Tailwind color literals differed from CSS | Forest migration 2026-09-27: one color source, generated CSS, Tailwind aliases and shared raw exports. Historical changelog values are not runtime guidance. |
 | 3 | Shared badge silhouettes; legacy Activity text; small academic context | Legible distinctions and graceful history; no fabricated structured data or proximity |
 
-Documentation values for radii, dark surfaces and the old “card/border/gradient by default” guidance are reconciled here. Runtime CSS, controls, artwork and layouts have **not** been consolidated.
+Documentation values for radii, dark surfaces and the old “card/border/gradient by default” guidance are reconciled here. The 2026-09-27 migration consolidates runtime **color** authority and semantic roles. It does not consolidate layouts, control geometry or artwork.
 
 ### Rules for coding agents
 

@@ -27,8 +27,8 @@ export default function ChallengeStrip({ challenge, onPickCourse, className = ""
     <>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
         style={{
-          backgroundColor: done ? "var(--bt-accent)" : "var(--bt-accent-bg)",
-          color: done ? "var(--bt-on-accent)" : "var(--bt-accent-dark)",
+          backgroundColor: done ? "var(--bt-success-bg)" : "var(--bt-accent-bg)",
+          color: done ? "var(--bt-success)" : "var(--bt-accent-dark)",
         }}>
         {done ? (
           <Glyph size={14} strokeWidth={3}><polyline points="20 6 9 17 4 12" /></Glyph>

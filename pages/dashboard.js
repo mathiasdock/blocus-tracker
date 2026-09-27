@@ -101,7 +101,7 @@ function TimerDigits({
     <div className="font-num font-bold tabular-nums"
       style={{ fontSize: showHours ? hoursSize : size, lineHeight: 1, letterSpacing: "-0.04em", whiteSpace: "nowrap", color, transition: "color 0.3s" }}>
       {main.split("").map((ch, i) => <RollChar key={`m${i}`} ch={ch} />)}
-      <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.45, marginLeft: "0.06em" }}>
+      <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.72, marginLeft: "0.06em" }}>
         :{ss.split("").map((ch, i) => <RollChar key={`s${i}`} ch={ch} />)}
       </span>
     </div>
@@ -1436,7 +1436,7 @@ export default function Dashboard() {
           <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none"
             style={{
               height: "58%",
-              background: "radial-gradient(ellipse at 50% 100%, rgba(20,184,133,0.10), transparent 70%)",
+              background: "radial-gradient(ellipse at 50% 100%, rgba(var(--bt-brand-rgb), 0.10), transparent 70%)",
               opacity: (running || elapsed > 0) && !isPaused ? 0.35 + focusTidePct * 0.65 : 0,
               transition: "opacity 1.5s ease",
             }} />
@@ -1462,7 +1462,7 @@ export default function Dashboard() {
                       width: "100%",
                       backgroundColor: "var(--bt-subtle)",
                       border: `1px solid ${showCourseMenu ? "var(--bt-accent)" : "var(--bt-border)"}`,
-                      boxShadow: showCourseMenu ? "0 0 0 3px rgba(20,184,133,0.12)" : "none",
+                      boxShadow: showCourseMenu ? "0 0 0 3px rgba(var(--bt-brand-rgb), 0.12)" : "none",
                       color: courseId ? "var(--bt-text-1)" : "var(--bt-text-3)",
                     }}
                     aria-haspopup="listbox"
@@ -1747,7 +1747,7 @@ export default function Dashboard() {
               <div className="flex flex-col xs:flex-row items-stretch justify-center gap-2.5 max-w-md mx-auto">
                 {!running ? (
                   <button
-                    className="bt-dashboard-control bt-dashboard-primary flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-extrabold"
+                    className="bt-dashboard-control btn-hero flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-extrabold"
                     style={{
                       opacity: (!courseId && !pomodoro) ? 0.45 : 1,
                     }}
@@ -1773,10 +1773,10 @@ export default function Dashboard() {
                   <button
                     className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
                     style={{
-                      backgroundColor: saveStatus === "success" ? "var(--bt-action)"
-                        : saveStatus === "error" ? "#ef4444"
+                      backgroundColor: saveStatus === "success" ? "var(--bt-success-bg)"
+                        : saveStatus === "error" ? "var(--bt-danger-solid)"
                         : "var(--bt-text-1)",
-                      color: saveStatus === "success" || saveStatus === "error" ? "#fff" : "var(--bt-surface)",
+                      color: saveStatus === "success" ? "var(--bt-success)" : saveStatus === "error" ? "#fff" : "var(--bt-surface)",
                       opacity: (elapsed < 1 && saveStatus === "idle") || saveStatus === "saving" ? 0.45 : 1,
                     }}
                     onClick={() => { setPomodoro(false); setPomoPhase("work"); setPomoCount(0); stopAndSave(); }}
@@ -1995,7 +1995,7 @@ export default function Dashboard() {
       />
 
       {focusMode && (
-        <div className="fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
+        <div className="bt-focus-surface fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
           style={{
             background: (isPaused && !pomodoro) ? "#1A0605" : "var(--bt-ink)",
             zIndex: 100,
@@ -2119,7 +2119,7 @@ export default function Dashboard() {
               <>
                 {!running ? (
                   <button onClick={startWithFeedback} disabled={!courseId && !pomodoro}
-                    className={`btn-primary min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10 ${isPaused ? "bt-pause-cta" : ""}`}>
+                    className={`btn btn-hero min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10 ${isPaused ? "bt-pause-cta" : ""}`}>
                     {elapsed > 0 ? t("dash.resume") : t("dash.start")}
                   </button>
                 ) : (
@@ -2143,13 +2143,13 @@ export default function Dashboard() {
           <button onClick={() => setFocusMode(false)}
             className="relative z-10 mt-6 flex items-center gap-2 text-sm font-medium rounded-2xl px-5 py-2.5"
             style={{
-              color: "rgba(255,255,255,0.45)",
+              color: "var(--bt-ink-text)",
               opacity: (focusCtlVisible || !running) ? 1 : 0,
               pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
               transition: "opacity 0.25s ease-out, color 0.2s ease-out",
             }}
-            onMouseEnter={e => e.currentTarget.style.color = "rgba(255,255,255,0.8)"}
-            onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,0.45)"}>
+            onMouseEnter={e => e.currentTarget.style.color = "#FFFFFF"}
+            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-ink-text)"}>
             <Glyph size={14}>
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </Glyph>
@@ -2159,7 +2159,7 @@ export default function Dashboard() {
           {/* Raccourci clavier — desktop uniquement */}
           <p className="hidden sm:block relative z-10 mt-2 text-[11px]"
             style={{
-              color: "rgba(255,255,255,0.25)",
+              color: "var(--bt-ink-text)",
               opacity: (focusCtlVisible || !running) ? 1 : 0,
               transition: "opacity 0.25s ease-out",
             }}>

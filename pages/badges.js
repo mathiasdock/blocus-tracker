@@ -98,7 +98,7 @@ export default function BadgesPage() {
           aria-label={t("badgePage.title")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}
           style={{ backgroundColor: "var(--bt-subtle)" }}>
           <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
-            style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-accent)" }} />
+            style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-progress-fill)" }} />
         </div>
 
         {/* Deux colonnes dès qu'il y a la largeur : les thèmes sont courts, les

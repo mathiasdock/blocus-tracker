@@ -54,7 +54,7 @@ export default function LoadingScreen({ message, fullScreen = false, compact = f
     >
       <div className="bt-rise flex flex-col items-center gap-5 px-6 text-center">
         <p className="font-display text-2xl font-bold tracking-tight" style={{ color: "var(--bt-text-1)" }}>
-          blocus<span style={{ color: "#14B885" }}>·</span>tracker
+          blocus<span style={{ color: "var(--bt-brand-primary)" }}>·</span>tracker
         </p>
         <Blocks />
         <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>{msg}</p>

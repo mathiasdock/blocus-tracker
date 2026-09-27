@@ -75,7 +75,7 @@ export default function StudyHabits({ insights, className = "" }) {
               </span>
               <span className="h-2 flex-1 overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-subtle)" }} aria-hidden="true">
                 <span className="bt-stats-quantity block h-full rounded-full"
-                  style={{ inlineSize: share > 0 ? `max(2px, ${share * 100}%)` : 0, backgroundColor: "var(--bt-accent)" }} />
+                  style={{ inlineSize: share > 0 ? `max(2px, ${share * 100}%)` : 0, backgroundColor: "var(--bt-data-study)" }} />
               </span>
               <span className="w-9 shrink-0 text-right font-num text-xs font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
                 {insights.timeOfDayPct[s.key]}%

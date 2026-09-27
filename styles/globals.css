@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Two-tone keyboard focus: a separating gap plus a theme-aware outline.
+   The local ink scope also covers light-theme modals on a dark brand surface.
+   Deliberately wins over legacy outline:none / page-specific focus rules. */
+html body :focus-visible {
+  outline: 2px solid var(--bt-focus-ring) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px var(--bt-focus-gap) !important;
+}
+.bt-focus-surface {
+  --bt-focus-ring: var(--bt-focus-on-ink);
+  --bt-focus-gap: var(--bt-brand-deepest);
+  --bt-selected-bg: var(--bt-brand-deep);
+  --bt-selected-text: var(--bt-ink-text);
+}
+.btn-secondary {
+  background-color: var(--bt-brand-surface);
+  color: var(--bt-brand-text);
+  border: 1px solid var(--bt-brand-border);
+}
+.btn-secondary:hover:not(:disabled) { background-color: var(--bt-brand-surface-strong); }
+.btn-tertiary { background: transparent; color: var(--bt-brand-text); }
+.btn-hero:disabled { opacity: .45; cursor: not-allowed; }
+
 /* ── Polices auto-hébergées ──────────────────────────────────
    Elles venaient de fonts.googleapis.com : chaque visiteur, même non
    connecté et avant tout choix de sa part, envoyait alors son adresse IP
@@ -73,7 +96,7 @@ html {
  * effet durable, aucune dépendance à JS. */
 @media (display-mode: standalone), (display-mode: fullscreen) {
   html {
-    background-color: #14b885;
+    background-color: var(--bt-brand-primary);
     animation: bt-launch-canvas 1ms linear 620ms forwards;
   }
 }
@@ -105,150 +128,12 @@ html.bt-no-splash #bt-splash {
   }
 }
 
-/* ── CSS Custom Properties ──────────────────────────────────── */
+/* Color/elevation values live in lib/colorTokens.cjs → styles/colors.css. */
 :root {
-  /* Canevas volontairement plus profond que la surface. A #FAF9F7 contre
-     #FFFDFB, l'ecart etait de 2 % : une carte ne pouvait PAS paraitre posee
-     sur le fond, d'ou la bordure sur chaque carte pour la detourer — et
-     l'empilement de cadres qui faisait « tableau de bord web ». Avec un vrai
-     ecart tonal, l'ombre suffit et la bordure disparait. */
-  --bt-bg:            #F4F1EA;
-  --bt-surface:       #FFFDFB;
-  --bt-subtle:        #F6F3EC;
-  --bt-border:        #E9E3DB;
-  /* Bordure de derniere necessite : la ou deux surfaces de meme valeur se
-     touchent. Beaucoup plus discrete que --bt-border, qui servait a detourer. */
-  --bt-hairline:      rgba(31,26,23,0.06);
-
-  /* ── Elevation ────────────────────────────────────────────────
-     Deux couches par niveau : un contact court et serre, puis une ombre
-     ambiante large et tres douce. Une seule couche donne le halo plat des
-     cartes generees ; deux couches donnent un objet pose sur une surface.
-     Chaque niveau a un decalage vertical reel — une ombre centree n'est pas
-     de la profondeur, c'est de la decoration. */
-  --bt-elev-1:        0 1px 2px rgba(38,32,26,0.04), 0 5px 14px -4px rgba(38,32,26,0.07);
-  --bt-elev-2:        0 2px 6px rgba(38,32,26,0.05), 0 14px 30px -10px rgba(38,32,26,0.11);
-  --bt-elev-3:        0 6px 12px rgba(38,32,26,0.07), 0 26px 56px -14px rgba(38,32,26,0.18);
-
-  /* ── Rayons ───────────────────────────────────────────────────
-     Une echelle nommee plutot que 12/14/16/20/24 disperses dans le JSX. */
-  --bt-r-inset:       12px;
-  --bt-r-control:     14px;
-  --bt-r-card:        22px;
-  --bt-r-sheet:       28px;
-
-  /* Materiau de la navigation flottante : translucide, pas opaque. */
-  --bt-nav-material:  rgba(255,253,251,0.72);
-  --bt-nav-hairline:  rgba(255,255,255,0.55);
-  --bt-nav-scrim-0:   rgba(244,241,234,0);
-  --bt-nav-scrim-1:   rgba(244,241,234,0.42);
-  --bt-text-1:        #1F1A17;
-  --bt-text-2:        #7C746E;
-  --bt-text-3:        #A8A09A;
-  --bt-text-4:        #C4BCB6;
-  --bt-accent:        #14B885;
-  --bt-accent-hover:  #10A878;
-  /* Etat PAUSE du chrono — attention, PAS erreur. Famille distincte de
-     `--bt-danger*` : une pause n'est pas un echec, mais elle doit se voir de
-     loin parce qu'on oublie de relancer. DESIGN.md § The Paused-Timer
-     Exception. Reserve au chrono ; aucun autre ecran ne l'emprunte. */
-  --bt-pause:         #EF4444;
-  /* Meme etat, version lisible en PETIT : #EF4444 sur la carte teintee ne tient
-     que 3,1:1 — assez pour les gros chiffres, pas pour une phrase. */
-  --bt-pause-text:    #C92A2A;
-  --bt-pause-strong:  #DC2626;
-  --bt-pause-bg:      rgba(239,68,68,0.13);
-  --bt-pause-border:  rgba(239,68,68,0.60);
-  --bt-pause-shadow:  rgba(239,68,68,0.22);
-  --bt-accent-dark:   #0E8F68;
-  --bt-accent-text:   #087454;
-  --bt-on-accent:     #082B21;
-  --bt-action:        #087454;
-  --bt-action-deep:   #065F46;
-  --bt-accent-bg:     #EAFBF4;
-  --bt-accent-border: #C6EED9;
-  --bt-mint-surface:  #F1FBF6;
-  --bt-mint-strong:   #E2F7ED;
-  --bt-reward-bg:     #FFF4D8;
-  --bt-reward-border: #F1D79D;
-  --bt-reward-text:   #79500F;
-  --bt-danger:        #B83E3E;
-  --bt-danger-solid:  #C43D3D;
-  --bt-danger-bg:     #FFF1F0;
-  --bt-danger-border: #F2C9C6;
-  --bt-warning:       #8A5A10;
-  --bt-shadow:        rgba(31,26,23,0.055);
-  --bt-shimmer:       rgba(255,255,255,0.62);
-  --bt-mobile-bg:     rgba(255,253,251,0.80);
-  --bt-mobile-nav-bg: rgba(255,253,251,0.72);
-  /* Surface "ink" — vert profond de la famille accent, réservé aux moments
-     de marque (hero chrono, records). Jamais pour du contenu courant. */
-  --bt-ink:           #0B2E23;
-  --bt-ink-soft:      #114134;
-  --bt-ink-text:      #F2FBF7;
-  --bt-ink-muted:     #8FD4B8;
-  --bt-ink-border:    rgba(255,255,255,0.08);
-  --bt-scrollbar:     #D0C9C3;
-  --bt-scrollbar-h:   #B8AEA6;
-  /* Voile au-dessus de la photo des pages auth — s'assombrit en dark mode
-     pour que les textes (qui flippent) restent lisibles. */
-  --bt-auth-overlay:  rgba(255,255,255,0.62);
-}
-
-.dark {
-  --bt-bg:            #12100E;
-  --bt-surface:       #1F1B18;
-  --bt-subtle:        #262220;
-  --bt-border:        #2C2622;
-  --bt-hairline:      rgba(255,255,255,0.07);
-  /* Sur fond sombre une ombre ne se voit pas : l'elevation passe par une
-     surface plus claire et un filet. Les memes noms restent utilisables
-     partout, seul leur contenu change. */
-  --bt-elev-1:        0 1px 2px rgba(0,0,0,0.30);
-  --bt-elev-2:        0 4px 14px rgba(0,0,0,0.38);
-  --bt-elev-3:        0 10px 34px rgba(0,0,0,0.52);
-  --bt-nav-material:  rgba(31,27,24,0.76);
-  --bt-nav-hairline:  rgba(255,255,255,0.08);
-  --bt-nav-scrim-0:   rgba(18,16,14,0);
-  --bt-nav-scrim-1:   rgba(18,16,14,0.46);
-  --bt-text-1:        #F0EDE8;
-  --bt-text-2:        #A8A09A;
-  --bt-text-3:        #6B635D;
-  --bt-text-4:        #4A4642;
-  --bt-accent-bg:     #0D2B22;
-  --bt-accent-border: #1A4A3A;
-  /* Sur surface sombre la teinte remonte pour garder le contraste du texte. */
-  --bt-pause:         #FF6B6B;
-  --bt-pause-text:    #FF6B6B;
-  --bt-pause-strong:  #DC2626;
-  --bt-pause-bg:      rgba(239,68,68,0.16);
-  --bt-pause-border:  rgba(255,107,107,0.58);
-  --bt-pause-shadow:  rgba(239,68,68,0.26);
-  --bt-accent-text:   #54D3A9;
-  --bt-accent-hover:  #20C996;
-  --bt-on-accent:     #06271D;
-  --bt-mint-surface:  #15231E;
-  --bt-mint-strong:   #193128;
-  --bt-reward-bg:     #302815;
-  --bt-reward-border: #5C4820;
-  --bt-reward-text:   #F0C675;
-  --bt-danger:        #F29A9A;
-  --bt-danger-solid:  #C84D4D;
-  --bt-danger-bg:     #321A19;
-  --bt-danger-border: #663532;
-  --bt-warning:       #F0C675;
-  --bt-shadow:        rgba(0,0,0,0.18);
-  --bt-shimmer:       rgba(255,255,255,0.06);
-  --bt-mobile-bg:     rgba(31,27,24,0.80);
-  --bt-mobile-nav-bg: rgba(31,27,24,0.76);
-  --bt-ink:           #0A2A20;
-  --bt-ink-soft:      #0F3A2C;
-  --bt-ink-text:      #ECFAF4;
-  --bt-ink-muted:     #7FC7AB;
-  --bt-ink-border:    rgba(255,255,255,0.07);
-  --bt-scrollbar:     #3A332E;
-  --bt-scrollbar-h:   #4A4642;
-  --bt-auth-overlay:  rgba(14,12,10,0.78);
+  --bt-r-inset: 12px;
+  --bt-r-control: 14px;
+  --bt-r-card: 22px;
+  --bt-r-sheet: 28px;
 }
 
 @layer base {
@@ -276,7 +161,7 @@ html.bt-no-splash #bt-splash {
 
   /* Focus clavier visible partout — ring vert accessible */
   :focus-visible {
-    outline: 2px solid var(--bt-accent);
+    outline: 2px solid var(--bt-focus-ring);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -286,7 +171,7 @@ html.bt-no-splash #bt-splash {
   }
 
   ::selection {
-    background-color: rgba(20, 184, 133, 0.22);
+    background-color: rgba(var(--bt-brand-rgb), 0.22);
   }
 }
 
@@ -340,15 +225,17 @@ html.bt-no-splash #bt-splash {
   /* Surface "ink" — moment de marque (hero chrono, records).
      Voile radial accent en haut à droite + dégradé vertical profond. */
   .card-ink {
+    --bt-focus-ring: var(--bt-focus-on-ink);
+    --bt-focus-gap: var(--bt-brand-deepest);
     position: relative;
     overflow: hidden;
     border-radius: var(--bt-r-card);
     border: 1px solid var(--bt-ink-border);
     background:
-      radial-gradient(120% 100% at 88% -12%, rgba(20, 184, 133, 0.38), transparent 55%),
+      radial-gradient(120% 100% at 88% -12%, rgba(var(--bt-brand-rgb), 0.38), transparent 55%),
       linear-gradient(178deg, var(--bt-ink-soft), var(--bt-ink) 70%);
     color: var(--bt-ink-text);
-    box-shadow: 0 16px 44px rgba(9, 38, 29, 0.30);
+    box-shadow: 0 16px 44px rgba(var(--bt-brand-deep-rgb), 0.30);
   }
 
   /* Vignette tonale — profondeur discrète sur les surfaces ink, sans texture
@@ -374,11 +261,11 @@ html.bt-no-splash #bt-splash {
     --bt-accent-dark: var(--bt-accent-text);
   }
   .bt-dashboard-grid {
-    --bt-timer-wash: rgba(20, 184, 133, 0.13);
+    --bt-timer-wash: rgba(var(--bt-brand-rgb), 0.13);
     --bt-timer-base: var(--bt-mint-surface);
   }
   .dark .bt-dashboard-grid {
-    --bt-timer-wash: rgba(20, 184, 133, 0.12);
+    --bt-timer-wash: rgba(var(--bt-brand-rgb), 0.12);
   }
   .bt-dashboard-grid input::placeholder,
   .bt-dashboard-readable input::placeholder {
@@ -386,29 +273,33 @@ html.bt-no-splash #bt-splash {
     opacity: 1;
   }
 
-  /* Le vert historique reste le signal d'action du dashboard. Le texte ink,
-     plutôt que blanc, garde les grands CTA conformes sur #14B885. */
-  .bt-dashboard-grid .btn-primary,
-  .bt-dashboard-primary {
-    background-color: var(--bt-accent);
+  /* Explicit hero action: no page/ancestor-dependent primary-button override. */
+  .btn-hero {
+    background-color: var(--bt-brand-primary);
     background-image: none;
-    color: var(--bt-on-accent);
-    box-shadow: 0 5px 16px rgba(20, 184, 133, 0.25);
+    color: var(--bt-on-brand);
+    box-shadow: 0 5px 16px rgba(var(--bt-brand-rgb), 0.25);
   }
-  .bt-dashboard-grid .btn-primary:hover:not(:disabled),
-  .bt-dashboard-primary:hover:not(:disabled) {
-    background-color: var(--bt-accent-hover);
+  .btn-hero:hover:not(:disabled) {
+    background-color: var(--bt-brand-hover);
     background-image: none;
-    box-shadow: 0 7px 20px rgba(20, 184, 133, 0.30);
+    box-shadow: 0 7px 20px rgba(var(--bt-brand-rgb), 0.30);
   }
 
   /* Une même famille mint anime les surfaces secondaires sans attribuer une
      couleur différente à chaque carte. */
   .bt-dashboard-card-mint {
+    --bt-text-2: var(--bt-brand-text);
+    --bt-text-3: var(--bt-brand-text);
     background:
       radial-gradient(90% 110% at 100% 0%, var(--bt-mint-strong), transparent 58%),
       var(--bt-mint-surface);
     border-color: var(--bt-accent-border);
+  }
+  .dark .bt-dashboard-card-mint {
+    --bt-text-2: var(--bt-ink-text);
+    --bt-text-3: var(--bt-ink-text);
+    --bt-accent-text: var(--bt-ink-text);
   }
   .bt-dashboard-title-accent {
     font-family: 'Quicksand', 'Avenir Next', ui-rounded, ui-sans-serif, system-ui, sans-serif;
@@ -453,15 +344,18 @@ html.bt-no-splash #bt-splash {
     @apply btn;
     background-color: var(--bt-action);
     background-image: none;
-    color: #fff;
+    color: var(--bt-on-action);
     /* Ombre teintee de l'action elle-meme : un bouton vert projette une ombre
        verte, pas une ombre grise. Decalee vers le bas, jamais centree. */
-    box-shadow: 0 1px 2px rgba(6, 74, 54, 0.24), 0 6px 16px -6px rgba(8, 116, 84, 0.45);
+    box-shadow: 0 1px 2px rgba(var(--bt-brand-deep-rgb), 0.24), 0 6px 16px -6px rgba(var(--bt-brand-deep-rgb), 0.45);
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: #06694D;
-    box-shadow: 0 2px 4px rgba(6, 74, 54, 0.26), 0 10px 22px -8px rgba(8, 116, 84, 0.52);
+    background-color: var(--bt-action-hover);
+    box-shadow: 0 2px 4px rgba(var(--bt-brand-deep-rgb), 0.26), 0 10px 22px -8px rgba(var(--bt-brand-deep-rgb), 0.52);
   }
+  .btn-primary:active:not(:disabled) { background-color: var(--bt-action-deep); }
+  .btn-hero:active:not(:disabled) { background-color: var(--bt-brand-hover); }
+  .dark .btn-primary { box-shadow: inset 0 0 0 1px var(--bt-brand-border); }
 
   .btn-ghost {
     @apply btn;
@@ -503,8 +397,8 @@ html.bt-no-splash #bt-splash {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .input:focus {
-    border-color: var(--bt-accent);
-    box-shadow: 0 0 0 3px rgba(20, 184, 133, 0.16);
+    border-color: var(--bt-focus-ring);
+    box-shadow: 0 0 0 3px rgba(var(--bt-brand-rgb), 0.16);
   }
   .input::placeholder {
     color: var(--bt-text-3);
@@ -661,9 +555,9 @@ html.bt-no-splash #bt-splash {
 
 /* Chrono pulse — soft green halo when running */
 @keyframes bt-pulse-green {
-  0%   { box-shadow: 0 0 0 0 rgba(20,184,133,0.45); }
-  70%  { box-shadow: 0 0 0 14px rgba(20,184,133,0); }
-  100% { box-shadow: 0 0 0 0 rgba(20,184,133,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(var(--bt-brand-rgb), 0.45); }
+  70%  { box-shadow: 0 0 0 14px rgba(var(--bt-brand-rgb), 0); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--bt-brand-rgb), 0); }
 }
 .bt-pulse-green { animation: bt-pulse-green 2.2s ease-out infinite; }
 
@@ -676,8 +570,8 @@ html.bt-no-splash #bt-splash {
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(90% 70% at 82% 12%, rgba(143,212,184,0.34), transparent 68%),
-    linear-gradient(155deg, #071C15, #0E8F68 58%, #F2FBF7 140%);
+    radial-gradient(90% 70% at 82% 12%, rgba(var(--bt-brand-light-rgb), 0.34), transparent 68%),
+    linear-gradient(155deg, var(--bt-brand-deepest), var(--bt-brand-hover) 58%, var(--bt-ink-muted) 140%);
   transition: opacity 0.3s ease-out, filter 0.3s ease-out;
 }
 .bt-focus-shader canvas {
@@ -705,8 +599,8 @@ html.bt-no-splash #bt-splash {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 62% 58% at 50% 48%, rgba(4,24,18,0.56), rgba(4,24,18,0.20) 70%, transparent 100%),
-    linear-gradient(to bottom, rgba(4,24,18,0.30), rgba(4,24,18,0.34));
+    radial-gradient(ellipse 62% 58% at 50% 48%, rgba(var(--bt-brand-deepest-rgb), 0.56), rgba(var(--bt-brand-deepest-rgb), 0.20) 70%, transparent 100%),
+    linear-gradient(to bottom, rgba(var(--bt-brand-deepest-rgb), 0.58), rgba(var(--bt-brand-deepest-rgb), 0.58));
 }
 /* Voile plus dense au centre en pause : le champ périphérique reste franchement
    rouge, mais le chrono garde son contraste. */
@@ -832,7 +726,7 @@ html.bt-focus-active .bt-nav { display: none; }
   /* Le repere d'objectif traverse tantot le remplissage vert, tantot le
      logement clair : un seul ton ne peut pas tenir 3:1 sur les deux. Le
      liseré inverse garantit la lisibilite de la marque partout. */
-  --bt-block-tick: rgba(8, 43, 33, 0.88);
+  --bt-block-tick: rgba(var(--bt-brand-deep-rgb), 0.88);
   --bt-block-tick-halo: rgba(255, 255, 255, 0.72);
   /* L'anneau d'arret porte l'etat « en pause » : rouge d'attention, pas encre
      neutre. Contraste verifie sur le remplissage vert comme sur le logement. */
@@ -906,7 +800,7 @@ html.bt-focus-active .bt-nav { display: none; }
      une trace visible sans prétendre valoir plus. */
   min-width: 2px;
   border-radius: inherit;
-  background-color: var(--bt-accent);
+  background-color: var(--bt-progress-fill);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
   transition: width 0.9s linear;
 }
@@ -947,8 +841,8 @@ html.bt-focus-active .bt-nav { display: none; }
 
 /* Bloc en cours : glow vert qui respire doucement. */
 @keyframes bt-block-active {
-  0%, 100% { box-shadow: 0 0 0 1.5px var(--bt-accent); }
-  50%      { box-shadow: 0 0 11px 1.5px rgba(20, 184, 133, 0.55); }
+  0%, 100% { box-shadow: 0 0 0 1.5px var(--bt-progress-fill); }
+  50%      { box-shadow: 0 0 11px 1.5px rgba(var(--bt-progress-rgb), 0.55); }
 }
 .bt-block-active { animation: bt-block-active 2s ease-in-out infinite; }
 
@@ -980,8 +874,8 @@ html.bt-focus-active .bt-nav { display: none; }
 
 /* Pause — bouton Reprendre : léger appel visuel */
 @keyframes bt-pause-cta {
-  0%, 100% { box-shadow: 0 4px 16px rgba(20, 184, 133, 0.30); }
-  50%      { box-shadow: 0 4px 22px rgba(20, 184, 133, 0.55); }
+  0%, 100% { box-shadow: 0 4px 16px rgba(var(--bt-brand-rgb), 0.30); }
+  50%      { box-shadow: 0 4px 22px rgba(var(--bt-brand-rgb), 0.55); }
 }
 .bt-pause-cta { animation: bt-pause-cta 2.2s ease-in-out infinite; }
 
@@ -1004,8 +898,8 @@ html.bt-focus-active .bt-nav { display: none; }
 .badge-shine { animation: bt-badge-shine 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
 
 @keyframes bt-card-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(20,184,133,0); }
-  50%      { box-shadow: 0 0 0 6px rgba(20,184,133,0.18); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--bt-brand-rgb), 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(var(--bt-brand-rgb), 0.18); }
 }
 .bt-card-glow { animation: bt-card-glow 1.8s ease-in-out 2; }
 
@@ -1017,9 +911,9 @@ html.bt-focus-active .bt-nav { display: none; }
 .bt-check-pop { animation: bt-check-pop 0.24s cubic-bezier(0.16, 1, 0.3, 1); }
 
 @keyframes bt-row-flash {
-  0%   { background-color: rgba(20,184,133,0); }
-  35%  { background-color: rgba(20,184,133,0.18); }
-  100% { background-color: rgba(20,184,133,0); }
+  0%   { background-color: rgba(var(--bt-brand-rgb), 0); }
+  35%  { background-color: rgba(var(--bt-brand-rgb), 0.18); }
+  100% { background-color: rgba(var(--bt-brand-rgb), 0); }
 }
 .bt-row-flash { animation: bt-row-flash 1.2s ease-out; }
 
@@ -1216,12 +1110,12 @@ html.bt-focus-active .bt-nav { display: none; }
 
 /* ── Landing : aurora de marque (blobs verts qui dérivent, très lent) ──
    Décoratif (aria-hidden), transform uniquement, alphas faibles du vert
-   #14B885 → lisible sur fond clair ET sombre sans nouvelle couleur. */
+   var(--bt-brand-primary) → lisible sur fond clair ET sombre sans nouvelle couleur. */
 .bt-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .bt-aurora > i {
   position: absolute; display: block; border-radius: 9999px;
   filter: blur(64px); will-change: transform;
-  background: radial-gradient(closest-side, rgba(20, 184, 133, 0.20), transparent 70%);
+  background: radial-gradient(closest-side, rgba(var(--bt-brand-rgb), 0.20), transparent 70%);
 }
 .bt-aurora > i:nth-child(1) { width: 560px; height: 560px; top: -180px; left: 6%; animation: bt-aurora-a 26s ease-in-out infinite; }
 .bt-aurora > i:nth-child(2) { width: 480px; height: 480px; top: -60px; right: 2%; opacity: 0.75; animation: bt-aurora-b 34s ease-in-out infinite; }
@@ -1266,12 +1160,12 @@ html.bt-focus-active .bt-nav { display: none; }
 }
 .bt-live-dot {
   width: 8px; height: 8px; border-radius: 9999px; flex-shrink: 0;
-  background-color: #14B885;
+  background-color: var(--bt-status-active);
   animation: bt-live-dot 1.8s ease-in-out infinite;
 }
 @keyframes bt-live-dot {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(20, 184, 133, 0.45); }
-  55%      { box-shadow: 0 0 0 6px rgba(20, 184, 133, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--bt-status-rgb), 0.45); }
+  55%      { box-shadow: 0 0 0 6px rgba(var(--bt-status-rgb), 0); }
 }
 .bt-xp-loop { animation: bt-xp-loop 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
 @keyframes bt-xp-loop {
@@ -1298,7 +1192,7 @@ html.bt-focus-active .bt-nav { display: none; }
 .btn-shine:hover::after { animation: bt-shine 0.7s ease-out; }
 /* Sur le bouton BLANC du CTA final (fond ink), le reflet devient vert */
 .card-ink .btn-shine::after {
-  background: linear-gradient(105deg, transparent, rgba(20, 184, 133, 0.20), transparent);
+  background: linear-gradient(105deg, transparent, rgba(var(--bt-brand-rgb), 0.20), transparent);
 }
 @keyframes bt-shine {
   0%   { transform: skewX(-18deg) translateX(-40%); opacity: 0; }
@@ -1357,7 +1251,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
     position: absolute;
     aspect-ratio: 1;
     width: 220px;
-    background: linear-gradient(to left, #14B885, #22E4A4, transparent);
+    background: linear-gradient(to left, var(--bt-brand-primary), var(--bt-brand-light), transparent);
     offset-anchor: 90% 50%;
     offset-path: rect(0 auto auto 0 round 220px);
     animation: bt-beam 14s linear infinite;
@@ -1368,11 +1262,11 @@ details.bt-acc[open]::details-content { block-size: auto; }
 /* ── Landing : reflet qui balaie le mot accent du hero (pattern
    "animated shiny text" magicui/21st) : dégradé clippé au texte,
    surbrillance qui traverse puis longue pause. Fallback : couleur pleine. */
-.bt-shimmer-accent { color: #0E8F68; }
+.bt-shimmer-accent { color: var(--bt-brand-text); }
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
   .bt-shimmer-accent {
     color: transparent;
-    background-image: linear-gradient(110deg, #0E8F68 42%, #22E4A4 50%, #0E8F68 58%);
+    background-image: linear-gradient(110deg, var(--bt-brand-text) 42%, var(--bt-brand-hover) 50%, var(--bt-brand-text) 58%);
     background-size: 220% 100%;
     background-position: 120% 0;
     -webkit-background-clip: text;
@@ -1450,7 +1344,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(340px circle at var(--sx, 50%) var(--sy, 50%), rgba(20, 184, 133, 0.12), transparent 75%);
+  background: radial-gradient(340px circle at var(--sx, 50%) var(--sy, 50%), rgba(var(--bt-brand-rgb), 0.12), transparent 75%);
   opacity: 0;
   transition: opacity 0.4s ease;
   pointer-events: none;
@@ -1481,23 +1375,23 @@ details.bt-acc[open]::details-content { block-size: auto; }
   content: "";
   width: 64%;
   height: 64%;
-  background-color: #fff;
+  background-color: var(--bt-success);
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center / contain no-repeat;
   transform: scale(0);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .bt-task-check:checked {
-  background-color: #14B885;
-  border-color: #14B885;
+  background-color: var(--bt-success-bg);
+  border-color: var(--bt-success);
   animation: bt-check-ring 0.45s ease-out;
 }
 .bt-task-check:checked::after { transform: scale(1); }
 /* Variante sur surface ink (carte sombre du planning) */
 .bt-task-check--ink { border-color: rgba(255, 255, 255, 0.45); }
 @keyframes bt-check-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(20, 184, 133, 0.40); }
-  100% { box-shadow: 0 0 0 9px rgba(20, 184, 133, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(var(--bt-success-rgb), 0.40); }
+  100% { box-shadow: 0 0 0 9px rgba(var(--bt-success-rgb), 0); }
 }
 
 /* ── App : barré qui se DESSINE quand la tâche passe à fait (au lieu du
@@ -2242,7 +2136,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
 .bt-prof-row--danger:hover:not(:disabled),
 .bt-prof-row--danger:active:not(:disabled) { background-color: var(--bt-danger-bg); }
 .bt-prof-row:focus-visible {
-  outline: 2px solid var(--bt-accent);
+  outline: 2px solid var(--bt-focus-ring);
   outline-offset: -2px;
   border-radius: var(--bt-r-inset);
 }
@@ -2393,7 +2287,7 @@ details.bt-acc[open]::details-content { block-size: auto; }
    dans pages/messages.js), il lui faut donc un anneau de focus visible. Sans
    lui, on tabule dans une liste sans jamais savoir où l'on est. */
 .bt-social-row:focus-visible {
-  outline: 2px solid var(--bt-accent);
+  outline: 2px solid var(--bt-focus-ring);
   outline-offset: -2px;
 }
 

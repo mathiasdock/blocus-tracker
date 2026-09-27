@@ -47,7 +47,7 @@ function PublicHeader({ ui }) {
   return (
     <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
       <Link href="/" className="font-display text-xl font-bold tracking-tight" style={{ color: "var(--bt-text-1)" }}>
-        blocus<span style={{ color: "#14B885" }}>·</span>tracker
+        blocus<span style={{ color: "var(--bt-brand-primary)" }}>·</span>tracker
       </Link>
       <nav className="hidden items-center gap-4 text-sm font-semibold md:flex" aria-label={ui.guidesAria}>
         {guideLinks.map((link) => (
@@ -71,7 +71,7 @@ function PublicHeader({ ui }) {
         <Link
           href="/signup"
           className="hidden rounded-full px-4 py-2 text-sm font-semibold text-white sm:inline-flex"
-          style={{ backgroundColor: "#14B885", boxShadow: "0 8px 22px rgba(20,184,133,0.22)" }}
+          style={{ backgroundColor: "var(--bt-action)", boxShadow: "0 8px 22px rgba(var(--bt-brand-rgb), 0.22)" }}
         >
           {ui.signup}
         </Link>
@@ -204,7 +204,7 @@ export default function SeoLandingPage({ page }) {
                         </li>
                       ))}
                     </ul>
-                    <Link href="/signup" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold" style={{ color: "#0E8F68" }}>
+                    <Link href="/signup" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold" style={{ color: "var(--bt-brand-text)" }}>
                       {ui.createSpace}
                     </Link>
                   </div>

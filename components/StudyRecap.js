@@ -1,3 +1,4 @@
+import { recap as recapColors, alpha } from "../lib/colorTokens.cjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
@@ -6,12 +7,12 @@ import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const STORY_WIDTH = 1080;
 const STORY_HEIGHT = 1920;
-const INK = "#0B2E23";
-const INK_SOFT = "#123D31";
+const INK = recapColors.ink;
+const INK_SOFT = recapColors.inkSoft;
 const CREAM = "#F7F3ED";
-const MUTED = "#9FD7C1";
-const GREEN = "#14B885";
-const GREEN_LIGHT = "#2BD9A4";
+const MUTED = recapColors.muted;
+const GREEN = recapColors.time;
+const GREEN_LIGHT = recapColors.timeLight;
 const AMBER = "#F3B64A";
 const BLUE = "#8CB9FF";
 const TEXT = "#1F1A17";
@@ -190,7 +191,7 @@ function drawSpeechBubble(ctx, text, variant) {
 function drawBlockCell(ctx, x, y, width, height, state, accent, fraction = 0) {
   if (state === "filled") {
     ctx.save();
-    ctx.shadowColor = "rgba(20,184,133,0.22)";
+    ctx.shadowColor = alpha(recapColors.time, 0.22);
     ctx.shadowBlur = 9;
     fillRoundedRect(ctx, x, y, width, height, 5, accent);
     ctx.restore();
@@ -199,10 +200,10 @@ function drawBlockCell(ctx, x, y, width, height, state, accent, fraction = 0) {
     return;
   }
   fillRoundedRect(ctx, x, y, width, height, 5, "rgba(255,255,255,0.035)");
-  strokeRoundedRect(ctx, x, y, width, height, 5, "rgba(159,215,193,0.20)", 2);
+  strokeRoundedRect(ctx, x, y, width, height, 5, alpha(recapColors.muted, 0.20), 2);
   if (state === "partial" && fraction > 0) {
     roundedRect(ctx, x, y, width * fraction, height, 5);
-    ctx.fillStyle = "rgba(20,184,133,0.72)";
+    ctx.fillStyle = alpha(recapColors.time, 0.72);
     ctx.fill();
   }
 }
@@ -250,7 +251,7 @@ function drawBlockRhythm(ctx, recap, copy) {
       setFont(ctx, 700, 17, "Nunito Sans");
       ctx.fillText(`+${group.blocks - 8}`, x + groupWidth / 2, 1045);
     } else {
-      ctx.fillStyle = "rgba(159,215,193,0.72)";
+      ctx.fillStyle = alpha(recapColors.muted, 0.72);
       setFont(ctx, 600, 17, "Nunito Sans");
       ctx.fillText(formatStoryDuration(group.seconds), x + groupWidth / 2, 1045);
     }
@@ -337,14 +338,14 @@ function drawStory(canvas, recap, copy, brandLogo, mascotImage) {
   canvas.height = STORY_HEIGHT;
 
   const background = ctx.createLinearGradient(0, 0, STORY_WIDTH, STORY_HEIGHT);
-  background.addColorStop(0, recap.variant === "strong" || recap.variant === "record" ? "#061F18" : INK);
-  background.addColorStop(0.62, recap.variant === "fresh" ? "#12352D" : "#0A3327");
-  background.addColorStop(1, "#071D17");
+  background.addColorStop(0, INK);
+  background.addColorStop(0.62, recapColors.inkSoft);
+  background.addColorStop(1, recapColors.ink);
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, STORY_WIDTH, STORY_HEIGHT);
 
   const glow = ctx.createRadialGradient(930, 290, 20, 930, 290, 470);
-  glow.addColorStop(0, recap.variant === "record" ? "rgba(243,182,74,0.18)" : "rgba(43,217,164,0.13)");
+  glow.addColorStop(0, recap.variant === "record" ? "rgba(243,182,74,0.18)" : alpha(recapColors.timeLight, 0.13));
   glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(470, 0, 610, 760);
@@ -825,7 +826,7 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
       </section>
 
       {open && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="recap-dialog-title" style={{ backgroundColor: "rgba(8,23,18,0.78)", backdropFilter: "blur(5px)" }} onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-[100] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="recap-dialog-title" style={{ backgroundColor: alpha(recapColors.ink, 0.78), backdropFilter: "blur(5px)" }} onClick={() => setOpen(false)}>
           <div className="min-h-full flex justify-center sm:items-center sm:p-6">
             <div className="card w-full sm:max-w-4xl overflow-hidden relative flex flex-col min-h-[100dvh] sm:min-h-0 rounded-none sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
               {/* Croix décalée sous la barre d'état iOS (safe-area) pour rester cliquable */}

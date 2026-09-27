@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { authColors } from "../../lib/colorTokens.cjs";
 
 // Loaded on these pages only: the app's shared bundle does not carry WebGL
 // code for the Timer. Until it arrives, the container's still CSS gradient
@@ -16,8 +17,8 @@ const GradientWave = dynamic(() => import("../ui/GradientWave"), { ssr: false })
 // Slow on purpose, about a fourteenth of the component's default speed: in
 // ten seconds the waves have barely drifted. Noticed as alive, never watched.
 // The seed starts it on a composition where a mint wave crosses mid-page.
-const LIGHT = ["#F4F1EA", "#E2F7ED", "#FFFDFB", "#C6EED9", "#F6F3EC", "#EAFBF4"];
-const DARK = ["#12100E", "#15231E", "#1A1714", "#0D2B22", "#12100E", "#0F3A2C"];
+const LIGHT = authColors.light;
+const DARK = authColors.dark;
 
 function isDark() {
   return typeof document !== "undefined" && document.documentElement.classList.contains("dark");

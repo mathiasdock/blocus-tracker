@@ -1,5 +1,7 @@
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import { brand } from "../lib/colorTokens.cjs";
 import { BRAND_COLOR, SITE_AUTHOR, SITE_NAME, getSeoForPath, structuredDataForPath } from "../lib/seo";
 
 function safeJsonLd(data) {
@@ -10,6 +12,15 @@ export default function SeoHead() {
   const router = useRouter();
   const seo = getSeoForPath(router.pathname || "/");
   const jsonLd = structuredDataForPath(seo.path);
+  const [chromeColor, setChromeColor] = useState(BRAND_COLOR);
+  useEffect(() => {
+    const root = document.documentElement;
+    const read = () => setChromeColor(root.classList.contains("dark") || root.classList.contains("bt-focus-active") ? brand.deepest : brand.primary);
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <Head>
@@ -17,7 +28,7 @@ export default function SeoHead() {
       <meta name="description" content={seo.description} />
       <meta name="robots" content={seo.robots} />
       <meta name="author" content={SITE_AUTHOR} />
-      <meta name="theme-color" content={BRAND_COLOR} />
+      <meta name="theme-color" content={chromeColor} />
       <meta name="google-site-verification" content="mhpsTs_xVeQeT2qhnbJfEEV5IehHEAK6LHAUaFZDQ9U" />
       <link rel="canonical" href={seo.canonicalUrl} />
 

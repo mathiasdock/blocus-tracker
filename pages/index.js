@@ -14,6 +14,7 @@ import Mascot from "../components/Mascot";
 import RotatingWord from "../components/RotatingWord";
 import ScrollRevealText from "../components/ScrollRevealText";
 import Flame from "../components/Flame";
+import { brandAssetURL } from "../lib/colorTokens.cjs";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Landing publique — refonte "app-first" : de vrais screenshots du produit
@@ -23,7 +24,7 @@ import Flame from "../components/Flame";
 // et de pays est calculé depuis lib/universities.js pour ne jamais devenir faux.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SHOT = (name) => `/site-web/opt/${name}.webp`;
+const SHOT = (name) => brandAssetURL(`/site-web/opt/${name}.webp`);
 
 const UNIVERSITY_COUNT = COUNTRIES.reduce((n, c) => n + c.universities.length, 0);
 const COUNTRY_COUNT = COUNTRIES.length;
@@ -341,7 +342,7 @@ export default function Home() {
         }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5" style={{ minHeight: 62 }}>
           <Link href="/" className="font-display text-xl font-bold tracking-tight" style={{ color: "var(--bt-text-1)" }}>
-            blocus<span style={{ color: "#14B885" }}>·</span>tracker
+            blocus<span style={{ color: "var(--bt-brand-primary)" }}>·</span>tracker
           </Link>
           <nav className="hidden items-center gap-1 md:flex" aria-label={c.navSectionsAria}>
             {[["fonctionnalites", c.nav.features], ["decouverte", c.nav.discover], ["faq", c.nav.faq]].map(([id, label]) => (
@@ -360,7 +361,7 @@ export default function Home() {
               {c.nav.login}
             </Link>
             <Link href="/signup" className="hidden items-center rounded-full px-4 text-sm font-semibold text-white sm:inline-flex"
-              style={{ minHeight: 44, backgroundImage: "linear-gradient(165deg, #14B885, #0E8F68 115%)", boxShadow: "0 6px 18px rgba(20,184,133,0.28)" }}>
+              style={{ minHeight: 44, backgroundImage: "var(--bt-action-gradient)", boxShadow: "0 6px 18px rgba(var(--bt-brand-rgb), 0.28)" }}>
               {c.nav.signup}
             </Link>
           </nav>
@@ -372,7 +373,7 @@ export default function Home() {
         <section className="relative overflow-hidden">
           {/* Fond vivant : halo statique (base) + aurora de marque qui dérive */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-            <div style={{ position: "absolute", top: -220, left: "50%", transform: "translateX(-50%)", width: 900, height: 620, background: "radial-gradient(closest-side, rgba(20,184,133,0.13), transparent 72%)" }} />
+            <div style={{ position: "absolute", top: -220, left: "50%", transform: "translateX(-50%)", width: 900, height: 620, background: "radial-gradient(closest-side, rgba(var(--bt-brand-rgb), 0.13), transparent 72%)" }} />
             <div className="bt-aurora"><i /><i /><i /></div>
           </div>
 
@@ -385,9 +386,9 @@ export default function Home() {
               <h1 className="mt-6 text-[2.7rem] leading-[1.03] sm:text-6xl lg:text-7xl" style={{ color: "var(--bt-text-1)", letterSpacing: "-0.03em" }}>
                 {c.hero.titleBefore}
                 {c.hero.titleAccents?.length > 1 ? (
-                  <RotatingWord words={c.hero.titleAccents} style={{ color: "#0E8F68" }} />
+                  <RotatingWord words={c.hero.titleAccents} style={{ color: "var(--bt-brand-text)" }} />
                 ) : (
-                  <span style={{ color: "#0E8F68" }}>{c.hero.titleAccent}</span>
+                  <span style={{ color: "var(--bt-brand-text)" }}>{c.hero.titleAccent}</span>
                 )}
               </h1>
               <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
@@ -473,7 +474,7 @@ export default function Home() {
                 <ul className="mt-6 space-y-3">
                   {c.focus.list.map((li) => (
                     <li key={li} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--bt-ink-text)" }}>
-                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(20,184,133,0.22)", color: "#34D399" }}>
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: "rgba(var(--bt-brand-rgb), 0.22)", color: "var(--bt-ink-muted)" }}>
                         <IconCheck size={11} />
                       </span>
                       {li}
@@ -481,7 +482,7 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
-              <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-ink-border)", boxShadow: "0 24px 60px rgba(4,20,15,0.5)" }}>
+              <div className="overflow-hidden rounded-2xl" style={{ border: "1px solid var(--bt-ink-border)", boxShadow: "0 24px 60px rgba(var(--bt-brand-deepest-rgb), 0.5)" }}>
                 <Image src={SHOT("focus-desktop")} alt={c.focus.alt} width={1600} height={908}
                   sizes="(min-width: 1024px) 520px, 100vw" className="h-auto w-full" />
               </div>
@@ -637,9 +638,9 @@ export default function Home() {
                     onClick={() => { setAutoTour(false); setActiveAreaId(area.id); }}
                     className="relative shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors"
                     style={{
-                      color: active ? "#fff" : "var(--bt-text-2)",
-                      backgroundColor: active ? "var(--bt-accent)" : "var(--bt-surface)",
-                      border: `1px solid ${active ? "var(--bt-accent)" : "var(--bt-border)"}`,
+                      color: active ? "var(--bt-selected-text)" : "var(--bt-text-2)",
+                      backgroundColor: active ? "var(--bt-selected-bg)" : "var(--bt-surface)",
+                      border: `1px solid ${active ? "var(--bt-selected-border)" : "var(--bt-border)"}`,
                     }}>
                     {area.label}
                     {/* Barre de lecture : la visite avance toute seule jusqu'au
@@ -812,7 +813,7 @@ export default function Home() {
               </p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link href="/dashboard" className="btn-shine inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"
-                  style={{ backgroundColor: "#fff", color: "#0E8F68", minHeight: 44 }}>
+                  style={{ backgroundColor: "#fff", color: "var(--bt-brand-text)", minHeight: 44 }}>
                   {c.cta.tryTimer}
                 </Link>
                 <Link href="/signup" className="inline-flex items-center justify-center rounded-[14px] px-7 py-3.5 text-sm font-semibold"
@@ -831,7 +832,7 @@ export default function Home() {
           <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-[1.4fr_1fr_1fr]">
             <div>
               <Link href="/" className="font-display text-lg font-bold tracking-tight" style={{ color: "var(--bt-text-1)" }}>
-                blocus<span style={{ color: "#14B885" }}>·</span>tracker
+                blocus<span style={{ color: "var(--bt-brand-primary)" }}>·</span>tracker
               </Link>
               <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: "var(--bt-text-3)" }}>
                 {c.footer.tagline}

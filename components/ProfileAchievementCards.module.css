@@ -24,7 +24,7 @@
 
 .level {
   color: var(--bt-ink-text);
-  background: radial-gradient(ellipse at 95% 40%, rgba(20,184,133,.21), transparent 70%), var(--bt-ink);
+  background: radial-gradient(ellipse at 95% 40%, rgba(var(--bt-brand-rgb), .21), transparent 70%), var(--bt-ink);
 }
 .level .heading { color: var(--bt-ink-muted); }
 .levelScene { position: relative; display: block; height: clamp(124px, 64cqw, 166px); margin-top: 8px; }

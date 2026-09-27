@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-27 — Codex — Identité forêt : couleurs et rôles sémantiques
+
+- Palette officielle forêt/fougère appliquée aux interfaces, Auth, site public, Focus, PWA et exports ; aucun changement de layout ou de modèle de données. Travail isolé de la session Social/swipe et des suppressions de logos du worktree principal.
+- `lib/colorTokens.cjs` devient la source partagée (CSS généré, Tailwind, shaders, canvas et générateurs). Anciens tokens accent/mint conservés comme alias de compatibilité ; success/status/data/heatmap/progress/selected/message deviennent des rôles indépendants.
+- Start/Resume utilise une variante Hero explicite, texte sombre sur #52B788. Primary standard profond/blanc, secondary clair/texte sombre, tertiary sans surface. Messages propres lisibles dans les deux thèmes. Focus conserve sa pause rouge ; anneaux clavier bicolores, metadata et secondes du chrono renforcées.
+- Cours, universités, terracotta des examens, mascotte, badges, gold et danger préservés. Liste explicite des anciennes couleurs conservées et mapping dans `docs/color-system.md` ; aucune migration Supabase.
+- Icônes, 38 splashs iOS et OG régénérés ; URLs d'identité versionnées. Les neuf captures du site sont actualisées depuis les fixtures locales existantes (pas de données de production ni recoloration des cours), sans modifier la structure marketing.
+- Contrôle visuel desktop/mobile, clair/sombre/Focus, FR/EN ; 404 tests passent, lint sans avertissement. Tests de contrat ajoutés pour contrastes, génération, indépendance sémantique et absence des anciens hardcodes non autorisés. Builds production et offline contrôlés.
+
 ## 2026-09-25 — Codex — Boutons du thème à l'échelle de Language
 
 - Les trois boutons du thème utilisent désormais exactement le même espacement interne et la même hauteur visuelle que les choix de langue ; l'ancienne taille fixe de 44 × 44 px est retirée. Les icônes restent à 16 px et les libellés accessibles sont conservés.

@@ -46,7 +46,7 @@ const TIMEGRID_MIN_COL = 104;
 const TIMEGRID_GUTTER  = 52;
 // Voile accent sur la colonne du jour — assez léger pour rester lisible en
 // clair comme en sombre, d'où une rgba littérale plutôt qu'un token opaque.
-const TODAY_TINT = "rgba(20,184,133,0.06)";
+const TODAY_TINT = "rgba(var(--bt-brand-rgb), 0.06)";
 
 // ── Context ────────────────────────────────────────────────────
 const Ctx = createContext(null);
@@ -910,7 +910,7 @@ function DayDetailModal() {
                               <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-border)" }}>
                                 <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none" style={{
                                   transform: `scaleX(${Math.min(100, Math.round(realSecs / 60 / o.target_minutes * 100)) / 100})`,
-                                  backgroundColor: "var(--bt-accent)",
+                                  backgroundColor: "var(--bt-progress-fill)",
                                 }} />
                               </div>
                             )}

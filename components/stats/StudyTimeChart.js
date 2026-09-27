@@ -86,9 +86,9 @@ function Chart({ data, goalMinutes, goalLabel, selectedIso, onSelect }) {
             const base = d.partial ? 0.42 : 1;
             return (
               <Cell key={d.iso}
-                fill={showGoal && d.minutes >= goalMinutes ? "#0E8F68" : "#14B885"}
+                fill={showGoal && d.minutes >= goalMinutes ? "var(--bt-data-goal-met)" : "var(--bt-data-study)"}
                 fillOpacity={dim ? base * 0.4 : base}
-                stroke={d.partial ? "#14B885" : "none"}
+                stroke={d.partial ? "var(--bt-data-study)" : "none"}
                 strokeDasharray={d.partial ? "3 2" : undefined}
                 strokeWidth={d.partial ? 1.5 : 0} />
             );
@@ -120,11 +120,11 @@ function BucketDetail({ bucket, lang }) {
     <div aria-live="polite">
       {bucket && (
         <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: "var(--bt-mint-surface)", border: "1px solid var(--bt-accent-border)" }}>
-          <span className="text-xs font-semibold first-letter:uppercase" style={{ color: "var(--bt-accent-text)" }}>
+          style={{ backgroundColor: "var(--bt-data-surface)", border: "1px solid var(--bt-border)" }}>
+          <span className="text-xs font-semibold first-letter:uppercase" style={{ color: "var(--bt-data-text)" }}>
             {bucketLongLabel(bucket, lang)}
           </span>
-          <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
+          <span className="font-num text-sm font-bold tabular-nums" style={{ color: "var(--bt-data-text)" }}>
             {formatStudyTime(bucket.secs)}
           </span>
           <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-2)" }}>

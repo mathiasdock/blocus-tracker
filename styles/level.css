@@ -30,14 +30,14 @@
    Progression page: a light channel on the ink, a fill from the brand green
    to the ink's own highlight. */
 .bt-level-track { position: relative; display: block; height: 8px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, 0.16); }
-.bt-level-fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--bt-accent), var(--bt-ink-muted)); transform-origin: left; transition: transform 500ms ease-out; }
+.bt-level-fill { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--bt-progress-ink-gradient); transform-origin: left; transition: transform 500ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .bt-level-fill { transition: none; } }
 
 /* ── Classement (Stats) ──────────────────────────────────────
    Bulle de niveau posée sur l'avatar : l'encre de marque du sceau de niveau,
    cerclée de la surface pour se détacher du visage. */
 .bt-lb-level {
-  background: var(--bt-action);
+  background: var(--bt-level-bg);
   color: #fff;
   box-shadow: 0 0 0 2px var(--bt-surface);
 }
@@ -48,7 +48,7 @@
 .bt-lb-person { border-radius: 16px; transition: background-color 160ms ease; }
 .bt-lb-person:not(:disabled):hover { background: var(--bt-subtle); }
 .bt-lb-person:disabled { cursor: default; }
-.bt-lb-time { background: var(--bt-accent-bg); }
+.bt-lb-time { background: var(--bt-data-surface); }
 .bt-lb-block {
   display: flex; align-items: center; justify-content: center; width: 100%;
   font-size: 28px; font-weight: 800; line-height: 1;

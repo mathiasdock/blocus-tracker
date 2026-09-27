@@ -1,3 +1,4 @@
+import "../styles/colors.css";
 import "../styles/globals.css";
 import "../styles/course-spaces.css";
 import "../styles/planning.css";
@@ -6,6 +7,7 @@ import "../styles/level.css";
 import "../styles/profile.css";
 import "../styles/auth.css";
 import Head from "next/head";
+import { brandAssetURL } from "../lib/colorTokens.cjs";
 import { useRouter } from "next/router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
@@ -529,8 +531,8 @@ export default function App({ Component, pageProps }) {
           <meta name="apple-mobile-web-app-title" content="Blocus Tracker" />
           <meta name="mobile-web-app-capable" content="yes" />
           <link rel="manifest" href="/manifest.json" />
-          <link rel="icon" type="image/png" sizes="64x64" href="/app-icon-v2-64x64.png" />
-          <link rel="apple-touch-icon" sizes="180x180" href="/app-icon-v2-180x180.png" />
+          <link rel="icon" type="image/png" sizes="64x64" href={brandAssetURL("/app-icon-v2-64x64.png")} />
+          <link rel="apple-touch-icon" sizes="180x180" href={brandAssetURL("/app-icon-v2-180x180.png")} />
           {/* Écran de lancement iOS. Une image par écran physique et par sens :
               iOS n'en retient une que si les dimensions tombent juste, sinon il
               démarre sur du blanc. La liste et les images sortent toutes deux de
@@ -539,7 +541,7 @@ export default function App({ Component, pageProps }) {
             <link
               key={`${entry.href}-${entry.orientation}`}
               rel="apple-touch-startup-image"
-              href={entry.href}
+              href={brandAssetURL(entry.href)}
               media={entry.media}
             />
           ))}

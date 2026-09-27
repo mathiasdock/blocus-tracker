@@ -80,7 +80,7 @@ function ShareSettings({ t, prefs, busy, error, onChange, open, onOpen, sharesSo
             <div className="bt-activity-share-head"><h2>{t("feed.shareTitle")}</h2></div>
             <p>{t("feed.shareInvite")}</p>
             <div className="bt-activity-share-actions">
-              <button type="button" className="btn-secondary" onClick={() => onOpen(true)}>{t("feed.shareChoose")}</button>
+              <button type="button" className="btn-tertiary" onClick={() => onOpen(true)}>{t("feed.shareChoose")}</button>
             </div>
           </>
         )}
@@ -499,7 +499,7 @@ export default function Feed() {
             <h2>{t("feed.loadErrorTitle")}</h2>
             <p>{t("feed.loadErrorText")}</p>
             <div className="bt-activity-note-actions">
-              <button type="button" className="btn-secondary" onClick={() => { setLoadState("loading"); load(); }}>
+              <button type="button" className="btn-tertiary" onClick={() => { setLoadState("loading"); load(); }}>
                 {t("feed.retry")}
               </button>
             </div>

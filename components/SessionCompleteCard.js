@@ -148,7 +148,7 @@ export default function SessionCompleteCard({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5" style={{ color: "var(--bt-ink-text)" }}>
                 <span className="bt-session-check inline-flex items-center justify-center rounded-full shrink-0"
-                  style={{ width: 18, height: 18, backgroundColor: "var(--bt-accent)", color: "#04231A" }}>
+                  style={{ width: 18, height: 18, backgroundColor: "var(--bt-success-bg)", color: "var(--bt-success)" }}>
                   <IconCheck size={11} />
                 </span>
                 <span className="font-semibold text-sm truncate">{t("dash.doneTitle")}</span>
@@ -188,7 +188,7 @@ export default function SessionCompleteCard({
                     <AnimatedNumber
                       value={data.xpGained} duration={900} prefix="+"
                       className="font-bold leading-none"
-                      style={{ fontSize: 30, color: "var(--bt-accent)", letterSpacing: "-0.03em" }} />
+                      style={{ fontSize: 30, color: "var(--bt-progress-on-ink)", letterSpacing: "-0.03em" }} />
                   </div>
                 )}
               </div>
@@ -204,7 +204,7 @@ export default function SessionCompleteCard({
                   <div className="w-full rounded-full overflow-hidden"
                     style={{ height: 6, backgroundColor: "rgba(255,255,255,0.14)" }}>
                     <div className="bt-session-bar h-full rounded-full"
-                      style={{ transform: `scaleX(${barPct / 100})`, transformOrigin: "left", backgroundImage: "linear-gradient(90deg, #14B885, #2BD9A4)" }} />
+                      style={{ transform: `scaleX(${barPct / 100})`, transformOrigin: "left", backgroundImage: "var(--bt-progress-ink-gradient)" }} />
                   </div>
                 </div>
               )}
@@ -214,7 +214,7 @@ export default function SessionCompleteCard({
                 <div className="bt-session-stagger mt-4">
                   {sentTo ? (
                     <p className="flex items-center gap-2 text-xs font-semibold"
-                      style={{ color: "var(--bt-accent)" }}>
+                      style={{ color: "var(--bt-progress-on-ink)" }}>
                       <IconCheck size={13} />
                       {t("share.sessionSent").replace("{name}", displayName(sentTo))}
                     </p>

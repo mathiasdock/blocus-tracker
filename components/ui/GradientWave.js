@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { authColors } from "../../lib/colorTokens.cjs";
 
 // Animated mesh gradient (WebGL), from 21st.dev's "Gradient Wave" — itself a
 // port of Stripe's minigl gradient. Ported to plain JavaScript for this
@@ -456,7 +457,7 @@ class Gradient {
  * @param {number}   seed        time to start from, so the first frame is not the noise origin
  */
 export default function GradientWave({
-  colors = ["#38bdf8", "#ffffff", "#38bdf8", "#ffffff", "#38bdf8", "#ffffff"],
+  colors = authColors.light,
   isPlaying = true,
   className = "",
   shadowPower = 8,

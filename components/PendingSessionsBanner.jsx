@@ -89,7 +89,7 @@ export default function PendingSessionsBanner({ onSynced }) {
       </div>
       <button onClick={retry} disabled={busy}
         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-60 shrink-0"
-        style={{ backgroundColor: "#14B885", color: "#fff" }}>
+        style={{ backgroundColor: "var(--bt-action)", color: "#fff" }}>
         {busy ? "…" : t("dash.pendingRetry")}
       </button>
     </div>

@@ -17,7 +17,7 @@ import BadgeIcon from "./BadgeIcon";
 import Glyph from "./Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 
-const CONFETTI_COLORS = ["#14B885", "#22E4A4", "#0E8F68", "#C6EED9"];
+const CONFETTI_COLORS = ["var(--bt-brand-primary)", "var(--bt-progress-light)", "var(--bt-brand-text)", "var(--bt-brand-border)"];
 const CONFETTI = Array.from({ length: 16 }, (_, i) => ({
   left: `${(i * 6 + 3) % 100}%`,
   delay: `${(i % 8) * 0.07}s`,
@@ -121,8 +121,8 @@ export default function Celebration({ data, onClose }) {
               width: 88,
               height: 88,
               borderRadius: 28,
-              background: "linear-gradient(135deg, #0E8F68 0%, #14B885 55%, #22E4A4 100%)",
-              boxShadow: "0 8px 32px rgba(20,184,133,0.55)",
+              background: "linear-gradient(135deg, var(--bt-brand-text) 0%, var(--bt-brand-primary) 55%, var(--bt-progress-light) 100%)",
+              boxShadow: "0 8px 32px rgba(var(--bt-brand-rgb), 0.55)",
             }}
           >
             <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.75)", lineHeight: 1 }}>

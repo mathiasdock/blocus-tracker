@@ -75,7 +75,7 @@ function Strip({ me, uni, app, fmt, t }) {
         </span>
       ))}
       <span className="absolute top-[7px] block h-[15px] w-[15px] -translate-x-1/2 rounded-full"
-        style={{ left: at(me), backgroundColor: "var(--bt-accent)", boxShadow: "0 0 0 3px var(--bt-surface), 0 0 0 4px var(--bt-accent-border)" }} />
+        style={{ left: at(me), backgroundColor: "var(--bt-data-study)", boxShadow: "0 0 0 3px var(--bt-surface), 0 0 0 4px var(--bt-accent-border)" }} />
     </div>
   );
 }

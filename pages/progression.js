@@ -40,7 +40,7 @@ function SourceRow({ label, value, total }) {
       </div>
       <div className="mt-1.5 h-1 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.14)" }} aria-hidden="true">
         <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
-          style={{ transform: `scaleX(${share})`, background: "linear-gradient(90deg, #0EA571, #22E4A4)" }} />
+          style={{ transform: `scaleX(${share})`, background: "linear-gradient(90deg, var(--bt-progress-strong), var(--bt-progress-light))" }} />
       </div>
     </li>
   );
@@ -51,8 +51,8 @@ function LadderRow({ level, current, reached, t }) {
     <li className="flex items-center gap-3 py-1.5">
       <span className="font-num flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-extrabold tabular-nums"
         style={{
-          backgroundColor: current ? "var(--bt-accent)" : reached ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-          color: current ? "var(--bt-on-accent)" : reached ? "var(--bt-accent-dark)" : "var(--bt-text-4)",
+          backgroundColor: current ? "var(--bt-progress-fill)" : reached ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
+          color: current ? "var(--bt-on-brand)" : reached ? "var(--bt-progress-text)" : "var(--bt-text-4)",
         }}>
         {level.level}
       </span>
@@ -62,7 +62,7 @@ function LadderRow({ level, current, reached, t }) {
         {t(level.titleKey)}
       </span>
       {current ? (
-        <span className="shrink-0 text-[11px] font-bold" style={{ color: "var(--bt-accent-dark)" }}>
+        <span className="shrink-0 text-[11px] font-bold" style={{ color: "var(--bt-progress-text)" }}>
           {t("prog.ladderCurrent")}
         </span>
       ) : (

@@ -22,8 +22,8 @@ const ICONS = {
 };
 
 const ACCENT = {
-  success: { bg: "var(--bt-accent-bg)", fg: "var(--bt-accent-dark)" },
-  error: { bg: "#FEF2F2", fg: "#DC2626" },
+  success: { bg: "var(--bt-success-bg)", fg: "var(--bt-success)" },
+  error: { bg: "var(--bt-danger-bg)", fg: "var(--bt-danger)" },
   info: { bg: "var(--bt-subtle)", fg: "var(--bt-text-2)" },
 };
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { focusColors, rgb } from "../lib/colorTokens.cjs";
 
 const VERTEX_SHADER = `
 attribute vec2 a_position;
@@ -256,16 +257,9 @@ void main() {
 }
 `;
 
-const COLORS = new Float32Array([
-  0.027, 0.110, 0.082, // #071C15
-  0.043, 0.180, 0.137, // #0B2E23
-  0.055, 0.561, 0.408, // #0E8F68
-  0.078, 0.722, 0.522, // #14B885
-  0.949, 0.984, 0.969, // #F2FBF7
-  0.949, 0.984, 0.969,
-  0.949, 0.984, 0.969,
-  0.949, 0.984, 0.969,
-]);
+const COLORS = new Float32Array(
+  [...focusColors, ...Array(3).fill(focusColors[4])].flatMap((hex) => rgb(hex).map((v) => v / 255))
+);
 
 // Même rampe, teinte pause : les vagues deviennent ROUGES au lieu d'être
 // simplement assombries. On interpole vers cette palette dans la boucle.

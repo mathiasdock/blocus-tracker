@@ -44,7 +44,7 @@ export default function SegmentedGlide({
   }, [value, options]);
 
   const thumbStyle = tone === "accent"
-    ? { backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)" }
+    ? { backgroundColor: "var(--bt-selected-bg)", border: "1px solid var(--bt-selected-border)" }
     : { backgroundColor: "var(--bt-surface)", boxShadow: "0 1px 4px var(--bt-shadow)" };
 
   return (
@@ -59,7 +59,7 @@ export default function SegmentedGlide({
             className={`relative z-[1] rounded-[10px] font-semibold transition-colors ${buttonClassName}`}
             style={{
               color: active
-                ? (tone === "accent" ? "var(--bt-accent-dark)" : "var(--bt-text-1)")
+                ? (tone === "accent" ? "var(--bt-selected-text)" : "var(--bt-text-1)")
                 : "var(--bt-text-2)",
             }}>
             {o.label}

@@ -151,10 +151,10 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
           <div className="mb-4">
             <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--bt-text-2)" }}>
               <span className="font-medium">{done}/{total} {t("checklist.tasks")}</span>
-              <span className="font-semibold" style={{ color: "var(--bt-accent-text)" }}>{pct}%</span>
+              <span className="font-semibold" style={{ color: "var(--bt-progress-text)" }}>{pct}%</span>
             </div>
             <div className="w-full h-2 rounded-full overflow-hidden" role="progressbar" aria-label={t("checklist.title")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} style={{ backgroundColor: "var(--bt-subtle)" }}>
-              <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none" style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "#14B885" }} />
+              <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none" style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-progress-fill)" }} />
             </div>
           </div>
 

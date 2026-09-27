@@ -90,7 +90,7 @@ export default function FeedbackPage() {
                     onClick={() => setType(option)}
                     className="rounded-xl px-3 py-2 text-sm font-semibold transition-colors"
                     style={type === option
-                      ? { backgroundColor: "#14B885", color: "#fff" }
+                      ? { backgroundColor: "var(--bt-selected-bg)", color: "var(--bt-selected-text)" }
                       : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
                     {t(`feedback.type.${option}`)}
                   </button>
