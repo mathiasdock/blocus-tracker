@@ -22,6 +22,7 @@ import {
 import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { loadPrivacySettings, recordLegalAcceptance } from "../lib/privacySettings";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
+import { googleNamePrefill } from "../lib/googleName.mjs";
 
 function TaskSkeleton({ label }) {
   return (
@@ -134,10 +135,10 @@ export default function Onboarding() {
         }
 
         setPseudo(currentProfile.pseudo || "");
-        // Google names only prefill an empty first-run form. They never write
-        // over an existing profile, and the avatar remains a Blocus choice.
-        setFirstName(currentProfile.first_name || (missingProfile ? String(user.user_metadata?.given_name || "").slice(0, 80) : ""));
-        setLastName(currentProfile.last_name || (missingProfile ? String(user.user_metadata?.family_name || "").slice(0, 80) : ""));
+        // Google metadata only suggests editable values for a new profile.
+        const namePrefill = googleNamePrefill(user, profileResult.data);
+        setFirstName(namePrefill.firstName);
+        setLastName(namePrefill.lastName);
         setUniversity(currentProfile.university || "");
         setStudyField(currentProfile.study_field || "");
         setBroadField(currentProfile.broad_field || "");

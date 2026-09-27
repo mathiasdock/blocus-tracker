@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-27 — Codex — Préremplissage du nom Google à l'inscription
+
+- Vérification en lecture seule des clés des métadonnées d'un compte Google réel : `user_metadata` et l'identité contiennent `full_name` / `name`, sans `given_name` / `family_name`. Aucune valeur personnelle ni aucun token n'a été affiché.
+- L'étape identité propose désormais prénom et nom à partir des champs séparés lorsqu'ils existent, sinon du nom complet ; les champs restent modifiables. Un profil déjà enregistré garde strictement ses noms, et le parcours email/mot de passe n'utilise pas cette suggestion. Aucun changement du callback ou du flow OAuth.
+- 5 tests ciblés ajoutés ; 431 tests Node, lint et build de production verts. Aucun changement de base ni du site public.
+
 ## 2026-09-27 — Codex — Google OAuth dans l'Auth de l'application
 
 - Login et Signup partagent un bouton Google neutre, bilingue et accessible. L'authentification utilise exclusivement `supabase.auth.signInWithOAuth({ provider: "google" })` et revient sur `/auth/google-callback` du même origin ; aucune clé Google, fusion de comptes ou gestion de token maison dans le frontend.
