@@ -215,6 +215,31 @@
 .bt-auth-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 .bt-auth-primary:focus-visible { outline: 2px solid var(--bt-accent); outline-offset: 3px; border-radius: var(--bt-r-control, 14px); }
 
+.bt-auth-captcha {
+  min-width: 0;
+  margin-top: 18px;
+}
+.bt-auth-captcha-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 6px;
+  color: var(--bt-danger);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.bt-auth-captcha-status button {
+  color: var(--bt-text-1);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.bt-auth-captcha-status button:focus-visible {
+  outline: 2px solid var(--bt-focus-ring);
+  outline-offset: 2px;
+}
+
 .bt-auth-sublink {
   display: flex;
   justify-content: flex-end;

@@ -19,6 +19,7 @@ import {
   classifyAuthError,
   pickPseudoCandidate,
 } from "../../lib/authLogin.mjs";
+import { captchaTokenForAuth } from "../../lib/authCaptcha.mjs";
 
 export const config = {
   api: {
@@ -106,7 +107,7 @@ export default async function handler(req, res) {
       .json({ error: "Server misconfigured (missing SUPABASE_SERVICE_ROLE_KEY)" });
   }
 
-  const { pseudo, password } = req.body || {};
+  const { pseudo, password, captchaToken } = req.body || {};
   if (
     typeof pseudo !== "string" ||
     typeof password !== "string" ||
@@ -117,7 +118,6 @@ export default async function handler(req, res) {
   ) {
     return res.status(400).json({ error: "Missing or invalid credentials" });
   }
-
   const cleanPseudo = pseudo.trim();
 
   // Client admin (service_role) — uniquement pour résoudre l'email côté serveur
@@ -170,6 +170,9 @@ export default async function handler(req, res) {
     ({ data, error } = await userClient.auth.signInWithPassword({
       email: identity.email,
       password,
+      // Only Supabase Auth can verify the one-use token. Keep older installed
+      // clients usable during the site-key-first rollout, before enforcement.
+      options: { captchaToken: captchaTokenForAuth(captchaToken) },
     }));
   } catch (signInError) {
     console.error("[login] Supabase Auth request failed");
@@ -184,6 +187,9 @@ export default async function handler(req, res) {
     }
     if (kind === "unavailable") {
       return res.status(503).json({ error: "Service unavailable" });
+    }
+    if (kind === "captcha_failed") {
+      return res.status(422).json({ error: "Captcha failed" });
     }
     // Compte suspendu par un admin : réponse distincte, pour que l'écran de
     // connexion l'explique au lieu de parler de mot de passe.

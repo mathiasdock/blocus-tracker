@@ -18,9 +18,12 @@ Next.js (pages router) · Tailwind CSS · Supabase · Recharts.
 1. Crée un projet gratuit sur [supabase.com](https://supabase.com).
 2. Dans **SQL Editor**, colle et exécute tout le contenu de
    [`supabase/schema.sql`](supabase/schema.sql) (tables, RLS, buckets).
-3. Dans **Authentication → Providers → Email** : **désactive « Confirm email »**.
-   L'app utilise des e-mails internes (`pseudo@blocus.local`), donc la
-   confirmation par e-mail doit être désactivée pour pouvoir se connecter.
+3. Dans **Authentication → Providers → Email**, garde la configuration Auth
+   voulue pour ton environnement. Les nouveaux comptes utilisent un vrai email
+   et le parcours de confirmation est pris en charge. Les anciens comptes à
+   adresse interne `@blocus.local` restent un cas de compatibilité distinct.
+   Pour la production, suis l'ordre de déploiement dans
+   [`docs/AUTH_LAUNCH.md`](docs/AUTH_LAUNCH.md) avant d'activer la confirmation.
 4. Dans **Project Settings → API**, récupère :
    - `Project URL`
    - `anon` `public` key

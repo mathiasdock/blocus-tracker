@@ -57,6 +57,7 @@ test("retryable Supabase network errors are not reported as bad credentials", ()
 test("credential and rate-limit errors keep their distinct classifications", () => {
   assert.equal(classifyAuthError({ status: 400, code: "invalid_credentials" }), "invalid");
   assert.equal(classifyAuthError({ status: 429 }), "rate_limited");
+  assert.equal(classifyAuthError({ status: 400, code: "captcha_failed" }), "captcha_failed");
 });
 
 test("a banned (suspended) account is reported as suspended, not as bad credentials", () => {

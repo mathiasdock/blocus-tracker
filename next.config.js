@@ -37,7 +37,8 @@ const nextConfig = {
       "worker-src 'self' blob:",
       // Next's development source maps/Fast Refresh use eval. Keep that
       // permission out of production, while allowing local UI rehearsals.
-      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://cdn.onesignal.com https://onesignal.com https://*.onesignal.com`,
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://cdn.onesignal.com https://onesignal.com https://*.onesignal.com${process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? " https://challenges.cloudflare.com" : ""}`,
+      ...(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ? ["frame-src https://challenges.cloudflare.com"] : []),
       // Les polices sont auto-hebergees (public/fonts) : plus aucun hote
       // Google n'est autorise, donc plus aucune IP de visiteur ne part chez eux.
       "style-src 'self' 'unsafe-inline'",

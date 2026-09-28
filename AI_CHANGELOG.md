@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-28 — Codex — Auth prête pour Turnstile et confirmation email
+
+- Un widget Turnstile partagé, conditionné à une site key publique, couvre inscription email, connexion email/pseudo et demande de reset. Token transmis par les options officielles Supabase, renouvelé après chaque tentative/expiration/erreur ; Supabase Auth vérifie le jeton de connexion par pseudo, sans bloquer les anciennes PWA pendant la phase de déploiement préalable. Un email déjà utilisé sur Signup renvoie clairement vers Login, qui peut reprendre un ancien profil incomplet avec un nouveau jeton. Google OAuth et le callback ne changent pas.
+- CSP restreinte aux scripts/iframes Cloudflare uniquement quand la clé est configurée. États FR/EN, clair/sombre, narrow mobile et erreurs CAPTCHA distinctes des mauvais identifiants. Aucun secret, migration ou réglage production ajouté.
+- Parcours de confirmation existant vérifié : signup sans session → écran email → `/onboarding` après lien. L'URL exacte à autoriser et l'ordre d'activation Turnstile → confirmation → limites Auth sont documentés dans `docs/AUTH_LAUNCH.md`. Aucune activation dashboard n'a été effectuée.
+
 ## 2026-09-27 — Codex — Acquisition QR first-party
 
 - Routes courtes `/c/<campagne>` vers l'accueil canonique, registre générique initialisé pour trois placements UCF. Aucune nouvelle page marketing ni refonte du site.

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { supabase, pseudoToEmail, isOfflineDev } from "../lib/supabaseClient";
 import { classifyAuthError } from "../lib/authLogin.mjs";
+import { AUTH_CAPTCHA_ENABLED } from "../lib/authCaptcha.mjs";
 import {
   canStartProfileRequest,
   isCurrentProfileRequest,
@@ -303,6 +304,7 @@ export function AuthProvider({ children }) {
     termsVersion,
     privacyVersion,
     campaignVisitId,
+    captchaToken,
   }) => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
@@ -402,14 +404,23 @@ export function AuthProvider({ children }) {
         options: {
           emailRedirectTo: `${siteUrl}/onboarding`,
           data: signupMetadata,
+          captchaToken: captchaToken || undefined,
         },
       });
 
       if (error) {
+        if (classifyAuthError(error) === "captcha_failed") {
+          return { error: error.message, errorCode: "AUTH_CAPTCHA_FAILED" };
+        }
         const alreadyRegistered = error.code === "user_already_exists"
           || /already (?:been )?registered/i.test(error.message || "");
 
         if (!alreadyRegistered) return { error: error.message, errorCode: "AUTH_SIGNUP_FAILED" };
+
+        // Signup has consumed the one-use Turnstile token. A second Auth
+        // request with that token would always fail. The existing login route
+        // still repairs profile-less accounts after a fresh challenge.
+        if (AUTH_CAPTCHA_ENABLED) return { error: error.message, errorCode: "EMAIL_TAKEN" };
 
         // Répare aussi un compte incomplet depuis un autre navigateur : le mot
         // de passe fourni doit être valide et aucun profil ne doit déjà exister.
@@ -497,7 +508,7 @@ export function AuthProvider({ children }) {
   //   Sinon → POST /api/login (résolution email côté serveur via service_role)
   //   Cela évite l'exposition des emails via get_login_email côté anon.
   // ---------------------------------------------------------------
-  const signIn = useCallback(async (loginId, password) => {
+  const signIn = useCallback(async (loginId, password, captchaToken) => {
     const clean = (loginId || "").trim();
 
     const loginError = (error) => {
@@ -505,6 +516,7 @@ export function AuthProvider({ children }) {
       if (kind === "rate_limited") return "LOGIN_RATE_LIMITED";
       if (kind === "unavailable") return "LOGIN_UNAVAILABLE";
       if (kind === "suspended") return "LOGIN_SUSPENDED";
+      if (kind === "captcha_failed") return "LOGIN_CAPTCHA_FAILED";
       return "LOGIN_INVALID_CREDENTIALS";
     };
 
@@ -512,6 +524,7 @@ export function AuthProvider({ children }) {
       const { error } = await supabase.auth.signInWithPassword({
         email: clean.includes("@") ? clean.toLowerCase() : pseudoToEmail(clean || "mathias"),
         password,
+        options: { captchaToken: captchaToken || undefined },
       });
       if (error) return { error: loginError(error) };
       return { error: null };
@@ -523,6 +536,7 @@ export function AuthProvider({ children }) {
         const { error } = await supabase.auth.signInWithPassword({
           email: clean.toLowerCase(),
           password,
+          options: { captchaToken: captchaToken || undefined },
         });
         if (error) return { error: loginError(error) };
         return { error: null };
@@ -536,7 +550,7 @@ export function AuthProvider({ children }) {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pseudo: clean, password }),
+        body: JSON.stringify({ pseudo: clean, password, captchaToken: captchaToken || undefined }),
       });
 
       if (res.status === 429) {
@@ -544,6 +558,9 @@ export function AuthProvider({ children }) {
       }
       if (res.status === 403) {
         return { error: "LOGIN_SUSPENDED" };
+      }
+      if (res.status === 422) {
+        return { error: "LOGIN_CAPTCHA_FAILED" };
       }
       if (res.status === 400 || res.status === 401) {
         return { error: "LOGIN_INVALID_CREDENTIALS" };
