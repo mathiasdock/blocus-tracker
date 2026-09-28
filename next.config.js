@@ -3,6 +3,17 @@ const withPWA = nextPwa.default;
 // Tableau runtimeCaching par défaut de next-pwa (fonts, assets statiques, pages…).
 // On le conserve intégralement et on préfixe nos règles privées devant.
 const defaultRuntimeCaching = nextPwa.runtimeCaching || [];
+// Turnstile must reach Cloudflare directly. Safari can fail with a Workbox
+// `no-response` when the generic cross-origin cache intercepts its script or
+// challenge iframe. Keep every other default cache rule unchanged.
+const runtimeCaching = defaultRuntimeCaching.map((rule) => (
+  rule.options?.cacheName === "cross-origin"
+    ? {
+        ...rule,
+        urlPattern: ({ sameOrigin, url }) => !sameOrigin && url.hostname !== "challenges.cloudflare.com",
+      }
+    : rule
+));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -159,6 +170,6 @@ module.exports = withPWA({
       "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js",
       "/sw-cache-cleanup.js",
     ],
-    runtimeCaching: [privateNetworkOnly, supabaseStorageCache, ...defaultRuntimeCaching],
+    runtimeCaching: [privateNetworkOnly, supabaseStorageCache, ...runtimeCaching],
   },
 })(nextConfig);

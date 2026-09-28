@@ -120,7 +120,12 @@ export default function AuthCaptcha({ controller }) {
           controller.setToken("");
           controller.setState("expired");
         }}
-        onError={() => {
+        onError={code => {
+          // A six-digit Cloudflare code is safe diagnostic metadata. Never log
+          // the challenge token or expose technical details in the UI.
+          if (/^\d{6}$/.test(String(code))) {
+            console.warn("Turnstile client error:", code);
+          }
           controller.setToken("");
           controller.setState("error");
         }}
