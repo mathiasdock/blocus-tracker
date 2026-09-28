@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-27 — Codex — Acquisition QR first-party
+
+- Routes courtes `/c/<campagne>` vers l'accueil canonique, registre générique initialisé pour trois placements UCF. Aucune nouvelle page marketing ni refonte du site.
+- Visite uniquement après consentement analytics : un navigateur/campagne/jour UTC, UUID aléatoire first-party, sans IP, fingerprint, pixel ou événement de navigation continu. Premier contact conservé 30 jours et associé uniquement à un nouveau compte ; signup email (y compris confirmation sur un autre appareil) et Google utilisent la même attribution. Refus/retrait et suppression de compte effacent le lien personnel ; les UUID sont purgés par la tâche quotidienne existante.
+- Admin Activation affiche les campagnes et leurs comptes/taux lorsque les fenêtres et volumes le permettent ; la fiche membre montre sa source connue. Les critères de vraie session, activation 7 jours et retour semaine 2 viennent de `admin_member_facts`, sans nouveau calcul parallèle. Textes de consentement/confidentialité FR/EN actualisés. Détails de conception dans `docs/ACQUISITION.md`.
+
 ## 2026-09-27 — Claude — Site public : nouvelle homepage, /fonctionnalites, /guides, /faq
 
 - Accueil réduit à six moments : hero « Planifie. Étudie. Suis tes progrès. » (EN « Plan. Study. Track your progress. »), quatre blocs d'étude qui se remplissent une fois sous « progrès », CTA « Commencer gratuitement » (seul bouton en relief) et « Tester sans compte » ; « Un chrono, oui. Et tout ce qui va autour. » (trois cases : carte Planning détourée, mode Focus, objets de progression dessinés par StudyBlocks/StreakEmblem/BadgeIcon) ; « Garde le rythme. » ; « Tu n'étudies pas seul. » ; trois questions ; appel final. Environ 300 mots visibles.

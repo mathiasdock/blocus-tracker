@@ -49,7 +49,7 @@ function FactRow({ label, value }) {
   );
 }
 
-function DetailBody({ data, t, lang, onAction }) {
+function DetailBody({ data, acquisition, t, lang, onAction }) {
   const now = data.generated_at ? new Date(data.generated_at) : new Date();
   const { account, profile, activation, study, courses, social, level, push } = data;
   const yes = t("adm.common.yes");
@@ -91,6 +91,7 @@ function DetailBody({ data, t, lang, onAction }) {
           [t("adm.member.lastSignIn"), account.last_sign_in_at ? formatAgo(account.last_sign_in_at, now, lang) : t("adm.member.never")],
           [t("adm.member.email"), emailState],
           [t("adm.member.studies"), profile.studies_completed ? t("adm.member.studiesDone") : t("adm.member.studiesMissing")],
+          acquisition && [t("adm.member.acquisition"), acquisition.name],
           level && [t("adm.member.level"), t("adm.member.levelValue")
             .replace("{level}", formatCount(level.level, lang))
             .replace("{xp}", formatCount(level.total_xp, lang))
@@ -206,9 +207,12 @@ export default function MemberDetail({ userId, onClose, onChanged }) {
   const load = useCallback(async () => {
     const mine = ++seq.current;
     setState((previous) => ({ ...previous, loading: true, error: null }));
-    const result = await adminRpc("admin_member_detail", { p_user: userId });
+    const [result, acquisition] = await Promise.all([
+      adminRpc("admin_member_detail", { p_user: userId }),
+      adminRpc("admin_member_acquisition", { p_user: userId }),
+    ]);
     if (mine !== seq.current) return;
-    setState({ data: result.data, error: result.error, loading: false });
+    setState({ data: result.data, acquisition: acquisition.data || null, error: result.error, loading: false });
   }, [userId]);
 
   useEffect(() => { load(); }, [load]);
@@ -260,7 +264,7 @@ export default function MemberDetail({ userId, onClose, onChanged }) {
           )}
           {state.loading && !data && <SkeletonRows rows={6} />}
           {state.error && !data && <ErrorLine code={state.error} onRetry={load} />}
-          {data && <DetailBody data={data} t={t} lang={lang} onAction={setAction} />}
+          {data && <DetailBody data={data} acquisition={state.acquisition} t={t} lang={lang} onAction={setAction} />}
         </div>
       </div>
 

@@ -7,7 +7,7 @@ import s from "./Landing.module.css";
 // En-tête commun du site public (accueil, fonctionnalités, guides, FAQ et les
 // six guides). Sur téléphone : la marque et « Se connecter » — l'appel
 // principal est déjà dans chaque page, les autres liens dans le pied de page.
-export default function PublicHeader() {
+export default function PublicHeader({ signupHref = "/signup" }) {
   const { lang } = useI18n();
   const { pathname } = useRouter();
   const c = getLandingContent(lang).header;
@@ -27,7 +27,7 @@ export default function PublicHeader() {
         </nav>
         <div className={s.headerActions}>
           <Link href="/login" className={s.loginLink}>{c.login}</Link>
-          <Link href="/signup" className={`btn-primary ${s.headerCta}`}>{c.signup}</Link>
+          <Link href={signupHref} className={`btn-primary ${s.headerCta}`}>{c.signup}</Link>
         </div>
       </div>
     </header>

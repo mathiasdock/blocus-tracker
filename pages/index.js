@@ -15,6 +15,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
 import { getLandingContent } from "../lib/landingContent";
 import { HOME_FAQ, HOME_FAQ_EN } from "../lib/seo";
+import { cleanCampaignSlug } from "../lib/campaignAttribution.mjs";
 
 // Accueil public. Six moments, pas plus : le hero (le vrai Chrono), ce qui
 // entoure le chrono, la régularité, les autres, trois questions, l'appel
@@ -32,6 +33,8 @@ export default function Home() {
   const router = useRouter();
   const c = getLandingContent(lang);
   const faq = lang === "en" ? HOME_FAQ_EN : HOME_FAQ;
+  const campaign = cleanCampaignSlug(router.query.campaign);
+  const signupHref = campaign ? `/signup?campaign=${encodeURIComponent(campaign)}` : "/signup";
 
   // Un compte connecté n'a rien à faire sur la vitrine : direction son espace.
   useEffect(() => {
@@ -45,7 +48,7 @@ export default function Home() {
 
   return (
     <div className={`${s.page} font-sans`}>
-      <PublicHeader />
+      <PublicHeader signupHref={signupHref} />
 
       <main>
         {/* ── Hero ─────────────────────────────────────────────────────── */}
@@ -72,7 +75,7 @@ export default function Home() {
               </h1>
               <p className={s.heroLead}>{c.hero.lead}</p>
               <div className={`${s.actions} ${s.heroActions}`}>
-                <Link href="/signup" className={`btn-primary btn-raised btn-raised-action ${s.cta} ${s.ctaPrimary}`}>
+                <Link href={signupHref} className={`btn-primary btn-raised btn-raised-action ${s.cta} ${s.ctaPrimary}`}>
                   {c.hero.primary}
                 </Link>
                 <Link href="/dashboard" className={`btn-ghost ${s.cta} ${s.ctaGhost}`}>
@@ -187,10 +190,10 @@ export default function Home() {
         </section>
 
         {/* ── Prêt à t'y mettre ? ─────────────────────────────────────── */}
-        <FinalCta />
+        <FinalCta signupHref={signupHref} />
       </main>
 
-      <PublicFooter />
+      <PublicFooter signupHref={signupHref} />
     </div>
   );
 }

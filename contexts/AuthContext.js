@@ -302,6 +302,7 @@ export function AuthProvider({ children }) {
     referralCode,
     termsVersion,
     privacyVersion,
+    campaignVisitId,
   }) => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
@@ -388,6 +389,7 @@ export function AuthProvider({ children }) {
         referralCode: ref,
         termsVersion,
         privacyVersion,
+        campaignVisitId,
       });
       // `data` alimente raw_user_meta_data, que le trigger v43
       // (create_profile_for_new_user) lit pour créer la fiche DANS la même

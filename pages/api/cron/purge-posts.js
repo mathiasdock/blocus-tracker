@@ -60,6 +60,13 @@ const BATCH = 500;
 // peut appartenir à une publication encore affichable — ceux dont la ligne a
 // disparu autrement (suppression par un admin, échec d'un passage) partent ici.
 const SWEEP_AFTER_MS = 72 * 60 * 60 * 1000;
+const CAMPAIGN_VISIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+async function purgeOldCampaignVisits(admin) {
+  const cutoff = new Date(Date.now() - CAMPAIGN_VISIT_RETENTION_MS).toISOString();
+  const { error } = await admin.from("acquisition_visits").delete().lt("visited_at", cutoff);
+  if (error) throw error;
+}
 
 async function sweepStalePostFiles(admin) {
   const before = new Date(Date.now() - SWEEP_AFTER_MS).toISOString();
@@ -142,6 +149,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ dry: true, posts: ids.length, files: paths.length, cutoff });
     }
     if (!ids.length) {
+      await purgeOldCampaignVisits(admin);
       const swept = await sweepStalePostFiles(admin);
       const oldRuns = await purgeOldJobRuns(admin);
       const notifications = await notificationHousekeeping(admin, oneSignalFromEnv());
@@ -169,6 +177,8 @@ export default async function handler(req, res) {
       .delete()
       .in("id", ids);
     if (deleteError) throw deleteError;
+
+    await purgeOldCampaignVisits(admin);
 
     const swept = await sweepStalePostFiles(admin);
     console.info("cron/purge-posts done", { posts: ids.length, files: filesRemoved, swept, more: ids.length === BATCH });

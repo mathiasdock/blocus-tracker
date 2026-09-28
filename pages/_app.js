@@ -44,6 +44,7 @@ import PageTransition from "../components/PageTransition";
 import { initSensoryFeedback } from "../lib/sensoryFeedback";
 import { BADGES } from "../lib/badges";
 import PwaInstallBanner from "../components/PwaInstallBanner";
+import CampaignCapture from "../components/CampaignCapture";
 
 // Paliers de série célébrés (jours consécutifs). Volontairement rares pour que
 // le moment reste marquant — on ne fête PAS chaque badge série (3/14).
@@ -558,6 +559,7 @@ export default function App({ Component, pageProps }) {
         {!setupInProgress && <GlobalLevelUpWatcher />}
         <AppVersionRefresh />
         <ReferralCapture />
+        <CampaignCapture />
         <PushInit />
         <ConsentSync />
         <PwaInstallBanner enabled={!authPage} />
