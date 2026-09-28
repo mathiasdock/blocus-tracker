@@ -6,6 +6,7 @@ import { Field, FieldGroup, FieldSplit, FormNote, PasswordField, messageId } fro
 import SpaceSheet from "../components/auth/SpaceSheet";
 import MascotGuide from "../components/auth/MascotGuide";
 import GoogleAuthButton from "../components/auth/GoogleAuthButton";
+import AuthCaptcha, { useAuthCaptcha } from "../components/auth/AuthCaptcha";
 import { PseudoStatus, isPseudoShapeValid, usePseudoAvailability } from "../components/auth/UsernameStatus";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -33,8 +34,10 @@ export default function Signup() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [touched, setTouched] = useState({});
   const [error, setError] = useState("");
+  const [emailTaken, setEmailTaken] = useState(false);
   const [busy, setBusy] = useState(false);
   const [awaitingEmail, setAwaitingEmail] = useState("");
+  const captcha = useAuthCaptcha();
   const availability = usePseudoAvailability(pseudo);
 
   useEffect(() => {
@@ -65,17 +68,21 @@ export default function Signup() {
 
   function clearServerError() {
     if (error) setError("");
+    if (emailTaken) setEmailTaken(false);
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (signupInProgress.current || busy) return;
     setTouched(Object.fromEntries(FIELDS.map(field => [field, true])));
     setError("");
+    setEmailTaken(false);
     const firstInvalid = FIELDS.find(field => errors[field]);
     if (firstInvalid) {
       document.getElementById(`signup-${firstInvalid}`)?.focus();
       return;
     }
+    if (!captcha.requireToken()) return;
 
     let referralCode = null;
     try {
@@ -105,12 +112,17 @@ export default function Signup() {
         termsVersion: TERMS_VERSION,
         privacyVersion: PRIVACY_VERSION,
         campaignVisitId,
+        captchaToken: captcha.token,
       });
 
       if (result.error) {
         signupInProgress.current = false;
-        if (result.errorCode === "EMAIL_TAKEN") setError(t("signup.errEmailTaken"));
+        if (result.errorCode === "EMAIL_TAKEN") {
+          setError(t("signup.errEmailTaken"));
+          setEmailTaken(true);
+        }
         else if (result.errorCode === "PSEUDO_TAKEN") setError(t("signup.errPseudoTaken"));
+        else if (result.errorCode === "AUTH_CAPTCHA_FAILED") setError(t("auth.captchaRejected"));
         else setError(t("signup.unavailable"));
         return;
       }
@@ -130,6 +142,7 @@ export default function Signup() {
       signupInProgress.current = false;
       setError(t("signup.unavailable"));
     } finally {
+      captcha.reset();
       setBusy(false);
     }
   }
@@ -273,7 +286,13 @@ export default function Signup() {
         </label>
         {shown("terms") && <FormNote id="signup-terms-message" tone="error">{shown("terms")}</FormNote>}
 
+        <AuthCaptcha controller={captcha} />
         <FormNote tone="error">{error}</FormNote>
+        {emailTaken && (
+          <p className="bt-auth-footnote">
+            {t("signup.existingAccountHint")} <Link href="/login">{t("login.signin")}</Link>
+          </p>
+        )}
 
         <button className="bt-auth-primary" disabled={busy} aria-busy={busy}>
           {busy && <span className="bt-button-spinner" aria-hidden="true" />}

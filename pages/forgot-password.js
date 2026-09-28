@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FormNote } from "../components/auth/Field";
 import MascotGuide from "../components/auth/MascotGuide";
+import AuthCaptcha, { useAuthCaptcha } from "../components/auth/AuthCaptcha";
 import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { supabase } from "../lib/supabaseClient";
 import { classifyAuthError } from "../lib/authLogin.mjs";
@@ -15,29 +16,38 @@ export default function ForgotPassword() {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState("");
+  const submitting = useRef(false);
+  const captcha = useAuthCaptcha();
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (submitting.current || !email.trim()) return;
+    if (!captcha.requireToken()) return;
     setErr("");
+    submitting.current = true;
     setBusy(true);
 
     let error = null;
     try {
       ({ error } = await supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
-        { redirectTo: `${getSiteUrl()}/reset-password` }
+        { redirectTo: `${getSiteUrl()}/reset-password`, captchaToken: captcha.token || undefined }
       ));
     } catch {
       error = { code: "unexpected_failure", status: 503 };
     }
 
+    captcha.reset();
+    submitting.current = false;
     setBusy(false);
 
     if (error) {
       setErr(
         classifyAuthError(error) === "rate_limited"
           ? t("auth.forgotRateLimited")
-          : t("auth.forgotUnavailable")
+          : classifyAuthError(error) === "captcha_failed"
+            ? t("auth.captchaRejected")
+            : t("auth.forgotUnavailable")
       );
     } else {
       setSent(true);
@@ -78,6 +88,7 @@ export default function ForgotPassword() {
             />
           </Field>
         </FieldGroup>
+        <AuthCaptcha controller={captcha} />
         <FormNote tone="error">{err}</FormNote>
         <button className="bt-auth-primary" disabled={busy || !email.trim()} aria-busy={busy}>
           {busy && <span className="bt-button-spinner" aria-hidden="true" />}

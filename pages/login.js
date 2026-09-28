@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import AuthShell, { AuthHeading } from "../components/auth/AuthShell";
 import { Field, FieldGroup, FormNote, PasswordField, messageId } from "../components/auth/Field";
 import MascotGuide from "../components/auth/MascotGuide";
 import GoogleAuthButton from "../components/auth/GoogleAuthButton";
+import AuthCaptcha, { useAuthCaptcha } from "../components/auth/AuthCaptcha";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
@@ -20,6 +21,8 @@ export default function Login() {
   const [touched, setTouched] = useState({ loginId: false, password: false });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
+  const captcha = useAuthCaptcha();
 
   useEffect(() => {
     if (loading || !user) return;
@@ -46,6 +49,7 @@ export default function Login() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (submitting.current) return;
     setTouched({ loginId: true, password: true });
     setError("");
 
@@ -53,20 +57,28 @@ export default function Login() {
       document.getElementById(!loginId.trim() ? "login-id" : "login-password")?.focus();
       return;
     }
+    if (!captcha.requireToken()) return;
 
+    submitting.current = true;
     setBusy(true);
     try {
-      const { error: signInError } = await signIn(loginId.trim(), password);
+      const { error: signInError } = await signIn(loginId.trim(), password, captcha.token);
       if (signInError === "LOGIN_INVALID_CREDENTIALS") {
         setError(t("login.invalidCredentials"));
       } else if (signInError === "LOGIN_RATE_LIMITED") {
         setError(t("login.rateLimited"));
       } else if (signInError === "LOGIN_SUSPENDED") {
         setError(suspendedNotice);
+      } else if (signInError === "LOGIN_CAPTCHA_FAILED") {
+        setError(t("auth.captchaRejected"));
       } else if (signInError) {
         setError(t("login.unavailable"));
       }
+    } catch {
+      setError(t("login.unavailable"));
     } finally {
+      captcha.reset();
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -126,6 +138,7 @@ export default function Login() {
           <Link href="/forgot-password">{t("login.forgotPwd")}</Link>
         </p>
 
+        <AuthCaptcha controller={captcha} />
         <FormNote tone="error">{error}</FormNote>
 
         <button className="bt-auth-primary" disabled={busy} aria-busy={busy}>

@@ -28,6 +28,8 @@ Google OAuth (2026-09-27): Login and Signup now share one quiet Google button be
 
 Google name follow-up (2026-09-27): the actual provider metadata has `full_name` and `name`, but no separate given/family names. The first-run identity form now proposes editable name parts from those keys when needed; a stored profile is never filled or overwritten from Google.
 
+Turnstile readiness (2026-09-28): Login, Signup and Forgot password share a quiet verification widget only when a public site key is configured. A solved token gates each email/password request and is reset after use/expiry/error; pseudo login relays it to Supabase Auth. Google OAuth and existing shell remain untouched. The confirmation-email screen already handles a sessionless signup, with `/onboarding` as the allowlisted confirmation destination to configure separately. Deployment order and external settings live in `docs/AUTH_LAUNCH.md`.
+
 ## Protected scope
 
 Phase 1 owns server completion, cross-device resume, legacy/repair, legal/referral and email confirmation. No migration. No Study Blocks and no invented data in the sheet. The guide exists only on these pages.
