@@ -84,7 +84,6 @@ export default function AdminShell({ section, title, lead, aside, children }) {
   return (
     <Layout>
       <div className={s.page}>
-        <p className={s.eyebrow}>{t("adm.eyebrow")}</p>
         <nav className={s.nav} aria-label={t("adm.nav.label")}>
           {ADMIN_SECTIONS.map((item) => {
             const current = item.key === section;

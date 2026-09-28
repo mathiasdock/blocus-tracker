@@ -204,11 +204,14 @@ function MediaUploadsSwitch() {
         </span>
       </div>
       {state.data?.cap_bytes > 0 && (
-        <p className={`${s.rowMeta} px-4`}>
-          {t("adm.media.usage")
-            .replace("{used}", formatBytes(state.data.used_bytes, lang))
-            .replace("{cap}", formatBytes(state.data.cap_bytes, lang))}
-        </p>
+        <div className={s.storageUsage}>
+          <p className={s.rowMeta}>
+            {t("adm.media.usage")
+              .replace("{used}", formatBytes(state.data.used_bytes, lang))
+              .replace("{cap}", formatBytes(state.data.cap_bytes, lang))}
+          </p>
+          <span className={s.storageTrack} aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, (Number(state.data.used_bytes) || 0) / state.data.cap_bytes * 100))}%` }} /></span>
+        </div>
       )}
       <p className={`${s.rowMeta} px-4 pb-3`}>{t("adm.media.limits")}</p>
       {state.error && <ErrorLine code={state.error} onRetry={load} />}

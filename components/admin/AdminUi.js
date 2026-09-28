@@ -68,13 +68,25 @@ const TONES = {
   neutral: ["", ""],
 };
 
-export function StateMark({ tone = "neutral", children }) {
+export function StateMark({ tone = "neutral", children, className = "" }) {
   const [dot, text] = TONES[tone] || TONES.neutral;
   return (
-    <span className={`${s.state} ${text}`}>
+    <span className={`${s.state} ${text} ${className}`}>
       <span aria-hidden="true" className={`${s.dot} ${dot}`} />
       {children}
     </span>
+  );
+}
+
+// A figure with its real comparison/context. Presentation only: callers keep
+// the existing admin_* source and decide whether a rate is publishable.
+export function AdminKpiCard({ label, value, context, compact = false }) {
+  return (
+    <div className={s.kpiCard}>
+      <p className={s.kpiLabel}>{label}</p>
+      <p className={`${s.kpiValue} ${compact ? s.kpiValueCompact : ""}`}>{value}</p>
+      {context && <p className={s.kpiContext}>{context}</p>}
+    </div>
   );
 }
 

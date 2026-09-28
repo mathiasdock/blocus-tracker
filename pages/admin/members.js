@@ -140,7 +140,7 @@ export default function AdminMembers() {
     <AdminShell section="members" title={t("adm.nav.members")}
       aside={<Freshness at={data?.generated_at} busy={state.loading} onRefresh={reload} />}>
 
-      <div className="mt-5 space-y-3">
+      <div className={s.memberControls}>
         <div className={s.toolbar}>
           <label className={s.search}>
             <span className="sr-only">{t("adm.members.search")}</span>
@@ -181,7 +181,7 @@ export default function AdminMembers() {
           : (
             <div style={{ opacity: state.loading ? 0.6 : 1, transition: "opacity 0.15s ease" }}>
               <div className={`${s.wideOnly} ${s.tableWrap}`}>
-                <table className={s.table}>
+                <table className={`${s.table} ${s.memberTable}`}>
                   <thead>
                     <tr>
                       <th scope="col">{t("adm.members.col.member")}</th>
@@ -218,7 +218,7 @@ export default function AdminMembers() {
                         </td>
                         <td className={s.num}>{formatDuration(row.real_seconds_30d, lang)}</td>
                         <td className={s.num}>{formatDuration(row.real_seconds_total, lang)}</td>
-                        <td><StateMark tone={ACTIVATION_TONE[row.activation_status]}>{activationLabel(t, row.activation_status)}</StateMark></td>
+                        <td><StateMark tone={ACTIVATION_TONE[row.activation_status]} className={s.statusPill}>{activationLabel(t, row.activation_status)}</StateMark></td>
                       </tr>
                     ))}
                   </tbody>
@@ -236,10 +236,14 @@ export default function AdminMembers() {
                           <MemberFlags row={row} t={t} />
                         </span>
                         <span className={s.rowMeta} style={{ display: "block" }}>
-                          {t("adm.members.narrowMeta")
-                            .replace("{date}", formatDate(row.signed_up_at, lang, "day"))
-                            .replace("{last}", row.last_real_session_at ? formatAgo(row.last_real_session_at, now, lang) : t("adm.member.never").toLowerCase())}
+                          {t("adm.members.col.signedUp")} · {formatDate(row.signed_up_at, lang, "dayShort")}
                         </span>
+                        <span className={s.rowMeta} style={{ display: "block" }}>
+                          {t("adm.members.col.lastReal")} · {row.last_real_session_at ? formatAgo(row.last_real_session_at, now, lang) : t("adm.member.never")}
+                        </span>
+                        <StateMark tone={ACTIVATION_TONE[row.activation_status]} className={s.narrowStatus}>
+                          {activationLabel(t, row.activation_status)}
+                        </StateMark>
                       </span>
                       <span className={s.rowEnd}>
                         <span>

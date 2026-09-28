@@ -61,7 +61,7 @@ function JobRow({ job, now }) {
   const status = last?.status;
   const duration = last?.finished_at ? (new Date(last.finished_at) - new Date(last.started_at)) / 1000 : null;
   return (
-    <li className={s.item}>
+    <li className={`${s.item} ${(job.overdue || status === "error") ? s.systemItemCritical : ""}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className={s.rowTitle}>{t(`adm.job.${job.job}`)}</p>
         {!last ? <StateMark tone="quiet">{t("adm.system.noRun")}</StateMark>
@@ -110,7 +110,7 @@ function AnomalyRow({ title, meta, value, tone = "neutral", href }) {
       </span>
     </>
   );
-  return <li>{href ? <Link href={href} className={s.row}>{content}</Link> : <div className={s.row}>{content}</div>}</li>;
+  return <li className={tone === "warn" || tone === "danger" ? s.systemItemWarning : ""}>{href ? <Link href={href} className={s.row}>{content}</Link> : <div className={s.row}>{content}</div>}</li>;
 }
 
 export default function AdminSystem() {
@@ -146,6 +146,7 @@ export default function AdminSystem() {
       {system.error && !data && <Panel className="mt-6"><ErrorLine code={system.error} onRetry={system.reload} /></Panel>}
       {system.loading && !data && <Panel className="mt-6"><SkeletonRows rows={5} /></Panel>}
 
+      <div className={s.systemGrid}>
       {data && (
         <Section id="jobs" title={t("adm.system.jobs")}>
           <Panel><ul className={s.rows}>{data.jobs.map((job) => <JobRow key={job.job} job={job} now={now} />)}</ul></Panel>
@@ -173,6 +174,49 @@ export default function AdminSystem() {
                 value={formatCount(pf.failures_30d, lang)} />
               {pf.last_at && <AnomalyRow title={t("adm.system.pushLast")} value={formatAgo(pf.last_at, now, lang)} />}
             </ul>
+          </Panel>
+        </Section>
+      )}
+      </div>
+
+      {data && (
+        <Section id="functions" title={t("adm.system.functions")}
+          note={fn?.since
+            ? t("adm.system.functionsNote").replace("{date}", formatDate(fn.since, lang, "day"))
+            : t("adm.system.functionsNoteNoDate")}>
+          <Panel>
+            {!fn?.rows ? <p className={s.message}>{t("adm.system.functionsUnavailable")}</p>
+              : fn.rows.length === 0 ? <p className={s.message}>{t("adm.system.none")}</p>
+              : (
+                <div className={s.tableWrap}>
+                  <table className={s.table}>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t("adm.system.col.function")}</th>
+                        <th scope="col" className={s.num}>{t("adm.system.col.calls")}</th>
+                        <th scope="col" className={s.num}>{t("adm.system.col.mean")}</th>
+                        <th scope="col" className={s.num}>{t("adm.system.col.max")}</th>
+                        <th scope="col">{t("adm.system.col.state")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fn.rows.map((row) => (
+                        <tr key={row.name} className={row.flag === "near_timeout" ? s.functionCritical : row.flag === "slow" ? s.functionWarning : ""}>
+                          <td className={s.mono}>{row.name}</td>
+                          <td className={s.num}>{formatCount(row.calls, lang)}</td>
+                          <td className={s.num}>{`${formatCount(row.mean_ms, lang)} ms`}</td>
+                          <td className={`${s.num} ${row.flag ? s.functionMax : ""}`}>{`${formatCount(row.max_ms, lang)} ms`}</td>
+                          <td className={s.nowrap}>
+                            {row.flag === "near_timeout" ? <StateMark tone="danger">{t("adm.system.nearTimeout")}</StateMark>
+                              : row.flag === "slow" ? <StateMark tone="warn">{t("adm.system.slow")}</StateMark>
+                              : <StateMark tone="quiet">{t("adm.system.fine")}</StateMark>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
           </Panel>
         </Section>
       )}
@@ -204,48 +248,6 @@ export default function AdminSystem() {
               <AnomalyRow title={t("adm.system.a.deletions")} meta={t("adm.system.a.deletionsMeta")}
                 value={formatCount(a.deletions_without_week, lang)} />
             </ul>
-          </Panel>
-        </Section>
-      )}
-
-      {data && (
-        <Section id="functions" title={t("adm.system.functions")}
-          note={fn?.since
-            ? t("adm.system.functionsNote").replace("{date}", formatDate(fn.since, lang, "day"))
-            : t("adm.system.functionsNoteNoDate")}>
-          <Panel>
-            {!fn?.rows ? <p className={s.message}>{t("adm.system.functionsUnavailable")}</p>
-              : fn.rows.length === 0 ? <p className={s.message}>{t("adm.system.none")}</p>
-              : (
-                <div className={s.tableWrap}>
-                  <table className={s.table}>
-                    <thead>
-                      <tr>
-                        <th scope="col">{t("adm.system.col.function")}</th>
-                        <th scope="col" className={s.num}>{t("adm.system.col.calls")}</th>
-                        <th scope="col" className={s.num}>{t("adm.system.col.mean")}</th>
-                        <th scope="col" className={s.num}>{t("adm.system.col.max")}</th>
-                        <th scope="col">{t("adm.system.col.state")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fn.rows.map((row) => (
-                        <tr key={row.name}>
-                          <td className={s.mono}>{row.name}</td>
-                          <td className={s.num}>{formatCount(row.calls, lang)}</td>
-                          <td className={s.num}>{`${formatCount(row.mean_ms, lang)} ms`}</td>
-                          <td className={s.num}>{`${formatCount(row.max_ms, lang)} ms`}</td>
-                          <td className={s.nowrap}>
-                            {row.flag === "near_timeout" ? <StateMark tone="danger">{t("adm.system.nearTimeout")}</StateMark>
-                              : row.flag === "slow" ? <StateMark tone="warn">{t("adm.system.slow")}</StateMark>
-                              : <StateMark tone="quiet">{t("adm.system.fine")}</StateMark>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
           </Panel>
         </Section>
       )}

@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-27 — Codex — Admin : hiérarchie visuelle de centre de contrôle
+
+- Today expose d'abord les quatre chiffres opérationnels existants avec leur comparaison/cohorte, puis les signaux à traiter gradués ; un raccourci compact conserve ces signaux visibles dès le premier écran mobile. Members réunit recherche/tri/export, rend l'activation explicite dans la table et sur mobile, et organise la fiche membre en groupes sans retirer ses actions ni ses données.
+- Activation distingue ses taux et son volume du funnel et des cohortes ; Communications regroupe audience réelle, aperçu et hiérarchie Send/Test ; System met les tâches/notifications et les fonctions proches du délai avant les anomalies et l'historique ; Storage visualise uniquement le ratio déjà fourni `used_bytes / cap_bytes`. Inbox conserve ses actions, avec priorité discrète pour les signalements.
+- Aucun RPC, calcul, permission, règle de notification, action admin ni schéma modifié. Travail effectué dans un worktree isolé ; aucun fichier du site public, de Google Login ou des autres sessions inclus. Vérifications dans le navigateur avec les fixtures offline : Today, Members, fiche membre, Activation, Communications, System, Inbox ; desktop, 320/390 px, tablette, clair/sombre. 431 tests Node, lint et build de production verts (avertissement PWA préexistant : chunk > 3 MB non précaché).
+
 ## 2026-09-27 — Codex — Préremplissage du nom Google à l'inscription
 
 - Vérification en lecture seule des clés des métadonnées d'un compte Google réel : `user_metadata` et l'identité contiennent `full_name` / `name`, sans `given_name` / `family_name`. Aucune valeur personnelle ni aucun token n'a été affiché.

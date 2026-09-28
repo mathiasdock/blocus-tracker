@@ -366,45 +366,46 @@ export default function PushComposer({ push, pushError, initialTo, onSent }) {
               onChange={(event) => setSendAfter(event.target.value)} />
           </Field>
 
-          {error && !confirming && <p className="text-sm" role="alert" style={{ color: "var(--bt-danger)" }}>{errorText(t, error)}</p>}
-          {outcome && (
-            <p className="text-sm" role="status">
-              <StateMark tone={outcome.tone}>{outcome.text}</StateMark>{" "}
-              <Link href="/admin/communications?tab=history" className={s.linkBtn}>{t("adm.notif.result.seeHistory")}</Link>
-            </p>
-          )}
+        </div>
+      </Panel>
 
-          <div className="flex flex-col-reverse sm:flex-row gap-2">
-            <button type="button" className="btn-ghost min-h-[44px]" disabled={!content.ok || testing}
-              onClick={sendTest} aria-busy={testing}>
-              {testing ? t("adm.common.working") : t("adm.notif.test.button")}
-            </button>
+      <div className={s.sticky}>
+        <Panel pad>
+          <div className={s.validationGroup}>
+            <h3 className={s.h3}>{t("adm.notif.audience.title")}</h3>
+            <AudienceBreakdown audience={audience.data} loading={audience.loading} error={audience.error || pushError}
+              app={push?.app} lang={lang} />
+          </div>
+          <div className={s.validationGroup}>
+            <div className={s.fieldHead} style={{ marginBottom: 10 }}>
+              <h3 className={s.h3}>{t("adm.push.preview")}</h3>
+              <Segmented label={t("adm.notif.lang.previewLabel")} value={previewLang} onChange={setPreviewLang}
+                options={[{ value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
+            </div>
+            <PushPreview title={previewTitle} message={previewBody} lang={previewLang} />
+            {previewLang === "en" && !form.titleEn.trim() && form.titleFr.trim() && (
+              <p className={s.hint}>{t("adm.notif.lang.previewFallback")}</p>
+            )}
+          </div>
+          <div className={`${s.validationGroup} ${s.composerActions}`}>
+            {error && !confirming && <p className="text-sm" role="alert" style={{ color: "var(--bt-danger)" }}>{errorText(t, error)}</p>}
+            {outcome && (
+              <p className="text-sm" role="status">
+                <StateMark tone={outcome.tone}>{outcome.text}</StateMark>{" "}
+                <Link href="/admin/communications?tab=history" className={s.linkBtn}>{t("adm.notif.result.seeHistory")}</Link>
+              </p>
+            )}
             <button type="button" className="btn-primary min-h-[44px]" disabled={!ready || sending}
               onClick={() => { setError(null); setResult(null); setConfirming(true); }}>
               {sendAfter ? t("adm.push.schedule") : t("adm.push.send")}
             </button>
+            <button type="button" className="btn-ghost min-h-[44px]" disabled={!content.ok || testing}
+              onClick={sendTest} aria-busy={testing}>
+              {testing ? t("adm.common.working") : t("adm.notif.test.button")}
+            </button>
+            {testResult && <p className="text-sm" role="status"><StateMark tone={testResult.tone}>{testResult.text}</StateMark></p>}
+            {!testResult && <p className={s.hint}>{t("adm.notif.test.hint")}</p>}
           </div>
-          {testResult && <p className="text-sm" role="status"><StateMark tone={testResult.tone}>{testResult.text}</StateMark></p>}
-          {!testResult && <p className={s.hint} style={{ marginTop: -8 }}>{t("adm.notif.test.hint")}</p>}
-        </div>
-      </Panel>
-
-      <div className={`${s.sticky} space-y-4`}>
-        <Panel pad>
-          <h3 className={s.h3} style={{ marginBottom: 8 }}>{t("adm.notif.audience.title")}</h3>
-          <AudienceBreakdown audience={audience.data} loading={audience.loading} error={audience.error || pushError}
-            app={push?.app} lang={lang} />
-        </Panel>
-        <Panel pad>
-          <div className={s.fieldHead} style={{ marginBottom: 10 }}>
-            <h3 className={s.h3}>{t("adm.push.preview")}</h3>
-            <Segmented label={t("adm.notif.lang.previewLabel")} value={previewLang} onChange={setPreviewLang}
-              options={[{ value: "fr", label: "FR" }, { value: "en", label: "EN" }]} />
-          </div>
-          <PushPreview title={previewTitle} message={previewBody} lang={previewLang} />
-          {previewLang === "en" && !form.titleEn.trim() && form.titleFr.trim() && (
-            <p className={s.hint}>{t("adm.notif.lang.previewFallback")}</p>
-          )}
         </Panel>
       </div>
 

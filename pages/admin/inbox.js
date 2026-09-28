@@ -125,7 +125,7 @@ function ReportItem({ row, busy, onResolve, onAttachment }) {
   const [contextOpen, setContextOpen] = useState(false);
   const reasons = (row.reasons || []).map((reason) => t(`courseSpaces.report.${reason}`)).join(", ");
   return (
-    <li className={s.item}>
+    <li className={`${s.item} ${s.inboxReport}`}>
       <div className={s.itemHead}>
         <span className={s.kind}>{t("adm.inbox.kind.report")}</span>
         <span>{row.room_title}</span>

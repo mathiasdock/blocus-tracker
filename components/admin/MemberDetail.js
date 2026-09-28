@@ -65,7 +65,7 @@ function DetailBody({ data, t, lang, onAction }) {
 
   return (
     <>
-      <div className={s.drawerSection}>
+      <div className={`${s.drawerSection} ${s.drawerActions}`}>
         <div className={s.actions}>
           <Link href={`/admin/communications?tab=send&to=${encodeURIComponent(data.user_id)}`}
             className="btn-ghost min-h-[44px]" aria-disabled={account.suspended || undefined}
@@ -74,6 +74,8 @@ function DetailBody({ data, t, lang, onAction }) {
             <BellIcon /> {t("adm.member.sendPush")}
           </Link>
           <button type="button" className="btn-ghost min-h-[44px]" onClick={() => onAction("moderate")}>{t("adminMod.actionModerate")}</button>
+        </div>
+        <div className={s.sensitiveActions}>
           {account.suspended
             ? <button type="button" className="btn-ghost min-h-[44px]" onClick={() => onAction("unsuspend")}>{t("adminMod.actionUnsuspend")}</button>
             : <button type="button" className={`btn min-h-[44px] ${s.danger}`} onClick={() => onAction("suspend")}>{t("adminMod.actionSuspend")}</button>}
@@ -81,6 +83,7 @@ function DetailBody({ data, t, lang, onAction }) {
         </div>
       </div>
 
+      <div className={s.drawerPair}>
       <div className={s.drawerSection}>
         <h3 className={s.h3}>{t("adm.member.account")}</h3>
         <Facts rows={[
@@ -103,7 +106,9 @@ function DetailBody({ data, t, lang, onAction }) {
           [t("adm.member.returned"), returned],
         ]} />
       </div>
+      </div>
 
+      <div className={s.drawerPair}>
       <div className={s.drawerSection}>
         <h3 className={s.h3}>{t("adm.member.study")}</h3>
         <Facts rows={[
@@ -124,6 +129,13 @@ function DetailBody({ data, t, lang, onAction }) {
           [t("adm.member.courses"), t("adm.member.coursesValue").replace("{active}", formatCount(courses.active, lang)).replace("{total}", formatCount(courses.total, lang))],
           [t("adm.member.exams"), formatCount(courses.upcoming_exams, lang)],
           [t("adm.member.objectives"), formatCount(courses.objectives_30d, lang)],
+        ]} />
+      </div>
+      </div>
+
+      <div className={s.drawerSection}>
+        <h3 className={s.h3}>{t("nav.social")}</h3>
+        <Facts rows={[
           [t("adm.member.friends"), formatCount(social.friends, lang)],
           [t("adm.member.rooms"), formatCount(social.course_rooms, lang)],
           [t("adm.member.roomPosts"), formatCount(social.course_room_posts_30d, lang)],

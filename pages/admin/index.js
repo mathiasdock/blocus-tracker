@@ -8,7 +8,7 @@
 import Link from "next/link";
 import AdminShell, { loadAdminToday } from "../../components/admin/AdminShell";
 import {
-  ChevronIcon, ErrorLine, Freshness, Panel, Section, SkeletonRows, StateMark, adminStyles as s, plural, useAdminLoad,
+  AdminKpiCard, ChevronIcon, ErrorLine, Freshness, Panel, Section, SkeletonRows, StateMark, adminStyles as s, plural, useAdminLoad,
 } from "../../components/admin/AdminUi";
 import { useI18n } from "../../contexts/I18nContext";
 import {
@@ -38,11 +38,11 @@ function AttentionRow({ item, now }) {
     title = plural(t, "adm.today.longSessions", item.count);
     meta = t("adm.today.longSessionsHint");
   }
-  const tone = item.tone === "danger" ? "danger" : item.tone === "act" ? "neutral" : "quiet";
+  const tone = item.tone === "danger" ? "danger" : item.tone === "act" ? "warn" : "quiet";
   return (
-    <li>
-      <Link href={item.href} className={s.row}>
-        <StateMark tone={tone}><span className="sr-only">{t(`adm.tone.${item.tone}`)}</span></StateMark>
+    <li className={`${s.attentionItem} ${item.tone === "danger" ? s.attentionCritical : item.tone === "act" ? s.attentionAction : ""}`}>
+      <Link href={item.href} className={s.attentionLink}>
+        <StateMark tone={tone} className={s.attentionState}>{t(`adm.tone.${item.tone}`)}</StateMark>
         <span className={s.rowMain}>
           <span className={s.rowTitle} style={{ display: "block" }}>{title}</span>
           {meta && <span className={s.rowMeta} style={{ display: "block" }}>{meta}</span>}
@@ -50,16 +50,6 @@ function AttentionRow({ item, now }) {
         <span className={s.chevron}><ChevronIcon /></span>
       </Link>
     </li>
-  );
-}
-
-function Stat({ label, value, sub, small }) {
-  return (
-    <div className={s.stat}>
-      <p className={s.statLabel}>{label}</p>
-      <p className={`${s.statValue} ${small ? s.statValueSmall : ""}`}>{value}</p>
-      {sub && <p className={s.statSub}>{sub}</p>}
-    </div>
   );
 }
 
@@ -84,45 +74,36 @@ export default function AdminToday() {
     <AdminShell section="today" title={t("adm.nav.today")}
       aside={<Freshness at={data?.generated_at} busy={today.loading} onRefresh={today.reload} />}>
 
-      <Section id="attention" title={t("adm.today.attention")}>
-        <Panel>
-          {today.loading && !data ? <SkeletonRows rows={2} />
-            : today.error && !data ? <ErrorLine code={today.error} onRetry={today.reload} />
-            : items.length === 0 ? (
-              <div className={s.row}>
-                <StateMark tone="ok">{t("adm.today.nothing")}</StateMark>
-              </div>
-            ) : (
-              <ul className={s.rows}>
-                {items.map((item) => <AttentionRow key={`${item.key}-${item.job || ""}`} item={item} now={now} />)}
-              </ul>
-            )}
-        </Panel>
-      </Section>
+      {data && items.length > 0 && (
+        <a href="#attention" className={s.mobileAttentionJump}>
+          <StateMark tone={items.some((item) => item.tone === "danger") ? "danger" : "warn"}>
+            {t("adm.today.attention")} · {formatCount(items.length, lang)}
+          </StateMark>
+          <ChevronIcon size={16} />
+        </a>
+      )}
 
       <Section id="week" title={t("adm.today.week")}
         aside={<Link href="/admin/activation" className={s.linkBtn}>{t("adm.today.toActivation")}<ChevronIcon size={16} /></Link>}>
-        <Panel>
-          {!data ? (today.error ? <ErrorLine code={today.error} onRetry={today.reload} /> : <SkeletonRows rows={2} />) : (
-            <div className={s.stats}>
-              <Stat label={t("adm.today.active")}
+        {!data ? <Panel>{today.error ? <ErrorLine code={today.error} onRetry={today.reload} /> : <SkeletonRows rows={2} />}</Panel> : (
+            <div className={s.kpiGrid}>
+              <AdminKpiCard label={t("adm.today.active")}
                 value={formatCount(data.active_members.current, lang)}
-                sub={previous(formatCount(data.active_members.previous, lang))} />
-              <Stat label={t("adm.today.newAccounts")}
+                context={previous(formatCount(data.active_members.previous, lang))} />
+              <AdminKpiCard label={t("adm.today.newAccounts")}
                 value={formatCount(data.new_accounts.current, lang)}
-                sub={previous(formatCount(data.new_accounts.previous, lang))} />
-              <Stat label={t("adm.today.activation")}
+                context={previous(formatCount(data.new_accounts.previous, lang))} />
+              <AdminKpiCard label={t("adm.today.activation")}
                 value={activation ? activation.value : "—"}
-                small={activation && !activation.hasRate}
-                sub={cohort
+                compact={activation && !activation.hasRate}
+                context={cohort
                   ? `${t("adm.today.cohortOf").replace("{week}", formatDate(cohort.week_start, lang, "dayShort"))}${activation.hasRate ? ` · ${activation.detail}` : ` · ${t("adm.common.tooSmall")}`}`
                   : t("adm.today.noCohort")} />
-              <Stat label={t("adm.today.hours")}
+              <AdminKpiCard label={t("adm.today.hours")}
                 value={formatDuration(data.study_seconds.current, lang)}
-                sub={previous(formatDuration(data.study_seconds.previous, lang))} />
+                context={previous(formatDuration(data.study_seconds.previous, lang))} />
             </div>
           )}
-        </Panel>
         {data && (
           <p className={s.note} style={{ marginTop: 10 }}>
             {t("adm.today.footnote")
@@ -130,6 +111,20 @@ export default function AdminToday() {
               .replace("{suspended}", formatCount(data.members.suspended, lang))}
           </p>
         )}
+      </Section>
+
+      <Section id="attention" title={t("adm.today.attention")}>
+        <Panel>
+          {today.loading && !data ? <SkeletonRows rows={2} />
+            : today.error && !data ? <ErrorLine code={today.error} onRetry={today.reload} />
+            : items.length === 0 ? (
+              <div className={s.row}><StateMark tone="ok">{t("adm.today.nothing")}</StateMark></div>
+            ) : (
+              <ul className={s.rows}>
+                {items.map((item) => <AttentionRow key={`${item.key}-${item.job || ""}`} item={item} now={now} />)}
+              </ul>
+            )}
+        </Panel>
       </Section>
     </AdminShell>
   );

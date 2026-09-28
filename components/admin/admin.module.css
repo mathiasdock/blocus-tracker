@@ -1,8 +1,6 @@
-/* Admin — outil interne (phase 3).
-   Lignes, tableaux et séparateurs avant les cartes : une seule surface par
-   groupe interactif, jamais une carte par chiffre. Couleurs : rôles --bt-*
-   uniquement ; le rouge dit « à corriger », le vert « fait / actif », tout le
-   reste est neutre. Module CSS : aucune classe globale, aucune collision. */
+/* Admin — centre de contrôle. Les chiffres et les alertes ont une présence
+   différente des tables de détail ; la couleur indique un état, pas un thème
+   décoratif. Module CSS : aucune classe globale, aucune collision. */
 
 .page {
   max-width: 1120px;
@@ -10,18 +8,10 @@
 }
 
 /* ── En-tête et navigation des sections ───────────────────────────── */
-.eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--bt-text-2);
-}
-
 .nav {
   display: flex;
   gap: 2px;
-  margin: 10px 0 0;
+  margin: 0;
   overflow-x: auto;
   scrollbar-width: none;
   border-bottom: 1px solid var(--bt-border);
@@ -43,9 +33,9 @@
   border-radius: 10px 10px 0 0;
   transition: color 0.14s ease, background-color 0.14s ease;
 }
-.navLink:hover { color: var(--bt-text-1); }
+.navLink:hover { color: var(--bt-text-1); background-color: var(--bt-subtle); }
 .navLink:focus-visible { outline: 2px solid var(--bt-accent); outline-offset: -2px; }
-.navLink[aria-current="page"] { color: var(--bt-text-1); }
+.navLink[aria-current="page"] { color: var(--bt-selected-text); background-color: var(--bt-selected-bg); }
 .navLink[aria-current="page"]::after {
   content: "";
   position: absolute;
@@ -54,7 +44,7 @@
   bottom: -1px;
   height: 2px;
   border-radius: 2px;
-  background-color: var(--bt-text-1);
+  background-color: var(--bt-brand-text);
 }
 
 /* Un compte d'éléments à traiter : la seule pastille de la navigation. */
@@ -69,8 +59,8 @@
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  background-color: var(--bt-text-1);
-  color: var(--bt-surface);
+  background-color: var(--bt-action);
+  color: var(--bt-on-action);
 }
 
 .head {
@@ -105,7 +95,7 @@
 }
 
 /* ── Sections ─────────────────────────────────────────────────────── */
-.section { margin-top: 28px; }
+.section { margin-top: 30px; }
 .sectionHead {
   display: flex;
   flex-wrap: wrap;
@@ -209,7 +199,77 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
 .stateDanger { color: var(--bt-danger); }
 .stateWarn { color: var(--bt-warning); }
 
-/* ── Chiffres clés : une bande, pas des tuiles ─────────────────────── */
+/* KPI = an answer, not a generic hero. Context remains attached to its number. */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.kpiCard {
+  min-width: 0;
+  min-height: 124px;
+  padding: 16px 18px;
+  border-radius: var(--bt-r-inset);
+  background-color: var(--bt-surface);
+  box-shadow: var(--bt-elev-1);
+  display: flex;
+  flex-direction: column;
+}
+.kpiLabel { color: var(--bt-text-2); font-size: 13px; font-weight: 650; line-height: 1.35; }
+.kpiValue {
+  margin-top: 7px;
+  color: var(--bt-text-1);
+  font-size: clamp(25px, 2.6vw, 35px);
+  font-weight: 750;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.kpiValueCompact { font-size: clamp(20px, 2.1vw, 27px); }
+.kpiContext { margin-top: auto; padding-top: 10px; color: var(--bt-text-2); font-size: 12.5px; line-height: 1.35; }
+.activationKpis { margin-top: 22px; }
+@media (min-width: 900px) {
+  .kpiGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .activationKpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 359px) { .kpiCard { padding: 13px; } .kpiContext { font-size: 12px; } }
+
+.attentionItem + .attentionItem { border-top: 1px solid var(--bt-border); }
+.attentionItem.attentionCritical { background-color: var(--bt-danger-bg); }
+.attentionItem.attentionAction { background-color: color-mix(in srgb, var(--bt-warning) 7%, var(--bt-surface)); }
+.attentionLink {
+  display: grid;
+  grid-template-columns: 102px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 14px;
+  min-height: 62px;
+  padding: 11px 16px;
+}
+.attentionLink:hover { background-color: color-mix(in srgb, var(--bt-text-1) 3%, transparent); }
+.attentionLink:focus-visible { outline: 2px solid var(--bt-focus-ring); outline-offset: -2px; }
+.attentionState { font-weight: 700; white-space: normal; }
+.mobileAttentionJump { display: none; }
+@media (max-width: 599px) {
+  .mobileAttentionJump {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    margin-top: 16px;
+    padding: 0 12px;
+    border-radius: var(--bt-r-inset);
+    background: color-mix(in srgb, var(--bt-warning) 8%, var(--bt-surface));
+    color: var(--bt-text-1);
+  }
+  .mobileAttentionJump:focus-visible { outline: 2px solid var(--bt-focus-ring); outline-offset: 2px; }
+  .mobileAttentionJump + .section { margin-top: 20px; }
+  .attentionLink { grid-template-columns: minmax(0, 1fr) 18px; gap: 3px 8px; }
+  .attentionState { grid-column: 1; font-size: 12px; }
+  .attentionLink .rowMain { grid-column: 1; }
+  .attentionLink .chevron { grid-column: 2; grid-row: 1 / span 2; }
+}
+
+/* ── Chiffres secondaires existants ────────────────────────────────── */
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -258,6 +318,7 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
   color: var(--bt-text-2);
   white-space: nowrap;
   border-bottom: 1px solid var(--bt-border);
+  background-color: var(--bt-subtle);
 }
 .table td {
   padding: 10px 12px;
@@ -266,6 +327,7 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
   vertical-align: middle;
 }
 .table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td, .table tbody tr:hover th { background-color: color-mix(in srgb, var(--bt-selected-bg) 42%, var(--bt-surface)); }
 .table th:first-child, .table td:first-child { padding-left: 16px; }
 .table th:last-child, .table td:last-child { padding-right: 16px; }
 .num {
@@ -287,6 +349,22 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
   .wideOnly { display: block; }
   .narrowOnly { display: none; }
 }
+
+.memberControls {
+  display: grid;
+  gap: 11px;
+  margin-top: 20px;
+}
+.memberTable td { padding-top: 12px; padding-bottom: 12px; }
+.statusPill {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background-color: var(--bt-subtle);
+  white-space: normal;
+}
+.statusPill.stateOk { background-color: var(--bt-success-bg); }
+.statusPill.stateDanger { background-color: var(--bt-danger-bg); }
+.narrowStatus { display: inline-flex; margin-top: 6px; font-size: 12px; }
 
 /* ── Contrôles ────────────────────────────────────────────────────── */
 .toolbar {
@@ -425,9 +503,12 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) 4.5em;
   align-items: center;
   gap: 12px;
-  min-height: 48px;
-  padding: 8px 16px;
+  min-height: 51px;
+  padding: 8px 18px;
 }
+.funnelRow + .funnelRow { border-top: 1px solid var(--bt-border); }
+.funnelLabel { font-size: 14px; color: var(--bt-text-1); }
+.funnelCount { text-align: right; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--bt-text-1); }
 .bar {
   height: 10px;
   border-radius: 999px;
@@ -439,6 +520,10 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
   border-radius: 999px;
   background-color: var(--bt-data-study);
 }
+.cohortCurrent td, .cohortCurrent th { background-color: var(--bt-selected-bg); }
+.cohortOpen:not(.cohortCurrent) td, .cohortOpen:not(.cohortCurrent) th { background-color: var(--bt-subtle); }
+.usageBar { display: block; width: min(100%, 220px); height: 4px; margin-top: 9px; border-radius: 99px; background: var(--bt-subtle); overflow: hidden; }
+.usageBar > span { display: block; height: 100%; border-radius: inherit; background: var(--bt-data-study); }
 @media (max-width: 639px) {
   .funnelRow {
     grid-template-columns: minmax(0, 1fr) 4.5em;
@@ -467,7 +552,7 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
 @media (min-width: 768px) {
   .drawer {
     left: auto;
-    width: min(520px, 100vw);
+    width: min(680px, 100vw);
     border-left: 1px solid var(--bt-hairline);
   }
 }
@@ -486,6 +571,15 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
 }
 .drawerSection { padding: 16px; }
 .drawerSection + .drawerSection { border-top: 1px solid var(--bt-border); }
+.drawerActions { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.sensitiveActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.drawerPair { display: grid; border-top: 1px solid var(--bt-border); }
+.drawerPair .drawerSection { border-top: none; }
+@media (min-width: 620px) {
+  .drawerPair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .drawerPair .drawerSection + .drawerSection { border-left: 1px solid var(--bt-border); }
+}
+@media (max-width: 619px) { .drawerPair .drawerSection + .drawerSection { border-top: 1px solid var(--bt-border); } }
 
 .facts { margin: 0; }
 .fact {
@@ -516,6 +610,7 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
 
 /* ── Boîte de réception ───────────────────────────────────────────── */
 .item { padding: 14px 16px; }
+.inboxReport { background-color: color-mix(in srgb, var(--bt-warning) 5%, var(--bt-surface)); }
 .itemHead {
   display: flex;
   flex-wrap: wrap;
@@ -643,9 +738,27 @@ a.row:focus-visible, button.row:focus-visible { outline: 2px solid var(--bt-acce
    sous 1024 px. Le panneau de droite suit le défilement sur ordinateur. */
 .split { display: grid; gap: 16px; align-items: start; }
 @media (min-width: 1024px) {
-  .split { grid-template-columns: minmax(0, 1fr) 340px; }
+  .split { grid-template-columns: minmax(0, 1fr) 350px; }
   .sticky { position: sticky; top: 16px; }
 }
+.validationGroup + .validationGroup { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--bt-border); }
+.validationGroup > .h3 { margin-bottom: 9px; }
+.composerActions { display: grid; gap: 4px; }
+.composerActions .hint { margin-top: 2px; }
+
+/* System: critical telemetry moves above neutral history. */
+.systemGrid { display: grid; gap: 0 16px; align-items: start; }
+@media (min-width: 900px) { .systemGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.systemItemCritical { background-color: var(--bt-danger-bg); }
+.systemItemWarning { background-color: color-mix(in srgb, var(--bt-warning) 7%, var(--bt-surface)); }
+.functionCritical td { background-color: var(--bt-danger-bg); }
+.functionWarning td { background-color: color-mix(in srgb, var(--bt-warning) 8%, var(--bt-surface)); }
+.functionMax { font-weight: 750; }
+.functionCritical .functionMax { color: var(--bt-danger); }
+.functionWarning .functionMax { color: var(--bt-warning); }
+.storageUsage { padding: 0 16px 10px; }
+.storageTrack { display: block; margin-top: 7px; height: 6px; overflow: hidden; border-radius: 99px; background: var(--bt-subtle); }
+.storageTrack > span { display: block; height: 100%; border-radius: inherit; background: var(--bt-data-study); }
 /* Français | anglais côte à côte dès qu'il y a la place. */
 .langGrid { display: grid; gap: 16px; }
 @media (min-width: 720px) { .langGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

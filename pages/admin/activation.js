@@ -9,7 +9,7 @@
 
 import AdminShell from "../../components/admin/AdminShell";
 import {
-  ErrorLine, Freshness, Panel, Section, SkeletonRows, StateMark, adminStyles as s, useAdminLoad,
+  AdminKpiCard, ErrorLine, Freshness, Panel, Section, SkeletonRows, StateMark, adminStyles as s, useAdminLoad,
 } from "../../components/admin/AdminUi";
 import { useI18n } from "../../contexts/I18nContext";
 import { adminRpc } from "../../lib/adminApi";
@@ -61,6 +61,8 @@ export default function AdminActivation() {
   const funnel = data?.funnel;
   const usage = data?.feature_usage;
   const deletions = data?.deletions;
+  const activationRate = funnel ? describeRate({ count: funnel.activation.activated, base: funnel.activation.eligible, rate: funnel.activation.rate }, lang, t) : null;
+  const returnRate = funnel ? describeRate({ count: funnel.return_week2.returned, base: funnel.return_week2.eligible, rate: funnel.return_week2.rate }, lang, t) : null;
   // Les semaines les plus récentes d'abord ; la semaine en cours y figure.
   const cohorts = data ? [...(data.cohorts || [])].reverse() : [];
 
@@ -79,6 +81,19 @@ export default function AdminActivation() {
       {load.loading && !data && <Panel className="mt-6"><SkeletonRows rows={7} /></Panel>}
 
       {funnel && (
+        <div className={`${s.kpiGrid} ${s.activationKpis}`} aria-label={t("adm.nav.activation")}>
+          <AdminKpiCard label={t("adm.activation.activated")}
+            value={activationRate.value}
+            context={activationRate.detail || t("adm.common.tooSmall")} />
+          <AdminKpiCard label={t("adm.activation.returned")}
+            value={returnRate.value}
+            context={returnRate.detail || t("adm.common.tooSmall")} />
+          <AdminKpiCard label={t("adm.activation.step.accounts")}
+            value={formatCount(funnel.accounts, lang)} />
+        </div>
+      )}
+
+      {funnel && (
         <Section id="funnel" title={t("adm.activation.funnel")} note={t("adm.activation.funnelNote")}>
           <Panel>
             <ol className={s.rows}>
@@ -87,9 +102,9 @@ export default function AdminActivation() {
                 const width = funnel.accounts ? Math.max(0, Math.min(100, (value / funnel.accounts) * 100)) : 0;
                 return (
                   <li key={key} className={s.funnelRow}>
-                    <span className={s.rowTitle} style={{ fontWeight: key === "accounts" ? 700 : 600 }}>{t(`adm.activation.step.${key}`)}</span>
+                    <span className={s.funnelLabel} style={{ fontWeight: key === "accounts" ? 700 : 600 }}>{t(`adm.activation.step.${key}`)}</span>
                     <span className={s.bar} aria-hidden="true"><span className={s.barFill} style={{ display: "block", width: `${width}%` }} /></span>
-                    <span className={s.rowEnd} style={{ fontWeight: 700, justifyContent: "flex-end" }}>{formatCount(value, lang)}</span>
+                    <span className={s.funnelCount}>{formatCount(value, lang)}</span>
                   </li>
                 );
               })}
@@ -120,11 +135,11 @@ export default function AdminActivation() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cohorts.map((row) => {
+                  {cohorts.map((row, index) => {
                     const activation = cohortCell(row.activation, row.cohort_size, row.activation.activated);
                     const returned = cohortCell(row.return_week2, row.cohort_size, row.return_week2.returned);
                     return (
-                      <tr key={row.week_start}>
+                      <tr key={row.week_start} className={`${index === 0 ? s.cohortCurrent : ""} ${!row.activation?.complete ? s.cohortOpen : ""}`}>
                         <th scope="row" className={s.nowrap} style={{ fontSize: 14, fontWeight: 600, color: "var(--bt-text-1)" }}>
                           {t("adm.activation.weekOf").replace("{date}", formatDate(row.week_start, lang, "day"))}
                         </th>
@@ -173,6 +188,7 @@ export default function AdminActivation() {
                     <span className={s.rowMain}>
                       <span className={s.rowTitle} style={{ display: "block" }}>{t(`adm.activation.feature.${key}`)}</span>
                       <span className={s.rowMeta} style={{ display: "block" }}>{t(`adm.activation.feature.${key}Hint`)}</span>
+                      {typeof rate === "number" && <span className={s.usageBar} aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, rate * 100))}%` }} /></span>}
                     </span>
                     <span className={s.rowEnd}>
                       <span>
