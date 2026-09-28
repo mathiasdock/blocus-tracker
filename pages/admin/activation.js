@@ -53,9 +53,18 @@ function RateRow({ label, hint, part, t, lang }) {
   );
 }
 
+function CampaignOutcome({ count, eligible, rate, lang }) {
+  if (!eligible) return <span className={s.muted}>—</span>;
+  return <span>
+    {typeof rate === "number" && <strong>{formatPercent(rate, lang)} · </strong>}
+    {formatCount(count, lang)}/{formatCount(eligible, lang)}
+  </span>;
+}
+
 export default function AdminActivation() {
   const { t, lang } = useI18n();
   const load = useAdminLoad(() => adminRpc("admin_activation"), []);
+  const campaignLoad = useAdminLoad(() => adminRpc("admin_acquisition_campaigns"), []);
   const data = load.data;
   const defs = data?.definitions;
   const funnel = data?.funnel;
@@ -171,6 +180,49 @@ export default function AdminActivation() {
           )}
         </Section>
       )}
+
+      <Section id="campaigns" title={t("adm.campaign.title")} note={t("adm.campaign.note")}>
+        <Panel>
+          {campaignLoad.loading && !campaignLoad.data && <SkeletonRows rows={3} />}
+          {campaignLoad.error && !campaignLoad.data && <ErrorLine code={campaignLoad.error} onRetry={campaignLoad.reload} />}
+          {campaignLoad.data?.campaigns?.length === 0 && <p className={s.note}>{t("adm.campaign.empty")}</p>}
+          {campaignLoad.data?.campaigns?.length > 0 && (
+            <div className={s.tableWrap}>
+              <table className={s.table}>
+                <thead><tr>
+                  <th scope="col">{t("adm.campaign.name")}</th>
+                  <th scope="col" className={s.num}>{t("adm.campaign.visits")}</th>
+                  <th scope="col" className={s.num}>{t("adm.campaign.signups")}</th>
+                  <th scope="col" className={s.num}>{t("adm.campaign.studies")}</th>
+                  <th scope="col" className={s.num}>{t("adm.campaign.course")}</th>
+                  <th scope="col" className={s.num}>{t("adm.campaign.real")}</th>
+                  <th scope="col">{t("adm.campaign.activation")}</th>
+                  <th scope="col">{t("adm.campaign.week2")}</th>
+                </tr></thead>
+                <tbody>{campaignLoad.data.campaigns.map((row) => (
+                  <tr key={row.slug}>
+                    <th scope="row" className={s.nowrap}>
+                      {row.name}<span className={s.rowMeta} style={{ display: "block" }}>{row.slug}</span>
+                    </th>
+                    <td className={s.num}>{formatCount(row.visits, lang)}</td>
+                    <td className={s.num}>
+                      {formatCount(row.signups, lang)}
+                      {typeof row.visit_signup_rate === "number" && <span className={s.rowMeta} style={{ display: "block" }}>
+                        {formatPercent(row.visit_signup_rate, lang)} {t("adm.campaign.ofVisits")}
+                      </span>}
+                    </td>
+                    <td className={s.num}>{formatCount(row.studies, lang)}</td>
+                    <td className={s.num}>{formatCount(row.with_course, lang)}</td>
+                    <td className={s.num}>{formatCount(row.first_real_session, lang)}</td>
+                    <td><CampaignOutcome count={row.activated} eligible={row.activation_eligible} rate={row.signup_activation_rate} lang={lang} /></td>
+                    <td><CampaignOutcome count={row.returned_week2} eligible={row.return_eligible} rate={row.week2_return_rate} lang={lang} /></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+      </Section>
 
       {usage && (
         <Section id="usage" title={t("adm.activation.usage")}

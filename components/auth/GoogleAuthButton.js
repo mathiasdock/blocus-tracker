@@ -3,6 +3,8 @@ import { FormNote } from "./Field";
 import { useI18n } from "../../contexts/I18nContext";
 import { googleRedirectTo, rememberGoogleReturnPath } from "../../lib/googleOAuth.mjs";
 import { isOfflineDev, supabase } from "../../lib/supabaseClient";
+import { hasConsent } from "../../lib/consent";
+import { recordCampaignLanding } from "../../lib/campaignAttribution.mjs";
 
 function GoogleMark() {
   return (
@@ -42,6 +44,10 @@ export default function GoogleAuthButton({ disabled = false, next = null }) {
     }
 
     try {
+      const campaign = new URLSearchParams(window.location.search).get("campaign");
+      if (campaign && hasConsent("analytics")) {
+        await recordCampaignLanding(supabase, window.localStorage, campaign, Date.now(), true);
+      }
       const redirectTo = googleRedirectTo(window.location.origin);
       rememberGoogleReturnPath(window.sessionStorage, Array.isArray(next) ? next[0] : next);
       const { error: oauthError } = await supabase.auth.signInWithOAuth({

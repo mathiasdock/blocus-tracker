@@ -12,6 +12,9 @@ import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
 import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
+import { hasConsent } from "../lib/consent";
+import { pendingCampaignVisit, recordCampaignLanding } from "../lib/campaignAttribution.mjs";
+import { supabase } from "../lib/supabaseClient";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Visual order of the form: the first invalid answer takes the focus.
@@ -87,6 +90,11 @@ export default function Signup() {
     signupInProgress.current = true;
     setBusy(true);
     try {
+      if (hasConsent("analytics") && router.query.campaign) {
+        await recordCampaignLanding(supabase, window.localStorage, router.query.campaign, Date.now(), true);
+      }
+      const campaignVisitId = hasConsent("analytics")
+        ? pendingCampaignVisit(window.localStorage)?.visitId || null : null;
       const result = await signUp({
         pseudo: pseudo.trim(),
         password,
@@ -96,6 +104,7 @@ export default function Signup() {
         referralCode,
         termsVersion: TERMS_VERSION,
         privacyVersion: PRIVACY_VERSION,
+        campaignVisitId,
       });
 
       if (result.error) {

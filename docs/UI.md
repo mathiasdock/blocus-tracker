@@ -24,6 +24,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Shared interface icons | `components/Glyph.js` |
 | Representative controls / sheets | `components/SegmentedGlide.js`, `components/InboxSheet.js`, `components/DetailSheet.js` |
 | Signed-out discovery previews and contextual gates | `components/guest/GuestDiscovery.js`, `components/guest/GuestDiscovery.module.css` |
+| Consent-gated campaign attribution / Admin acquisition | `lib/campaignAttribution.mjs`, `components/CampaignCapture.js`, `pages/admin/activation.js` — `docs/ACQUISITION.md` |
 
 ## Implementation safeguards
 

@@ -6,7 +6,7 @@ import s from "./Landing.module.css";
 
 // Pied de page du site public. Il porte les liens de toutes les pages
 // indexables : chaque guide reste à un clic de n'importe quelle page.
-export default function PublicFooter() {
+export default function PublicFooter({ signupHref = "/signup" }) {
   const { lang } = useI18n();
   const { openSettings } = useConsent();
   const c = getLandingContent(lang).footer;
@@ -27,7 +27,7 @@ export default function PublicFooter() {
               <ul className={s.footerLinks}>
                 {column.links.map(([href, label]) => (
                   <li key={href}>
-                    <Link href={href} className={s.footerLink}>{label}</Link>
+                    <Link href={href === "/signup" ? signupHref : href} className={s.footerLink}>{label}</Link>
                   </li>
                 ))}
               </ul>
