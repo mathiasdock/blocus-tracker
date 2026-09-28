@@ -46,7 +46,11 @@
 
 | Route | File | Role |
 |-------|------|------|
-| `/` | `index.js` | Landing / redirect to /dashboard if logged in |
+| `/` | `index.js` | Public home (hero, bento, rhythm, social, 3 questions, final call) / redirect to /dashboard if logged in; shared public shell in `components/landing/*` |
+| `/fonctionnalites` | `fonctionnalites.js` | Public features page, six areas with demo captures (`lib/siteShots.cjs`) |
+| `/guides` | `guides.js` | Public guides index: four-step method + the six SEO guides |
+| `/faq` | `faq.js` | Public FAQ (full list, FAQPage JSON-LD from `lib/seo.js`) |
+| `/pomodoro` … `/blocus-belgique` | six files | SEO guides rendered by `components/SeoLandingPage.js` from `lib/seoLandingPages(.En).js` |
 | `/login` | `login.js` | Pseudo + password sign-in |
 | `/signup` | `signup.js` | Steps 1–2 of the canonical setup (account + identity) |
 | `/forgot-password` | `forgot-password.js` | Send reset email |

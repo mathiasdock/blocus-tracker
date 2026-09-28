@@ -25,9 +25,9 @@ ${publicPages}
 - Study timer and Pomodoro-style focus sessions.
 - Revision planning for courses, objectives, and exams.
 - Study statistics, streaks, XP, badges, and progress tracking.
-- Optional social features for friends, groups, and student communities.
+- Optional social features: friends, study groups, and course spaces that connect students taking the same course at the same school.
 - Privacy-first account features: personal study data is not intended for public indexing.
-- Public French guides for Pomodoro, revision planning, study statistics, study goals, student productivity apps, and Belgian blocus preparation.
+- Public French pages: features overview, frequently asked questions, a guides index, and guides for Pomodoro, revision planning, study statistics, study goals, student productivity apps, and Belgian blocus preparation.
 
 ## Crawl Guidance
 

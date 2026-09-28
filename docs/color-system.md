@@ -93,7 +93,7 @@ npm run colors:generate
 node scripts/generate-icons.js
 node scripts/generate-splash.mjs
 node scripts/generate-og.js
-node scripts/generate-marketing-shots.cjs /path/to/inspected-captures
+node scripts/generate-site-shots.cjs /path/to/captures   # public site shots (lib/siteShots.cjs)
 ```
 
 Icon silhouette and beige hand are unchanged; only brand fills changed. Eight PNG identity outputs, 38 iOS splash outputs and the OG image were regenerated. Manifest/meta theme colors follow the contract (primary in light, deepest in dark/Focus). Favicon, install icons and splash URLs are versioned to refresh browser caches. OS-installed icons may still require the normal OS refresh/reinstallation lifecycle; the served assets are updated.
@@ -108,7 +108,7 @@ Browser QA used isolated `NEXT_PUBLIC_OFFLINE_DEV=true` on port 3012; app data w
 - Mobile: Dashboard/navigation, Focus running/paused, session summary, Stats, Planning exam and keyboard focus, Activity/Friends, Login/Signup, public homepage.
 - Interactions: start, pause/resume, finish/save success, goals/selected navigation, dark theme, language switch, local message send, Planning exam detail, chart range, input focus and validation error. Red pause/errors and course/exam colors retained.
 - Focus and primary/secondary/own-message pairs have automated contrast coverage. Hover/pressed/disabled rules are checked in source; disabled and keyboard-focused controls are included in rendered inspection.
-- Screenshots: local evidence directory `/tmp/blocus-forest-qa`; representative public captures are committed under `public/site-web/opt`.
+- Screenshots: local evidence directory `/tmp/blocus-forest-qa`; representative public captures were committed under `public/site-web/opt` (replaced on 2026-09-27 by the public-site redesign captures in `public/site-web/v2`, see `lib/siteShots.cjs`).
 
 Run `node --test tests/*.test.mjs`, `npm run lint`, `npm run build`. No backend migration, package dependency addition or behavior redesign is part of this work.
 

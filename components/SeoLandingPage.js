@@ -2,19 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useI18n } from "../contexts/I18nContext";
 import { SEO_LANDING_PAGES_EN } from "../lib/seoLandingPagesEn";
-
-const guideLinks = [
-  { href: "/pomodoro", label: "Pomodoro" },
-  { href: "/planning-revision", label: "Planning" },
-  { href: "/stats-etude", label: "Stats" },
-  { href: "/blocus-belgique", label: "Blocus" },
-];
+import PublicHeader from "./landing/PublicHeader";
+import PublicFooter from "./landing/PublicFooter";
 
 // Chaînes fixes de la coquille (pas propres à une page). Le contenu par page
 // vit dans lib/seoLandingPages(.En).js. Meta/JSON-LD restent FR via SeoHead.
 const UI = {
   fr: {
-    login: "Se connecter", signup: "Créer un compte", guidesAria: "Guides publics", accountAria: "Compte",
+    signup: "Créer un compte",
     included: "Inclus",
     previewAlt: "Aperçu de Blocus Tracker avec chrono, planning et statistiques d'étude",
     shortAnswer: "Réponse courte",
@@ -28,7 +23,7 @@ const UI = {
     startTimer: "Lancer le chrono",
   },
   en: {
-    login: "Sign in", signup: "Create an account", guidesAria: "Public guides", accountAria: "Account",
+    signup: "Create an account",
     included: "Included",
     previewAlt: "Preview of Blocus Tracker with timer, planner and study stats",
     shortAnswer: "Short answer",
@@ -42,43 +37,6 @@ const UI = {
     startTimer: "Start the timer",
   },
 };
-
-function PublicHeader({ ui }) {
-  return (
-    <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-      <Link href="/" className="font-display text-xl font-bold tracking-tight" style={{ color: "var(--bt-text-1)" }}>
-        blocus<span style={{ color: "var(--bt-brand-primary)" }}>·</span>tracker
-      </Link>
-      <nav className="hidden items-center gap-4 text-sm font-semibold md:flex" aria-label={ui.guidesAria}>
-        {guideLinks.map((link) => (
-          <Link key={link.href} href={link.href} className="transition-colors" style={{ color: "var(--bt-text-2)" }}>
-            {link.label}
-          </Link>
-        ))}
-      </nav>
-      <nav className="flex items-center gap-2" aria-label={ui.accountAria}>
-        <Link
-          href="/login"
-          className="rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-          style={{
-            color: "var(--bt-accent-dark)",
-            backgroundColor: "var(--bt-accent-bg)",
-            border: "1px solid var(--bt-accent-border)",
-          }}
-        >
-          {ui.login}
-        </Link>
-        <Link
-          href="/signup"
-          className="hidden rounded-full px-4 py-2 text-sm font-semibold text-white sm:inline-flex"
-          style={{ backgroundColor: "var(--bt-action)", boxShadow: "0 8px 22px rgba(var(--bt-brand-rgb), 0.22)" }}
-        >
-          {ui.signup}
-        </Link>
-      </nav>
-    </header>
-  );
-}
 
 function BulletList({ items }) {
   if (!items?.length) return null;
@@ -104,8 +62,9 @@ export default function SeoLandingPage({ page }) {
   const p = en ? { ...page, ...en } : page;
 
   return (
-    <div className="min-h-screen overflow-hidden" style={{ backgroundColor: "var(--bt-bg)" }}>
-      <PublicHeader ui={ui} />
+    // overflow-x: clip (et non hidden) : l'en-tête commun reste collé en haut.
+    <div className="min-h-screen" style={{ backgroundColor: "var(--bt-bg)", overflowX: "clip" }}>
+      <PublicHeader />
 
       <main>
         <article>
@@ -267,6 +226,7 @@ export default function SeoLandingPage({ page }) {
           </section>
         </article>
       </main>
+      <PublicFooter />
     </div>
   );
 }

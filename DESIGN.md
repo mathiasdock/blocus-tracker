@@ -326,6 +326,16 @@ Every page before the app — sign in, sign up, check email, forgot/reset passwo
 - **Courses.** Type → Enter → the course lands in the list and in the sheet, the entry keeps the focus. A pasted list adds one course per line; a duplicate lights the course it repeats; Backspace on an empty entry selects the last course, a second one removes it. Rename in place (Enter saves, Escape cancels), colour on the dot, remove on ×, one edit at a time. Saves run one after another with a stable client id (Phase 1 idempotency); Finish waits for them and still needs one course. Automatic colours follow `COURSE_COLOR_SEQUENCE` (`lib/courseColors.js`) so the first courses get far-apart hues; the picker keeps the palette in hue order.
 - **Green.** The primary action, the progress bars, the focused row, *Disponible*, the mint of the ground. Course hues only on real courses.
 
+### Public site — the real product, told briefly
+
+`/`, `/fonctionnalites`, `/guides`, `/faq` and the six guides share one header and footer (`components/landing/*`, `Landing.module.css`, copy in `lib/landingContent.js`; shipped 2026-09-27).
+
+- **Real product only.** Screens are captures of a demo student (never an admin account), light theme, in the page's language (`lib/siteShots.cjs`, `scripts/capture-site-shots.mjs` → `scripts/generate-site-shots.cjs`). Progress objects are drawn by the app's own components. No user counts, testimonials or invented figures.
+- **Short home.** Hero, one bento answering "why not just a timer", rhythm, others, three questions, final call. Detail and long answers live on the indexable subpages, linked from the footer.
+- **One raised button** (hero CTA). The final call uses the Hero face on ink; the header uses the standard primary.
+- **Mascot, three times, each for a reason:** seated on the hero screen (reads, waves once when the screen has straightened, looks at the hovered CTA); the rhythm section, where its state follows the real `mascotState` thresholds (0 / 1 / 7 / 30 days); one celebration in the final call. No mascot elsewhere.
+- **Motion** is transform/opacity only: the hero screen straightens with scroll (native scroll timeline, flat without support), the underline blocks fill once. Reduced motion gives the final state (flat screen, filled blocks, mascot at 7 days).
+
 ### Admin — an internal tool, read fast
 
 `/admin/*` (six pages: Today, Members, Activation, Inbox, Communications, System; shipped 2026-09-24, admin rebuild phase 3) is operate-only: it answers "what needs me now?" and "is this number true?". It is not a product surface and borrows none of the study grammar — no Study Blocks, mascot, course tints, reward objects or LIVE badges.
