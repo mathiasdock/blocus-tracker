@@ -770,3 +770,110 @@
   .guideCard:hover { transform: none; }
   .qa::details-content { transition: none; }
 }
+
+/* Accueil seulement : les autres pages publiques partagent ce module. */
+.home .hero {
+  background: radial-gradient(ellipse 66% 44% at 50% 100%, color-mix(in srgb, var(--bt-brand-surface) 42%, transparent), transparent 82%);
+}
+.home .deviceWrap::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -14% -9% -8%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--bt-brand-surface) 74%, transparent), transparent 68%);
+  pointer-events: none;
+}
+.home .deviceWrap { --tilt: 9deg; }
+.home .device {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 22px 42px -25px rgba(var(--bt-brand-deep-rgb), 0.38),
+    0 54px 94px -45px rgba(var(--bt-brand-deepest-rgb), 0.43);
+}
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .home .device { animation-range: 0px 50vh; }
+  }
+}
+
+.home .tourSection { background-color: var(--bt-surface); }
+.home .rhythmSection { background-color: color-mix(in srgb, var(--bt-brand-surface) 30%, var(--bt-bg)); }
+.home .socialSection { background-color: var(--bt-bg); }
+.home .faqSection { background-color: var(--bt-surface); }
+.home .bento { margin-top: 36px; }
+.home .tile {
+  border-color: var(--bt-border);
+  box-shadow: var(--bt-elev-2);
+}
+.home .tilePlan { background-color: var(--bt-subtle); }
+.home .tileFocus { background-color: color-mix(in srgb, var(--bt-brand-surface) 20%, var(--bt-surface)); }
+.home .tileProgress { background-color: var(--bt-surface); }
+.home .rhythmStage {
+  border-color: color-mix(in srgb, var(--bt-brand-surface-strong) 55%, var(--bt-border));
+  box-shadow: var(--bt-elev-2);
+}
+.home .socialPhone {
+  position: relative;
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 25px 54px -29px rgba(var(--bt-brand-deepest-rgb), 0.4);
+}
+.home .socialPhone::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 12% -18%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--bt-brand-surface) 65%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.home .final {
+  box-shadow: 0 28px 58px -38px rgba(var(--bt-brand-deepest-rgb), 0.44);
+}
+
+@media (max-width: 639px) {
+  .home .hero { padding-top: 34px; }
+  .home .heroTitle { margin-top: 10px; }
+  .home .heroLead { margin-top: 22px; }
+  .home .heroActions { margin-top: 22px; }
+  .home .stage { margin-top: 42px; }
+  .home .deviceWrap { --tilt: 4deg; max-width: min(282px, 76vw); }
+  .home .deviceWrap::before { inset: -7% -13% 5%; }
+  .home .section { padding-block: 64px; }
+  .home .bento { margin-top: 32px; }
+  .home .tile { padding: 24px; }
+  .home .tileMedia { margin-top: 22px; }
+  .home .tilePlan .tileMedia { margin-bottom: -24px; }
+  .home .social { gap: 28px; }
+  .home .socialPhone { width: min(308px, 82vw); }
+  .home .rhythm { gap: 24px; }
+  .home .rhythmStage { padding: 22px 20px; }
+  .home .rhythmMascot { width: 136px; height: 136px; }
+  .home .stops { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .home .stops::before,
+  .home .stopsFill {
+    top: 28px;
+    left: 21px;
+    width: 2px;
+    height: calc(100% - 56px);
+  }
+  .home .stops::before { right: auto; }
+  .home .stopsFill {
+    transform: scaleY(var(--progress));
+    transform-origin: top center;
+  }
+  .home .stop {
+    flex-direction: row;
+    gap: 14px;
+    min-height: 52px;
+    padding: 8px 10px;
+    text-align: left;
+  }
+  .home .stopDot { flex: 0 0 24px; }
+  .home .stopDays { min-width: 55px; }
+  .home .stop[aria-pressed="true"] { background-color: color-mix(in srgb, var(--bt-brand-surface) 58%, transparent); }
+  .home .rhythmNote { margin-top: 14px; }
+  .home .final { padding-block: 48px; }
+}

@@ -56,7 +56,7 @@ export default function RhythmSection({ c }) {
 
   const days = STOPS[index];
   return (
-    <section className={s.section} aria-labelledby="rhythm-title">
+    <section className={`${s.section} ${s.rhythmSection}`} aria-labelledby="rhythm-title">
       <div className={`${s.container} ${s.rhythm}`}>
         <div className={s.rhythmHead}>
           <h2 id="rhythm-title" className={`${s.h2} ${s.display}`}>{c.title}</h2>
