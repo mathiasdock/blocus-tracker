@@ -9,6 +9,8 @@
 //   node scripts/capture-site-shots.mjs en desktop
 //   node scripts/capture-site-shots.mjs en mobile
 // et enfin : node scripts/generate-site-shots.cjs <dossier affiché>
+// Pour le hero animé, capturer aussi chrono-ticks focus chrono-finished
+// dans les quatre combinaisons, puis lancer generate-hero-demo-shots.cjs.
 //
 // Tout se passe dans la base locale de la fixture (localStorage) d'un profil
 // Chrome jetable : rien n'est écrit dans Supabase.
@@ -290,25 +292,45 @@ try {
   // peut encore basculer un chrono en cours sur le plus ancien cours au
   // chargement : on réécrit la session et on recharge tant que ce n'est pas le bon.
   const setTimer = () => run(`localStorage.setItem('bt_timer_v2:offline-user-mathias', JSON.stringify({ courseId: 'offline-course-methodo', note: '', running: true, startMs: Date.now() - (47 * 60 + 12) * 1000, baseSeconds: 0, timezone: '${TZ}' })); return 1;`);
-  const openDashboard = async () => {
+  const openDashboard = async (strict = false) => {
     const seen = [];
-    for (let attempt = 0; attempt < 10; attempt += 1) {
+    for (let attempt = 0; attempt < (strict ? 20 : 10); attempt += 1) {
       await setTimer();
       await page.nav(`${BASE}/dashboard?bt_notif=empty`, 4000);
       const courseId = await run(`try { return JSON.parse(localStorage.getItem('bt_timer_v2:offline-user-mathias')).courseId; } catch { return null; }`);
       if (courseId === "offline-course-methodo") return attempt;
       seen.push(courseId);
     }
+    if (strict) throw new Error(`Cours de démo introuvable après ${seen.length} essais : ${seen.join(", ")}`);
     return `course-mismatch: ${seen.join(", ")}`;
   };
   await setTimer();
 
   const Q = "?bt_notif=empty";
   if (want("chrono")) { R.chrono = await openDashboard(); await shot("chrono"); }
-  if (want("focus") && mode === "desktop") {
-    R.focus = await openDashboard();
+  if (only.includes("chrono-ticks")) {
+    R.ticks = await openDashboard(true);
+    await run(`await dismiss(); window.scrollTo(0, 0); return 1;`);
+    await save(`chrono-demo-${mode}`);
+    await sleep(1050);
+    await save(`chrono-tick-1-${mode}`);
+    await sleep(1050);
+    await save(`chrono-tick-2-${mode}`);
+  }
+  if (want("focus") && (mode === "desktop" || only.includes("focus"))) {
+    R.focus = await openDashboard(only.includes("focus"));
     await run(`await dismiss(); const b = [...document.querySelectorAll('button')].find((x) => /^(Focus)$/.test(x.textContent.trim())); if (b) b.click(); await wait(2500); return 1;`);
     await save(`focus-${mode}`);
+  }
+  if (only.includes("chrono-finished")) {
+    R.finished = await openDashboard(true);
+    await run(`await dismiss(); return 1;`);
+    const finished = await clickText(lang === "fr" ? "/Terminer & enregistrer/" : "/Finish & save/i", "button");
+    if (!finished) throw new Error("Bouton de fin de session introuvable");
+    await save(`chrono-reward-${mode}`);
+    await sleep(10500);
+    await run(`await dismiss(); window.scrollTo(0, ${mode === "mobile" ? 420 : 0}); await wait(500); return 1;`);
+    await save(`chrono-finished-${mode}`);
   }
   if (want("planning")) {
     await page.nav(`${BASE}/planning${Q}`, 4000);

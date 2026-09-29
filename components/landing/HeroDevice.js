@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Mascot from "../Mascot";
-import Shot from "./Shot";
+import HeroProductDemo from "./HeroProductDemo";
 import s from "./Landing.module.css";
 
 // L'écran du hero : le vrai Chrono (ordinateur, ou téléphone sous 640 px),
@@ -39,16 +39,7 @@ export default function HeroDevice({ lang, alt }) {
           <div className={s.mascotSeat} aria-hidden="true">
             <Mascot mood={mood} size={88} />
           </div>
-          <Shot
-            lang={lang}
-            name="chrono-desktop"
-            mobile="chrono-mobile"
-            alt={alt}
-            sizes="(min-width: 1100px) 1020px, 92vw"
-            mobileSizes="76vw"
-            className={s.screen}
-            priority
-          />
+          <HeroProductDemo lang={lang} alt={alt} />
         </div>
       </div>
     </div>
