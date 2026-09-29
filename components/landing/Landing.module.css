@@ -224,10 +224,89 @@
   object-fit: cover;
   object-position: top center;
 }
+/* Le cadre garde seul le scroll/tilt. Les calques de l'interface gardent la
+   même géométrie et ne compositent que l'opacité : pas de reflow ni de vidéo. */
+.demoBase,
+.demoTickOne,
+.demoTickTwo,
+.demoFocus,
+.demoProgress,
+.demoReward {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.demoTickOne,
+.demoTickTwo,
+.demoFocus,
+.demoProgress,
+.demoReward { opacity: 0; }
+/* 6,4 s : chrono 0–1,2 ; Focus 1,2–3 ; fin 3–3,7 ;
+   récompense 3,7–4,5 ; progression 4,5–5,8 ; fondu retour 5,8–6,4. */
+.demoTickOne { animation: bt-demo-tick-one 6.4s linear infinite both paused; }
+.demoTickTwo { animation: bt-demo-tick-two 6.4s linear infinite both paused; }
+.demoFocus { animation: bt-demo-focus 6.4s cubic-bezier(0.22, 1, 0.36, 1) infinite both paused; }
+.demoProgress { animation: bt-demo-progress 6.4s cubic-bezier(0.22, 1, 0.36, 1) infinite both paused; }
+.demoReward { animation: bt-demo-reward 6.4s cubic-bezier(0.22, 1, 0.36, 1) infinite both paused; }
+.demoFocusPress,
+.demoFinishPress {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.demoFocusPress { left: 62.9%; top: 4.3%; width: 8.6%; height: 5.9%; animation: bt-demo-focus-press 6.4s linear infinite both paused; }
+.demoFinishPress { left: 46.1%; top: 64.2%; width: 17.2%; height: 5.6%; animation: bt-demo-finish-press 6.4s linear infinite both paused; }
+.screen[data-demo-running="true"] .demoTickOne,
+.screen[data-demo-running="true"] .demoTickTwo,
+.screen[data-demo-running="true"] .demoFocus,
+.screen[data-demo-running="true"] .demoProgress,
+.screen[data-demo-running="true"] .demoReward,
+.screen[data-demo-running="true"] .demoFocusPress,
+.screen[data-demo-running="true"] .demoFinishPress { animation-play-state: running; }
+@keyframes bt-demo-tick-one {
+  0%, 6% { opacity: 0; }
+  7%, 16% { opacity: 1; }
+  17%, 100% { opacity: 0; }
+}
+@keyframes bt-demo-tick-two {
+  0%, 16% { opacity: 0; }
+  17%, 23% { opacity: 1; }
+  26%, 100% { opacity: 0; }
+}
+@keyframes bt-demo-focus {
+  0%, 19% { opacity: 0; }
+  25%, 47% { opacity: 1; }
+  53%, 100% { opacity: 0; }
+}
+@keyframes bt-demo-progress {
+  0%, 50% { opacity: 0; }
+  56%, 92% { opacity: 1; }
+  98%, 100% { opacity: 0; }
+}
+@keyframes bt-demo-reward {
+  0%, 55% { opacity: 0; }
+  60%, 71% { opacity: 1; }
+  76%, 100% { opacity: 0; }
+}
+@keyframes bt-demo-focus-press {
+  0%, 17%, 21%, 100% { opacity: 0; transform: scale(1); }
+  18%, 19% { opacity: 1; transform: scale(0.98); }
+}
+@keyframes bt-demo-finish-press {
+  0%, 47%, 52%, 100% { opacity: 0; transform: scale(1); }
+  49%, 50% { opacity: 1; transform: scale(0.98); }
+}
 @media (max-width: 639px) {
   .deviceWrap { --tilt: 8deg; max-width: min(290px, 76vw); }
   .device { padding: 8px; border-radius: 42px; }
   .screen { aspect-ratio: 390 / 844; border-radius: 34px; }
+  .demoFocusPress { left: 68.3%; top: 11%; width: 22.5%; height: 5.4%; }
+  .demoFinishPress { left: 51.2%; top: 63%; width: 44.7%; height: 5.8%; }
 }
 @supports (animation-timeline: scroll()) {
   @media (prefers-reduced-motion: no-preference) {
@@ -769,6 +848,8 @@
   .stopsFill, .stopDot, .qaChevron, .textLink svg, .guideCard, .navLink, .loginLink { transition: none; }
   .guideCard:hover { transform: none; }
   .qa::details-content { transition: none; }
+  .demoTickOne, .demoTickTwo, .demoFocus, .demoProgress, .demoReward,
+  .demoFocusPress, .demoFinishPress { animation: none; opacity: 0; }
 }
 
 /* Accueil seulement : les autres pages publiques partagent ce module. */

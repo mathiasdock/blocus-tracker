@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-29 — Codex — Démonstration du produit dans le hero public
+
+- Le cadre Chrono conserve son redressement lié au défilement ; l'interface à l'intérieur joue une boucle illustrative de 6,4 s : temps actif, Focus, fin de session, carte réelle « +47 XP », puis progression et session enregistrée. Captures FR/EN, mobile/desktop, produites depuis la fixture locale hors ligne. Le chrono libre compte vers le haut (47:16 → 47:18), comme dans le vrai produit. La progression du jour reste à 1h32 car elle incluait déjà la session en cours ; la ligne hebdomadaire et la liste des sessions reflètent l'enregistrement.
+- Calques WebP et CSS (opacité, micro-pression sur les contrôles) ; aucun runtime de vidéo ou d'animation ni connexion à des données réelles. Les images restent aux dimensions de la capture ; un IntersectionObserver démarre la boucle au quart du mockup visible, la suspend hors écran, et `visibilitychange` la suspend en onglet caché. `prefers-reduced-motion` garde l'état Chrono statique. Les animations existantes de « Garde le rythme » et du CTA final suffisent comme accents secondaires.
+- Vérification Chrome : 360×800, 375×812, 390×844, 430×932, 1366, 1440, 1920 et paysage 844×390, sans débordement ; phase Focus, reward et progression contrôlées. À 390 px, un cycle de 6,6 s : 395 images, intervalle médian 16,7 ms, p95 16,8 ms, zéro layout shift et zéro tâche longue observée. Pause hors écran, retour, onglet caché simulé et mouvement réduit vérifiés. Lint sans avertissement ; build offline vert (avertissement PWA de 3 MB préexistant). Safari natif reste à contrôler sans interrompre l'onglet personnel actif.
+
 ## 2026-09-28 — Codex — Auth prête pour Turnstile et confirmation email
 
 - Un widget Turnstile partagé, conditionné à une site key publique, couvre inscription email, connexion email/pseudo et demande de reset. Token transmis par les options officielles Supabase, renouvelé après chaque tentative/expiration/erreur ; Supabase Auth vérifie le jeton de connexion par pseudo, sans bloquer les anciennes PWA pendant la phase de déploiement préalable. Un email déjà utilisé sur Signup renvoie clairement vers Login, qui peut reprendre un ancien profil incomplet avec un nouveau jeton. Google OAuth et le callback ne changent pas.
