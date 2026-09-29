@@ -47,7 +47,7 @@ export default function Home() {
   }, [loading, profileStatus, router, user]);
 
   return (
-    <div className={`${s.page} font-sans`}>
+    <div className={`${s.page} ${s.home} font-sans`}>
       <PublicHeader signupHref={signupHref} />
 
       <main>
@@ -88,7 +88,7 @@ export default function Home() {
         </section>
 
         {/* ── Un chrono, oui. Et tout ce qui va autour. ────────────────── */}
-        <section className={s.section} aria-labelledby="tour-title">
+        <section className={`${s.section} ${s.tourSection}`} aria-labelledby="tour-title">
           <div className={s.container}>
             <div className={s.sectionHead}>
               <h2 id="tour-title" className={`${s.h2} ${s.display}`}>
@@ -142,7 +142,7 @@ export default function Home() {
         <RhythmSection c={c.rhythm} />
 
         {/* ── Tu n'étudies pas seul. ───────────────────────────────────── */}
-        <section className={s.section} aria-labelledby="social-title">
+        <section className={`${s.section} ${s.socialSection}`} aria-labelledby="social-title">
           <div className={`${s.container} ${s.social}`}>
             <div className={s.socialHead}>
               <h2 id="social-title" className={`${s.h2} ${s.display}`}>{c.social.title}</h2>
@@ -163,7 +163,7 @@ export default function Home() {
         </section>
 
         {/* ── Avant de commencer ───────────────────────────────────────── */}
-        <section className={s.section} aria-labelledby="faq-title">
+        <section className={`${s.section} ${s.faqSection}`} aria-labelledby="faq-title">
           <div className={`${s.container} ${s.faq}`}>
             <div>
               <h2 id="faq-title" className={`${s.h2} ${s.display}`}>{c.faq.title}</h2>
