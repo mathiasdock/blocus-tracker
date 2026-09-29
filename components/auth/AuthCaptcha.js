@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { useI18n } from "../../contexts/I18nContext";
 import { AUTH_CAPTCHA_ENABLED } from "../../lib/authCaptcha.mjs";
@@ -19,9 +19,13 @@ export function useAuthCaptcha() {
 
   const requireToken = useCallback(() => {
     if (!AUTH_CAPTCHA_ENABLED) return true;
-    if (token && !widget.current?.isExpired()) return true;
-    if (token) reset();
-    setState(current => current === "error" ? current : "missing");
+    if (token) {
+      if (!widget.current?.isExpired()) return true;
+      reset();
+      setState("expired");
+      return false;
+    }
+    setState(current => (current === "error" || current === "expired") ? current : "missing");
     return false;
   }, [token, reset]);
 
@@ -33,6 +37,19 @@ export default function AuthCaptcha({ controller }) {
   const { enabled, setToken, setState } = controller;
   const [dark, setDark] = useState(false);
   const [compact, setCompact] = useState(false);
+  // Stable across unrelated form renders. The library also memoizes primitive
+  // options internally, but keeping this object stable makes the contract clear.
+  const options = useMemo(() => ({
+    theme: dark ? "dark" : "light",
+    language: lang,
+    size: compact ? "compact" : "flexible",
+    // A Cloudflare challenge failure must not silently start another challenge
+    // forever. The visible Retry action below is the only recovery path.
+    retry: "never",
+    refreshExpired: "manual",
+    refreshTimeout: "manual",
+    responseField: false,
+  }), [dark, compact, lang]);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -83,7 +100,7 @@ export default function AuthCaptcha({ controller }) {
       setToken("");
       setState("pending");
     }
-  }, [enabled, setToken, setState, dark, compact, lang]);
+  }, [enabled, setToken, setState, options]);
 
   if (!enabled) return null;
 
@@ -100,14 +117,7 @@ export default function AuthCaptcha({ controller }) {
       <Turnstile
         ref={controller.widget}
         siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-        options={{
-          theme: dark ? "dark" : "light",
-          language: lang,
-          size: compact ? "compact" : "flexible",
-          refreshExpired: "auto",
-          refreshTimeout: "auto",
-          responseField: false,
-        }}
+        options={options}
         onSuccess={value => {
           controller.setToken(value);
           controller.setState("ready");
@@ -128,6 +138,7 @@ export default function AuthCaptcha({ controller }) {
           }
           controller.setToken("");
           controller.setState("error");
+          return true; // Tell Turnstile that the error has been handled.
         }}
         onUnsupported={() => {
           controller.setToken("");
@@ -137,7 +148,7 @@ export default function AuthCaptcha({ controller }) {
       {statusText && (
         <div className="bt-auth-captcha-status" role="alert">
           <span>{statusText}</span>
-          {(controller.state === "error" || controller.state === "script-error") && (
+          {(controller.state === "error" || controller.state === "script-error" || controller.state === "expired") && (
             <button
               type="button"
               onClick={controller.state === "script-error" ? () => window.location.reload() : controller.reset}
