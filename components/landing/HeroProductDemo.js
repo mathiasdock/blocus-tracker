@@ -6,6 +6,7 @@ import s from "./Landing.module.css";
 function DemoFrame({ lang, frame, className, alt = "", priority = false }) {
   const locale = lang === "en" ? "en" : "fr";
   const root = `/site-web/hero-demo/${locale}/${frame}`;
+  const detail = frame === "reward" || frame === "progress";
   return (
     <picture className={className}>
       <source media="(max-width: 639px)"
@@ -14,7 +15,7 @@ function DemoFrame({ lang, frame, className, alt = "", priority = false }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={`${root}-desktop-1600.webp`}
         srcSet={`${root}-desktop-1100.webp 1100w, ${root}-desktop-1600.webp 1600w`}
-        sizes="(min-width: 1100px) 1020px, 92vw"
+        sizes={detail ? "(min-width: 1100px) 1600px, 140vw" : "(min-width: 1100px) 1020px, 92vw"}
         width="1600" height="1000" alt={alt}
         loading={priority ? "eager" : "lazy"} decoding="async"
         fetchpriority={priority ? "high" : undefined} />

@@ -4,9 +4,8 @@ import { useI18n } from "../../contexts/I18nContext";
 import { getLandingContent } from "../../lib/landingContent";
 import s from "./Landing.module.css";
 
-// En-tête commun du site public (accueil, fonctionnalités, guides, FAQ et les
-// six guides). Sur téléphone : la marque et « Se connecter » — l'appel
-// principal est déjà dans chaque page, les autres liens dans le pied de page.
+// En-tête commun du site public. Sur téléphone, l'inscription reste l'action
+// principale, avec un libellé court qui préserve l'accès à la connexion.
 export default function PublicHeader({ signupHref = "/signup" }) {
   const { lang } = useI18n();
   const { pathname } = useRouter();
@@ -27,7 +26,10 @@ export default function PublicHeader({ signupHref = "/signup" }) {
         </nav>
         <div className={s.headerActions}>
           <Link href="/login" className={s.loginLink}>{c.login}</Link>
-          <Link href={signupHref} className={`btn-primary ${s.headerCta}`}>{c.signup}</Link>
+          <Link href={signupHref} className={`btn-primary ${s.headerCta}`} aria-label={c.signup}>
+            <span className={s.headerCtaMobile}>{c.signupMobile}</span>
+            <span className={s.headerCtaDesktop}>{c.signup}</span>
+          </Link>
         </div>
       </div>
     </header>

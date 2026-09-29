@@ -135,6 +135,25 @@ export default function Home() {
                 {c.tour.more} <Arrow />
               </Link>
             </p>
+
+            <div className={s.devicePair} aria-labelledby="devices-title">
+              <h3 id="devices-title" className={`${s.devicePairTitle} ${s.display}`}>
+                {c.devices.title}
+              </h3>
+              <div className={s.devicePairVisual}>
+                <div className={s.laptop}>
+                  <div className={s.laptopScreen}>
+                    <Shot lang={lang} name="chrono-desktop" alt={c.devices.desktopAlt}
+                      sizes="(min-width: 1024px) 650px, (min-width: 640px) 65vw, 80vw" />
+                  </div>
+                  <div className={s.laptopBase} aria-hidden="true" />
+                </div>
+                <div className={s.pairPhone}>
+                  <Shot lang={lang} name="chrono-mobile" alt={c.devices.mobileAlt}
+                    sizes="(min-width: 1024px) 170px, 33vw" />
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

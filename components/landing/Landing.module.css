@@ -54,7 +54,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  font-size: 1.25rem;
+  font-size: 1.0625rem;
   letter-spacing: -0.02em;
   color: var(--bt-text-1);
 }
@@ -74,27 +74,46 @@
 }
 .navLink:hover { background-color: var(--bt-subtle); color: var(--bt-text-1); }
 .navLink[aria-current="page"] { background-color: var(--bt-subtle); color: var(--bt-text-1); }
-.headerActions { display: flex; align-items: center; gap: 8px; }
+.headerActions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .loginLink {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 4px;
   border-radius: 999px;
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--bt-text-1);
   transition: background-color 0.15s ease;
 }
 .loginLink:hover { background-color: var(--bt-subtle); }
-.headerCta { display: none; }
+.headerActions .headerCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.headerCtaDesktop { display: none; }
+@media (max-width: 379px) {
+  .wordmark { font-size: 1rem; }
+  .headerInner { gap: 6px; }
+}
 @media (min-width: 640px) {
+  .wordmark { font-size: 1.25rem; }
+  .headerActions { gap: 8px; }
+  .loginLink { padding: 0 16px; font-size: 0.9375rem; }
   .headerActions .headerCta {
     display: inline-flex;
     min-height: 44px;
     padding: 0 18px;
     font-size: 0.9375rem;
   }
+  .headerCtaMobile { display: none; }
+  .headerCtaDesktop { display: inline; }
 }
 
 /* ── Boutons d'appel ─────────────────────────────────────────────────── */
@@ -122,7 +141,7 @@
 
 /* ── Hero ────────────────────────────────────────────────────────────── */
 .hero { position: relative; padding-top: 52px; }
-@media (min-width: 768px) { .hero { padding-top: 84px; } }
+@media (min-width: 768px) { .hero { padding-top: 40px; } }
 .heroCopy { max-width: 820px; margin-inline: auto; text-align: center; }
 .eyebrow {
   font-size: 0.875rem;
@@ -174,20 +193,20 @@
 }
 .heroLead {
   max-width: 35rem;
-  margin: 30px auto 0;
+  margin: 24px auto 0;
   font-size: 1.0625rem;
   line-height: 1.6;
   color: var(--bt-text-2);
 }
 @media (min-width: 768px) { .heroLead { font-size: 1.1875rem; } }
-.heroActions { margin-top: 30px; }
+.heroActions { margin-top: 24px; }
 
 /* L'écran : incliné au chargement, il se redresse pendant le premier tiers
    de défilement (animation pilotée par le défilement, native, sans
    librairie). Pivot en bas : le haut de l'écran recule, ce qui se voit dès le
    premier écran ; la mascotte, assise sur le cadre, suit le même plan. */
-.stage { margin-top: 56px; }
-@media (min-width: 640px) { .stage { margin-top: 72px; } }
+.stage { margin-top: 48px; }
+@media (min-width: 640px) { .stage { margin-top: 12px; } }
 /* La perspective s'applique aux enfants directs : elle vit sur le parent
    immédiat de l'écran incliné. */
 .deviceWrap {
@@ -242,13 +261,25 @@
 .demoFocus,
 .demoProgress,
 .demoReward { opacity: 0; }
-/* 6,4 s : chrono 0–1,2 ; Focus 1,2–3 ; fin 3–3,7 ;
-   récompense 3,7–4,5 ; progression 4,5–5,8 ; fondu retour 5,8–6,4. */
-.demoTickOne { animation: bt-demo-tick-one 6.4s linear infinite both paused; }
-.demoTickTwo { animation: bt-demo-tick-two 6.4s linear infinite both paused; }
-.demoFocus { animation: bt-demo-focus 6.4s cubic-bezier(0.22, 1, 0.36, 1) infinite both paused; }
-.demoProgress { animation: bt-demo-progress 6.4s cubic-bezier(0.22, 1, 0.36, 1) infinite both paused; }
-.demoReward { animation: bt-demo-reward 6.4s cubic-bezier(0.22, 1, 0.36, 1) infinite both paused; }
+/* 10 s : session 0–2 ; Focus 2–5 ; fin 5–6 ; reward 6–7,4 ;
+   progression 7,4–9,1 ; retour croisé 9,1–10. La base reste visible
+   sous tous les calques : jamais de cadre vide au passage de la boucle. */
+.demoTickOne { animation: bt-demo-tick-one 10s linear infinite both paused; }
+.demoTickTwo { animation: bt-demo-tick-two 10s linear infinite both paused; }
+.demoFocus { animation: bt-demo-focus 10s ease-in-out infinite both paused; }
+.demoProgress { animation: bt-demo-progress 10s ease-in-out infinite both paused; }
+.demoReward { animation: bt-demo-reward 10s ease-in-out infinite both paused; }
+/* Après la fin, le cadrage descend vers la progression réelle de la capture.
+   Le chrono arrêté, situé plus haut, n'entre jamais dans la fenêtre visible. */
+.demoProgress img,
+.demoReward img {
+  position: absolute;
+  top: -50%;
+  left: -52%;
+  width: 150%;
+  height: 150%;
+  max-width: none;
+}
 .demoFocusPress,
 .demoFinishPress {
   position: absolute;
@@ -259,8 +290,8 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.18);
 }
-.demoFocusPress { left: 62.9%; top: 4.3%; width: 8.6%; height: 5.9%; animation: bt-demo-focus-press 6.4s linear infinite both paused; }
-.demoFinishPress { left: 46.1%; top: 64.2%; width: 17.2%; height: 5.6%; animation: bt-demo-finish-press 6.4s linear infinite both paused; }
+.demoFocusPress { left: 62.9%; top: 4.3%; width: 8.6%; height: 5.9%; animation: bt-demo-focus-press 10s linear infinite both paused; }
+.demoFinishPress { left: 46.1%; top: 64.2%; width: 17.2%; height: 5.6%; animation: bt-demo-finish-press 10s linear infinite both paused; }
 .screen[data-demo-running="true"] .demoTickOne,
 .screen[data-demo-running="true"] .demoTickTwo,
 .screen[data-demo-running="true"] .demoFocus,
@@ -270,36 +301,36 @@
 .screen[data-demo-running="true"] .demoFinishPress { animation-play-state: running; }
 @keyframes bt-demo-tick-one {
   0%, 6% { opacity: 0; }
-  7%, 16% { opacity: 1; }
-  17%, 100% { opacity: 0; }
+  7%, 12% { opacity: 1; }
+  13%, 100% { opacity: 0; }
 }
 @keyframes bt-demo-tick-two {
-  0%, 16% { opacity: 0; }
-  17%, 23% { opacity: 1; }
-  26%, 100% { opacity: 0; }
+  0%, 12% { opacity: 0; }
+  13%, 20% { opacity: 1; }
+  22%, 100% { opacity: 0; }
 }
 @keyframes bt-demo-focus {
-  0%, 19% { opacity: 0; }
-  25%, 47% { opacity: 1; }
-  53%, 100% { opacity: 0; }
+  0%, 20% { opacity: 0; }
+  31%, 50% { opacity: 1; }
+  56%, 100% { opacity: 0; }
 }
 @keyframes bt-demo-progress {
-  0%, 50% { opacity: 0; }
-  56%, 92% { opacity: 1; }
-  98%, 100% { opacity: 0; }
+  0%, 55% { opacity: 0; }
+  60%, 92% { opacity: 1; }
+  99%, 100% { opacity: 0; }
 }
 @keyframes bt-demo-reward {
-  0%, 55% { opacity: 0; }
-  60%, 71% { opacity: 1; }
-  76%, 100% { opacity: 0; }
+  0%, 60% { opacity: 0; }
+  63%, 74% { opacity: 1; }
+  78%, 100% { opacity: 0; }
 }
 @keyframes bt-demo-focus-press {
-  0%, 17%, 21%, 100% { opacity: 0; transform: scale(1); }
-  18%, 19% { opacity: 1; transform: scale(0.98); }
+  0%, 18%, 22%, 100% { opacity: 0; transform: scale(1); }
+  19%, 20% { opacity: 1; transform: scale(0.98); }
 }
 @keyframes bt-demo-finish-press {
-  0%, 47%, 52%, 100% { opacity: 0; transform: scale(1); }
-  49%, 50% { opacity: 1; transform: scale(0.98); }
+  0%, 49%, 53%, 100% { opacity: 0; transform: scale(1); }
+  50%, 51% { opacity: 1; transform: scale(0.98); }
 }
 @media (max-width: 639px) {
   .deviceWrap { --tilt: 8deg; max-width: min(290px, 76vw); }
@@ -307,6 +338,11 @@
   .screen { aspect-ratio: 390 / 844; border-radius: 34px; }
   .demoFocusPress { left: 68.3%; top: 11%; width: 22.5%; height: 5.4%; }
   .demoFinishPress { left: 51.2%; top: 63%; width: 44.7%; height: 5.8%; }
+  .demoProgress img,
+  .demoReward img { top: 0; left: 0; width: 100%; height: 100%; }
+  /* La carte de fin est la vraie capture, sur la capture de progression
+     défilée. Le haut où figure 00:00 reste hors du calque visible. */
+  .demoReward { clip-path: inset(61% 0 8% 0); transform: translateY(-30%); }
 }
 @supports (animation-timeline: scroll()) {
   @media (prefers-reduced-motion: no-preference) {
@@ -481,6 +517,80 @@
 .objectBlocks :global(.bt-blocks) { justify-content: flex-start; }
 .streakRow { display: flex; align-items: center; gap: 10px; }
 .badgeRow { display: flex; align-items: center; gap: 10px; }
+
+/* Deux formats du même vrai Chrono, dans un seul moment compact. */
+.devicePair {
+  display: grid;
+  gap: 12px;
+  margin-top: 48px;
+  padding: 28px 20px 12px;
+  overflow: hidden;
+  border-radius: var(--bt-r-sheet);
+  background-color: var(--bt-brand-surface);
+}
+.devicePairTitle {
+  max-width: 17ch;
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--bt-text-1);
+}
+.devicePairVisual {
+  position: relative;
+  width: min(100%, 660px);
+  height: clamp(280px, 80vw, 365px);
+  margin-inline: auto;
+}
+.laptop {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  width: 94%;
+}
+.laptopScreen {
+  overflow: hidden;
+  padding: 6px;
+  aspect-ratio: 1440 / 900;
+  border-radius: 15px 15px 5px 5px;
+  background-color: var(--bt-brand-deep);
+  box-shadow: 0 18px 32px -22px rgba(var(--bt-brand-deepest-rgb), 0.48);
+}
+.laptopScreen picture,
+.pairPhone picture { display: block; width: 100%; height: 100%; overflow: hidden; }
+.laptopScreen img,
+.pairPhone img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.laptopBase {
+  position: relative;
+  left: -4%;
+  width: 108%;
+  height: 10px;
+  border-radius: 0 0 55% 55%;
+  background-color: var(--bt-subtle);
+  box-shadow: 0 12px 18px -14px rgba(var(--bt-brand-deepest-rgb), 0.5);
+}
+.pairPhone {
+  position: absolute;
+  top: 68px;
+  right: 0;
+  width: 34%;
+  padding: 5px;
+  aspect-ratio: 390 / 844;
+  border-radius: 19px;
+  background-color: var(--bt-brand-deep);
+  box-shadow: 0 19px 36px -18px rgba(var(--bt-brand-deepest-rgb), 0.52);
+}
+.pairPhone picture { border-radius: 14px; }
+@media (min-width: 900px) {
+  .devicePair {
+    grid-template-columns: minmax(210px, 0.65fr) minmax(0, 1.35fr);
+    align-items: center;
+    gap: 12px;
+    padding: 30px 34px;
+  }
+  .devicePairVisual { height: 390px; }
+  .laptop { top: 8px; width: 88%; }
+  .pairPhone { top: 74px; width: 26%; }
+}
 
 /* ── « Garde le rythme. » ────────────────────────────────────────────── */
 /* Téléphone : texte, mascotte, puis les étapes qui la pilotent.
@@ -915,11 +1025,11 @@
 }
 
 @media (max-width: 639px) {
-  .home .hero { padding-top: 34px; }
+  .home .hero { padding-top: 30px; }
   .home .heroTitle { margin-top: 10px; }
   .home .heroLead { margin-top: 22px; }
   .home .heroActions { margin-top: 22px; }
-  .home .stage { margin-top: 42px; }
+  .home .stage { margin-top: 36px; }
   .home .deviceWrap { --tilt: 4deg; max-width: min(282px, 76vw); }
   .home .deviceWrap::before { inset: -7% -13% 5%; }
   .home .section { padding-block: 64px; }

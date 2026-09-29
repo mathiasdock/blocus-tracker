@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-29 — Codex — Hero plus présent, deux appareils visibles, démo plus calme
+
+La page d'accueil remonte le cadre du Chrono dans le premier écran desktop sans agrandir l'interface. Le header public conserve la connexion et rend l'inscription primaire sur téléphone avec un libellé court. Un bloc compact après le bento montre le même vrai Chrono sur ordinateur et téléphone, en français ou en anglais, à partir des captures existantes.
+
+La démo du hero passe de 6,4 à 10 secondes : session active 0–2 s, Focus 2–5 s, fin 5–6 s, récompense 6–7,4 s, progression 7,4–9,2 s, retour croisé jusqu'à 10 s. Les captures de fin sont cadrées hors du chrono arrêté à 00:00 ; le mobile place la vraie carte de récompense au centre du téléphone. La pause hors viewport/onglet caché et le mode mouvement réduit restent actifs. Aucun nouvel asset vidéo, dépendance ou changement métier.
+
+La fixture de capture montre la semaine et l'objectif mis à jour, mais pas le total « Progression du jour » ; la démo ne modifie pas cette donnée. QA : Chrome 360/375/390/430/768/1366/1440/1920 sans débordement ; 613 images en 10,2 s à 390 px/2× (p95 16,8 ms), zéro décalage de mise en page, compteurs de layout identiques démo active et suspendue. IntersectionObserver, mouvement réduit et libellés anglais vérifiés. Safari natif a exposé le bon arbre d'accessibilité et le libellé du CTA, mais sa capture visuelle était noire dans l'outil de contrôle ; son rendu reste à vérifier sur l'appareil. Lint et build production réussis ; la vidéo et les captures de contrôle sont hors du dépôt.
+
 ## 2026-09-29 — Codex — Démonstration du produit dans le hero public
 
 - Le cadre Chrono conserve son redressement lié au défilement ; l'interface à l'intérieur joue une boucle illustrative de 6,4 s : temps actif, Focus, fin de session, carte réelle « +47 XP », puis progression et session enregistrée. Captures FR/EN, mobile/desktop, produites depuis la fixture locale hors ligne. Le chrono libre compte vers le haut (47:16 → 47:18), comme dans le vrai produit. La progression du jour reste à 1h32 car elle incluait déjà la session en cours ; la ligne hebdomadaire et la liste des sessions reflètent l'enregistrement.

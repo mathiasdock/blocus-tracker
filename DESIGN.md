@@ -331,10 +331,10 @@ Every page before the app — sign in, sign up, check email, forgot/reset passwo
 `/`, `/fonctionnalites`, `/guides`, `/faq` and the six guides share one header and footer (`components/landing/*`, `Landing.module.css`, copy in `lib/landingContent.js`; shipped 2026-09-27).
 
 - **Real product only.** Screens are captures of a demo student (never an admin account), light theme, in the page's language (`lib/siteShots.cjs`, `scripts/capture-site-shots.mjs` → `scripts/generate-site-shots.cjs`). Progress objects are drawn by the app's own components. No user counts, testimonials or invented figures.
-- **Short home.** Hero, one bento answering "why not just a timer", rhythm, others, three questions, final call. Detail and long answers live on the indexable subpages, linked from the footer.
+- **Short home.** Hero, one bento answering "why not just a timer", a compact phone/computer pair using real Chrono captures, rhythm, others, three questions, final call. Detail and long answers live on the indexable subpages, linked from the footer.
 - **One raised button** (hero CTA). The final call uses the Hero face on ink; the header uses the standard primary.
 - **Mascot, three times, each for a reason:** seated on the hero screen (reads, waves once when the screen has straightened, looks at the hovered CTA); the rhythm section, where its state follows the real `mascotState` thresholds (0 / 1 / 7 / 30 days); one celebration in the final call. No mascot elsewhere.
-- **Motion** is transform/opacity only: the hero screen straightens with scroll (native scroll timeline, flat without support), the underline blocks fill once. Reduced motion gives the final state (flat screen, filled blocks, mascot at 7 days).
+- **Motion** is transform/opacity only: the hero device straightens with scroll (native scroll timeline, flat without support), while its capture layers tell the session → Focus → reward → saved progression story in a 10 s CSS loop. The capture loop pauses outside the viewport or in a hidden tab. Reduced motion keeps one static active Chrono, a flat screen and filled underline blocks. The phone/computer pair is static.
 
 ### Admin — an internal tool, read fast
 
