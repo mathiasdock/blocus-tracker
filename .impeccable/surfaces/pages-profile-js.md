@@ -9,6 +9,8 @@ related_targets: ["components/ProfileAchievementCards.js", "components/ProfileAc
 
 The profile is an **Operate** surface. This extension covers the two side-by-side navigation cards beneath the identity section: progression opens `/progression`, and the badge collection opens `/badges`. Each entire card is a link. Existing profile settings and navigation retain their roles.
 
+The rare badge/max-level mascot intervention is now anchored to the achievement area as an overlay, instead of reserving a row below the two cards. The permanent mascot inside Progression keeps its data-linked role; no new mascot event or reward condition was added.
+
 ## Audience, job and task
 
 Students should recognize their current level, remaining XP and earned collection at a glance, then open the relevant detail page. The pair stays compact enough to keep the profile's other actions accessible on a phone.

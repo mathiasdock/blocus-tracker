@@ -13,6 +13,7 @@ import {
 } from "../lib/blocus";
 import { localISO } from "../lib/format";
 import { studyDayMinSeconds } from "../lib/studyDayStates.mjs";
+import { timerExamUrgency } from "../lib/timerExamContext.mjs";
 
 const fmtH = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10);
 
@@ -58,7 +59,7 @@ function DurationBadge({ days, t }) {
   if (!days) return null;
   const label = days === 1 ? t("blocus.durationOne") : t("blocus.duration").replace("{n}", String(days));
   return (
-    <span className="font-num inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
+    <span className="font-num inline-flex items-center gap-1.5 text-xs font-semibold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
       <CalendarIcon size={13} />
       {label}
     </span>
@@ -121,7 +122,7 @@ function ExamHorizon({ exams, courses, locale, t }) {
                 </span>
                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: course?.color || "var(--bt-text-4)" }} aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{exam.name || course?.name || t("dash.noCourse")}</span>
-                <span className="font-num shrink-0 text-xs font-bold tabular-nums" style={{ color: left <= 7 ? "var(--bt-accent-text)" : "var(--bt-text-3)" }}>{when}</span>
+                <span className="bt-dashboard-exam-relative font-num shrink-0 text-xs font-bold tabular-nums" data-urgency={timerExamUrgency(left)}>{when}</span>
               </li>
             );
           })}
@@ -258,7 +259,7 @@ export default function BlocusCard({ studyDays, exams, courses = [], onChange, c
     <section className={`card bt-dashboard-card-mint flex min-w-0 flex-col p-4 sm:p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <PeriodHeading>{t("blocus.title")}</PeriodHeading>
-        <span className="font-num shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums" style={{ backgroundColor: "var(--bt-accent)", color: "var(--bt-on-accent)" }}>
+        <span className="font-num shrink-0 text-xs font-bold tabular-nums" style={{ color: "var(--bt-brand-text)" }}>
           {countdown}
         </span>
       </div>

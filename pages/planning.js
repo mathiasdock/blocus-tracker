@@ -484,8 +484,9 @@ function RevisionChecklists({ className = "" }) {
 // Surface ink (même langage que « Aujourd'hui » du Chrono) : c'est le
 // moment de marque du planning.
 // Deux prochaines actions maximum ; le calendrier porte le reste de la semaine.
-function TodayCard({ className = "" }) {
+function TodayCard({ className = "", examMoment = null }) {
   const { byDate, examsByDate, exams, toggle, courseColor, courseName, launchTimer, openDay, lang, t, isOnToday } = usePlan();
+  const nextExamAnchor = useRef(null);
   const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
@@ -523,7 +524,7 @@ function TodayCard({ className = "" }) {
           </div>
 
           {nextExam ? (
-            <button onClick={() => openDay(nextExam.exam_date)} className="bt-planning-next-exam min-w-0 text-left">
+            <button ref={nextExamAnchor} onClick={() => openDay(nextExam.exam_date)} className="bt-planning-next-exam min-w-0 text-left">
               <PlanningExamMark label={t("plan.nextExam")} />
               {nextExam.name && <p className="mt-1 text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>{sentenceCase(nextExam.name)}</p>}
               {nextExam.course_id && <p className="mt-1 flex items-center gap-2 text-sm" style={{ color: "var(--bt-ink-muted)" }}><CourseMark id={nextExam.course_id} />{courseName(nextExam.course_id)}</p>}
@@ -588,6 +589,14 @@ function TodayCard({ className = "" }) {
         )}
 
       </div>
+      {examMoment && nextExam && <MascotMoment
+        eventKey={examMoment.key}
+        message={examMoment.message}
+        mood="focused"
+        frequency="daily"
+        presentation="anchored"
+        anchorRef={nextExamAnchor}
+        seenOnShow />}
     </section>
   );
 }
@@ -2152,7 +2161,7 @@ export default function Planning() {
           {examLoadWarning && <div role="status" className="flex flex-wrap items-center gap-3 text-sm">
             <p>{t("plan.examLoadWarning")}</p><button className="btn-ghost min-h-11 px-3" onClick={load}>{t("plan.retryLoad")}</button>
           </div>}
-          <TodayCard />
+          <TodayCard examMoment={examMoment} />
           <div className="flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
           <div className="contents xl:flex xl:flex-col xl:gap-5">
             <PlanToolbar
@@ -2177,16 +2186,6 @@ export default function Planning() {
           </div>
 
           <div className="contents xl:flex xl:flex-col xl:gap-5">
-
-            {examMoment && (
-              <MascotMoment
-                eventKey={examMoment.key}
-                message={examMoment.message}
-                mood="focused"
-                frequency="daily"
-                className="order-4"
-              />
-            )}
 
             <RevisionChecklists className="order-6" />
           </div>

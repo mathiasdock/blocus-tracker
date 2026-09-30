@@ -650,6 +650,7 @@ export default function Profile() {
   const { theme, setTheme } = useTheme();
   const { openSettings: openConsentSettings } = useConsent();
   const avatarInputRef = useRef(null);
+  const achievementMomentAnchor = useRef(null);
   const [busy, setBusy] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState(null);
   // null = the server did not answer: the card then says nothing about the
@@ -1066,7 +1067,7 @@ export default function Profile() {
             quel autre. Elles prennent toute la largeur, directement sous
             l'identité — elles étaient serrées dans une demi-colonne pendant
             que l'en-tête et les réglages occupaient l'écran. */}
-        <div className="bt-profile-doors">
+        <div ref={achievementMomentAnchor} className="bt-profile-doors">
           <ProfileAchievementCards levelInfo={levelInfo} earnedBadgeIds={earnedBadgeIds} t={t} />
           {profileMoment && (
             <MascotMoment
@@ -1075,7 +1076,9 @@ export default function Profile() {
               mood={profileMoment.mood}
               frequency={profileMoment.frequency}
               streak={streak}
-              className=""
+              presentation="anchored"
+              anchorRef={achievementMomentAnchor}
+              seenOnShow
             />
           )}
         </div>

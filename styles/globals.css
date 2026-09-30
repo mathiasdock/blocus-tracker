@@ -655,6 +655,27 @@ html.bt-focus-active .bt-nav { display: none; }
     border-color 0.24s ease,
     box-shadow 0.24s ease;
 }
+/* Selected course and its next exam are one context, not two floating pills.
+   The calendar glyph names the fact; the hue only encodes time pressure. */
+.bt-dashboard-grid { --bt-timer-exam-urgent: #A63F35; }
+.dark .bt-dashboard-grid { --bt-timer-exam-urgent: #F0A79A; }
+.bt-timer-exam-context {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 5px;
+  margin-left: 18px;
+  color: var(--bt-brand-text);
+  font-size: 0.75rem;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.bt-timer-exam-context[data-urgency="week"] { color: var(--bt-warning); }
+.bt-timer-exam-context[data-urgency="urgent"] { color: var(--bt-timer-exam-urgent); }
+.bt-dashboard-exam-relative { color: var(--bt-brand-text); }
+.bt-dashboard-exam-relative[data-urgency="week"] { color: var(--bt-warning); }
+.bt-dashboard-exam-relative[data-urgency="urgent"] { color: var(--bt-timer-exam-urgent); }
 .bt-dashboard-control,
 .bt-dashboard-segment,
 .bt-dashboard-row,
@@ -2021,6 +2042,49 @@ html.bt-focus-active .bt-nav { display: none; }
    se lire comme un bandeau d'information, donc comme quelque chose qu'on
    saute. Voir components/MascotMoment.js pour le choix de la présentation. */
 
+/* Un événement se pose près de sa source, hors de la grille. La surface est
+   celle d'un petit message utilitaire ; le personnage, pas un aplat menthe,
+   porte la personnalité. Aucun espace n'est ajouté ou retiré de la carte. */
+.bt-mascot-anchored {
+  position: fixed;
+  z-index: 80;
+  width: max-content;
+  max-width: min(296px, calc(100vw - 24px));
+  pointer-events: none;
+}
+.bt-mascot-anchored-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 4px 4px 4px 0;
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-r-inset);
+  background: var(--bt-surface);
+  box-shadow: 0 10px 28px var(--bt-shadow);
+  pointer-events: auto;
+  animation: bt-mascot-anchor-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.bt-mascot-anchored-art { display: flex; flex: 0 0 auto; align-self: flex-end; }
+.bt-mascot-anchored-copy {
+  min-width: 0;
+  max-width: 176px;
+  color: var(--bt-text-1);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.bt-mascot-anchored .bt-mascot-close {
+  width: 44px;
+  height: 44px;
+  margin-left: -4px;
+  color: var(--bt-text-2);
+}
+@keyframes bt-mascot-anchor-in {
+  from { opacity: 0.2; transform: translateY(5px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* Bulle : la largeur suit le TEXTE, jamais le conteneur. C'est ce détail,
    plus que la couleur, qui la sépare d'un bandeau : un bandeau occupe la
    ligne, une bulle occupe ce qu'elle a à dire. */
@@ -2157,5 +2221,6 @@ html.bt-focus-active .bt-nav { display: none; }
 .bt-mascot-bubble--toast { transform: translateX(-50%); }
 @media (prefers-reduced-motion: reduce) {
   .bt-mascot-celebration-art,
-  .bt-mascot-bubble--toast { animation: none !important; }
+  .bt-mascot-bubble--toast,
+  .bt-mascot-anchored-inner { animation: none !important; }
 }

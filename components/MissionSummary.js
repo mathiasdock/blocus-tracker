@@ -56,6 +56,7 @@ export default function MissionSummary({
 }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  const momentAnchor = useRef(null);
   useEffect(() => { setExpanded(readExpanded()); }, []);
 
   function toggle() {
@@ -100,12 +101,11 @@ export default function MissionSummary({
   const listCls = expanded ? "mt-3" : "mt-3 hidden lg:block";
 
   return (
-    <section className={`card min-w-0 p-4 sm:p-5 ${className}`}>
+    <section ref={momentAnchor} className={`card min-w-0 p-4 sm:p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("xp.summaryTitle")}</h2>
         <div className="flex items-center gap-2">
-          <span className="font-num inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-bold tabular-nums"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+          <span className="font-num text-xs font-bold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
             {doneCount}/{all.length}
           </span>
           {/* Le pli n'existe que là où la place manque. */}
@@ -175,8 +175,7 @@ export default function MissionSummary({
 
       {level && (
         <div className="mt-3.5 flex items-center gap-2.5 border-t pt-3" style={{ borderColor: "var(--bt-hairline)" }}>
-          <span className="font-num shrink-0 rounded-lg px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums"
-            style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+          <span className="font-num shrink-0 text-[11px] font-bold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
             {t("xp.level")} {level.level}
           </span>
           <span className="min-w-0 flex-1 truncate text-xs font-semibold" style={{ color: "var(--bt-text-2)" }}>
@@ -200,9 +199,10 @@ export default function MissionSummary({
           message={moment.message}
           mood={moment.mood}
           frequency="daily"
-          presentation="bubble"
+          presentation="anchored"
+          anchorRef={momentAnchor}
+          seenOnShow
           streak={streak}
-          className="mt-3"
         />
       )}
     </section>

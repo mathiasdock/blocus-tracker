@@ -2,6 +2,10 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-30 — Codex — Contextes du Chrono et interventions de la mascotte
+
+Le délai du prochain examen du cours sélectionné ne flotte plus dans une capsule à côté des contrôles : il est intégré au sélecteur, avec calendrier et une couleur de délai (calme au-delà d'une semaine, ambre cette semaine, corail dès demain). Les petites capsules de comptage du Chrono deviennent du texte secondaire ; les couleurs de cours, la pause et les actions restent inchangées. Les moments contextuels de la mascotte (jalons du Chrono/Focus, Missions, prochain examen du Planning, badge/niveau du Profil) se posent près de leur source sans ajouter de rangée ni provoquer de saut de mise en page à la fermeture. Le placement évite les textes et contrôles visibles, reste dans le viewport et tient compte de la navigation mobile. La mascotte réutilise son animation existante, avec une entrée brève désactivée en mouvement réduit. Aucun nouveau critère d'apparition ni logique métier.
+
 ## 2026-09-30 — Claude — Auth : renouvellement de session insensible à l'horloge et aux refus « trop de demandes »
 
 - Suite des deux points laissés ouverts ci-dessous. (1) auth-js 2.105.4 déconnecte sur un 429 au renouvellement ; sur le NAT d'UCF (seau `/token` par IP : 30 + 150 / 5 min), un seau vide déconnecterait tous ceux qui renouvellent à ce moment-là, sans pouvoir se reconnecter (même seau). (2) Un téléphone en avance d'≥ ~58,5 min renouvelait à chaque requête ; en retard, il envoyait un jeton expiré jusqu'à ce que sa propre horloge le juge expiré.

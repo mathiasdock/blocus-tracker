@@ -49,6 +49,7 @@ import BlocusCard from "../components/BlocusCard";
 import PushOptInPrompt from "../components/PushOptInPrompt";
 import { toRanges } from "../lib/blocus";
 import { normalizePlanningExams, nextExamForCourse } from "../lib/planningExams.mjs";
+import { timerExamUrgency } from "../lib/timerExamContext.mjs";
 import { buildSessionShareMessage } from "../lib/sessionShare";
 import { clientRateLimit } from "../lib/security";
 import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
@@ -1298,6 +1299,8 @@ export default function Dashboard() {
   const momentTimer = useRef(null);
   const sessionActiveRef = useRef(false);
   const hapticBlockRef = useRef(null);
+  const timerMomentAnchor = useRef(null);
+  const focusMomentAnchor = useRef(null);
 
   // La fin de session (retour à zéro) réarme les moments.
   useEffect(() => {
@@ -1385,6 +1388,8 @@ export default function Dashboard() {
         ? t("coach.timer.ready")
         : null;
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
+  const selectedCourseExam = courseId ? nextCourseExam(courseId) : null;
+  const selectedExamDays = selectedCourseExam ? daysUntilExam(selectedCourseExam.exam_date) : null;
 
   // Anti-effacement accidentel : demande confirmation si une session > 60s est
   // en cours / en pause au moment d'un changement de mode (libre ↔ pomodoro).
@@ -1475,7 +1480,7 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => !running && setShowCourseMenu((value) => !value)}
                     disabled={running}
-                    className="bt-dashboard-control flex min-h-11 max-w-full items-center gap-2 rounded-xl px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                    className="bt-dashboard-control flex min-h-11 max-w-full flex-col items-stretch justify-center gap-0.5 rounded-xl px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                     style={{
                       width: "100%",
                       backgroundColor: "var(--bt-subtle)",
@@ -1486,13 +1491,20 @@ export default function Dashboard() {
                     aria-haspopup="listbox"
                     aria-expanded={showCourseMenu}
                   >
-                    {courseId && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courses.find((item) => item.id === courseId)?.color }} aria-hidden="true" />}
-                    <span className="min-w-0 flex-1 truncate text-left">{courseId ? courseName(courseId) : t("dash.selectCourse")}</span>
-                    {!running && (
-                      <Glyph size={14} className={`shrink-0 transition-transform duration-200 motion-reduce:transition-none ${showCourseMenu ? "rotate-180" : ""}`}>
-                        <path d="m6 9 6 6 6-6" />
-                      </Glyph>
-                    )}
+                    <span className="flex min-w-0 items-center gap-2">
+                      {courseId && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courses.find((item) => item.id === courseId)?.color }} aria-hidden="true" />}
+                      <span className="min-w-0 flex-1 truncate text-left">{courseId ? courseName(courseId) : t("dash.selectCourse")}</span>
+                      {!running && (
+                        <Glyph size={14} className={`shrink-0 transition-transform duration-200 motion-reduce:transition-none ${showCourseMenu ? "rotate-180" : ""}`}>
+                          <path d="m6 9 6 6 6-6" />
+                        </Glyph>
+                      )}
+                    </span>
+                    {selectedCourseExam && <span className="bt-timer-exam-context" data-urgency={timerExamUrgency(selectedExamDays)}>
+                      <Glyph size={12} aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></Glyph>
+                      <span className="sr-only">{t("plan.examTag")} · </span>
+                      <span className="font-num tabular-nums">{selectedExamDays === 0 ? t("exam.today") : selectedExamDays < 0 ? t("exam.passed") : t("exam.daysAway").replace("{n}", String(selectedExamDays))}</span>
+                    </span>}
                   </button>
                 )}
 
@@ -1528,17 +1540,6 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {(() => {
-                const selectedCourse = courses.find((item) => item.id === courseId);
-                const exam = nextCourseExam(selectedCourse?.id);
-                if (!exam) return null;
-                const days = daysUntilExam(exam.exam_date);
-                return (
-                  <span className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ backgroundColor: days <= 0 ? "var(--bt-danger-bg)" : days <= 7 ? "#FEF3C7" : "var(--bt-accent-bg)", color: days <= 0 ? "var(--bt-danger)" : days <= 7 ? "#A85E00" : "var(--bt-accent-text)" }}>
-                    {days === 0 ? t("exam.today") : days < 0 ? t("exam.passed") : t("exam.daysAway").replace("{n}", String(days))}
-                  </span>
-                );
-              })()}
             </div>
 
             {/* Rayon aligne sur le selecteur de cours et le bouton Focus qui
@@ -1610,7 +1611,7 @@ export default function Dashboard() {
               color={isPaused && !pomodoro ? "var(--bt-pause)" : "var(--bt-text-1)"} />
 
             {(running || elapsed > 0) && (
-            <div className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
+            <div ref={timerMomentAnchor} className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
               <div className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
                 <span className="flex min-w-0 items-center gap-2">
                   {/* Sous 380 px, « Blocs de la session » se reduisait a
@@ -1625,9 +1626,9 @@ export default function Dashboard() {
                       blocus. Compresser sans le dire rendrait la piste
                       ambiguë. */}
                   {!onBreak && (
-                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
-                      {t("dash.blockUnitLabel").replace("{u}", formatMinutesShort(blockUnitSecs))}
-                    </span>
+                  <span className="bt-timer-unit-context shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
+                    {t("dash.blockUnitLabel").replace("{u}", formatMinutesShort(blockUnitSecs))}
+                  </span>
                   )}
                 </span>
                 {blocksAside && (
@@ -1653,27 +1654,16 @@ export default function Dashboard() {
             </div>
             )}
 
-            {/* Coach visible uniquement avant, en pause ou lors d'un vrai
-                accomplissement. Pendant le travail normal, la ligne reste
-                textuelle pour ne pas distraire. */}
-            <div className={`${(timerMoment || liveMessage || timerHint) ? "min-h-[58px] mt-4" : "mt-0"} flex items-center justify-center`}>
-              {timerMoment && !focusMode ? (
-                <MascotMoment
-                  message={timerMoment.message}
-                  mood="proud"
-                  frequency="always"
-                  streak={streak}
-                  dismissible={false}
-                  size={42}
-                  live
-                />
-              ) : !timerMoment && (liveMessage || timerHint) ? (
+            {/* La ligne ordinaire reste textuelle. Un vrai jalon apparaît
+                hors de la grille, ancré à la piste qui l'a produit. */}
+            {!timerMoment && (liveMessage || timerHint) && (
+              <div className="mt-4 flex items-center justify-center">
                 <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? "var(--bt-pause-text)" : "var(--bt-text-3)" }}>
                   {liveMessage || timerHint}
                 </p>
-              ) : null}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* ── Reglages de session — compacts, entre le chrono et l'action ──
@@ -1820,6 +1810,16 @@ export default function Dashboard() {
             )}
             <p className="mt-3 hidden text-center text-[11px] sm:block" style={{ color: "var(--bt-text-4)" }}>{t("dash.subtitle")}</p>
           </div>
+          {timerMoment && !focusMode && <MascotMoment
+            message={timerMoment.message}
+            mood="proud"
+            presentation="anchored"
+            anchorRef={timerMomentAnchor}
+            frequency="always"
+            eventKey={timerMoment.key}
+            onDismiss={() => setMoment(null)}
+            streak={streak}
+            live />}
         </section>
 
         {isGuest && sessions.length > 0 && (
@@ -1852,7 +1852,7 @@ export default function Dashboard() {
           <section className="order-5 card flex min-h-0 flex-col p-4 sm:p-5 lg:order-4">
             <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
               <h2 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t("dash.todo")}</h2>
-              <span className="font-num inline-flex min-h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-bold tabular-nums" style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
+              <span className="font-num text-xs font-bold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
                 {todayObjectives.filter((item) => item.done).length}/{todayObjectives.length}
               </span>
             </div>
@@ -2070,7 +2070,7 @@ export default function Dashboard() {
 
             {/* Même échelle et même plafond d'unités que le Chrono : le
                 plein écran ne compresse plus différemment. */}
-            <div className="mt-10 mx-auto w-full max-w-[600px]">
+            <div ref={focusMomentAnchor} className="mt-10 mx-auto w-full max-w-[600px]">
               {onBreak ? (
                 <RestTrack
                   focus
@@ -2091,24 +2091,14 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="min-h-[82px] mt-5 flex items-center justify-center">
-              {timerMoment ? (
-                <MascotMoment
-                  message={timerMoment.message}
-                  mood="proud"
-                  frequency="always"
-                  streak={streak}
-                  dismissible={false}
-                  size={52}
-                  live
-                />
-              ) : (liveMessage || timerHint) ? (
+            {!timerMoment && (liveMessage || timerHint) && (
+              <div className="mt-5 flex items-center justify-center">
                 <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
                   {liveMessage || timerHint}
                 </p>
-              ) : null}
-            </div>
+              </div>
+            )}
 
             {/* En pause — pastille franche qui respire, avec sa durée. L'annonce
                 vocale vit dans le compagnon invisible de la carte : une seule
@@ -2121,6 +2111,16 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          {timerMoment && <MascotMoment
+            message={timerMoment.message}
+            mood="proud"
+            presentation="anchored"
+            anchorRef={focusMomentAnchor}
+            frequency="always"
+            eventKey={timerMoment.key}
+            onDismiss={() => setMoment(null)}
+            streak={streak}
+            live />}
 
           <div className="relative z-10 mt-8 flex w-full max-w-[560px] justify-center gap-3 px-4"
             style={{
