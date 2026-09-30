@@ -2,6 +2,25 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-30 — Claude — Auth : renouvellement de session insensible à l'horloge et aux refus « trop de demandes »
+
+- Suite des deux points laissés ouverts ci-dessous. (1) auth-js 2.105.4 déconnecte sur un 429 au renouvellement ; sur le NAT d'UCF (seau `/token` par IP : 30 + 150 / 5 min), un seau vide déconnecterait tous ceux qui renouvellent à ce moment-là, sans pouvoir se reconnecter (même seau). (2) Un téléphone en avance d'≥ ~58,5 min renouvelait à chaque requête ; en retard, il envoyait un jeton expiré jusqu'à ce que sa propre horloge le juge expiré.
+- Correctif côté app uniquement (rien dans `node_modules`, aucun réglage Supabase, Turnstile ni modèle d'email) : `lib/authSessionGuard.mjs`, dont le fetch et le stockage sont passés à `createClient` dans `lib/supabaseClient.js` ; `supabase.auth.signOut` est enveloppé. Détails et diagnostic : `docs/AUTH_LAUNCH.md`, « Renouvellement de session sur le réseau partagé ».
+  - Horloge : l'`expires_at` lu par auth-js est recalculé à chaque lecture = maintenant + (`expires_in` − temps écoulé depuis l'envoi de la demande), temps écoulé = max(`performance.now()`, `Date.now()`) ; les `Date.now()` s'annulent dans le calcul d'auth-js. Sessions reçues hors `/token` (pseudo via `setSession`, retour Google, liens email) : min(valeur d'auth-js, maintenant + `exp − iat` − 60 s). Un « JWT expired » du serveur fait renouveler le jeton (ignoré pour un jeton reçu il y a < 60 s).
+  - 429 / 500 / 503 au renouvellement : session gardée, attente 5 → 60 s (tirage 50–100 %) partagée entre onglets (`bt_auth_refresh_backoff`), aucune demande réseau pendant l'attente ; jeton encore valide (> 30 s) : l'app continue avec lui sans relance ; sinon les requêtes de données échouent localement (`BT_SESSION_RENEWAL_PENDING`, HTTP 401) au lieu de partir en anonyme. Réseau coupé, 502, 504 : relances rapides d'auth-js inchangées. Erreurs définitives (jeton invalide ou déjà utilisé, session révoquée) : déconnexion, comme avant.
+  - Onglets : Web Lock `bt-auth-refresh` autour de l'envoi, nouvelle session enregistrée avant de rendre le verrou, et jamais de renvoi d'un jeton de renouvellement déjà échangé par un autre onglet de la même session (`session_id`).
+  - Déconnexion demandée : si le renouvellement est impossible à cet instant (attente, hors ligne), la session est oubliée localement (sinon auth-js refusait de déconnecter).
+- Vérifié sur la vraie app (build origin/main vs correctif) dans Chrome headless contre un faux Supabase (`tests/fixtures/fakeSupabase.mjs` : rotation, réemploi du parent 10 s puis « Already Used », seau 30 + 150 / 5 min, latence 170 ms) :
+  - 429 partagé, 6 téléphones au jeton expiré, seau à 2 : avant 4 / 6 déconnectés pour de bon ; après 6 / 6 connectés en 30 s, 11 `/token` au total (≤ 3 par téléphone), 0 requête anonyme.
+  - Téléphone +1 h : avant 33 `/token` en 30 s, le 33e refusé (429) → déconnecté ; après 1 `/token`.
+  - Téléphone −1 h (session d'avant le correctif, jetons de 150 s) : avant 132 « JWT expired » en 4 min, 0 renouvellement ; après 18 dans la première seconde puis renouvellements à l'heure, 0 ensuite.
+  - Deux onglets, seau vide 20 s : avant un 429 déconnecte les deux ; après les deux restent connectés, 1 seule rotation, 0 réemploi.
+  - Gel iOS 170 s (page gelée, horloge monotone arrêtée) : identique avant / après, 1 renouvellement au réveil, 0 « JWT expired ».
+  - Hors ligne puis en ligne : avant 1 requête anonyme pendant la coupure ; après 0 ; les deux : 1 renouvellement au retour.
+  - 24 tests (`tests/auth-session-guard.test.mjs`, vrai client supabase-js) ; 485 tests Node, lint et build de production verts (avertissement PWA 3 MB préexistant).
+- Pièges : postgrest-js 2.105 relance 3 fois un GET qui reçoit 503 ou 520 (d'où le 401 local) ; `performance.now()` peut s'arrêter pendant le sommeil d'un appareil Apple (d'où le max avec `Date.now()`) ; auth-js vole son propre verrou après 5 s d'attente.
+- Limites connues : une app ouverte avec un jeton expiré en pleine saturation affiche l'état déconnecté jusqu'au renouvellement, qui se fait seul ; une session enregistrée avant ce correctif sur un téléphone en retard produit une seule salve de « JWT expired » ; un téléphone en avance d'≥ 1 h qui se connecte par pseudo pendant une saturation échoue comme avant. Pas testé sur un iPhone physique.
+
 ## 2026-09-30 — Claude — Auth : fin des rafales de renouvellement de session (iPhone, 2026-09-29)
 
 - Constat (edge_logs + auth_logs Supabase) : le 2026-09-29 de 18:09:25 à 18:13:55 UTC, la PWA iPhone de Mathias (session 59c844b3, IP WhiteSky à Orlando) a envoyé 143 `POST /auth/v1/token?grant_type=refresh_token`, dont 60 refusés en 429 (seau /token de l'IP vide) ; les requêtes suivantes partaient en anonyme (401). Les 5 connexions refaites depuis l'iPhone pendant la rafale (4 pseudo, 1 Google) créaient chacune une session aussitôt abandonnée au profit de l'ancienne.

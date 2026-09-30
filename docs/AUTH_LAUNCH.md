@@ -88,6 +88,41 @@ email/password, mais ses sessions restent soumises aux mécanismes Auth propres
 revenir à la valeur notée avant changement si l'abus augmente. Ne jamais lever
 toutes les limites ensemble.
 
+## Renouvellement de session sur le réseau partagé
+
+Le seau `/token` est compté **par IP** : tout le campus UCF derrière un même
+NAT le partage (30 d'avance, puis 150 / 5 min). `lib/authSessionGuard.mjs`,
+branché dans `lib/supabaseClient.js` (fetch et stockage passés à
+`createClient`, `supabase.auth.signOut` enveloppé), protège ce seau et les
+sessions sans modifier auth-js ni aucun réglage Supabase :
+
+- **Horloge du téléphone ignorée.** L'échéance lue par auth-js est recalculée
+  à chaque lecture : `expires_in` moins le temps écoulé depuis l'envoi de la
+  demande (le plus grand de `performance.now()` et `Date.now()`, qui avance
+  aussi pendant le sommeil de l'appareil). Un téléphone décalé d'une heure ne
+  renouvelle plus à chaque requête (avance) et n'envoie plus de jeton expiré
+  (retard). Un « JWT expired » du serveur fait renouveler le jeton.
+- **429 (ou 500, 503) au renouvellement : pas de déconnexion.** Attente de 5 s,
+  10 s, 20 s… jusqu'à 60 s, tirée entre 50 et 100 %, partagée entre onglets
+  (`localStorage.bt_auth_refresh_backoff`), pendant laquelle aucune demande de
+  renouvellement ne part. Le jeton courant reste utilisé tant qu'il lui reste
+  plus de 30 s ; ensuite les requêtes de données échouent localement avec le
+  code `BT_SESSION_RENEWAL_PENDING` (HTTP 401) au lieu de partir en anonyme.
+  Réseau coupé, 502 et 504 : relances rapides d'auth-js, inchangées.
+- **Seules les erreurs définitives déconnectent** : jeton de renouvellement
+  invalide ou déjà utilisé, session révoquée, compte banni ou supprimé.
+- **Un seul renouvellement à la fois** entre onglets (Web Lock
+  `bt-auth-refresh`) ; un onglet ne renvoie jamais un jeton déjà échangé par
+  un autre (Supabase révoquerait toute la session au-delà de 10 s).
+- **Déconnexion demandée** : si le renouvellement est impossible à cet
+  instant (attente, réseau coupé), la session est oubliée localement.
+
+Diagnostic : les réponses fabriquées par la garde ne partent pas sur le réseau
+et portent l'en-tête `X-Blocus-Auth` (raison) ; les journaux Supabase ne voient
+que les vraies demandes. Limite connue : une app ouverte avec un jeton expiré
+pendant une saturation affiche l'état déconnecté jusqu'au renouvellement, qui
+se fait ensuite seul, sans mot de passe.
+
 ## Mots de passe divulgués
 
 Le projet est actuellement sur le **plan Free**. Supabase indique que **Leaked

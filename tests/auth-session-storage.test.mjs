@@ -212,5 +212,7 @@ test("câblage : le client Supabase du navigateur utilise createAuthStorage", ()
   const source = readFileSync(new URL("../lib/supabaseClient.js", import.meta.url), "utf8");
   assert.match(source, /createAuthStorage\(\{ getBackingStore: \(\) => window\.localStorage \}\)/);
   assert.match(source, /window\.addEventListener\("storage", \(event\) => authStorage\.forget\(event\.key\)\)/);
-  assert.match(source, /storage: authStorage,/);
+  // Lu à travers la garde de renouvellement (tests/auth-session-guard.test.mjs).
+  assert.match(source, /sessionStore: authStorage,/);
+  assert.match(source, /storage: sessionGuard \? sessionGuard\.storage : authStorage,/);
 });
