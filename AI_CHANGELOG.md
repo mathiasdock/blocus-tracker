@@ -2,6 +2,11 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-09-30 — Claude — Suites de l'audit des branches : PR #4 dans main, anciens logos retirés
+
+- PR #4 (`codex/prelaunch-security`) fusionnée (db2a070) : ses deux migrations, appliquées en production le 2026-09-28 (versions 20260928135605 et 20260928135749), sont désormais dans main. Le SQL enregistré en base est identique aux fichiers (empreinte normalisée) ; rien n'a été réappliqué. `record_acquisition_visit` et la policy `media_upload_guard` de main correspondent maintenant à la production.
+- Les 30 originaux de `public/logos/` sont retirés : aucune référence dans le code, les styles, la configuration, les scripts (`scripts/optimize-logos.js` lit `public/logos-commu/`) ni la base. L'app affiche `public/logos-commu/*.webp`, inchangé. Les originaux restent récupérables dans l'historique git. `public/bg-desktop.png` et `bg-mobile.png` sont conservés : la classe `.auth-bg` des six pages guides (SeoLandingPage) les utilise.
+
 ## 2026-09-30 — Claude — Social : glissement entre Activité, Amis et Communautés plus fluide
 
 - Intègre le réglage du geste resté non commité dans le dossier principal depuis le 2026-09-11 (repéré par l'audit des branches du jour). Le contenu suit la moitié du déplacement du doigt et l'indicateur sa progression complète, une mise à jour par image ; les routes voisines sont préchargées ; un geste court mais rapide suffit ; un départ en diagonale reste indécis jusqu'à ce que l'intention soit claire ; lignes, liens et boutons restent glissables sans perdre leur tap ; les bords réservés au navigateur passent de 24 à 16 px. Un changement d'onglet par glissement part de plus loin (48 px) qu'un tap sur l'onglet, et la sortie de toutes les pages prend la même courbe (0,16 s). Mouvement réduit inchangé.
