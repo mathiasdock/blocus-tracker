@@ -197,7 +197,7 @@ function writeGuestDashboardData(data) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { t, lang } = useI18n();
   const { toast } = useToast();
   const {
@@ -229,6 +229,9 @@ export default function Dashboard() {
   const [ready, setReady] = useState(false);
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
+  // Espace (compte ou démo invité) auquel appartient `courses` ; null tant
+  // que rien n'est chargé. Voir le repli du cours du chrono plus bas.
+  const [coursesOwner, setCoursesOwner] = useState(null);
   const [examRows, setExamRows] = useState([]);
   // Lignes de session du jour (celles que la liste affiche) : commencées
   // aujourd'hui, plus celles que session_days place aujourd'hui sans qu'elles
@@ -306,11 +309,16 @@ export default function Dashboard() {
   const POMO_BREAK = pomoBreakMin * 60;
   const isGuest = !user;
   const dashboardCachePrefix = user ? `dashboard:${user.id}:` : "";
+  // Espace dont la page doit montrer les données : le compte, ou la démo
+  // invité. Aucun tant que l'auth n'a pas répondu — le chrono n'a pas encore
+  // restauré sa session non plus (TimerContext attend la même réponse).
+  const dataOwner = authLoading ? null : user?.id || GUEST_USER_ID;
 
-  const applyDashboardData = useCallback((data) => {
+  const applyDashboardData = useCallback((data, owner) => {
     const c = data.courses || [];
     const active = c.filter((course) => !course.archived_at);
     setCourses(c);
+    setCoursesOwner(owner);
     setExamRows(data.examRows || []);
     setCourseId(current => active.some((course) => course.id === current) ? current : active[0]?.id || "");
     setSessions(data.sessions || []);
@@ -331,10 +339,14 @@ export default function Dashboard() {
   // dashboard. Si ce cours a depuis été archivé ou supprimé, ou si le jeu de
   // données a changé (mode invité), on retombe sur un cours réellement
   // disponible au lieu d'afficher un tiret impossible à sélectionner.
+  // Seulement face à la liste de l'espace qui possède le chrono : juste après
+  // une connexion, `courses` est encore celle d'avant (démo invité), où le
+  // cours d'une session en cours manque forcément. Le remplacer là faisait
+  // enregistrer la session sous le plus ancien cours du compte.
   useEffect(() => {
-    if (!activeCourses.length) return;
+    if (!dataOwner || coursesOwner !== dataOwner || !activeCourses.length) return;
     if (!activeCourses.some((course) => course.id === courseId)) setCourseId(activeCourses[0].id);
-  }, [activeCourses, courseId, setCourseId]);
+  }, [activeCourses, coursesOwner, dataOwner, courseId, setCourseId]);
 
   const clearDashboardCache = useCallback(() => {
     if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
@@ -376,12 +388,12 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     if (!user) {
-      applyDashboardData(readGuestDashboardData(lang));
+      applyDashboardData(readGuestDashboardData(lang), GUEST_USER_ID);
       return;
     }
     const cacheKey = `${dashboardCachePrefix}${localISO(new Date())}`;
     const cached = getClientCache(cacheKey);
-    if (cached) applyDashboardData(cached);
+    if (cached) applyDashboardData(cached, user.id);
 
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -439,7 +451,7 @@ export default function Dashboard() {
       days,
     };
     setClientCache(cacheKey, data, 45000);
-    applyDashboardData(data);
+    applyDashboardData(data, user.id);
   }, [applyDashboardData, dashboardCachePrefix, lang, user]);
 
   async function toggleObjective(o) {
@@ -468,7 +480,13 @@ export default function Dashboard() {
     }
   }
 
-  useEffect(() => { load().finally(() => setReady(true)); }, [load]);
+  // Rien avant la réponse de l'auth : sans compte encore connu, `load`
+  // prendrait la démo invité (et l'écrirait dans le stockage) pour un compte
+  // simplement pas encore restauré. Le squelette reste affiché jusque-là.
+  useEffect(() => {
+    if (authLoading) return;
+    load().finally(() => setReady(true));
+  }, [authLoading, load]);
 
   useEffect(() => {
     if (!focusMode) return;
