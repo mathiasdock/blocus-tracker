@@ -305,6 +305,7 @@ export function AuthProvider({ children }) {
     privacyVersion,
     campaignVisitId,
     captchaToken,
+    emailLanguage,
   }) => {
     const clean = pseudo.trim();
     const fn    = (firstName  || "").trim();
@@ -392,6 +393,7 @@ export function AuthProvider({ children }) {
         termsVersion,
         privacyVersion,
         campaignVisitId,
+        emailLanguage,
       });
       // `data` alimente raw_user_meta_data, que le trigger v43
       // (create_profile_for_new_user) lit pour créer la fiche DANS la même

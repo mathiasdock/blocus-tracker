@@ -23,7 +23,7 @@ const FIELDS = ["firstName", "pseudo", "email", "password", "terms"];
 
 export default function Signup() {
   const { signUp, user, loading, profileStatus } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const router = useRouter();
   const signupInProgress = useRef(false);
   const [firstName, setFirstName] = useState("");
@@ -113,6 +113,7 @@ export default function Signup() {
         privacyVersion: PRIVACY_VERSION,
         campaignVisitId,
         captchaToken: captcha.token,
+        emailLanguage: lang,
       });
 
       if (result.error) {

@@ -11,10 +11,12 @@ import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
 import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { LEGAL_CONTACT_EMAIL } from "../lib/legalVersions";
+import { syncAuthEmailLanguage } from "../lib/authEmailLanguage.mjs";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Login() {
   const { signIn, user, loading, profileStatus } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const router = useRouter();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
@@ -63,6 +65,11 @@ export default function Login() {
     setBusy(true);
     try {
       const { error: signInError } = await signIn(loginId.trim(), password, captcha.token);
+      if (!signInError) {
+        // The next recovery email can use this account's last known app
+        // language. This does not alter the login result or redirect.
+        void syncAuthEmailLanguage(supabase, lang);
+      }
       if (signInError === "LOGIN_INVALID_CREDENTIALS") {
         setError(t("login.invalidCredentials"));
       } else if (signInError === "LOGIN_RATE_LIMITED") {

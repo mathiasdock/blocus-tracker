@@ -13,6 +13,7 @@ import PwaHomeScreenVisual from "../components/PwaHomeScreenVisual";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n, detectDeviceLang } from "../contexts/I18nContext";
+import { syncAuthEmailLanguage } from "../lib/authEmailLanguage.mjs";
 import { useConsent } from "../contexts/ConsentContext";
 import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
@@ -821,6 +822,7 @@ export default function Profile() {
     const effective = pref === "auto" ? detectDeviceLang() : pref;
     if (user) {
       await supabase.from("profiles").update({ lang: effective }).eq("id", user.id);
+      void syncAuthEmailLanguage(supabase, effective);
       refreshProfile();
     }
   }
