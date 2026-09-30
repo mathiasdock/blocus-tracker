@@ -18,6 +18,10 @@ import { forgetSignedMedia } from "../lib/signedMedia";
 
 const AuthContext = createContext(null);
 
+// How long an Auth event waits for an in-flight profile load of the same
+// account instead of restarting it.
+const PROFILE_LOAD_PATIENCE_MS = 15000;
+
 function detectTimezone() {
   if (typeof Intl === "undefined") return "Europe/Paris";
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris";
@@ -60,9 +64,12 @@ export function AuthProvider({ children }) {
   // Compte dont la fiche est chargée et à jour : un simple événement Auth du
   // même compte ne la relit plus.
   const profileReadyForRef = useRef(null);
+  // Lecture de fiche en cours : { uid, startedAt }. Un événement Auth du même
+  // compte ne la relance pas (voir profileNeedsReload).
+  const profileLoadingRef = useRef(null);
   const pendingClearedRef = useRef(new Set());
 
-  const loadProfile = useCallback(async (uid) => {
+  const readProfile = useCallback(async (uid) => {
     if (!uid) {
       profileRequestRef.current += 1;
       profileReadyForRef.current = null;
@@ -173,6 +180,16 @@ export function AuthProvider({ children }) {
     profileReadyForRef.current = uid;
   }, []);
 
+  const loadProfile = useCallback(async (uid) => {
+    const loading = uid ? { uid, startedAt: Date.now() } : null;
+    profileLoadingRef.current = loading;
+    try {
+      await readProfile(uid);
+    } finally {
+      if (profileLoadingRef.current === loading) profileLoadingRef.current = null;
+    }
+  }, [readProfile]);
+
   const completePendingSignup = useCallback(async (authUser) => {
     if (!authUser?.id) return { ok: false };
     const metadata = authUser.user_metadata || {};
@@ -268,10 +285,20 @@ export function AuthProvider({ children }) {
       }
       activeUserIdRef.current = uid || null;
       if (uid) {
-        if (!profileNeedsReload({ event, accountChanged, readyForUserId: profileReadyForRef.current, userId: uid })) return;
+        // A recent load of this account is left alone: its own requests emit
+        // TOKEN_REFRESHED. Past PROFILE_LOAD_PATIENCE_MS an event may still
+        // restart a load that got stuck, as before.
+        const loading = profileLoadingRef.current;
+        const loadingForUserId = loading && Date.now() - loading.startedAt < PROFILE_LOAD_PATIENCE_MS
+          ? loading.uid
+          : null;
+        if (!profileNeedsReload({ event, accountChanged, readyForUserId: profileReadyForRef.current, loadingForUserId, userId: uid })) return;
         // Cancel an in-flight request for the previous account immediately;
         // the deferred fetch below receives its own generation number.
         profileRequestRef.current += 1;
+        // Scheduled counts as in progress, so a second event in the same tick
+        // does not schedule another load.
+        profileLoadingRef.current = { uid, startedAt: Date.now() };
         setProfileStatus("loading");
         setTimeout(() => {
           if (mounted) loadProfile(uid);

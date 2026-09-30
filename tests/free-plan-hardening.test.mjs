@@ -39,10 +39,20 @@ test("auth : la fiche n'est relue qu'en cas de besoin", () => {
   // Fiche jamais chargée (échec réseau) : l'événement suivant la répare.
   assert.equal(profileNeedsReload({ ...base, readyForUserId: null, event: "TOKEN_REFRESHED" }), true);
   assert.equal(profileNeedsReload({ ...base, userId: null, event: "SIGNED_OUT" }), false);
+  // Lecture en cours pour ce compte : le renouvellement de jeton qu'elle
+  // provoque ne la relance pas (boucle de 143 appels /token, 2026-09-29).
+  const loading = { ...base, readyForUserId: null, loadingForUserId: "u1" };
+  assert.equal(profileNeedsReload({ ...loading, event: "TOKEN_REFRESHED" }), false);
+  assert.equal(profileNeedsReload({ ...loading, event: "SIGNED_IN" }), false);
+  assert.equal(profileNeedsReload({ ...loading, event: "USER_UPDATED" }), true);
+  assert.equal(profileNeedsReload({ ...loading, accountChanged: true, event: "SIGNED_IN" }), true);
+  assert.equal(profileNeedsReload({ ...loading, loadingForUserId: "u2", event: "TOKEN_REFRESHED" }), true);
   // Câblage du contexte.
   const auth = code("../contexts/AuthContext.js");
   assert.match(auth, /setUser\(\(previous\) => \(sameAuthUser\(previous, nextUser\) \? previous : nextUser\)\)/);
   assert.match(auth, /if \(!profileNeedsReload\(\{ event, accountChanged,/);
+  assert.match(auth, /readyForUserId: profileReadyForRef\.current, loadingForUserId, userId: uid/);
+  assert.match(auth, /profileLoadingRef\.current = \{ uid, startedAt: Date\.now\(\) \};/);
   assert.match(auth, /forgetSignedMedia\(\);/);
 });
 
