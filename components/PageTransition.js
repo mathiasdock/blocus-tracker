@@ -30,6 +30,7 @@ export default function PageTransition() {
     const reset = () => {
       clearFrames();
       root.classList.remove(...ROUTE_CLASSES);
+      delete root.dataset.btSocialSwipe;
       root.style.removeProperty("--bt-route-exit-x");
       root.style.removeProperty("--bt-route-enter-x");
       root.style.removeProperty("--bt-route-y");
@@ -43,9 +44,13 @@ export default function PageTransition() {
       const from = socialPaths.indexOf(currentPath);
       const to = socialPaths.indexOf(routePath(url));
       if (from >= 0 && to >= 0) {
-        const direction = Math.sign(to - from);
-        root.style.setProperty("--bt-route-exit-x", `${direction * -20}px`);
-        root.style.setProperty("--bt-route-enter-x", `${direction * 24}px`);
+        const swipeDirection = Number(root.dataset.btSocialSwipe);
+        const routeDirection = Math.sign(to - from);
+        const isSwipe = swipeDirection === routeDirection;
+        const direction = isSwipe ? swipeDirection : routeDirection;
+        const swipeDistance = isSwipe ? 48 : 20;
+        root.style.setProperty("--bt-route-exit-x", `${direction * -swipeDistance}px`);
+        root.style.setProperty("--bt-route-enter-x", `${direction * (isSwipe ? 36 : 24)}px`);
         root.style.setProperty("--bt-route-y", "0px");
       } else {
         root.style.removeProperty("--bt-route-exit-x");

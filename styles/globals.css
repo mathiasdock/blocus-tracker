@@ -1010,7 +1010,7 @@ html.bt-focus-active .bt-nav { display: none; }
 .bt-route-leaving [data-bt-route-content] {
   opacity: 0;
   transform: translate(var(--bt-route-exit-x, 0px), var(--bt-route-y, -4px));
-  transition: opacity 0.13s ease-out, transform 0.13s ease-out;
+  transition: opacity 0.13s cubic-bezier(0.23, 1, 0.32, 1), transform 0.16s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .bt-route-entering [data-bt-route-content] {
   opacity: 0;

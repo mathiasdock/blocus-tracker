@@ -7,8 +7,12 @@ const destination = overrides => swipeDestination({ index: 1, count: 3, dx: -120
 test("small touches and mostly vertical drags remain native", () => {
   assert.equal(swipeAxis(4, 8), null);
   assert.equal(swipeAxis(25, 90), "vertical");
-  assert.equal(swipeAxis(80, 70), "vertical");
+  assert.equal(swipeAxis(80, 70), null);
   assert.equal(destination({ dx: 25, dy: 90 }), 1);
+});
+test("an imprecise diagonal start can resolve horizontally later", () => {
+  assert.equal(swipeAxis(15, 13), null);
+  assert.equal(swipeAxis(46, 18), "horizontal");
 });
 test("left/right gestures navigate exactly one adjacent tab", () => {
   assert.equal(destination({}), 2);
@@ -16,16 +20,20 @@ test("left/right gestures navigate exactly one adjacent tab", () => {
   assert.equal(destination({ dx: -800 }), 2);
 });
 test("short flicks commit, hesitant short drags do not", () => {
-  assert.equal(destination({ dx: -45, elapsed: 70 }), 2);
+  assert.equal(destination({ dx: -32, elapsed: 70, velocity: -.62 }), 2);
   assert.equal(destination({ dx: -45, elapsed: 500 }), 1);
   assert.equal(destination({ dx: -20, elapsed: 1 }), 1);
+});
+test("pulling the finger back at the end of a short drag cancels", () => {
+  assert.equal(destination({ dx: -30, elapsed: 230, velocity: .56 }), 1);
+  assert.equal(destination({ dx: 30, elapsed: 230, velocity: -.56 }), 1);
 });
 test("first/last tabs never wrap", () => {
   assert.equal(destination({ index: 0, dx: 150 }), 0);
   assert.equal(destination({ index: 2, dx: -150 }), 2);
 });
 test("distance threshold adapts to phone and tablet widths", () => {
-  assert.equal(destination({ width: 320, dx: -72 }), 2);
-  assert.equal(destination({ width: 820, dx: -90 }), 1);
-  assert.equal(destination({ width: 820, dx: -110 }), 2);
+  assert.equal(destination({ width: 320, dx: -58 }), 2);
+  assert.equal(destination({ width: 820, dx: -80 }), 1);
+  assert.equal(destination({ width: 820, dx: -86 }), 2);
 });
