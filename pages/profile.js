@@ -1077,6 +1077,7 @@ export default function Profile() {
               frequency={profileMoment.frequency}
               streak={streak}
               presentation="anchored"
+              anchorKind="achievement"
               anchorRef={achievementMomentAnchor}
               seenOnShow
             />

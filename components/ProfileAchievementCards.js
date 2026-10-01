@@ -84,7 +84,7 @@ export default function ProfileAchievementCards({ levelInfo, earnedBadgeIds, t }
         </span>
       </Link>
 
-      <Link href="/badges" className={`${styles.card} ${styles.collection}`}>
+      <Link href="/badges" className={`${styles.card} ${styles.collection}`} data-coach-frame="">
         <span className={styles.heading}>{t("profile.tileBadges")}<Arrow /></span>
         <span className={styles.badgeScene} data-count={preview.length} aria-hidden="true">
           {preview.length ? preview.map((badge, index) => (

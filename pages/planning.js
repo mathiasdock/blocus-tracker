@@ -553,7 +553,9 @@ function TodayCard({ className = "", examMoment = null }) {
                 chargée). Dès qu'on navigue ailleurs, elle reprend son rôle de
                 rappel. */}
             {remainingToday.length > 0 && !isOnToday && (
-              <ul className="mt-4 space-y-2">
+              // data-coach-floor : le coach de l'examen (téléphone) se pose
+              // au-dessus de cette liste, jamais devant ses boutons ▶.
+              <ul className="mt-4 space-y-2" data-coach-floor="">
                 {remainingToday.slice(0, 2).map(o => (
                   <li key={o.id} className="flex items-center gap-2.5 text-sm">
                     <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" checked={o.done} onChange={() => toggle(o)}
@@ -595,6 +597,7 @@ function TodayCard({ className = "", examMoment = null }) {
         mood="focused"
         frequency="daily"
         presentation="anchored"
+        anchorKind="exam"
         anchorRef={nextExamAnchor}
         seenOnShow />}
     </section>
@@ -2073,7 +2076,9 @@ export default function Planning() {
   const examMoment = missingExamPreparation && nextExam
     ? {
         key: `planning-exam-${nextExam.id}`,
-        message: t("mascot.exam").replace("{days}", String(nextExamDays)),
+        message: nextExamDays === 1
+          ? t("mascot.examTomorrow")
+          : t("mascot.exam").replace("{days}", String(nextExamDays)),
       }
     : null;
 

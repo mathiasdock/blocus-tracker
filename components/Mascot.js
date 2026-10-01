@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { brand } from "../lib/colorTokens.cjs";
-import { createMascotDirector, poseForMood, resolveMascotMood } from "../lib/mascotMotion.mjs";
+import { createMascotDirector, mascotState, poseForMood, resolveMascotMood } from "../lib/mascotMotion.mjs";
 
 export { mascotState, poseForMood, MASCOT_MOODS } from "../lib/mascotMotion.mjs";
 
@@ -94,8 +94,24 @@ function Mouth({ emotion }) {
   return <path d="M80 75 L80 79 M69 79 Q74 85 80 79 Q86 85 91 78" stroke={DARK} strokeWidth="2.4" strokeLinecap="round" />;
 }
 
+// The 30-day flame, drawn behind the character for the cheer pose only (taken
+// from the unmerged 2026-09-29 « mascotte 30 jours » study). Flames stay behind
+// the face and limbs so the Shiba remains recognizable at coach size.
+function StreakFire() {
+  return (
+    <g aria-hidden="true" data-mascot-part="streak-fire">
+      <path d="M25 139 C14 131 17 117 23 105 C27 96 17 87 22 72 C28 80 32 85 31 93 C34 76 45 68 40 52 C53 61 54 70 53 76 C56 55 69 47 68 26 C82 39 84 53 81 61 C96 45 102 30 99 10 C123 31 119 54 107 68 C124 57 137 50 137 34 C150 53 145 70 133 80 C146 78 151 91 143 104 C140 113 149 126 139 138 C125 150 107 140 80 143 C52 140 37 151 25 139Z" fill="#F28B36" />
+      <path d="M31 134 C27 124 33 111 38 105 C43 97 38 84 46 72 C48 83 51 87 50 91 C53 77 65 67 65 54 C73 62 74 72 73 78 C85 60 100 50 103 32 C112 52 106 67 99 78 C113 68 126 62 132 52 C137 71 128 82 121 89 C137 85 141 101 133 111 C129 119 140 130 129 137 C113 143 100 134 80 137 C60 134 44 144 31 134Z" fill="#FFBD55" />
+      <path d="M30 126 C30 113 35 109 32 98 C40 104 42 115 39 126Z M121 119 C121 108 130 105 127 94 C137 105 136 120 128 128Z M89 62 C91 51 103 45 102 30 C111 47 101 60 89 62Z" fill="#FFE39A" />
+    </g>
+  );
+}
+
 const Mascot = forwardRef(function Mascot({
   streak = 0, mood, size = 96, className = "", ariaLabel, animated = true, reactionKey,
+  // Coach options (MascotMoment): `pose="cheer"` raises both arms for an
+  // achievement; `idle={false}` plays the entry `reaction` once, then rests.
+  pose, idle = true, reaction, reactionDelay,
 }, forwardedRef) {
   const svgRef = useRef(null);
   const directorRef = useRef(null);
@@ -112,16 +128,20 @@ const Mascot = forwardRef(function Mascot({
     return () => { director.dispose(); directorRef.current = null; };
   }, []);
   useEffect(() => {
-    directorRef.current?.update({ mood: emotion, animated, reactionKey });
-  }, [emotion, animated, reactionKey]);
+    directorRef.current?.update({ mood: emotion, animated, reactionKey, idle, reaction, reactionDelay });
+  }, [emotion, animated, reactionKey, idle, reaction, reactionDelay]);
+  const cheer = pose === "cheer";
+  const blazing = cheer && mascotState(streak) === "fired";
 
   return (
     <svg ref={svgRef} width={size} height={size} viewBox="0 0 160 160" fill="none"
       role="img" aria-label={ariaLabel || "Mascotte"} focusable="false"
       className={`bt-m ${className}`} data-design="shiba-articulated" data-mood={emotion}
+      data-pose={cheer ? "cheer" : undefined} data-blazing={blazing || undefined}
       data-motion="static" data-animated={animated} style={{ overflow: "visible" }}>
       <ellipse data-mascot-part="shadow" cx="80" cy="150" rx="32" ry="4.5" fill={INK} opacity=".1" />
       <g data-mascot-part="action">
+        {blazing && <StreakFire />}
         <g className="bt-m-posture">
           <g className="bt-m-leg-pose bt-m-leg-pose--left">
             <g data-mascot-part="leg-left">
@@ -197,7 +217,7 @@ const Mascot = forwardRef(function Mascot({
         {emotion === "sleepy" && <g data-mascot-part="sleep" fill={INK} fontWeight="800" opacity=".5" aria-hidden="true">
           <text x="120" y="48" fontSize="10">z</text><text x="131" y="34" fontSize="14">z</text>
         </g>}
-        {state === "fired" && emotion !== "celebrating" && <g transform="translate(125 35) scale(.8)" aria-hidden="true">
+        {state === "fired" && emotion !== "celebrating" && !blazing && <g transform="translate(125 35) scale(.8)" aria-hidden="true">
           <path d="M12 0 C16 10 23 12 21 20 C19 29 3 29 2 20 Q0 15 6 10 Q5 17 10 17 Q15 15 12 0Z" fill="#F5BE46" />
         </g>}
       </g>

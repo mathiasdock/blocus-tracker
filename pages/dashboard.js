@@ -99,7 +99,7 @@ function TimerDigits({
   const showHours = hh !== "00";
   const main = showHours ? `${hh}:${mm}` : mm;
   return (
-    <div className="font-num font-bold tabular-nums"
+    <div className="font-num font-bold tabular-nums" data-coach-clear=""
       style={{ fontSize: showHours ? hoursSize : size, lineHeight: 1, letterSpacing: "-0.04em", whiteSpace: "nowrap", color, transition: "color 0.3s" }}>
       {main.split("").map((ch, i) => <RollChar key={`m${i}`} ch={ch} />)}
       <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.72, marginLeft: "0.06em" }}>
@@ -1301,6 +1301,7 @@ export default function Dashboard() {
   const hapticBlockRef = useRef(null);
   const timerMomentAnchor = useRef(null);
   const focusMomentAnchor = useRef(null);
+  const focusGreetingRef = useRef(null);
 
   // La fin de session (retour à zéro) réarme les moments.
   useEffect(() => {
@@ -1612,7 +1613,10 @@ export default function Dashboard() {
 
             {(running || elapsed > 0) && (
             <div ref={timerMomentAnchor} className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
-              <div className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
+              {/* Sur téléphone, la bulle d'un jalon se pose sur ces légendes :
+                  elles s'effacent sans quitter leur place pendant que le coach
+                  parle (globals.css), au lieu de dépasser à moitié de la bulle. */}
+              <div data-coach-under="studyBlocks" className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
                 <span className="flex min-w-0 items-center gap-2">
                   {/* Sous 380 px, « Blocs de la session » se reduisait a
                       « Blo… » : la pastille d'unite dit deja de quoi parle la
@@ -1655,9 +1659,12 @@ export default function Dashboard() {
             )}
 
             {/* La ligne ordinaire reste textuelle. Un vrai jalon apparaît
-                hors de la grille, ancré à la piste qui l'a produit. */}
-            {!timerMoment && (liveMessage || timerHint) && (
-              <div className="mt-4 flex items-center justify-center">
+                hors de la grille, ancré à la piste qui l'a produit ; la ligne
+                s'efface alors sans quitter sa place, pour que rien ne bouge à
+                l'apparition ni à la fermeture du coach. */}
+            {(liveMessage || timerHint) && (
+              <div className="mt-4 flex items-center justify-center"
+                style={timerMoment ? { visibility: "hidden" } : undefined} aria-hidden={timerMoment ? true : undefined}>
                 <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? "var(--bt-pause-text)" : "var(--bt-text-3)" }}>
                   {liveMessage || timerHint}
@@ -1814,6 +1821,7 @@ export default function Dashboard() {
             message={timerMoment.message}
             mood="proud"
             presentation="anchored"
+            anchorKind="studyBlocks"
             anchorRef={timerMomentAnchor}
             frequency="always"
             eventKey={timerMoment.key}
@@ -2034,7 +2042,7 @@ export default function Dashboard() {
           {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
           <AmbientSoundControl active={focusMode} visible={focusCtlVisible || !running} />
 
-          <p className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
+          <p ref={focusGreetingRef} className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}
           </p>
 
@@ -2091,8 +2099,9 @@ export default function Dashboard() {
               )}
             </div>
 
-            {!timerMoment && (liveMessage || timerHint) && (
-              <div className="mt-5 flex items-center justify-center">
+            {(liveMessage || timerHint) && (
+              <div className="mt-5 flex items-center justify-center"
+                style={timerMoment ? { visibility: "hidden" } : undefined} aria-hidden={timerMoment ? true : undefined}>
                 <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
                   {liveMessage || timerHint}
@@ -2115,7 +2124,9 @@ export default function Dashboard() {
             message={timerMoment.message}
             mood="proud"
             presentation="anchored"
+            anchorKind="focusBlocks"
             anchorRef={focusMomentAnchor}
+            frameRef={focusGreetingRef}
             frequency="always"
             eventKey={timerMoment.key}
             onDismiss={() => setMoment(null)}

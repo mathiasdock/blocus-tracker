@@ -28,6 +28,31 @@ avec des pauses variables et des clignements irréguliers. La respiration est
 suspendue pendant les réactions les plus expressives. Une grande série conserve
 son dessin avec flamme, mais n'entraîne pas de sauts répétés.
 
+## Le coach (`presentation="anchored"`)
+
+Quand la mascotte parle d'un élément précis (Study Blocks, prochain examen,
+missions, badge), elle ne vit pas : elle entre, fait un geste, puis se tient
+immobile à côté du travail de l'étudiant. `MascotMoment` passe pour cela à
+`Mascot` :
+
+- `idle={false}` : ni respiration, ni clignements, ni gestes d'attente ;
+- `reaction` : le geste unique, court (≤ 380 ms, testé) — `hello` (salut de
+  la patte), `affirm` (hochement, rappel d'examen), `beam` (menton levé,
+  jalon du chrono) ou `cheer` (les deux bras levés) pour une réussite. Les
+  gestes longs `wave`, `nod`, `proud` restent ceux des mascottes qui vivent
+  sur une page ;
+- `reactionDelay={70}` : le geste part pendant l'entrée (260 ms) et la bulle
+  arrive à 110 ms ; l'ensemble est fini vers 450 ms ;
+- `pose="cheer"` : la pose bras levés du dessin « 30 jours » (commit
+  `9a6efd3`, non fusionné : seule la pose et sa flamme ont été reprises). La
+  flamme n'apparaît que si la série atteint vraiment ce palier
+  (`mascotState(streak) === "fired"`).
+
+En mouvement réduit, le directeur ne joue rien : le coach apparaît en fondu
+(140 ms), dans sa pose finale. Le placement est décrit dans
+`lib/mascotPlacement.mjs` (positions prédéfinies par surface et par largeur,
+retournement simple, marges, jamais hors écran).
+
 ## Accessibilité et cycle de vie
 
 - `prefers-reduced-motion: reduce` ou `animated={false}` : posture expressive

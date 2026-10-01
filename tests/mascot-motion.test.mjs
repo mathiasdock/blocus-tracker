@@ -179,3 +179,37 @@ test("neutral greeting and sleepy stretch are visible entry reactions but never 
   assert.equal(b.timers.size, 0);
   b.director.dispose();
 });
+
+test("coach mode: one short gesture during the entrance, then the character rests — no breath, blinks or idle gestures", async () => {
+  const b = browser();
+  b.director.update({ mood: "proud", reactionKey: "coach-1", animated: true, idle: false, reaction: "hello", reactionDelay: 70 });
+  b.visible(true);
+  await b.advance(60);
+  assert.equal(b.history.length, 0, "the gesture waits for the entrance to start moving");
+  await b.advance(20);
+  const parts = b.history.map((animation) => animation.part);
+  assert.ok(parts.includes("arm-right"), "the hello gesture plays");
+  assert.ok(!parts.includes("breath"), "no breathing loop");
+  await b.advance(370);
+  assert.equal(b.animations.size, 0, "everything has ended ≈ 450 ms after the entrance");
+  await b.advance(30000);
+  assert.ok(!b.history.some((animation) => animation.part === "breath" || animation.part === "eyes"), "no breath or blink afterwards");
+  assert.equal(b.root.dataset.motion, "settled");
+  assert.equal(b.timers.size, 0, "no timer left running");
+});
+
+test("coach gestures are short: each ends within 380 ms", () => {
+  for (const name of ["hello", "cheer", "beam", "affirm"]) {
+    const score = gestureScore(name);
+    assert.ok(score.length > 0, name);
+    for (const track of score) assert.ok((track.delay || 0) + track.duration <= 380, `${name} ${track.part}`);
+  }
+});
+
+test("coach mode in reduced motion plays nothing", async () => {
+  const b = browser({ reducedMotion: true });
+  b.director.update({ mood: "celebrating", reactionKey: "coach-2", animated: true, idle: false, reaction: "cheer", reactionDelay: 260 });
+  b.visible(true);
+  await b.advance(5000);
+  assert.equal(b.history.length, 0);
+});

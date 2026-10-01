@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "../contexts/I18nContext";
-import { placeMascotCallout } from "../lib/mascotPlacement.mjs";
+import { coachMetrics, placeCoach, planCoach } from "../lib/mascotPlacement.mjs";
 import Mascot from "./Mascot";
 import { canShowMoment, markMomentSeen } from "../lib/mascotMoments";
 
@@ -23,8 +23,10 @@ import { canShowMoment, markMomentSeen } from "../lib/mascotMoments";
 //   companion    Mascotte seule, posée à côté d'un chiffre ou d'un bouton.
 //                Aucun texte : le message vit dans l'infobulle.
 //   toast        Réaction courte après une action, qui s'efface toute seule.
-//   anchored     Intervention contextualisée, hors de la grille et proche de
-//                l'élément concerné. Jamais une nouvelle rangée dans la carte.
+//   anchored     Le coach : le personnage et sa bulle ne font qu'un objet,
+//                posé contre la surface dont il parle (`anchorKind` : Study
+//                Blocks, Focus, examen, missions, badges). Hors du flux :
+//                rien n'est réservé, rien ne bouge à la fermeture.
 //
 // ── Règle de contenu ────────────────────────────────────────
 // Le message doit être COURT. « 4 blocs déjà ! », « Nouveau record ! »,
@@ -33,73 +35,197 @@ import { canShowMoment, markMomentSeen } from "../lib/mascotMoments";
 
 const SIZES = {
   bubble: 46,
-  anchored: 58,
   moment: 92,
   celebration: 116,
   companion: 34,
   toast: 40,
 };
 
-function AnchoredMoment({ anchorRef, children, className, live, onShown }) {
-  const calloutRef = useRef(null);
-  const [position, setPosition] = useState(null);
-
+// Un seul coach visible à la fois : un jalon du chrono (éphémère, `live`)
+// passe devant une mission ou un examen, qui reviennent ensuite. Le plus
+// récent l'emporte à priorité égale. Rien n'est marqué « vu » tant qu'un
+// coach attend son tour.
+const coachQueue = [];
+const coachListeners = new Set();
+function notifyCoaches() { coachListeners.forEach((listener) => listener()); }
+function useCoachTurn(priority) {
+  const token = useRef(null);
+  if (!token.current) token.current = { priority };
+  const [, rerender] = useReducer((n) => n + 1, 0);
   useEffect(() => {
+    const entry = token.current;
+    coachQueue.push(entry);
+    coachListeners.add(rerender);
+    notifyCoaches();
+    return () => {
+      coachListeners.delete(rerender);
+      const index = coachQueue.indexOf(entry);
+      if (index >= 0) coachQueue.splice(index, 1);
+      notifyCoaches();
+    };
+  }, []);
+  let top = null;
+  for (const entry of coachQueue) if (!top || entry.priority >= top.priority) top = entry;
+  return top === token.current;
+}
+
+// Le texte de l'élément (pour que la bulle ne le recouvre jamais) : la boîte
+// des lignes écrites, pas celle des blocs, qui vont jusqu'au bord de la carte,
+// et chaque ligne à part. Les textes réservés aux lecteurs d'écran (1 px) ne
+// comptent pas.
+function textBox(element) {
+  if (!element || typeof document === "undefined") return null;
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  const lines = [];
+  let box = null;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.textContent.trim()) continue;
+    range.selectNodeContents(node);
+    for (const r of range.getClientRects()) {
+      if (r.width < 2 || r.height < 4) continue;
+      lines.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+      box = box
+        ? { left: Math.min(box.left, r.left), top: Math.min(box.top, r.top), right: Math.max(box.right, r.right), bottom: Math.max(box.bottom, r.bottom) }
+        : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }
+  }
+  return box ? { ...box, width: box.right - box.left, height: box.bottom - box.top, lines } : null;
+}
+
+function findFrame(anchor, frameRef) {
+  return frameRef?.current
+    || anchor.querySelector("[data-coach-frame]")
+    || anchor.closest("[data-coach-frame]")
+    || anchor.closest("section")
+    || anchor;
+}
+
+const TAIL = {
+  side: "M14 1.5C12.6 7.4 8 10.6.5 11.4c6 .9 10.5 3 13.5 5.6Z",
+  down: "M1.5 0C7.4 1.4 10.6 6 11.4 13.5C12.3 7.5 14.4 3 17 0Z",
+};
+
+function CoachMoment({
+  kind, anchorRef, frameRef, live, onShown, className, mascotProps, children, closeButton,
+}) {
+  const bubbleRef = useRef(null);
+  const [layout, setLayout] = useState(null);
+  const hasTurn = useCoachTurn(live ? 1 : 0);
+  const shownRef = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!hasTurn) { setLayout(null); return undefined; }
     const anchor = anchorRef?.current;
-    const callout = calloutRef.current;
-    if (!anchor || !callout) return undefined;
+    if (!anchor) return undefined;
     let frame = 0;
+    let last = "";
 
     function update() {
       frame = 0;
-      const source = anchor.getBoundingClientRect();
-      const box = callout.getBoundingClientRect();
-      const obstacles = [...document.querySelectorAll("h1,h2,h3,p,button,a,input,select,textarea")]
-        .filter((element) => !callout.contains(element))
-        .map((element) => {
-          const rect = element.getBoundingClientRect();
-          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
-            weight: element.matches("button,a,input,select,textarea") ? 1.5 : 1 };
-        })
-        .filter((rect) => rect.right > 0 && rect.left < window.innerWidth
-          && rect.bottom > 0 && rect.top < window.innerHeight);
-      const next = placeMascotCallout(source, box, {
-        width: window.innerWidth,
+      const bubble = bubbleRef.current;
+      if (!bubble || !anchor.isConnected) return;
+      const frameEl = findFrame(anchor, frameRef);
+      const clearEl = frameEl.querySelector("[data-coach-clear]");
+      const spotEl = frameEl.querySelector("[data-coach-spot]");
+      const spotRect = spotEl?.getBoundingClientRect();
+      const floorRect = frameEl.querySelector("[data-coach-floor]")?.getBoundingClientRect();
+      const width = window.innerWidth;
+      const focus = document.documentElement.classList.contains("bt-focus-active");
+      const viewport = {
+        width,
         height: window.innerHeight,
-        bottomInset: window.innerWidth < 1024 && !document.documentElement.classList.contains("bt-focus-active") ? 84 : 12,
-      }, obstacles);
-      setPosition(next ? { x: Math.round(next.x), y: Math.round(next.y) } : null);
+        topInset: 12,
+        bottomInset: width < 1024 && !focus ? 92 : 12,
+      };
+      const modal = document.querySelector('dialog[open], [aria-modal="true"]');
+      const text = textBox(anchor);
+      const plan = modal ? null : planCoach(kind, {
+        anchor: anchor.getBoundingClientRect(),
+        frame: frameEl.getBoundingClientRect(),
+        text,
+        lines: text?.lines,
+        clear: textBox(clearEl),
+        spot: spotRect && spotRect.width > 0 ? spotRect : null,
+        floor: floorRect && floorRect.height > 0 ? floorRect : null,
+      }, viewport);
+      if (!plan) {
+        if (last !== "none") { last = "none"; setLayout(null); }
+        return;
+      }
+      // La largeur permise d'abord, puis la taille réelle de la bulle. Les
+      // dimensions de mise en page ignorent l'animation d'entrée (scale).
+      const maxWidth = `${plan.maxWidth}px`;
+      if (bubble.style.maxWidth !== maxWidth) bubble.style.maxWidth = maxWidth;
+      const next = placeCoach(plan, { width: bubble.offsetWidth, height: bubble.offsetHeight }, viewport);
+      const key = JSON.stringify(next);
+      if (key !== last) { last = key; setLayout(next); }
     }
 
     function schedule() {
       if (!frame) frame = window.requestAnimationFrame(update);
     }
-    schedule();
+    update();
+    // L'ancre, sa carte (qui grandit quand une liste s'y ajoute) et la bulle.
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
     observer?.observe(anchor);
-    observer?.observe(callout);
+    const frameEl = findFrame(anchor, frameRef);
+    if (frameEl !== anchor) observer?.observe(frameEl);
+    if (bubbleRef.current) observer?.observe(bubbleRef.current);
     window.addEventListener("resize", schedule);
     window.addEventListener("scroll", schedule, true);
     window.visualViewport?.addEventListener("resize", schedule);
+    // Une fenêtre modale passe devant : le coach se retire et revient après.
+    const mutations = typeof MutationObserver !== "undefined" ? new MutationObserver(schedule) : null;
+    mutations?.observe(document.body, { childList: true, subtree: false, attributes: true, attributeFilter: ["open", "aria-modal"] });
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
       observer?.disconnect();
+      mutations?.disconnect();
       window.removeEventListener("resize", schedule);
       window.removeEventListener("scroll", schedule, true);
       window.visualViewport?.removeEventListener("resize", schedule);
     };
-  }, [anchorRef]);
+  }, [anchorRef, frameRef, kind, hasTurn]);
 
   useEffect(() => {
-    if (position) onShown?.();
-  }, [position, onShown]);
+    if (layout && !shownRef.current) { shownRef.current = true; onShown?.(); }
+  }, [layout, onShown]);
 
   if (typeof document === "undefined") return null;
+  const ready = Boolean(layout);
+  const size = layout?.mascot.size || coachMetrics(window.innerWidth).size;
+  const tailStyle = layout
+    ? layout.tail.edge === "bottom" ? { left: layout.tail.offset - 9 } : { top: layout.tail.offset - 9 }
+    : undefined;
   return createPortal(
-    <div ref={calloutRef} className={`bt-mascot-anchored ${className}`}
-      style={position ? { left: position.x, top: position.y } : { visibility: "hidden" }}
-      role="status" aria-live={live ? "polite" : "off"}>
-      <div className="bt-mascot-anchored-inner">{children}</div>
+    <div className={`bt-coach ${className}`} data-mascot-coach="" data-kind={kind} data-side={layout?.side}
+      data-ready={ready ? "" : undefined} hidden={!hasTurn}
+      style={{
+        "--coach-enter-x": `${layout?.enter.x || 0}px`,
+        "--coach-enter-y": `${layout?.enter.y || 0}px`,
+        "--coach-tail-x": layout?.tail.edge === "bottom" ? `${layout.tail.offset}px` : layout?.tail.edge === "left" ? "0px" : "100%",
+        "--coach-tail-y": layout?.tail.edge === "bottom" ? "100%" : `${layout?.tail.offset || 0}px`,
+      }}>
+      <div ref={bubbleRef} className="bt-coach-bubble" data-coach-part="bubble"
+        role="status" aria-live={live ? "polite" : "off"}
+        style={layout ? { left: layout.bubble.x, top: layout.bubble.y } : undefined}>
+        {/* La croix flotte DANS le paragraphe : posée à côté, elle n'entrait
+            pas dans la largeur naturelle de la bulle, et « Examen demain. »
+            passait sur deux lignes dans une bulle qui avait la place. */}
+        <p className="bt-coach-text">{closeButton}{children}</p>
+        <svg className={`bt-coach-tail is-${layout?.tail.edge || "right"}`} style={tailStyle}
+          width={layout?.tail.edge === "bottom" ? 18 : 14} height={layout?.tail.edge === "bottom" ? 14 : 18}
+          viewBox={layout?.tail.edge === "bottom" ? "0 0 18 14" : "0 0 14 18"} aria-hidden="true" focusable="false">
+          <path d={layout?.tail.edge === "bottom" ? TAIL.down : TAIL.side} />
+        </svg>
+      </div>
+      {ready && (
+        <span className="bt-coach-mascot" data-coach-part="mascot" aria-hidden="true"
+          style={{ left: layout.mascot.x, top: layout.mascot.y, width: size, height: size }}>
+          <Mascot {...mascotProps} size={size} />
+        </span>
+      )}
     </div>,
     document.body,
   );
@@ -121,6 +247,11 @@ export default function MascotMoment({
   seenOnShow = false,
   autoHideMs,
   anchorRef,
+  // Coach (presentation "anchored") : de quoi il parle — "studyBlocks",
+  // "focusBlocks", "exam", "mission", "achievement" — et, si besoin, la
+  // surface contre laquelle il se pose (sinon la carte de l'ancre).
+  anchorKind = "exam",
+  frameRef,
   onDismiss,
   action,          // { label, onClick } — appel à l'action facultatif
   size,
@@ -164,13 +295,15 @@ export default function MascotMoment({
     if (!visible || presentation !== "anchored") return undefined;
     const onKeyDown = (event) => {
       if (event.key !== "Escape" || document.querySelector('[aria-modal="true"]')) return;
+      // Seul le coach affiché répond : celui qui attend son tour est caché.
+      if (document.querySelector("[data-mascot-coach]:not([hidden])")?.dataset.kind !== anchorKind) return;
       setVisible(false);
       markMomentSeen(eventKey, frequency);
       onDismiss?.();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [visible, presentation, eventKey, frequency, onDismiss]);
+  }, [visible, presentation, eventKey, frequency, onDismiss, anchorKind]);
 
   function markAnchoredShown() {
     const identity = `${frequency}:${eventKey}`;
@@ -205,12 +338,30 @@ export default function MascotMoment({
   ) : null;
 
   if (presentation === "anchored") {
+    // Une entrée, un geste court joué pendant l'entrée (≈ 450 ms en tout),
+    // puis le calme : pas de respiration ni de gestes d'attente à côté du
+    // travail de l'étudiant. Une réussite lève les deux bras (pose « cheer »)
+    // au lieu du grand saut des célébrations.
+    const celebrating = mood === "celebrating" || mood === "celebrate";
+    const reaction = celebrating ? "cheer" : mood === "proud" ? "beam" : mood === "focused" ? "affirm" : "hello";
     return (
-      <AnchoredMoment anchorRef={anchorRef} className={className} live={live} onShown={markAnchoredShown}>
-        <span className="bt-mascot-anchored-art" aria-hidden="true">{mascot}</span>
-        <span className="bt-mascot-anchored-copy">{message}{cta}</span>
-        {closeBtn}
-      </AnchoredMoment>
+      <CoachMoment kind={anchorKind} anchorRef={anchorRef} frameRef={frameRef} live={live}
+        onShown={markAnchoredShown} className={className}
+        closeButton={dismissible ? (
+          <button type="button" onClick={dismiss} aria-label={t("coach.close")} title={t("coach.close")}
+            className="bt-coach-close">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+              <path d="m17.4 6.6-10.8 10.8M6.6 6.6l10.8 10.8" />
+            </svg>
+          </button>
+        ) : null}
+        mascotProps={{
+          streak, mood, animated, reactionKey: eventKey || message, ariaLabel: t("mascot.label"),
+          idle: false, reaction, reactionDelay: 70, pose: celebrating ? "cheer" : undefined,
+        }}>
+        {message}{cta}
+      </CoachMoment>
     );
   }
 

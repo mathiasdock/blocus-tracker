@@ -103,7 +103,9 @@ export default function MissionSummary({
   return (
     <section ref={momentAnchor} className={`card min-w-0 p-4 sm:p-5 ${className}`}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("xp.summaryTitle")}</h2>
+        {/* Sur téléphone, le coach d'une mission se pose sur ce titre : il
+            s'efface sur place pendant que le coach parle (globals.css). */}
+        <h2 data-coach-under="mission" className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{t("xp.summaryTitle")}</h2>
         <div className="flex items-center gap-2">
           <span className="font-num text-xs font-bold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
             {doneCount}/{all.length}
@@ -162,7 +164,7 @@ export default function MissionSummary({
         </ul>
 
         {weekly.length > 0 && (
-          <div className="mt-4 border-t pt-3.5" style={{ borderColor: "var(--bt-hairline)" }}>
+          <div data-coach-spot="" className="mt-4 border-t pt-3.5" style={{ borderColor: "var(--bt-hairline)" }}>
             <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: "var(--bt-text-3)" }}>
               {t("xp.weeklyTitle")}
             </p>
@@ -200,6 +202,7 @@ export default function MissionSummary({
           mood={moment.mood}
           frequency="daily"
           presentation="anchored"
+          anchorKind="mission"
           anchorRef={momentAnchor}
           seenOnShow
           streak={streak}
