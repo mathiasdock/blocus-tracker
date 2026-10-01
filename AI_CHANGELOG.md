@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-01 — Claude — Barre du bas (téléphone) : la sélection voyage d'un onglet à l'autre, en lentille de verre
+
+- Demande de Mathias, avec des captures de l'app Horloge d'iOS 26 : le cadre vert de l'onglet actif se « téléportait ». Cause : le Layout appartient à chaque page, donc la barre est reconstruite à chaque changement de page ; la transition CSS existante démarrait dans l'ancienne barre, qui disparaissait aussitôt.
+- `components/ui/floating-nav.jsx` : au toucher, la pastille se soulève en lentille de verre (+12 % en largeur, +30 % en hauteur, elle dépasse de la barre), glisse sur un ressort amorti (léger dépassement, posée en ≈ 0,4 s, 0,48 s en tout), s'étire un peu quand elle va vite, puis redevient la pastille verte. À travers la lentille, les onglets apparaissent grossis et dans la couleur sélectionnée : une copie `aria-hidden` des onglets, découpée par la lentille et décalée en sens inverse pour rester alignée sur les vrais. Images clés calculées (Web Animations), sans bibliothèque.
+- Continuité : le trajet vit dans un objet du module ; la barre de la nouvelle page le reprend au même instant (`currentTime`), y compris quand une page reconstruit sa barre deux fois de suite (Planning). Un second toucher en plein trajet garde l'élan ; un changement de page par un autre chemin (lien, retour) glisse depuis l'onglet de la page quittée ; une navigation refusée fait revenir la sélection.
+- Verre (`FloatingNav.module.css`, approximation : Safari ne réfracte pas l'arrière-plan) : matériau de la barre éclairci par le haut, flou de 5 px quand le navigateur le permet, arête claire, liserés verts, ombre portée. Fondus décalés : les vrais onglets restent couverts, jamais de texte en double. Mouvement réduit : la pastille change de place d'un coup. Transparence réduite ou contraste élevé : surface pleine.
+- Vérifié hors ligne dans Chrome headless à 375 et 320 px, clair et sombre : vrais changements de page suivis image par image (aucun saut à la reconstruction de la barre), second toucher en plein trajet, mouvement réduit, page hors barre (Badges) puis retour, sous-pages de Social, aucune erreur console. 507 tests, lint et build de production verts. Pas testé sur un iPhone réel (aucun simulateur iOS installé) : le flou sous la lentille dépend de Safari.
+
 ## 2026-10-01 — Claude — Cloche : effacer une notification ou tout effacer ; annonces en anglais ; langue des notifications push
 
 - Signalé par Mathias : une fois vues, les notifications de la cloche restaient là (aucun moyen de les enlever), et ses annonces s'affichaient toujours en français.

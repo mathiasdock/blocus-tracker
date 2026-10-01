@@ -6,18 +6,111 @@
   padding: 4px;
 }
 
+/* ── La sélection ─────────────────────────────────────────────────────────
+   Au repos : la pastille verte sous l'onglet actif (--i = son rang). En
+   voyage (floating-nav.jsx, Web Animations) : une lentille de verre, plus
+   grande que la barre, qui laisse voir une copie grossie des onglets. Elle
+   passe AU-DESSUS des vrais onglets ; les taps la traversent. */
 .indicator {
+  --i: 0;
   position: absolute;
+  z-index: 2;
   top: 4px;
   bottom: 4px;
   left: 4px;
   width: calc((100% - 8px) / 5);
   border-radius: var(--bt-r-control);
-  background: var(--bt-selected-bg);
   pointer-events: none;
-  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(calc(var(--i) * 100%));
 }
 
+.fill,
+.glassBody,
+.lens,
+.glassRim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.fill {
+  background: var(--bt-selected-bg);
+}
+
+/* Le verre, sous la copie : le matériau de la barre, éclairci par le haut,
+   qui brouille ce qui est dessous (les vrais onglets ne se lisent plus à
+   travers, seule la copie grossie reste nette). Sans flou (navigateur qui ne
+   le permet pas ici), le voile suffit à les effacer presque entièrement. */
+.glassBody {
+  opacity: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.5) 75%),
+    var(--bt-nav-material);
+  -webkit-backdrop-filter: blur(5px) saturate(160%);
+  backdrop-filter: blur(5px) saturate(160%);
+}
+
+/* Ce qu'on voit à travers : tous les onglets, à l'état sélectionné, alignés
+   sur les vrais (la copie recule quand la lentille avance). */
+.lens {
+  overflow: hidden;
+}
+.copy {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 500%;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  color: var(--bt-selected-text);
+  transform: translateX(calc(var(--i) * -20%));
+}
+.copyItem {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.copyItem .label {
+  font-weight: 800;
+}
+
+/* La surface du verre, par-dessus la copie : arête claire qui accroche la
+   lumière, reflet en haut, liseré vert sur les bords, ombre portée (la
+   lentille est soulevée). */
+.glassRim {
+  opacity: 0;
+  background: radial-gradient(85% 55% at 50% 0%, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 72%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.85),
+    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.95),
+    inset 2.5px 0 3px -1px rgba(var(--bt-brand-rgb), 0.38),
+    inset -2.5px 0 3px -1px rgba(var(--bt-brand-rgb), 0.38),
+    inset 0 -2px 5px -1px rgba(var(--bt-brand-deepest-rgb), 0.1),
+    0 0 0 0.5px rgba(var(--bt-brand-deepest-rgb), 0.1),
+    0 12px 24px -10px rgba(var(--bt-brand-deepest-rgb), 0.38);
+}
+
+:global(.dark) .glassBody {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06) 75%),
+    var(--bt-nav-material);
+}
+:global(.dark) .glassRim {
+  background: radial-gradient(85% 55% at 50% 0%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 72%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.42),
+    inset 2.5px 0 3px -1px rgba(var(--bt-brand-rgb), 0.45),
+    inset -2.5px 0 3px -1px rgba(var(--bt-brand-rgb), 0.45),
+    inset 0 -2px 5px -1px rgba(0, 0, 0, 0.3),
+    0 12px 26px -10px rgba(0, 0, 0, 0.7);
+}
+
+/* ── Les vrais onglets ───────────────────────────────────────────────── */
 .item {
   position: relative;
   z-index: 1;
@@ -37,7 +130,10 @@
   color: var(--bt-selected-text);
 }
 
+/* Au clavier, l'onglet ciblé passe devant la sélection : son contour reste
+   entier. */
 .item:focus-visible {
+  z-index: 3;
   border-radius: var(--bt-r-control);
   outline: 2px solid var(--bt-selected-text);
   outline-offset: -3px;
@@ -77,14 +173,31 @@
   }
 }
 
+/* Transparence refusée : le verre devient une surface pleine. */
+@media (prefers-reduced-transparency: reduce) {
+  .glassBody,
+  :global(.dark) .glassBody {
+    background: var(--bt-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .glassRim,
+  :global(.dark) .glassRim {
+    background: none;
+  }
+}
+
 @media (prefers-contrast: more) {
-  .indicator {
-    border: 1px solid var(--bt-selected-text);
+  .fill {
+    box-shadow: inset 0 0 0 1px var(--bt-selected-text);
+  }
+  .glassBody,
+  :global(.dark) .glassBody {
+    background: var(--bt-surface);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .indicator,
   .icon {
     transition: none;
   }
