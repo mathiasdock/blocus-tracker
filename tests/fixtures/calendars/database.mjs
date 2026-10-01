@@ -2,7 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 
 // Local PostgreSQL only. Reuse real migration and suspension helpers.
-export async function createCalendarDatabase() {
+export async function createCalendarDatabase({ classification = true } = {}) {
   const db = new PGlite();
   await db.exec(`
     create role anon; create role authenticated; create role service_role bypassrls;
@@ -23,5 +23,6 @@ export async function createCalendarDatabase() {
   const suspension = readFileSync(new URL('../../../supabase/migration_v57_real_suspension.sql', import.meta.url), 'utf8');
   await db.exec(suspension.slice(0, suspension.indexOf('-- Sur toutes les tables')));
   await db.exec(readFileSync(new URL('../../../supabase/migrations/20261001174207_external_academic_calendars.sql', import.meta.url), 'utf8'));
+  if (classification) await db.exec(readFileSync(new URL('../../../supabase/migrations/20261001212530_classify_external_academic_events.sql', import.meta.url), 'utf8'));
   return db;
 }

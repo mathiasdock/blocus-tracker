@@ -400,3 +400,111 @@ test('newer cancelled revision wins before retention filtering; no raw metadata 
   const row = parse(fixture)[0];
   for (const key of ['metadata','description','location','provider_updated_at','sequence','last_seen_at','removed_at','user_id','id','ends_at','end_date']) assert.equal(row[key], undefined, key);
 });
+
+test('sync persists classification without a mapped course and never writes local exams/objectives', async () => {
+  // Sentinel local tables: the new layer must never turn imports into local work.
+  await db.exec('create table if not exists exams(id uuid); create table if not exists objectives(id uuid)');
+  const id = await connect();
+  await sync(id, calendar(event('DTSTART:20261001T140000Z\nSUMMARY:Final Exam')));
+  const row = (await events(id))[0];
+  assert.equal(row.event_type, 'exam'); assert.equal(row.confidence, 'high'); assert.equal(row.importance, 'critical');
+  assert.equal(row.external_course_key, null);
+  for (const table of ['external_calendar_course_map','exams','objectives']) assert.equal((await db.query(`select count(*)::int n from ${table}`)).rows[0].n, 0);
+});
+
+test('owner override wins and survives unchanged, modified and conditional syncs', async () => {
+  const id = await connect();
+  const initial = calendar(event('DTSTART:20261001T140000Z\nSUMMARY:Final Exam'));
+  await sync(id, initial);
+  await asUser(userA, 'update external_academic_events set user_override=$1 where source_id=$2', ['quiz',id]);
+  let row = (await events(id))[0];
+  assert.equal(row.event_type, 'quiz'); assert.equal(row.confidence, 'high'); assert.equal(row.importance, 'normal');
+  assert.equal(row.automatic_type, 'exam');
+  await sync(id, initial); row = (await events(id))[0];
+  assert.equal(row.user_override, 'quiz'); assert.equal(row.event_type, 'quiz');
+  await sync(id, initial.replace('Final Exam', 'Group Project')); row = (await events(id))[0];
+  assert.equal(row.automatic_type, 'project'); assert.equal(row.automatic_importance, 'major');
+  assert.equal(row.user_override, 'quiz'); assert.equal(row.event_type, 'quiz'); assert.equal(row.importance, 'normal');
+  await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [id]);
+  await syncCalendar(admin, userA, id, async () => ({ notModified: true }));
+  row = (await events(id))[0]; assert.equal(row.user_override, 'quiz');
+  await asUser(userA, 'update external_academic_events set user_override=null where source_id=$1', [id]);
+  row = (await events(id))[0]; assert.equal(row.event_type, 'project'); assert.equal(row.importance, 'major');
+});
+
+test('override writes are owner-only, column-limited, validated and blocked for suspended users', async () => {
+  const id = await connect(); await sync(id);
+  assert.equal((await asUser(userB, "update external_academic_events set user_override='exam' returning *")).rows.length, 0);
+  for (const [column, val] of [['automatic_type','exam'],['automatic_confidence','high'],['automatic_importance','critical'],['raw_title','Exam']]) {
+    await assert.rejects(asUser(userA, `update external_academic_events set ${column}=$1`, [val]), /permission denied/);
+  }
+  await assert.rejects(asUser(userA, "update external_academic_events set event_type='exam'"), /can only be updated to DEFAULT/);
+  await assert.rejects(asUser(userA, 'update external_academic_events set event_type=DEFAULT'), /permission denied/);
+  await assert.rejects(asUser(userA, "update external_academic_events set source_id=gen_random_uuid()"), /permission denied/);
+  await assert.rejects(asUser(userA, "update external_academic_events set user_override='made-up-type'"), /invalid input value for enum/);
+  await db.exec('set role anon');
+  try { await assert.rejects(db.query("update external_academic_events set user_override='exam'"), /permission denied/); }
+  finally { await db.exec('reset role'); }
+  await db.query('update profiles set locked=true where id=$1', [userA]);
+  await assert.rejects(asUser(userA, "update external_academic_events set user_override='exam'"), /Account suspended/);
+});
+
+test('service sync ignores override fields in its payload, including null, without resetting corrections', async () => {
+  const id = await connect(); await sync(id);
+  await asUser(userA, "update external_academic_events set user_override='presentation' where source_id=$1", [id]);
+  const snapshot = await events(id);
+  for (const incoming of [null, 'exam']) {
+    await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [id]);
+    const lease = await admin.rpc('begin_external_calendar_sync', { p_user_id: userA, p_source_id: id });
+    const result = await admin.rpc('finish_external_calendar_sync', { p_user_id: userA, p_source_id: id, p_token: lease.data.token,
+      p_events: snapshot.map(row => ({ ...row, user_override: incoming })) });
+    assert.equal(result.error, null);
+    assert.ok((await events(id)).every(row => row.user_override === 'presentation' && row.event_type === 'presentation'));
+  }
+});
+
+test('database and pure resolver agree for every automatic type / confidence / override combination', async () => {
+  const { ACADEMIC_EVENT_TYPES, resolveAcademicEventClassification } = await import('../lib/academicEventClassification.mjs');
+  const id = await connect(); await sync(id, calendar(event('DTSTART:20261001T140000Z\nSUMMARY:Assessment 1')));
+  for (const type of ACADEMIC_EVENT_TYPES) for (const confidence of ['high','medium','low']) for (const override of [null, ...ACADEMIC_EVENT_TYPES]) {
+    const importance = type === 'exam' && confidence === 'high' ? 'critical' : ['project','presentation','assignment'].includes(type) ? 'major' : 'normal';
+    const { rows: [row] } = await db.query('update external_academic_events set automatic_type=$1,automatic_confidence=$2,automatic_importance=$3,user_override=$4 where source_id=$5 returning *', [type,confidence,importance,override,id]);
+    const resolved = resolveAcademicEventClassification(row);
+    assert.deepEqual([row.event_type,row.confidence,row.importance], [resolved.event_type,resolved.confidence,resolved.importance]);
+    assert.equal(resolved.exam_proposal_eligible, row.event_type === 'exam' && row.confidence === 'high');
+  }
+});
+
+test('a correction belongs to its exact source/UID/recurrence and ends when the event is removed', async () => {
+  const one = await connect(); const two = await connect();
+  const input = calendar(event('DTSTART:20261001T140000Z\nSUMMARY:Test 1'));
+  await sync(one,input); await sync(two,input);
+  await asUser(userA, "update external_academic_events set user_override='exam' where source_id=$1 and external_uid='sample' and recurrence_id=''", [one]);
+  assert.equal((await events(one))[0].confidence,'high');
+  assert.equal((await events(two))[0].confidence,'medium');
+  await sync(one,calendar('')); assert.equal((await events(one)).length,0);
+  await sync(one,input); assert.equal((await events(one))[0].user_override,null);
+});
+
+test('classification migration safely upgrades retained Step 1 rows and invalidates validators', async () => {
+  const legacy = await createCalendarDatabase({ classification: false });
+  try {
+    await legacy.exec(`insert into auth.users values ('${userA}');
+      insert into external_calendar_sources(id,user_id,provider,display_name) values ('${courseA}','${userA}','canvas','School');
+      insert into external_calendar_secrets(source_id,feed_url,etag,snapshot_date) values ('${courseA}','https://example.edu/private.ics','old-etag',current_date);
+      insert into external_academic_events(source_id,external_uid,raw_title,event_date,status) values ('${courseA}','old','Final Exam',current_date,'active');`);
+    await legacy.exec(readFileSync(new URL('../supabase/migrations/20261001212530_classify_external_academic_events.sql', import.meta.url), 'utf8'));
+    const row = (await legacy.query('select * from external_academic_events')).rows[0];
+    assert.equal(row.raw_title,'Final Exam'); assert.equal(row.event_type,'other'); assert.equal(row.confidence,'low');
+    assert.equal(row.importance,'normal'); assert.equal(row.user_override,null);
+    assert.equal((await legacy.query('select etag from external_calendar_secrets')).rows[0].etag,null);
+    assert.equal((await legacy.query("select count(*)::int n from pg_indexes where tablename='external_academic_events'")).rows[0].n,2);
+  } finally { await legacy.close(); }
+});
+
+test('database refuses inconsistent critical importance on quizzes and uncertain exams', async () => {
+  const id = await connect(); await sync(id);
+  for (const type of ['quiz','exam']) {
+    await assert.rejects(db.query("update external_academic_events set automatic_type=$1,automatic_confidence='medium',automatic_importance='critical' where source_id=$2", [type,id]), /academic_event_automatic_importance_consistent/);
+  }
+});

@@ -7,7 +7,7 @@
     "build": "node scripts/generate-colors.cjs --check && next build",
     "colors:generate": "node scripts/generate-colors.cjs",
     "test:colors": "node --test tests/color-contract.test.mjs",
-    "test:calendars": "node --test tests/external-calendars.test.mjs",
+    "test:calendars": "node --test tests/external-calendars.test.mjs tests/academic-event-classification.test.mjs",
     "start": "next start",
     "lint": "next lint",
     "test:auth": "node --test tests/auth-login-identity.test.mjs tests/auth-recovery.test.mjs"

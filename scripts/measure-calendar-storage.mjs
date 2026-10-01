@@ -1,8 +1,9 @@
 // Local-only PostgreSQL measurement. No env, hosted client, credentials or network.
-// Usage: node scripts/measure-calendar-storage.mjs [--quick]
+// Usage: node scripts/measure-calendar-storage.mjs [--quick] [--classification]
 import { readFileSync } from 'node:fs';
 import { createCalendarDatabase } from '../tests/fixtures/calendars/database.mjs';
 import { parseCalendar } from '../lib/server/calendarParser.mjs';
+import { classifyAcademicEvent } from '../lib/academicEventClassification.mjs';
 
 const today = new Date().toISOString().slice(0, 10);
 const stamp = offset => new Date(Date.parse(today) + offset * 86400000).toISOString().slice(0, 10).replaceAll('-', '');
@@ -25,9 +26,10 @@ END:VEVENT`);
 const rows = [...parseCalendar(fixture, { provider: 'canvas' }), ...parseCalendar(`BEGIN:VCALENDAR\nVERSION:2.0\n${pieces.join('\n')}\nEND:VCALENDAR`, { provider: 'canvas' })];
 const tables = ['external_calendar_sources', 'external_calendar_secrets', 'external_academic_events', 'external_calendar_course_map'];
 const scenarios = process.argv.includes('--quick') ? [[100,100]] : [[100,100],[100,300],[1000,100],[1000,300]];
+const classification = process.argv.includes('--classification');
 const report = { generated_at: new Date().toISOString(), units: 'bytes; MB = 1,000,000 bytes', methodology: 'PGlite PostgreSQL, actual migration, one source and five mapped courses per user, varied Canvas-style rows parsed by production parser. All four new relations plus the extra courses ownership index. Ordinary VACUUM, never VACUUM FULL. Excludes existing auth/course tables, WAL and other app data.', scenarios: [] };
 for (const [users, events] of scenarios) {
-  const db = await createCalendarDatabase();
+  const db = await createCalendarDatabase({ classification });
   try {
     report.postgres = (await db.query('select version() v')).rows[0].v;
     await db.exec(`
@@ -40,7 +42,8 @@ for (const [users, events] of scenarios) {
       insert into external_calendar_course_map(user_id,source_id,external_course_key,external_course_label,local_course_id)
         select user_id,source_id,'canvas:course:'||c,'Course '||c,md5(u.n||'-course-'||c)::uuid from sample_users u cross join generate_series(42,46) c;
     `);
-    const selected = rows.slice(0, events);
+    report.step = classification ? 2 : 1;
+    const selected = rows.slice(0, events).map(row => classification ? { ...row, ...classifyAcademicEvent(row) } : row);
     const columns = Object.keys(selected[0]);
     await db.query(`insert into external_academic_events(source_id,${columns.join(',')})
       select u.source_id,${columns.map(k => 'e.'+k).join(',')}

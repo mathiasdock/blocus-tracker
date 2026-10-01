@@ -1,5 +1,11 @@
 # University calendars — compact Step 1 foundation
 
+Step 2 adds a separate deterministic classification layer, documented in
+[academic-event-classification.md](academic-event-classification.md). The Step 1
+migration and import/retention behavior described here remain unchanged. Its
+storage measurements below are the Step 1 baseline; Step 2's report measures
+the additional compact classification fields separately.
+
 Local branch: `codex/university-calendar-foundation`. No remote migration, push
 or deployment. The original **unapplied** migration is updated in place:
 `supabase/migrations/20261001174207_external_academic_calendars.sql`. It depends
@@ -10,7 +16,7 @@ changes: the API uses the existing Supabase URL, anon key and server service key
 
 Planning still reads courses, objectives and exams through its existing paths;
 none of those paths import this feature. There are no new UI elements, course
-creation/renaming, classification, notifications, mascot changes, AI calls or
+creation/renaming, notifications, mascot changes, AI calls or
 cron jobs. Course matching is an explicit private mapping, independent of the
 community `course_offerings` / `course_links` system.
 
@@ -172,7 +178,7 @@ with ordinary VACUUM between rounds. No-op sync tuple stability is also tested.
 
 Decimal MB (1,000,000 bytes). Includes all four new relations and all their
 indexes, plus the added course ownership index. Excludes existing app/auth/course
-storage and WAL/backups. These are actual **local** page measurements from the
+storage and WAL/backups. These Step 1 figures are actual **local** page measurements from the
 32-bit PGlite build, used as estimates for hosted PostgreSQL: platform alignment,
 real field distributions, autovacuum lag and edit patterns can differ.
 
