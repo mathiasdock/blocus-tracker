@@ -2,6 +2,10 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-01 — Claude — Chrono : le cours et Focus ne passent plus par-dessus l'en-tête sur téléphone
+
+- Au défilement, la barre de contexte du Chrono (cours + bouton Focus, en z-30) passait par-dessus l'en-tête collant de l'app (aussi z-30, mais plus tôt dans la page) : la carte ne formait pas son propre calque. `.bt-dashboard-timer` reçoit `isolation: isolate` : ses calques internes restent dans la carte. Le menu des cours s'ouvre toujours au-dessus du défi du jour. Vérifié hors ligne à 375 px (défilement, menu ouvert), lint et build verts.
+
 ## 2026-09-30 — Claude — Mascotte : le « coach », personnage et bulle d'un seul tenant, posé contre ce dont il parle
 
 - Remplace la présentation des moments contextuels livrée le matin (Codex, entrée « Contextes du Chrono et interventions de la mascotte ») : jalons du Chrono et de Focus, prochain examen du Planning, missions de la semaine, badge ou dernier niveau du Profil. Le moteur qui notait chaque texte et bouton de l'écran pour trouver une place (`placeMascotCallout`) est supprimé ; il pouvait poser la mascotte n'importe où, y compris sur les chiffres du chrono. Critères, clés et fréquences d'apparition inchangés.

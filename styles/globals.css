@@ -650,6 +650,10 @@ html.bt-focus-active .bt-nav { display: none; }
 /* Dashboard Chrono — réactions courtes, tactiles et cohérentes. Les lignes
    restent calmes ; seuls les contrôles et menus signalent l'interaction. */
 .bt-dashboard-timer {
+  /* Les calques internes (barre de contexte en z-30, défi en z-20) restent
+     DANS la carte : sans cela, au défilement sur téléphone, le cours et le
+     bouton Focus passaient par-dessus l'en-tête collant de l'app (z-30). */
+  isolation: isolate;
   transition:
     background-color 0.24s ease,
     border-color 0.24s ease,
