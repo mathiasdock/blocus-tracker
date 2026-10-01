@@ -10,7 +10,7 @@ const place = (kind, rects, viewport, bubble = { width: 220, height: 50 }) =>
   placeCoach(planCoach(kind, rects, viewport), bubble, viewport);
 
 test("every anchor kind has a phone and a desktop placement", () => {
-  for (const kind of ["studyBlocks", "focusBlocks", "exam", "mission", "achievement"]) {
+  for (const kind of ["studyBlocks", "focusBlocks", "exam", "mission"]) {
     assert.equal(typeof COACH_PRESETS[kind].mobile, "function", kind);
     assert.equal(typeof COACH_PRESETS[kind].desktop, "function", kind);
   }

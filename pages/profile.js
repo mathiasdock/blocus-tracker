@@ -7,7 +7,6 @@ import StudyFieldPicker from "../components/StudyFieldPicker";
 import StudyProgramInput from "../components/StudyProgramInput";
 import { STUDY_YEARS, studyYearShortLabel } from "../lib/studyYears";
 import { universityShortName } from "../lib/universities";
-import MascotMoment from "../components/MascotMoment";
 import AnimatedNumber from "../components/AnimatedNumber";
 import PwaHomeScreenVisual from "../components/PwaHomeScreenVisual";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
@@ -650,7 +649,6 @@ export default function Profile() {
   const { theme, setTheme } = useTheme();
   const { openSettings: openConsentSettings } = useConsent();
   const avatarInputRef = useRef(null);
-  const achievementMomentAnchor = useRef(null);
   const [busy, setBusy] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState(null);
   // null = the server did not answer: the card then says nothing about the
@@ -960,17 +958,10 @@ export default function Profile() {
     bonusXP: profile?.bonus_xp || 0,
   });
   const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);
-  const newBadge = newBadgeId ? BADGES.find(b => b.id === newBadgeId) : null;
-  // The Progression card already carries the mascot. A second shiba right
-  // below it is only justified by a real event — a badge that just arrived,
-  // the last level reached — never by a daily "your streak is safe": that is
-  // the Timer's message, not the profile's.
-  const profileMoment = newBadge
-    ? { key: `badge-${newBadge.id}`, mood: "celebrating", frequency: "once",
-        message: t("mascot.badge").replace("{badge}", t(newBadge.labelKey)) }
-    : !levelInfo.next
-      ? { key: "level-max", mood: "celebrating", frequency: "once", message: t("mascot.maxLevel") }
-      : null;
+  // Pas de mascotte ici : la notification et l'animation du badge ou du
+  // niveau disent déjà l'événement (décision de Mathias, 2026-10-01). Le
+  // coach est réservé aux moments qui ajoutent du contexte : examen proche,
+  // défi de la semaine, jalon de focus ou de série.
 
   const sep = <div style={{ height: 1, backgroundColor: "var(--bt-hairline)" }} />;
 
@@ -1067,21 +1058,8 @@ export default function Profile() {
             quel autre. Elles prennent toute la largeur, directement sous
             l'identité — elles étaient serrées dans une demi-colonne pendant
             que l'en-tête et les réglages occupaient l'écran. */}
-        <div ref={achievementMomentAnchor} className="bt-profile-doors">
+        <div className="bt-profile-doors">
           <ProfileAchievementCards levelInfo={levelInfo} earnedBadgeIds={earnedBadgeIds} t={t} />
-          {profileMoment && (
-            <MascotMoment
-              eventKey={profileMoment.key}
-              message={profileMoment.message}
-              mood={profileMoment.mood}
-              frequency={profileMoment.frequency}
-              streak={streak}
-              presentation="anchored"
-              anchorKind="achievement"
-              anchorRef={achievementMomentAnchor}
-              seenOnShow
-            />
-          )}
         </div>
 
         {/* ══ CE QU'ON VIENT FAIRE, PUIS RÉGLER ════════════════

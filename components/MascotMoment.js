@@ -25,7 +25,7 @@ import { canShowMoment, markMomentSeen } from "../lib/mascotMoments";
 //   toast        Réaction courte après une action, qui s'efface toute seule.
 //   anchored     Le coach : le personnage et sa bulle ne font qu'un objet,
 //                posé contre la surface dont il parle (`anchorKind` : Study
-//                Blocks, Focus, examen, missions, badges). Hors du flux :
+//                Blocks, Focus, examen, missions). Hors du flux :
 //                rien n'est réservé, rien ne bouge à la fermeture.
 //
 // ── Règle de contenu ────────────────────────────────────────
@@ -248,7 +248,7 @@ export default function MascotMoment({
   autoHideMs,
   anchorRef,
   // Coach (presentation "anchored") : de quoi il parle — "studyBlocks",
-  // "focusBlocks", "exam", "mission", "achievement" — et, si besoin, la
+  // "focusBlocks", "exam", "mission" — et, si besoin, la
   // surface contre laquelle il se pose (sinon la carte de l'ancre).
   anchorKind = "exam",
   frameRef,

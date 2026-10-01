@@ -31,7 +31,7 @@ son dessin avec flamme, mais n'entraîne pas de sauts répétés.
 ## Le coach (`presentation="anchored"`)
 
 Quand la mascotte parle d'un élément précis (Study Blocks, prochain examen,
-missions, badge), elle ne vit pas : elle entre, fait un geste, puis se tient
+missions), elle ne vit pas : elle entre, fait un geste, puis se tient
 immobile à côté du travail de l'étudiant. `MascotMoment` passe pour cela à
 `Mascot` :
 

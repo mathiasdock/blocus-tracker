@@ -9,7 +9,7 @@ related_targets: ["components/ProfileAchievementCards.js", "components/ProfileAc
 
 The profile is an **Operate** surface. This extension covers the two side-by-side navigation cards beneath the identity section: progression opens `/progression`, and the badge collection opens `/badges`. Each entire card is a link. Existing profile settings and navigation retain their roles.
 
-The rare badge/max-level mascot intervention is the mascot coach (DESIGN.md, event coach) in its arms-up « cheer » pose, anchored to the Badges card as an overlay instead of reserving a row below the two cards: on phones on the card's drawn collection above its two text lines, on desktop standing on the card's top edge with its bubble in the profile header's free space. The permanent mascot inside Progression keeps its data-linked role; no new mascot event or reward condition was added.
+No mascot coach on the profile (Mathias, 2026-10-01): a new badge or the last level is already announced by its own notification and animation; the mascot would only repeat it. The permanent mascot inside Progression keeps its data-linked role; no new mascot event or reward condition was added.
 
 ## Audience, job and task
 
