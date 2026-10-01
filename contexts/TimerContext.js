@@ -215,7 +215,7 @@ export function TimerProvider({ children }) {
 
   return (
     <TimerContext.Provider
-      value={{ courseId, setCourseId, note, setNote, running, elapsed, timezone, start, pause, reset }}
+      value={{ courseId, setCourseId, note, setNote, running, elapsed, timezone, start, pause, reset, hydrated }}
     >
       {children}
     </TimerContext.Provider>

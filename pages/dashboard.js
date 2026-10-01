@@ -197,6 +197,11 @@ function writeGuestDashboardData(data) {
   try { localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(snapshot)); } catch {}
 }
 
+// Compte qui a choisi lui-même un cours depuis l'ouverture de l'app (module :
+// survit aux allers-retours entre pages). Avant ce choix, le chrono suit le
+// dernier cours étudié ; après, il ne le remplace plus.
+let coursePickedBy = null;
+
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { t, lang } = useI18n();
@@ -212,6 +217,7 @@ export default function Dashboard() {
     start,
     pause,
     reset,
+    hydrated: timerHydrated,
   } = useTimer();
   const sensoryElapsedRef = useRef(elapsed);
   sensoryElapsedRef.current = elapsed;
@@ -349,6 +355,24 @@ export default function Dashboard() {
     if (!activeCourses.some((course) => course.id === courseId)) setCourseId(activeCourses[0].id);
   }, [activeCourses, coursesOwner, dataOwner, courseId, setCourseId]);
 
+  // À l'ouverture de l'app, le chrono propose le dernier cours étudié — pas
+  // le plus ancien du compte, ni un cours choisi puis jamais travaillé. Les
+  // données en cache arrivent d'abord, les fraîches ensuite : on suit donc la
+  // dernière session connue jusqu'à ce que l'étudiant choisisse lui-même un
+  // cours (revenir ensuite sur le Chrono ne l'écrase pas). Jamais pendant une
+  // session commencée.
+  useEffect(() => {
+    if (!dataOwner || coursesOwner !== dataOwner || !timerHydrated || !activeCourses.length) return;
+    if (coursePickedBy === dataOwner || running || elapsed > 0) return;
+    const active = new Set(activeCourses.map((course) => course.id));
+    let latest = null;
+    for (const session of [...sessions, ...recentSessions]) {
+      if (!session?.course_id || !active.has(session.course_id) || !session.started_at) continue;
+      if (!latest || Date.parse(session.started_at) > Date.parse(latest.started_at)) latest = session;
+    }
+    if (latest && latest.course_id !== courseId) setCourseId(latest.course_id);
+  }, [dataOwner, coursesOwner, timerHydrated, activeCourses, sessions, recentSessions, running, elapsed, courseId, setCourseId]);
+
   const clearDashboardCache = useCallback(() => {
     if (dashboardCachePrefix) clearClientCache(dashboardCachePrefix);
   }, [dashboardCachePrefix]);
@@ -416,7 +440,7 @@ export default function Dashboard() {
         .order("started_at", { ascending: false }),
       cached ? Promise.resolve({ data: cached.recentSessions || [] }) : supabase
         .from("sessions")
-        .select("started_at, duration_seconds")
+        .select("started_at, duration_seconds, course_id")
         .eq("user_id", user.id)
         .gte("started_at", ninetyDaysAgo.toISOString()),
       cached ? Promise.resolve({ data: cached.objectives || [] }) : supabase
@@ -972,7 +996,7 @@ export default function Dashboard() {
           ? courses.map((course) => course.id === id ? savedCourse : course)
           : [...courses, savedCourse];
         setCourses(nextCourses);
-        if (!id) setCourseId(savedCourse.id);
+        if (!id) { coursePickedBy = dataOwner; setCourseId(savedCourse.id); }
         writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions, objectives: todayObjectives });
         toast(t(id ? "courseEditor.updated" : "courseEditor.created"), "success");
         return { ok: true };
@@ -994,7 +1018,7 @@ export default function Dashboard() {
       setCourses((prev) => id
         ? prev.map((course) => course.id === id ? data : course)
         : [...prev, data]);
-      if (!id) setCourseId(data.id);
+      if (!id) { coursePickedBy = dataOwner; setCourseId(data.id); }
       toast(t(id ? "courseEditor.updated" : "courseEditor.created"), "success");
       return { ok: true };
     } catch (_) {
@@ -1449,6 +1473,10 @@ export default function Dashboard() {
             enregistrées. */}
         <section className="bt-dashboard-timer order-1 lg:order-1 card relative min-w-0 overflow-hidden"
           style={{
+            // La carte isole ses calques (globals.css) : menu des cours ouvert,
+            // elle doit passer devant le voile de fermeture (z-10), sinon
+            // chaque choix tombait sur le voile et refermait le menu.
+            zIndex: showCourseMenu ? 11 : undefined,
             backgroundColor: isPaused ? "var(--bt-pause-bg)" : "var(--bt-surface)",
             backgroundImage: isPaused ? "none" : "radial-gradient(90% 75% at 50% 100%, var(--bt-timer-wash), transparent 72%), linear-gradient(180deg, var(--bt-surface), var(--bt-timer-base))",
             borderColor:     isPaused ? "var(--bt-pause-border)" : "var(--bt-border)",
@@ -1513,7 +1541,7 @@ export default function Dashboard() {
                   <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
                     <div className="max-h-64 overflow-y-auto py-1" role="listbox" aria-label={t("dash.selectCourse")}>
                       {activeCourses.map((course) => (
-                        <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
+                        <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { coursePickedBy = dataOwner; setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
                           <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} aria-hidden="true" />
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
                           {courseId === course.id && (
@@ -1571,7 +1599,7 @@ export default function Dashboard() {
             <div className="relative z-20 mt-3 px-4 sm:px-6">
               <ChallengeStrip
                 challenge={challenge}
-                onPickCourse={activeCourses.some(c => c.id === challenge?.params?.course_id) ? setCourseId : undefined}
+                onPickCourse={activeCourses.some(c => c.id === challenge?.params?.course_id) ? (id) => { coursePickedBy = dataOwner; setCourseId(id); } : undefined}
               />
             </div>
           )}

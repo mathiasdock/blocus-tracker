@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-01 — Claude — Chrono : le choix du cours remarche, et le dernier cours étudié est proposé à l'ouverture
+
+- Régression de dff4982 (même jour) : en isolant les calques de la carte Chrono, le menu des cours passait SOUS le voile qui le referme quand on touche à côté (z-10, hors de la carte). Chaque choix tombait sur le voile : le menu se fermait sans changer de cours, sur téléphone comme sur ordinateur. La carte passe en z-index 11 tant que le menu est ouvert (toujours sous l'en-tête, z-30).
+- À l'ouverture de l'app, le chrono sélectionne le cours de la session la plus récente (aujourd'hui + 90 jours ; `course_id` ajouté à la requête des sessions récentes), au lieu du cours enregistré dans le navigateur ou du plus ancien du compte. Il suit la dernière session connue (cache puis données fraîches) jusqu'à ce que l'étudiant choisisse lui-même un cours (menu, défi du jour, nouveau cours) : revenir ensuite sur le Chrono ne l'écrase pas. Jamais pendant une session commencée ou en pause. `TimerContext` expose `hydrated`.
+- Vérifié hors ligne avec de vrais clics (ordinateur et 375 px) : ouverture du menu dès le premier clic, choix d'un autre cours, choix conservé après un aller-retour Planning → Chrono, dernier cours étudié (Biologie) repris après rechargement. 501 tests, lint et build de production verts.
+
 ## 2026-10-01 — Claude — Chrono : le cours et Focus ne passent plus par-dessus l'en-tête sur téléphone
 
 - Au défilement, la barre de contexte du Chrono (cours + bouton Focus, en z-30) passait par-dessus l'en-tête collant de l'app (aussi z-30, mais plus tôt dans la page) : la carte ne formait pas son propre calque. `.bt-dashboard-timer` reçoit `isolation: isolate` : ses calques internes restent dans la carte. Le menu des cours s'ouvre toujours au-dessus du défi du jour. Vérifié hors ligne à 375 px (défilement, menu ouvert), lint et build verts.
