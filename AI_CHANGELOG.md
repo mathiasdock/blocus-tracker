@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-01 — Claude — Barre du bas (téléphone) : l'apparence de la barre d'iOS 26, bulle transparente, icône verte
+
+- Suite de l'entrée ci-dessous, demande de Mathias : « exactement comme les captures » (app Horloge d'iOS 26). Le mouvement ne change pas.
+- La barre devient une capsule de verre transparente : rayon complet, marges latérales de 16 px, `--bt-nav-material` à 50 % (clair) / 55 % (sombre) au lieu de 72 / 76 %, flou de 12 px au lieu de 24, filet clair tout autour à la place de l'arête haute. Le voile sous la barre est allégé (30 / 34 %, flou de 8 px). Jetons modifiés dans `lib/colorTokens.cjs` puis `styles/colors.css` régénéré ; ils ne servent qu'à la barre.
+- L'onglet actif n'a plus de pastille verte : une bulle de verre neutre en capsule (`--bt-nav-pill`, nouveau jeton : blanc 62 % en clair, 13 % en sombre). Seuls son icône et son nom sont verts (`--bt-brand-text`) ; les autres onglets passent en `--bt-text-1`, même graisse pour tous. La bulle claire garde le vert lisible quand la barre passe sur la carte vert foncé du Chrono.
+- En voyage, la lentille est du verre clair avec un fin liseré irisé (dispersion), comme sur les captures. Ce qu'on voit des onglets, ce sont des copies `aria-hidden` : en vert dans la lentille, en couleur normale dans deux « fenêtres » dont les bords suivent ceux de la lentille (transformations seulement). Rien n'apparaît plus en double sous un verre transparent. Les vrais liens restent à leur place, contenu transparent : taps, contour clavier et noms pour les lecteurs d'écran inchangés.
+- Vérifié hors ligne dans Chrome headless (375 et 320 px, clair et sombre, au-dessus du fond crème et de la carte vert foncé) : changements de page suivis image par image, second toucher en plein trajet, mouvement réduit, page hors barre puis retour, sous-pages de Social, contour clavier, aucune erreur. 507 tests (dont le contrat des couleurs), lint et build de production verts. Pas testé sur un iPhone réel.
+
 ## 2026-10-01 — Claude — Barre du bas (téléphone) : la sélection voyage d'un onglet à l'autre, en lentille de verre
 
 - Demande de Mathias, avec des captures de l'app Horloge d'iOS 26 : le cadre vert de l'onglet actif se « téléportait ». Cause : le Layout appartient à chaque page, donc la barre est reconstruite à chaque changement de page ; la transition CSS existante démarrait dans l'ancienne barre, qui disparaissait aussitôt.

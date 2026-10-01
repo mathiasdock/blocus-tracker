@@ -5,14 +5,21 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import styles from "./FloatingNav.module.css";
 
-// La sélection VOYAGE d'un onglet à l'autre, comme la barre d'onglets
-// d'iOS 26 (app Horloge, demande de Mathias le 2026-10-01) : au départ elle
-// se soulève en lentille de verre — un peu plus grande que la barre, elle
-// grossit et colore ce qu'elle survole —, glisse avec un léger rebond en
-// s'étirant quand elle va vite, puis se repose en pastille verte.
+// La barre d'onglets d'iOS 26 (app Horloge, captures de Mathias du
+// 2026-10-01) : une capsule de verre transparente ; l'onglet actif posé sur
+// une bulle neutre et transparente, seuls son icône et son nom en vert. Au
+// toucher, la bulle se soulève en lentille de verre — plus grande que la
+// barre, elle grossit et colore en vert ce qu'elle survole —, glisse avec un
+// léger rebond en s'étirant quand elle va vite, puis se repose.
 // Approximation web : Safari ne sait pas réfracter ce qu'il y a derrière ; le
 // verre est fait de transparence, de reflets, d'une ombre et d'une copie
 // grossie des onglets vue à travers la lentille.
+//
+// Les onglets qu'on VOIT sont des copies (aria-hidden) : celle de la lentille
+// (en vert) et deux « fenêtres » de part et d'autre (couleur normale), dont
+// les bords suivent ceux de la lentille. Ce qui passe sous la lentille
+// n'apparaît donc jamais en double. Les vrais liens, invisibles mais à leur
+// place, gardent les taps, le clavier et les lecteurs d'écran.
 //
 // La barre est reconstruite à chaque page (le Layout appartient à la page).
 // Le trajet en cours vit donc ici, hors de React : la barre de la nouvelle
@@ -28,13 +35,12 @@ const LIFT_Y = 0.3;          // … et +30 % en hauteur, plus haute que la barre
 const STRETCH_MAX = 0.2;     // étirement maximal à pleine vitesse
 const LIFT_IN_MS = 110;
 const LAND_FROM_MS = 290;
-// Fondus croisés décalés : le verre arrive AVANT que le vert parte, et le vert
-// revient SOUS le verre avant que celui-ci s'efface. Les vrais onglets restent
-// couverts tout du long (sinon leur texte apparaît en double).
+// La bulle s'efface quand le verre arrive et revient quand il se repose.
 const GLASS_IN_MS = 70;
-const FILL_OUT = [30, 100];
-const FILL_IN = [290, 400];
-const GLASS_OUT = [360, 480];
+const BUBBLE_OUT = [20, 90];
+const BUBBLE_IN = [320, 440];
+const GLASS_OUT = [340, 480];
+const WINDOW_SPAN = 10;      // largeur d'une fenêtre, en onglets
 const SAME_GESTURE_MS = 900; // barre quittée il y a moins : même geste, on glisse
 
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -43,6 +49,7 @@ const smooth = (x) => {
   const c = Math.min(1, Math.max(0, x));
   return c * c * (3 - 2 * c);
 };
+const between = (ms, [start, end]) => smooth((ms - start) / (end - start));
 
 // Ressort amorti : 0 → 1 avec un petit dépassement, t en secondes, v la
 // vitesse de départ (en trajets par seconde) — un trajet repris en route
@@ -60,15 +67,13 @@ function liftAt(ms, fromLift = 0) {
   return Math.max(curve, fromLift * (1 - smooth(ms / LIFT_IN_MS)));
 }
 
-const between = (ms, [start, end]) => smooth((ms - start) / (end - start));
-
 function glassAt(ms, fromLift = 0) {
   const curve = smooth(ms / GLASS_IN_MS) * (1 - between(ms, GLASS_OUT));
   return Math.max(curve, fromLift * (1 - between(ms, GLASS_OUT)));
 }
 
-function fillAt(ms, fromLift = 0) {
-  return Math.min(1, (1 - between(ms, FILL_OUT)) * (1 - fromLift) + between(ms, FILL_IN));
+function bubbleAt(ms, fromLift = 0) {
+  return Math.min(1, (1 - between(ms, BUBBLE_OUT)) * (1 - fromLift) + between(ms, BUBBLE_IN));
 }
 
 // Position (en rangs d'onglet) et vitesse (rangs par seconde) d'un trajet.
@@ -79,10 +84,23 @@ function positionAt(from, to, ms, velocity = 0) {
 const velocityAt = (from, to, ms, velocity = 0) =>
   (positionAt(from, to, ms + 1, velocity) - positionAt(from, to, ms - 1, velocity)) * 500;
 
+const pct = (value) => `${value.toFixed(3)}%`;
+
+// Bords gauche et droit de la lentille (en onglets) → transformations des
+// deux fenêtres et de leurs copies, qui restent alignées sur les vrais onglets.
+function windowFrames(left, right) {
+  return {
+    left: `translateX(${pct((left - WINDOW_SPAN) * (100 / WINDOW_SPAN))})`,
+    leftCopy: `translateX(${pct((WINDOW_SPAN - left) * 20)})`,
+    right: `translateX(${pct(right * (100 / WINDOW_SPAN))})`,
+    rightCopy: `translateX(${pct(-right * 20)})`,
+  };
+}
+
 // Toutes les images clés d'un trajet, déterministes : l'ancienne et la
 // nouvelle barre calculent exactement les mêmes.
 function tripFrames(from, to, fromLift, velocity) {
-  const frames = { pill: [], copy: [], glass: [], fill: [] };
+  const frames = { pill: [], copy: [], glass: [], bubble: [], left: [], leftCopy: [], right: [], rightCopy: [] };
   for (let step = 0; step <= SAMPLES; step += 1) {
     const offset = step / SAMPLES;
     const ms = offset * DURATION;
@@ -92,14 +110,17 @@ function tripFrames(from, to, fromLift, velocity) {
     const stretch = Math.min(STRETCH_MAX, speed * 9) * lift;
     const scaleX = 1 + LIFT_X * lift + stretch;
     const scaleY = 1 + LIFT_Y * lift - stretch * 0.35;
-    const glass = glassAt(ms, fromLift);
-    const fill = fillAt(ms, fromLift);
-    frames.pill.push({ offset, transform: `translateX(${(position * 100).toFixed(3)}%) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})` });
+    const windows = windowFrames(position + 0.5 - scaleX / 2, position + 0.5 + scaleX / 2);
+    frames.pill.push({ offset, transform: `translateX(${pct(position * 100)}) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})` });
     // La copie vue à travers la lentille recule d'autant : elle reste alignée
     // sur les vrais onglets, et le grossissement de la lentille la grossit.
-    frames.copy.push({ offset, transform: `translateX(${(-position * 20).toFixed(3)}%)` });
-    frames.glass.push({ offset, opacity: glass.toFixed(3) });
-    frames.fill.push({ offset, opacity: fill.toFixed(3) });
+    frames.copy.push({ offset, transform: `translateX(${pct(-position * 20)})` });
+    frames.left.push({ offset, transform: windows.left });
+    frames.leftCopy.push({ offset, transform: windows.leftCopy });
+    frames.right.push({ offset, transform: windows.right });
+    frames.rightCopy.push({ offset, transform: windows.rightCopy });
+    frames.glass.push({ offset, opacity: glassAt(ms, fromLift).toFixed(3) });
+    frames.bubble.push({ offset, opacity: bubbleAt(ms, fromLift).toFixed(3) });
   }
   return frames;
 }
@@ -108,45 +129,70 @@ function reducedMotion() {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
+function TabFace({ item }) {
+  return (
+    <>
+      <span className={styles.icon}>
+        {item.icon}
+        {item.badge}
+      </span>
+      <span className={styles.label}>{item.label}</span>
+    </>
+  );
+}
+
+function Copies({ items }) {
+  return items.map((item) => (
+    <span key={item.href} className={styles.copyItem}>
+      <TabFace item={item} />
+    </span>
+  ));
+}
+
 // Controlled by the current route. The selection starts moving as soon as a
 // tab is tapped, while aria-current always reflects the actual destination.
 export default function FloatingNav({ items, activeIndex, label }) {
   const router = useRouter();
-  const pillRef = useRef(null);
-  const copyRef = useRef(null);
-  const fillRef = useRef(null);
-  const glassBodyRef = useRef(null);
-  const glassRimRef = useRef(null);
+  const trackRef = useRef(null);
+  const layers = useRef({});
   const targetRef = useRef(activeIndex);
   const activeRef = useRef(activeIndex);
   activeRef.current = activeIndex;
+  const layer = (name) => (node) => {
+    layers.current[name] = node;
+  };
 
   // Joue le trajet from → to, déjà avancé de `elapsed` ms (reprise après le
   // changement de page). Le repos (variable --i) est posé sur la destination :
-  // l'animation finie, la pastille y reste d'elle-même.
+  // l'animation finie, tout y reste de soi-même.
   const play = useCallback((from, to, elapsed = 0, fromLift = 0, velocity = 0) => {
-    const pill = pillRef.current;
-    if (!pill || to < 0) return;
+    const track = trackRef.current;
+    if (!track || to < 0) return;
     targetRef.current = to;
-    pill.style.setProperty("--i", String(to));
-    const layers = [pill, copyRef.current, fillRef.current, glassBodyRef.current, glassRimRef.current].filter(Boolean);
-    layers.forEach((layer) => layer.getAnimations?.().forEach((animation) => animation.cancel()));
-    if (from === to || reducedMotion() || typeof pill.animate !== "function") return;
+    track.style.setProperty("--i", String(to));
+    const nodes = layers.current;
+    Object.values(nodes).forEach((node) => node?.getAnimations?.().forEach((animation) => animation.cancel()));
+    if (from === to || reducedMotion() || typeof track.animate !== "function") return;
     const frames = tripFrames(from, to, fromLift, velocity);
     const timing = { duration: DURATION, easing: "linear", fill: "none" };
-    const run = (layer, keyframes) => {
-      if (!layer) return;
-      const animation = layer.animate(keyframes, timing);
+    const run = (node, keyframes) => {
+      if (!node) return;
+      const animation = node.animate(keyframes, timing);
       animation.currentTime = Math.min(elapsed, DURATION);
     };
-    run(pill, frames.pill);
-    run(copyRef.current, frames.copy);
-    run(fillRef.current, frames.fill);
-    run(glassBodyRef.current, frames.glass);
-    run(glassRimRef.current, frames.glass);
+    run(nodes.pill, frames.pill);
+    run(nodes.copy, frames.copy);
+    run(nodes.left, frames.left);
+    run(nodes.leftCopy, frames.leftCopy);
+    run(nodes.right, frames.right);
+    run(nodes.rightCopy, frames.rightCopy);
+    run(nodes.bubble, frames.bubble);
+    run(nodes.glassBody, frames.glass);
+    run(nodes.glassRim, frames.glass);
+    run(nodes.glassEdge, frames.glass);
   }, []);
 
-  // Part de l'endroit où la pastille SE TROUVE (en plein trajet si besoin).
+  // Part de l'endroit où la lentille SE TROUVE (en plein trajet si besoin).
   const travel = useCallback((to) => {
     const now = performance.now();
     const elapsed = now - trip.startedAt;
@@ -156,7 +202,7 @@ export default function FloatingNav({ items, activeIndex, label }) {
     const velocity = moving ? velocityAt(trip.from, trip.to, elapsed, trip.velocity) : 0;
     if (from < 0 || to < 0 || from === to) {
       targetRef.current = to;
-      pillRef.current?.style.setProperty("--i", String(to));
+      if (to >= 0) trackRef.current?.style.setProperty("--i", String(to));
       trip.index = to;
       return;
     }
@@ -195,28 +241,30 @@ export default function FloatingNav({ items, activeIndex, label }) {
     return () => router.events.off("routeChangeError", restore);
   }, [router, travel]);
 
+  const selected = activeIndex >= 0;
+
   return (
     <nav className="bt-nav lg:hidden" aria-label={label}>
-      <div className={`bt-nav-bar ${styles.track}`}>
-        {activeIndex >= 0 && (
-          <span ref={pillRef} aria-hidden="true" className={styles.indicator} style={{ "--i": activeIndex }}>
-            <span ref={fillRef} className={styles.fill} />
-            <span ref={glassBodyRef} className={styles.glassBody} />
-            <span className={styles.lens}>
-              <span ref={copyRef} className={styles.copy}>
-                {items.map((item) => (
-                  <span key={item.href} className={styles.copyItem}>
-                    <span className={styles.icon}>
-                      {item.icon}
-                      {item.badge}
-                    </span>
-                    <span className={styles.label}>{item.label}</span>
-                  </span>
-                ))}
-              </span>
+      <div ref={trackRef} className={`bt-nav-bar ${styles.track}`} data-selection={selected ? "" : undefined}
+        style={selected ? { "--i": activeIndex } : undefined}>
+        {selected && (
+          <>
+            <span ref={layer("left")} aria-hidden="true" data-part="window" className={`${styles.window} ${styles.windowLeft}`}>
+              <span ref={layer("leftCopy")} className={styles.windowCopy}><Copies items={items} /></span>
             </span>
-            <span ref={glassRimRef} className={styles.glassRim} />
-          </span>
+            <span ref={layer("right")} aria-hidden="true" data-part="window" className={`${styles.window} ${styles.windowRight}`}>
+              <span ref={layer("rightCopy")} className={styles.windowCopy}><Copies items={items} /></span>
+            </span>
+            <span ref={layer("pill")} aria-hidden="true" data-part="selection" className={styles.indicator}>
+              <span ref={layer("bubble")} className={styles.bubble} />
+              <span ref={layer("glassBody")} className={styles.glassBody} />
+              <span className={styles.lens}>
+                <span ref={layer("copy")} className={styles.copy}><Copies items={items} /></span>
+              </span>
+              <span ref={layer("glassRim")} className={styles.glassRim} />
+              <span ref={layer("glassEdge")} className={styles.glassEdge} />
+            </span>
+          </>
         )}
         {items.map((item, index) => (
           <Link
@@ -230,11 +278,7 @@ export default function FloatingNav({ items, activeIndex, label }) {
               }
             }}
           >
-            <span className={styles.icon}>
-              {item.icon}
-              {item.badge}
-            </span>
-            <span className={styles.label}>{item.label}</span>
+            <TabFace item={item} />
           </Link>
         ))}
       </div>
