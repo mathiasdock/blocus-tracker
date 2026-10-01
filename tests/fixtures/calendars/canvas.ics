@@ -1,0 +1,24 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Instructure Inc//Canvas//EN
+METHOD:PUBLISH
+X-WR-CALNAME:University Calendar
+BEGIN:VEVENT
+UID:event-assignment-101
+DTSTAMP:20260928T150000Z
+DTSTART;TZID=UTC:20261010T235900
+DTEND;TZID=UTC:20261010T235900
+SUMMARY:Campaign brief [ADV 3001]
+DESCRIPTION:Read chapter 1\, then write a brief.\nBring notes\; discuss
+  in class.
+LOCATION:Business Building\, Room 12
+URL:https://canvas.example.edu/calendar?include_contexts=course_42&month=10&year=2026#assignment_101
+CATEGORIES:Coursework,Advertising
+SEQUENCE:0
+END:VEVENT
+BEGIN:VEVENT
+UID:event-calendar-event-102
+DTSTART;VALUE=DATE:20261012
+SUMMARY:Campus day
+END:VEVENT
+END:VCALENDAR

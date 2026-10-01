@@ -7,6 +7,7 @@
     "build": "node scripts/generate-colors.cjs --check && next build",
     "colors:generate": "node scripts/generate-colors.cjs",
     "test:colors": "node --test tests/color-contract.test.mjs",
+    "test:calendars": "node --test tests/external-calendars.test.mjs",
     "start": "next start",
     "lint": "next lint",
     "test:auth": "node --test tests/auth-login-identity.test.mjs tests/auth-recovery.test.mjs"
@@ -16,6 +17,8 @@
     "@marsidev/react-turnstile": "1.6.1",
     "@supabase/supabase-js": "^2.45.4",
     "heic-to": "^1.5.2",
+    "ical.js": "2.2.1",
+    "ipaddr.js": "2.2.0",
     "next": "^14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -23,6 +26,7 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
     "autoprefixer": "^10.4.20",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.35",

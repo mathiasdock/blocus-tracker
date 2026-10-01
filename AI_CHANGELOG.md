@@ -2,6 +2,15 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-01 — Codex — Calendriers universitaires : fondation, étape 1 uniquement (local)
+
+- Sources Canvas/Moodle/Brightspace/iCal, événements importés séparés et correspondances explicites vers les cours personnels existants. Migration `20261001174207_external_academic_calendars.sql`, API authentifiée `/api/calendars`, modules serveur `calendarFeed`, `calendarParser`, `calendarSync`. Aucun changement du Planning, des cours/examens/objectifs, de la mascotte ou des notifications ; aucun cron ni appel IA.
+- URL privée dans une table distincte sans droit de lecture client, même pour son propriétaire ; RLS et clés étrangères composites pour les propriétaires ; RPC de service en SECURITY INVOKER ; protection existante contre les écritures des comptes suspendus conservée. Déconnexion et suppression du compte effacent les données en cascade. Erreurs fixes, pas de journalisation des URL/corps privés.
+- Synchronisation manuelle avec verrou et délai minimal de cinq minutes en base, requêtes conditionnelles, transaction unique pour import/mises à jour/absences. HTTPS, adresse publique vérifiée et fixée au socket, redirections refusées, limites de temps/taille/nombre. Les échecs ne remplacent pas les derniers événements valides.
+- `ical.js` sans dépendance pour le format ICS ; `ipaddr.js` pour les plages IPv4/IPv6 ; PGlite uniquement en développement pour exécuter la vraie migration et les contrôles SQL. Conventions Canvas vérifiées dans son code source, fixture synthétique. Dates seules, fuseaux IANA/VTIMEZONE, textes échappés et annulations conservés ; récurrences stockées sans expansion. Aucun rapprochement flou ni correspondance enregistrée automatiquement.
+- Vérification : 22 tests ciblés et 529 tests au total verts, lint sans avertissement, build de production vert (avertissement PWA 3 MB préexistant). Contrôles SQL réels des privilèges/RLS/FK/transactions et absence des modules serveur dans les fichiers JS clients. Pas de test sur un flux universitaire privé ni sur PostgREST hébergé. Documentation, limites et estimations de coût : `docs/university-calendars.md`.
+- Migration non appliquée en production, branche locale `codex/university-calendar-foundation`, aucun push ni déploiement. Les quatre fichiers non suivis `public/sw 2.js` à `public/sw 5.js`, présents au départ, restent intacts.
+
 ## 2026-10-01 — Claude — Barre du bas (téléphone) : l'apparence de la barre d'iOS 26, bulle transparente, icône verte
 
 - Suite de l'entrée ci-dessous, demande de Mathias : « exactement comme les captures » (app Horloge d'iOS 26). Le mouvement ne change pas.
