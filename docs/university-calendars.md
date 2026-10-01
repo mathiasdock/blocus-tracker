@@ -1,189 +1,198 @@
-# University calendars — foundation (Step 1)
+# University calendars — compact Step 1 foundation
 
-Implemented on `codex/university-calendar-foundation`; not deployed. Apply
-`supabase/migrations/20261001174207_external_academic_calendars.sql` before enabling
-these endpoints in a deployment. No backfill or environment variable change is
-needed: the API uses the existing Supabase URL, anon key and server service key.
-No live database migration was applied during this implementation.
-The migration depends on the existing v57 suspension helpers as well as the
-existing user/course tables.
+Local branch: `codex/university-calendar-foundation`. No remote migration, push
+or deployment. The original **unapplied** migration is updated in place:
+`supabase/migrations/20261001174207_external_academic_calendars.sql`. It depends
+on existing users/courses/profiles and v57 suspension helpers. No environment
+changes: the API uses the existing Supabase URL, anon key and server service key.
 
-## Boundary with Planning
+## Scope and architecture
 
-Planning continues reading `courses`, `objectives`, `exams` and its legacy
-`courses.exam_date` fallback (`lib/planningExams.mjs`). Its existing hand-written
-ICS exporter only writes a download; it provides no parsing capability. None of
-these paths import the new modules. Imported events cannot create or change
-objectives, exams, courses, notifications or mascots. There are no AI calls,
-background jobs, cron entries, automatic syncs or new UI.
+Planning still reads courses, objectives and exams through its existing paths;
+none of those paths import this feature. There are no new UI elements, course
+creation/renaming, classification, notifications, mascot changes, AI calls or
+cron jobs. Course matching is an explicit private mapping, independent of the
+community `course_offerings` / `course_links` system.
 
-## Data model
+- `external_calendar_sources`: owner, provider, display name, successful/attempted
+  sync timestamps, fixed status/error, sync lease. Up to three sources per user.
+- `external_calendar_secrets`: server-only feed URL, ETag/Last-Modified and the
+  UTC date of the last complete snapshot. No browser SELECT grant or policy.
+- `external_academic_events`: current compact snapshot. Natural primary key
+  `(source_id, external_uid, recurrence_id)`; no redundant UUID row ID or owner
+  column. Ownership comes exclusively from the source through RLS. An empty
+  recurrence ID denotes an ordinary/master event; overrides remain distinct.
+- `external_calendar_course_map`: explicit `(source_id, external_course_key)` →
+  existing local course. Composite FKs enforce the same user for the mapping,
+  source and course, including privileged writes. Local course deletion removes
+  mappings without deleting the imported events.
 
-- `external_calendar_sources`: one user's source, provider (`canvas`, `moodle`,
-  `brightspace`, `ical`), display name, last successful/attempted sync, status,
-  fixed error code and a short-lived sync lease. Maximum three sources per user.
-- `external_calendar_secrets`: feed URL and conditional request validators.
-  Separate table, with RLS enabled, no client grants and no client policies.
-- `external_academic_events`: normalized text, dates and course evidence, scoped
-  to user and source. Unique `(source_id, external_uid, recurrence_id)`; an empty
-  recurrence ID denotes the master/ordinary event. Explicit recurring-event
-  overrides have their own identity. Updates preserve row IDs. `last_seen_at`
-  records observation, `provider_updated_at` records the provider's timestamp,
-  and `updated_at` records the local write.
-- `external_calendar_course_map`: an explicit, user-owned decision from
-  `(source_id, external_course_key)` to an existing `courses.id`. Composite
-  foreign keys enforce the same owner for the source, mapping and local course,
-  including service-role writes. Deleting a local course removes its mappings.
+An external `canvas:course:42` / `ADV 3001` can map to `Principles of Advertising`
+and later inherit that local course's color/identity without changing its name.
+Nothing is silently matched or saved.
 
-Mapping `canvas:course:42` (label `ADV 3001`) to the user's course named
-`Principles of Advertising` leaves the local course name/color untouched. Later
-UI can join the mapping to that course's current identity. No fuzzy matching,
-exact-match auto-save, automatic course creation, or connection to the separate
-community `course_offerings`/`course_links` matching system is involved.
+## Compact content and bounds
 
-## Canvas evidence and parser decisions
+Full ICS files, attachments, HTML bodies and arbitrary provider metadata are
+never stored. Compared with the first Step 1 commit, removed fields include
+JSON metadata, full description/location/categories, duplicate date objects,
+DTEND/end dates, provider timestamp/sequence, raw status, event creation/last-seen/
+removed timestamps and redundant event UUID/owner columns.
 
-The implementation was checked against [Canvas's actual ICS export code](https://github.com/instructure/canvas-lms/blob/master/app/models/calendar_event.rb),
-`CalendarEvent::IcalEvent#to_ics`: it uses DTSTART/DTEND for assignments' due
-instants, an event UID, a URL with `include_contexts=course_<id>`, and sometimes
-an appended `[course_code]` in SUMMARY. The fixture reproduces those conventions
-with invented data; it is not a student's private feed.
+Keep title, UTC start/due where available, all-day flag, one `event_date`, optional
+floating timestamp, external course key/label, useful external URL, active
+status and an `updated_at` timestamp that changes only with actual content.
+`source.last_synced_at` records observation for the whole snapshot. Incoming
+sequence/timestamp still resolve duplicate revisions during parsing, then are
+discarded. No per-event last-seen update occurs on re-sync or 304.
 
-Only an unambiguous Canvas course URL on the subscription origin becomes an
-external course key: a single `include_contexts=course_42` or `/courses/42/...`.
-Conflicting/multiple contexts are left unmapped. The trailing bracket label is
-only used once the URL establishes the course identity. This does not classify
-an event as an assignment, quiz or exam. The original title, description,
-location, external URL, categories, calendar name and selected explicit course
-extension fields remain available for later provider adapters. Generic providers
-currently parse ICS without inferring course keys.
+Strict UTF-8 byte limits are enforced in both parser and SQL:
 
-`ical.js@2.2.1` is a mature, dependency-free parser, used for property parsing,
-folding, escaped text, recurrence metadata and embedded VTIMEZONE definitions.
-It avoids maintaining a custom ICS grammar. IANA TZIDs without VTIMEZONE use
-Node's Intl timezone database. A DST overlap uses the first occurrence; an
-unresolvable/nonexistent local datetime rejects the whole snapshot. Dates are
-validated rather than silently rolled into another month.
+| Field | Maximum bytes | Oversize handling |
+| --- | ---: | --- |
+| UID | 255 | reject snapshot; never truncate identity |
+| recurrence ID | 80 | reject snapshot |
+| title | 160 | plain-text truncation |
+| description excerpt | 120 | strip markup/control characters, collapse whitespace, truncate |
+| external course key | 96 | reject snapshot |
+| external course label | 80 | plain-text truncation |
+| external URL | 384 | omit optional URL; never truncate into a different link |
+| course evidence hint | 96 | plain-text truncation, only when no reliable course key |
 
-All-day dates stay SQL `date` values, with the exclusive DTEND preserved. Floating
-times remain in `metadata.dates` with no invented UTC instant. Explicit DUE
-values are stored separately. DTSTART is not silently converted to a semantic
-"deadline". RRULE/RDATE/EXDATE/DURATION and RECURRENCE-ID are retained, but there
-is no occurrence expansion in this step. Attachments, attendees, arbitrary
-extension blobs, HTML alternate descriptions and raw ICS files are not stored.
-Descriptions are untrusted text, never pre-approved HTML.
+Text sanitization only scans a bounded 2,048-character prefix. Text remains
+untrusted plain text, not HTML to inject. Course hints selectively combine
+explicit course extension fields, categories, location and calendar name;
+there is no arbitrary JSON storage. Reliable Canvas identities omit this hint.
+The `is_recurring` flag and explicit occurrence identity survive, but recurrence
+rule bodies/RDATE/EXDATE are discarded and **no recurrence expansion** occurs.
+An old recurring master outside the date window is not retained; future
+recurrence support would require re-fetching/parsing the feed.
 
-A complete VCALENDAR v2 snapshot is required (METHOD absent or PUBLISH).
-Invitation/cancellation delta messages and unsupported top-level components
-such as VTODO fail safely; a cancellation within a snapshot uses
-`STATUS:CANCELLED`. An empty valid snapshot marks previous events missing.
-Missing means absent from the feed, not proven deleted: providers may have a
-rolling export window. Missing rows are retained for 90 days and then removed
-on a later successful manual sync. Returning events become active again.
+`ical.js` handles ICS folding/escaping and VTIMEZONE. Node Intl handles IANA
+TZIDs when no embedded zone is supplied. Floating times never get an invented
+UTC offset; all-day dates retain their calendar date. `event_date` is the due
+or start date (UTC day for absolute instants, literal date for all-day/floating).
+No meaning such as “exam” or “assignment” is inferred from these dates.
 
-## API for the later UI
+Canvas conventions were checked against [its actual export implementation](https://github.com/instructure/canvas-lms/blob/master/app/models/calendar_event.rb).
+Only unambiguous same-origin event URLs with a single `include_contexts=course_N`
+or `/courses/N/...` establish course identity. A trailing bracket course label
+is used only with a reliable key. Other providers parse generic ICS and leave
+course identity unknown. Tests use synthetic data, never a private student feed.
 
-All requests use `Authorization: Bearer <current Supabase access token>`.
-Identity is verified with `auth.getUser(token)`; a body `user_id` is ignored.
-Mutation bodies are JSON, limited to 8 KB. Responses use `Cache-Control: no-store`.
+## Retention and sync limits
 
-- `GET /api/calendars`: returns `{ sources: [...] }` using an explicit safe
-  column list. No secrets, sync lease tokens or imported event bodies.
-- `POST /api/calendars` with `{ action: "connect", provider, display_name,
-  feed_url }`: stores the source and secret atomically; returns `{ id }`.
-  Connection performs no fetch or sync. `webcal:` is normalized to HTTPS.
-- `POST /api/calendars` with `{ action: "sync", source_id }`: manually fetches
-  and imports; returns `{ event_count, not_modified }`.
-- `DELETE /api/calendars` with `{ source_id }`: owner-only removal, cascading to
-  the secret, imported events and mappings. Account deletion also cascades.
-  Rotating the feed currently requires disconnect/reconnect.
-- Future mapping UI may use the authenticated Supabase client to select/upsert/
-  delete `external_calendar_course_map`, specifying the current `user_id`,
-  `source_id`, `external_course_key`, optional label and `local_course_id`.
-  Upsert conflict key: `source_id,external_course_key`. Imported events are
-  readable only by their owner; only the server can write them.
+- Inclusive UTC window: **45 days past through 365 days future**, checked in
+  parsing and SQL. Parse/validate the whole feed before filtering; no partial
+  successful import on malformed data.
+- **300 retained events per source and 300 total per user across all sources**.
+  A transaction advisory lock serializes the aggregate budget. Overflow rejects
+  the complete sync and keeps the previous snapshot, rather than silently
+  choosing some deadlines.
+- **1 MiB maximum feed response**, 2,000 raw VEVENT components scanned, 12-second
+  fetch deadline. No attachments, redirects or compressed bodies downloaded.
+- Missing and cancelled events are deleted immediately during successful sync.
+  There are no tombstones. A returning event reuses the same natural identity.
+- Every successful sync, including 304, prunes out-of-window rows across that
+  user's sources. Inactive users' snapshots remain bounded but are only pruned
+  when they next sync/disconnect; there is no background cleanup job.
+- Conditional validators are reused only on the same UTC day. The first manual
+  sync on a new day re-fetches the full feed, allowing previously too-distant
+  events to enter the moving window even if the upstream ETag is unchanged.
 
-## Sync and privacy controls
+Manual API ownership validation → service-only lease/secret → bounded fetch →
+parse → one atomic SQL transaction. Upserts preserve natural identity; unchanged
+content is not physically updated. A persistent five-minute cooldown includes
+failures and works across Vercel instances. Lease tokens prevent stale results
+or an in-flight sync resurrecting a disconnected source. Existing suspension
+checks remain on new tables and server-backed RPC operations. Errors preserve
+the previous successful snapshot/timestamp. Complete VCALENDAR v2 snapshots
+(METHOD absent/PUBLISH) are required; invitation/delta messages fail safely.
 
-The API validates ownership before obtaining a service-only lease and secret.
-The database's five-minute cooldown survives multi-instance Vercel execution
-and includes failed attempts. A lease token prevents a late result overwriting
-a newer sync. A crashed sync can be retried after five minutes. The source cap
-uses a per-user transaction lock. Existing in-memory API rate limiting is an
-additional guard, not the authoritative sync limit.
-The existing suspended-account trigger covers all new tables. Server-only
-connection and sync RPCs also check the verified user's suspension state,
-because service-role requests do not carry that user's `auth.uid()`.
+## API and security
 
-Fetches accept only HTTPS on port 443 without URL credentials. DNS resolves
-once and the public address is pinned to the socket; private/reserved, loopback,
-link-local and mapped-private addresses are blocked. `ipaddr.js@2.2.0` supplies
-IPv4/IPv6 range classification, avoiding a partial home-grown address filter.
-Redirects are refused so the subscription token is not forwarded. Set the final
-feed URL when a university redirects. Maximum 12 seconds, 2 MiB response,
-2,000 VEVENT components and 32 KiB normalized data per event. Exceeding a limit
-fails the whole import, never silently removes omitted events. No attachment
-or linked URL is fetched. Compression is not requested/accepted, avoiding
-unbounded decompression. ETag/Last-Modified support reduces subsequent downloads.
+All `/api/calendars` requests require a Bearer access token verified with
+`auth.getUser`. Request-body user IDs are ignored; JSON bodies are limited to
+8 KB. Responses use `Cache-Control: no-store`.
 
-After parsing every event successfully, one service-only SECURITY INVOKER RPC
-transaction upserts the snapshot, marks missing rows and updates source status.
-A 304 keeps the existing snapshot. Fetch/parse failures and transaction errors
-leave the last successful events and timestamp intact. Disconnecting during a
-fetch makes its lease invalid and prevents imports from being recreated.
+- GET: safe source metadata only.
+- POST `{ action: "connect", provider, display_name, feed_url }`: atomic source/
+  secret creation, no automatic fetch. `webcal:` becomes HTTPS.
+- POST `{ action: "sync", source_id }`: explicit manual import; count/304 result.
+- DELETE `{ source_id }`: owner-only cascade to secret, imports and mappings.
+- Future mapping UI can use authenticated Supabase select/upsert/delete on
+  `external_calendar_course_map`, conflict key `source_id,external_course_key`.
 
-Feed URLs and validators never appear on readable source rows. Secret-table
-privileges and RPC EXECUTE privileges are revoked from PUBLIC, anon and
-authenticated; RLS is enabled on all four tables. There are no SECURITY DEFINER
-functions or public views. See [Supabase's API security guidance](https://supabase.com/docs/guides/api/securing-your-api).
-The URL is stored as private server data, not application-encrypted: trusted DB
-administrators/service-role holders and backups can access it, as with other
-server secrets. Deletion removes the live row; existing backup retention is
-unchanged. Raw exceptions, response bodies, request bodies and URLs are never
-logged by this feature or returned as errors. Errors use fixed codes. A provider
-reflecting the subscription URL/long token in selected event text is redacted.
-A future connection UI must keep the entered URL out of analytics/client logs.
+The secret table and all sync RPCs remain inaccessible to PUBLIC/anon/
+authenticated clients, including the source owner. RLS is enabled on all four
+tables; all new functions use SECURITY INVOKER and a fixed search path. Events
+inherit source ownership without a duplicative per-row user column. Source/map
+composite FKs retain strict ownership enforcement. Account deletion cascades.
+Raw URL/body/exception logging is absent; client errors are fixed codes. The
+subscription URL/long token is redacted if reflected in retained event text.
+Trusted DB/service-role administrators and existing backups can still access
+server secrets; live disconnect does not change backup retention.
 
-## Validation
+HTTPS only, port 443, no credentials, public DNS address checked with `ipaddr.js`
+and pinned to the socket, private/reserved/mapped-private addresses rejected,
+redirects refused. A future connection UI must keep entered URLs out of client
+logs/analytics. Neither parser dependency enters the browser bundle.
 
-`npm run test:calendars` executes parser, fetcher, API and sync tests and applies
-the actual migration in PGlite (PostgreSQL) using anon/authenticated/service roles.
-The development-only `@electric-sql/pglite` dependency enables repeatable tests
-without a hosted database or Docker. Tests exercise actual RLS, grants, FKs,
-RPC transactions, role restrictions, deletion and failure rollback. The minimal
-fixture supplies the existing user/course/profile prerequisites and loads the
-real v57 suspension helpers; it is not a
-full Supabase/PostgREST deployment. No hosted advisors or live network sync
-against a university account were run; local catalog checks cover this
-migration's RLS, search paths, privileges and invoker functions.
+## Index review
 
-Full verification: `node --test tests/*.test.mjs`, `npm run lint`, `npm run build`.
-Result on 2026-10-01: all 22 calendar tests / 529 total tests passed; lint passed;
-production build passed with the existing 3 MB PWA precache warning. The new
-server modules/dependencies are absent from the generated client JS bundles.
+Events have exactly two indexes: the natural PK for source/UID upsert and source
+lookup, and `(source_id,event_date)` for date-range queries and retention. Owner
+queries first obtain the user's source IDs using the source owner index/RLS.
+There is no event UUID PK, per-event owner index, JSON index or title index.
+Small source/map indexes support owner lookups, source/course ownership FKs and
+mapping identity. The extra `(courses.id,courses.user_id)` index enforces mapping
+ownership and is included in the measurements below.
 
-## Rough free-tier impact
+## Measured storage
 
-Assume one source per user, 100–300 events, roughly 2–4 KB per normalized row
-including table/index overhead, and 1–3 KB of ICS per event. Descriptions vary;
-these are planning estimates, not a quota guarantee. Source/map rows are small.
+Reproduce offline: `node scripts/measure-calendar-storage.mjs` (or `--quick`).
+[Raw measured bytes](measurements/university-calendar-storage.json) are committed.
+The script applies the actual migration to PGlite's PostgreSQL 17.5 and uses the
+production parser on the Canvas fixture plus varied generated coursework:
+100/300 retained rows per source, 10% all-day, 80% with a 120-byte excerpt,
+realistic titles/course labels/event URLs, one source and five mappings per user.
 
-| Users | Event rows | Approx. database size | Full feed transfer per sync round |
-| --- | ---: | ---: | ---: |
-| 100 | 10,000–30,000 | 20–120 MB | 10–90 MB |
-| 1,000 | 100,000–300,000 | 200 MB–1.2 GB | 100–900 MB |
+Measurements use `pg_table_size`, `pg_indexes_size`, `pg_total_relation_size`
+and `pg_column_size`: allocated table/TOAST/free-space-map/index pages, not JSON
+length or a simple row-count multiplication. Ordinary VACUUM only; never VACUUM
+FULL/repacking. The edit scenario changes 10% of events in each of three rounds,
+with ordinary VACUUM between rounds. No-op sync tuple stability is also tested.
 
-There is zero scheduled traffic. If every user manually syncs once a day for
-30 days, uncompressed university-to-server transfer is roughly 0.3–2.7 GB for
-100 users or 3–27 GB for 1,000 users. Successful 304s need only headers and skip
-sending event JSON to the DB. A changed snapshot sends normalized JSON once
-from Vercel to Supabase (ingress, roughly the same order of magnitude as the
-feed). DB egress for the sync itself is tiny: source/lease metadata and a count,
-not all events. Future calendar reads will add egress when that UI is built.
+| Users × events/user | Initial calendar storage | After three 10% edit rounds |
+| --- | ---: | ---: |
+| 100 × 100 | 5.77 MB | 6.31 MB |
+| 100 × 300 | 16.66 MB | 18.14 MB |
+| 1,000 × 100 | 55.16 MB | 60.10 MB |
+| 1,000 × 300 | 163.87 MB | 178.24 MB |
 
-Re-syncs reuse rows rather than accumulating versions. Short-lived missing
-rows, multiple sources and long descriptions add storage; physical DB/index
-bloat also needs allowance. 1,000 users at the high end can exceed a small free
-DB allowance, so this architecture keeps calls bounded but does not promise
-that scale will fit a free plan. Measure representative feeds before selecting
-automatic sync frequency in a later step.
+Decimal MB (1,000,000 bytes). Includes all four new relations and all their
+indexes, plus the added course ownership index. Excludes existing app/auth/course
+storage and WAL/backups. These are actual **local** page measurements from the
+32-bit PGlite build, used as estimates for hosted PostgreSQL: platform alignment,
+real field distributions, autovacuum lag and edit patterns can differ.
+
+With the user's current ~30 MB database, the high measured case is ~208 MB after
+edits, leaving ~292 MB of the stated 500 MB allowance for application growth and
+headroom. Budget ~200 MB for 1,000 users' calendars in this workload. The 300-event
+**aggregate user cap**, field bounds, retention and no-op update avoidance are
+what make this plausible; three feeds do not triple that budget. All fields at
+maximum length or sustained mass rewriting cost more. If real usage exceeds
+this budget, tighten to 200 retained events per user / 30 past days, rather than
+expanding the caps. A free-tier fit is not a guarantee against other app growth.
+
+## Verification
+
+`npm run test:calendars` exercises the parser, bounded fetch, API, real SQL/RLS,
+FK ownership, manual transactions and v57 suspension in the local PostgreSQL
+harness. Includes retention boundaries, aggregate source budgets, UTF-8 lengths,
+304 day rollover, immediate deletion, rollback and physical no-op tuple checks.
+No hosted migration/advisors or real private Canvas feed were used.
+
+Full checks: `node --test tests/*.test.mjs`, `npm run lint`, `npm run build`.
+Results: all 29 calendar tests / 536 total tests passed; lint clean; production
+build passed with only the pre-existing 3 MB PWA precache warning.

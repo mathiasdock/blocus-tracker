@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
-import { PGlite } from '@electric-sql/pglite';
-import { parseCalendar } from '../lib/server/calendarParser.mjs';
+import { createCalendarDatabase } from './fixtures/calendars/database.mjs';
+import { parseCalendar, MAX_EVENTS, MAX_COMPONENTS, FIELD_BYTES } from '../lib/server/calendarParser.mjs';
 import { CalendarError, validateFeedUrl, publicAddress, fetchCalendarFeed, MAX_FEED_BYTES } from '../lib/server/calendarFeed.mjs';
 import { syncCalendar, createCalendarHandler } from '../lib/server/calendarSync.mjs';
 
@@ -16,30 +16,16 @@ const courseA = '00000000-0000-0000-0000-000000000011';
 const courseB = '00000000-0000-0000-0000-000000000012';
 const calendar = body => `BEGIN:VCALENDAR\nVERSION:2.0\n${body}\nEND:VCALENDAR`;
 const event = (body = '') => `BEGIN:VEVENT\nUID:sample\n${body}\nEND:VEVENT`;
-const parse = input => parseCalendar(input, { provider: 'canvas', feedUrl });
+const parse = input => parseCalendar(input, { provider: 'canvas', feedUrl, now: new Date('2026-10-01T12:00:00Z') });
+const eventIdentity = row => JSON.stringify([row.source_id, row.external_uid, row.recurrence_id]);
+// Move the synthetic feed with the real SQL clock for repeatable retention tests.
+const today = new Date().toISOString().slice(0, 10);
+const fixtureOffset = Date.parse(today) - Date.parse('2026-10-01');
+const moveFixtureDate = text => text.replace(/2026(\d{2})(\d{2})/g, (_, month, day) => new Date(Date.parse(`2026-${month}-${day}`) + fixtureOffset).toISOString().slice(0, 10).replaceAll('-', ''));
 let db;
 
 before(async () => {
-  db = new PGlite();
-  await db.exec(`
-    create role anon; create role authenticated; create role service_role bypassrls;
-    create schema auth;
-    create table auth.users (id uuid primary key);
-    create table public.profiles(id uuid primary key references auth.users(id) on delete cascade, locked boolean not null default false);
-    grant select on public.profiles to authenticated, service_role;
-    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-    grant usage on schema auth to authenticated, service_role;
-    grant select, update on auth.users to service_role;
-    create table public.courses(id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade, name text not null);
-    alter table public.courses enable row level security;
-    grant select on public.courses to authenticated;
-    create policy course_owner on public.courses for select to authenticated using (user_id = auth.uid());
-    -- Supabase defaults can grant broad rights: the migration must revoke them.
-    alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-  `);
-  const suspension = readFileSync(new URL('../supabase/migration_v57_real_suspension.sql', import.meta.url), 'utf8');
-  await db.exec(suspension.slice(0, suspension.indexOf('-- Sur toutes les tables')));
-  await db.exec(readFileSync(new URL('../supabase/migrations/20261001174207_external_academic_calendars.sql', import.meta.url), 'utf8'));
+  db = await createCalendarDatabase();
 });
 after(async () => db?.close());
 beforeEach(async () => {
@@ -73,7 +59,7 @@ async function connect(user = userA) {
 }
 async function sync(id, text = fixture, user = userA) {
   await db.query("update external_calendar_sources set last_attempted_at = now() - interval '6 minutes' where id = $1", [id]);
-  return syncCalendar(admin, user, id, async () => ({ text, etag: '"v1"' }));
+  return syncCalendar(admin, user, id, async () => ({ text: moveFixtureDate(text), etag: '"v1"' }));
 }
 async function events(id) { return (await db.query('select * from external_academic_events where source_id = $1 order by external_uid', [id])).rows; }
 
@@ -84,39 +70,37 @@ test('initial import, repeat sync and modified event keep IDs without touching l
   const initial = await events(id);
   assert.equal(initial[0].external_course_key, 'canvas:course:42');
   assert.equal(initial[0].external_course_label, 'ADV 3001');
-  assert.equal(initial[0].description, 'Read chapter 1, then write a brief.\nBring notes; discuss in class.');
+  assert.equal(initial[0].description_excerpt, 'Read chapter 1, then write a brief. Bring notes; discuss in class.');
   await sync(id);
-  assert.deepEqual((await events(id)).map(e => e.id), initial.map(e => e.id));
+  assert.deepEqual((await events(id)).map(eventIdentity), initial.map(eventIdentity));
   await sync(id, fixture.replace('Campaign brief', 'Updated brief').replace('20261010T235900', '20261011T235900'));
   const updated = await events(id);
-  assert.equal(updated[0].id, initial[0].id);
+  assert.equal(eventIdentity(updated[0]), eventIdentity(initial[0]));
   assert.equal(updated[0].raw_title, 'Updated brief [ADV 3001]');
-  assert.equal(updated[0].starts_at.toISOString(), '2026-10-11T23:59:00.000Z');
+  assert.equal(updated[0].starts_at.toISOString(), new Date(Date.parse('2026-10-11T23:59:00Z') + fixtureOffset).toISOString());
   assert.equal((await db.query('select count(*)::int n from external_calendar_course_map')).rows[0].n, 0);
   assert.equal((await db.query('select name from courses where id=$1', [courseA])).rows[0].name, 'Principles of Advertising');
 });
 
-test('missing events are marked, cancelled events stored, returning events restored', async () => {
+test('missing and cancelled events are deleted immediately; returning events restored', async () => {
   const id = await connect(); await sync(id);
   await sync(id, calendar(event('DTSTART:20261001T140000Z\nSTATUS:CANCELLED')));
   const rows = await events(id);
-  assert.equal(rows.filter(e => e.status === 'missing').length, 2);
-  assert.equal(rows.find(e => e.external_uid === 'sample').status, 'cancelled');
-  assert.ok(rows.every(e => e.removed_at));
+  assert.equal(rows.length, 0);
   await sync(id);
   assert.equal((await events(id)).filter(e => e.status === 'active').length, 2);
   await sync(id, calendar(''));
-  assert.ok((await events(id)).every(e => e.status === 'missing'));
+  assert.equal((await events(id)).length, 0);
 });
 
 test('same UID remains separate across two sources and two users', async () => {
   const first = await connect(); const second = await connect(userB);
   await sync(first); await sync(second, fixture, userB);
   assert.equal((await events(first)).length, 2); assert.equal((await events(second)).length, 2);
-  assert.notEqual((await events(first))[0].id, (await events(second))[0].id);
+  assert.notEqual(eventIdentity((await events(first))[0]), eventIdentity((await events(second))[0]));
   const visible = await asUser(userA, 'select * from external_academic_events');
   assert.equal(visible.rows.length, 2);
-  assert.ok(visible.rows.every(e => e.user_id === userA));
+  assert.ok(visible.rows.every(e => e.source_id === first));
 });
 
 test('mapping belongs only to its owner and cannot target another user course/source', async () => {
@@ -184,19 +168,19 @@ test('304 retains snapshot and validators with no parsing or duplicate rows', as
     assert.equal(url, feedUrl); assert.equal(validators.etag, '"v1"'); return { notModified: true };
   });
   assert.equal(result.not_modified, true);
-  assert.deepEqual((await events(id)).map(e => e.id), initial.map(e => e.id));
+  assert.deepEqual((await events(id)).map(eventIdentity), initial.map(eventIdentity));
 });
 
 test('UTC, IANA DST, all-day, due and floating times preserve semantics', () => {
   const row = parse(calendar(event('DTSTART;TZID=America/New_York:20261001T100000\nDTEND;TZID=America/New_York:20261001T110000')))[0];
   assert.equal(row.starts_at, '2026-10-01T14:00:00.000Z');
-  assert.equal(row.ends_at, '2026-10-01T15:00:00.000Z');
+  assert.equal(row.ends_at, undefined);
   assert.equal(parse(calendar(event('DTSTART;TZID=America/New_York:20261101T013000')))[0].starts_at, '2026-11-01T05:30:00.000Z');
   const allDay = parse(calendar(event('DTSTART;VALUE=DATE:20261001\nDTEND;VALUE=DATE:20261003')))[0];
-  assert.equal(allDay.all_day, true); assert.equal(allDay.starts_at, null); assert.equal(allDay.end_date, '2026-10-03');
+  assert.equal(allDay.all_day, true); assert.equal(allDay.starts_at, null); assert.equal(allDay.event_date, '2026-10-01');
   const due = parse(calendar(event('DUE:20261001T140000Z')))[0]; assert.equal(due.due_at, '2026-10-01T14:00:00.000Z');
   const floating = parse(calendar(event('DTSTART:20261001T100000')))[0];
-  assert.equal(floating.starts_at, null); assert.equal(floating.metadata.dates.start.local, '2026-10-01T10:00:00');
+  assert.equal(floating.starts_at, null); assert.equal(floating.floating_at, '2026-10-01T10:00:00');
 });
 
 test('embedded VTIMEZONE and recurrence overrides are retained without expanding rules', () => {
@@ -205,13 +189,13 @@ test('embedded VTIMEZONE and recurrence overrides are retained without expanding
   assert.equal(row.starts_at, '2026-10-01T08:00:00.000Z');
   const rows = parse(calendar(`${event('DTSTART:20261001T140000Z\nRRULE:FREQ=WEEKLY;COUNT=3')}\n${event('RECURRENCE-ID:20261008T140000Z\nDTSTART:20261008T150000Z')}`));
   assert.equal(rows.length, 2); assert.notEqual(rows[0].recurrence_id, rows[1].recurrence_id);
-  assert.equal(rows[0].metadata.recurrence[0][0], 'rrule');
+  assert.equal(rows[0].is_recurring, true);
 });
 
 test('course evidence is preserved; ambiguous titles/categories never become course identity', () => {
   const row = parse(calendar(event('DTSTART:20261001T140000Z\nSUMMARY:Exam ADV 3001 [ADV 3001]\nCATEGORIES:ADV 3001\nLOCATION:ADV 3001\nX-COURSE-ID:42')))[0];
-  assert.equal(row.external_course_key, null); assert.deepEqual(row.metadata.categories, ['ADV 3001']);
-  assert.equal(row.metadata.course_fields[0][3], '42');
+  assert.equal(row.external_course_key, null); assert.match(row.course_hint, /ADV 3001/);
+  assert.match(row.course_hint, /x-course-id:42/);
   const path = parse(fixture.replace('/calendar?include_contexts=course_42&month=10&year=2026', '/courses/42/assignments/101'))[0];
   assert.equal(path.external_course_key, 'canvas:course:42');
   assert.equal(parse(fixture.replace('course_42', 'course_42,course_43'))[0].external_course_key, null);
@@ -223,7 +207,7 @@ test('bad dates, timezones, oversized records, partial and malformed calendars f
     '', '<html>login</html>', fixture.slice(0, -20), fixture.replace('END:VEVENT', ''),
     calendar(event('DTSTART:20260230T140000Z')), calendar(event('DTSTART;TZID=Unknown/Zone:20261001T100000')),
     calendar(event('DTSTART;TZID=America/New_York:20260308T023000')), calendar(event('SUMMARY:no date')),
-    calendar(event('DTSTART:20261001T140000Z\nDESCRIPTION:' + 'a'.repeat(33000))),
+    calendar(event('DTSTART:20261001T140000Z\nUID:' + 'a'.repeat(256))).replace('UID:sample\n', ''),
     fixture.replace('METHOD:PUBLISH', 'METHOD:CANCEL'), fixture.replace('UID:event-assignment-101', 'SUMMARY:no uid'),
   ]) assert.throws(() => parse(input), /invalid_calendar_feed/);
 });
@@ -292,10 +276,9 @@ test('failure messages stay fixed and a disconnect during fetch cannot resurrect
   assert.equal((await events(id)).length, 0);
 });
 
-test('lease recovery and old tombstone cleanup remain bounded', async () => {
+test('lease recovery remains bounded without retaining tombstones', async () => {
   const id = await connect(); await sync(id);
   await sync(id, calendar(''));
-  await db.query("update external_academic_events set removed_at=now()-interval '91 days' where source_id=$1", [id]);
   await sync(id, calendar('')); assert.equal((await events(id)).length, 0);
   await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [id]);
   const first = await admin.rpc('begin_external_calendar_sync', { p_user_id: userA, p_source_id: id });
@@ -333,4 +316,87 @@ test('existing suspension boundary blocks client mappings and service-backed con
   await assert.rejects(syncCalendar(admin, userA, id, () => assert.fail('suspended fetch')), /calendar_account_suspended/);
   const connection = await admin.rpc('connect_external_calendar', { p_user_id: userA, p_provider: 'ical', p_display_name: 'School', p_feed_url: feedUrl });
   assert.equal(connection.error.code, '42501');
+});
+
+test('retention includes only the 45-day past / 365-day future UTC window', () => {
+  const now = new Date('2026-10-01T12:00:00Z');
+  const day = offset => new Date(Date.parse('2026-10-01') + offset * 86400000).toISOString().slice(0, 10).replaceAll('-', '');
+  const input = calendar([-46, -45, 0, 365, 366].map(offset => event(`DTSTART;VALUE=DATE:${day(offset)}`).replace('UID:sample', `UID:offset-${offset}`)).join('\n'));
+  assert.deepEqual(parseCalendar(input, { now }).map(row => row.external_uid), ['offset--45', 'offset-0', 'offset-365']);
+});
+
+test('excerpts and labels are UTF-8 bounded plain text; large optional URLs are discarded', () => {
+  const input = fixture.replace('Campaign brief', 'é🧑'.repeat(200))
+    .replace('DESCRIPTION:Read chapter 1', 'DESCRIPTION:<script>secret()</script><style>body{}</style><p>é🧑'.repeat(200) + '</p> Read chapter 1')
+    .replace('ADV 3001', 'é🧑'.repeat(100));
+  const row = parse(input)[0];
+  for (const [field, limit] of [['raw_title', FIELD_BYTES.title], ['description_excerpt', FIELD_BYTES.excerpt], ['external_course_label', FIELD_BYTES.courseLabel]]) {
+    assert.ok(Buffer.byteLength(row[field]) <= limit);
+    assert.ok(!row[field].includes('\uFFFD'));
+  }
+  assert.doesNotMatch(row.description_excerpt, /<|>|secret|body\{/);
+  const huge = parse(calendar(event('DTSTART:20261001T140000Z\nURL:https://example.com/' + 'x'.repeat(500))))[0];
+  assert.equal(huge.external_url, null);
+  assert.equal(parse(calendar(event('DTSTART:20261001T140000Z\nDESCRIPTION:' + 'x'.repeat(100000))))[0].description_excerpt.length, 120);
+});
+
+test('feed/component/accepted event limits reject whole snapshots, not a partial import', () => {
+  const generate = (count, date = '20261001') => calendar(Array.from({ length: count }, (_, i) => event(`DTSTART;VALUE=DATE:${date}`).replace('UID:sample', `UID:${i}`)).join('\n'));
+  assert.equal(parse(generate(MAX_EVENTS)).length, 300);
+  assert.throws(() => parse(generate(MAX_EVENTS + 1)), /calendar_event_limit/);
+  assert.equal(parse(generate(MAX_EVENTS + 1, '20200101')).length, 0);
+  assert.throws(() => parse(generate(MAX_COMPONENTS + 1, '20200101')), /invalid_calendar_feed/);
+  assert.throws(() => parse(' '.repeat(MAX_FEED_BYTES + 1)), /invalid_calendar_feed/);
+});
+
+test('identical full syncs and 304s leave event tuples physically unchanged', async () => {
+  const id = await connect(); await sync(id);
+  const tuples = async () => (await db.query('select ctid::text, xmin::text, updated_at from external_academic_events where source_id=$1 order by external_uid', [id])).rows;
+  const initial = await tuples(); await sync(id); assert.deepEqual(await tuples(), initial);
+  await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [id]);
+  await syncCalendar(admin, userA, id, async () => ({ notModified: true }));
+  assert.deepEqual(await tuples(), initial);
+});
+
+test('304 prunes expired rows; a new UTC day clears validators to admit newly eligible events', async () => {
+  const id = await connect(); await sync(id);
+  await db.query("update external_academic_events set event_date=(now() at time zone 'UTC')::date - 46 where source_id=$1", [id]);
+  await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [id]);
+  await syncCalendar(admin, userA, id, async () => ({ notModified: true }));
+  assert.equal((await events(id)).length, 0);
+  await db.query("update external_calendar_secrets set snapshot_date=(now() at time zone 'UTC')::date - 1 where source_id=$1", [id]);
+  await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [id]);
+  await syncCalendar(admin, userA, id, async (_url, validators) => {
+    assert.equal(validators.etag, null); assert.equal(validators.last_modified, null);
+    return { text: moveFixtureDate(fixture) };
+  });
+  assert.equal((await events(id)).length, 2);
+});
+
+test('SQL enforces field sizes, date retention and aggregate 300-event budget across sources', async () => {
+  const id = await connect(); const second = await connect();
+  const many = calendar(Array.from({ length: 299 }, (_, i) => event('DTSTART:20261001T140000Z').replace('UID:sample', `UID:bulk-${i}`)).join('\n'));
+  await sync(id, many); await sync(second, calendar(event('DTSTART:20261001T140000Z')));
+  assert.equal((await events(id)).length, 299); assert.equal((await events(second)).length, 1);
+  await assert.rejects(sync(second), /calendar_event_limit/);
+  assert.equal((await events(second)).length, 1);
+  await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [second]);
+  const lease = await admin.rpc('begin_external_calendar_sync', { p_user_id: userA, p_source_id: second });
+  const row = parseCalendar(moveFixtureDate(fixture))[0];
+  for (const [field, limit] of [['raw_title',160],['external_uid',255],['description_excerpt',120],['external_url',384],['external_course_label',80],['course_hint',96]]) {
+    const result = await admin.rpc('finish_external_calendar_sync', { p_user_id: userA, p_source_id: second, p_token: lease.data.token, p_events: [{ ...row, [field]: 'x'.repeat(limit + 1) }] });
+    assert.ok(result.error, field); assert.equal((await events(second)).length, 1);
+  }
+  const expired = await admin.rpc('finish_external_calendar_sync', { p_user_id: userA, p_source_id: second, p_token: lease.data.token, p_events: [{ ...row, event_date: '2000-01-01' }] });
+  assert.equal(expired.error, null); assert.equal((await events(second)).length, 0);
+});
+
+test('newer cancelled revision wins before retention filtering; no raw metadata persists', () => {
+  const input = calendar([
+    event('DTSTART:20261001T140000Z\nSEQUENCE:1'),
+    event('DTSTART:20261001T140000Z\nSEQUENCE:2\nSTATUS:CANCELLED'),
+  ].join('\n'));
+  assert.equal(parse(input).length, 0);
+  const row = parse(fixture)[0];
+  for (const key of ['metadata','description','location','provider_updated_at','sequence','last_seen_at','removed_at','user_id','id','ends_at','end_date']) assert.equal(row[key], undefined, key);
 });

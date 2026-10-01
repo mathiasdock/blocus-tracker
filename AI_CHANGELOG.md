@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-01 — Codex — Calendriers universitaires : stockage compact pour Supabase Free (local)
+
+- Optimise uniquement la branche `codex/university-calendar-foundation` et sa migration encore non appliquée. Supprime le JSON fournisseur, descriptions complètes, dates/timestamps redondants et UUID/propriétaire dupliqués par événement. Extrait de description texte limité à 120 octets ; titre 160, URL 384, code cours 96, libellé 80, indice de cours ambigu 96. Identité stable par source + UID + récurrence ; propriétaire hérité de la source par RLS. Deux index d'événements : identité et source/date.
+- Fenêtre inclusive de 45 jours passés à 365 jours futurs ; 300 événements conservés par source et au total par utilisateur (trois sources ne multiplient pas le budget). Flux limité à 1 Mio et 2 000 VEVENT analysés. Annulations/absences supprimées immédiatement lors d'une synchronisation réussie, sans tombstones ; nettoyage temporel également sur 304. Premier sync manuel d'un nouveau jour UTC sans validateurs pour faire entrer les événements devenus éligibles. Aucun cron, ajout fonctionnel ou changement du Planning.
+- Les syncs identiques ne réécrivent plus les tuples d'événements ; `last_synced_at` appartient à la source. Dépassement de limite ou erreur : transaction annulée, dernier snapshot conservé. URL privée, droits de service, RLS, suspension et correspondances explicites conservés.
+- Mesures PostgreSQL 17.5/PGlite réelles, tables + index, fixture Canvas et événements synthétiques variés : 100 × 100 = 5,77 Mo ; 100 × 300 = 16,66 Mo ; 1 000 × 100 = 55,16 Mo ; 1 000 × 300 = 163,87 Mo. Après trois cycles de 10 % de modifications et VACUUM ordinaire : 6,31 / 18,14 / 60,10 / 178,24 Mo. Pas de VACUUM FULL. Script reproductible `scripts/measure-calendar-storage.mjs`, détails et limites dans `docs/university-calendars.md`, octets mesurés dans `docs/measurements/university-calendar-storage.json`.
+- 29 tests calendriers et 536 tests au total verts ; lint propre ; build de production vert (avertissement PWA 3 MB préexistant). Aucun push, migration distante ou déploiement. Les quatre fichiers `public/sw 2.js` à `public/sw 5.js` présents au départ sont intacts.
+
 ## 2026-10-01 — Codex — Calendriers universitaires : fondation, étape 1 uniquement (local)
 
 - Sources Canvas/Moodle/Brightspace/iCal, événements importés séparés et correspondances explicites vers les cours personnels existants. Migration `20261001174207_external_academic_calendars.sql`, API authentifiée `/api/calendars`, modules serveur `calendarFeed`, `calendarParser`, `calendarSync`. Aucun changement du Planning, des cours/examens/objectifs, de la mascotte ou des notifications ; aucun cron ni appel IA.

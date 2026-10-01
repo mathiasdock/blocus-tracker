@@ -1,0 +1,280 @@
+{
+  "generated_at": "2026-10-01T18:05:57.144Z",
+  "units": "bytes; MB = 1,000,000 bytes",
+  "methodology": "PGlite PostgreSQL, actual migration, one source and five mapped courses per user, varied Canvas-style rows parsed by production parser. All four new relations plus the extra courses ownership index. Ordinary VACUUM, never VACUUM FULL. Excludes existing auth/course tables, WAL and other app data.",
+  "scenarios": [
+    {
+      "users": 100,
+      "events_per_user": 100,
+      "average_row_bytes": 363.5,
+      "event_count": 10000,
+      "initial": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 49152,
+            "index_bytes": 49152,
+            "total_bytes": 98304
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 49152,
+            "index_bytes": 16384,
+            "total_bytes": 65536
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 3792896,
+            "index_bytes": 1523712,
+            "total_bytes": 5316608
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 98304,
+            "index_bytes": 131072,
+            "total_bytes": 229376
+          }
+        ],
+        "course_ownership_index_bytes": 57344,
+        "total_bytes": 5767168,
+        "total_MB": 5.77
+      },
+      "after_three_10_percent_edit_rounds": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 49152,
+            "index_bytes": 49152,
+            "total_bytes": 98304
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 49152,
+            "index_bytes": 16384,
+            "total_bytes": 65536
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 4259840,
+            "index_bytes": 1597440,
+            "total_bytes": 5857280
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 98304,
+            "index_bytes": 131072,
+            "total_bytes": 229376
+          }
+        ],
+        "course_ownership_index_bytes": 57344,
+        "total_bytes": 6307840,
+        "total_MB": 6.31
+      }
+    },
+    {
+      "users": 100,
+      "events_per_user": 300,
+      "average_row_bytes": 365,
+      "event_count": 30000,
+      "initial": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 49152,
+            "index_bytes": 49152,
+            "total_bytes": 98304
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 49152,
+            "index_bytes": 16384,
+            "total_bytes": 65536
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 11345920,
+            "index_bytes": 4866048,
+            "total_bytes": 16211968
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 98304,
+            "index_bytes": 131072,
+            "total_bytes": 229376
+          }
+        ],
+        "course_ownership_index_bytes": 57344,
+        "total_bytes": 16662528,
+        "total_MB": 16.66
+      },
+      "after_three_10_percent_edit_rounds": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 49152,
+            "index_bytes": 49152,
+            "total_bytes": 98304
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 49152,
+            "index_bytes": 16384,
+            "total_bytes": 65536
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 12730368,
+            "index_bytes": 4956160,
+            "total_bytes": 17686528
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 98304,
+            "index_bytes": 131072,
+            "total_bytes": 229376
+          }
+        ],
+        "course_ownership_index_bytes": 57344,
+        "total_bytes": 18137088,
+        "total_MB": 18.14
+      }
+    },
+    {
+      "users": 1000,
+      "events_per_user": 100,
+      "average_row_bytes": 363.5,
+      "event_count": 100000,
+      "initial": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 155648,
+            "index_bytes": 204800,
+            "total_bytes": 360448
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 172032,
+            "index_bytes": 57344,
+            "total_bytes": 229376
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 37617664,
+            "index_bytes": 15245312,
+            "total_bytes": 52862976
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 663552,
+            "index_bytes": 729088,
+            "total_bytes": 1392640
+          }
+        ],
+        "course_ownership_index_bytes": 311296,
+        "total_bytes": 55156736,
+        "total_MB": 55.16
+      },
+      "after_three_10_percent_edit_rounds": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 155648,
+            "index_bytes": 204800,
+            "total_bytes": 360448
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 172032,
+            "index_bytes": 57344,
+            "total_bytes": 229376
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 42172416,
+            "index_bytes": 15630336,
+            "total_bytes": 57802752
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 663552,
+            "index_bytes": 729088,
+            "total_bytes": 1392640
+          }
+        ],
+        "course_ownership_index_bytes": 311296,
+        "total_bytes": 60096512,
+        "total_MB": 60.1
+      }
+    },
+    {
+      "users": 1000,
+      "events_per_user": 300,
+      "average_row_bytes": 365,
+      "event_count": 300000,
+      "initial": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 155648,
+            "index_bytes": 204800,
+            "total_bytes": 360448
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 172032,
+            "index_bytes": 57344,
+            "total_bytes": 229376
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 113229824,
+            "index_bytes": 48349184,
+            "total_bytes": 161579008
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 663552,
+            "index_bytes": 729088,
+            "total_bytes": 1392640
+          }
+        ],
+        "course_ownership_index_bytes": 311296,
+        "total_bytes": 163872768,
+        "total_MB": 163.87
+      },
+      "after_three_10_percent_edit_rounds": {
+        "relations": [
+          {
+            "table": "external_calendar_sources",
+            "table_bytes": 155648,
+            "index_bytes": 204800,
+            "total_bytes": 360448
+          },
+          {
+            "table": "external_calendar_secrets",
+            "table_bytes": 172032,
+            "index_bytes": 57344,
+            "total_bytes": 229376
+          },
+          {
+            "table": "external_academic_events",
+            "table_bytes": 126574592,
+            "index_bytes": 49373184,
+            "total_bytes": 175947776
+          },
+          {
+            "table": "external_calendar_course_map",
+            "table_bytes": 663552,
+            "index_bytes": 729088,
+            "total_bytes": 1392640
+          }
+        ],
+        "course_ownership_index_bytes": 311296,
+        "total_bytes": 178241536,
+        "total_MB": 178.24
+      }
+    }
+  ],
+  "postgres": "PostgreSQL 17.5 on aarch64-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit"
+}
