@@ -70,6 +70,9 @@
 @media (hover: hover) and (pointer: fine) {
   .markAll:hover { color: var(--bt-text-1); background: var(--bt-subtle); }
 }
+/* « Tout effacer » armé : le second appui efface. Rouge = action destructive. */
+.markAll.armed,
+.markAll.armed:hover { color: var(--bt-danger); background: var(--bt-danger-bg); }
 
 .scroll {
   overflow-y: auto;
@@ -100,7 +103,13 @@
   color: var(--bt-text-2);
 }
 .rows { list-style: none; margin: 0; padding: 0 6px; }
-.item + .item { position: relative; }
+/* Une ligne effacée glisse vers la droite en s'effaçant (200 ms, la durée
+   de LEAVE_MS dans NotificationContext), puis la liste se resserre. */
+.item {
+  position: relative;
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1), transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.leaving { opacity: 0; transform: translateX(24px); pointer-events: none; }
 .item + .item::before {
   content: "";
   position: absolute;
@@ -119,7 +128,7 @@
   gap: 12px;
   width: 100%;
   min-height: 64px;
-  padding: 12px;
+  padding: 12px 50px 12px 12px; /* à droite : la place du bouton « effacer » */
   border-radius: var(--bt-r-inset);
   text-align: left;
   color: inherit;
@@ -186,6 +195,33 @@
 .dotSlot { flex: none; width: 10px; display: flex; justify-content: center; padding-top: 7px; }
 .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--bt-accent); }
 
+/* Effacer une ligne. Toujours visible au doigt ; à la souris, il apparaît au
+   survol de la ligne (et toujours au clavier). Cible de 44 px, glyphe centré
+   sur la première ligne de texte. */
+.clear {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--bt-r-inset);
+  color: var(--bt-text-2);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: color 150ms ease, background-color 150ms ease, opacity 150ms ease, transform 120ms ease-out;
+}
+.clear:active { transform: scale(0.94); background: var(--bt-subtle); }
+.clear:focus-visible { outline: 2px solid var(--bt-accent); outline-offset: -4px; }
+@media (hover: hover) and (pointer: fine) {
+  .clear { opacity: 0; }
+  .item:hover .clear,
+  .clear:focus-visible { opacity: 1; }
+  .clear:hover { color: var(--bt-text-1); background: var(--bt-subtle); }
+}
+
 /* ── États ───────────────────────────────────────────────────────────── */
 .state { padding: 8px 6px; }
 .empty {
@@ -230,4 +266,9 @@
 @media (prefers-contrast: more) {
   .panel { border-color: var(--bt-border); }
   .item + .item::before { background: var(--bt-border); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item { transition: none; }
+  .leaving { transform: none; }
 }

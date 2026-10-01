@@ -1,7 +1,8 @@
 // Centre de notifications : la logique de la cloche (lib/notificationCenter.mjs)
-// et un faux serveur qui applique les règles de la migration v64
+// et un faux serveur qui applique les règles des migrations v64 et v85
 // (lib/offlineNotifications.mjs — le même que le mode hors ligne). Les vraies
-// fonctions SQL ont leur propre suite : supabase/tests/notification_center.sql.
+// fonctions SQL ont leur propre suite : supabase/tests/notification_center.sql
+// et supabase/tests/notification_dismiss.sql.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -9,8 +10,10 @@ import {
   compareItems,
   dayGroups,
   destinationFor,
+  emptyHidden,
   fetchInbox,
   fetchSummary,
+  isHidden,
   isNotificationKey,
   legacyDismissedKeys,
   mergeItems,
@@ -18,14 +21,21 @@ import {
   normalizeInbox,
   normalizeItem,
   normalizeSummary,
+  rememberHidden,
   seenMaps,
+  sendDismiss,
+  sendDismissAll,
   sendMarkAllRead,
   sendMarkRead,
   sentenceKeyFor,
   splitSentence,
   toMillis,
   withAllRead,
+  withItemLeaving,
   withItemRead,
+  withoutAll,
+  withoutHidden,
+  withoutItem,
 } from "../lib/notificationCenter.mjs";
 import { offlineNotificationRpc } from "../lib/offlineNotifications.mjs";
 import { STRINGS } from "../lib/i18n.js";
@@ -331,7 +341,7 @@ test("navigation counters come from one read, with the device's last-seen dates"
   assert.equal(normalizeSummary(null), null);
 });
 
-test("the old per-device dismissals become account reads (announcements only)", () => {
+test("the old per-device dismissals become account dismissals (announcements only)", () => {
   assert.deepEqual(legacyDismissedKeys(JSON.stringify(["referral-links-v1", ids.ann, ids.ann])), [`announcement:${ids.ann}`]);
   assert.deepEqual(legacyDismissedKeys("{broken"), []);
   assert.deepEqual(legacyDismissedKeys(null), []);
@@ -343,12 +353,131 @@ test("every text the bell shows exists in French and in English", () => {
     "notif.message", "notif.messages", "notif.commentedPost", "notif.reactedPost", "notif.markAllRead",
     "notif.unreadOne", "notif.unreadMany", "notif.unread", "notif.earlier", "notif.loadMore", "notif.loading",
     "notif.loadError", "notif.retry", "common.today", "common.close", "nav.notifications",
+    "notif.clear", "notif.clearOne", "notif.cleared", "notif.clearAll", "notif.clearAllConfirm", "notif.clearAllHint",
   ];
   for (const lang of ["fr", "en"]) {
     for (const key of keys) assert.ok(STRINGS[lang][key], `${lang}:${key} is missing`);
     for (const key of ["notif.friendRequest", "notif.friendAccepted", "notif.message", "notif.messages", "notif.commentedPost", "notif.reactedPost"]) {
       assert.ok(STRINGS[lang][key].includes("{name}"), `${lang}:${key} must place the name`);
     }
+    assert.ok(STRINGS[lang]["notif.clearOne"].includes("{what}"), `${lang}:notif.clearOne must name what is cleared`);
     assert.ok(!("notif.productReferral" in STRINGS[lang]), "the hard-coded referral announcement is gone");
   }
+});
+
+// ── Effacer (v85) ──────────────────────────────────────────────────────────
+test("clear one: it leaves the bell and its counter on every device; nothing is deleted at its source", async () => {
+  const db = seedDb();
+  const clock = { now: T0 };
+  const phone = device(db, ids.me, clock);
+  const laptop = device(db, ids.me, clock);
+  const key = `comment:${ids.comment}`;
+
+  assert.equal(await sendDismiss(phone, key), true);
+  clock.now += 1000;
+  const onLaptop = await fetchInbox(laptop);
+  assert.ok(!onLaptop.items.some((item) => item.key === key), "the laptop still shows it");
+  assert.equal(onLaptop.unread, 5);
+  assert.equal((await fetchSummary(laptop)).bell, 5);
+  assert.ok(db.comments.some((comment) => comment.id === ids.comment), "the comment itself was deleted");
+
+  // Une demande d'ami effacée quitte la cloche, pas Social.
+  await sendDismiss(phone, `friend_request:${ids.req}`);
+  const summary = await fetchSummary(phone);
+  assert.equal(summary.friends, 3, "the Social badge still counts the request");
+  assert.equal(db.friendships.find((f) => f.id === ids.req).status, "pending");
+});
+
+test("a cleared conversation comes back with a new message; a cleared announcement stays gone", async () => {
+  const db = seedDb();
+  const clock = { now: T0 };
+  const phone = device(db, ids.me, clock);
+  await sendDismiss(phone, `private_message:${ids.lea}`);
+  await sendDismiss(phone, `announcement:${ids.ann}`);
+  let inbox = await fetchInbox(phone);
+  assert.ok(!inbox.items.some((item) => item.key === `private_message:${ids.lea}`));
+  assert.ok(!inbox.items.some((item) => item.key === `announcement:${ids.ann}`));
+
+  clock.now = T0 + 60000;
+  db.private_messages.push({ id: "m6", sender_id: ids.lea, receiver_id: ids.me, content: "SECRET-6", read: false, created_at: new Date(clock.now).toISOString() });
+  inbox = await fetchInbox(phone);
+  const lea = inbox.items.find((item) => item.key === `private_message:${ids.lea}`);
+  assert.ok(lea && !lea.read, "the new message did not bring the conversation back");
+  assert.equal(lea.count, 3);
+  assert.ok(!inbox.items.some((item) => item.key === `announcement:${ids.ann}`));
+
+  // Pour un autre membre, l'annonce est toujours là.
+  const other = await fetchInbox(device(db, ids.other, clock));
+  assert.ok(other.items.some((item) => item.key === `announcement:${ids.ann}`));
+});
+
+test("clear all hides everything up to the server cutoff; what comes after shows, unread", async () => {
+  const db = seedDb();
+  const clock = { now: T0 };
+  const phone = device(db, ids.me, clock);
+  await sendMarkRead(phone, `comment:${ids.comment}`);
+  await sendDismiss(phone, `reaction:${ids.like}`);
+  const cutoff = await sendDismissAll(phone);
+  assert.equal(cutoff, T0);
+  assert.deepEqual(await fetchInbox(phone), { items: [], unread: 0, hasMore: false });
+  assert.equal((await fetchSummary(phone)).bell, 0);
+  assert.equal((db.notification_dismissals || []).length, 0, "dismissals covered by the cutoff are kept");
+  assert.equal((db.notification_reads || []).length, 0, "receipts covered by the cutoff are kept");
+
+  clock.now = T0 + 60000;
+  db.likes.push({ id: "00000000-0000-4000-8000-0000000000bb", post_id: ids.post, user_id: ids.lea, emoji: "👍", created_at: new Date(clock.now).toISOString() });
+  const inbox = await fetchInbox(phone);
+  assert.deepEqual(inbox.items.map((item) => [item.key, item.read]), [["reaction:00000000-0000-4000-8000-0000000000bb", false]]);
+
+  // « Tout marquer comme lu » ensuite garde la butoir d'effacement.
+  await sendMarkAllRead(phone);
+  const state = db.notification_inbox_state.find((row) => row.user_id === ids.me);
+  assert.ok(state.read_all_before && state.cleared_before);
+});
+
+test("another member cannot clear my notifications; invalid keys never reach the server", async () => {
+  const db = seedDb();
+  const stranger = device(db, ids.other, { now: T0 });
+  assert.equal(await sendDismiss(stranger, `comment:${ids.comment}`), false);
+  assert.equal((db.notification_dismissals || []).length, 0);
+  assert.equal(await sendDismiss(stranger, "comment:../../etc"), false);
+  const refused = offlineNotificationRpc(db, "notification_dismiss", { p_key: "comment:../../etc" }, ids.other, T0);
+  assert.equal(refused.error?.code, "22023");
+  assert.equal((await fetchInbox(device(db, ids.me, { now: T0 }))).unread, 6, "my bell is untouched");
+});
+
+test("optimistic clear: the counter drops at once, the row slides out, and nothing is counted twice", () => {
+  const state = normalizeInbox({
+    unread: 2, has_more: true,
+    items: [
+      { key: `comment:${ids.comment}`, kind: "comment", at: ago(1), read: false, target: ids.post, actor: { id: ids.lea } },
+      { key: `reaction:${ids.like}`, kind: "reaction", at: ago(2), read: true, target: ids.post, actor: { id: ids.tom } },
+    ],
+  });
+  const leaving = withItemLeaving(state, `comment:${ids.comment}`);
+  assert.equal(leaving.unread, 1);
+  assert.equal(leaving.items.find((item) => item.key === `comment:${ids.comment}`).leaving, true);
+  assert.equal(withItemLeaving(leaving, `comment:${ids.comment}`), leaving, "clearing twice changes nothing");
+  const gone = withoutItem(leaving, `comment:${ids.comment}`);
+  assert.equal(gone.unread, 1, "the unread row was counted down twice");
+  assert.deepEqual(gone.items.map((item) => item.key), [`reaction:${ids.like}`]);
+  assert.equal(withoutItem(state, `reaction:${ids.like}`).unread, 2, "a read row does not change the counter");
+  assert.deepEqual(withoutAll(state), { ...state, items: [], unread: 0, hasMore: false, moreError: false });
+});
+
+test("a page read before the server confirmed does not bring a cleared row back — a newer version does", () => {
+  const row = (key, minutes) => normalizeItem({ key, kind: key.split(":")[0], at: ago(minutes), target: ids.lea, actor: { id: ids.lea } });
+  const hidden = emptyHidden();
+  const cleared = row(`private_message:${ids.lea}`, 10);
+  rememberHidden(hidden, cleared);
+  assert.equal(isHidden(hidden, cleared), true);
+  assert.equal(isHidden(hidden, row(`private_message:${ids.lea}`, 1)), false, "a new message must show again");
+  assert.equal(isHidden(hidden, row(`comment:${ids.comment}`, 30)), false);
+
+  hidden.clearedAtMs = Date.parse(ago(5));
+  assert.deepEqual(
+    withoutHidden([row(`comment:${ids.comment}`, 30), row(`reaction:${ids.like}`, 1)], hidden).map((item) => item.key),
+    [`reaction:${ids.like}`],
+  );
+  assert.equal(isHidden(null, cleared), false);
 });

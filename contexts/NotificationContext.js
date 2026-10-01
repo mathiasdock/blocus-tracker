@@ -5,24 +5,33 @@ import { useAuth } from "./AuthContext";
 import { playSensoryCue } from "../lib/sensoryFeedback";
 import {
   destinationFor,
+  emptyHidden,
   fetchInbox,
   fetchSummary,
   legacyDismissedKeys,
   mergeItems,
   nextCursor,
+  rememberHidden,
   seenMaps,
+  sendDismiss,
+  sendDismissAll,
   sendMarkAllRead,
   sendMarkRead,
   withAllRead,
+  withItemLeaving,
   withItemRead,
+  withoutAll,
+  withoutHidden,
+  withoutItem,
 } from "../lib/notificationCenter.mjs";
 
 // Deux choses vivent ici :
 //   • les compteurs de navigation (Fil, Messages, Espaces, groupes) — UNE
 //     lecture (notification_summary, v64) au lieu des 7 à 13 requêtes que
 //     l'app refaisait toutes les 2 minutes ;
-//   • la cloche : sa liste et son lu / non lu appartiennent au COMPTE, en
-//     base. Lue sur le téléphone = lue sur l'ordinateur.
+//   • la cloche : sa liste, son lu / non lu et ce qui en a été effacé
+//     appartiennent au COMPTE, en base. Lue ou effacée sur le téléphone =
+//     lue ou effacée sur l'ordinateur.
 // Les « vu pour la dernière fois » du Fil, des espaces et des groupes restent
 // sur l'appareil, comme avant : seule la cloche change de modèle.
 
@@ -49,6 +58,8 @@ const NotificationContext = createContext({
   loadMoreInbox: () => {},
   markNotificationRead: () => {},
   markAllNotificationsRead: () => {},
+  dismissNotification: () => {},
+  clearAllNotifications: () => {},
   openNotification: () => null,
   msgToast: false,
   clearMsgToast: () => {},
@@ -65,6 +76,8 @@ const NotificationContext = createContext({
 const POLL_VISIBLE_MS = 120000; // 2 min — onglet visible
 const POLL_WAKE_AFTER_MS = 30000;
 const POLL_DEBOUNCE_MS = 1200;
+// Le temps qu'une ligne effacée glisse hors de la liste (NotificationCenter.module.css).
+const LEAVE_MS = 200;
 const SEEN_PREFIX = "bt_last_seen_";
 
 function getLastSeen(key) {
@@ -108,6 +121,9 @@ export function NotificationProvider({ children }) {
   const pollTimeoutRef = useRef(null);
   const audibleBaselineRef = useRef(null);
   const inboxRef = useRef(inbox);
+  // Ce que le membre a effacé pendant la session : une relecture partie avant
+  // la confirmation de la base ne doit pas le faire réapparaître.
+  const hiddenRef = useRef(emptyHidden());
   const legacyImportRef = useRef(null);
   const schedulePollRef = useRef(null);
   // La page courante ne sert qu'à se taire dans Messages : elle passe par une
@@ -184,7 +200,9 @@ export function NotificationProvider({ children }) {
     setInbox((state) => (state.items.length ? state : { ...state, status: "loading" }));
     try {
       const page = await fetchInbox(rpc);
-      setInbox({ ...EMPTY_INBOX, status: "ready", items: page.items, unread: page.unread, hasMore: page.hasMore });
+      setInbox({
+        ...EMPTY_INBOX, status: "ready", items: withoutHidden(page.items, hiddenRef.current), unread: page.unread, hasMore: page.hasMore,
+      });
       setBellUnread(page.unread);
     } catch (error) {
       console.warn("Notifications unavailable:", error?.message || error);
@@ -200,7 +218,7 @@ export function NotificationProvider({ children }) {
       const page = await fetchInbox(rpc, nextCursor(current.items));
       setInbox((state) => ({
         ...state,
-        items: mergeItems(state.items, page.items),
+        items: mergeItems(state.items, withoutHidden(page.items, hiddenRef.current)),
         unread: page.unread,
         hasMore: page.hasMore,
         loadingMore: false,
@@ -243,7 +261,9 @@ export function NotificationProvider({ children }) {
       const open = inboxRef.current;
       if (open.status === "ready" && summary.bell !== open.unread) {
         fetchInbox(rpc).then((page) => {
-          setInbox((state) => ({ ...state, items: mergeItems(state.items, page.items), unread: page.unread }));
+          setInbox((state) => ({
+            ...state, items: mergeItems(state.items, withoutHidden(page.items, hiddenRef.current)), unread: page.unread,
+          }));
           setBellUnread(page.unread);
         }).catch(() => {});
       }
@@ -259,7 +279,7 @@ export function NotificationProvider({ children }) {
       audibleBaselineRef.current = audible;
 
       // Une seule fois : les annonces que l'ancienne cloche avait masquées
-      // sur CET appareil deviennent lues sur le compte.
+      // sur CET appareil sont effacées pour le compte.
       if (legacyImportRef.current !== user.id) {
         legacyImportRef.current = user.id;
         importLegacyDismissals(user.id).then((imported) => { if (imported) schedulePollRef.current?.(300); });
@@ -273,6 +293,7 @@ export function NotificationProvider({ children }) {
 
   useEffect(() => {
     audibleBaselineRef.current = null;
+    hiddenRef.current = emptyHidden();
     setInbox(EMPTY_INBOX);
     setBellUnread(0);
   }, [user?.id]);
@@ -311,6 +332,47 @@ export function NotificationProvider({ children }) {
       loadInbox();
     }
   }, [loadInbox]);
+
+  // Effacer une notification de la cloche (rien n'est supprimé à sa source).
+  // La ligne glisse hors de la liste puis disparaît ; la pastille baisse tout
+  // de suite. Un échec la fait revenir telle qu'elle était.
+  const dismissNotification = useCallback((key) => {
+    const item = inboxRef.current.items.find((entry) => entry.key === key);
+    if (!item || item.leaving) return;
+    rememberHidden(hiddenRef.current, item);
+    setInbox((state) => withItemLeaving(state, key));
+    if (!item.read) setBellUnread((count) => Math.max(0, count - 1));
+    setTimeout(() => setInbox((state) => withoutItem(state, key)), LEAVE_MS);
+    sendDismiss(rpc, key).catch((error) => {
+      console.warn("Dismiss failed:", error?.message || error);
+      if (hiddenRef.current.keys.get(key) === item.atMs) hiddenRef.current.keys.delete(key);
+      loadInbox();
+      schedulePoll(500);
+    });
+  }, [loadInbox, schedulePoll]);
+
+  // « Tout effacer ». En attendant la date butoir de la base, tout ce qui
+  // était affiché reste caché ; la butoir de la base la remplace ensuite.
+  const clearAllNotifications = useCallback(async () => {
+    const hidden = hiddenRef.current;
+    const previous = hidden.clearedAtMs;
+    const newest = inboxRef.current.items.reduce((max, item) => Math.max(max, item.atMs), -Infinity);
+    if (Number.isFinite(newest)) hidden.clearedAtMs = Math.max(previous ?? -Infinity, newest);
+    setInbox((state) => withoutAll(state));
+    setBellUnread(0);
+    try {
+      const cutoff = await sendDismissAll(rpc);
+      if (cutoff !== null) {
+        hidden.clearedAtMs = Math.max(hidden.clearedAtMs ?? -Infinity, cutoff);
+        setInbox((state) => ({ ...state, items: withoutHidden(state.items, hidden) }));
+      }
+    } catch (error) {
+      console.warn("Clear all failed:", error?.message || error);
+      hidden.clearedAtMs = previous;
+      loadInbox();
+      schedulePoll(500);
+    }
+  }, [loadInbox, schedulePoll]);
 
   // Ouvrir une notification : elle devient lue, puis on va à sa destination
   // (null quand il n'y en a pas de sûre — une annonce sans lien).
@@ -401,6 +463,8 @@ export function NotificationProvider({ children }) {
         loadMoreInbox,
         markNotificationRead,
         markAllNotificationsRead,
+        dismissNotification,
+        clearAllNotifications,
         openNotification,
         msgToast,
         clearMsgToast,
@@ -415,8 +479,9 @@ export function NotificationProvider({ children }) {
 }
 
 // L'ancienne cloche masquait les annonces sur l'appareil seulement
-// (bt_dismissed_announcements_<id>). Elles deviennent des lectures du compte,
-// puis la clé locale disparaît — avec les deux repères que plus rien ne lit.
+// (bt_dismissed_announcements_<id>). Elles sont effacées pour le compte (v85 ;
+// avant, elles devenaient seulement lues et restaient dans la cloche), puis la
+// clé locale disparaît — avec les deux repères que plus rien ne lit.
 async function importLegacyDismissals(userId) {
   if (typeof window === "undefined") return false;
   const storageKey = `bt_dismissed_announcements_${userId}`;
@@ -433,7 +498,7 @@ async function importLegacyDismissals(userId) {
     return false;
   }
   try {
-    for (const key of keys) await sendMarkRead(rpc, key);
+    for (const key of keys) await sendDismiss(rpc, key);
     localStorage.removeItem(storageKey);
     return true;
   } catch {

@@ -372,9 +372,13 @@ session !') returning id into v_comment;
   reset role;
 
   -- ── Compteurs de navigation en une lecture ────────────────────────────────
+  -- Le groupe est créé sous l'identité de u[1] : depuis le garde-fou du
+  -- 2026-09-28, la création de groupes est limitée par membre.
+  perform set_config('request.jwt.claims', json_build_object('sub', u[1], 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claim.sub', u[1]::text, true);
+  insert into public.study_groups (name, created_by) values ('Groupe ' || suffix, u[1]) returning id into v_group;
   perform set_config('request.jwt.claims', '', true);
   perform set_config('request.jwt.claim.sub', '', true);
-  insert into public.study_groups (name, created_by) values ('Groupe ' || suffix, u[1]) returning id into v_group;
   insert into public.group_members (group_id, user_id, role) values (v_group, u[1], 'admin'), (v_group, u[2], 'member');
   perform set_config('request.jwt.claims', json_build_object('sub', u[2], 'role', 'authenticated')::text, true);
   perform set_config('request.jwt.claim.sub', u[2]::text, true);

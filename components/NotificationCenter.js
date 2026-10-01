@@ -10,6 +10,8 @@
 //   Retiré : onglets (Inbox / Following / Archived), archivage, menu par
 //   ligne, pièces jointes, actions Approuver / Refuser, framer-motion,
 //   lucide-react, la police Inter et toutes ses couleurs.
+//   Ajouté le 2026-10-01 (v85) : effacer une ligne (×) et « Tout effacer ».
+//   Rien n'est supprimé à la source ; la ligne quitte la cloche du compte.
 //   Adapté : tokens --bt-*, Nunito Sans, rayons et ombre de l'app, glyphes
 //   Blocus, une vraie <button> par ligne (l'original imbriquait des boutons
 //   dans un div role=button), regroupement Aujourd'hui / Plus tôt, « Voir
@@ -66,6 +68,10 @@ function IconCheckAll() {
   return <Glyph size={16}><path d="m2.5 12.5 4 4 8-9M12.5 16l1 .9 8-9" /></Glyph>;
 }
 
+function IconClear({ size = 16 }) {
+  return <Glyph size={size}><path d="m7 7 10 10M17 7 7 17" /></Glyph>;
+}
+
 function capitalize(text, lang) {
   return text ? text.charAt(0).toLocaleUpperCase(lang === "en" ? "en" : "fr") + text.slice(1) : text;
 }
@@ -101,7 +107,7 @@ function Face({ item, name }) {
   );
 }
 
-function Row({ item, t, lang, onOpen }) {
+function Row({ item, t, lang, onOpen, onDismiss }) {
   const [expanded, setExpanded] = useState(false);
   const unread = !item.read;
   const time = capitalize(timeAgo(new Date(item.atMs).toISOString(), lang), lang);
@@ -112,12 +118,15 @@ function Row({ item, t, lang, onOpen }) {
   const secondary = isAnnouncement ? announcement.body : item.excerpt ? `« ${item.excerpt} »` : null;
   // Une annonce sans lien ne mène nulle part : la toucher la déplie.
   const expandable = isAnnouncement && !destinationFor(item) && Boolean(secondary);
+  const what = isAnnouncement ? announcement.title : parts.map((part) => part.text).join("");
 
   return (
-    <li className={styles.item}>
+    <li className={`${styles.item}${item.leaving ? ` ${styles.leaving}` : ""}`} data-notif-key={item.key}
+      aria-hidden={item.leaving ? "true" : undefined}>
       <button
         type="button"
         data-notif-row=""
+        disabled={item.leaving}
         className={`${styles.row}${unread ? ` ${styles.unread}` : ""}`}
         aria-expanded={expandable ? expanded : undefined}
         onClick={() => {
@@ -143,18 +152,34 @@ function Row({ item, t, lang, onOpen }) {
           {unread && <span className={styles.dot} />}
         </span>
       </button>
+      <button
+        type="button"
+        data-notif-clear=""
+        disabled={item.leaving}
+        className={styles.clear}
+        aria-label={t("notif.clearOne").replace("{what}", () => what)}
+        title={t("notif.clear")}
+        onClick={(event) => onDismiss(item, { keyboard: event.detail === 0 })}>
+        <IconClear />
+      </button>
     </li>
   );
 }
 
 // Flèches haut / bas entre les lignes, Début / Fin aux extrémités. Depuis le
-// panneau lui-même (focus à l'ouverture), la flèche du bas entre dans la liste.
+// panneau lui-même (focus à l'ouverture), la flèche du bas entre dans la liste ;
+// depuis un bouton « effacer », on repart de sa ligne.
+function liveRows(container) {
+  return [...(container?.querySelectorAll("[data-notif-row]:not(:disabled)") || [])];
+}
+
 function moveRowFocus(container, event) {
   if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-  const rows = [...(container?.querySelectorAll("[data-notif-row]") || [])];
+  const rows = liveRows(container);
   if (!rows.length) return;
   event.preventDefault();
-  const index = rows.indexOf(document.activeElement);
+  const active = document.activeElement?.closest?.("li")?.querySelector("[data-notif-row]") || document.activeElement;
+  const index = rows.indexOf(active);
   let next = 0;
   if (event.key === "End") next = rows.length - 1;
   else if (event.key === "ArrowDown") next = index < 0 ? 0 : Math.min(rows.length - 1, index + 1);
@@ -162,11 +187,37 @@ function moveRowFocus(container, event) {
   rows[next].focus();
 }
 
-function List({ inbox, t, lang, onOpen, onRetry, onMore }) {
+function List({ inbox, t, lang, onOpen, onDismiss, onRetry, onMore }) {
   const listRef = useRef(null);
   const moreFromRef = useRef(null);
+  const [liveMessage, setLiveMessage] = useState("");
+
+  // Au clavier, le focus passe à la ligne suivante (ou précédente) avant que
+  // celle-ci ne parte : il ne se perd jamais dans la page.
+  function dismiss(item, { keyboard = false } = {}) {
+    if (keyboard) {
+      const rows = liveRows(listRef.current);
+      const index = rows.findIndex((row) => row.closest("li")?.dataset.notifKey === item.key);
+      const next = rows[index + 1] || rows[index - 1];
+      if (next) next.focus();
+      else listRef.current?.closest("[tabindex]")?.focus();
+    }
+    // Vidé puis rempli : un lecteur d'écran annonce aussi le deuxième effacement.
+    setLiveMessage("");
+    requestAnimationFrame(() => setLiveMessage(t("notif.cleared")));
+    onDismiss(item.key);
+  }
 
   function onKeyDown(event) {
+    if ((event.key === "Delete" || event.key === "Backspace") && event.target.closest?.("[data-notif-key]")) {
+      const key = event.target.closest("[data-notif-key]").dataset.notifKey;
+      const item = inbox.items.find((entry) => entry.key === key);
+      if (item && !item.leaving) {
+        event.preventDefault();
+        dismiss(item, { keyboard: true });
+      }
+      return;
+    }
     moveRowFocus(listRef.current, event);
   }
 
@@ -208,11 +259,14 @@ function List({ inbox, t, lang, onOpen, onRetry, onMore }) {
 
   return (
     <div ref={listRef} onKeyDown={onKeyDown}>
+      <span className="sr-only" role="status">{liveMessage}</span>
       {dayGroups(inbox.items).map((group) => (
         <section key={group.id} aria-label={t(group.id === "today" ? "common.today" : "notif.earlier")}>
           <h3 className={styles.groupLabel}>{t(group.id === "today" ? "common.today" : "notif.earlier")}</h3>
           <ul className={styles.rows}>
-            {group.items.map((item) => <Row key={item.key} item={item} t={t} lang={lang} onOpen={onOpen} />)}
+            {group.items.map((item) => (
+              <Row key={item.key} item={item} t={t} lang={lang} onOpen={onOpen} onDismiss={dismiss} />
+            ))}
           </ul>
         </section>
       ))}
@@ -236,25 +290,58 @@ function unreadLabel(t, count) {
   return count === 1 ? t("notif.unreadOne") : t("notif.unreadMany").replace("{n}", String(count));
 }
 
-function MarkAllButton({ t, onClick }) {
+// L'action de l'en-tête suit l'état : « Tout marquer comme lu » tant qu'il
+// reste du non-lu, puis « Tout effacer », qui demande un second appui. C'est le
+// MÊME bouton : le focus clavier reste en place, et un double appui sur
+// « Tout marquer comme lu » ne peut pas tout effacer par accident.
+const CLEAR_CONFIRM_MS = 5000;
+
+function HeaderAction({ t, unread, hasItems, onMarkAll, onClearAll }) {
+  const [armed, setArmed] = useState(false);
+  const mode = unread > 0 ? "read" : hasItems ? "clear" : null;
+
+  useEffect(() => {
+    if (mode !== "clear") setArmed(false);
+  }, [mode]);
+  useEffect(() => {
+    if (!armed) return undefined;
+    const timer = setTimeout(() => setArmed(false), CLEAR_CONFIRM_MS);
+    return () => clearTimeout(timer);
+  }, [armed]);
+
+  if (!mode) return null;
+  const label = mode === "read" ? t("notif.markAllRead") : armed ? t("notif.clearAllConfirm") : t("notif.clearAll");
   return (
-    <button type="button" className={styles.markAll} onClick={onClick}>
-      <IconCheckAll />
-      <span>{t("notif.markAllRead")}</span>
-    </button>
+    <>
+      <button
+        type="button"
+        className={`${styles.markAll}${armed ? ` ${styles.armed}` : ""}`}
+        onBlur={() => setArmed(false)}
+        onClick={() => {
+          if (mode === "read") onMarkAll();
+          else if (armed) { setArmed(false); onClearAll(); }
+          else setArmed(true);
+        }}>
+        {mode === "read" ? <IconCheckAll /> : <IconClear />}
+        <span>{label}</span>
+      </button>
+      <span className="sr-only" role="status">{armed ? t("notif.clearAllHint") : ""}</span>
+    </>
   );
 }
 
 export default function NotificationCenter({ open, onClose, panelId }) {
   const { t, lang } = useI18n();
   const {
-    inbox, loadInbox, loadMoreInbox, markAllNotificationsRead, openNotification, notificationUnreadCount,
+    inbox, loadInbox, loadMoreInbox, markAllNotificationsRead, dismissNotification, clearAllNotifications,
+    openNotification, notificationUnreadCount,
   } = useNotifications();
   const desktop = useDesktop();
   const panelRef = useRef(null);
   const returnFocusRef = useRef(null);
   const titleId = useId();
   const unread = inbox.status === "ready" ? inbox.unread : notificationUnreadCount;
+  const hasItems = inbox.status === "ready" && inbox.items.some((item) => !item.leaving);
 
   // Chaque ouverture relit la première page : ce qui a été lu sur un autre
   // appareil est déjà à jour ici.
@@ -292,19 +379,30 @@ export default function NotificationCenter({ open, onClose, panelId }) {
     if (href) onClose();
   }
 
+  function onClearAll() {
+    // Le bouton disparaît avec la liste : le focus revient au panneau.
+    panelRef.current?.focus();
+    clearAllNotifications();
+  }
+
   if (!open) return null;
 
   const list = (
-    <List inbox={inbox} t={t} lang={lang} onOpen={onOpenItem} onRetry={loadInbox} onMore={loadMoreInbox} />
+    <List inbox={inbox} t={t} lang={lang} onOpen={onOpenItem} onDismiss={dismissNotification}
+      onRetry={loadInbox} onMore={loadMoreInbox} />
+  );
+  const action = (
+    <HeaderAction t={t} unread={unread} hasItems={hasItems}
+      onMarkAll={markAllNotificationsRead} onClearAll={onClearAll} />
   );
 
   if (!desktop) {
     return (
       <InboxSheet open title={t("notif.title")} closeLabel={t("common.close")} onClose={onClose}
-        subheader={unread > 0 ? (
+        subheader={unread > 0 || hasItems ? (
           <div className={styles.sheetBar}>
-            <span className={styles.count}>{unreadLabel(t, unread)}</span>
-            <MarkAllButton t={t} onClick={markAllNotificationsRead} />
+            <span className={styles.count}>{unread > 0 ? unreadLabel(t, unread) : ""}</span>
+            {action}
           </div>
         ) : null}>
         <div className={styles.sheetList}>{list}</div>
@@ -339,7 +437,7 @@ export default function NotificationCenter({ open, onClose, panelId }) {
             </span>
           )}
         </div>
-        {unread > 0 && <MarkAllButton t={t} onClick={markAllNotificationsRead} />}
+        {action}
       </header>
       <div className={styles.scroll}>{list}</div>
     </div>

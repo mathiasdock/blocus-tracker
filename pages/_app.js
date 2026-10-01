@@ -24,7 +24,7 @@ import { deriveOnboardingState, shouldCheckOnboarding } from "../lib/onboarding.
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
 import Celebration from "../components/Celebration";
 import {
-  deviceSubscriptionStatus, disablePush, finishPendingLogout, initOneSignal, loginUser,
+  deviceSubscriptionStatus, disablePush, finishPendingLogout, initOneSignal, loginUser, setPushLanguage,
 } from "../lib/onesignal";
 import { reportPushDevice } from "../lib/pushDevice";
 import {
@@ -487,6 +487,15 @@ function PushInit() {
   return null;
 }
 
+// Les notifications push suivent la langue de l'APP, pas celle de l'appareil
+// (lib/onesignal.js). Ne charge jamais OneSignal : la langue n'est transmise
+// que si l'appareil est déjà associé au compte.
+function PushLanguageSync() {
+  const { lang } = useI18n();
+  useEffect(() => { setPushLanguage(lang); }, [lang]);
+  return null;
+}
+
 // Recopie le choix cookies/traceurs sur le COMPTE, pour qu'il suive la personne
 // d'un appareil à l'autre — et qu'il existe une trace de ce qui a été choisi.
 // Silencieux : la migration v44 peut ne pas être encore passée, et un miroir
@@ -560,6 +569,7 @@ export default function App({ Component, pageProps }) {
         <AppVersionRefresh />
         <ReferralCapture />
         <CampaignCapture />
+        <PushLanguageSync />
         <PushInit />
         <ConsentSync />
         <PwaInstallBanner enabled={!authPage} />
