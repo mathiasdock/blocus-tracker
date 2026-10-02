@@ -1990,6 +1990,10 @@ html.bt-focus-active .bt-nav { display: none; }
      page qui défilait (le champ de message sortait de l'écran) au lieu du
      fil de la conversation. */
   .bt-social-fill-grid .bt-social-panel { min-height: 0; }
+  /* Pareil pour chaque colonne de la grille : la liste des conversations
+     (dans son <aside>) allongeait la rangée quand la fenêtre était basse, et
+     le champ de message sortait de l'écran. */
+  .bt-social-fill-main > .bt-social-fill-grid > * { min-height: 0; }
   .bt-social-fill-main > .bt-social-fill-grid > :first-child { border-right: 1px solid var(--bt-hairline); }
 }
 @media (max-width: 1023px) {

@@ -2,6 +2,11 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-02 — Claude — Ordinateur, fenêtre basse : le champ de message ne disparaît plus
+
+- Signalé par Mathias (capture) : en réduisant la hauteur de la fenêtre, le champ de message sortait de l'écran. Cause : la colonne de la liste des conversations (`<aside>`, élément de la grille Social) gardait `min-height: auto` ; avec une longue liste elle allongeait la rangée de la grille, donc la page entière. Le correctif précédent ne visait que les panneaux, pas les colonnes.
+- `styles/globals.css` : `min-height: 0` sur chaque colonne de `.bt-social-fill-grid` (ordinateur). Vérifié hors ligne avec 17 conversations : à 1070 × 385 et 1280 × 800, page = fenêtre, le fil défile, le champ reste visible ; Amis et Communautés inchangés sur téléphone. 514 tests, lint et build verts.
+
 ## 2026-10-02 — Claude — « Vu » en privé, et Communautés sur le même fil que les messages
 
 - Suite de l'entrée suivante. Mathias : « oui applique le "vu" et aussi pareil dans communauté, mais sois logique, réfléchis si c'est utile ».
