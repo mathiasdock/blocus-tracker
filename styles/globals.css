@@ -1985,6 +1985,11 @@ html.bt-focus-active .bt-nav { display: none; }
   main.bt-social-fill-main { max-width: none; padding: 0; height: 100dvh; display: flex; flex-direction: column; }
   .bt-social-fill-main > .bt-social-fill-grid { flex: 1; min-height: 0; gap: 0; }
   .bt-social-fill-grid .bt-social-panel { height: 100%; border-radius: 0; box-shadow: none; border: 0; }
+  /* Jamais plus haut que l'écran : sans ce minimum à zéro, la rangée de la
+     grille prenait la hauteur d'une longue conversation, et c'est toute la
+     page qui défilait (le champ de message sortait de l'écran) au lieu du
+     fil de la conversation. */
+  .bt-social-fill-grid .bt-social-panel { min-height: 0; }
   .bt-social-fill-main > .bt-social-fill-grid > :first-child { border-right: 1px solid var(--bt-hairline); }
 }
 @media (max-width: 1023px) {

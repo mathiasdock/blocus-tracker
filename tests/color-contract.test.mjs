@@ -34,6 +34,7 @@ test('essential text pairs meet 4.5:1 in both themes', () => {
       ['--bt-brand-text','--bt-surface'], ['--bt-brand-text','--bt-brand-surface'],
       ['--bt-selected-text','--bt-selected-bg'], ['--bt-success','--bt-success-bg'],
       ['--bt-message-own-text','--bt-message-own-bg'], ['--bt-message-own-muted','--bt-message-own-bg'],
+      ['--bt-text-1','--bt-message-other-bg'],
       ['--bt-level-text','--bt-level-bg'], ['--bt-ink-text','--bt-ink-soft'], ['--bt-ink-muted','--bt-ink-soft'],
       ['--bt-text-2','--bt-surface'], ['--bt-text-3','--bt-bg'],
       ['--bt-data-text','--bt-data-surface'],

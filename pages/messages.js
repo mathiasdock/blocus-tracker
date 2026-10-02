@@ -4,6 +4,7 @@ import Glyph from "../components/Glyph";
 import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
+import ChatStream, { ChatComposer, chatStyles } from "../components/ChatStream";
 import InboxSheet from "../components/InboxSheet";
 import { SkeletonList } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
@@ -61,6 +62,16 @@ function sortConversations(list) {
     return (b.lastMsg?.created_at || "").localeCompare(a.lastMsg?.created_at || "");
   });
 }
+
+// Auteur d'un message selon sa table. Fonctions stables : le fil ne se
+// recalcule pas à chaque rendu (le chrono de groupe en provoque un par seconde).
+const dmAuthorOf = (message) => message.sender_id;
+const groupAuthorOf = (message) => message.user_id;
+const NO_MESSAGES = [];
+// Messages chargés à l'ouverture. Moins que ça : c'est toute la conversation,
+// et son début (qui est en face) s'affiche au-dessus.
+const DM_PAGE = 50;
+const GROUP_PAGE = 100;
 
 const IconBack = () => <Glyph size={22}><path d="M15 5.5 8.5 12l6.5 6.5" /></Glyph>;
 
@@ -184,7 +195,11 @@ export default function Messages() {
   const [file, setFile]             = useState(null);
   const [sending, setSending]       = useState(false);
   const dmFileRef   = useRef(null);
-  const dmBottomRef = useRef(null);
+  // La conversation dont `messages` contient le fil (une autre ne s'affiche
+  // pas sous l'en-tête de celle qu'on vient d'ouvrir), et si ce fil la
+  // contient en entier depuis son début.
+  const [dmLoaded, setDmLoaded] = useState({ id: null, complete: false });
+  const dmRequest = useRef(0);
 
   // ── Group chat state ───────────────────────────────────────────
   const [groups, setGroups]               = useState([]);
@@ -200,7 +215,10 @@ export default function Messages() {
   const [inviteResults, setInviteResults] = useState([]);
   const [inviting, setInviting]           = useState(null);
   const grpFileRef   = useRef(null);
-  const grpBottomRef = useRef(null);
+  const [grpLoaded, setGrpLoaded] = useState({ id: null, complete: false });
+  const grpRequest = useRef(0);
+  const grpActiveRef = useRef(null);
+  grpActiveRef.current = grpActiveId;
   const grpLastCreatedRef  = useRef(null);      // egress : poll groupe incrémental
   const grpKnownProfilesRef = useRef(new Set()); // auteurs déjà chargés
 
@@ -555,15 +573,19 @@ export default function Messages() {
 
   const loadMessages = useCallback(async () => {
     if (!dmActiveId || !user) return;
+    const request = ++dmRequest.current;
     // Les 50 DERNIERS messages, affichés du plus ancien au plus récent (avant :
     // les 50 premiers de la conversation — les nouveaux disparaissaient
     // passé 50 messages).
     const { data } = await supabase.from("private_messages")
       .select("id, sender_id, receiver_id, content, attachment_url, attachment_type, attachment_name, read, created_at")
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${dmActiveId}),and(sender_id.eq.${dmActiveId},receiver_id.eq.${user.id})`)
-      .order("created_at", { ascending: false }).limit(50);
+      .order("created_at", { ascending: false }).limit(DM_PAGE);
     const rows = (data || []).reverse();
+    // Une lecture plus récente (ou une autre conversation) a pris le relais.
+    if (request !== dmRequest.current) return;
     setMessages(rows);
+    setDmLoaded({ id: dmActiveId, complete: rows.length < DM_PAGE });
     // Marquer comme lu seulement s'il y a du non-lu, et mettre la liste à
     // jour sur place : relire toute la liste d'amis ici relançait jusqu'à
     // 27 requêtes à chaque ouverture et toutes les 60 s.
@@ -634,10 +656,13 @@ export default function Messages() {
   // Chargement COMPLET (ouverture du groupe / envoi / suppression).
   const loadGroupMessages = useCallback(async () => {
     if (!grpActiveId) return;
+    const request = ++grpRequest.current;
     const { data } = await supabase.from("group_messages").select(GRP_MSG_COLS)
-      .eq("group_id", grpActiveId).order("created_at", { ascending: false }).limit(100);
+      .eq("group_id", grpActiveId).order("created_at", { ascending: false }).limit(GROUP_PAGE);
     const rows = (data || []).reverse();
+    if (request !== grpRequest.current) return;
     setGroupMessages(rows);
+    setGrpLoaded({ id: grpActiveId, complete: rows.length < GROUP_PAGE });
     grpLastCreatedRef.current = rows[rows.length - 1]?.created_at || null;
     await ensureGrpProfiles(rows);
   }, [grpActiveId, ensureGrpProfiles]);
@@ -653,7 +678,8 @@ export default function Messages() {
       .eq("group_id", grpActiveId).gt("created_at", since)
       .order("created_at", { ascending: true }).limit(100);
     const rows = data || [];
-    if (!rows.length) return;
+    // Réponse arrivée après un changement de groupe : elle n'est plus à lui.
+    if (!rows.length || grpActiveRef.current !== grpActiveId) return;
     setGroupMessages(prev => {
       const seen = new Set(prev.map(m => m.id));
       return [...prev, ...rows.filter(r => !seen.has(r.id))];
@@ -817,8 +843,6 @@ export default function Messages() {
     return () => clearInterval(id);
   }, [groupChrono]);
 
-  useEffect(() => { dmBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { grpBottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [groupMessages]);
   useEffect(() => {
     if (router.query.tab === "relations") openRelations();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1246,6 +1270,59 @@ export default function Messages() {
   const canFinishGroupChrono = groupChrono?.started_by === user?.id || amCreator;
   const grpWho        = id => msgProfiles[id] || { pseudo: t("common.unknownUser"), avatar_url: null };
   const chatVisible   = mobileView === "list" ? "hidden lg:flex" : "flex";
+
+  // ── Fil des conversations (components/ChatStream) ──────────────
+  const dmReady  = !!dmActiveId && dmLoaded.id === dmActiveId;
+  const grpReady = !!grpActiveId && grpLoaded.id === grpActiveId;
+  const dmName   = activeFriend ? displayName(activeFriend.profile) : t("common.unknownUser");
+  // Seule la personne en face a un nom et une photo dans le fil : les
+  // messages de l'élève n'en portent pas, comme sur Instagram.
+  const dmAuthorFor = (id) => (id === user?.id ? {} : { name: dmName, avatarUrl: activeFriend?.profile.avatar_url });
+  const groupAuthorFor = (id) => {
+    const who = grpWho(id);
+    return { name: displayName(who), avatarUrl: who.avatar_url };
+  };
+  const groupMessageActions = (m, mine) => (mine || isAdmin
+    ? [{ key: "delete", label: t("msg.deleteMessage"), onSelect: () => removeGroupMessage(m.id), danger: true }]
+    : []);
+
+  function renderMessageBody(m, mine, bucket) {
+    const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url, bucket) : "";
+    const imageKey = `${bucket}:${m.id}:${m.attachment_url || ""}`;
+    // Une session partagée remplace le texte par la carte : le `content`
+    // disait déjà la même chose en moins lisible.
+    const share = bucket === "dm" ? readSessionShare(m) : null;
+    return (
+      <>
+        {share
+          ? <SessionShareBubble share={share} mine={mine} t={t} />
+          : m.content && <p className={chatStyles.text}>{m.content}</p>}
+        {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
+          <AttachmentImageGate
+            src={attachmentUrl}
+            alt={m.attachment_name || "image"}
+            mine={mine}
+            loaded={revealedImages[imageKey]}
+            onLoad={() => revealImage(imageKey)}
+            className="mt-2 rounded-lg max-h-64 object-cover"
+            t={t}
+          />
+        )}
+        {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
+          <a href={attachmentUrl} target="_blank" rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-2 underline" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-brand-text)" }}>
+            <IconPaperclip size={13} /> {m.attachment_name || "Document"}
+          </a>
+        )}
+        {m.attachment_url && !attachmentUrl && (
+          <p className="mt-2 text-xs" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)" }}>
+            {t("security.signingAttachment")}
+          </p>
+        )}
+      </>
+    );
+  }
+
   const incoming = friendLinks.filter((l) => l.status === "pending" && l.addressee === user?.id);
   const outgoing = friendLinks.filter((l) => l.status === "pending" && l.requester === user?.id);
 
@@ -1689,76 +1766,48 @@ export default function Messages() {
                 )}
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                {messages.length === 0 && (
-                  <p className="text-center text-sm mt-8" style={{ color: "var(--bt-text-3)" }}>{t("msg.noMsg")}</p>
-                )}
-                {messages.map(m => {
-                  const mine = m.sender_id === user.id;
-                  const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url, "dm") : "";
-                  const imageKey = `dm:${m.id}:${m.attachment_url || ""}`;
-                  // Une session partagée remplace le texte par la carte : le
-                  // `content` disait déjà la même chose en moins lisible.
-                  const share = readSessionShare(m);
-                  return (
-                    <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className="max-w-[75%] px-3.5 py-2.5 text-sm"
-                        style={mine
-                          ? { backgroundColor: "var(--bt-message-own-bg)", color: "var(--bt-message-own-text)", borderRadius: "18px 18px 6px 18px" }
-                          : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
-                        {share
-                          ? <SessionShareBubble share={share} mine={mine} t={t} />
-                          : m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
-                        {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
-                          <AttachmentImageGate
-                            src={attachmentUrl}
-                            alt={m.attachment_name || "image"}
-                            mine={mine}
-                            loaded={revealedImages[imageKey]}
-                            onLoad={() => revealImage(imageKey)}
-                            className="mt-2 rounded-lg max-h-64 object-cover"
-                            t={t}
-                          />
-                        )}
-                        {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
-                          <a href={attachmentUrl} target="_blank" rel="noreferrer"
-                            className="mt-2 inline-flex items-center gap-2 underline" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-brand-text)" }}>
-                            <IconPaperclip size={13} /> {m.attachment_name || "Document"}
-                          </a>
-                        )}
-                        {m.attachment_url && !attachmentUrl && (
-                          <p className="mt-2 text-xs" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)" }}>
-                            {t("security.signingAttachment")}
-                          </p>
-                        )}
-                        <p className="text-[10px] mt-0.5"
-                          style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)", textAlign: mine ? "right" : "left" }}>
-                          {timeAgo(m.created_at, lang)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={dmBottomRef} />
-              </div>
+              {/* Façon Instagram : les messages partent du bas, la photo de
+                  la personne se pose à côté de ses bulles, l'heure ouvre
+                  chaque échange (components/ChatStream). */}
+              <ChatStream
+                key={`dm:${dmActiveId}`}
+                messages={dmReady ? messages : NO_MESSAGES}
+                ready={dmReady}
+                viewerId={user.id}
+                authorOf={dmAuthorOf}
+                authorFor={dmAuthorFor}
+                onOpenProfile={openProfile}
+                renderContent={(m, mine) => renderMessageBody(m, mine, "dm")}
+                label={t("msg.threadWith").replace("{name}", dmName)}
+                intro={activeFriend && dmLoaded.complete ? (
+                  <div className={chatStyles.intro}>
+                    <Avatar url={activeFriend.profile.avatar_url} pseudo={dmName} size={72} />
+                    <p className={chatStyles.introName}>{dmName}</p>
+                    <p className={chatStyles.introMeta}>@{activeFriend.profile.pseudo}</p>
+                    <button type="button" className={chatStyles.introAction} onClick={() => openProfile(activeFriend.profile.id)}>
+                      {t("social.viewProfileButton")}
+                    </button>
+                  </div>
+                ) : null}
+                empty={<p className={chatStyles.empty}>{t("msg.noMsg")}</p>}
+                t={t}
+                lang={lang}
+              />
 
-              <form onSubmit={sendDM} className="p-3 flex items-center gap-2 shrink-0"
-                style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-                <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
-                  <IconPaperclip />
-                  <input ref={dmFileRef} type="file"
-                    accept={CHAT_ACCEPT}
-                    className="hidden" onChange={e => pickFile(setFile, e.currentTarget)} />
-                </label>
-                <input className="input flex-1"
-                  placeholder={file ? `${t("msg.file")} : ${file.name}` : t("msg.placeholder")}
-                  maxLength={TEXT_LIMITS.directMessage}
-                  value={text} onChange={e => setText(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) sendDM(e); }} />
-                <button className="btn-primary shrink-0" disabled={sending || (!text.trim() && !file)}>
-                  {sending ? "…" : t("common.send")}
-                </button>
-              </form>
+              <ChatComposer
+                onSubmit={sendDM}
+                value={text}
+                onChange={setText}
+                placeholder={file ? `${t("msg.file")} : ${file.name}` : t("msg.placeholder")}
+                label={t("msg.writeTo").replace("{name}", dmName)}
+                maxLength={TEXT_LIMITS.directMessage}
+                sending={sending}
+                canSend={!sending && (!!text.trim() || !!file)}
+                fileInputRef={dmFileRef}
+                accept={CHAT_ACCEPT}
+                onFile={(input) => pickFile(setFile, input)}
+                t={t}
+              />
             </section>
         ) : (
             <section className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
@@ -1944,86 +1993,53 @@ export default function Messages() {
               )}
 
               {/* ── Messages du groupe ────────────────────────────── */}
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                {groupMessages.length === 0 && (
-                  <p className="text-center text-sm mt-10" style={{ color: "var(--bt-text-3)" }}>
-                    {t("msg.noGroupMsg")}
-                  </p>
-                )}
-                {groupMessages.map(m => {
-                  const author = grpWho(m.user_id);
-                  const mine = m.user_id === user.id;
-                  const imageKey = `group:${m.id}:${m.attachment_url || ""}`;
-                  const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url, "group") : "";
-                  return (
-                    <div key={m.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
-                      <button onClick={() => openProfile(m.user_id)} className="shrink-0">
-                        <Avatar url={author.avatar_url} pseudo={displayName(author)} size={30} />
-                      </button>
-                      <div className={`max-w-[72%] flex flex-col ${mine ? "items-end" : "items-start"}`}>
-                        <span className="text-[11px] mb-0.5" style={{ color: "var(--bt-text-3)" }}>
-                          {displayName(author)} · {timeAgo(m.created_at, lang)}
-                        </span>
-                        <div className="rounded-2xl px-3.5 py-2.5 text-sm"
-                          style={mine
-                            ? { backgroundColor: "var(--bt-message-own-bg)", color: "var(--bt-message-own-text)", borderRadius: "18px 18px 6px 18px" }
-                            : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", borderRadius: "18px 18px 18px 6px" }}>
-                          {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
-                          {m.attachment_url && m.attachment_type === "image" && attachmentUrl && (
-                            <AttachmentImageGate
-                              src={attachmentUrl}
-                              alt={m.attachment_name || "image"}
-                              mine={mine}
-                              loaded={revealedImages[imageKey]}
-                              onLoad={() => revealImage(imageKey)}
-                              t={t}
-                            />
-                          )}
-                          {m.attachment_url && m.attachment_type === "file" && attachmentUrl && (
-                            <a href={attachmentUrl} target="_blank" rel="noreferrer"
-                              className="mt-2 inline-flex items-center gap-2 underline"
-                              style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-brand-text)" }}>
-                              <IconPaperclip size={13} /> {m.attachment_name || "Document"}
-                            </a>
-                          )}
-                          {m.attachment_url && !attachmentUrl && (
-                            <p className="mt-2 text-xs" style={{ color: mine ? "var(--bt-message-own-muted)" : "var(--bt-text-2)" }}>
-                              {t("security.signingAttachment")}
-                            </p>
-                          )}
-                        </div>
-                        {(mine || isAdmin) && (
-                          <button onClick={() => removeGroupMessage(m.id)}
-                            className="text-[10px] mt-0.5 transition-colors"
-                            style={{ color: "var(--bt-text-4)" }}
-                            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-danger)"}
-                            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-text-4)"}>
-                            {t("common.remove")}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={grpBottomRef} />
-              </div>
+              {/* Même fil que les messages privés ; en plus, le nom de chacun
+                  au-dessus de sa série, et supprimer un message passe par
+                  le menu « … » de la bulle (le sien, ou tous pour un admin). */}
+              <ChatStream
+                key={`group:${grpActiveId}`}
+                messages={grpReady ? groupMessages : NO_MESSAGES}
+                ready={grpReady}
+                viewerId={user.id}
+                authorOf={groupAuthorOf}
+                authorFor={groupAuthorFor}
+                showNames
+                onOpenProfile={openProfile}
+                renderContent={(m, mine) => renderMessageBody(m, mine, "group")}
+                actionsFor={groupMessageActions}
+                label={t("msg.threadWith").replace("{name}", activeGroup?.name || "")}
+                intro={activeGroup && grpLoaded.complete ? (
+                  <div className={chatStyles.intro}>
+                    <GroupAvatar group={activeGroup} size={72} />
+                    <p className={chatStyles.introName}>{activeGroup.name}</p>
+                    <p className={chatStyles.introMeta}>
+                      {groupMembers.length} {groupMembers.length !== 1 ? t("msg.members") : t("msg.member")} · {t("social.groupHeaderType")}
+                    </p>
+                    <button type="button" className={chatStyles.introAction}
+                      onClick={() => { setShowGroupInfo(true); setInviteQuery(""); setInviteResults([]); }}>
+                      {t("social.infoButton")}
+                    </button>
+                  </div>
+                ) : null}
+                empty={<p className={chatStyles.empty}>{t("msg.noGroupMsg")}</p>}
+                t={t}
+                lang={lang}
+              />
 
-              <form onSubmit={sendGroup} className="p-3 flex items-center gap-2 shrink-0"
-                style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-                <label className="btn-ghost cursor-pointer px-3 shrink-0" title={t("common.attach")}>
-                  <IconPaperclip />
-                  <input ref={grpFileRef} type="file"
-                    accept={CHAT_ACCEPT}
-                    className="hidden" onChange={e => pickFile(setGrpFile, e.currentTarget)} />
-                </label>
-                <input className="input flex-1"
-                  placeholder={grpFile ? `${t("msg.file")} : ${grpFile.name}` : t("msg.msgPlaceholder")}
-                  maxLength={TEXT_LIMITS.groupMessage}
-                  value={grpText} onChange={e => setGrpText(e.target.value)} />
-                <button className="btn-primary shrink-0" disabled={grpSending || (!grpText.trim() && !grpFile)}>
-                  {grpSending ? "…" : t("common.send")}
-                </button>
-              </form>
+              <ChatComposer
+                onSubmit={sendGroup}
+                value={grpText}
+                onChange={setGrpText}
+                placeholder={grpFile ? `${t("msg.file")} : ${grpFile.name}` : t("msg.msgPlaceholder")}
+                label={t("msg.writeTo").replace("{name}", activeGroup?.name || "")}
+                maxLength={TEXT_LIMITS.groupMessage}
+                sending={grpSending}
+                canSend={!grpSending && (!!grpText.trim() || !!grpFile)}
+                fileInputRef={grpFileRef}
+                accept={CHAT_ACCEPT}
+                onFile={(input) => pickFile(setGrpFile, input)}
+                t={t}
+              />
             </section>
         )}
       </div>

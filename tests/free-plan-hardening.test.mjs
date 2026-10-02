@@ -86,8 +86,10 @@ test("Social : une requête pour la liste, les 50 DERNIERS messages, pas de casc
   // Fini la requête par ami (…limit(1) par conversation).
   assert.doesNotMatch(src, /friendIds\.filter\(id => !lastBy\[id\]\)/);
   assert.doesNotMatch(src, /\.order\("created_at", \{ ascending: true \}\)\.limit\(50\)/);
-  assert.match(src, /\.order\("created_at", \{ ascending: false \}\)\.limit\(50\);\s+const rows = \(data \|\| \[\]\)\.reverse\(\);/);
-  assert.match(src, /\.order\("created_at", \{ ascending: false \}\)\.limit\(100\);\s+const rows = \(data \|\| \[\]\)\.reverse\(\);/);
+  assert.match(src, /const DM_PAGE = 50;/);
+  assert.match(src, /const GROUP_PAGE = 100;/);
+  assert.match(src, /\.order\("created_at", \{ ascending: false \}\)\.limit\(DM_PAGE\);\s+const rows = \(data \|\| \[\]\)\.reverse\(\);/);
+  assert.match(src, /\.order\("created_at", \{ ascending: false \}\)\.limit\(GROUP_PAGE\);\s+const rows = \(data \|\| \[\]\)\.reverse\(\);/);
   const loadMessages = src.slice(src.indexOf("const loadMessages = useCallback"), src.indexOf("const loadGroups = useCallback"));
   assert.doesNotMatch(loadMessages, /loadFriends\(\)/, "ouvrir une conversation ne relit plus toute la liste");
   assert.match(loadMessages, /rows\.some\(m => m\.sender_id === dmActiveId && !m\.read\)/);

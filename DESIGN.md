@@ -309,10 +309,23 @@ Rarity can have a restrained material treatment and a word, not a new UI palette
 - **Text first.** Canonical title (or the institution's short name, or the program in the reader's language); *Ton cours : {personal name}* only when the words differ; member count only from 3 members; recency always labelled (*Dernier message 15 sept.*), never a bare date that could read as an exam date.
 - **Green.** Actions (*Rejoindre*, send, *Ajouter à mon planning*), the selected row and unread counts — plus the mint own-message bubble, which follows the Friends chat grammar. Nothing decorative.
 - **Uncertain match.** One sentence about the student's course with two answers of equal weight (*Oui* / *Non*); at most two at a time; a flat inset group, not a raised card.
-- **Conversation.** Oldest to newest, day markers, consecutive messages of one author grouped, own messages right. Bubbles 18px with a 6px tail (shared with Friends); circles (marker, unread count, icon buttons) use a full radius; an institution's logo plate uses a radius of 0.26 x its size, the smallest shape that still reads as a crest; a program's disc is fully round. Message actions appear on hover/focus with a pointer and on tapping a bubble on touch; destructive actions stay in menus.
+- **Conversation.** Oldest to newest, day markers, consecutive messages of one author grouped, own messages right. Bubbles 18px with a 6px tail; circles (marker, unread count, icon buttons) use a full radius; an institution's logo plate uses a radius of 0.26 x its size, the smallest shape that still reads as a crest; a program's disc is fully round. Message actions appear on hover/focus with a pointer and on tapping a bubble on touch; destructive actions stay in menus.
 - **Study actions are the only Blocus-specific actions.** *Étudier ce cours* is a neutral button that opens the Timer on the student's own course; a shared exam date reuses the Planning exam vocabulary. No presence, reactions, polls, consensus or social XP.
 - **Empty and non-member states.** One truthful sentence, no illustration — and never a blank workspace: the institution space opens on a wide screen when no course space is joined yet. A non-member sees what joining means and one primary *Rejoindre*; messages stay members-only.
 - **Layout.** Desktop keeps the full-height Social shell shared with Friends (list a third, room two thirds, one hairline). Phones: list inside the Social tab (the tab names the page, so the list title is for screen readers only), then the room full screen with its own back control and a composer that follows the keyboard.
+
+### Friends conversations — like a messaging app
+
+Private messages and study groups in `/messages` read like Instagram's direct messages (Mathias, 2026-10-02; `components/ChatStream`, `lib/chatThread.mjs`). Ordinary messaging UI: no study signature, no reward object, no course tint.
+
+- **Thread.** Starts against the composer: a short conversation sits at the bottom, never at the top of an empty panel. It opens on its latest message, follows new ones while the reader is at the bottom, and never pulls a reader away from older messages; your own message always brings you back down.
+- **Time.** One centred time label opens each exchange (first message, 30 minutes of silence or a new day): `14:32` today, `Hier 14:32`, `Dim. 21:17` within the week, `27 mai, 14:03` earlier. No timestamp on every bubble; the full date shows on hover.
+- **Runs.** A person's consecutive messages form one run with 2px between bubbles; the 18px corners where bubbles touch tighten to 6px on the speaker's side, a lone message stays fully round. The other person's 28px avatar sits beside the LAST bubble of their run (44px target, opens the profile); your own messages carry none. Groups add the author's name above the first bubble of a run.
+- **Colour.** Own bubble keeps `--bt-message-own-*`; the other person's bubble is `--bt-message-other-bg`, a neutral that stays visible on the surface in both themes.
+- **Start of the conversation.** When the whole history is loaded, its beginning shows who is on the other side: 72px avatar, name, @username (or group, members) and one neutral action (*Voir profil* / *Infos*).
+- **Composer.** One 46px capsule: attach on the left, *Envoyer* as brand text on the right, the app's focus ring around the capsule. Sending keeps the focus in the field.
+- **Actions.** A group message's delete lives in a « … » beside the bubble (hover/focus with a pointer, tap on the bubble on touch), outside the bubble's width.
+- **Height.** On desktop the panel never grows past the screen: the thread scrolls, the page does not.
 
 ### Sign-in and setup — your space, filled in
 

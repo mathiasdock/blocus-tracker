@@ -2,6 +2,24 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-02 — Claude — Social → Amis : les conversations se lisent comme sur Instagram
+
+- Demande de Mathias, captures d'Instagram à l'appui : dans une conversation, le message restait tout en haut alors qu'il devrait être en bas, et quand la personne répondait, aucune bulle avec sa photo n'apparaissait.
+- Nouveau fil commun aux messages privés et aux groupes : `components/ChatStream.js` (fil + champ, styles en module `ChatStream.module.css`) et `lib/chatThread.mjs` (séries et heures, testé dans `tests/chat-thread.test.mjs`).
+  - Les messages partent du bas, contre le champ. La conversation s'ouvre sur son dernier message, suit les nouveaux tant qu'on est en bas, ne déplace jamais quelqu'un qui relit plus haut ; son propre message ramène en bas. Plus de `scrollIntoView` (il faisait défiler la page entière). L'ancrage de défilement du navigateur est coupé dans le fil : il le décollait du bas quand une image s'agrandissait.
+  - Les messages consécutifs d'une personne forment une série (2 px entre les bulles, coins resserrés à 6 px là où elles se touchent) ; sa photo (28 px, cible 44 px, ouvre le profil) se pose à côté de la dernière bulle. Groupes : le nom de l'auteur au-dessus de sa série ; plus de photo à côté de ses propres messages.
+  - Une heure centrée ouvre chaque échange (premier message, 30 min de silence ou nouveau jour) : « 14:32 », « Hier 14:32 », « Dim. 21:17 », « 27 mai, 14:03 ». Plus de date dans chaque bulle ; la date complète s'affiche au survol.
+  - Quand tout l'historique est chargé, son début montre qui est en face (photo 72 px, nom, @pseudo, « Voir profil » ; groupe : membres et « Infos »).
+  - Champ en une capsule : trombone à gauche (devenu un vrai bouton, atteignable au clavier), « Envoyer » en texte vert à droite ; le focus reste dans le champ après l'envoi.
+  - Groupes : « supprimer » passe dans un « … » à côté de la bulle (survol ou focus à la souris, toucher la bulle au doigt), hors de la largeur de la bulle.
+- Bulle de l'autre personne : nouveau jeton `--bt-message-other-bg` (#EFEBE5 clair, #302B27 sombre ; 1,17:1 et 1,22:1 sur la surface, comme la bulle verte), au lieu de `--bt-subtle`, presque invisible en clair. Contraste du texte ajouté au contrat des couleurs.
+- Corrigé en route :
+  - Sur ordinateur, une longue conversation allongeait la page : la carte de conversation (élément de grille sans `overflow`) prenait la hauteur de tout son contenu. On le voit sur la 3e capture de Mathias, page défilée. `min-height: 0` sur les panneaux de la coque Social (`styles/globals.css`) : le fil défile, la page non. Communautés inchangé (déjà en `overflow: hidden`).
+  - Changer de conversation n'affiche plus l'ancienne sous le nouvel en-tête pendant le chargement ; une réponse lente d'une autre conversation (ou d'un autre groupe, pour le relevé toutes les 5 s) est ignorée.
+- `tests/free-plan-hardening.test.mjs` vérifie toujours les 50 / 100 derniers messages, via `DM_PAGE` / `GROUP_PAGE`.
+- Vérifié hors ligne dans Chrome headless (375 et 1280 px, clair et sombre, français et anglais) : conversation longue, à un seul message (comme la capture), groupe à trois ; envoi au clavier (le fil reste en bas, focus gardé) ; lecture plus haut pendant qu'un message arrive (rien ne bouge), message reçu en bas (suivi), image affichée (reste en bas), session partagée, « … » au survol, focus clavier visible sur la photo ; Amis et Communautés tiennent dans l'écran sur ordinateur et téléphone. 514 tests, lint et build de production verts. Pas testé sur un iPhone réel (clavier).
+- Non fait, à décider : « Vu » sous le dernier message (la base sait si un message est lu, mais l'afficher montrerait aux amis quand on lit leurs messages). Les salons de cours (Communautés) gardent leur style.
+
 ## 2026-10-01 — Claude — Barre du bas (téléphone) : l'apparence de la barre d'iOS 26, bulle transparente, icône verte
 
 - Suite de l'entrée ci-dessous, demande de Mathias : « exactement comme les captures » (app Horloge d'iOS 26). Le mouvement ne change pas.
