@@ -16,6 +16,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Timer units / daily time | `pages/dashboard.js`, `components/TodayProgressCard.js` |
 | Goal-linked mascot position | `components/stats/StatsHero.js` |
 | Course palette | `lib/courseColors.js`; saved `course.color` is identity |
+| Imported academic context | `components/AcademicDeadlines.js`, `components/useAcademicCalendar.js`, `lib/planningAcademicEvents.mjs` — `docs/university-calendar-planning.md` |
 | Exam/calendar presentation | `pages/planning.js`, `styles/planning.css`, `lib/planningInsights.mjs` |
 | Mascot poses / appearances | `components/Mascot.js`, `components/MascotMoment.js`, `lib/mascotMotion.mjs`, `lib/mascotMoments.js` |
 | Reward data / artwork | `lib/badges.js`, `lib/badgeArt.js`, `components/BadgeIcon.jsx` |

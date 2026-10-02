@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-02 — Codex — Calendriers universitaires : Planning, étape 3 (local)
+
+- Ajoute une couche de lecture et une section secondaire « Échéances universitaires » : aucun import transformé automatiquement en objectif ou examen local. Mois = marque d’examen, couleur du cours associé, nombre d’échéances et durée de travail ; pas de titres Canvas dans les cases, même avec 90 événements. Semaine = résumé ouvrant le détail ; jour/fiche = échéances après le plan d’étude.
+- Examen possible : confirmation explicite via `user_override`, changement de type et retour à l’automatique. Planifier du travail réutilise le formulaire existant avec date choisie et durée vide. Association explicite à un cours existant, sans création ni renommage ; identité neutre si non associé. Préférences de visibilité par utilisateur/appareil ; petits travaux regroupés par défaut.
+- Lectures RLS bornées, aucune URL secrète sélectionnée, aucune synchronisation déclenchée. Tolère les tables absentes avant Step 4 ; erreurs réelles avec réessai. Aucun changement aux migrations, aux API ou au stockage des étapes 1/2. Déduplication conservative des examens locaux par cours/date/titre exact. Focus clavier de la fiche conservé/restauré.
+- Fixture hors ligne `/dev/university-calendar`, captures desktop/mobile clair/sombre EN/FR dans `artifacts/university-calendar-step3/`. Vérification 320/390/1440 px ; labels compacts pour éviter le débordement des cases étroites. Neuf tests ajoutés, 621 tests complets verts, lint propre et build de production réussi (avertissement PWA 3 MB préexistant). Documentation : `docs/university-calendar-planning.md`. Aucun push, migration distante ou déploiement ; arrêt après Step 3.
+
 ## 2026-10-01 — Codex — Calendriers universitaires : classification déterministe, étape 2 (local)
 
 - Ajoute des dictionnaires EN/FR séparés du moteur (`academicEventRules.mjs`, `academicEventClassification.mjs`) : exam / quiz / assignment / project / presentation / other, confiance high / medium / low et importance distincte. Aucun appel réseau/IA ni dépendance supplémentaire. Quiz ne devient jamais automatiquement un examen ; préparation, révision, négation et conflits restent prudents. Exam/Final Exam/Midterm/Examen/Partiel explicites : exam/high ; Test numéroté ou Final seul : exam/medium, non éligible à une proposition d'examen.

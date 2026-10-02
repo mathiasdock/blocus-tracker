@@ -34,3 +34,19 @@ Phase 1: offline fixtures in `/dev/planning-phase-one` (development + offline mo
 Phase 2: the same fixture page gained a `dense` scenario rehearsing a real blocus period — an 8h50 day with eight objectives over four courses plus unassigned work, a 5h30 single-course day, three exams on one date, two more within a fortnight and overdue past days. Week and Month checked at 320/375/1280/1440 in light and dark, plus an empty week and the sparse demo seed. Unit tests cover duration weighting, completed work, the missing-duration fallback, unassigned work, deterministic ordering, segment grouping and the band scale. Study Blocks were deliberately not used: they oppose earned to planned time, which does not exist for a future day.
 
 Phase 2 review pass: adaptive Week density (empty week 596 → 379 px, seven rows kept), one-line Week header, the band redrawn as a bar on an axis, and the doubled green Today signal reduced to its date disc. Re-checked at 320/375/390/1280/1440 in light and dark on sparse, dense and exam weeks.
+
+
+## University calendar — Step 3, local branch (2026-10-02)
+
+Imported deadlines stay outside workload/objectives/exam storage. Month uses the
+existing exam marker and a deadline count; days with imports replace study-title
+previews with the study-time total. Compact `due` / `éch.` labels fit at 320 px,
+with full accessible labels. Week summarizes academic context below study work;
+day and the existing sheet list it in a secondary section. Mapped local identity
+and colors win; unmapped identity is neutral. Possible exams require an explicit
+override before showing an exam marker. No connection/sync setup in this step.
+Visibility preferences are per user/device; normal events are grouped by default.
+
+Normal/dense fixtures (90 events, ten on one day), EN/light and FR/dark checked at
+320/390/1440 px. Screenshot evidence and behavior details are in
+`docs/university-calendar-planning.md`. No new visual system or unrelated redesign.

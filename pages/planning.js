@@ -24,6 +24,9 @@ import { coursePlanning, dayWorkload, dayLoad, loadSegments } from "../lib/plann
 import PlanningLoadBar from "../components/PlanningLoadBar";
 import { normalizePlanningExams, relevantUpcomingExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
 import PlanningExamMark from "../components/PlanningExamMark";
+import AcademicDeadlines, { AcademicVisibility } from "../components/AcademicDeadlines";
+import useAcademicCalendar from "../components/useAcademicCalendar";
+import { academicSummary } from "../lib/planningAcademicEvents.mjs";
 import usePlanningSwipe from "../components/usePlanningSwipe";
 
 // ── Constants ─────────────────────────────────────────────────
@@ -608,10 +611,12 @@ function TodayCard({ className = "", examMoment = null }) {
 // Surface UNIQUE de gestion d'un jour : consulter, ajouter, modifier,
 // reporter, supprimer objectifs et examens, lancer le chrono.
 function DayDetailModal() {
-  const { modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions,
+  const { academic, academicPrefill, planAcademicWork, courses, modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions,
           courseColor, courseName, toggle, remove, postpone, launchTimer,
           addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, duplicateDay, lang, t } = usePlan();
 
+  const [studyDate, setStudyDate] = useState("");
+  const dialogRef = useRef(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm]         = useState(EMPTY_OBJECTIVE_FORM);
   const [showAddExamForm, setShowAddExamForm] = useState(false);
@@ -630,23 +635,36 @@ function DayDetailModal() {
   // ouvrir directement le formulaire d'ajout pré-rempli sur cette heure.
   useEffect(() => {
     if (!modalDate) return;
-    setShowAddForm(!!modalPrefillTime);
-    setAddForm({ ...EMPTY_OBJECTIVE_FORM, time: modalPrefillTime || "" });
+    setShowAddForm(!!modalPrefillTime || !!academicPrefill);
+    setStudyDate(modalDate);
+    setAddForm({ ...EMPTY_OBJECTIVE_FORM, ...academicPrefill, time: modalPrefillTime || "" });
     setShowAddExamForm(false);
     setExamForm(EMPTY_EXAM_FORM);
     setEditingObjId(null);
     setPostponingId(null);
     setEditingExamId(null);
     setDupOpen(false);
-  }, [modalDate, modalPrefillTime]);
+  }, [modalDate, modalPrefillTime, academicPrefill]);
 
   // Échap ferme la fiche — un bottom sheet sans sortie clavier est une
   // impasse pour qui ne peut pas viser la croix.
   useEffect(() => {
     if (!modalDate) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") setModalDate(null); };
+    const previousFocus = document.activeElement;
+    const dialog = dialogRef.current;
+    dialog?.querySelector("button")?.focus();
+    const onKey = (e) => {
+      if (e.key === "Escape") setModalDate(null);
+      if (e.key === "Tab") {
+        const nodes = [...dialog.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex="0"]')]
+          .filter(el => !el.disabled && el.getClientRects().length);
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => { document.removeEventListener("keydown", onKey); previousFocus?.focus(); };
   }, [modalDate, setModalDate]);
 
   function startInlineEdit(o) {
@@ -701,7 +719,8 @@ function DayDetailModal() {
 
   async function handleAdd(e) {
     e.preventDefault();
-    const data = await addObjectiveForDate(modalDate, addForm);
+    if (academicPrefill && (!studyDate || studyDate < localToday())) return;
+    const data = await addObjectiveForDate(academicPrefill ? studyDate : modalDate, addForm);
     if (data) {
       setAddForm(EMPTY_OBJECTIVE_FORM);
       setShowAddForm(false);
@@ -734,7 +753,7 @@ function DayDetailModal() {
 
       {/* Card — bottom sheet on mobile, centered on sm+ */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
-        <div role="dialog" aria-modal="true" aria-label={dayTitle}
+        <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={dayTitle}
           className="bt-planning-dialog pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]"
           style={{
             backgroundColor: "var(--bt-surface)",
@@ -857,7 +876,7 @@ function DayDetailModal() {
             {/* ── Objectifs ── */}
             <div className="mb-4">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-                {t("plan.dayPlans")}
+                {t(academic.byDate[modalDate]?.length ? "academic.studyPlan" : "plan.dayPlans")}
               </p>
               {/* Sur un jour d'examen sans objectif, la section « Prévu »
                   restait un titre suivi de rien. Elle parle des objectifs :
@@ -1010,6 +1029,8 @@ function DayDetailModal() {
             {/* ── Ajouter : deux actions compactes côte à côte. Les grands
                  rectangles pointillés d'avant mangeaient un tiers de la fiche
                  pour deux boutons. ── */}
+            <AcademicDeadlines events={academic.byDate[modalDate]} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork} />
+
             {!showAddForm && !showAddExamForm && (
               <div className="flex gap-2">
                 {!isPast && (
@@ -1028,6 +1049,8 @@ function DayDetailModal() {
             )}
 
             {showAddForm && !isPast && (
+              <div>
+              {academicPrefill && <label className="mb-3 block text-sm">{t("academic.planDate")}<input type="date" className="input mt-1 w-full" min={localToday()} required value={studyDate} onChange={e => setStudyDate(e.target.value)} /></label>}
               <ObjectiveForm
                 className="rounded-2xl p-4"
                 style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}
@@ -1036,9 +1059,10 @@ function DayDetailModal() {
                 onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
                 onSubmit={handleAdd}
                 onCancel={() => setShowAddForm(false)}
-                minDate={modalDate}
+                minDate={academicPrefill ? studyDate : modalDate}
                 submitLabel={t("common.add")}
                 autoFocus />
+              </div>
             )}
 
             {showAddExamForm && (
@@ -1109,7 +1133,7 @@ function CalendarLegend() {
 // Une carte de la charge de travail. Le fond porte l'IDENTITÉ (le cours qui
 // pèse le plus de minutes ce jour-là). L'examen garde la priorité sur le fond.
 function MonthView() {
-  const { cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
+  const { academic, cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
   const today = localToday();
   const weeks = Array.from({ length: 6 }, (_, i) => grid.slice(i * 7, i * 7 + 7))
@@ -1142,7 +1166,9 @@ function MonthView() {
               const isToday   = key === today;
               const isSel     = key === selectedDate;
               const items     = byDate[key]      || [];
-              const examItems = examsByDate[key] || [];
+              const imported = academicSummary(academic.byDate[key]);
+              const hasImported = !!academic.byDate[key]?.length;
+              const examItems = [...(examsByDate[key] || []), ...imported.exams.map(e => ({ name: e.course_name || e.title, course_id: e.course_id, imported: true }))];
 
               // La charge de la journée, en MINUTES prévues. Le cours dominant
               // est celui qui pèse le plus de temps, plus celui qui compte le
@@ -1174,8 +1200,8 @@ function MonthView() {
               const label = `${quickDateLabel(key, lang, t)} — ${t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length)}, ${t(examItems.length === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", examItems.length)}${loadAria ? ` — ${loadAria}` : ""}`;
 
               return (
-                <button key={key} onClick={() => { if (inMonth || examItems.length) openDay(key); else setSelectedDate(key); }}
-                  aria-label={`${label}${examItems.length ? ` — ${examItems.map(e => e.name || courseName(e.course_id)).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
+                <button key={key} onClick={() => { if (inMonth || examItems.length || imported.deadlines) openDay(key); else setSelectedDate(key); }}
+                  aria-label={`${label}${imported.deadlines ? ` — ${t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines)}` : ""}${examItems.length ? ` — ${examItems.map(e => e.name || courseName(e.course_id)).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
                   // Aujourd'hui porte déjà sa pastille verte sur le numéro. Le
                   // contour vert de sélection, qui tombe dessus par défaut,
                   // faisait un SECOND signal vert pour le même fait — et la
@@ -1201,11 +1227,13 @@ function MonthView() {
 
                   {examItems.length > 0 && <div className="bt-planning-month-exam">
                     <PlanningExamMark label={t("plan.examTag")} count={examItems.length} compact />
-                    <span className="hidden truncate font-semibold sm:block">{examItems[0].name}</span>
+                    {!examItems[0].imported && <span className="hidden truncate font-semibold sm:block">{examItems[0].name}</span>}
                     {examItems[0].course_id && <span className="mt-1 flex min-w-0 items-center gap-1" title={courseName(examItems[0].course_id)}><CourseMark id={examItems[0].course_id} /><span className="hidden truncate sm:inline">{courseName(examItems[0].course_id)}</span></span>}
                   </div>}
+                  {imported.deadlines > 0 && <span className="bt-academic-month-count" aria-hidden="true"><span className="hidden sm:inline">{t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines)}</span><span className="flex flex-col sm:hidden"><span>{imported.deadlines}</span><span>{t("academic.countCompactLabel")}</span></span></span>}
                   {/* Titres — sm+ seulement, quand la case est assez large. */}
-                  <div className="hidden space-y-0.5 sm:block">
+                  {hasImported && load.minutes > 0 && <span className="bt-academic-month-count">{formatMinutesShort(load.minutes * 60)}</span>}
+                  <div className={hasImported ? "hidden" : "hidden space-y-0.5 sm:block"}>
                     {items.slice(0, 2).map(o => (
                       <div key={o.id} className="bt-plan-month-objective flex min-w-0 items-start gap-1" title={o.title || courseName(o.course_id) || ""}>
                         <CourseMark id={o.course_id} />
@@ -1243,7 +1271,7 @@ function MonthView() {
 const WEEK_CHIPS = 3;
 
 function WeekWorkload({ days }) {
-  const { byDate, examsByDate, courseColor, courseName, openDay, t, lang } = usePlan();
+  const { academic, byDate, examsByDate, courseColor, courseName, openDay, t, lang } = usePlan();
   const today = localToday();
   const loads = days.map(d => dayLoad(byDate[ymd(d)] || []));
   const weekMinutes = loads.reduce((sum, load) => sum + load.minutes, 0);
@@ -1295,7 +1323,7 @@ function WeekWorkload({ days }) {
           // Elle se réduit à sa date, sur une seule ligne. Les sept jours
           // restent là — la structure lundi→dimanche ne se devine pas, elle se
           // lit — mais l'absence cesse d'occuper la place du travail.
-          const empty = !load.minutes && !examItems.length && !items.length;
+          const empty = !load.minutes && !examItems.length && !items.length && !academic.byDate[key]?.length;
 
           return (
             <li key={key} className="bt-plan-week-row" data-today={isToday ? "1" : undefined}
@@ -1367,6 +1395,7 @@ function WeekWorkload({ days }) {
                     )}
                   </div>
                 )}
+                <AcademicDeadlines compact events={academic.byDate[key]} t={t} onOpen={() => openDay(key)} />
               </div>
             </li>
           );
@@ -1382,13 +1411,13 @@ function WeekWorkload({ days }) {
 // objectif porte un titre. La grille garde donc une largeur mini par colonne
 // et défile horizontalement quand l'écran est trop étroit.
 function DayAgenda() {
-  const { selectedDate, byDate, examsByDate, courseName, courseColor, toggle, openDay, launchTimer, lang, t } = usePlan();
+  const { academic, courses, planAcademicWork, selectedDate, byDate, examsByDate, courseName, courseColor, toggle, openDay, launchTimer, lang, t } = usePlan();
   const items = [...(byDate[selectedDate] || [])].sort((a, b) => Number(a.done) - Number(b.done) || (a.scheduled_time || "99").localeCompare(b.scheduled_time || "99"));
   const exams = examsByDate[selectedDate] || [];
   const work = dayWorkload(items);
   return <section className="card p-4 sm:p-5">
     <div className="mb-3 flex items-center justify-between gap-3">
-      <div><h2 className="text-base font-bold">{t("plan.yourDay")}</h2>
+      <div><h2 className="text-base font-bold">{t(academic.byDate[selectedDate]?.length ? "academic.studyPlan" : "plan.yourDay")}</h2>
         <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t(work.remaining === 1 ? "plan.remainingOne" : "plan.remainingMany").replace("{n}", work.remaining)}{work.minutes > 0 && ` · ${formatMinutesShort(work.minutes * 60)}`}</p></div>
       <button className="btn-ghost min-h-11 px-3 text-sm" onClick={() => openDay(selectedDate)}>{t("common.add")}</button>
     </div>
@@ -1404,6 +1433,7 @@ function DayAgenda() {
       </button>
       {!o.done && o.course_id && selectedDate === localToday() && <button className="bt-plan-icon-btn min-h-11 min-w-11" aria-label={`${t("plan.startStudying")} · ${o.title || courseName(o.course_id)}`} onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}><IconPlay size={16} /></button>}
     </li>)}</ul>
+    <AcademicDeadlines events={academic.byDate[selectedDate]} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork} />
   </section>;
 }
 
@@ -1757,6 +1787,8 @@ export default function Planning() {
   const [objectives, setObjectives] = useState([]);
   const [examRows, setExamRows]     = useState([]);
   const exams = normalizePlanningExams(courses, examRows);
+  const academic = useAcademicCalendar(user, courses, exams);
+  const loadAcademic = academic.load;
   const [examLoadWarning, setExamLoadWarning] = useState(false);
   // Serialise exam writes: deleting two same-day events concurrently could
   // otherwise let each assume the other still represents the legacy date.
@@ -1768,6 +1800,7 @@ export default function Planning() {
   });
   const [selectedDate, setSelectedDate] = useState(localToday());
   const [modalDate, setModalDate] = useState(null);
+  const [academicPrefill, setAcademicPrefill] = useState(null);
   const [modalPrefillTime, setModalPrefillTime] = useState(null); // heure pré-remplie quand on ouvre depuis un créneau de la grille
   const [togglingShare, setTogglingShare] = useState(false); // pilote l'UI (disabled/opacité)
   const togglingShareRef = useRef(false); // verrou synchrone anti double-clic (cf. togglePlanningPublic)
@@ -1790,6 +1823,7 @@ export default function Planning() {
         .select("user_id,course_id,duration_seconds,started_at")
         .eq("user_id", user.id)
         .gte("started_at", ninetyAgo),
+      loadAcademic(),
     ].map(query => Promise.resolve(query).catch(error => ({ data: null, error }))));
     if (!courseRes.error) setCourses(courseRes.data || []);
     setObjectives(o || []);
@@ -1799,7 +1833,7 @@ export default function Planning() {
     // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
     const freeze = await runStreakFreezeUpkeep(supabase, user.id);
     if (freeze.supported) setFrozenDays(freeze.frozenDays);
-  }, [user]);
+  }, [user, loadAcademic]);
 
   useEffect(() => { load().finally(() => setReady(true)); }, [load]);
 
@@ -1814,9 +1848,15 @@ export default function Planning() {
   // aussi la sélection du calendrier, et transporte l'éventuelle heure
   // cliquée dans la grille horaire pour pré-remplir le formulaire d'ajout.
   function openDay(date, prefillTime = null) {
+    setAcademicPrefill(null);
     setSelectedDate(date);
     setModalPrefillTime(prefillTime);
     setModalDate(date);
+  }
+
+  function planAcademicWork(event) {
+    openDay(localToday());
+    setAcademicPrefill({ title: event.title, courseId: event.course_id || "" });
   }
 
   async function toggle(o) {
@@ -2140,6 +2180,7 @@ export default function Planning() {
   );
 
   const ctxValue = {
+    academic, academicPrefill, planAcademicWork,
     view, isOnToday, courses, activeCourses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit, saveLegacyDate,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
@@ -2186,6 +2227,7 @@ export default function Planning() {
                 {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
                 {view === "day"   && <DayAgenda />}
                 {view !== "day" && <CalendarLegend />}
+                <AcademicVisibility calendar={academic} t={t} />
               </div>
             </div>
           </div>

@@ -224,3 +224,36 @@
 @media (prefers-reduced-motion: reduce) {
   .bt-planning *, .bt-planning *::after { animation: none !important; transition: none !important; }
 }
+
+/* Imported deadlines remain context, below the student's study plan. */
+.bt-academic-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--bt-border); }
+.bt-academic-heading { display: block; font-size: 12px; font-weight: 700; color: var(--bt-text-2); margin-bottom: 8px; }
+.bt-academic-item { border-bottom: 1px solid var(--bt-border); }
+.bt-academic-item:last-child { border-bottom: 0; }
+.bt-academic-summary { min-height: 64px; padding: 12px 0; display: flex; gap: 12px; justify-content: space-between; cursor: pointer; }
+.bt-academic-identity { min-width: 0; display: grid; gap: 4px; }
+.bt-academic-course { display: flex; align-items: center; gap: 6px; font-size: 14px; overflow-wrap: anywhere; }
+.bt-academic-title { font-size: 13px; color: var(--bt-text-2); overflow-wrap: anywhere; }
+.bt-academic-kind, .bt-academic-time { font-size: 12px; color: var(--bt-text-2); }
+.bt-academic-time { flex-shrink: 0; padding-top: 2px; }
+.bt-academic-item[data-exam] { background: var(--bt-exam-bg); padding: 0 10px; border-radius: 8px; }
+.bt-academic-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 12px; }
+.bt-academic-edit { display: flex; align-items: end; gap: 8px; width: 100%; }
+.bt-academic-edit label { flex: 1; min-width: 0; font-size: 13px; color: var(--bt-text-2); }
+.bt-academic-edit select { display: block; width: 100%; margin-top: 4px; font-size: 16px; }
+.bt-academic-week { margin-top: 12px; border-top: 1px solid var(--bt-border); padding-top: 10px; }
+.bt-academic-week-exam { display: flex; align-items: center; gap: 8px; min-height: 44px; width: 100%; text-align: left; font-size: 14px; font-weight: 600; }
+.bt-academic-week-count { min-height: 44px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; color: var(--bt-text-2); }
+.bt-academic-month-count { display: block; font-size: 11px; line-height: 1.3; margin-top: 4px; color: var(--bt-text-2); overflow-wrap: normal; }
+.bt-academic-settings { font-size: 13px; color: var(--bt-text-2); }
+.bt-academic-settings summary { min-height: 44px; cursor: pointer; padding: 12px 0; }
+.bt-academic-settings label { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.bt-academic-settings p { margin-bottom: 8px; }
+@media (max-width: 380px) { .bt-academic-summary { flex-direction: column; gap: 4px; } }
+.bt-academic-identity > .bt-plan-exam-mark { justify-self: start; }
+.bt-academic-item[data-exam] .bt-academic-title,
+.bt-academic-item[data-exam] .bt-academic-time { color: var(--bt-exam-ink); }
+.bt-academic-item[data-major] .bt-academic-title { font-weight: 600; color: var(--bt-text-1); }
+.bt-academic-tail { display: flex; align-items: start; gap: 8px; flex-shrink: 0; }
+.bt-academic-chevron { margin-top: 4px; color: var(--bt-text-2); }
+.bt-academic-item details[open] .bt-academic-chevron { transform: rotate(90deg); }
