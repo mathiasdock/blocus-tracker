@@ -9,6 +9,7 @@ export function getServerSideProps() {
     ? { props: {} } : { notFound: true };
 }
 export default function UniversityCalendarFixture() {
+  const [empty, setEmpty] = useState(false);
   const [dense, setDense] = useState(false);
   const [dark, setDark] = useState(false);
   const [lang, setLang] = useState('en');
@@ -39,6 +40,9 @@ export default function UniversityCalendarFixture() {
       for (let i = 0; i < 6; i++) db.external_academic_events.push(event(`Quiz ${i + 5}`, 0, false));
       for (let day = 3; day <= 28; day++) for (let i = 0; i < 3; i++) db.external_academic_events.push(event(i === 0 && day % 7 === 0 ? 'Midterm' : `Assignment ${day}-${i + 1}`, day, i % 2 === 0));
     }
+    if (empty) { db.external_calendar_sources = []; db.external_academic_events = []; db.external_calendar_course_map = []; }
+    db.external_calendar_exam_links = [];
+    sessionStorage.setItem('bt_legal_notice_snoozed', '1');
     localStorage.setItem('bt_offline_db_v3', JSON.stringify(db));
     localStorage.removeItem(`bt_academic_visibility:${user_id}`);
     localStorage.setItem('bt_theme', dark ? 'dark' : 'light');
@@ -47,6 +51,8 @@ export default function UniversityCalendarFixture() {
   }
   return <main className="p-6 space-y-4"><Head><title>University calendar — offline fixture</title><meta name="robots" content="noindex" /></Head>
     <h1>University calendar · local fixtures</h1><p>Replaces only this origin’s offline demo data. No production connection.</p>
+    <label className="block"><input type="checkbox" checked={empty} onChange={e => setEmpty(e.target.checked)} /> Start disconnected (connection flow)</label>
+    <p>Connection rehearsal URL: https://canvas.example.edu/calendar.ics. Sync 1 repeats, sync 2 adds a course, sync 3 changes an exam date.</p>
     <label className="block"><input type="checkbox" checked={dense} onChange={e => setDense(e.target.checked)} /> Dense semester (10 items today)</label>
     <label className="block"><input type="checkbox" checked={dark} onChange={e => setDark(e.target.checked)} /> Dark mode</label>
     <label className="block">Language <select value={lang} onChange={e => setLang(e.target.value)}><option>en</option><option>fr</option></select></label>

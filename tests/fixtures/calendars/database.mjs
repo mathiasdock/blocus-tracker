@@ -2,7 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 
 // Local PostgreSQL only. Reuse real migration and suspension helpers.
-export async function createCalendarDatabase({ classification = true } = {}) {
+export async function createCalendarDatabase({ classification = true, userFlow = false } = {}) {
   const db = new PGlite();
   await db.exec(`
     create role anon; create role authenticated; create role service_role bypassrls;
@@ -24,5 +24,14 @@ export async function createCalendarDatabase({ classification = true } = {}) {
   await db.exec(suspension.slice(0, suspension.indexOf('-- Sur toutes les tables')));
   await db.exec(readFileSync(new URL('../../../supabase/migrations/20261001174207_external_academic_calendars.sql', import.meta.url), 'utf8'));
   if (classification) await db.exec(readFileSync(new URL('../../../supabase/migrations/20261001212530_classify_external_academic_events.sql', import.meta.url), 'utf8'));
+  if (userFlow) {
+    await db.exec(`grant select on public.courses to service_role;
+      create table public.exams(id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+      name text not null, course_id uuid references public.courses(id) on delete set null, exam_date date not null, exam_time time,
+      location text, notes text, created_at timestamptz not null default now());
+      alter table public.exams enable row level security;
+      create policy exam_owner on public.exams to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());`);
+    await db.exec(readFileSync(new URL('../../../supabase/migrations/20261002171210_university_calendar_user_flow.sql', import.meta.url), 'utf8'));
+  }
   return db;
 }

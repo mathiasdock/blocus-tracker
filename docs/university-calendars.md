@@ -122,11 +122,11 @@ All `/api/calendars` requests require a Bearer access token verified with
 8 KB. Responses use `Cache-Control: no-store`.
 
 - GET: safe source metadata only.
-- POST `{ action: "connect", provider, display_name, feed_url }`: atomic source/
-  secret creation, no automatic fetch. `webcal:` becomes HTTPS.
+- POST `{ action: "connect", provider, display_name, feed_url }`: Step 4 validates,
+  fetches and parses before atomic source/secret/first-import persistence. `webcal:` becomes HTTPS.
 - POST `{ action: "sync", source_id }`: explicit manual import; count/304 result.
 - DELETE `{ source_id }`: owner-only cascade to secret, imports and mappings.
-- Future mapping UI can use authenticated Supabase select/upsert/delete on
+- The mapping UI uses authenticated Supabase select/upsert/delete on
   `external_calendar_course_map`, conflict key `source_id,external_course_key`.
 
 The secret table and all sync RPCs remain inaccessible to PUBLIC/anon/
@@ -202,3 +202,5 @@ No hosted migration/advisors or real private Canvas feed were used.
 Full checks: `node --test tests/*.test.mjs`, `npm run lint`, `npm run build`.
 Results: all 29 calendar tests / 536 total tests passed; lint clean; production
 build passed with only the pre-existing 3 MB PWA precache warning.
+
+Current connection/conversion flow and release gate: [Step 4](university-calendar-connection.md). Earlier verification counts above record Step 1.

@@ -257,3 +257,20 @@
 .bt-academic-tail { display: flex; align-items: start; gap: 8px; flex-shrink: 0; }
 .bt-academic-chevron { margin-top: 4px; color: var(--bt-text-2); }
 .bt-academic-item details[open] .bt-academic-chevron { transform: rotate(90deg); }
+
+.uc-panel { padding: 0 20px 20px; font-size: 14px; color: var(--bt-text-1); }
+.uc-panel h4 { font-size: 16px; font-weight: 700; }
+.uc-panel p { color: var(--bt-text-2); line-height: 1.5; }
+.uc-stack { display: flex; flex-direction: column; gap: 14px; }
+.uc-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.uc-panel .input { font-size: 16px; min-height: 44px; min-width: 0; width: 100%; }
+.uc-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.uc-buttons .input { flex: 1; min-width: 140px; }
+.uc-source, .uc-review-item { padding: 16px 0; border-bottom: 1px solid var(--bt-border); }
+.uc-source p, .uc-review-item p { margin: 6px 0; }
+.uc-review-item strong { overflow-wrap: anywhere; }
+.uc-review-item summary { padding: 12px 0; cursor: pointer; min-height: 44px; }
+.uc-summary { color: var(--bt-text-2); display: grid; gap: 6px; }
+.uc-date-time { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
+.uc-exam-form { margin-top: 14px; }
+.uc-message { margin: 12px 0; padding: 12px; background: var(--bt-subtle); border-radius: 12px; }

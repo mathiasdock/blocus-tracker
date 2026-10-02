@@ -65,10 +65,10 @@ export default function AcademicDeadlines({ events = [], calendar, courses, t, l
     <ul>{events.map(event => <Deadline key={event.key} {...{ event, calendar, courses, t, lang, onPlan }} />)}</ul>
   </section>;
 }
-export function AcademicVisibility({ calendar, t }) {
-  if (!calendar.available && !calendar.error) return null;
+export function AcademicVisibility({ calendar, t, onManage }) {
   return <details className="bt-academic-settings no-print">
     <summary>{t('academic.settings')}</summary>
+    <button type="button" className="btn-ghost min-h-11 px-3" onClick={onManage}>{t(calendar.sources.length ? 'uc.manage' : 'uc.connect')}</button>
     <p>{t('academic.visibilityHint')}</p>
     {['exams', 'major', 'normal'].map(key => <label key={key}><input type="checkbox" checked={calendar.visibility[key]} onChange={e => calendar.changeVisibility(key, e.target.checked)} />{t(`academic.visibility.${key}`)}</label>)}
     {calendar.error && <p role="alert">{t('academic.loadError')} <button type="button" onClick={calendar.load} className="btn-ghost min-h-11 px-3">{t('academic.retry')}</button></p>}

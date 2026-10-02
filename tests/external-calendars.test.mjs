@@ -246,6 +246,7 @@ test('API strips raw errors and ignores supplied user identity on connection', a
   let captured;
   const handler = createCalendarHandler({
     authenticate: async () => ({ userId: userA, admin: { rpc: async (name, args) => { captured = args; return { error: { message: feedUrl, code: 'XX000' } }; } } }),
+    fetchFeed: async () => ({ text: moveFixtureDate(fixture) }),
     setHeaders: res => res.setHeader('Cache-Control', 'no-store'), rateLimit: () => ({ ok: true }), getIp: () => 'test',
   });
   const res = { headers: {}, setHeader(k,v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };

@@ -1,5 +1,8 @@
 # University calendar — Step 3 (local only)
 
+Historical Step 3 scope; [Step 4](university-calendar-connection.md) adds connection,
+manual sync and persistent explicit exam links while retaining this hierarchy.
+
 Imported events are a secondary context layer in Planning, separate from objectives,
 local exams, timers, workload totals, exports and mascot logic. No connection or sync
 controls, new migration, dependency, background job or remote action are added.

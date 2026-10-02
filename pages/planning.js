@@ -24,6 +24,7 @@ import { coursePlanning, dayWorkload, dayLoad, loadSegments } from "../lib/plann
 import PlanningLoadBar from "../components/PlanningLoadBar";
 import { normalizePlanningExams, relevantUpcomingExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
 import PlanningExamMark from "../components/PlanningExamMark";
+import UniversityCalendar from "../components/UniversityCalendar";
 import AcademicDeadlines, { AcademicVisibility } from "../components/AcademicDeadlines";
 import useAcademicCalendar from "../components/useAcademicCalendar";
 import { academicSummary } from "../lib/planningAcademicEvents.mjs";
@@ -1800,6 +1801,7 @@ export default function Planning() {
   });
   const [selectedDate, setSelectedDate] = useState(localToday());
   const [modalDate, setModalDate] = useState(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [academicPrefill, setAcademicPrefill] = useState(null);
   const [modalPrefillTime, setModalPrefillTime] = useState(null); // heure pré-remplie quand on ouvre depuis un créneau de la grille
   const [togglingShare, setTogglingShare] = useState(false); // pilote l'UI (disabled/opacité)
@@ -2227,7 +2229,7 @@ export default function Planning() {
                 {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
                 {view === "day"   && <DayAgenda />}
                 {view !== "day" && <CalendarLegend />}
-                <AcademicVisibility calendar={academic} t={t} />
+                <AcademicVisibility calendar={academic} t={t} onManage={() => setCalendarOpen(true)} />
               </div>
             </div>
           </div>
@@ -2242,6 +2244,9 @@ export default function Planning() {
 
       {/* Day detail modal — mounted outside Layout to avoid stacking context issues */}
       <DayDetailModal />
+      {calendarOpen && <UniversityCalendar calendar={academic} courses={courses} exams={exams} t={t} lang={lang}
+        onClose={() => setCalendarOpen(false)} refresh={load}
+        onOpenExam={exam => { setCalendarOpen(false); openDay(exam.exam_date); }} />}
     </Ctx.Provider>
   );
 }

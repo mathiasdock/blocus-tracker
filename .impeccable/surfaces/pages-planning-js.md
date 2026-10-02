@@ -50,3 +50,14 @@ Visibility preferences are per user/device; normal events are grouped by default
 Normal/dense fixtures (90 events, ten on one day), EN/light and FR/dark checked at
 320/390/1440 px. Screenshot evidence and behavior details are in
 `docs/university-calendar-planning.md`. No new visual system or unrelated redesign.
+
+
+## University calendar — Step 4, local branch (2026-10-02)
+
+The existing disclosure now opens a DetailSheet for connect → course matching →
+compact exam review, with manual sync and disconnect. Uses existing controls,
+tokens and typography, mobile sheet / desktop dialog. Explicit exam conversion
+uses the existing model and a persistent identity link; imported events stay
+secondary and never become objectives automatically. EN/light and FR/dark checked
+at 320/390/1440 px, full synthetic workflow including changed source and disconnect.
+See `docs/university-calendar-connection.md`; real Canvas feed and approval pending.

@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-02 — Codex — Calendriers universitaires : parcours réel, étape 4 (local)
+
+- Entrée discrète du Planning vers connexion Canvas/Moodle/Brightspace/iCal, associations existantes/ignorées/non associées, résumé et décisions d’examen. URL masquée et effacée avant requête ; validation/fetch/parsing serveur avant persistance atomique. Synchronisation manuelle, nouveaux cours non bloquants, déconnexion explicite.
+- Migration additive `20261002171210_university_calendar_user_flow.sql` : décisions de correspondance et liens persistants vers les examens créés explicitement. Conversion idempotente, réutilisation d’un examen identique, aucun écrasement d’examen personnel lors du sync. Source modifiée signalée avec conservation/édition manuelle ; déconnexion conserve cours, objectifs et examens locaux. RLS, contraintes de propriétaire, RPC invoker réservées au service et stockage compact conservés. Pas de nouvelle dépendance.
+- 636 tests complets verts, lint propre, build réussi (avertissement PWA 3 MB préexistant). Parcours synthétique mobile/desktop clair/sombre, 320/390/1440 px : import, associations, examen, sync identique, nouveau cours, date modifiée, ignore, déconnexion ; 0 erreur navigateur. Captures `artifacts/university-calendar-step4/`, règles détaillées `docs/university-calendar-connection.md`.
+- Audit des droits des nouvelles migrations en PostgreSQL local ; inspection distante en lecture seule du schéma exams et des security advisors (constats préexistants documentés). Aucun changement distant. Flux Canvas réel non testé : chemin local promis, pas encore fourni. Aucun push, intégration main ni déploiement ; attendre validation réelle et accord de Mathias.
+
 ## 2026-10-02 — Codex — Calendriers universitaires : Planning, étape 3 (local)
 
 - Ajoute une couche de lecture et une section secondaire « Échéances universitaires » : aucun import transformé automatiquement en objectif ou examen local. Mois = marque d’examen, couleur du cours associé, nombre d’échéances et durée de travail ; pas de titres Canvas dans les cases, même avec 90 événements. Semaine = résumé ouvrant le détail ; jour/fiche = échéances après le plan d’étude.
