@@ -4,7 +4,8 @@ import Glyph from "../components/Glyph";
 import { useRouter } from "next/router";
 import Layout, { Avatar } from "../components/Layout";
 import UserProfileModal from "../components/UserProfileModal";
-import ChatStream, { ChatComposer, chatStyles } from "../components/ChatStream";
+import ChatStream, { ChatComposer, chatStyles, useChatViewport } from "../components/ChatStream";
+import { seenReceiptId } from "../lib/chatThread.mjs";
 import InboxSheet from "../components/InboxSheet";
 import { SkeletonList } from "../components/Skeleton";
 import { useAuth } from "../contexts/AuthContext";
@@ -1285,6 +1286,9 @@ export default function Messages() {
   const groupMessageActions = (m, mine) => (mine || isAdmin
     ? [{ key: "delete", label: t("msg.deleteMessage"), onSelect: () => removeGroupMessage(m.id), danger: true }]
     : []);
+  // « Vu » : seulement en privé. Dans un groupe, l'app ne sait pas qui a lu
+  // quoi (la lecture n'y est retenue que sur l'appareil de chacun).
+  const dmSeenId = dmReady ? seenReceiptId(messages, user?.id) : null;
 
   function renderMessageBody(m, mine, bucket) {
     const attachmentUrl = m.attachment_url ? signedAttachmentUrl(m.attachment_url, bucket) : "";
@@ -1427,6 +1431,10 @@ export default function Messages() {
     else root.classList.remove("bt-chat-fullscreen");
     return () => root.classList.remove("bt-chat-fullscreen");
   }, [chatOpen]);
+  // Clavier du téléphone : la conversation suit la partie visible de l'écran,
+  // comme un salon de cours (champ au-dessus du clavier, en-tête en vue).
+  const chatPanelRef = useRef(null);
+  useChatViewport(chatPanelRef, chatOpen, `${activeType}:${dmActiveId || grpActiveId || ""}`);
   const panelClass = `bt-social-panel${chatOpen ? " bt-social-panel--chat" : ""}`;
 
   return (
@@ -1726,7 +1734,7 @@ export default function Messages() {
 
           </div>
         ) : activeType === "dm" ? (
-            <section className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
+            <section ref={chatPanelRef} className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
               <div className="flex items-center gap-3 px-4 py-3 shrink-0"
                 style={{ borderBottom: "1px solid var(--bt-hairline)" }}>
                 <button onClick={backToInbox}
@@ -1778,6 +1786,7 @@ export default function Messages() {
                 authorFor={dmAuthorFor}
                 onOpenProfile={openProfile}
                 renderContent={(m, mine) => renderMessageBody(m, mine, "dm")}
+                receipt={dmSeenId ? { id: dmSeenId, label: t("msg.seen") } : null}
                 label={t("msg.threadWith").replace("{name}", dmName)}
                 intro={activeFriend && dmLoaded.complete ? (
                   <div className={chatStyles.intro}>
@@ -1798,11 +1807,13 @@ export default function Messages() {
                 onSubmit={sendDM}
                 value={text}
                 onChange={setText}
-                placeholder={file ? `${t("msg.file")} : ${file.name}` : t("msg.placeholder")}
+                placeholder={t("msg.placeholder")}
                 label={t("msg.writeTo").replace("{name}", dmName)}
                 maxLength={TEXT_LIMITS.directMessage}
                 sending={sending}
                 canSend={!sending && (!!text.trim() || !!file)}
+                file={file}
+                onRemoveFile={() => { setFile(null); if (dmFileRef.current) dmFileRef.current.value = ""; }}
                 fileInputRef={dmFileRef}
                 accept={CHAT_ACCEPT}
                 onFile={(input) => pickFile(setFile, input)}
@@ -1810,7 +1821,7 @@ export default function Messages() {
               />
             </section>
         ) : (
-            <section className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
+            <section ref={chatPanelRef} className={`${chatVisible} lg:col-span-2 card flex-col ${panelClass}`}>
 
               {/* ── Group header — clean & compact ────────────────── */}
               <div className="px-3 py-2.5 flex items-center gap-3 shrink-0"
@@ -2030,11 +2041,13 @@ export default function Messages() {
                 onSubmit={sendGroup}
                 value={grpText}
                 onChange={setGrpText}
-                placeholder={grpFile ? `${t("msg.file")} : ${grpFile.name}` : t("msg.msgPlaceholder")}
+                placeholder={t("msg.msgPlaceholder")}
                 label={t("msg.writeTo").replace("{name}", activeGroup?.name || "")}
                 maxLength={TEXT_LIMITS.groupMessage}
                 sending={grpSending}
                 canSend={!grpSending && (!!grpText.trim() || !!grpFile)}
+                file={grpFile}
+                onRemoveFile={() => { setGrpFile(null); if (grpFileRef.current) grpFileRef.current.value = ""; }}
                 fileInputRef={grpFileRef}
                 accept={CHAT_ACCEPT}
                 onFile={(input) => pickFile(setGrpFile, input)}

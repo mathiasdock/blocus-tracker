@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CHAT_GAP_MS, bubblePosition, buildChatThread, chatFullTime, chatTimeLabel } from "../lib/chatThread.mjs";
+import { CHAT_GAP_MS, bubblePosition, buildChatThread, chatFullTime, chatTimeLabel, seenReceiptId } from "../lib/chatThread.mjs";
 
 // Heures locales : le test ne dépend pas du fuseau de la machine.
 const at = (y, mo, d, h, mi) => new Date(y, mo - 1, d, h, mi).toISOString();
@@ -46,6 +46,19 @@ test("group messages use their own author column", () => {
   ], { viewerId: "me", authorOf: (m) => m.user_id });
   assert.deepEqual(items.filter((item) => item.type === "run").map((run) => run.authorId), ["lina", "tom"]);
   assert.deepEqual(buildChatThread([]), []);
+});
+
+test("« Vu » only under my own last message, once the other person opened it", () => {
+  const sent = (id, sender, minute, read) => ({ ...msg(id, sender, at(2026, 10, 2, 14, minute)), read });
+  assert.equal(seenReceiptId([sent("a", "tom", 0, true), sent("b", "me", 1, true)], "me"), "b");
+  assert.equal(seenReceiptId([sent("a", "tom", 0, true), sent("b", "me", 1, false)], "me"), null, "not opened yet");
+  assert.equal(seenReceiptId([sent("a", "me", 0, true), sent("b", "tom", 1, false)], "me"), null, "their reply already says it");
+  // A new message of mine, not opened yet: the older « Vu » does not stay.
+  assert.equal(seenReceiptId([sent("a", "me", 0, true), sent("b", "me", 1, false)], "me"), null);
+  // Order comes from the time, not from the array.
+  assert.equal(seenReceiptId([sent("b", "me", 1, true), sent("a", "tom", 0, true)], "me"), "b");
+  assert.equal(seenReceiptId([], "me"), null);
+  assert.equal(seenReceiptId([sent("a", "me", 0, true)], null), null);
 });
 
 test("bubbles joined in a run get their position", () => {

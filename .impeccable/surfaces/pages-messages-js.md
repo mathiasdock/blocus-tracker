@@ -38,7 +38,9 @@ Les surfaces chaudes, accents verts, avatars, icônes `Glyph`, typographie, rayo
 - Groupes : nom de l'auteur au-dessus de sa série ; supprimer un message passe par le « … » de la bulle (le sien, ou tous pour un admin), plus par un lien sous chaque message.
 - Une conversation ne s'affiche plus sous l'en-tête d'une autre pendant le chargement, et une réponse arrivée après un changement de conversation est ignorée.
 - Sur ordinateur, le panneau ne dépasse plus l'écran : avant, une longue conversation allongeait la page et le champ de message sortait de l'écran.
-- Non fait : « Vu » sous le dernier message (la base sait si un message a été lu, mais l'afficher montrerait aux amis quand on lit leurs messages — à décider par Mathias), réactions, réponses.
+- « Vu » (accepté par Mathias le même jour) : en privé seulement, sous TON dernier message une fois que l'autre l'a ouvert (`private_messages.read`, mis à jour en direct par le temps réel). Rien tant qu'il ne l'a pas ouvert, rien quand le dernier message est le sien. Pas dans les groupes : la lecture d'un groupe n'est retenue que sur l'appareil de chacun.
+- Champ (le même que dans Communautés) : il passe sur plusieurs lignes ; Entrée envoie avec un clavier, va à la ligne au doigt ; le fichier choisi s'affiche au-dessus avec une croix. Sur téléphone, la conversation suit la partie visible de l'écran quand le clavier s'ouvre.
+- Non fait : réactions, réponses, « Vu » dans les groupes (il faudrait enregistrer la lecture côté base).
 
 ## Responsive behavior and accessibility
 

@@ -2046,8 +2046,10 @@ html.bt-focus-active .bt-nav { display: none; }
 
   html.bt-chat-fullscreen main[data-bt-route-content] { padding: 0; }
 
+  /* Clavier ouvert : la partie visible de l'écran (useChatViewport dans
+     components/ChatStream.js), sinon tout l'écran. */
   html.bt-chat-fullscreen .bt-social-panel--chat {
-    height: 100dvh;
+    height: var(--bt-chat-viewport, 100dvh);
     border-radius: 0;
     box-shadow: none;
     /* Les zones sûres sont en PADDING et non déduites de la hauteur : le

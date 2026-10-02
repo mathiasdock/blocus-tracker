@@ -76,16 +76,17 @@
   min-height: 420px;
 }
 
+/* La capsule du vrai champ (components/ChatStream), qui ouvre l'inscription. */
 .communityComposer {
   display: flex;
-  min-height: 64px;
+  min-height: 46px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 10px 16px 14px;
-  padding: 0 16px;
+  margin: 8px 12px 12px;
+  padding: 0 16px 0 18px;
   border: 1px solid var(--bt-border);
-  border-radius: var(--bt-r-control);
+  border-radius: 23px;
   color: var(--bt-text-2);
   font-size: 15px;
   text-align: left;

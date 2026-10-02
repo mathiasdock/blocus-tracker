@@ -1,6 +1,6 @@
-/* Social → Amis : le fil d'une conversation, façon Instagram (demande de
-   Mathias, 2026-10-02). Classes locales : les salons de cours gardent leur
-   propre style (styles/course-spaces.css). */
+/* Le fil d'une conversation et son champ, façon Instagram (demande de
+   Mathias, 2026-10-02) : messages privés, groupes et salons de cours.
+   Classes locales (module) : rien ne fuit sur le reste de l'app. */
 
 /* Un seul défilement ; le contenu se pose en bas quand il est court.
    Positionné : les libellés réservés aux lecteurs d'écran (« Toi »), en
@@ -186,32 +186,87 @@
 .message:focus-within .more,
 .more[aria-expanded="true"] { opacity: 1; }
 
+/* « Vu » : sous ton dernier message, une fois que l'autre l'a ouvert. */
+.receipt {
+  padding: 2px 4px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--bt-text-2);
+}
+
 /* ── Le champ ──────────────────────────────────────────────────── */
 .composer {
   flex-shrink: 0;
   padding: 8px 12px 12px;
 }
+
+/* Au-dessus de la capsule : le fichier choisi (et, dans un salon, la date
+   d'examen), chacun retirable. */
+.extras {
+  display: grid;
+  gap: 6px;
+  margin: 0 2px 8px;
+}
+.extra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 2px 4px 2px 14px;
+  border-radius: var(--bt-r-control);
+  background: var(--bt-subtle);
+  font-size: 14px;
+  color: var(--bt-text-1);
+}
+.extraIcon { display: inline-flex; flex-shrink: 0; color: var(--bt-text-2); }
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.extraRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border-radius: 999px;
+  color: var(--bt-text-2);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
 .field { position: relative; }
 .input {
   display: block;
   width: 100%;
-  height: 46px;
-  padding: 0 92px 0 48px;
+  min-height: 46px;
+  max-height: 154px;
+  padding: 11px 96px 11px var(--lead, 48px);
   border: 1px solid var(--bt-border);
   border-radius: 23px;
   background: var(--bt-surface);
   color: var(--bt-text-1);
   caret-color: var(--bt-accent);
   font-size: 15px;
+  line-height: 22px;
   outline: none;
+  resize: none;
+  overflow-y: auto;
   transition: border-color 150ms ease;
 }
 .input::placeholder { color: var(--bt-text-3); }
 .input:focus { border-color: var(--bt-focus-ring); }
-.attach,
+/* En bas de la capsule : quand le texte passe sur plusieurs lignes, les
+   boutons restent à hauteur de la dernière. */
+.tool,
 .send {
   position: absolute;
-  top: 3px;
+  bottom: 3px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -219,12 +274,17 @@
   border-radius: 999px;
   transition: background-color 150ms ease, color 150ms ease;
 }
-.attach::after,
-.send::after { content: ""; position: absolute; inset: -2px; }
-.attach {
-  left: 3px;
+.tool::after,
+.send::after,
+.extraRemove::after { content: ""; position: absolute; inset: -2px; }
+.extraRemove { position: relative; }
+.tool {
   width: 40px;
   color: var(--bt-text-2);
+}
+.toolOn {
+  background: var(--bt-accent-bg);
+  color: var(--bt-accent-text);
 }
 .send {
   right: 3px;
@@ -242,7 +302,9 @@
   .message:hover .more { opacity: 1; }
   .introAction:hover { background: var(--bt-border); }
   .more:hover,
-  .attach:hover { background: var(--bt-subtle); color: var(--bt-text-1); }
+  .tool:not(.toolOn):hover,
+  .extraRemove:hover { background: var(--bt-subtle); color: var(--bt-text-1); }
+  .extraRemove:hover { background: var(--bt-border); }
   .send:hover:not(:disabled) { background: var(--bt-subtle); }
 }
 
@@ -263,5 +325,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .introAction, .more, .input, .attach, .send { transition: none; }
+  .introAction, .more, .input, .tool, .send, .extraRemove { transition: none; }
 }

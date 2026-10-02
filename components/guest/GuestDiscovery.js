@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 import { COURSE_COLOR_SEQUENCE } from "../../lib/courseColors";
+import ChatStream, { chatStyles } from "../ChatStream";
 import Glyph from "../Glyph";
 import Mascot from "../Mascot";
 import PlanningExamMark from "../PlanningExamMark";
@@ -364,8 +365,20 @@ function FriendsDemo({ onGate }) {
   );
 }
 
+// Le salon d'exemple utilise le vrai fil (components/ChatStream) : un visiteur
+// voit la conversation telle qu'elle sera une fois inscrit.
+const demoAuthorOf = (message) => message.user_id;
+
 function CommunityRoom({ room, onBack, onGate }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const messages = useMemo(() => {
+    const at = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
+    return [
+      { id: "demo-emma", user_id: "Emma", content: t("guest.demo.communityMessage1"), created_at: at(42) },
+      { id: "demo-samir", user_id: "Samir", content: t("guest.demo.communityMessage2"), created_at: at(36) },
+      ...(room.exam ? [{ id: "demo-nora", user_id: "Nora", exam: room.exam, created_at: at(31) }] : []),
+    ];
+  }, [t, room.exam]);
   return (
     <section className="bt-course-room card bt-social-panel bt-social-panel--chat">
       <header className="bt-course-room-head">
@@ -373,15 +386,22 @@ function CommunityRoom({ room, onBack, onGate }) {
         <div className="bt-course-room-title"><h2><CourseMarker course={{ color: room.color }} /><span>{room.title}</span></h2><p>{t("courseSpaces.members").replace("{n}", String(room.members))}</p></div>
         <button type="button" className="bt-course-study" onClick={() => onGate("community")}>{t("courseSpaces.study")}</button>
       </header>
-      <div className="bt-course-stream">
-        <p className="bt-course-day">{t("guest.demo.today")}</p>
-        {[["Emma", t("guest.demo.communityMessage1"), COURSE_COLORS.physics], ["Samir", t("guest.demo.communityMessage2"), COURSE_COLORS.law]].map(([name, text, color]) => (
-          <div key={name} className="bt-course-group"><DemoAvatar name={name} color={color} size={32} /><div className="bt-course-group-body"><div className="bt-course-group-meta"><strong className="bt-course-author">{name}</strong></div><div className="bt-course-message"><div className="bt-course-bubble"><p className="bt-course-text">{text}</p></div></div></div></div>
-        ))}
-        {room.exam ? (
-          <div className="bt-course-group"><DemoAvatar name="Nora" color={COURSE_COLORS.economics} size={32} /><div className="bt-course-group-body"><div className="bt-course-group-meta"><strong className="bt-course-author">Nora</strong></div><div className="bt-course-message"><div className="bt-course-bubble"><div className="bt-course-exam"><PlanningExamMark label={t("guest.demo.examShared")} /><time>{room.exam}</time><button type="button" className="bt-course-exam-add" onClick={() => onGate("community")}>{t("guest.demo.add")}</button></div></div></div></div></div>
-        ) : null}
-      </div>
+      <ChatStream
+        key={room.id}
+        messages={messages}
+        ready
+        viewerId={null}
+        authorOf={demoAuthorOf}
+        authorFor={(id) => ({ name: id })}
+        showNames
+        onOpenProfile={() => onGate("community")}
+        renderContent={(message) => (message.exam
+          ? <div className="bt-course-exam"><PlanningExamMark label={t("guest.demo.examShared")} /><time>{message.exam}</time><button type="button" className="bt-course-exam-add" onClick={() => onGate("community")}>{t("guest.demo.add")}</button></div>
+          : <p className={chatStyles.text}>{message.content}</p>)}
+        label={room.title}
+        t={t}
+        lang={lang}
+      />
       <button type="button" className={styles.communityComposer} onClick={() => onGate("community")}><span>{t("guest.demo.writeMessage")}</span><Icon size={17}><path d="m5 12 5 5L20 7" /></Icon></button>
     </section>
   );

@@ -76,8 +76,8 @@ Row: canonical title; *Ton cours : {name}* only when the words differ (`namesDif
 
 - Header: course marker + canonical title, *Ton cours : …* and member count when allowed, *Étudier ce cours* (only with a linked active personal course), overflow menu with *Quitter l'espace* for members.
 - Not a member: one paragraph on what joining means, *Rejoindre*, and *« Seuls les membres voient les messages. »* No message is fetched (RLS would return none anyway).
-- Member: one chronological stream, oldest at the top and newest against the composer; day markers; consecutive messages of one author grouped within five minutes; own messages on the right in the mint bubble, others on the left with avatar and name (the Friends chat grammar). Older pages by keyset (`created_at,id`, 40 rows). New messages by polling every 15 s while the tab is visible (the Realtime publication only carries `private_messages`), announced politely to screen readers.
-- Composer: auto-growing field (Enter sends on desktop), attachment (existing safe upload rules, `<uid>/<room>/…` path in the private `community` bucket), and a discreet calendar button to share an exam date. The server accepts text and/or attachment and/or exam date.
+- Member: the shared conversation thread of `components/ChatStream` (DESIGN.md « Conversations », since 2026-10-02): oldest at the top and newest against the composer; one time label per exchange; consecutive messages of one author in a run, the author's name above and avatar beside the last bubble; own messages on the right in the mint bubble. Older pages by keyset (`created_at,id`, 40 rows), the reader keeps their place. New messages by polling every 15 s while the tab is visible (the Realtime publication only carries `private_messages`), announced politely to screen readers. No « Vu » in a room.
+- Composer: the shared capsule (`ChatComposer`): auto-growing field (Enter sends on desktop, new line on touch), attachment (existing safe upload rules, `<uid>/<room>/…` path in the private `community` bucket) shown above the capsule with a remove button, and a calendar tool to share an exam date. The server accepts text and/or attachment and/or exam date.
 
 **Study-native actions — the only Blocus-specific ones.**
 - *Étudier ce cours* selects the student's own course in the Timer and opens it. A session already running or paused on another course is never re-attributed; the student gets a message instead.
@@ -85,7 +85,7 @@ Row: canonical title; *Ton cours : {name}* only when the words differ (`namesDif
 
 Not built, on purpose: weekly presence, "X students studied", exam consensus, pinned resources, polls, reactions, group timers, public study status, social XP, push notifications for rooms (in-app unread only), categories or filters.
 
-**Layout.** Desktop (≥1024 px) keeps the full-height social shell shared with Friends (`bt-social-fill-*` in `globals.css`): list a third wide, room on the right, one hairline between them. Below 1024 px the list fills the Social tab (Activité / Amis / Communautés stay above it); opening a space goes full screen (`bt-chat-fullscreen` on `<html>`), with its own back button. On phones the room height follows `visualViewport` so the composer stays above the keyboard. Message actions appear on hover/focus with a pointer and on tapping a bubble on touch screens.
+**Layout.** Desktop (≥1024 px) keeps the full-height social shell shared with Friends (`bt-social-fill-*` in `globals.css`): list a third wide, room on the right, one hairline between them. Below 1024 px the list fills the Social tab (Activité / Amis / Communautés stay above it); opening a space goes full screen (`bt-chat-fullscreen` on `<html>`), with its own back button. On phones the room height follows `visualViewport` (`useChatViewport`, shared with Friends) so the composer stays above the keyboard. Message actions appear on hover/focus with a pointer and on tapping a bubble on touch screens.
 
 ## Privacy and RLS
 
