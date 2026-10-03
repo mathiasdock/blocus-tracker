@@ -1,0 +1,329 @@
+/* Le fil d'une conversation et son champ, façon Instagram (demande de
+   Mathias, 2026-10-02) : messages privés, groupes et salons de cours.
+   Classes locales (module) : rien ne fuit sur le reste de l'app. */
+
+/* Un seul défilement ; le contenu se pose en bas quand il est court.
+   Positionné : les libellés réservés aux lecteurs d'écran (« Toi »), en
+   position absolue, restent dans ce défilement au lieu d'allonger la page. */
+.stream {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  /* Le fil se tient lui-même en bas (ChatStream.js) : l'ancrage du
+     navigateur le décalait quand une image s'agrandissait. */
+  overflow-anchor: none;
+  padding: 8px 16px 12px;
+}
+.content {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+}
+
+/* ── Début de la conversation : qui est en face ─────────────────── */
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 4px;
+  text-align: center;
+}
+.introName {
+  margin-top: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--bt-text-1);
+  overflow-wrap: anywhere;
+}
+.introMeta {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--bt-text-2);
+  overflow-wrap: anywhere;
+}
+.introAction {
+  position: relative;
+  margin-top: 12px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: var(--bt-r-control);
+  background: var(--bt-subtle);
+  color: var(--bt-text-1);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color 150ms ease;
+}
+.introAction::after { content: ""; position: absolute; inset: -4px 0; }
+.empty {
+  padding: 12px 16px 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--bt-text-2);
+}
+
+/* ── L'heure, au début de chaque échange ───────────────────────── */
+.time {
+  align-self: center;
+  margin: 20px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--bt-text-2);
+  font-variant-numeric: tabular-nums;
+}
+.content > .time:first-child { margin-top: 4px; }
+
+/* ── Une série : les messages consécutifs d'une même personne ──── */
+.run {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.time + .run { margin-top: 0; }
+.mine { justify-content: flex-end; }
+
+/* Une photo de 28 px, une cible de 44 px. */
+.avatar {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+.avatar::after { content: ""; position: absolute; inset: -8px; }
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  max-width: min(78%, 560px);
+}
+.mine .body { align-items: flex-end; }
+
+/* Groupes : le nom au-dessus de la première bulle. */
+.name {
+  padding: 0 14px 2px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--bt-text-2);
+  overflow-wrap: anywhere;
+}
+
+.message {
+  position: relative;
+  max-width: 100%;
+}
+
+.bubble {
+  min-width: 0;
+  padding: 8px 14px;
+  border-radius: 18px;
+  background: var(--bt-message-other-bg);
+  color: var(--bt-text-1);
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.mine .bubble {
+  background: var(--bt-message-own-bg);
+  color: var(--bt-message-own-text);
+}
+/* Une pièce jointe seule commence en haut de la bulle (ses marges ne
+   valent qu'après un texte). */
+.bubble > :first-child { margin-top: 0; }
+/* Les coins qui se touchent se resserrent, du côté de celui qui parle. */
+.theirs .first { border-bottom-left-radius: 6px; }
+.theirs .middle { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.theirs .last { border-top-left-radius: 6px; }
+.mine .first { border-bottom-right-radius: 6px; }
+.mine .middle { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.mine .last { border-top-right-radius: 6px; }
+
+/* Environ 65 caractères par ligne : une mesure confortable. Pas de mot seul
+   (ni de « ? » seul) sur la dernière ligne quand le navigateur sait l'éviter. */
+.text {
+  max-width: 32em;
+  white-space: pre-wrap;
+  text-wrap: pretty;
+}
+
+/* Les actions d'un message (groupes : supprimer) : à côté de la bulle, hors
+   de sa largeur — une bulle avec actions n'est pas plus étroite qu'une
+   autre. Au survol ou au focus avec une souris, en touchant la bulle au
+   doigt. */
+.message > .moreWrap {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-left: 2px;
+  transform: translateY(-50%);
+}
+.mine .message > .moreWrap {
+  right: 100%;
+  left: auto;
+  margin-right: 2px;
+  margin-left: 0;
+}
+.more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: var(--bt-text-2);
+  opacity: 0;
+  transition: opacity 120ms ease, background-color 150ms ease;
+}
+.message:focus-within .more,
+.more[aria-expanded="true"] { opacity: 1; }
+
+/* « Vu » : sous ton dernier message, une fois que l'autre l'a ouvert. */
+.receipt {
+  padding: 2px 4px 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--bt-text-2);
+}
+
+/* ── Le champ ──────────────────────────────────────────────────── */
+.composer {
+  flex-shrink: 0;
+  padding: 8px 12px 12px;
+}
+
+/* Au-dessus de la capsule : le fichier choisi (et, dans un salon, la date
+   d'examen), chacun retirable. */
+.extras {
+  display: grid;
+  gap: 6px;
+  margin: 0 2px 8px;
+}
+.extra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 2px 4px 2px 14px;
+  border-radius: var(--bt-r-control);
+  background: var(--bt-subtle);
+  font-size: 14px;
+  color: var(--bt-text-1);
+}
+.extraIcon { display: inline-flex; flex-shrink: 0; color: var(--bt-text-2); }
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.extraRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border-radius: 999px;
+  color: var(--bt-text-2);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.field { position: relative; }
+.input {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  max-height: 154px;
+  padding: 11px 96px 11px var(--lead, 48px);
+  border: 1px solid var(--bt-border);
+  border-radius: 23px;
+  background: var(--bt-surface);
+  color: var(--bt-text-1);
+  caret-color: var(--bt-accent);
+  font-size: 15px;
+  line-height: 22px;
+  outline: none;
+  resize: none;
+  overflow-y: auto;
+  transition: border-color 150ms ease;
+}
+.input::placeholder { color: var(--bt-text-3); }
+.input:focus { border-color: var(--bt-focus-ring); }
+/* En bas de la capsule : quand le texte passe sur plusieurs lignes, les
+   boutons restent à hauteur de la dernière. */
+.tool,
+.send {
+  position: absolute;
+  bottom: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border-radius: 999px;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.tool::after,
+.send::after,
+.extraRemove::after { content: ""; position: absolute; inset: -2px; }
+.extraRemove { position: relative; }
+.tool {
+  width: 40px;
+  color: var(--bt-text-2);
+}
+.toolOn {
+  background: var(--bt-accent-bg);
+  color: var(--bt-accent-text);
+}
+.send {
+  right: 3px;
+  padding: 0 14px;
+  color: var(--bt-brand-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+.send:disabled {
+  color: var(--bt-text-4);
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .message:hover .more { opacity: 1; }
+  .introAction:hover { background: var(--bt-border); }
+  .more:hover,
+  .tool:not(.toolOn):hover,
+  .extraRemove:hover { background: var(--bt-subtle); color: var(--bt-text-1); }
+  .extraRemove:hover { background: var(--bt-border); }
+  .send:hover:not(:disabled) { background: var(--bt-subtle); }
+}
+
+/* Au doigt : la bulle touchée montre ses actions, à pleine taille. */
+@media (hover: none), (pointer: coarse) {
+  .more { width: 44px; height: 44px; pointer-events: none; }
+  .active .more,
+  .more[aria-expanded="true"],
+  .message:focus-within .more { opacity: 1; pointer-events: auto; }
+  .active .bubble { box-shadow: 0 0 0 1.5px var(--bt-text-2); }
+}
+
+@media (max-width: 1023px) {
+  .stream { padding: 8px 12px 12px; }
+  .composer { padding: 6px 8px 8px; }
+  /* 16 px : en dessous, iOS zoome sur le champ. */
+  .input { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .introAction, .more, .input, .tool, .send, .extraRemove { transition: none; }
+}

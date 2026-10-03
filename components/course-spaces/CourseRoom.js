@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Avatar } from "../Layout";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ChatStream, { ChatComposer, chatStyles, useChatViewport } from "../ChatStream";
 import FilterMenu from "../FilterMenu";
 import Glyph from "../Glyph";
 import InboxSheet from "../InboxSheet";
@@ -9,7 +9,7 @@ import { displayName } from "../../lib/format";
 import { notifyXPChanged } from "../../lib/xpEvents";
 import { uploadErrorMessage, validateUploadSource } from "../../lib/security";
 import {
-  MESSAGE_MAX_LENGTH, courseSpaceErrorKey, examDateBounds, groupRoomMessages, isSharedExamPlanned, localDayKey,
+  MESSAGE_MAX_LENGTH, courseSpaceErrorKey, examDateBounds, isSharedExamPlanned,
   mergeLatestPage, mergeOlderPage, newMessagesFromOthers, sortMessages, splitFileName,
 } from "../../lib/courseSpaces.mjs";
 import {
@@ -39,10 +39,11 @@ const IconMore = ({ size = 20 }) => <Glyph size={size}>
   <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
   <circle cx="18.5" cy="12" r="1.7" fill="currentColor" stroke="none" />
 </Glyph>;
-const IconPaperclip = () => <Glyph size={20}><path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.93a2 2 0 0 1-2.83-2.83l8.49-8.49" /></Glyph>;
 const IconCalendar = () => <Glyph size={20}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></Glyph>;
-const IconSend = () => <Glyph size={20}><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" /></Glyph>;
 const IconClose = () => <Glyph size={16}><path d="m6 6 12 12M6 18 18 6" /></Glyph>;
+
+// Auteur d'un message de salon ; stable, pour que le fil ne se recalcule pas.
+const roomAuthorOf = (message) => message.user_id;
 
 // displayName() falls back to a French word; an author still loading shows an
 // ellipsis instead, and an unknown one the translated "User".
@@ -50,48 +51,9 @@ export function authorName(person, fallback) {
   return person && (person.first_name || person.last_name || person.pseudo) ? displayName(person) : fallback;
 }
 
-function dayLabel(day, t, lang) {
-  const today = localDayKey(new Date());
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-  if (day === today) return t("common.today");
-  if (day === localDayKey(yesterday)) return t("courseSpaces.yesterday");
-  const [year, month, date] = day.split("-").map(Number);
-  const value = new Date(year, month - 1, date);
-  return new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "fr-BE", {
-    weekday: "long", day: "numeric", month: "long", ...(year !== new Date().getFullYear() ? { year: "numeric" } : {}),
-  }).format(value);
-}
-
-function timeLabel(iso, lang) {
-  return new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "fr-BE", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-}
-
 function examLabel(date, lang) {
   return new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "fr-BE", { weekday: "short", day: "numeric", month: "long", year: "numeric" })
     .format(new Date(`${date}T12:00:00`));
-}
-
-// iOS keeps 100dvh when the keyboard opens: the room follows the visual
-// viewport instead, so the field stays above the keyboard and the header in
-// view. Only while the room is the full-screen phone surface.
-function useVisualViewportHeight(ref, active) {
-  useEffect(() => {
-    const element = ref.current;
-    const viewport = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!active || !element || !viewport) return undefined;
-    const narrow = window.matchMedia("(max-width: 1023px)");
-    const apply = () => {
-      if (!narrow.matches) { element.style.removeProperty("--bt-room-viewport"); return; }
-      element.style.setProperty("--bt-room-viewport", `${Math.round(viewport.height)}px`);
-      if (window.scrollY) window.scrollTo(0, 0);
-    };
-    apply();
-    viewport.addEventListener("resize", apply);
-    return () => {
-      viewport.removeEventListener("resize", apply);
-      element.style.removeProperty("--bt-room-viewport");
-    };
-  }, [ref, active]);
 }
 
 // A file opens in ONE tap. An image loads inline on request (no download
@@ -140,7 +102,6 @@ function Composer({ t, title, roomId, onSend }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef(null);
-  const textRef = useRef(null);
   const bounds = useMemo(() => examDateBounds(), []);
   const text = draft.trim();
   const dateReady = !examOpen || !examDate || (examDate >= bounds.min && examDate <= bounds.max);
@@ -148,12 +109,6 @@ function Composer({ t, title, roomId, onSend }) {
   const remaining = MESSAGE_MAX_LENGTH - draft.length;
 
   useEffect(() => { setDraft(""); setFile(null); setExamOpen(false); setExamDate(""); setError(""); }, [roomId]);
-  useLayoutEffect(() => {
-    const field = textRef.current;
-    if (!field) return;
-    field.style.height = "auto";
-    field.style.height = `${Math.min(field.scrollHeight, 132)}px`;
-  }, [draft]);
 
   function pick(input) {
     const selected = input.files?.[0];
@@ -171,7 +126,6 @@ function Composer({ t, title, roomId, onSend }) {
     try {
       await onSend({ content: text, file, examDate: examOpen && examDate ? examDate : null });
       setDraft(""); setFile(null); setExamOpen(false); setExamDate("");
-      textRef.current?.focus();
     } catch (failure) {
       setError(failure?.refusalKey ? t(failure.refusalKey)
         : failure?.upload ? uploadErrorMessage(t, failure.upload)
@@ -181,47 +135,43 @@ function Composer({ t, title, roomId, onSend }) {
     }
   }
 
-  return <form className="bt-course-composer" onSubmit={submit}>
-    {(file || examOpen) && <div className="bt-course-composer-extras">
-      {examOpen && <div className="bt-course-composer-extra">
-        <label htmlFor={`course-exam-${roomId}`}>{t("courseSpaces.exam.label")}</label>
-        <input id={`course-exam-${roomId}`} className="input" type="date" min={bounds.min} max={bounds.max}
-          value={examDate} onChange={(event) => setExamDate(event.target.value)} />
-        <button type="button" className="bt-course-icon-btn" aria-label={t("courseSpaces.composer.removeExam")}
-          onClick={() => { setExamOpen(false); setExamDate(""); }}><IconClose /></button>
-      </div>}
-      {file && <div className="bt-course-composer-extra">
-        <span className="bt-course-composer-file">{file.name}</span>
-        <button type="button" className="bt-course-icon-btn" aria-label={t("courseSpaces.composer.removeFile")}
-          onClick={() => setFile(null)}><IconClose /></button>
-      </div>}
-    </div>}
-    <div className="bt-course-composer-row">
-      <button type="button" className="bt-course-icon-btn" aria-label={t("courseSpaces.composer.attach")} title={t("courseSpaces.composer.attach")}
-        onClick={() => fileRef.current?.click()}><IconPaperclip /></button>
-      <input ref={fileRef} type="file" accept={CHAT_ACCEPT} className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(event) => pick(event.currentTarget)} />
-      <button type="button" className={`bt-course-icon-btn${examOpen ? " is-on" : ""}`} aria-pressed={examOpen}
-        aria-label={t("courseSpaces.composer.exam")} title={t("courseSpaces.composer.exam")}
-        onClick={() => setExamOpen((open) => !open)}><IconCalendar /></button>
-      <label className="sr-only" htmlFor={`course-message-${roomId}`}>{t("courseSpaces.composer.label").replace("{title}", title)}</label>
-      <textarea ref={textRef} id={`course-message-${roomId}`} className="input bt-course-composer-field" rows={1}
-        maxLength={MESSAGE_MAX_LENGTH + 200} value={draft} placeholder={t("courseSpaces.composer.placeholder")}
-        aria-describedby={error ? `course-composer-error-${roomId}` : undefined}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
-          if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-          event.preventDefault(); submit();
-        }} />
-      <button type="submit" className="bt-course-send" disabled={!canSend} aria-label={sending ? t("courseSpaces.composer.sending") : t("common.send")}>
-        <IconSend /><span>{sending ? t("courseSpaces.composer.sending") : t("common.send")}</span>
-      </button>
-    </div>
-    {remaining < 100 && <p className={`bt-course-composer-count${remaining < 0 ? " is-over" : ""}`} aria-live="polite">
-      {remaining < 0 ? t("courseSpaces.error.tooLong") : t("courseSpaces.composer.remaining").replace("{n}", remaining)}
-    </p>}
-    {error && <p id={`course-composer-error-${roomId}`} className="bt-course-composer-error bt-form-error" role="alert">{error}</p>}
-  </form>;
+  // Le même champ que les messages privés, avec en plus la date d'examen à
+  // partager (un outil de plus dans la capsule, sa date au-dessus).
+  return <ChatComposer
+    onSubmit={submit}
+    value={draft}
+    onChange={setDraft}
+    placeholder={t("courseSpaces.composer.placeholder")}
+    label={t("courseSpaces.composer.label").replace("{title}", title)}
+    maxLength={MESSAGE_MAX_LENGTH + 200}
+    sending={sending}
+    canSend={canSend}
+    file={file}
+    onRemoveFile={() => setFile(null)}
+    fileInputRef={fileRef}
+    accept={CHAT_ACCEPT}
+    onFile={pick}
+    tools={[{
+      key: "exam", label: t("courseSpaces.composer.exam"), icon: <IconCalendar />, pressed: examOpen,
+      onClick: () => setExamOpen((open) => !open),
+    }]}
+    above={examOpen ? <div className={`${chatStyles.extra} bt-course-composer-extra`}>
+      <label htmlFor={`course-exam-${roomId}`}>{t("courseSpaces.exam.label")}</label>
+      <input id={`course-exam-${roomId}`} className="input" type="date" min={bounds.min} max={bounds.max}
+        value={examDate} onChange={(event) => setExamDate(event.target.value)} />
+      <button type="button" className={chatStyles.extraRemove} aria-label={t("courseSpaces.composer.removeExam")}
+        onClick={() => { setExamOpen(false); setExamDate(""); }}><IconClose /></button>
+    </div> : null}
+    below={<>
+      {remaining < 100 && <p className={`bt-course-composer-count${remaining < 0 ? " is-over" : ""}`} aria-live="polite">
+        {remaining < 0 ? t("courseSpaces.error.tooLong") : t("courseSpaces.composer.remaining").replace("{n}", remaining)}
+      </p>}
+      {error && <p id={`course-composer-error-${roomId}`} className="bt-course-composer-error bt-form-error" role="alert">{error}</p>}
+    </>}
+    inputId={`course-message-${roomId}`}
+    describedBy={error ? `course-composer-error-${roomId}` : undefined}
+    t={t}
+  />;
 }
 
 export default function CourseRoom({
@@ -242,14 +192,9 @@ export default function CourseRoom({
   const [reportTarget, setReportTarget] = useState(null);
   const [reporting, setReporting] = useState(false);
   const [profileId, setProfileId] = useState(null);
-  // Touch has no hover: tapping a message reveals its actions.
-  const [activeMessageId, setActiveMessageId] = useState(null);
   const panelRef = useRef(null);
-  const streamRef = useRef(null);
   const messagesRef = useRef([]);
   const loadRequest = useRef(0);
-  const stickToBottom = useRef(true);
-  const restoreFromBottom = useRef(null);
   const knownAuthors = useRef(new Set());
   const checkedExams = useRef(new Set());
   // The language can change while a room is open; that must not reload it.
@@ -259,7 +204,7 @@ export default function CourseRoom({
   const roomRef = useRef(roomId);
   useEffect(() => { tRef.current = t; activityRef.current = onActivity; roomRef.current = roomId; }, [t, onActivity, roomId]);
 
-  useVisualViewportHeight(panelRef, fullscreen);
+  useChatViewport(panelRef, fullscreen, roomId);
 
   const commit = useCallback((next) => { messagesRef.current = next; setMessages(next); }, []);
 
@@ -270,8 +215,6 @@ export default function CourseRoom({
     try {
       const page = await fetchRoomMessages(roomId);
       if (request !== loadRequest.current) return;
-      const stream = streamRef.current;
-      stickToBottom.current = !background || !stream || stream.scrollHeight - stream.scrollTop - stream.clientHeight < 120;
       const previous = messagesRef.current;
       const merged = mergeLatestPage(previous, page, ROOM_PAGE_SIZE);
       if (background) {
@@ -290,9 +233,8 @@ export default function CourseRoom({
   }, [roomId, user?.id, commit]);
 
   useEffect(() => {
-    commit([]); setHasMore(false); setAttachments({}); setExams({}); setAnnouncement(""); setActiveMessageId(null);
+    commit([]); setHasMore(false); setAttachments({}); setExams({}); setAnnouncement("");
     checkedExams.current = new Set();
-    stickToBottom.current = true;
     if (!roomId) { setStatus("idle"); return undefined; }
     load();
     return () => { loadRequest.current += 1; };
@@ -308,8 +250,6 @@ export default function CourseRoom({
       if (!rows.length) return 0;
       // Beaucoup d'un coup : la page complète reprend la main.
       if (rows.length >= ROOM_PAGE_SIZE) { await load(true); return rows.length; }
-      const stream = streamRef.current;
-      stickToBottom.current = !stream || stream.scrollHeight - stream.scrollTop - stream.clientHeight < 120;
       const ids = new Set(rows.map((row) => row.id));
       const merged = sortMessages([...messagesRef.current.filter((message) => !ids.has(message.id)), ...rows]);
       const fresh = newMessagesFromOthers(previous, merged, user?.id);
@@ -386,26 +326,14 @@ export default function CourseRoom({
       .catch(() => unchecked.forEach((message) => checkedExams.current.delete(message.id)));
   }, [messages, user?.id, examCourseId, examName]);
 
-  useLayoutEffect(() => {
-    const stream = streamRef.current;
-    if (!stream) return;
-    if (restoreFromBottom.current != null) {
-      stream.scrollTop = stream.scrollHeight - restoreFromBottom.current;
-      restoreFromBottom.current = null;
-    } else if (stickToBottom.current) {
-      stream.scrollTop = stream.scrollHeight;
-    }
-  }, [messages, status]);
-
+  // Le fil (ChatStream) garde sa place quand les messages précédents
+  // s'ajoutent au-dessus, et reste en bas quand on y est.
   async function loadOlder() {
     const first = messagesRef.current[0];
     if (!first || olderLoading) return;
     setOlderLoading(true);
     try {
       const page = await fetchRoomMessages(roomId, first);
-      const stream = streamRef.current;
-      restoreFromBottom.current = stream ? stream.scrollHeight - stream.scrollTop : null;
-      stickToBottom.current = false;
       commit(mergeOlderPage(messagesRef.current, page));
       setHasMore(page.length === ROOM_PAGE_SIZE);
     } catch {
@@ -417,7 +345,6 @@ export default function CourseRoom({
 
   async function send(payload) {
     const row = await postRoomMessage({ userId: user.id, roomId, ...payload });
-    stickToBottom.current = true;
     commit(sortMessages([...messagesRef.current.filter((message) => message.id !== row.id), row]));
     onActivity?.(roomId, row.created_at);
     pollKickRef.current?.();
@@ -507,7 +434,7 @@ export default function CourseRoom({
   }
 
   const blocked = useMemo(() => new Set(blockedIds), [blockedIds]);
-  const items = useMemo(() => groupRoomMessages(messages.filter((message) => !blocked.has(message.user_id)), user?.id), [messages, blocked, user?.id]);
+  const visibleMessages = useMemo(() => messages.filter((message) => !blocked.has(message.user_id)), [messages, blocked]);
   const isAdmin = !!profile?.is_admin;
 
   // Nothing open. With nothing to open either, the list already says why in
@@ -536,6 +463,24 @@ export default function CourseRoom({
     return list;
   }
 
+  // Un salon réunit des gens qui ne se connaissent pas forcément : leur nom
+  // s'affiche au-dessus de leurs messages (le fil le fait avec `showNames`).
+  const roomAuthorFor = (id) => ({ name: authorName(authors[id], "…"), avatarUrl: authors[id]?.avatar_url });
+
+  function renderRoomMessage(message, mine) {
+    return <>
+      {message.content && <p className={chatStyles.text}>{message.content}</p>}
+      {message.exam_date && <div className="bt-course-exam">
+        <PlanningExamMark label={t("courseSpaces.exam.label")} />
+        <time dateTime={message.exam_date}>{examLabel(message.exam_date, lang)}</time>
+        <button type="button" className="bt-course-exam-add" disabled={!!exams[message.id]} onClick={() => addExam(message)}>
+          {exams[message.id] === "done" ? t("courseSpaces.exam.added") : t("courseSpaces.exam.add")}
+        </button>
+      </div>}
+      {message.attachment_url && <Attachment message={message} mine={mine} state={attachments[message.id]} onShowImage={showImage} onOpen={openAttachment} t={t} />}
+    </>;
+  }
+
   return <section ref={panelRef} className={`bt-course-room card bt-social-panel${fullscreen ? " bt-social-panel--chat" : ""}`}
     aria-labelledby="course-room-title">
     <header className="bt-course-room-head">
@@ -555,58 +500,39 @@ export default function CourseRoom({
       </button>
       <p className="bt-course-preview-note">{t("courseSpaces.preview.privacy")}</p>
     </div> : <>
-      <div ref={streamRef} className="bt-course-stream" role="log" aria-live="off"
-        aria-label={t("courseSpaces.room.label").replace("{title}", roomTitle)} aria-busy={status === "loading" || undefined}>
-        {hasMore && <button type="button" className="bt-course-older" disabled={olderLoading} onClick={loadOlder}>
-          {olderLoading ? t("common.loading") : t("courseSpaces.room.older")}
-        </button>}
-        {status === "loading" && !messages.length && <p className="bt-course-note" role="status">{t("common.loading")}</p>}
-        {status === "error" && <div className="bt-course-note" role="alert">
-          <p>{t("courseSpaces.room.error")}</p>
-          <button type="button" className="bt-course-text-btn" onClick={() => load()}>{t("courseSpaces.retry")}</button>
-        </div>}
-        {status === "ready" && !items.length && <div className="bt-course-room-empty">
+      {/* Le même fil que les messages privés (components/ChatStream). Pas de
+          « Vu » : un salon est ouvert à toute la promo. Pas de présentation au
+          début : l'en-tête du salon dit déjà où l'on est. */}
+      <ChatStream
+        key={roomId}
+        messages={visibleMessages}
+        ready={status === "ready"}
+        viewerId={user?.id}
+        authorOf={roomAuthorOf}
+        authorFor={roomAuthorFor}
+        showNames
+        onOpenProfile={setProfileId}
+        renderContent={renderRoomMessage}
+        actionsFor={messageActions}
+        actionsMenuClassName="bt-course-menu"
+        before={<>
+          {hasMore && <button type="button" className="bt-course-older" disabled={olderLoading} onClick={loadOlder}>
+            {olderLoading ? t("common.loading") : t("courseSpaces.room.older")}
+          </button>}
+          {status === "loading" && !messages.length && <p className="bt-course-note" role="status">{t("common.loading")}</p>}
+          {status === "error" && <div className="bt-course-note" role="alert">
+            <p>{t("courseSpaces.room.error")}</p>
+            <button type="button" className="bt-course-text-btn" onClick={() => load()}>{t("courseSpaces.retry")}</button>
+          </div>}
+        </>}
+        empty={<div className="bt-course-room-empty">
           <p><strong>{t("courseSpaces.room.empty")}</strong></p>
           <p>{t("courseSpaces.room.emptyHint")}</p>
         </div>}
-        {items.map((item) => {
-          if (item.type === "day") {
-            return <p key={item.key} className="bt-course-day"><time dateTime={item.day}>{dayLabel(item.day, t, lang)}</time></p>;
-          }
-          const author = authors[item.userId] || {};
-          const name = item.mine ? t("courseSpaces.message.you") : authorName(authors[item.userId], "…");
-          return <div key={item.key} className={`bt-course-group${item.mine ? " is-mine" : ""}`}>
-            {!item.mine && <button type="button" className="bt-course-avatar" onClick={() => setProfileId(item.userId)} aria-label={name}>
-              <Avatar url={author.avatar_url} pseudo={name} size={32} />
-            </button>}
-            <div className="bt-course-group-body">
-              <p className="bt-course-group-meta">
-                {item.mine ? <span className="sr-only">{name}</span>
-                  : <button type="button" className="bt-course-author bt-tap-44" onClick={() => setProfileId(item.userId)}>{name}</button>}
-                <time dateTime={item.messages[0].created_at}>{timeLabel(item.messages[0].created_at, lang)}</time>
-              </p>
-              {item.messages.map((message) => <div key={message.id} className={`bt-course-message${activeMessageId === message.id ? " is-active" : ""}`}>
-                <div className="bt-course-bubble" onClick={(event) => {
-                  if (event.target.closest("a, button")) return;
-                  setActiveMessageId((current) => current === message.id ? null : message.id);
-                }}>
-                  {message.content && <p className="bt-course-text">{message.content}</p>}
-                  {message.exam_date && <div className="bt-course-exam">
-                    <PlanningExamMark label={t("courseSpaces.exam.label")} />
-                    <time dateTime={message.exam_date}>{examLabel(message.exam_date, lang)}</time>
-                    <button type="button" className="bt-course-exam-add" disabled={!!exams[message.id]} onClick={() => addExam(message)}>
-                      {exams[message.id] === "done" ? t("courseSpaces.exam.added") : t("courseSpaces.exam.add")}
-                    </button>
-                  </div>}
-                  {message.attachment_url && <Attachment message={message} mine={item.mine} state={attachments[message.id]} onShowImage={showImage} onOpen={openAttachment} t={t} />}
-                </div>
-                <FilterMenu ariaLabel={t("courseSpaces.message.actions")} triggerClassName="bt-course-message-menu" menuClassName="bt-course-menu"
-                  trigger={<IconMore size={18} />} actions={messageActions(message)} align={item.mine ? "right" : "left"} />
-              </div>)}
-            </div>
-          </div>;
-        })}
-      </div>
+        label={t("courseSpaces.room.label").replace("{title}", roomTitle)}
+        t={t}
+        lang={lang}
+      />
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
       <Composer t={t} title={roomTitle} roomId={roomId} onSend={send} />
     </>}

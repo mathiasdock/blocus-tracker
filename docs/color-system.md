@@ -32,6 +32,7 @@ Warm surface neutrals are unchanged. Secondary neutral text is darker in light m
 | Data tooltip / quantity wash | `--bt-data-surface/text` |
 | Heatmap | `--bt-heatmap-rgb` with the existing intensity thresholds |
 | Own message | `--bt-message-own-bg/text/muted` |
+| Other person's message (Friends) | `--bt-message-other-bg` with `--bt-text-1`: a neutral bubble that stays visible on the surface (≈1.17:1 light, 1.22:1 dark, like the own bubble) |
 | Compact level object | `--bt-level-bg/text` |
 | Dark brand scene | `--bt-ink/ink-soft/ink-text/ink-muted`, `--bt-ink-gradient` |
 | Focus indication | `--bt-focus-ring/gap`, `--bt-focus-on-ink` |

@@ -5,7 +5,6 @@ import {
   coldStartState,
   courseSpaceErrorKey,
   examDateBounds,
-  groupRoomMessages,
   isSharedExamPlanned,
   splitFileName,
   mergeLatestPage,
@@ -141,21 +140,6 @@ test("the empty sentence tells the truth about why the list is empty", () => {
   assert.equal(coldStartState({ hasInstitution: true, view: courses }), "noMatches");
   const joined = buildCourseSpaceView({ summaries: [{ offering_id: "o", offering_title: "X", room_id: "r", joined: true }] });
   assert.equal(coldStartState({ hasInstitution: true, view: joined }), null);
-});
-
-test("the stream reads oldest to newest, grouped by author within five minutes, split by day", () => {
-  const items = groupRoomMessages([
-    { id: "m4", user_id: "me", created_at: "2026-09-16T09:20:00.000Z" },
-    { id: "m1", user_id: "lina", created_at: "2026-09-16T09:00:00.000000+00:00" },
-    { id: "m2", user_id: "lina", created_at: "2026-09-16T09:04:00.000Z" },
-    { id: "m3", user_id: "lina", created_at: "2026-09-16T09:10:00.000Z" },
-    { id: "m5", user_id: "me", created_at: "2026-09-18T09:21:00.000Z" },
-  ], "me");
-  assert.deepEqual(items.map((item) => item.type === "day" ? item.type : item.messages.map((message) => message.id).join("+")), [
-    "day", "m1+m2", "m3", "m4", "day", "m5",
-  ]);
-  assert.equal(items[1].mine, false);
-  assert.equal(items[3].mine, true);
 });
 
 test("a poll keeps older history, drops what the server removed, and never hides a gap", () => {
