@@ -109,9 +109,27 @@ NEXT_PUBLIC_OFFLINE_DEV=true. Only the synthetic example.edu URL is accepted;
 no private URL is saved. Fixture syncs deliberately skip the production cooldown.
 SQL/API tests run the real backend separately from this offline UI rehearsal.
 
-**Real Canvas feed tested: NO.** Mathias offered to provide a local file path but
-has not supplied it yet. The remaining external validation is that real feed:
-UCF keys, actual naming/classification, real-feed idempotence and mapped Planning
-presentation. No hosted end-to-end check is claimed. Production migration, push,
-main integration and deployment remain blocked on that validation and Mathias's
-explicit approval; none was performed.
+**Real Canvas feed tested: YES (2026-10-02, local validation).** The bounded
+server fetch/parser and local PostgreSQL migrations imported 103 of 103 events,
+recognized six Canvas course identities, and retained exactly the same 103 natural
+identities on a second real fetch/sync: zero duplicates and zero local exams.
+Final classification: 6 exam/high, 2 exam/medium, 39 quizzes, 8 assignments,
+4 projects, 1 presentation and 43 other. The previously ambiguous project/report/
+presentation deliverable combinations now have narrow explicit rules; unrelated
+mixed titles, alternative wording, exam conflicts and the absolute quiz veto remain
+conservative. Eight regression cases cover those boundaries.
+
+The real normalized semester data was also exercised in local offline Planning:
+all six course keys appear in matching, two were explicitly associated to existing
+demo courses, names/colors propagate, the densest day groups six events, Test 1
+stays Possible exam, and no local exam is created. Desktop 1440 px, mobile 390 px,
+and dark 320 px have no page overflow or browser errors. Real data/screenshots
+were kept outside the repository; only generic regression titles are committed.
+The secret was read locally without modification, never printed/copied into
+source, fixtures, docs or browser data. Full suite: 644 passed; lint clean; build
+passed with the existing 3 MB PWA precache warning.
+
+No hosted end-to-end check is claimed: the real feed was fetched by the production
+server modules, persistence tested in isolated local PostgreSQL and presentation
+validated locally. Production migration, push, main integration and deployment
+remain subject to Mathias's explicit approval; none was performed.

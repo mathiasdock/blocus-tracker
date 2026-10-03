@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-02 — Codex — Validation du vrai flux Canvas (local)
+
+- Import réel via le fetch borné et les migrations PostgreSQL locales : 103 événements, six identifiants Canvas reconnus ; second fetch/sync, 103 identités identiques et zéro doublon. Aucun examen local créé. Correspondances et Planning testés avec les données normalisées réelles : mois compact, six éléments au jour le plus dense, examen possible conservé, desktop/mobile clair/sombre sans débordement.
+- Correction ciblée de trois combinaisons explicites de livrables de projet (rapport écrit, remise de présentation, devoir de présentation d’un projet), auparavant `other/low`. Règles déclaratives, aucun élargissement de la détection des examens ; veto quiz, négations, alternatives et conflits d’examen conservés. Huit cas de régression génériques. Résultat : 6 exam/high, 2 exam/medium, 39 quiz, 8 assignment, 4 project, 1 presentation, 43 other.
+- 644 tests verts, lint propre, build de production réussi (avertissement PWA 3 MB préexistant). URL privée uniquement lue localement, fichier secret inchangé ; aucune donnée brute/URL/capture réelle ajoutée au dépôt. Aucun changement UI ou migration, aucun push, main ou déploiement.
+
 ## 2026-10-02 — Codex — Calendriers universitaires : parcours réel, étape 4 (local)
 
 - Entrée discrète du Planning vers connexion Canvas/Moodle/Brightspace/iCal, associations existantes/ignorées/non associées, résumé et décisions d’examen. URL masquée et effacée avant requête ; validation/fetch/parsing serveur avant persistance atomique. Synchronisation manuelle, nouveaux cours non bloquants, déconnexion explicite.
