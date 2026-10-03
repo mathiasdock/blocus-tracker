@@ -1027,26 +1027,16 @@ function DayDetailModal() {
               </div>
             </div>
 
-            {/* ── Ajouter : deux actions compactes côte à côte. Les grands
-                 rectangles pointillés d'avant mangeaient un tiers de la fiche
-                 pour deux boutons. ── */}
             <AcademicDeadlines events={academic.byDate[modalDate]} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork} />
 
             {!showAddForm && !showAddExamForm && (
-              <div className="flex gap-2">
-                {!isPast && (
-                  <button onClick={() => setShowAddForm(true)}
-                    className="btn-ghost flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm font-semibold">
-                    <IconPlus size={13} />
-                    {t("plan.addObjectiveShort")}
-                  </button>
-                )}
-                <button onClick={() => setShowAddExamForm(true)}
-                  className="btn-ghost flex min-h-11 flex-1 items-center justify-center gap-1.5 text-sm font-semibold">
-                  <span style={{ color: "var(--bt-exam-ink)" }}><IconCalendar size={15} /></span>
-                  {t("plan.addExamShort")}
-                </button>
-              </div>
+              <details className="bt-planning-add-menu">
+                <summary className="btn-ghost flex min-h-11 items-center gap-1.5 px-3 text-sm font-semibold"><IconPlus size={13} />{t("common.add")}</summary>
+                <div className="flex flex-wrap gap-2">
+                  {!isPast && <button onClick={() => setShowAddForm(true)} className="btn-ghost min-h-11 px-3 text-sm">{t("academic.studyObjective")}</button>}
+                  <button onClick={() => setShowAddExamForm(true)} className="btn-ghost min-h-11 px-3 text-sm">{t("plan.addExamShort")}</button>
+                </div>
+              </details>
             )}
 
             {showAddForm && !isPast && (

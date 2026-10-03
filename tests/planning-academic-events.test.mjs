@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { academicDate, academicKey, academicSummary, academicVisibility, planningAcademicEvents, safeAcademicUrl, ACADEMIC_COLUMNS } from '../lib/planningAcademicEvents.mjs';
+import { academicDate, academicKey, academicCourseGroups, isAcademicHidden, academicSummary, academicVisibility, planningAcademicEvents, safeAcademicUrl, ACADEMIC_COLUMNS } from '../lib/planningAcademicEvents.mjs';
 import { classifyAcademicEvent } from '../lib/academicEventClassification.mjs';
 const course = { id: 'local', name: 'Principles of Advertising', color: '#5544aa' };
 const mapping = { source_id: 'canvas', external_course_key: 'course_42', local_course_id: course.id };
@@ -11,7 +11,7 @@ function events(rows, maps = [mapping], courses = [course], exams = [], visibili
 test('mapped events use local identity without renaming or mutating courses', () => {
   const value = events([row('Final Exam [ADV 3001]')])[0];
   assert.equal(value.title, 'Final Exam'); assert.equal(value.course_name, course.name); assert.equal(value.color, course.color);
-  assert.equal(value.confirmedExam, true); assert.equal(course.name, 'Principles of Advertising');
+  assert.equal(value.confirmedExam, false); assert.equal(course.name, 'Principles of Advertising');
 });
 test('unmapped course stays neutral, including stale mappings and identical keys on other sources', () => {
   for (const maps of [[], [{ ...mapping, source_id: 'other' }], [{ ...mapping, local_course_id: 'deleted' }]]) {
@@ -27,7 +27,7 @@ test('possible exam stays a deadline until explicitly confirmed; override is res
   assert.equal(events([row('Final Exam', { user_override: 'quiz' })])[0].confirmedExam, false);
 });
 test('dense day summarizes one exam and nine deadlines without losing detail', () => {
-  const rows = [row('Final Exam'), row('Group Assignment'), ...Array.from({ length: 8 }, (_, i) => row(`Quiz ${i}`))];
+  const rows = [row('Final Exam', { user_override: 'exam' }), row('Group Assignment'), ...Array.from({ length: 8 }, (_, i) => row(`Quiz ${i}`))];
   const result = events(rows); assert.equal(result.length, 10); assert.equal(academicSummary(result).exams.length, 1);
   assert.equal(academicSummary(result).deadlines, 9); assert.equal(result[0].title, 'Final Exam'); assert.equal(result[1].importance, 'major');
 });
@@ -62,4 +62,25 @@ test('removed events never display and unsafe URLs never become source links', (
   for (const url of ['javascript:alert(1)', 'data:text/html,hi', '//example.org', null]) assert.equal(safeAcademicUrl(url), null);
   assert.equal(safeAcademicUrl('https://canvas.example.edu/courses/42'), 'https://canvas.example.edu/courses/42');
   assert.ok(!ACADEMIC_COLUMNS.includes('feed')); assert.ok(!ACADEMIC_COLUMNS.includes('description'));
+});
+
+test('only explicitly confirmed exams get the full exam presentation, even with automatic high confidence', () => {
+  assert.equal(events([row('Final Exam')])[0].confirmedExam, false);
+  assert.equal(events([row('Final Exam', { user_override: 'exam' })])[0].confirmedExam, true);
+  assert.equal(events([row('Test 1', { user_override: 'other' })])[0].event_type, 'other');
+});
+test('six deadlines group only by mapped local identity and every event survives', () => {
+  const items = events(Array.from({ length: 6 }, (_, i) => row(`Quiz ${i}`, i < 4 ? {} : { external_course_key: null })));
+  const groups = academicCourseGroups(items);
+  assert.deepEqual(groups.map(g => g.events.length), [4, 1, 1]);
+  assert.equal(new Set(groups.flatMap(g => g.events.map(e => e.key))).size, 6);
+  assert.equal(academicCourseGroups(items.slice(0, 1))[0].events.length, 1);
+});
+test('hidden source/UID filters all recurrence instances but never a different source', () => {
+  const rows = [row('Quiz'), row('Quiz', { recurrence_id: 'tomorrow' }), row('Quiz', { source_id: 'moodle' })];
+  const hidden = [{ source_id: 'canvas', external_uid: 'Quiz' }];
+  const result = Object.values(planningAcademicEvents(rows, [], [], [], undefined, [], hidden)).flat();
+  assert.equal(result.length, 1); assert.equal(result[0].source_id, 'moodle');
+  assert.equal(isAcademicHidden(rows[1], hidden), true);
+  assert.equal(Object.values(planningAcademicEvents(rows, [], [], [], undefined, [], [])).flat().length, 3);
 });

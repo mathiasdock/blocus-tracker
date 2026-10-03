@@ -35,13 +35,14 @@ export default function UniversityCalendarFixture() {
         external_url: 'https://canvas.example.edu/courses/42/assignments/123', user_override: null };
       return { ...row, ...classifyAcademicEvent(row) };
     };
-    db.external_academic_events = [event('Final Exam', 0), event('Group Assignment', 0), event('Quiz 4', 0), event('Essay', 0, false), event('Test 1', 1, false), event('Presentation', 2)];
+    db.external_academic_events = [{ ...event('Final Exam', 0), user_override: 'exam' }, event('Group Assignment', 0), event('Quiz 4', 0), event('Essay', 0, false), event('Test 1', 1, false), event('Presentation', 2), ...['Case study', 'Campaign outline'].map(title => event(title, 0))];
     if (dense) {
       for (let i = 0; i < 6; i++) db.external_academic_events.push(event(`Quiz ${i + 5}`, 0, false));
       for (let day = 3; day <= 28; day++) for (let i = 0; i < 3; i++) db.external_academic_events.push(event(i === 0 && day % 7 === 0 ? 'Midterm' : `Assignment ${day}-${i + 1}`, day, i % 2 === 0));
     }
     if (empty) { db.external_calendar_sources = []; db.external_academic_events = []; db.external_calendar_course_map = []; }
     db.external_calendar_exam_links = [];
+    db.external_calendar_hidden_items = []; db.external_calendar_preferences = [];
     sessionStorage.setItem('bt_legal_notice_snoozed', '1');
     localStorage.setItem('bt_offline_db_v3', JSON.stringify(db));
     localStorage.removeItem(`bt_academic_visibility:${user_id}`);
@@ -53,7 +54,7 @@ export default function UniversityCalendarFixture() {
     <h1>University calendar · local fixtures</h1><p>Replaces only this origin’s offline demo data. No production connection.</p>
     <label className="block"><input type="checkbox" checked={empty} onChange={e => setEmpty(e.target.checked)} /> Start disconnected (connection flow)</label>
     <p>Connection rehearsal URL: https://canvas.example.edu/calendar.ics. Sync 1 repeats, sync 2 adds a course, sync 3 changes an exam date.</p>
-    <label className="block"><input type="checkbox" checked={dense} onChange={e => setDense(e.target.checked)} /> Dense semester (10 items today)</label>
+    <label className="block"><input type="checkbox" checked={dense} onChange={e => setDense(e.target.checked)} /> Dense semester (12 items today)</label>
     <label className="block"><input type="checkbox" checked={dark} onChange={e => setDark(e.target.checked)} /> Dark mode</label>
     <label className="block">Language <select value={lang} onChange={e => setLang(e.target.value)}><option>en</option><option>fr</option></select></label>
     <button className="btn-primary min-h-11 px-4" onClick={open}>Open offline Planning</button>

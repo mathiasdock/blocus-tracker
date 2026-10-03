@@ -232,8 +232,8 @@
 .bt-academic-item:last-child { border-bottom: 0; }
 .bt-academic-summary { min-height: 64px; padding: 12px 0; display: flex; gap: 12px; justify-content: space-between; cursor: pointer; }
 .bt-academic-identity { min-width: 0; display: grid; gap: 4px; }
-.bt-academic-course { display: flex; align-items: center; gap: 6px; font-size: 14px; overflow-wrap: anywhere; }
-.bt-academic-title { font-size: 13px; color: var(--bt-text-2); overflow-wrap: anywhere; }
+.bt-academic-course { display: inline-flex; align-items: center; gap: 6px; font-size: inherit; overflow-wrap: anywhere; }
+.bt-academic-title { font-size: 15px; font-weight: 700; color: var(--bt-text-1); overflow-wrap: anywhere; }
 .bt-academic-kind, .bt-academic-time { font-size: 12px; color: var(--bt-text-2); }
 .bt-academic-time { flex-shrink: 0; padding-top: 2px; }
 .bt-academic-item[data-exam] { background: var(--bt-exam-bg); padding: 0 10px; border-radius: 8px; }
@@ -249,14 +249,14 @@
 .bt-academic-settings summary { min-height: 44px; cursor: pointer; padding: 12px 0; }
 .bt-academic-settings label { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .bt-academic-settings p { margin-bottom: 8px; }
-@media (max-width: 380px) { .bt-academic-summary { flex-direction: column; gap: 4px; } }
+
 .bt-academic-identity > .bt-plan-exam-mark { justify-self: start; }
 .bt-academic-item[data-exam] .bt-academic-title,
 .bt-academic-item[data-exam] .bt-academic-time { color: var(--bt-exam-ink); }
 .bt-academic-item[data-major] .bt-academic-title { font-weight: 600; color: var(--bt-text-1); }
 .bt-academic-tail { display: flex; align-items: start; gap: 8px; flex-shrink: 0; }
 .bt-academic-chevron { margin-top: 4px; color: var(--bt-text-2); }
-.bt-academic-item details[open] .bt-academic-chevron { transform: rotate(90deg); }
+.bt-academic-item > details[open] > summary .bt-academic-chevron { transform: rotate(90deg); }
 
 .uc-panel { padding: 0 20px 20px; font-size: 14px; color: var(--bt-text-1); }
 .uc-panel h4 { font-size: 16px; font-weight: 700; }
@@ -274,3 +274,25 @@
 .uc-date-time { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
 .uc-exam-form { margin-top: 14px; }
 .uc-message { margin: 12px 0; padding: 12px; background: var(--bt-subtle); border-radius: 12px; }
+
+/* Quiet course groups and progressive event actions. */
+.bt-academic-group + .bt-academic-group { margin-top: 18px; }
+.bt-academic-group-name { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--bt-text-2); padding: 8px 0 2px; }
+.bt-academic-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--bt-text-2); }
+.bt-academic-detail { padding-bottom: 12px; }
+.bt-academic-source { font-size: 13px; color: var(--bt-text-2); margin-bottom: 12px; }
+.bt-academic-actions { align-items: start; position: relative; padding-bottom: 0; }
+.bt-academic-actions > button { flex-shrink: 0; }
+.bt-academic-decisions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.bt-academic-overflow { flex: 1; min-width: 44px; }
+.bt-academic-overflow > summary { width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--bt-r-control); }
+.bt-academic-menu { display: flex; flex-direction: column; gap: 2px; position: relative; width: 100%; margin: 8px 0; padding: 8px; border-radius: var(--bt-r-inset); background: var(--bt-subtle); }
+.bt-academic-menu button, .bt-academic-menu a { min-height: 44px; padding: 8px; font-size: 14px; text-align: left; overflow-wrap: anywhere; }
+.bt-academic-menu p { font-size: 13px; color: var(--bt-text-2); padding: 4px 8px; }
+.bt-academic-overflow[open] { flex-basis: 100%; }
+.bt-academic-overflow > summary::-webkit-details-marker, .bt-academic-summary::-webkit-details-marker, .bt-planning-add-menu > summary::-webkit-details-marker { display: none; }
+.bt-planning-add-menu > summary { cursor: pointer; width: fit-content; list-style: none; }
+.uc-visibility label { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; }
+.uc-hidden-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--bt-border); padding: 12px 0; }
+.uc-hidden-item > div { min-width: 0; overflow-wrap: anywhere; }
+.uc-hidden-item button { flex-shrink: 0; }

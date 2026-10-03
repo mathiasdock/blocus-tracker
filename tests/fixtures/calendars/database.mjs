@@ -32,6 +32,7 @@ export async function createCalendarDatabase({ classification = true, userFlow =
       alter table public.exams enable row level security;
       create policy exam_owner on public.exams to authenticated using(user_id=auth.uid()) with check(user_id=auth.uid());`);
     await db.exec(readFileSync(new URL('../../../supabase/migrations/20261002171210_university_calendar_user_flow.sql', import.meta.url), 'utf8'));
+    await db.exec(readFileSync(new URL('../../../supabase/migrations/20261003040143_calendar_display_preferences.sql', import.meta.url), 'utf8'));
   }
   return db;
 }

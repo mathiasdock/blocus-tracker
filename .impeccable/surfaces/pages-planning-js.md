@@ -61,3 +61,21 @@ uses the existing model and a persistent identity link; imported events stay
 secondary and never become objectives automatically. EN/light and FR/dark checked
 at 320/390/1440 px, full synthetic workflow including changed source and disconnect.
 See `docs/university-calendar-connection.md`; real Canvas feed and approval pending.
+
+
+## University calendar — focused simplification, local branch (2026-10-03)
+
+Event titles lead day detail; mapped course names/colors group repeated rows.
+Each event stays independently expandable. Plan work is primary, secondary
+source/type/course/hide actions live in overflow, edit fields appear only on
+request. Add is one disclosure. No default admin-like forms or repeated Deadline
+labels. Date-only events say Due today / Due [date]. Unconfirmed exam candidates
+remain neutral; only explicit overrides/local exams get full exam presentation.
+Month aggregation and existing study workload/exam models are unchanged.
+
+Visibility now belongs to the account; controls and Hidden items are inside
+Manage behind the existing collapsed University calendar entry. Source/UID hide
+decisions survive retention/sync without archiving event content. This requires
+a new local migration before a future release; nothing applied remotely here.
+See `docs/university-calendar-ux.md` and the synthetic screenshots in
+`artifacts/university-calendar-ux/`. Verified EN/light, FR/dark, 320/390/1440 px.

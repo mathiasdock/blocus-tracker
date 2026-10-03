@@ -139,3 +139,52 @@ test('review is compact, new courses are non-blocking, ignored events stay store
  assert.equal(Object.values(planningAcademicEvents(rows,[{source_id:'s',external_course_key:'42',ignored:true}],[],[])).flat().length,1);
  assert.equal(rows.length,2);assert.equal(academicKey(event),academicKey(links[0]));
 });
+
+test('hide survives repeat, changed, removed and reappearing syncs; restore is explicit', async () => {
+  const id = await connect();
+  await asUser(A, 'insert into external_calendar_hidden_items values($1,$2)', [id, 'one']);
+  const sync = async text => {
+    await db.query('update external_calendar_sources set last_attempted_at=null where id=$1', [id]);
+    await syncCalendar(admin, A, id, async () => ({ text }));
+  };
+  for (const text of [ics(), ics('Changed assignment'), 'BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR', ics()]) {
+    await sync(text);
+    const rows = (await db.query('select *, event_date::text as event_date from external_academic_events')).rows;
+    const hidden = (await asUser(A, 'select * from external_calendar_hidden_items')).rows;
+    assert.equal(hidden.length, 1);
+    assert.equal(Object.values(planningAcademicEvents(rows, [], [], [], undefined, [], hidden)).flat().length, 0);
+  }
+  assert.equal(await count('external_academic_events'), 1);
+  assert.equal(await count('exams'), 0);
+  await asUser(A, 'delete from external_calendar_hidden_items where source_id=$1 and external_uid=$2', [id, 'one']);
+  assert.equal(Object.values(planningAcademicEvents((await db.query('select *, event_date::text as event_date from external_academic_events')).rows, [], [], [])).flat().length, 1);
+});
+test('hidden items enforce source ownership, deny anonymous users, cascade on disconnect only', async () => {
+  const id = await connect();
+  await assert.rejects(asUser(B, 'insert into external_calendar_hidden_items values($1,$2)', [id, 'one']));
+  await asUser(A, 'insert into external_calendar_hidden_items values($1,$2)', [id, 'one']);
+  assert.equal((await asUser(B, 'select * from external_calendar_hidden_items')).rows.length, 0);
+  await asUser(B, 'delete from external_calendar_hidden_items where source_id=$1', [id]);
+  assert.equal(await count('external_calendar_hidden_items'), 1);
+  await db.exec('set role anon');
+  await assert.rejects(db.query('select * from external_calendar_hidden_items')); await db.exec('reset role');
+  await db.query('update profiles set locked=true where id=$1', [A]);
+  await assert.rejects(asUser(A, 'delete from external_calendar_hidden_items where source_id=$1', [id]));
+  await db.query('update profiles set locked=false where id=$1', [A]);
+  await asUser(A, 'delete from external_calendar_sources where id=$1', [id]);
+  assert.equal(await count('external_calendar_hidden_items'), 0); assert.equal(await count('courses'), 2);
+});
+test('visibility is account-owned; independent updates preserve other settings and defaults', async () => {
+  await asUser(A, 'insert into external_calendar_preferences(user_id,exams) values($1,false)', [A]);
+  const first = (await asUser(A, 'select exams,major,normal from external_calendar_preferences')).rows[0];
+  assert.deepEqual(first, { exams: false, major: true, normal: true });
+  await asUser(A, 'insert into external_calendar_preferences(user_id,normal) values($1,false) on conflict(user_id) do update set normal=excluded.normal', [A]);
+  assert.deepEqual((await asUser(A, 'select exams,major,normal from external_calendar_preferences')).rows[0], { exams: false, major: true, normal: false });
+  assert.equal((await asUser(B, 'select * from external_calendar_preferences')).rows.length, 0);
+  await assert.rejects(asUser(B, 'insert into external_calendar_preferences(user_id) values($1)', [A]));
+  await assert.rejects(asUser(A, 'update external_calendar_preferences set user_id=$1', [B]));
+  for (const table of ['external_calendar_preferences','external_calendar_hidden_items']) {
+    assert.equal((await db.query('select relrowsecurity from pg_class where relname=$1', [table])).rows[0].relrowsecurity, true);
+    assert.equal((await db.query("select has_table_privilege('anon',$1,'SELECT') p", [table])).rows[0].p, false);
+  }
+});

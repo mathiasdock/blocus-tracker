@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-03 — Codex — Calendrier universitaire : simplification UX (local)
+
+- Détail jour : titre en premier, cours associés regroupés, métadonnées discrètes, « À rendre aujourd’hui » pour une échéance sans heure. Planifier du travail reste l’action principale ; source/type/cours/masquage passent dans le menu secondaire, éditeurs seulement sur demande. Un seul « Ajouter » ouvre objectif d’étude / examen.
+- Présentation d’examen réservée à la confirmation explicite ou à un examen local. Les candidats gardent « Examen possible », Confirmer / Garder comme échéance. Moteur de classification et modèles d’objectifs/examens inchangés. Vérification distante en lecture seule : le TEST 1 du 7 octobre dispose déjà d’une correction exam et d’un lien local ; aucune donnée personnelle modifiée.
+- Gestion et visibilité déplacées dans Gérer. Petite migration additive locale : trois préférences par compte et identités source/UID masquées, sans recopier les événements. Masquage conservé après disparition/réapparition au sync, restauration dans Éléments masqués ; préférences appareil existantes adoptées une fois si le compte n’a pas encore de choix. RLS/suspension des nouvelles tables testées ; aucune modification du sync, de la rétention, des secrets ou des politiques existantes.
+- 660 tests complets réussis, lint propre, build de production réussi (avertissement PWA 3 MB préexistant).
+- QA synthétique EN/FR clair/sombre, 320/390/1440 px, six/douze événements, non associé, examen possible, masquer/sync/restaurer, préférence après rechargement, durée vide dans Planifier. Captures `artifacts/university-calendar-ux/`, détails `docs/university-calendar-ux.md`. Aucun push, main, déploiement ou migration distante.
+
 ## 2026-10-02 — Codex — Validation du vrai flux Canvas (local)
 
 - Import réel via le fetch borné et les migrations PostgreSQL locales : 103 événements, six identifiants Canvas reconnus ; second fetch/sync, 103 identités identiques et zéro doublon. Aucun examen local créé. Correspondances et Planning testés avec les données normalisées réelles : mois compact, six éléments au jour le plus dense, examen possible conservé, desktop/mobile clair/sombre sans débordement.

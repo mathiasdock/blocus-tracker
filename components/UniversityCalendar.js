@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import DetailSheet from './DetailSheet';
 import { externalCourses, calendarReview, calendarExamPrefill } from '../lib/calendarReview.mjs';
-import { academicKey } from '../lib/planningAcademicEvents.mjs';
+import { academicKey, hiddenAcademicKey, academicTitle } from '../lib/planningAcademicEvents.mjs';
 import { ACADEMIC_EVENT_TYPES } from '../lib/academicEventClassification.mjs';
 
 const providers = ['canvas', 'moodle', 'brightspace', 'ical'];
@@ -98,7 +98,7 @@ export default function UniversityCalendar({ calendar, courses, exams, t, lang, 
   }
   const source = calendar.sources.find(s => s.id === sourceId);
   const matching = externalCourses(calendar.rows, calendar.maps, sourceId);
-  const review = calendarReview(calendar.rows, calendar.maps, calendar.links, sourceId);
+  const review = calendarReview(calendar.rows, calendar.maps, calendar.links, sourceId, calendar.hidden);
   const close = () => { if (!lock.current) onClose(); };
   return <DetailSheet open title={t('academic.settings')} closeLabel={t('common.close')} onClose={close}>
     <div ref={root} className="uc-panel" aria-busy={busy}>
@@ -109,7 +109,7 @@ export default function UniversityCalendar({ calendar, courses, exams, t, lang, 
         {!calendar.sources.length && <p>{t('uc.intro')}</p>}
         {calendar.sources.map(s => {
           const pending = externalCourses(calendar.rows, calendar.maps, s.id).filter(c => !c.mapping).length;
-          return <section key={s.id} className="uc-source"><h4>{s.display_name}</h4><p>{providerName(s.provider, t)}</p>
+          return <section key={s.id} className="uc-source"><h4>{s.display_name}</h4><p>{providerName(s.provider, t)} · {t('uc.connected')}</p>
             <p>{t('uc.lastSync')} {s.last_synced_at ? new Date(s.last_synced_at).toLocaleString(lang === 'fr' ? 'fr-BE' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }) : t('uc.never')}</p>
             {s.sync_status === 'error' && <p>{failure(s.sync_error, t)}</p>}
             {pending > 0 && <p>{t('uc.needsMatching').replace('{n}', pending)}</p>}
@@ -122,8 +122,28 @@ export default function UniversityCalendar({ calendar, courses, exams, t, lang, 
               <button className="btn-ghost min-h-11 px-3" disabled={busy} onClick={() => setDisconnectId('')}>{t('common.cancel')}</button></div></div>}
           </section>;
         })}
+        <section className="uc-visibility">
+          <h4>{t('uc.visibility')}</h4><p>{t('academic.visibilityHint')}</p>
+          {['exams', 'major', 'normal'].map(key => <label key={key}>{t(`academic.visibility.${key}`)}
+            <input type="checkbox" role="switch" disabled={busy} checked={calendar.visibility[key]} onChange={e => { const checked = e.target.checked; run(() => calendar.changeVisibility(key, checked)); }} />
+          </label>)}
+        </section>
+        <button type="button" className="btn-ghost min-h-11 px-3 self-start" disabled={busy} onClick={() => setStep('hidden')}>{t('uc.hidden')} · {calendar.hidden.length}</button>
         <button className="btn-primary min-h-11 px-4 self-start" disabled={busy || calendar.sources.length >= 3} onClick={() => setStep('connect')}>{t('uc.connect')}</button>
       </div>}
+      {step === 'hidden' && <section className="uc-stack">
+        <h4>{t('uc.hidden')}</h4><p>{t('academic.hideHint')}</p>
+        {!calendar.hidden.length ? <p>{t('uc.noHidden')}</p> : <ul>{calendar.hidden.map(item => {
+          const row = calendar.rows.find(row => hiddenAcademicKey(row) === hiddenAcademicKey(item));
+          const source = calendar.sources.find(source => source.id === item.source_id);
+          const mapping = row && calendar.maps.find(map => map.source_id === row.source_id && map.external_course_key === row.external_course_key);
+          const course = courses.find(course => course.id === mapping?.local_course_id);
+          return <li className="uc-hidden-item" key={hiddenAcademicKey(item)}><div>
+            <strong>{row ? academicTitle(row) : t('uc.hiddenUnavailable')}</strong>
+            <p>{[course?.name || row?.external_course_label, row?.event_date, source?.display_name].filter(Boolean).join(' · ')}</p>
+          </div><button type="button" className="btn-ghost min-h-11 px-3" disabled={busy} onClick={() => run(() => calendar.hide(item, false), 'uc.restored')}>{t('uc.restore')}</button></li>;
+        })}</ul>}
+      </section>}
       {step === 'connect' && <form className="uc-stack" autoComplete="off" onSubmit={e => { e.preventDefault(); const feed = secret.current.value.trim(); secret.current.value = ''; run(async () => {
         const result = await calendar.act({ action: 'connect', provider, display_name: providerName(provider, t), feed_url: feed }); setSourceId(result.id); setStep('matches');
       }); }}>
