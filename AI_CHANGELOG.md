@@ -2,6 +2,12 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-05 — Codex — Mouvement ciblé de l'app
+
+- Chrono : les secondes restent stables, seuls les chiffres moins fréquents conservent l'effet odomètre. La nouvelle ligne d'un cours n'entre qu'après un enregistrement réussi ; le compteur « Bravo » ne réagit qu'après confirmation serveur. Badge : la fiche consultée ne rejoue plus l'animation de déblocage ; la célébration canonique du vrai déblocage reste intacte. Survol du catalogue limité au pointeur fin et à 1,04×.
+- Planning : changement de période directionnel et bref (170 ms après flèches/swipe, 140 ms entre vues). Les fiches de jour, détails, badges, notifications et menus Planning gardent leur contenu le temps d'une sortie de 150 ms ; sous mouvement réduit, fermeture immédiate. Aucun changement aux données, à la navigation ou à la pause du Chrono. `transition-all` remplacé par les propriétés de couleur réellement modifiées dans les contrôles concernés.
+- Fond Focus profilé localement sur 180 images : lecture/redimensionnement ≈ 0,036 ms/image, dessin CPU ≈ 0,101 ms/image. Instrumentation retirée ; shader inchangé faute de gain justifié. QA locale : Planning/Chrono/Profil à 320/390 px, clair/sombre, empilement et Échap des menus ; tests ciblés et suite complète, lint, build.
+
 ## 2026-10-04 — Codex — Planning : reprise et finalisation du travail de Claude (local)
 
 - Reprise des 16 fichiers modifiés dans le worktree `.claude/worktrees/dm-instagram`, branche `claude/planning-ux-refactor`, sans reset/stash/checkout. Conserve les correctifs de Claude : revue des examens liés/confirmés, conversion réelle, sélection groupée, CTA Par cours, grille horaire repliée, Chrono vers objectifs, anciennes checklist conservées, carte Aujourd’hui compacte, dot d’action.

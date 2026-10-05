@@ -140,6 +140,12 @@ export default function Feed() {
   const [busy, setBusy] = useState(false);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [pending, setPending] = useState({});
+  const [confirmedCheerId, setConfirmedCheerId] = useState(null);
+  useEffect(() => {
+    if (!confirmedCheerId) return undefined;
+    const timeout = window.setTimeout(() => setConfirmedCheerId(null), 220);
+    return () => window.clearTimeout(timeout);
+  }, [confirmedCheerId]);
   const [viewUserId, setViewUserId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -328,6 +334,7 @@ export default function Feed() {
     setPending((state) => ({ ...state, [post.id]: true }));
     try {
       if (mine) {
+        setConfirmedCheerId(null);
         patchLikes(post.id, (likes) => likes.filter((like) => like.id !== mine.id));
         const { error } = await supabase.from("likes").delete().eq("id", mine.id);
         if (error) { console.error("Failed to remove encouragement:", error); load(); }
@@ -337,6 +344,7 @@ export default function Feed() {
         .insert({ post_id: post.id, user_id: user.id, emoji: CHEER_EMOJI }).select().single();
       if (error) { console.error("Failed to add encouragement:", error); load(); return; }
       patchLikes(post.id, (likes) => [...likes.filter((like) => like.user_id !== user.id), data]);
+      setConfirmedCheerId(post.id);
     } finally {
       setPending((state) => ({ ...state, [post.id]: false }));
     }
@@ -523,7 +531,7 @@ export default function Feed() {
         {loadState !== "loading" && items.length > 0 && (
           <ActivityTimeline
             items={items} t={t} lang={lang} user={user} isAdmin={isAdmin} profiles={profiles}
-            photoUrls={signedPostUrls} signingPhotos={signingPhotos} pending={pending}
+            photoUrls={signedPostUrls} signingPhotos={signingPhotos} pending={pending} confirmedCheerId={confirmedCheerId}
             onOpenProfile={openProfile} onEncourage={encourage} onRevealPhoto={revealPostPhoto}
             onDeletePost={deletePost} onEditPost={(post) => { setEditingPostId(post.id); setEditCaption(post.caption || ""); }}
             commentDrafts={commentDrafts}

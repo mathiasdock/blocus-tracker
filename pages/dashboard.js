@@ -76,10 +76,10 @@ function daysUntilExam(dateStr) {
 // change, le nouveau chiffre glisse vers le haut en fondu (effet odomètre).
 // Seuls les caractères qui changent s'animent — la clé porte la valeur.
 // Pas de clip : un overflow-hidden inline-block casserait la baseline.
-function RollChar({ ch }) {
+function RollChar({ ch, animate = true }) {
   return (
     <span className="inline-block" style={{ width: /\d/.test(ch) ? "1ch" : undefined }}>
-      <span key={ch} className="bt-digit-roll">{ch}</span>
+      <span key={ch} className={animate ? "bt-digit-roll" : undefined}>{ch}</span>
     </span>
   );
 }
@@ -103,7 +103,7 @@ function TimerDigits({
       style={{ fontSize: showHours ? hoursSize : size, lineHeight: 1, letterSpacing: "-0.04em", whiteSpace: "nowrap", color, transition: "color 0.3s" }}>
       {main.split("").map((ch, i) => <RollChar key={`m${i}`} ch={ch} />)}
       <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.72, marginLeft: "0.06em" }}>
-        :{ss.split("").map((ch, i) => <RollChar key={`s${i}`} ch={ch} />)}
+        :{ss.split("").map((ch, i) => <RollChar key={`s${i}`} ch={ch} animate={false} />)}
       </span>
     </div>
   );
@@ -236,6 +236,7 @@ export default function Dashboard() {
   const [ready, setReady] = useState(false);
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
+  const [newCourseId, setNewCourseId] = useState(null);
   // Espace (compte ou démo invité) auquel appartient `courses` ; null tant
   // que rien n'est chargé. Voir le repli du cours du chrono plus bas.
   const [coursesOwner, setCoursesOwner] = useState(null);
@@ -996,6 +997,7 @@ export default function Dashboard() {
           ? courses.map((course) => course.id === id ? savedCourse : course)
           : [...courses, savedCourse];
         setCourses(nextCourses);
+        if (!id) setNewCourseId(savedCourse.id);
         if (!id) { coursePickedBy = dataOwner; setCourseId(savedCourse.id); }
         writeGuestDashboardData({ courses: nextCourses, sessions, recentSessions, objectives: todayObjectives });
         toast(t(id ? "courseEditor.updated" : "courseEditor.created"), "success");
@@ -1018,6 +1020,7 @@ export default function Dashboard() {
       setCourses((prev) => id
         ? prev.map((course) => course.id === id ? data : course)
         : [...prev, data]);
+      if (!id) setNewCourseId(data.id);
       if (!id) { coursePickedBy = dataOwner; setCourseId(data.id); }
       toast(t(id ? "courseEditor.updated" : "courseEditor.created"), "success");
       return { ok: true };
@@ -1974,6 +1977,7 @@ export default function Dashboard() {
         {!isGuest && <div className="order-6 grid min-w-0 gap-4 sm:gap-5 lg:col-span-2 lg:grid-cols-2 lg:gap-6">
           <DashboardCoursesCard
             courses={activeCourses}
+            newCourseId={newCourseId}
             nextExamForCourse={nextCourseExam}
             checklistCounts={checklistCounts}
             onAdd={() => isGuest ? setGuestGate("course") : openCourseEditor()}

@@ -1447,7 +1447,7 @@ export default function Messages() {
                     <div className="flex gap-1 mb-2.5 p-0.5 rounded-xl w-fit" style={{ backgroundColor: "var(--bt-subtle)" }}>
                       {[["received", `${t("social.requestsReceived")} (${incoming.length})`], ["sent", `${t("social.requestsSent")} (${outgoing.length})`]].map(([v, label]) => (
                         <button key={v} onClick={() => setRequestsTab(v)} aria-pressed={requestsTab === v}
-                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors duration-150"
                           style={requestsTab === v ? { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-1)", boxShadow: "0 1px 3px var(--bt-shadow)" } : { color: "var(--bt-text-3)" }}>
                           {label}
                         </button>

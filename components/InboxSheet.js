@@ -1,27 +1,52 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Glyph from "./Glyph";
 
 // Native modal behavior supplies focus containment, inert background and Escape.
 // `subheader` (optionnel) : une ligne d'actions qui reste collée sous le titre.
 export default function InboxSheet({ open, title, closeLabel, onClose, subheader = null, children }) {
   const ref = useRef(null);
+  const closeTimer = useRef(null);
+  const previousFocus = useRef(null);
+  const previousOverflow = useRef("");
+  const [keepContent, setKeepContent] = useState(open);
   useEffect(() => {
     const dialog = ref.current;
-    if (!open) { if (dialog.open) dialog.close(); return undefined; }
-    const previousFocus = document.activeElement;
-    const overflow = document.body.style.overflow;
-    dialog.showModal();
-    document.body.style.overflow = "hidden";
-    return () => {
+    window.clearTimeout(closeTimer.current);
+    const finishClose = () => {
+      if (!dialog.open) return;
       dialog.close();
-      document.body.style.overflow = overflow;
-      if (previousFocus?.isConnected) previousFocus.focus();
+      document.body.style.overflow = previousOverflow.current;
+      setKeepContent(false);
+      if (previousFocus.current?.isConnected) previousFocus.current.focus();
     };
+    if (open) {
+      setKeepContent(true);
+      if (!dialog.open) {
+        previousFocus.current = document.activeElement;
+        previousOverflow.current = document.body.style.overflow;
+        dialog.showModal();
+        document.body.style.overflow = "hidden";
+      }
+      dialog.dataset.motion = "enter";
+    } else if (dialog.open) {
+      dialog.dataset.motion = "exit";
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) finishClose();
+      else closeTimer.current = window.setTimeout(finishClose, 150);
+    }
+    return () => window.clearTimeout(closeTimer.current);
   }, [open]);
+  useEffect(() => () => {
+    window.clearTimeout(closeTimer.current);
+    if (ref.current?.open) {
+      ref.current.close();
+      document.body.style.overflow = previousOverflow.current;
+      if (previousFocus.current?.isConnected) previousFocus.current.focus();
+    }
+  }, []);
   return <dialog ref={ref} className="bt-inbox-sheet" aria-label={title}
     onCancel={event => { event.preventDefault(); onClose(); }}
     onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <div className={`bt-inbox-sheet-body${open ? " bt-rise" : ""}`}>
+    <div className="bt-inbox-sheet-body">
       <header className="sticky top-0 z-10 px-4 py-3" style={{ background: "var(--bt-surface)" }}>
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold">{title}</h2>
@@ -29,7 +54,7 @@ export default function InboxSheet({ open, title, closeLabel, onClose, subheader
         </div>
         {subheader}
       </header>
-      {open && children}
+      {keepContent && children}
     </div>
   </dialog>;
 }

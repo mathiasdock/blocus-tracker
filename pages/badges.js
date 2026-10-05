@@ -42,10 +42,8 @@ function Group({ group, earnedIds, onPick, t }) {
         {group.items.map(b => (
           <button key={b.id} type="button" onClick={() => onPick(b)}
             title={t(b.labelKey)} aria-label={t(b.labelKey)}
-            className="bt-press flex justify-center"
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", transition: "transform 0.14s cubic-bezier(0.22,1,0.36,1)" }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.12)"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
+            className="bt-badge-pick bt-press flex justify-center"
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
             <BadgeIcon id={b.id} earned={earnedIds.includes(b.id)} size={56} />
           </button>
         ))}

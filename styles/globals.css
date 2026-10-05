@@ -999,6 +999,27 @@ html.bt-focus-active .bt-nav { display: none; }
   to   { opacity: 1; transform: translateY(0); }
 }
 .bt-rise { animation: bt-rise 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+/* Only the newly saved course enters; the initial course list stays still. */
+@keyframes bt-new-course-row { from { opacity: .55; transform: translateY(4px); } }
+.bt-new-course-row { animation: bt-new-course-row 180ms ease-out both; }
+@media (prefers-reduced-motion: reduce) { .bt-new-course-row { animation: none; } }
+
+/* Transient detail surfaces: translate/fade only, no layout movement. */
+@keyframes bt-motion-backdrop-in { from { opacity: 0; } }
+@keyframes bt-motion-backdrop-out { to { opacity: 0; } }
+@keyframes bt-motion-panel-in { from { opacity: 0; transform: translateY(18px); } }
+@keyframes bt-motion-panel-out { to { opacity: 0; transform: translateY(12px); } }
+.bt-motion-backdrop[data-motion="enter"] { animation: bt-motion-backdrop-in 180ms ease-out both; }
+.bt-motion-backdrop[data-motion="exit"] { animation: bt-motion-backdrop-out 150ms ease-in both; }
+.bt-motion-panel[data-motion="enter"] { animation: bt-motion-panel-in 220ms cubic-bezier(.16,1,.3,1) both; }
+.bt-motion-panel[data-motion="exit"] { animation: bt-motion-panel-out 150ms ease-in both; }
+@media (min-width: 640px) {
+  @keyframes bt-motion-panel-in { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+  @keyframes bt-motion-panel-out { to { opacity: 0; transform: translateY(4px) scale(.99); } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bt-motion-backdrop, .bt-motion-panel { animation: none !important; }
+}
 
 /* Conteneur stagger : chaque enfant direct entre avec un léger décalage */
 .bt-stagger > * { animation: bt-rise 0.24s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
@@ -1097,12 +1118,15 @@ html.bt-focus-active .bt-nav { display: none; }
   100% { transform: translateX(100%); }
 }
 
-/* ── Transition de contenu d'onglet — léger fade+rise au changement ─── */
-@keyframes bt-tab-fade {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* La navigation Planning possède sa propre transition directionnelle. */
+
+@media (hover: hover) and (pointer: fine) {
+  .bt-badge-pick { transition: transform 140ms cubic-bezier(.22,1,.36,1); }
+  .bt-badge-pick:hover { transform: scale(1.04); }
 }
-.bt-tab-fade { animation: bt-tab-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .bt-badge-pick { transition: none; transform: none !important; }
+}
 
 /* ── App : checkbox de tâche satisfaisante (adaptation de l'Animated
    Checkbox de tom_ui, récupérée via le MCP 21st.dev). L'input NATIF est
@@ -1386,7 +1410,6 @@ html.bt-focus-active .bt-nav { display: none; }
   .bt-stagger > *,
   .bt-toast-in,
   .bt-toast-out,
-  .bt-tab-fade,
   .bt-route-leaving [data-bt-route-content],
   .bt-route-entering [data-bt-route-content],
   .bt-route-entered [data-bt-route-content],
@@ -1928,6 +1951,13 @@ html.bt-focus-active .bt-nav { display: none; }
 .bt-inbox-sheet { padding: 0; border: 0; color: var(--bt-text-1); background: transparent; width: min(100%, 460px); max-width: 100%; max-height: 90dvh; margin: auto; }
 .bt-inbox-sheet::backdrop { background: rgba(0,0,0,.44); }
 .bt-inbox-sheet-body { background: var(--bt-surface); border-radius: var(--bt-r-sheet); overflow-y: auto; max-height: 90dvh; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+.bt-inbox-sheet[data-motion="enter"]::backdrop { animation: bt-motion-backdrop-in 180ms ease-out both; }
+.bt-inbox-sheet[data-motion="exit"]::backdrop { animation: bt-motion-backdrop-out 150ms ease-in both; }
+.bt-inbox-sheet[data-motion="enter"] .bt-inbox-sheet-body { animation: bt-motion-panel-in 220ms cubic-bezier(.16,1,.3,1) both; }
+.bt-inbox-sheet[data-motion="exit"] .bt-inbox-sheet-body { animation: bt-motion-panel-out 150ms ease-in both; }
+@media (prefers-reduced-motion: reduce) {
+  .bt-inbox-sheet::backdrop, .bt-inbox-sheet-body { animation: none !important; }
+}
 .bt-inbox-sheet-body button { min-height: 44px; }
 @media (max-width: 639px) {
   .bt-inbox-sheet { margin: auto 0 0; width: 100%; }

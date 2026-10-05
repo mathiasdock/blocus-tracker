@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import useExitPresence from "../useExitPresence";
 
 // One floating surface for every secondary action of the Planning: the « … »
 // menus, « + Ajouter », an imported deadline's actions. On a computer it is a
@@ -31,6 +32,7 @@ export default function PlanPopover({
   align = "end", width = 320, role = "dialog", className = "", initialFocusRef,
 }) {
   const sheet = useSheetMode();
+  const { present, exiting } = useExitPresence(open);
   const panelRef = useRef(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -148,13 +150,13 @@ export default function PlanPopover({
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 
-  if (!open || !mounted) return null;
+  if (!present || !mounted) return null;
   if (sheet) {
     return createPortal(
       <div className="bt-plan-sheet-root">
-        <div className="bt-plan-sheet-backdrop" onClick={() => closeRef.current?.()} aria-hidden="true" />
+        <div className="bt-plan-sheet-backdrop" data-motion={exiting ? "exit" : "enter"} onClick={() => closeRef.current?.()} aria-hidden="true" />
         <div ref={panelRef} role={role} aria-modal={role === "dialog" ? "true" : undefined} aria-label={label}
-          tabIndex={-1} className={`bt-plan-sheet ${className}`} onKeyDown={onKeyDown}>
+          tabIndex={-1} className={`bt-plan-sheet ${className}`} data-motion={exiting ? "exit" : "enter"} onKeyDown={onKeyDown}>
           <span className="bt-plan-sheet-handle" aria-hidden="true" />
           {children}
         </div>
@@ -164,7 +166,7 @@ export default function PlanPopover({
   }
   return createPortal(
     <div ref={panelRef} role={role} aria-label={label} tabIndex={-1}
-      className={`bt-plan-popover ${className}`} onKeyDown={onKeyDown}
+      className={`bt-plan-popover ${className}`} data-motion={exiting ? "exit" : "enter"} onKeyDown={onKeyDown}
       style={{
         top: position ? position.top : -9999,
         left: position ? position.left : -9999,

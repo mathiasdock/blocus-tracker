@@ -31,6 +31,7 @@ import { externalCourses, examReviewGroups } from "../lib/calendarReview.mjs";
 import usePlanningSwipe from "../components/usePlanningSwipe";
 import PlanMenu from "../components/planning/PlanMenu";
 import CourseOverview from "../components/planning/CourseOverview";
+import useExitPresence from "../components/useExitPresence";
 
 // ── Constants ─────────────────────────────────────────────────
 // Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
@@ -292,7 +293,7 @@ function RecurrencePicker({ weekdays, onToggle, until, onUntilChange, minDate })
             <button key={dow} type="button" onClick={() => onToggle(dow)}
               aria-pressed={active}
               title={wd[(dow + 6) % 7]}
-              className="h-9 flex-1 rounded-[10px] text-[11px] font-bold transition-all"
+              className="h-9 flex-1 rounded-[10px] text-[11px] font-bold transition-colors duration-150"
               style={active
                 ? { backgroundColor: "var(--bt-action)", color: "#fff" }
                 : { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-3)", border: "1px solid var(--bt-border)" }}>
@@ -877,11 +878,15 @@ function DayDetailModal() {
   const { modalDate, setModalDate, lang, t } = usePlan();
   const dialogRef = useRef(null);
   const closeRef = useRef(null);
+  const lastDate = useRef(null);
+  const { present, exiting } = useExitPresence(Boolean(modalDate));
+  if (modalDate) lastDate.current = modalDate;
+  const displayDate = modalDate || lastDate.current;
 
   // Échap ferme la fiche ; Tab reste dedans. Les menus et popovers ouverts
   // par-dessus gèrent leurs propres touches et ne la ferment pas.
   useEffect(() => {
-    if (!modalDate) return undefined;
+    if (!present) return undefined;
     const previousFocus = document.activeElement;
     const dialog = dialogRef.current;
     if (!dialog?.contains(document.activeElement)) closeRef.current?.focus();
@@ -897,21 +902,21 @@ function DayDetailModal() {
     };
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("keydown", onKey); previousFocus?.focus?.(); };
-  }, [modalDate, setModalDate]);
+  }, [present, setModalDate]);
 
-  if (!modalDate) return null;
+  if (!present || !displayDate) return null;
   const today = localToday();
-  const isToday = modalDate === today;
-  const isPast = modalDate < today;
-  const dayTitle = sentenceCase(dateFromYmd(modalDate).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" }));
+  const isToday = displayDate === today;
+  const isPast = displayDate < today;
+  const dayTitle = sentenceCase(dateFromYmd(displayDate).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" }));
 
   return (
     <>
-      <div className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(0,0,0,0.42)", backdropFilter: "blur(3px)" }}
+      <div className="bt-motion-backdrop fixed inset-0 z-40" data-motion={exiting ? "exit" : "enter"} style={{ backgroundColor: "rgba(0,0,0,0.42)", backdropFilter: "blur(3px)" }}
         onClick={() => setModalDate(null)} />
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
         <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={dayTitle}
-          className="bt-planning-dialog pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]"
+          className="bt-planning-dialog bt-motion-panel pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]" data-motion={exiting ? "exit" : "enter"}
           style={{
             backgroundColor: "var(--bt-surface)",
             border: "1px solid var(--bt-hairline)",
@@ -937,7 +942,7 @@ function DayDetailModal() {
                 <IconClose size={14} />
               </button>
             </div>
-            <DayPlan date={modalDate} inSheet />
+            <DayPlan date={displayDate} inSheet />
           </div>
         </div>
       </div>
@@ -1476,6 +1481,7 @@ export default function Planning() {
     running: timerRunning, elapsed: timerElapsed, pause: pauseTimer, reset: resetTimer,
   } = useTimer();
   const [view, setView]             = useState("month");
+  const [navigationMotion, setNavigationMotion] = useState("none");
   // Premier chargement des donnees de la page. Tant qu'il n'est pas termine on
   // affiche un squelette : sinon la page rend des zeros et des listes vides,
   // que les gens lisent comme un bug et non comme un chargement.
@@ -1512,6 +1518,7 @@ export default function Planning() {
   // c'est la vue d'ensemble du blocus. Changer de vue vaut pour la visite en
   // cours, pas pour la suivante.
   const changeView = useCallback((v) => {
+    setNavigationMotion("view");
     setView(v);
   }, []);
 
@@ -1843,9 +1850,9 @@ export default function Planning() {
 
   function shiftDays(n) { const d = dateFromYmd(selectedDate); d.setDate(d.getDate() + n); setSelectedDate(ymd(d)); }
   function shiftMonth(delta) { setCursor(c => { const d = new Date(c.year, c.month + delta, 1); return { year: d.getFullYear(), month: d.getMonth() }; }); }
-  function goToday() { const now = localToday(); setSelectedDate(now); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
-  function handlePrev() { if (view==="day") shiftDays(-1); else if (view==="week") shiftDays(-7); else shiftMonth(-1); }
-  function handleNext() { if (view==="day") shiftDays(1);  else if (view==="week") shiftDays(7);  else shiftMonth(1); }
+  function goToday() { setNavigationMotion("view"); const now = localToday(); setSelectedDate(now); const d = new Date(); setCursor({ year: d.getFullYear(), month: d.getMonth() }); }
+  function handlePrev() { setNavigationMotion("previous"); if (view==="day") shiftDays(-1); else if (view==="week") shiftDays(-7); else shiftMonth(-1); }
+  function handleNext() { setNavigationMotion("next"); if (view==="day") shiftDays(1);  else if (view==="week") shiftDays(7);  else shiftMonth(1); }
   const planningSwipe = usePlanningSwipe(handlePrev, handleNext);
 
   // « Aujourd'hui » ne sert qu'à revenir : inutile quand on y est déjà.
@@ -1937,9 +1944,9 @@ export default function Planning() {
 
               <QuickAddBar className="order-2" />
 
-              {/* Keyed on the view so switching mois/semaine/jour plays a soft fade. */}
+              {/* Directional but brief: the content follows arrow/swipe intent. */}
               <div {...planningSwipe} className="order-5 min-w-0">
-                <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-tab-fade">
+                <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-plan-period-enter" data-direction={navigationMotion}>
                   {view === "month" && <MonthView />}
                   {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
                   {view === "day"   && <DayView />}

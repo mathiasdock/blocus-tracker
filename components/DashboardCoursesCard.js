@@ -19,7 +19,7 @@ function formatExamDate(value, locale) {
 // L'archive des cours ne vit pas ici : elle est dans « Analyse avancée » sur la
 // page Statistiques, avec les heures de chaque ancien cours. Le tableau de bord
 // ne montre que ce sur quoi on travaille aujourd'hui.
-export default function DashboardCoursesCard({ courses, checklistCounts, nextExamForCourse, onAdd, onOpen, className = "" }) {
+export default function DashboardCoursesCard({ courses, newCourseId = null, checklistCounts, nextExamForCourse, onAdd, onOpen, className = "" }) {
   const { t, lang } = useI18n();
   const locale = lang === "en" ? "en-US" : "fr-BE";
 
@@ -43,7 +43,7 @@ export default function DashboardCoursesCard({ courses, checklistCounts, nextExa
             const count = checklistCounts[course.id] || { done: 0, total: 0 };
             const examDate = formatExamDate(nextExamForCourse(course.id)?.exam_date, locale);
             return (
-              <li key={course.id}>
+              <li key={course.id} className={course.id === newCourseId ? "bt-new-course-row" : undefined}>
                 <button
                   type="button"
                   onClick={() => onOpen(course)}

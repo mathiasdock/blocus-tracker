@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import Glyph from "./Glyph";
 import BadgeIcon from "./BadgeIcon";
+import useExitPresence from "./useExitPresence";
 import { HUES, dominantHue, rarityOf, rgba } from "../lib/badgeArt";
 import { badgeDescKey } from "../lib/badgeRules.mjs";
 
@@ -40,12 +42,16 @@ export function RarityChip({ id, t }) {
 // Un badge gagné avant qu'on durcisse sa règle garde sa fiche d'époque :
 // la règle d'alors, puis celle d'aujourd'hui (lib/badgeRules.mjs).
 export default function BadgeSheet({ badge, earned, earnedAt = null, t, onClose }) {
-  if (!badge) return null;
+  const last = useRef(null);
+  const { present, exiting } = useExitPresence(Boolean(badge));
+  if (badge) last.current = { badge, earned, earnedAt };
+  if (!present || !last.current) return null;
+  ({ badge, earned, earnedAt } = last.current);
   return (
     <>
-      <div className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
+      <div className="bt-motion-backdrop fixed inset-0 z-40" data-motion={exiting ? "exit" : "enter"} style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
       <div className="fixed z-50 bottom-0 inset-x-0 sm:inset-0 sm:flex sm:items-center sm:justify-center" onClick={onClose}>
-        <div className="rounded-t-[28px] sm:rounded-[24px] sm:max-w-xs w-full sm:mx-4"
+        <div className="bt-motion-panel rounded-t-[28px] sm:rounded-[24px] sm:max-w-xs w-full sm:mx-4" data-motion={exiting ? "exit" : "enter"}
           style={{ backgroundColor: "var(--bt-surface)", maxHeight: "90vh", overflowY: "auto", boxShadow: "var(--bt-elev-3)" }}
           onClick={e => e.stopPropagation()}>
           <div className="flex justify-center pt-3 pb-1 sm:hidden">
@@ -54,7 +60,7 @@ export default function BadgeSheet({ badge, earned, earnedAt = null, t, onClose 
           <div className="p-6 pt-4 sm:pt-6 text-center">
             {/* Pas de cadre autour : l'objet EST le badge. L'enfermer dans un
                 carré teinté ramènerait la tuile qu'on a justement enlevée. */}
-            <div className={`mb-4 inline-flex ${earned ? "badge-shine" : ""}`}>
+            <div className="mb-4 inline-flex">
               <BadgeIcon id={badge.id} earned={earned} size={96} />
             </div>
             <h3 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t(badge.labelKey)}</h3>

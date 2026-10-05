@@ -31,6 +31,7 @@ import {
 import Avatar from "./Avatar";
 import Glyph from "./Glyph";
 import InboxSheet from "./InboxSheet";
+import useExitPresence from "./useExitPresence";
 import { SkeletonRow } from "./Skeleton";
 import styles from "./NotificationCenter.module.css";
 
@@ -331,6 +332,7 @@ function HeaderAction({ t, unread, hasItems, onMarkAll, onClearAll }) {
 }
 
 export default function NotificationCenter({ open, onClose, panelId }) {
+  const { present, exiting } = useExitPresence(open);
   const { t, lang } = useI18n();
   const {
     inbox, loadInbox, loadMoreInbox, markAllNotificationsRead, dismissNotification, clearAllNotifications,
@@ -385,7 +387,7 @@ export default function NotificationCenter({ open, onClose, panelId }) {
     clearAllNotifications();
   }
 
-  if (!open) return null;
+  if (!present) return null;
 
   const list = (
     <List inbox={inbox} t={t} lang={lang} onOpen={onOpenItem} onDismiss={dismissNotification}
@@ -398,7 +400,7 @@ export default function NotificationCenter({ open, onClose, panelId }) {
 
   if (!desktop) {
     return (
-      <InboxSheet open title={t("notif.title")} closeLabel={t("common.close")} onClose={onClose}
+      <InboxSheet open={open} title={t("notif.title")} closeLabel={t("common.close")} onClose={onClose}
         subheader={unread > 0 || hasItems ? (
           <div className={styles.sheetBar}>
             <span className={styles.count}>{unread > 0 ? unreadLabel(t, unread) : ""}</span>
@@ -418,7 +420,9 @@ export default function NotificationCenter({ open, onClose, panelId }) {
       aria-modal="false"
       aria-labelledby={titleId}
       tabIndex={-1}
-      className={`bt-rise ${styles.panel}`}
+      className={`bt-motion-panel ${styles.panel}`}
+      data-motion={exiting ? "exit" : "enter"}
+      aria-hidden={!open}
       onKeyDown={(event) => {
         if (event.target === panelRef.current) moveRowFocus(panelRef.current, event);
       }}

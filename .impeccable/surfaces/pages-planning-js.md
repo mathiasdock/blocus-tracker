@@ -27,6 +27,8 @@ Today (a compact ink strip) answers what remains and when the next exam is. The 
 
 ## Verification
 
+Motion pass (2026-10-05): period content now enters in the arrow/swipe direction in 170 ms; changing Month/Week/Day uses a 140 ms fade, without animating the initial calendar. The day detail and Planning action popovers/sheets exit in 150 ms without removing content first. Reduced motion removes the transitions and the exit wait. The seven-day/workload/exam semantics above did not change.
+
 Browser exercised on offline data at 375, 812, 1024 and 1440 pixels. No page-level horizontal overflow; week deliberately scrolls internally. Checked day completion, quick add, empty Today, dark theme and reduced-motion. Pure tests cover saved workload/course ordering and mixed minute-duration/clock quick-add parsing.
 
 Phase 1: offline fixtures in `/dev/planning-phase-one` (development + offline mode only); Month checked at 320/375/390/1280/1440 in light/dark, single/multiple exams, red/pink course, past/today/future and dense/no-course work. Unit tests cover normalization, duplicate handling and guarded legacy deletion. Timer remains out of scope.

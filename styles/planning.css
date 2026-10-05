@@ -66,6 +66,14 @@
 .bt-plan-more-link { min-block-size: 44px; padding: 0 2px; font-size: 13px; font-weight: 600; color: var(--bt-text-2); text-decoration: underline; text-underline-offset: 3px; }
 .bt-plan-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-radius: var(--bt-r-inset); background: var(--bt-subtle); font-size: 14px; color: var(--bt-text-1); }
 
+/* A period change acknowledges swipe/arrow direction without slowing navigation. */
+@keyframes bt-plan-period-next { from { opacity: .7; transform: translateX(8px); } }
+@keyframes bt-plan-period-previous { from { opacity: .7; transform: translateX(-8px); } }
+@keyframes bt-plan-period-view { from { opacity: .7; } }
+.bt-plan-period-enter[data-direction="next"] { animation: bt-plan-period-next 170ms cubic-bezier(.2,.8,.2,1) both; }
+.bt-plan-period-enter[data-direction="previous"] { animation: bt-plan-period-previous 170ms cubic-bezier(.2,.8,.2,1) both; }
+.bt-plan-period-enter[data-direction="view"] { animation: bt-plan-period-view 140ms ease-out both; }
+
 /* ── Floating surfaces: popover (computer) / bottom sheet (phone) ───────── */
 .bt-plan-popover {
   position: fixed; z-index: 70; max-block-size: min(72vh, 540px); overflow-y: auto;
@@ -87,8 +95,14 @@
 .bt-plan-sheet-handle { display: block; inline-size: 36px; block-size: 4px; margin: 6px auto 10px; border-radius: 999px; background: var(--bt-border); }
 @keyframes bt-plan-rise { from { transform: translateY(24px); opacity: 0; } }
 @keyframes bt-plan-fade { from { opacity: 0; } }
+.bt-plan-popover[data-motion="exit"] { animation: bt-plan-pop-out .15s ease-in both; }
+.bt-plan-sheet[data-motion="exit"] { animation: bt-plan-sheet-out .15s ease-in both; }
+.bt-plan-sheet-backdrop[data-motion="exit"] { animation: bt-plan-fade-out .15s ease-in both; }
+@keyframes bt-plan-pop-out { to { opacity: 0; transform: scale(.99); } }
+@keyframes bt-plan-sheet-out { to { opacity: 0; transform: translateY(16px); } }
+@keyframes bt-plan-fade-out { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .bt-plan-popover, .bt-plan-sheet, .bt-plan-sheet-backdrop { animation: none; }
+  .bt-plan-popover, .bt-plan-sheet, .bt-plan-sheet-backdrop, .bt-plan-period-enter { animation: none !important; }
 }
 .bt-plan-menu { display: flex; flex-direction: column; gap: 1px; }
 .bt-plan-menu-item {

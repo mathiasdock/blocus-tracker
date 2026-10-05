@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Glyph from "./Glyph";
+import useExitPresence from "./useExitPresence";
 
 // Feuille de détail — poignée et bord bas sur téléphone, carte centrée au-delà.
 //
@@ -13,6 +14,9 @@ import Glyph from "./Glyph";
 // ajustement de rayon ou de hauteur maximale — l'app a déjà payé ce prix avec
 // trois composants d'icônes recopiés à la main.
 export default function DetailSheet({ open, title, closeLabel, onClose, children }) {
+  const last = useRef(null);
+  const { present, exiting } = useExitPresence(open);
+  if (open) last.current = { title, closeLabel, children };
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -20,13 +24,14 @@ export default function DetailSheet({ open, title, closeLabel, onClose, children
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!present || !last.current) return null;
+  ({ title, closeLabel, children } = last.current);
   return (
     <>
-      <div className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
+      <div className="bt-motion-backdrop fixed inset-0 z-40" data-motion={exiting ? "exit" : "enter"} style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
       <div className="fixed z-50 bottom-0 inset-x-0 sm:inset-0 sm:flex sm:items-center sm:justify-center" onClick={onClose}>
         <div role="dialog" aria-modal="true" aria-label={title}
-          className="rounded-t-[28px] sm:rounded-[24px] sm:max-w-md w-full sm:mx-4"
+          className="bt-motion-panel rounded-t-[28px] sm:rounded-[24px] sm:max-w-md w-full sm:mx-4" data-motion={exiting ? "exit" : "enter"}
           style={{ backgroundColor: "var(--bt-surface)", maxHeight: "90vh", overflowY: "auto", boxShadow: "var(--bt-elev-3)" }}
           onClick={e => e.stopPropagation()}>
           <div className="flex justify-center pt-3 pb-1 sm:hidden">

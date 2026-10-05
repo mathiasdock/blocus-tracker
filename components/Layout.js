@@ -294,7 +294,7 @@ export default function Layout({ children }) {
     return (
       <Link key={n.href} href={n.href}
         aria-current={active ? "page" : undefined}
-        className="relative flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-medium transition-all"
+        className="relative flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[14px] font-medium transition-colors duration-150"
         style={active ? {
           backgroundColor: "var(--bt-selected-bg)",
           color: "var(--bt-selected-text)",
@@ -408,7 +408,7 @@ export default function Layout({ children }) {
             <>
               <Link href="/profile"
                 aria-current={router.pathname === "/profile" ? "page" : undefined}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl transition-all"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-2xl transition-colors duration-150"
                 style={router.pathname === "/profile" ? { backgroundColor: "var(--bt-accent-bg)" } : {}}
                 onMouseEnter={e => { if (router.pathname !== "/profile") e.currentTarget.style.backgroundColor = "var(--bt-subtle)"; }}
                 onMouseLeave={e => { if (router.pathname !== "/profile") e.currentTarget.style.backgroundColor = ""; }}>
@@ -578,7 +578,7 @@ export default function Layout({ children }) {
       {/* ══ Chrono flottant desktop ══════════════════════════════ */}
       {running && router.pathname !== "/dashboard" && (
         <Link href="/dashboard"
-          className="hidden lg:flex fixed bottom-6 right-6 z-40 items-center gap-2 rounded-full text-white pl-4 pr-5 py-2.5 text-sm font-semibold transition-all"
+          className="hidden lg:flex fixed bottom-6 right-6 z-40 items-center gap-2 rounded-full text-white pl-4 pr-5 py-2.5 text-sm font-semibold transition-colors duration-150"
           style={{ backgroundImage: "var(--bt-action-gradient)", boxShadow: "0 4px 16px rgba(var(--bt-brand-rgb), 0.35)" }}
           onMouseEnter={e => e.currentTarget.style.backgroundImage = "linear-gradient(165deg, var(--bt-action-hover), var(--bt-action))"}
           onMouseLeave={e => e.currentTarget.style.backgroundImage = "var(--bt-action-gradient)"}>
@@ -591,7 +591,7 @@ export default function Layout({ children }) {
       {!isGuest && msgToast && router.pathname !== "/messages" && (
         <button
           onClick={() => { clearMsgToast(); router.push("/messages"); }}
-          className="fixed bottom-20 lg:bottom-6 left-4 lg:left-auto lg:right-6 z-40 flex items-center gap-3 rounded-2xl text-white pl-4 pr-5 py-3 transition-all"
+          className="fixed bottom-20 lg:bottom-6 left-4 lg:left-auto lg:right-6 z-40 flex items-center gap-3 rounded-2xl text-white pl-4 pr-5 py-3 transition-colors duration-150"
           style={{ backgroundColor: "var(--bt-text-1)", boxShadow: "0 8px 28px var(--bt-shadow)" }}
           onMouseEnter={e => e.currentTarget.style.backgroundColor = "var(--bt-border)"}
           onMouseLeave={e => e.currentTarget.style.backgroundColor = "var(--bt-text-1)"}>

@@ -64,6 +64,9 @@
 .bt-activity-cheer.is-on { color: var(--bt-accent-text); background: var(--bt-accent-bg); }
 .bt-activity-cheer:disabled { opacity: 0.5; cursor: progress; }
 .bt-activity-cheer-count { font-variant-numeric: tabular-nums; }
+.bt-activity-cheer-count.is-confirmed { animation: bt-cheer-confirm 180ms ease-out both; }
+@keyframes bt-cheer-confirm { from { opacity: .65; transform: translateY(2px); } }
+@media (prefers-reduced-motion: reduce) { .bt-activity-cheer-count.is-confirmed { animation: none; } }
 .bt-activity-meta .bt-activity-cheer { margin-left: 0; }
 
 .bt-activity-inline-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 999px; color: var(--bt-text-3); transition: background-color 150ms ease, color 150ms ease; }

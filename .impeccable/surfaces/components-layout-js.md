@@ -22,6 +22,8 @@ Mobile follows the iOS 26 tab bar (Mathias's reference, 2026-10-01: screenshots 
 
 Desktop remains fixed at 232px. Its current composition is intentionally protected; active links now expose `aria-current` to assistive technology. Navigation chrome is neutral utility UI, not a place for Study Blocks, course hues or mascot decoration.
 
+Motion pass (2026-10-05): desktop link hover/selection transitions only the colors they change, not every property. The mobile glass lens and its route-continuity motion were deliberately left untouched. Mobile notification sheets now use the shared short enter/exit vocabulary while retaining native dialog focus behavior.
+
 ## Verification
 
 Check 320/390px and desktop, FR/EN, light/dark, keyboard focus, reduced motion, badge space and guest/authenticated states. The mobile nav must not cover the final actionable row; the existing app shell provides the content bottom spacing and safe-area placement.

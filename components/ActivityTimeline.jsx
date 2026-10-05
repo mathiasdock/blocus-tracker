@@ -50,12 +50,12 @@ function Person({ profile, onOpen, children }) {
 
 // One encouragement, one state. Not a picker, not a long press, not a
 // double tap: the only thing a student needs to say here is "bravo".
-function Encourage({ t, count, mine, onToggle, disabled }) {
+function Encourage({ t, count, mine, onToggle, disabled, confirmed }) {
   return (
     <button type="button" className={`bt-activity-cheer${mine ? " is-on" : ""}`} onClick={onToggle}
       disabled={disabled} aria-pressed={mine}>
       <span>{t("feed.encourage")}</span>
-      {count > 0 && <span className="bt-activity-cheer-count">{count}</span>}
+      {count > 0 && <span className={`bt-activity-cheer-count${confirmed ? " is-confirmed" : ""}`}>{count}</span>}
     </button>
   );
 }
@@ -143,7 +143,7 @@ function postIdsOf(entry) {
 
 export default function ActivityTimeline({
   items, t, lang, user, isAdmin, profiles, photoUrls, signingPhotos,
-  onOpenProfile, onEncourage, onRevealPhoto, onDeletePost, onEditPost,
+  onOpenProfile, onEncourage, onRevealPhoto, onDeletePost, onEditPost, confirmedCheerId,
   commentDrafts, onCommentDraft, onSendComment, onDeleteComment, pending,
 }) {
   const who = (id) => profiles[id] || { pseudo: "?", avatar_url: null };
@@ -165,6 +165,7 @@ export default function ActivityTimeline({
         const social = (
           <div className="bt-activity-social">
             <Encourage t={t} count={cheer.count} mine={cheer.mine} disabled={!!pending[entry.post.id]}
+              confirmed={confirmedCheerId === entry.post.id && cheer.mine}
               onToggle={() => onEncourage(entry.post)} />
             <Comments entry={entry} t={t} user={user} isAdmin={isAdmin} profiles={profiles}
               draft={commentDrafts[entry.post.id]} onDraft={(value) => onCommentDraft(entry.post.id, value)}
@@ -200,6 +201,7 @@ export default function ActivityTimeline({
                 <div className="bt-activity-meta">
                   <time dateTime={entry.at}>{timeAgo(entry.at, lang)}</time>
                   <Encourage t={t} count={cheer.count} mine={cheer.mine} disabled={!!pending[entry.post.id]}
+                    confirmed={confirmedCheerId === entry.post.id && cheer.mine}
                     onToggle={() => onEncourage(entry.post)} />
                   <OwnerActions entry={entry} t={t} mine={mine} isAdmin={isAdmin}
                     onDelete={() => onDeletePost(entry.post.id)} />

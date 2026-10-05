@@ -11,6 +11,8 @@ The profile is an **Operate** surface. This extension covers the two side-by-sid
 
 No mascot coach on the profile (Mathias, 2026-10-01): a new badge or the last level is already announced by its own notification and animation; the mascot would only repeat it. The permanent mascot inside Progression keeps its data-linked role; no new mascot event or reward condition was added.
 
+Motion pass (2026-10-05): an earned badge's detail sheet is static on every inspection; the existing canonical unlock celebration alone animates the badge. Detail sheets exit briefly without collapsing the page and close immediately under reduced motion. Catalogue hover is restrained to 1.04× for fine pointers; touch and reduced-motion users get no hover scale.
+
 ## Audience, job and task
 
 Students should recognize their current level, remaining XP and earned collection at a glance, then open the relevant detail page. The pair stays compact enough to keep the profile's other actions accessible on a phone.
