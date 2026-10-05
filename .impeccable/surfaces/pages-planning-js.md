@@ -4,7 +4,7 @@ Mode: Operate. Refinement of the established Blocus study desk, not a new identi
 
 ## Reading path
 
-Today answers what remains and when the next exam is. The month/week/day toolbar and compact natural-language entry precede the calendar. Revision by course supports that plan, beside it from xl and below it on mobile.
+Today (a compact ink strip) answers what remains and when the next exam is. The month/week/day toolbar and the quick-add bar precede the calendar. *By course* summarises each course's next milestone beside it from xl and below it on mobile. See the 2026-10-04 section below, which supersedes older bullets where they differ.
 
 ## Decisions
 
@@ -79,3 +79,54 @@ decisions survive retention/sync without archiving event content. This requires
 a new local migration before a future release; nothing applied remotely here.
 See `docs/university-calendar-ux.md` and the synthetic screenshots in
 `artifacts/university-calendar-ux/`. Verified EN/light, FR/dark, 320/390/1440 px.
+
+
+## Planning UX refactor (2026-10-04, branch `claude/planning-ux-refactor`)
+
+Mathias's brief: one coherent Planning after University Calendar, no new scope.
+Supersedes the bullets above where they differ.
+
+- **Three concepts, three forms.** Imposed (exams: stamp on sand; imported
+  deadlines: quiet text rows), chosen (objectives: checkbox rows, course dot,
+  labelled *Start* toward the Timer), overview (Today strip, *By course*).
+- **Day = act.** `DayPlan` is one component, inline in the Day view and in the
+  day sheet: important academic items (exams, exam candidates, major work) →
+  study plan → small deadlines (six, then « Show N more » inline). One *+ Add*
+  menu (study objective / exam). Row actions in « … » (edit, postpone to
+  tomorrow, move to another day, delete — last, red). Studied time stays
+  visible (live link to the Timer). The Day view no longer reopens the same day
+  in a modal.
+- **Week = balance.** Seven one-line rows from 900 px (three lines on phones):
+  date · load band + exact total · objective titles on one line with one
+  ellipsis · exam chip · deadline count. No per-day « Academic deadlines »
+  heading. The whole week fits a 1366×768 screen. The hour grid renders only
+  the hours actually used (±1 h) and its all-day row only when an exam exists.
+- **Month = anticipate.** Cell anatomy: date (+ planned time on a computer),
+  exam stamp with one name line (the course name is no longer repeated), up to
+  two objective titles (one beside an exam), imported deadlines as a count at
+  the foot. Legend removed: the stamp names itself, today has its disc. Fits
+  1440×900 for a five-week month.
+- **Chrome.** Today strip 104 px on desktop (was 202), quick add a 48 px bar
+  (was a 98 px titled card): the calendar starts at 266 px (was 432). Phones:
+  title, then one row with view switch + arrows + « … »; the calendar starts at
+  ~454 px (was ~690).
+- **« … » menu.** University calendar (status in its description), export,
+  *Duplicate week* (Week view only), sharing (on/off). Its dot means « something
+  to do » (course to match, exam changed at the source, sync failed) — no longer
+  « planning shared ».
+- **By course** replaces Revision by course: one status line per course
+  (« Exam tomorrow · 1 objective left », « Exam in 3 days · Nothing planned »,
+  « 2 deadlines this week ») and, on click, the course context in place
+  (desktop) or in a sheet (phones): exams, before-the-exam facts, *Plan
+  revision* (primary) / *Start studying*, upcoming objectives, work to
+  reschedule, deadlines in the next two weeks. The revision checklist is no
+  longer opened from Planning; its data and its Timer entry are unchanged.
+- **Overview exams** include imported events the student marked as exams
+  (Today's next exam, By course), exactly as the calendar already drew them.
+
+Verification on synthetic offline data (a Canvas semester, the same plan
+without Canvas, an empty plan, the default demo seed, a first Canvas import),
+360/375/390/430/1366/1440/1920 px,
+EN/light and FR/dark, no page overflow, keyboard (menus, popovers, Escape for
+the top layer only, focus returned), reduced motion. Screens in
+`artifacts/planning-ux-refactor/`.

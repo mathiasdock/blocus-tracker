@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
-import CourseChecklistModal from "../components/CourseChecklistModal";
 import MascotMoment from "../components/MascotMoment";
 import SegmentedGlide from "../components/SegmentedGlide";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -20,15 +19,18 @@ import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost } from "../lib/autoShare";
 import Glyph from "../components/Glyph";
 import { playSensoryCue } from "../lib/sensoryFeedback";
-import { coursePlanning, dayWorkload, dayLoad, loadSegments } from "../lib/planningInsights.mjs";
+import { dayWorkload, dayLoad } from "../lib/planningInsights.mjs";
 import PlanningLoadBar from "../components/PlanningLoadBar";
 import { normalizePlanningExams, relevantUpcomingExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
 import PlanningExamMark from "../components/PlanningExamMark";
 import UniversityCalendar from "../components/UniversityCalendar";
-import AcademicDeadlines, { AcademicVisibility } from "../components/AcademicDeadlines";
+import AcademicDeadlines from "../components/AcademicDeadlines";
 import useAcademicCalendar from "../components/useAcademicCalendar";
-import { academicSummary } from "../lib/planningAcademicEvents.mjs";
+import { academicSummary, confirmedImportedExams, splitAcademicEvents } from "../lib/planningAcademicEvents.mjs";
+import { externalCourses, calendarReview } from "../lib/calendarReview.mjs";
 import usePlanningSwipe from "../components/usePlanningSwipe";
+import PlanMenu from "../components/planning/PlanMenu";
+import CourseOverview from "../components/planning/CourseOverview";
 
 // ── Constants ─────────────────────────────────────────────────
 // Libellés du calendrier (Lun→Dim, Janvier→Décembre) localisés FR/EN. Avant,
@@ -434,166 +436,92 @@ function ExamBadge({ days }) {
   );
 }
 
-// ── RevisionChecklists ────────────────────────────────────────
-// Aperçu décisionnel par cours : prochain examen et objectifs restants. La
-// progression de la checklist appartient à la fiche détaillée du cours.
-function RevisionChecklists({ className = "" }) {
-  const { activeCourses: courses, objectives, exams, t } = usePlan();
-  const { user } = useAuth();
-  const [openCourse, setOpenCourse] = useState(null);
-
-  if (!courses.length) return null;
-
-  return (
-    <section className={`card p-4 sm:p-5 ${className}`}>
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-        {t("checklist.sectionTitle")}
-      </p>
-      <ul className="space-y-2.5">
-        {coursePlanning(courses, objectives, exams, localToday()).map(({ course: c, exam, remaining, overdue }) => {
-          return (
-            <li key={c.id}>
-              <button onClick={() => setOpenCourse(c)}
-                className="bt-plan-revision-row w-full rounded-xl px-2 py-1.5 text-left transition-colors">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--bt-text-1)" }}>{c.name}</span>
-                  <span className="shrink-0" style={{ color: "var(--bt-text-4)" }}><IconChevron dir="right" size={14} /></span>
-                </div>
-                  <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>
-                  {[exam && `${t("plan.examTag")} · ${examCountdown(daysUntil(exam.exam_date), t)}`,
-                    remaining > 0 ? t(remaining === 1 ? "plan.remainingOne" : "plan.remainingMany").replace("{n}", remaining) : !exam && t("plan.nothingPlanned")].filter(Boolean).join(" · ")}
-                </p>
-                {overdue > 0 && <p className="mt-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.toReschedule").replace("{n}", overdue)}</p>}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      {openCourse && (
-        <CourseChecklistModal
-          course={openCourse}
-          userId={user.id}
-          onClose={() => setOpenCourse(null)}
-        />
-      )}
-    </section>
-  );
-}
-
 // ── TodayCard ─────────────────────────────────────────────────
-// Résumé permanent de la journée en cours — toujours visible, avant le
-// calendrier, quelle que soit la date actuellement sélectionnée/naviguée.
-// Surface ink (même langage que « Aujourd'hui » du Chrono) : c'est le
-// moment de marque du planning.
-// Deux prochaines actions maximum ; le calendrier porte le reste de la semaine.
+// Résumé permanent de la journée en cours, avant le calendrier. Surface ink :
+// c'est le moment de marque du planning, gardé tel quel. Mais une BANDE, pas
+// une carte-héros : elle prenait 200 px au-dessus du calendrier pour deux
+// chiffres et un examen. Le calendrier redevient la vedette.
+// Deux prochaines actions maximum, seulement quand la période affichée ne
+// contient pas aujourd'hui (sinon le calendrier les montre déjà).
+function nameMentions(name, course) {
+  return !!(name && course && String(name).toLocaleLowerCase().includes(String(course).toLocaleLowerCase()));
+}
 function TodayCard({ className = "", examMoment = null }) {
-  const { byDate, examsByDate, exams, toggle, courseColor, courseName, launchTimer, openDay, lang, t, isOnToday } = usePlan();
+  const { byDate, examsByDate, overviewExams, toggle, courseName, launchTimer, openDay, lang, t, isOnToday } = usePlan();
   const nextExamAnchor = useRef(null);
   const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
   const doneCount       = todayObjectives.filter(o => o.done).length;
   const isEmptyToday    = todayObjectives.length === 0 && todayExams.length === 0;
-
   const remainingToday = todayObjectives.filter(o => !o.done).sort((a, b) => (a.scheduled_time || "99").localeCompare(b.scheduled_time || "99"));
   const workload = dayWorkload(todayObjectives);
-
-  const nextExam = relevantUpcomingExams(exams, today)[0];
+  const nextExam = relevantUpcomingExams(overviewExams, today)[0];
   const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
-
+  const examCourse = nextExam?.course_id ? courseName(nextExam.course_id) : null;
+  const examTitle = nextExam ? sentenceCase(nextExam.name || examCourse || t("plan.examTag")) : "";
   const dateLabel = dateFromYmd(today).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <section className={`card-ink bt-planning-today p-5 ${className}`}>
-      <div className="relative z-10">
-        <div className="mb-4 flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-bold" style={{ color: "var(--bt-ink-text)" }}>
-            {t("plan.todayCardEyebrow")}
-          </h2>
-          <button onClick={() => openDay(today)}
-            className="min-h-11 truncate text-xs underline-offset-2 transition-colors hover:underline"
-            style={{ color: "var(--bt-ink-muted)" }}>
-            {sentenceCase(dateLabel)}
+    <section className={`card-ink bt-planning-today ${className}`} aria-labelledby="bt-today-title">
+      <div className="bt-today-grid">
+        <div className="bt-today-main">
+          <p className="bt-today-head">
+            <span id="bt-today-title" className="bt-today-eyebrow">{t("plan.todayCardEyebrow")}</span>
+            <button type="button" onClick={() => openDay(today)} className="bt-today-date">{sentenceCase(dateLabel)}</button>
+          </p>
+          <p className="bt-today-count tabular-nums">
+            <span>
+              {todayObjectives.length
+                ? <><AnimatedNumber value={doneCount} />/{todayObjectives.length} <span className="bt-today-unit">{t("plan.todayCardObjectives")}</span></>
+                : t("plan.nothingToday")}
+            </span>
+            {todayObjectives.length > 0 && <span className="bt-today-sub">{t("plan.leftToDo").replace("{n}", workload.remaining)}{workload.minutes > 0 && ` · ${formatMinutesShort(workload.minutes * 60)}`}</span>}
+          </p>
+          {isEmptyToday && (
+            <button type="button" onClick={() => openDay(today)} className="bt-plan-ink-btn bt-today-cta">
+              <IconPlus size={13} />{t("plan.dayAddObj")}
+            </button>
+          )}
+          {/* Les deux prochaines actions ne servent que si le calendrier ne
+              montre PAS déjà aujourd'hui. data-coach-floor : le coach de
+              l'examen (téléphone) se pose au-dessus, jamais devant les ▶. */}
+          {!isEmptyToday && remainingToday.length > 0 && !isOnToday && (
+            <ul className="bt-today-next" data-coach-floor="">
+              {remainingToday.slice(0, 2).map(o => (
+                <li key={o.id}>
+                  <label className="bt-today-check"><input type="checkbox" checked={o.done} onChange={() => toggle(o)}
+                    aria-label={o.title || courseName(o.course_id) || "—"}
+                    className="bt-task-check bt-task-check--ink h-4 w-4 shrink-0" /></label>
+                  <CourseMark id={o.course_id} />
+                  <span className="bt-today-next-title">{o.title || courseName(o.course_id) || "—"}</span>
+                  {o.target_minutes > 0 && <span className="bt-today-next-min tabular-nums">{formatMinutesShort(o.target_minutes * 60)}</span>}
+                  {o.course_id && <button type="button" className="bt-plan-ink-btn bt-today-play" aria-label={`${t("plan.startStudying")} · ${o.title || courseName(o.course_id)}`} onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}><IconPlay /></button>}
+                </li>
+              ))}
+              {remainingToday.length > 2 && (
+                <li>
+                  <button type="button" onClick={() => openDay(today)} className="bt-today-more">+{remainingToday.length - 2} {t("plan.todayCardMore")}</button>
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+
+        {nextExam ? (
+          <button ref={nextExamAnchor} type="button" onClick={() => openDay(nextExam.exam_date)} className="bt-planning-next-exam">
+            <PlanningExamMark label={t("plan.nextExam")} />
+            <span className="bt-next-exam-name">{examTitle}</span>
+            <span className="bt-next-exam-meta">
+              {nextExam.course_id && <CourseMark id={nextExam.course_id} />}
+              {[examCourse && !nameMentions(examTitle, examCourse) && examCourse,
+                nextExamDays > 1 && examCountdown(nextExamDays, t),
+                quickDateLabel(nextExam.exam_date, lang, t),
+                nextExam.exam_time && nextExam.exam_time.slice(0, 5)].filter(Boolean).join(" · ")}
+            </span>
+            {todayExams.length > 1 && <span className="bt-next-exam-more">{t(todayExams.length === 2 ? "plan.moreExamTodayOne" : "plan.moreExamTodayMany").replace("{n}", todayExams.length - 1)}</span>}
           </button>
-        </div>
-
-        <div className="bt-planning-today-summary">
-          <div className="min-w-0">
-            <p className="text-xl font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>
-              {todayObjectives.length ? <><AnimatedNumber value={doneCount} />/{todayObjectives.length} <span className="text-sm font-medium">{t("plan.todayCardObjectives")}</span></> : t("plan.nothingToday")}
-            </p>
-            {todayObjectives.length > 0 && <p className="mt-1 text-sm" style={{ color: "var(--bt-ink-muted)" }}>{t("plan.leftToDo").replace("{n}", workload.remaining)}{workload.minutes > 0 && ` · ${formatMinutesShort(workload.minutes * 60)}`}</p>}
-          </div>
-
-          {nextExam ? (
-            <button ref={nextExamAnchor} onClick={() => openDay(nextExam.exam_date)} className="bt-planning-next-exam min-w-0 text-left">
-              <PlanningExamMark label={t("plan.nextExam")} />
-              {nextExam.name && <p className="mt-1 text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>{sentenceCase(nextExam.name)}</p>}
-              {nextExam.course_id && <p className="mt-1 flex items-center gap-2 text-sm" style={{ color: "var(--bt-ink-muted)" }}><CourseMark id={nextExam.course_id} />{courseName(nextExam.course_id)}</p>}
-              <p className="mt-2 text-sm font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>{nextExamDays > 1 && `${examCountdown(nextExamDays, t)} · `}{quickDateLabel(nextExam.exam_date, lang, t)}{nextExam.exam_time && ` · ${nextExam.exam_time.slice(0, 5)}`}</p>
-              {todayExams.length > 1 && <p className="mt-1 text-xs">{t(todayExams.length === 2 ? "plan.moreExamTodayOne" : "plan.moreExamTodayMany").replace("{n}", todayExams.length - 1)}</p>}
-            </button>
-          ) : null}
-        </div>
-
-        {isEmptyToday ? (
-          <div className="mt-4">
-            <button onClick={() => openDay(today)}
-              className="bt-plan-ink-btn mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-semibold">
-              <IconPlus size={13} />
-              {t("plan.dayAddObj")}
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Les deux prochaines actions ne servent que si le calendrier ne
-                montre PAS déjà aujourd'hui. Quand la semaine ou le mois
-                affiché contient la journée en cours, ses objectifs sont juste
-                en dessous, avec leur charge : cette liste les répétait et
-                repoussait la vue de la semaine sous la ligne de flottaison
-                (premier jour à 937 px sur un écran de 812 px en période
-                chargée). Dès qu'on navigue ailleurs, elle reprend son rôle de
-                rappel. */}
-            {remainingToday.length > 0 && !isOnToday && (
-              // data-coach-floor : le coach de l'examen (téléphone) se pose
-              // au-dessus de cette liste, jamais devant ses boutons ▶.
-              <ul className="mt-4 space-y-2" data-coach-floor="">
-                {remainingToday.slice(0, 2).map(o => (
-                  <li key={o.id} className="flex items-center gap-2.5 text-sm">
-                    <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" checked={o.done} onChange={() => toggle(o)}
-                      aria-label={o.title || courseName(o.course_id) || "—"}
-                      className="bt-task-check bt-task-check--ink h-4 w-4 shrink-0" /></label>
-                    <CourseMark id={o.course_id} />
-                    {/* La barre de rature vit sur un inline-block : posée sur
-                        le conteneur flex-1, elle s'étirait sur toute la
-                        largeur libre et barrait aussi le vide après le texte. */}
-                    <span className="min-w-0 flex-1" style={{ color: "var(--bt-ink-text)", opacity: o.done ? 0.5 : 1 }}>
-                      <span className={`bt-strike ${o.done ? "is-done" : ""} inline-block max-w-full truncate align-bottom`}>
-                        {o.title || courseName(o.course_id) || "—"}
-                      </span>
-                    </span>
-                    {o.target_minutes > 0 && (
-                      <span className="shrink-0 text-xs tabular-nums" style={{ color: "var(--bt-ink-muted)" }}>{o.target_minutes} min</span>
-                    )}
-                    {o.course_id && <button className="bt-plan-ink-btn flex min-h-11 min-w-11 items-center justify-center rounded-xl" aria-label={`${t("plan.startStudying")} · ${o.title || courseName(o.course_id)}`} onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}><IconPlay /></button>}
-                  </li>
-                ))}
-                {remainingToday.length > 2 && (
-                  <li>
-                    <button onClick={() => openDay(today)} className="min-h-11 pl-6 text-xs underline-offset-2 hover:underline"
-                      style={{ color: "var(--bt-ink-muted)" }}>
-                      +{remainingToday.length - 2} {t("plan.todayCardMore")}
-                    </button>
-                  </li>
-                )}
-              </ul>
-            )}
-
-          </>
-        )}
-
+        ) : null}
       </div>
       {examMoment && nextExam && <MascotMoment
         eventKey={examMoment.key}
@@ -608,65 +536,74 @@ function TodayCard({ className = "", examMoment = null }) {
   );
 }
 
-// ── DayDetailModal ────────────────────────────────────────────
-// Surface UNIQUE de gestion d'un jour : consulter, ajouter, modifier,
-// reporter, supprimer objectifs et examens, lancer le chrono.
-function DayDetailModal() {
-  const { academic, academicPrefill, planAcademicWork, courses, modalDate, setModalDate, modalPrefillTime, byDate, examsByDate, sessions,
-          courseColor, courseName, toggle, remove, postpone, launchTimer,
+// ── DayPlan ───────────────────────────────────────────────────
+// UNE journée, une seule surface : la vue Jour la montre en place, la fiche
+// d'un jour (ouverte depuis le Mois ou la Semaine) la montre en feuille. Avant,
+// la vue Jour renvoyait chaque clic vers une fiche qui répétait la même liste
+// avec quatre icônes par ligne.
+//
+// Ordre imposé par le brief Planning (« Jour = agir ») :
+//   1. ce que l'université impose d'important — examens, examens possibles,
+//      gros travaux ;
+//   2. le plan d'étude, ce que l'étudiant CHOISIT, avec le passage au Chrono ;
+//   3. les petites échéances importées.
+// Un seul « + Ajouter » (objectif d'étude / examen). Les actions secondaires
+// d'une ligne vivent dans son « … » ; supprimer y est séparé, en rouge.
+function IconMore({ size = 18 }) {
+  return <Glyph size={size}><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></Glyph>;
+}
+
+function DayPlan({ date, inSheet = false }) {
+  const { academic, academicPrefill, planAcademicWork, courses, modalPrefillTime, byDate, examsByDate, sessions,
+          courseName, toggle, remove, postpone, launchTimer,
           addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, duplicateDay, lang, t } = usePlan();
+  const prefill = inSheet ? academicPrefill : null;
+  const prefillTime = inSheet ? modalPrefillTime : null;
 
-  const [studyDate, setStudyDate] = useState("");
-  const dialogRef = useRef(null);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [form, setForm]               = useState(null); // "objective" | "exam" | null
+  const [studyDate, setStudyDate]     = useState(date);
   const [addForm, setAddForm]         = useState(EMPTY_OBJECTIVE_FORM);
-  const [showAddExamForm, setShowAddExamForm] = useState(false);
-  const [examForm, setExamForm]               = useState(EMPTY_EXAM_FORM);
-  const [dupOpen, setDupOpen]                 = useState(false);
-
-  // Inline edit state
+  const [examForm, setExamForm]       = useState(EMPTY_EXAM_FORM);
+  const [dupOpen, setDupOpen]         = useState(false);
   const [editingObjId, setEditingObjId] = useState(null);
-  const [editForm, setEditForm]         = useState({});
-  const [postponingId, setPostponingId] = useState(null);
+  const [editForm, setEditForm]       = useState({});
+  const [movingId, setMovingId]       = useState(null);
   const [editingExamId, setEditingExamId] = useState(null);
   const [examEditForm, setExamEditForm]   = useState(EMPTY_EXAM_FORM);
+  const formRef = useRef(null);
 
-  // À chaque ouverture / changement de jour : repartir d'un état propre.
-  // Si on arrive depuis un créneau horaire de la grille (modalPrefillTime),
-  // ouvrir directement le formulaire d'ajout pré-rempli sur cette heure.
+  // À chaque jour / préremplissage : repartir d'un état propre. Depuis un
+  // créneau de la grille horaire ou « Planifier du travail », le formulaire
+  // d'objectif s'ouvre directement, prérempli.
   useEffect(() => {
-    if (!modalDate) return;
-    setShowAddForm(!!modalPrefillTime || !!academicPrefill);
-    setStudyDate(modalDate);
-    setAddForm({ ...EMPTY_OBJECTIVE_FORM, ...academicPrefill, time: modalPrefillTime || "" });
-    setShowAddExamForm(false);
+    setForm(prefillTime || prefill ? "objective" : null);
+    setStudyDate(date);
+    setAddForm({ ...EMPTY_OBJECTIVE_FORM, ...prefill, time: prefillTime || "" });
     setExamForm(EMPTY_EXAM_FORM);
     setEditingObjId(null);
-    setPostponingId(null);
+    setMovingId(null);
     setEditingExamId(null);
     setDupOpen(false);
-  }, [modalDate, modalPrefillTime, academicPrefill]);
+  }, [date, prefillTime, prefill]);
 
-  // Échap ferme la fiche — un bottom sheet sans sortie clavier est une
-  // impasse pour qui ne peut pas viser la croix.
   useEffect(() => {
-    if (!modalDate) return undefined;
-    const previousFocus = document.activeElement;
-    const dialog = dialogRef.current;
-    dialog?.querySelector("button")?.focus();
-    const onKey = (e) => {
-      if (e.key === "Escape") setModalDate(null);
-      if (e.key === "Tab") {
-        const nodes = [...dialog.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex="0"]')]
-          .filter(el => !el.disabled && el.getClientRects().length);
-        const first = nodes[0], last = nodes[nodes.length - 1];
-        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { e.preventDefault(); last?.focus(); }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("keydown", onKey); previousFocus?.focus(); };
-  }, [modalDate, setModalDate]);
+    if (form) formRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [form]);
+
+  const today      = localToday();
+  const tomorrow   = tomorrowISO();
+  const isPast     = date < today;
+  const isToday    = date === today;
+  const objectives = [...(byDate[date] || [])].sort((a, b) => Number(a.done) - Number(b.done)
+    || (a.scheduled_time || "99").localeCompare(b.scheduled_time || "99"));
+  const exams      = examsByDate[date] || [];
+  const { important, secondary } = splitAcademicEvents(academic.byDate[date]);
+  const work       = dayWorkload(objectives);
+  const doneCount  = objectives.length - work.remaining;
+  const studiedSecs = sessions
+    .filter(s => ymd(new Date(s.started_at)) === date)
+    .reduce((sum, s) => sum + s.duration_seconds, 0);
+  const plannedMin = objectives.reduce((sum, o) => sum + (o.target_minutes || 0), 0);
 
   function startInlineEdit(o) {
     setEditingObjId(o.id);
@@ -675,18 +612,15 @@ function DayDetailModal() {
       weekdays: weekdaysFromObjective(o), until: o.recurrence_until || "",
     });
   }
-
   async function handleInlineSave(e) {
     e.preventDefault();
     await saveObjEdit(editingObjId, editForm);
     setEditingObjId(null);
   }
-
   function startExamEdit(ex) {
     setEditingExamId(ex.id);
     setExamEditForm({ name: ex.name || "", courseId: ex.course_id || "", time: ex.exam_time || "", location: ex.location || "" });
   }
-
   async function handleExamEditSave(e) {
     e.preventDefault();
     if (!examEditForm.name.trim()) return;
@@ -698,61 +632,283 @@ function DayDetailModal() {
     });
     if (saved) setEditingExamId(null);
   }
-
-  if (!modalDate) return null;
-
-  const d          = dateFromYmd(modalDate);
-  const today      = localToday();
-  const tomorrow   = tomorrowISO();
-  const isPast     = modalDate < today;
-  const isToday    = modalDate === today;
-  const objectives = byDate[modalDate]     || [];
-  const exams      = examsByDate[modalDate] || [];
-  const doneCount  = objectives.filter(o => o.done).length;
-
-  const totalStudiedSecs = sessions
-    .filter(s => ymd(new Date(s.started_at)) === modalDate)
-    .reduce((a, s) => a + s.duration_seconds, 0);
-  const totalTargetMin = objectives.reduce((a, o) => a + (o.target_minutes || 0), 0);
-  const studiedPct = totalTargetMin > 0
-    ? Math.min(100, Math.round(totalStudiedSecs / 60 / totalTargetMin * 100))
-    : null;
-
   async function handleAdd(e) {
     e.preventDefault();
-    if (academicPrefill && (!studyDate || studyDate < localToday())) return;
-    const data = await addObjectiveForDate(academicPrefill ? studyDate : modalDate, addForm);
+    if (prefill && (!studyDate || studyDate < localToday())) return;
+    const data = await addObjectiveForDate(prefill ? studyDate : date, addForm);
     if (data) {
       setAddForm(EMPTY_OBJECTIVE_FORM);
-      setShowAddForm(false);
+      setForm(null);
     }
   }
-
   async function handleAddExam(e) {
     e.preventDefault();
     if (!examForm.name.trim()) return;
     const added = await addExam({
       name:      examForm.name.trim(),
       course_id: examForm.courseId || null,
-      exam_date: modalDate,
+      exam_date: date,
       exam_time: examForm.time     || null,
       location:  examForm.location || null,
     });
     if (added) {
       setExamForm(EMPTY_EXAM_FORM);
-      setShowAddExamForm(false);
+      setForm(null);
     }
   }
 
-  const dayTitle = sentenceCase(d.toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" }));
+  const dayTitle = sentenceCase(dateFromYmd(date).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" }));
+  const summary = objectives.length
+    ? t("plan.daySummaryDone").replace("{done}", doneCount).replace("{n}", objectives.length)
+    : t("plan.dayNothingPlanned");
+  // Le reste à faire en TEMPS : le nombre d'objectifs est déjà dans « 1/4 ».
+  const summaryFacts = work.minutes > 0 ? t("plan.timeToGo").replace("{t}", formatMinutesShort(work.minutes * 60)) : "";
+
+  return (
+    <div className="bt-day-plan">
+      <div className="bt-day-head">
+        <div className="min-w-0">
+          <p className="bt-day-summary">{summary}</p>
+          {/* Le temps étudié reste visible, même à zéro : c'est le lien vivant
+              entre le planning et le Chrono. */}
+          <p className="bt-day-studied">
+            <IconClock size={14} />
+            <span>{plannedMin > 0
+              ? t("plan.studiedOf").replace("{done}", formatMinutesShort(studiedSecs)).replace("{planned}", formatMinutesShort(plannedMin * 60))
+              : t("plan.studiedOnly").replace("{done}", formatMinutesShort(studiedSecs))}
+              {summaryFacts && <span className="bt-day-summary-facts"> · {summaryFacts}</span>}</span>
+          </p>
+          {plannedMin > 0 && (
+            <span className="bt-day-studied-bar" aria-hidden="true">
+              <span style={{ transform: `scaleX(${Math.min(1, studiedSecs / 60 / plannedMin)})` }} />
+            </span>
+          )}
+        </div>
+        <div className="bt-day-head-actions">
+          <PlanMenu label={t("plan.addMenu")} triggerClassName="bt-plan-action bt-plan-action--outline" width={240} items={[
+            !isPast && { key: "objective", label: t("academic.studyObjective"), description: t("plan.addObjectiveHint"), onSelect: () => setForm("objective") },
+            { key: "exam", label: t("plan.addExamShort"), description: t("plan.addExamHint"), onSelect: () => setForm("exam") },
+          ]}>
+            <IconPlus size={13} />{t("common.add")}
+          </PlanMenu>
+          {objectives.length > 0 && (
+            <PlanMenu label={t("plan.dayActions")} ariaLabel={t("plan.dayActions")} triggerClassName="bt-plan-icon-action" width={240} items={[
+              { key: "duplicate", label: t("plan.duplicateDay"), icon: <IconCopy />, onSelect: () => setDupOpen(true) },
+            ]}>
+              <IconMore />
+            </PlanMenu>
+          )}
+        </div>
+      </div>
+
+      {dupOpen && (
+        <div className="bt-day-inline-tool">
+          <label className="bt-day-inline-label" htmlFor={`dup-${date}`}>{t("plan.duplicateDayTo")}</label>
+          <input id={`dup-${date}`} type="date" className="input flex-1" min={today}
+            onChange={async e => {
+              if (e.target.value && e.target.value !== date) {
+                await duplicateDay(date, e.target.value);
+                setDupOpen(false);
+              }
+            }} />
+          <button type="button" onClick={() => setDupOpen(false)} className="bt-plan-action bt-plan-action--quiet">{t("common.cancel")}</button>
+        </div>
+      )}
+
+      {/* 1 — Ce que l'université impose d'important. */}
+      {exams.length > 0 && (
+        <div className="bt-day-exams">
+          {exams.map(ex => editingExamId === ex.id ? (
+            <ExamForm key={ex.id}
+              value={examEditForm}
+              onChange={patch => setExamEditForm(f => ({ ...f, ...patch }))}
+              onSubmit={handleExamEditSave}
+              onCancel={() => setEditingExamId(null)}
+              submitLabel={t("common.save")}
+              title={t("plan.dayEdit")} />
+          ) : (
+            <div key={ex.id} className="bt-plan-exam-detail">
+              <div className="min-w-0 flex-1">
+                <PlanningExamMark label={t("plan.examTag")} />
+                {ex.name && <p className="mt-1 break-words text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{ex.name}</p>}
+                <p className="bt-day-exam-meta">
+                  {ex.course_id && <span className="inline-flex items-center gap-1.5"><CourseMark id={ex.course_id} />{courseName(ex.course_id)}</span>}
+                  {[ex.exam_time && ex.exam_time.slice(0, 5), ex.location].filter(Boolean).map(part => <span key={part}>{part}</span>)}
+                </p>
+                <ExamBadge days={daysUntil(ex.exam_date)} />
+                {ex.source === "course" && <LegacyExamDate exam={ex} />}
+              </div>
+              <PlanMenu label={t("plan.examActions")} ariaLabel={t("plan.examActions")} triggerClassName="bt-plan-icon-action" width={220} items={[
+                ex.source !== "course" && { key: "edit", label: t("plan.dayEdit"), icon: <IconEdit size={14} />, onSelect: () => startExamEdit(ex) },
+                { key: "delete", label: t("common.delete"), icon: <IconTrash size={14} />, danger: true, separated: ex.source !== "course", onSelect: () => removeExam(ex.id) },
+              ]}>
+                <IconMore />
+              </PlanMenu>
+            </div>
+          ))}
+        </div>
+      )}
+      <AcademicDeadlines events={important} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork}
+        heading={t("plan.dayAcademicImportant")} className="bt-day-section" />
+
+      {/* 2 — Le plan d'étude. */}
+      <section className="bt-day-section" aria-label={t("academic.studyPlan")}>
+        <h3 className="bt-plan-section-label">{t("academic.studyPlan")}</h3>
+        {objectives.length === 0 && form !== "objective" && (
+          <p className="bt-day-empty">{isPast ? t("plan.dayNothingPlanned") : t("plan.dayEmptyHint")}</p>
+        )}
+        <ul className="bt-day-tasks">
+          {objectives.map(o => {
+            if (editingObjId === o.id) {
+              return (
+                <li key={o.id} className="bt-day-task-edit">
+                  <ObjectiveForm
+                    value={editForm}
+                    onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
+                    onSubmit={handleInlineSave}
+                    onCancel={() => setEditingObjId(null)}
+                    minDate={date}
+                    submitLabel={t("common.save")}
+                    autoFocus />
+                </li>
+              );
+            }
+            const realSecs = o.course_id
+              ? sessions.filter(s => s.course_id === o.course_id && ymd(new Date(s.started_at)) === o.scheduled_date)
+                  .reduce((sum, s) => sum + s.duration_seconds, 0)
+              : 0;
+            const recurLabel = recurrenceBadgeLabel(o, t, lang);
+            const overdue = isPast && !o.done;
+            const canStart = !o.done && isToday && o.course_id;
+            const label = o.title || courseName(o.course_id) || "—";
+            return (
+              <li key={o.id} className="bt-day-task" data-done={o.done ? "1" : undefined}>
+                <label className="bt-day-check"><input type="checkbox" className="bt-task-check h-4 w-4" checked={o.done} onChange={() => toggle(o)} aria-label={label} /></label>
+                <div className="bt-day-task-body">
+                  <p className="bt-day-task-title"><span className={`bt-strike ${o.done ? "is-done" : ""}`}>{label}</span></p>
+                  <p className="bt-day-task-meta">
+                    <span className="inline-flex min-w-0 items-center gap-1.5"><CourseMark id={o.course_id} /><span className="truncate">{courseName(o.course_id) || t("plan.unassigned")}</span></span>
+                    {o.scheduled_time && <span className="tabular-nums">{o.scheduled_time.slice(0, 5)}</span>}
+                    {o.target_minutes > 0 && <span className="tabular-nums">{formatMinutesShort(o.target_minutes * 60)}</span>}
+                    {recurLabel && <span>↻ {recurLabel}</span>}
+                    {realSecs > 0 && <span className="bt-day-task-studied">{formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
+                    {overdue && <span className="bt-day-task-overdue">{t("plan.dayOverdue")}</span>}
+                  </p>
+                  {o.target_minutes > 0 && realSecs > 0 && (
+                    <span className="bt-day-task-bar" aria-hidden="true">
+                      <span style={{ transform: `scaleX(${Math.min(1, realSecs / 60 / o.target_minutes)})` }} />
+                    </span>
+                  )}
+                  {movingId === o.id && (
+                    <div className="bt-day-inline-tool">
+                      <label className="bt-day-inline-label" htmlFor={`move-${o.id}`}>{t("plan.postponeOtherDate")}</label>
+                      <input id={`move-${o.id}`} type="date" className="input flex-1" min={tomorrow} autoFocus
+                        onChange={e => {
+                          if (e.target.value && e.target.value >= tomorrow) {
+                            postpone(o.id, e.target.value);
+                            setMovingId(null);
+                          }
+                        }} />
+                      <button type="button" onClick={() => setMovingId(null)} className="bt-plan-action bt-plan-action--quiet">{t("common.cancel")}</button>
+                    </div>
+                  )}
+                </div>
+                {canStart && (
+                  <button type="button" className="bt-plan-start" onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}
+                    aria-label={`${t("plan.startStudying")} · ${label}`}>
+                    <IconPlay size={11} /><span className="bt-plan-start-label">{t("plan.start")}</span>
+                  </button>
+                )}
+                <PlanMenu label={t("plan.objectiveActions")} ariaLabel={`${t("plan.objectiveActions")} · ${label}`} triggerClassName="bt-plan-icon-action" width={240} items={[
+                  { key: "edit", label: t("plan.dayEdit"), icon: <IconEdit size={14} />, onSelect: () => startInlineEdit(o) },
+                  !o.done && { key: "tomorrow", label: t("plan.dayPostpone"), icon: <IconCalendar size={14} />, onSelect: () => postpone(o.id, tomorrow) },
+                  !o.done && { key: "move", label: t("plan.moveToDay"), onSelect: () => setMovingId(o.id) },
+                  { key: "delete", label: t("common.delete"), icon: <IconTrash size={14} />, danger: true, separated: true, onSelect: () => remove(o.id) },
+                ]}>
+                  <IconMore />
+                </PlanMenu>
+              </li>
+            );
+          })}
+        </ul>
+
+        {form === "objective" && !isPast && (
+          <div ref={formRef} className="bt-day-form">
+            {prefill && (
+              <label className="mb-3 block text-sm">{t("academic.planDate")}
+                <input type="date" className="input mt-1 w-full" min={localToday()} required value={studyDate} onChange={e => setStudyDate(e.target.value)} />
+              </label>
+            )}
+            <ObjectiveForm
+              title={t("plan.newObjectiveTitle")}
+              value={addForm}
+              onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
+              onSubmit={handleAdd}
+              onCancel={() => setForm(null)}
+              minDate={prefill ? studyDate : date}
+              submitLabel={t("common.add")}
+              autoFocus />
+          </div>
+        )}
+        {form === "exam" && (
+          <div ref={formRef} className="bt-day-form bt-day-form--plain">
+            <ExamForm
+              value={examForm}
+              onChange={patch => setExamForm(f => ({ ...f, ...patch }))}
+              onSubmit={handleAddExam}
+              onCancel={() => setForm(null)}
+              submitLabel={t("plan.examSubmit")}
+              title={t("plan.newExamTitle")}
+              dateLabel={dayTitle} />
+          </div>
+        )}
+      </section>
+
+      {/* 3 — Les petites échéances importées, après le plan. */}
+      <AcademicDeadlines events={secondary} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork}
+        heading={t(important.length || exams.length ? "plan.dayAlsoDue" : "plan.dayDue")} limit={inSheet ? 0 : 6} className="bt-day-section" />
+    </div>
+  );
+}
+
+// ── DayDetailModal ────────────────────────────────────────────
+// La même journée, en feuille : bas d'écran sur téléphone, centrée au-delà.
+function DayDetailModal() {
+  const { modalDate, setModalDate, lang, t } = usePlan();
+  const dialogRef = useRef(null);
+  const closeRef = useRef(null);
+
+  // Échap ferme la fiche ; Tab reste dedans. Les menus et popovers ouverts
+  // par-dessus gèrent leurs propres touches et ne la ferment pas.
+  useEffect(() => {
+    if (!modalDate) return undefined;
+    const previousFocus = document.activeElement;
+    const dialog = dialogRef.current;
+    if (!dialog?.contains(document.activeElement)) closeRef.current?.focus();
+    const onKey = (e) => {
+      if (e.key === "Escape") setModalDate(null);
+      if (e.key === "Tab" && dialog) {
+        const nodes = [...dialog.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex="0"]')]
+          .filter(el => !el.disabled && el.getClientRects().length);
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("keydown", onKey); previousFocus?.focus?.(); };
+  }, [modalDate, setModalDate]);
+
+  if (!modalDate) return null;
+  const today = localToday();
+  const isToday = modalDate === today;
+  const isPast = modalDate < today;
+  const dayTitle = sentenceCase(dateFromYmd(modalDate).toLocaleDateString(localeFor(lang), { weekday: "long", day: "numeric", month: "long" }));
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 z-40" style={{ backgroundColor: "rgba(0,0,0,0.42)", backdropFilter: "blur(3px)" }}
         onClick={() => setModalDate(null)} />
-
-      {/* Card — bottom sheet on mobile, centered on sm+ */}
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 sm:inset-0 sm:flex sm:items-center sm:justify-center sm:p-4">
         <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={dayTitle}
           className="bt-planning-dialog pointer-events-auto rounded-t-[28px] sm:w-full sm:max-w-lg sm:rounded-[24px]"
@@ -763,337 +919,25 @@ function DayDetailModal() {
             maxHeight: "88vh",
             overflowY: "auto",
           }}>
-
-          {/* Drag handle (mobile only) */}
           <div className="flex justify-center pb-1 pt-3 sm:hidden">
             <div className="h-1 w-10 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
           </div>
-
-          <div className="px-5 pb-8 pt-2">
-
-            {/* ── Header ── */}
-            <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="px-5 pb-8 pt-2 sm:pt-5">
+            <div className="bt-day-sheet-head">
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-bold leading-tight" style={{ color: "var(--bt-text-1)" }}>
-                  {dayTitle}
-                </h2>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  {isToday && (
-                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold"
-                      style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }}>
-                      {t("common.today")}
-                    </span>
-                  )}
-                  {isPast && !isToday && (
-                    <span className="text-[11px] font-medium" style={{ color: "var(--bt-text-4)" }}>
-                      {t("plan.dayPast")}
-                    </span>
-                  )}
-                  {objectives.length > 0 && (
-                    <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>
-                      {doneCount} {t("plan.dayObjectiveOf")} {objectives.length} {t("plan.dayObjectives").toLowerCase()}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button onClick={() => setModalDate(null)} aria-label={t("common.close")}
-                className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors"
-                style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-hairline)" }}>
-                <IconClose />
-              </button>
-            </div>
-
-            {/* ── Temps étudié — toujours visible : c'est le lien vivant
-                 entre le planning et le Chrono, y compris à 0. ── */}
-            <div className="mb-4 flex items-center gap-3 rounded-2xl px-4 py-3"
-              style={{ backgroundColor: "var(--bt-mint-surface)", border: "1px solid var(--bt-accent-border)" }}>
-              <span style={{ color: "var(--bt-accent-text)" }}><IconClock size={18} /></span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-accent-text)" }}>
-                  {t("plan.dayStudied")}
-                </p>
-                <p className="font-num text-base font-bold leading-tight tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
-                  {formatMinutesShort(totalStudiedSecs)}
-                </p>
-              </div>
-              {totalTargetMin > 0 && (
-                <div className="shrink-0 text-right">
-                  <p className="text-xs tabular-nums" style={{ color: "var(--bt-accent-text)" }}>/ {totalTargetMin} min</p>
-                  <p className="text-xs font-bold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>{studiedPct}%</p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Examens ── */}
-            {exams.length > 0 && (
-              <div className="mb-4">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-                  {t("plan.dayExams")}
-                </p>
-                <div className="space-y-2">
-                  {exams.map(ex => {
-                    if (editingExamId === ex.id) {
-                      return (
-                        <ExamForm key={ex.id}
-                          value={examEditForm}
-                          onChange={patch => setExamEditForm(f => ({ ...f, ...patch }))}
-                          onSubmit={handleExamEditSave}
-                          onCancel={() => setEditingExamId(null)}
-                          submitLabel={t("common.save")}
-                          title={t("plan.dayEdit")} />
-                      );
-                    }
-                    return (
-                      <div key={ex.id} className="bt-plan-exam-detail">
-                        <div className="min-w-0 flex-1">
-                          <PlanningExamMark label={t("plan.examTag")} />
-                          {ex.name && <p className="mt-1 break-words text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{ex.name}</p>}
-                          {ex.course_id && <p className="mt-1 flex items-center gap-1.5 text-sm"><CourseMark id={ex.course_id} />{courseName(ex.course_id)}</p>}
-                          {(ex.exam_time || ex.location) && (
-                            <p className="mt-0.5 text-xs" style={{ color: "var(--bt-text-1)" }}>
-                              {[ex.exam_time, ex.location].filter(Boolean).join(" · ")}
-                            </p>
-                          )}
-                          <ExamBadge days={daysUntil(ex.exam_date)} />
-                          {ex.source === "course" && <LegacyExamDate exam={ex} />}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          {ex.source !== "course" && <button onClick={() => startExamEdit(ex)} title={t("plan.dayEdit")} aria-label={t("plan.dayEdit")}
-                            className="bt-plan-icon-btn flex h-11 w-11 items-center justify-center rounded-lg">
-                            <IconEdit />
-                          </button>}
-                          <button onClick={() => removeExam(ex.id)} title={t("common.delete")} aria-label={t("common.delete")}
-                            className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-11 w-11 items-center justify-center rounded-lg">
-                            <IconTrash />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ── Objectifs ── */}
-            <div className="mb-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-                {t(academic.byDate[modalDate]?.length ? "academic.studyPlan" : "plan.dayPlans")}
-              </p>
-              {/* Sur un jour d'examen sans objectif, la section « Prévu »
-                  restait un titre suivi de rien. Elle parle des objectifs :
-                  son vide se mesure aux objectifs seuls, pas aux examens. */}
-              {objectives.length === 0 && (
-                <p className="py-3 text-sm" style={{ color: "var(--bt-text-3)" }}>
-                  {t("plan.dayNothingPlanned")}
-                </p>
-              )}
-              <div className="space-y-2">
-                {objectives.map(o => {
-                  const realSecs = o.course_id
-                    ? sessions.filter(s => s.course_id === o.course_id && ymd(new Date(s.started_at)) === o.scheduled_date)
-                        .reduce((a, s) => a + s.duration_seconds, 0)
-                    : 0;
-                  const recurLabel  = recurrenceBadgeLabel(o, t, lang);
-                  const statusLabel = o.done ? t("plan.dayDone") : isPast ? t("plan.dayOverdue") : t("plan.dayTodo");
-                  const statusTone  = o.done
-                    ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)" }
-                    : isPast
-                      ? { backgroundColor: "var(--bt-danger-bg)", color: "var(--bt-danger)" }
-                      : { backgroundColor: "var(--bt-surface)", color: "var(--bt-text-3)" };
-                  const isEditing   = editingObjId === o.id;
-
-                  return (
-                    <div key={o.id} className="overflow-hidden rounded-2xl"
-                      style={{ border: `1px solid ${isEditing ? "var(--bt-accent)" : "var(--bt-border)"}`, transition: "border-color 0.15s" }}>
-
-                      {/* ── View mode ── */}
-                      {!isEditing && (
-                        <>
-                        <div className="flex items-start gap-3 px-4 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                          <input type="checkbox" checked={o.done} onChange={() => toggle(o)}
-                            aria-label={o.title || courseName(o.course_id) || "—"}
-                            className="bt-task-check mt-0.5 h-4 w-4 shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            {/* Le titre garde sa ligne entière. La pastille
-                                d'état partageait cette ligne avec quatre
-                                boutons d'action : à 375 px il ne restait
-                                qu'une centaine de pixels et « Relire les
-                                fiches » se lisait « Relire l… ». */}
-                            <div className="flex items-center gap-2">
-                              <CourseMark id={o.course_id} />
-                              <p className="min-w-0 flex-1 text-sm font-medium"
-                                style={{ color: o.done ? "var(--bt-text-4)" : "var(--bt-text-1)" }}>
-                                <span className={`bt-strike ${o.done ? "is-done" : ""} inline-block max-w-full truncate align-bottom`}>
-                                  {o.title || courseName(o.course_id) || "—"}
-                                </span>
-                              </p>
-                            </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={statusTone}>
-                                {statusLabel}
-                              </span>
-                              <span className="text-xs" style={{ color: "var(--bt-text-1)" }}>{courseName(o.course_id) || t("plan.unassigned")}</span>
-                              {o.scheduled_time && <span className="text-xs font-medium tabular-nums" style={{ color: "var(--bt-text-3)" }}>· {o.scheduled_time}</span>}
-                              {o.target_minutes > 0 && <span className="text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>· {o.target_minutes} min</span>}
-                              {recurLabel && <span className="text-xs font-semibold" style={{ color: "var(--bt-text-4)" }}>· ↻ {recurLabel}</span>}
-                              {realSecs > 0 && <span className="text-xs font-semibold" style={{ color: "var(--bt-accent-text)" }}>· {formatMinutesShort(realSecs)} {t("plan.dayStudied").toLowerCase()}</span>}
-                            </div>
-                            {o.target_minutes > 0 && realSecs > 0 && (
-                              <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--bt-border)" }}>
-                                <div className="h-full origin-left rounded-full transition-transform duration-300 motion-reduce:transition-none" style={{
-                                  transform: `scaleX(${Math.min(100, Math.round(realSecs / 60 / o.target_minutes * 100)) / 100})`,
-                                  backgroundColor: "var(--bt-progress-fill)",
-                                }} />
-                              </div>
-                            )}
-                          </div>
-                          {/* Actions */}
-                          <div className="flex shrink-0 items-center gap-0.5">
-                            {!o.done && isToday && o.course_id && (
-                              <button onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}
-                                className="bt-plan-icon-btn bt-plan-icon-btn--accent flex h-8 w-8 items-center justify-center rounded-lg"
-                                title={t("plan.launchTimer")} aria-label={t("plan.launchTimer")}>
-                                <IconPlay />
-                              </button>
-                            )}
-                            {!o.done && (
-                              <button onClick={() => setPostponingId(p => p === o.id ? null : o.id)}
-                                className="bt-plan-icon-btn flex h-8 w-8 items-center justify-center rounded-lg"
-                                style={postponingId === o.id ? { color: "var(--bt-warning)" } : undefined}
-                                title={t("plan.postponeTooltip")} aria-label={t("plan.postponeTooltip")}
-                                aria-expanded={postponingId === o.id}>
-                                <Glyph size={12}>
-                                  <rect x="3" y="4" width="18" height="18" rx="2"/>
-                                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                                  <line x1="3" y1="10" x2="21" y2="10"/>
-                                  <path d="M16 14l2 2 4-4"/>
-                                </Glyph>
-                              </button>
-                            )}
-                            <button onClick={() => startInlineEdit(o)}
-                              className="bt-plan-icon-btn flex h-8 w-8 items-center justify-center rounded-lg"
-                              title={t("plan.dayEdit")} aria-label={t("plan.dayEdit")}>
-                              <IconEdit />
-                            </button>
-                            {/* Corbeille et non croix : dans une fiche qui se
-                                ferme aussi par une croix, la même icône
-                                voulait dire « fermer » ici et « supprimer
-                                définitivement » là. */}
-                            <button onClick={() => remove(o.id)}
-                              className="bt-plan-icon-btn bt-plan-icon-btn--danger flex h-8 w-8 items-center justify-center rounded-lg"
-                              title={t("common.delete")} aria-label={t("common.delete")}>
-                              <IconTrash />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Report : demain en un clic, ou une autre date */}
-                        {postponingId === o.id && !o.done && (
-                          <div className="flex items-center gap-2 px-4 pb-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
-                            <button onClick={() => { postpone(o.id, tomorrow); setPostponingId(null); }}
-                              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                              style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", color: "var(--bt-text-1)" }}>
-                              {t("plan.dayPostpone")}
-                            </button>
-                            <input type="date" className="input flex-1 py-1.5 text-xs" min={tomorrow}
-                              aria-label={t("plan.postponeOtherDate")}
-                              onChange={e => {
-                                if (e.target.value && e.target.value >= tomorrow) {
-                                  postpone(o.id, e.target.value);
-                                  setPostponingId(null);
-                                }
-                              }} />
-                          </div>
-                        )}
-                        </>
-                      )}
-
-                      {/* ── Inline edit mode ── */}
-                      {isEditing && (
-                        <div className="px-4 py-3" style={{ backgroundColor: "var(--bt-surface)" }}>
-                          <ObjectiveForm
-                            value={editForm}
-                            onChange={patch => setEditForm(f => ({ ...f, ...patch }))}
-                            onSubmit={handleInlineSave}
-                            onCancel={() => setEditingObjId(null)}
-                            minDate={modalDate}
-                            submitLabel={t("common.save")}
-                            autoFocus />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <AcademicDeadlines events={academic.byDate[modalDate]} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork} />
-
-            {!showAddForm && !showAddExamForm && (
-              <details className="bt-planning-add-menu">
-                <summary className="btn-ghost flex min-h-11 items-center gap-1.5 px-3 text-sm font-semibold"><IconPlus size={13} />{t("common.add")}</summary>
-                <div className="flex flex-wrap gap-2">
-                  {!isPast && <button onClick={() => setShowAddForm(true)} className="btn-ghost min-h-11 px-3 text-sm">{t("academic.studyObjective")}</button>}
-                  <button onClick={() => setShowAddExamForm(true)} className="btn-ghost min-h-11 px-3 text-sm">{t("plan.addExamShort")}</button>
-                </div>
-              </details>
-            )}
-
-            {showAddForm && !isPast && (
-              <div>
-              {academicPrefill && <label className="mb-3 block text-sm">{t("academic.planDate")}<input type="date" className="input mt-1 w-full" min={localToday()} required value={studyDate} onChange={e => setStudyDate(e.target.value)} /></label>}
-              <ObjectiveForm
-                className="rounded-2xl p-4"
-                style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}
-                title={t("plan.newObjectiveTitle")}
-                value={addForm}
-                onChange={patch => setAddForm(f => ({ ...f, ...patch }))}
-                onSubmit={handleAdd}
-                onCancel={() => setShowAddForm(false)}
-                minDate={academicPrefill ? studyDate : modalDate}
-                submitLabel={t("common.add")}
-                autoFocus />
-              </div>
-            )}
-
-            {showAddExamForm && (
-              <ExamForm
-                value={examForm}
-                onChange={patch => setExamForm(f => ({ ...f, ...patch }))}
-                onSubmit={handleAddExam}
-                onCancel={() => setShowAddExamForm(false)}
-                submitLabel={t("plan.examSubmit")}
-                title={t("plan.newExamTitle")}
-                dateLabel={dayTitle} />
-            )}
-
-            {/* ── Dupliquer ce jour : recopie tous ses objectifs vers une autre
-                 date (structure de révision réutilisable) ── */}
-            {objectives.length > 0 && (
-              <div className="mt-3">
-                {!dupOpen ? (
-                  <button onClick={() => setDupOpen(true)}
-                    className="bt-plan-quiet-btn flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-medium">
-                    <IconCopy size={12} />
-                    {t("plan.duplicateDay")}
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2 rounded-xl p-2.5"
-                    style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
-                    <span className="shrink-0 text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.duplicateDayTo")}</span>
-                    <input type="date" className="input flex-1 py-1.5 text-xs" min={today}
-                      aria-label={t("plan.duplicateDayTo")}
-                      onChange={async e => {
-                        if (e.target.value && e.target.value !== modalDate) {
-                          await duplicateDay(modalDate, e.target.value);
-                          setDupOpen(false);
-                        }
-                      }} />
-                    <button type="button" onClick={() => setDupOpen(false)} className="btn-ghost px-2 py-1 text-xs">{t("common.cancel")}</button>
-                  </div>
+                <h2 className="text-lg font-bold leading-tight" style={{ color: "var(--bt-text-1)" }}>{dayTitle}</h2>
+                {(isToday || isPast) && (
+                  <p className="mt-1 text-xs font-semibold" style={{ color: isToday ? "var(--bt-accent-text)" : "var(--bt-text-2)" }}>
+                    {isToday ? t("common.today") : t("plan.dayPast")}
+                  </p>
                 )}
               </div>
-            )}
+              <button ref={closeRef} type="button" onClick={() => setModalDate(null)} aria-label={t("common.close")}
+                className="bt-plan-icon-action -mr-2 shrink-0">
+                <IconClose size={14} />
+              </button>
+            </div>
+            <DayPlan date={modalDate} inSheet />
           </div>
         </div>
       </div>
@@ -1101,28 +945,16 @@ function DayDetailModal() {
   );
 }
 
-// ── CalendarLegend ────────────────────────────────────────────
-function CalendarLegend() {
-  const { t } = usePlan();
-
-  const items = [
-    { label: t("plan.legendExam"),      node: <PlanningExamMark label={t("plan.examTag")} /> },
-    { label: t("common.today"),         node: <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "var(--bt-accent)" }} /> },
-  ];
-  return (
-    <ul className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 no-print">
-      {items.map(i => (
-        <li key={i.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: "var(--bt-text-3)" }}>
-          {i.node}{i.label !== t("plan.legendExam") && i.label}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 // ── MonthView ─────────────────────────────────────────────────
-// Une carte de la charge de travail. Le fond porte l'IDENTITÉ (le cours qui
-// pèse le plus de minutes ce jour-là). L'examen garde la priorité sur le fond.
+// « Mois = anticiper » : les jalons et les périodes chargées. Chaque case suit
+// la même anatomie, de haut en bas :
+//   date (et, sur ordinateur, la durée d'étude prévue à droite) ;
+//   l'examen, qui possède le fond de la case ;
+//   un ou deux titres d'objectifs (ordinateur) ;
+//   en pied de case, le NOMBRE d'échéances importées — jamais leurs titres.
+// Le fond porte l'identité du cours qui pèse le plus de minutes ce jour-là.
+// Pas de légende : l'estampille « Examen » se nomme elle-même et
+// aujourd'hui a son disque.
 function MonthView() {
   const { academic, cursor, byDate, examsByDate, selectedDate, setSelectedDate, openDay, courseColor, courseName, lang, t } = usePlan();
   const grid  = buildMonthGrid(cursor.year, cursor.month);
@@ -1131,19 +963,17 @@ function MonthView() {
     .filter(week => week.some(d => d.getMonth() === cursor.month));
 
   return (
-    <section className="card overflow-hidden">
-      {/* Day-of-week header */}
+    <section className="card overflow-hidden bt-plan-month">
       <div className="grid grid-cols-7 border-b" style={{ borderColor: "var(--bt-border)" }}>
         {weekdaysShortFor(lang).map((d, i) => (
           <div key={d}
-            className="py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider"
+            className="py-2 text-center text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: i >= 5 ? "var(--bt-text-3)" : "var(--bt-text-2)" }}>
             {d}
           </div>
         ))}
       </div>
 
-      {/* Week rows */}
       <div>
         {weeks.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7"
@@ -1157,85 +987,79 @@ function MonthView() {
               const isToday   = key === today;
               const isSel     = key === selectedDate;
               const items     = byDate[key]      || [];
-              const imported = academicSummary(academic.byDate[key]);
-              const hasImported = !!academic.byDate[key]?.length;
+              const imported  = academicSummary(academic.byDate[key]);
               const examItems = [...(examsByDate[key] || []), ...imported.exams.map(e => ({ name: e.course_name || e.title, course_id: e.course_id, imported: true }))];
 
-              // La charge de la journée, en MINUTES prévues. Le cours dominant
-              // est celui qui pèse le plus de temps, plus celui qui compte le
-              // plus de tâches : une matinée de Finance de 4 h ne perd plus
-              // contre deux QCM de Marketing de 20 min.
+              // La charge en MINUTES prévues ; seul un vrai cours teinte la case.
               const load  = dayLoad(items);
-              // Seul un vrai cours peut teinter la case. Si la plus grosse part
-              // de la journée n'a pas de cours, aucun cours ne « possède » ce
-              // jour : la case reste neutre plutôt que d'emprunter une identité.
               const tint  = load.dominantCourseId ? rgbTriplet(courseColor(load.dominantCourseId)) : null;
-
-              // UNE seule source de fond par case — jamais deux règles CSS qui
-              // se disputent la même cellule. La sélection n'en fait PAS partie :
-              // elle s'exprime par le contour vert, pas par un aplat. Sinon le
-              // jour sélectionné — aujourd'hui par défaut — était le seul à ne
-              // jamais montrer la couleur de son cours.
-              const fill = examItems.length ? "exam"
-                : tint ? "course"
-                : items.length ? "planned"
-                : null;
-
-              // La couleur n'est jamais la seule source de sens : le libellé
-              // accessible garde la quantité exacte, même sans bande en Month.
+              const fill = examItems.length ? "exam" : tint ? "course" : items.length ? "planned" : null;
               const loadAria = load.minutes > 0
                 ? t("plan.loadAria")
                     .replace("{t}", formatMinutesShort(load.minutes * 60))
                     .replace("{courses}", load.courses.map(entry => entry.id ? courseName(entry.id) : t("plan.unassigned")).filter(Boolean).join(", "))
                 : "";
-              const label = `${quickDateLabel(key, lang, t)} — ${t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length)}, ${t(examItems.length === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", examItems.length)}${loadAria ? ` — ${loadAria}` : ""}`;
+              const label = [
+                quickDateLabel(key, lang, t),
+                t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length),
+                examItems.length ? `${t(examItems.length === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", examItems.length)} : ${examItems.map(e => e.name || courseName(e.course_id)).join(", ")}` : null,
+                imported.deadlines ? t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines) : null,
+                loadAria || null,
+              ].filter(Boolean).join(" — ");
+              const titles = items.slice(0, examItems.length ? 1 : 2);
+              const firstExam = examItems[0];
 
               return (
-                <button key={key} onClick={() => { if (inMonth || examItems.length || imported.deadlines) openDay(key); else setSelectedDate(key); }}
-                  aria-label={`${label}${imported.deadlines ? ` — ${t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines)}` : ""}${examItems.length ? ` — ${examItems.map(e => e.name || courseName(e.course_id)).join(", ")}` : ""}`} aria-current={isToday ? "date" : undefined}
-                  // Aujourd'hui porte déjà sa pastille verte sur le numéro. Le
-                  // contour vert de sélection, qui tombe dessus par défaut,
-                  // faisait un SECOND signal vert pour le même fait — et la
-                  // case du jour criait alors plus fort qu'un examen voisin.
-                  // Sélectionner un autre jour garde son contour ; aujourd'hui
-                  // reste repérable par sa pastille et par `aria-current`.
+                <button key={key} type="button" onClick={() => { if (inMonth || examItems.length || imported.deadlines) openDay(key); else setSelectedDate(key); }}
+                  aria-label={label} aria-current={isToday ? "date" : undefined}
+                  // Aujourd'hui garde son disque ; le contour de sélection ne
+                  // s'y ajoute pas (sinon le jour criait plus fort qu'un examen).
                   data-fill={fill || undefined} data-selected={isSel && !isToday ? "1" : undefined}
                   data-outside-month={!inMonth ? "1" : undefined}
                   data-past={key < today ? "1" : undefined}
                   data-past-complete={key < today && !examItems.length && items.length > 0 && items.every(o => o.done) ? "1" : undefined}
-                  className="bt-plan-day-cell relative min-h-[96px] p-1 text-left sm:min-h-[112px] sm:p-2"
+                  className="bt-plan-day-cell relative text-left"
                   style={{
                     "--bt-day-tint": tint || undefined,
                     borderRight: di < 6 ? "1px solid var(--bt-border)" : "none",
                   }}>
-                  {/* Day number */}
-                  <span className={`bt-plan-month-date mb-1 inline-flex min-h-6 items-center gap-1 font-num text-xs font-bold tabular-nums${adjacentMonthLabel ? " bt-plan-month-date--labelled" : ""}`}
-                    style={{ color: inMonth ? "var(--bt-text-1)" : "var(--bt-text-2)" }}>
-                    <span className="bt-plan-month-date-number inline-flex h-6 w-6 items-center justify-center rounded-full"
-                      style={isToday ? { backgroundColor: "var(--bt-action)", color: "#fff" } : undefined}>{d.getDate()}</span>
-                    {adjacentMonthLabel && <span className="bt-plan-adjacent-month-label">{adjacentMonthLabel}</span>}
+                  <span className="bt-plan-month-head">
+                    <span className={`bt-plan-month-date inline-flex min-h-6 items-center gap-1 font-num text-xs font-bold tabular-nums${adjacentMonthLabel ? " bt-plan-month-date--labelled" : ""}`}
+                      style={{ color: inMonth ? "var(--bt-text-1)" : "var(--bt-text-2)" }}>
+                      <span className="bt-plan-month-date-number inline-flex h-6 w-6 items-center justify-center rounded-full"
+                        style={isToday ? { backgroundColor: "var(--bt-action)", color: "#fff" } : undefined}>{d.getDate()}</span>
+                      {adjacentMonthLabel && <span className="bt-plan-adjacent-month-label">{adjacentMonthLabel}</span>}
+                    </span>
+                    {load.minutes > 0 && <span className="bt-plan-month-load font-num tabular-nums" aria-hidden="true">{formatMinutesShort(load.minutes * 60)}</span>}
                   </span>
 
-                  {examItems.length > 0 && <div className="bt-planning-month-exam">
-                    <PlanningExamMark label={t("plan.examTag")} count={examItems.length} compact />
-                    {!examItems[0].imported && <span className="hidden truncate font-semibold sm:block">{examItems[0].name}</span>}
-                    {examItems[0].course_id && <span className="mt-1 flex min-w-0 items-center gap-1" title={courseName(examItems[0].course_id)}><CourseMark id={examItems[0].course_id} /><span className="hidden truncate sm:inline">{courseName(examItems[0].course_id)}</span></span>}
-                  </div>}
-                  {imported.deadlines > 0 && <span className="bt-academic-month-count" aria-hidden="true"><span className="hidden sm:inline">{t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines)}</span><span className="flex flex-col sm:hidden"><span>{imported.deadlines}</span><span>{t("academic.countCompactLabel")}</span></span></span>}
-                  {/* Titres — sm+ seulement, quand la case est assez large. */}
-                  {hasImported && load.minutes > 0 && <span className="bt-academic-month-count">{formatMinutesShort(load.minutes * 60)}</span>}
-                  <div className={hasImported ? "hidden" : "hidden space-y-0.5 sm:block"}>
-                    {items.slice(0, 2).map(o => (
-                      <div key={o.id} className="bt-plan-month-objective flex min-w-0 items-start gap-1" title={o.title || courseName(o.course_id) || ""}>
-                        <CourseMark id={o.course_id} />
-                        <span className="bt-plan-month-objective-title"
-                          style={{ color: "var(--bt-text-1)",
-                            textDecoration: o.done ? "line-through" : "none" }}>
-                          {o.title || courseName(o.course_id) || "—"}
+                  {firstExam && (
+                    <span className="bt-planning-month-exam" aria-hidden="true">
+                      <PlanningExamMark label={t("plan.examTag")} count={examItems.length} compact />
+                      <span className="bt-plan-month-exam-name">
+                        {firstExam.course_id && <CourseMark id={firstExam.course_id} />}
+                        <span className="bt-plan-month-exam-text">{firstExam.name || courseName(firstExam.course_id)}</span>
+                      </span>
+                    </span>
+                  )}
+
+                  {titles.length > 0 && (
+                    <span className="bt-plan-month-titles" aria-hidden="true">
+                      {titles.map(o => (
+                        <span key={o.id} className="bt-plan-month-objective" data-done={o.done ? "1" : undefined}>
+                          <CourseMark id={o.course_id} />
+                          <span className="bt-plan-month-objective-title">{o.title || courseName(o.course_id) || "—"}</span>
                         </span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </span>
+                  )}
+
+                  {imported.deadlines > 0 && (
+                    <span className="bt-plan-month-due" aria-hidden="true">
+                      <span className="bt-plan-month-due-long">{t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines)}</span>
+                      <span className="bt-plan-month-due-short">{imported.deadlines} {t("academic.countCompactLabel")}</span>
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -1247,147 +1071,105 @@ function MonthView() {
 }
 
 // ── WeekWorkload ──────────────────────────────────────────────
-// La semaine répond à « comment mon travail se répartit sur les prochains
-// jours », pas à « à quelle heure exactement ». Elle était une grille de
-// seize heures sur sept colonnes — 119 créneaux — alors que la grande
-// majorité des objectifs ne porte AUCUNE heure : tout s'entassait dans une
-// bande de 38 px au-dessus de mille pixels de grille vide, et sur téléphone
-// il fallait défiler horizontalement pour voir la semaine.
-//
-// Sept RANGÉES, pas sept colonnes : les bandes partagent le même bord gauche,
-// donc comparer deux journées revient à comparer deux longueurs alignées. Une
-// rangée garde toute la largeur disponible, donc les titres restent lisibles à
-// 320 px comme à 1440. Même structure sur téléphone et sur ordinateur — ce
-// n'est pas une grille réduite, c'est une liste dès le départ.
-const WEEK_CHIPS = 3;
-
+// « Semaine = équilibrer » : ma semaine est-elle bien répartie ? Sept rangées
+// d'UNE ligne (deux sur téléphone) qui partagent le même bord gauche : la
+// bande de charge, sur une échelle absolue commune, se compare d'un coup
+// d'œil d'un jour à l'autre. À côté : les objectifs en texte, l'examen en
+// estampille et le NOMBRE d'échéances — plus de sous-titre « Échéances
+// universitaires » répété sept fois, plus de puces empilées. Toute la
+// semaine tient dans un écran d'ordinateur ; une rangée ouvre sa journée.
 function WeekWorkload({ days }) {
   const { academic, byDate, examsByDate, courseColor, courseName, openDay, t, lang } = usePlan();
   const today = localToday();
   const loads = days.map(d => dayLoad(byDate[ymd(d)] || []));
   const weekMinutes = loads.reduce((sum, load) => sum + load.minutes, 0);
+  const weekExams = days.reduce((sum, d) => sum + (examsByDate[ymd(d)]?.length || 0) + academicSummary(academic.byDate[ymd(d)]).exams.length, 0);
+  const weekDue = days.reduce((sum, d) => sum + academicSummary(academic.byDate[ymd(d)]).deadlines, 0);
 
   function loadLabel(load) {
     if (!load.minutes) return t("plan.loadAriaEmpty");
-    const names = load.courses
-      .map(entry => entry.id ? courseName(entry.id) : t("plan.unassigned"))
-      .filter(Boolean);
-    return t("plan.loadAria")
-      .replace("{t}", formatMinutesShort(load.minutes * 60))
-      .replace("{courses}", names.join(", "));
+    const names = load.courses.map(entry => entry.id ? courseName(entry.id) : t("plan.unassigned")).filter(Boolean);
+    return t("plan.loadAria").replace("{t}", formatMinutesShort(load.minutes * 60)).replace("{courses}", names.join(", "));
   }
 
   return (
-    <section className="card overflow-hidden">
-      {/* Une ligne, pas une introduction. Le sous-titre expliquait des bandes
-          dont chaque ligne écrit déjà la durée exacte à côté ; c'était de la
-          cérémonie au-dessus de l'information. Le total, lui, reste le seul
-          chiffre que les bandes ne donnent pas — il passe donc en évidence. */}
-      <div className="flex items-baseline justify-between gap-4 border-b px-4 py-2.5 sm:px-5" style={{ borderColor: "var(--bt-border)" }}>
-        <h2 className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>
-          {t("plan.weekLoadTitle")}
-        </h2>
-        {weekMinutes > 0 && (
-          <p className="font-num shrink-0 text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
-            {formatMinutesShort(weekMinutes * 60)}
-          </p>
-        )}
+    <section className="card overflow-hidden bt-plan-week">
+      <div className="bt-plan-week-head">
+        <h2 className="bt-plan-section-label">{t("plan.weekLoadTitle")}</h2>
+        <p className="bt-plan-week-sum">
+          {[weekMinutes > 0 && <strong key="t" className="font-num tabular-nums">{formatMinutesShort(weekMinutes * 60)}</strong>,
+            weekExams > 0 && <span key="e">{t(weekExams === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", weekExams)}</span>,
+            weekDue > 0 && <span key="d">{t(weekDue === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", weekDue)}</span>,
+          ].filter(Boolean).reduce((acc, node, i) => (i ? [...acc, <span key={`s${i}`} aria-hidden="true"> · </span>, node] : [node]), [])}
+        </p>
       </div>
 
-      <ul>
+      <ul className="bt-plan-week-list">
         {days.map((d, i) => {
           const key       = ymd(d);
           const load      = loads[i];
           const items     = byDate[key] || [];
-          const examItems = examsByDate[key] || [];
+          const imported  = academicSummary(academic.byDate[key]);
+          const examItems = [...(examsByDate[key] || []), ...imported.exams.map(e => ({ id: e.key, name: e.title, course_id: e.course_id, exam_time: null }))];
           const isToday   = key === today;
           const isPast    = key < today;
           const overdue   = isPast ? items.filter(o => !o.done).length : 0;
-          const segments  = loadSegments(load, 3);
-          const rest      = segments.find(segment => segment.rest)?.rest || 0;
-          const shown     = items.slice(0, WEEK_CHIPS);
-          const hidden    = items.length - shown.length;
-
-          // La densité suit la quantité d'information. Une journée sans rien
-          // occupait presque autant de hauteur qu'une journée à huit objectifs :
-          // sur téléphone, cinq lignes d'affilée répétaient la même absence.
-          // Elle se réduit à sa date, sur une seule ligne. Les sept jours
-          // restent là — la structure lundi→dimanche ne se devine pas, elle se
-          // lit — mais l'absence cesse d'occuper la place du travail.
-          const empty = !load.minutes && !examItems.length && !items.length && !academic.byDate[key]?.length;
+          const pending   = items.filter(o => !o.done);
+          const empty     = !load.minutes && !examItems.length && !items.length && !imported.deadlines;
+          const firstExam = examItems[0];
+          const summary = [
+            quickDateLabel(key, lang, t),
+            loadLabel(load),
+            items.length ? t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length) : null,
+            overdue ? t(overdue === 1 ? "plan.overdueOne" : "plan.overdueMany").replace("{n}", overdue) : null,
+            examItems.length ? `${t(examItems.length === 1 ? "plan.examCountOne" : "plan.examCountMany").replace("{n}", examItems.length)} : ${examItems.map(e => e.name || courseName(e.course_id)).join(", ")}` : null,
+            imported.deadlines ? t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines) : null,
+          ].filter(Boolean).join(" — ");
 
           return (
-            <li key={key} className="bt-plan-week-row" data-today={isToday ? "1" : undefined}
-              data-exam={examItems.length ? "1" : undefined} data-empty={empty ? "1" : undefined}>
-              <button type="button" className="bt-plan-week-date" onClick={() => openDay(key)}
+            <li key={key}>
+              <button type="button" className="bt-plan-week-row" onClick={() => openDay(key)} aria-label={summary}
                 aria-current={isToday ? "date" : undefined}
-                aria-label={`${t("plan.openDay")} — ${quickDateLabel(key, lang, t)}`}>
-                <span className="bt-plan-week-weekday">{weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}</span>
-                <span className="bt-plan-week-daynum font-num tabular-nums">{d.getDate()}</span>
-                {/* La phrase n'est plus écrite sept fois de suite : l'absence de
-                    barre EST l'absence de travail. Elle reste dite aux
-                    technologies d'assistance, qui ne voient pas ce vide. */}
-                {empty && <span className="sr-only">{t("plan.noPlan")}</span>}
+                data-today={isToday ? "1" : undefined} data-exam={examItems.length ? "1" : undefined} data-empty={empty ? "1" : undefined}
+                data-past={isPast ? "1" : undefined}>
+                <span className="bt-plan-week-date" aria-hidden="true">
+                  <span className="bt-plan-week-weekday">{weekdaysShortFor(lang)[(d.getDay() + 6) % 7]}</span>
+                  <span className="bt-plan-week-daynum font-num tabular-nums">{d.getDate()}</span>
+                </span>
+
+                <span className="bt-plan-week-load" aria-hidden="true">
+                  {load.minutes > 0
+                    ? <><PlanningLoadBar load={load} courseColor={courseColor} max={3} /><span className="bt-plan-week-total font-num tabular-nums">{formatMinutesShort(load.minutes * 60)}</span></>
+                    : <span className="bt-plan-week-none">{empty ? t("plan.noPlan") : "—"}</span>}
+                </span>
+
+                <span className="bt-plan-week-work" aria-hidden="true">
+                  {items.length > 0 && (
+                    <span className="bt-plan-week-titles">
+                      {(pending.length ? pending : items).slice(0, 3).map(o => (
+                        <span key={o.id} className="bt-plan-week-title" data-done={o.done ? "1" : undefined}><CourseMark id={o.course_id} /><span>{o.title || courseName(o.course_id) || "—"}</span></span>
+                      ))}
+                    </span>
+                  )}
+                  {(items.length > 3 || overdue > 0 || (items.length && !pending.length)) && (
+                    <span className="bt-plan-week-meta">
+                      {[items.length > 3 && t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length),
+                        items.length > 0 && !pending.length && t("plan.allDone"),
+                        overdue > 0 && t(overdue === 1 ? "plan.overdueOne" : "plan.overdueMany").replace("{n}", overdue)].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                </span>
+
+                <span className="bt-plan-week-academic" aria-hidden="true">
+                  {firstExam && (
+                    <span className="bt-plan-week-exam">
+                      <PlanningExamMark label={t("plan.examTag")} count={examItems.length} compact />
+                      <span className="bt-plan-week-exam-name">{firstExam.name || courseName(firstExam.course_id)}{firstExam.exam_time ? ` · ${firstExam.exam_time.slice(0, 5)}` : ""}</span>
+                    </span>
+                  )}
+                  {imported.deadlines > 0 && <span className="bt-plan-week-due">{t(imported.deadlines === 1 ? "academic.countOne" : "academic.countMany").replace("{n}", imported.deadlines)}</span>}
+                </span>
               </button>
-
-              <div className="bt-plan-week-body">
-                {examItems.length > 0 && (
-                  <div className="bt-plan-week-exams">
-                    {examItems.map(exam => (
-                      <button type="button" key={exam.id} className="bt-planning-week-exam" onClick={() => openDay(key)}>
-                        <PlanningExamMark label={t("plan.examTag")} />
-                        <strong className="block truncate">{exam.name || courseName(exam.course_id) || t("plan.examTag")}</strong>
-                        <span className="flex min-w-0 items-center gap-1 text-xs">
-                          {exam.exam_time && <span className="font-num tabular-nums">{exam.exam_time.slice(0, 5)}</span>}
-                          {exam.course_id && <><CourseMark id={exam.course_id} /><span className="truncate">{courseName(exam.course_id)}</span></>}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {load.minutes > 0 ? (
-                  <>
-                    <div className="bt-plan-week-meter">
-                      <PlanningLoadBar load={load} courseColor={courseColor} max={3} label={loadLabel(load)} />
-                      <span className="font-num bt-plan-week-total tabular-nums">{formatMinutesShort(load.minutes * 60)}</span>
-                    </div>
-                    <p className="bt-plan-week-meta">
-                      {[
-                        t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length),
-                        overdue > 0 && t(overdue === 1 ? "plan.overdueOne" : "plan.overdueMany").replace("{n}", overdue),
-                        rest > 0 && t(rest === 1 ? "plan.otherCoursesOne" : "plan.otherCoursesMany").replace("{n}", rest),
-                      ].filter(Boolean).join(" · ")}
-                    </p>
-                  </>
-                ) : null}
-
-                {shown.length > 0 && (
-                  <div className="bt-plan-week-chips">
-                    {shown.map(o => (
-                      <button type="button" key={o.id} className="bt-plan-objective-chip"
-                        data-done={o.done ? "1" : undefined}
-                        title={o.title || courseName(o.course_id) || ""}
-                        onClick={() => openDay(key)}>
-                        <CourseMark id={o.course_id} />
-                        <span className="min-w-0 truncate">
-                          {o.title || courseName(o.course_id) || "—"}
-                          <span className="sr-only"> · {courseName(o.course_id) || t("plan.unassigned")}</span>
-                        </span>
-                        {o.scheduled_time && <span className="font-num shrink-0 tabular-nums" style={{ color: "var(--bt-text-3)" }}>{o.scheduled_time.slice(0, 5)}</span>}
-                      </button>
-                    ))}
-                    {/* Jamais un « +3 » nu : le nom de ce qui est replié est
-                        écrit, et le bouton ouvre exactement cette journée. */}
-                    {hidden > 0 && (
-                      <button type="button" className="bt-plan-week-more" onClick={() => openDay(key)}>
-                        {t(hidden === 1 ? "plan.moreObjectivesOne" : "plan.moreObjectivesMany").replace("{n}", hidden)}
-                      </button>
-                    )}
-                  </div>
-                )}
-                <AcademicDeadlines compact events={academic.byDate[key]} t={t} onOpen={() => openDay(key)} />
-              </div>
             </li>
           );
         })}
@@ -1397,46 +1179,21 @@ function WeekWorkload({ days }) {
 }
 
 // ── TimeGrid ──────────────────────────────────────────────────
-// Semaine et jour partagent la même grille horaire. Sur téléphone, sept
-// colonnes dans 390 px donnaient ~45 px par jour : illisible dès qu'un
-// objectif porte un titre. La grille garde donc une largeur mini par colonne
-// et défile horizontalement quand l'écran est trop étroit.
-function DayAgenda() {
-  const { academic, courses, planAcademicWork, selectedDate, byDate, examsByDate, courseName, courseColor, toggle, openDay, launchTimer, lang, t } = usePlan();
-  const items = [...(byDate[selectedDate] || [])].sort((a, b) => Number(a.done) - Number(b.done) || (a.scheduled_time || "99").localeCompare(b.scheduled_time || "99"));
-  const exams = examsByDate[selectedDate] || [];
-  const work = dayWorkload(items);
-  return <section className="card p-4 sm:p-5">
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <div><h2 className="text-base font-bold">{t(academic.byDate[selectedDate]?.length ? "academic.studyPlan" : "plan.yourDay")}</h2>
-        <p className="text-sm" style={{ color: "var(--bt-text-2)" }}>{t(work.remaining === 1 ? "plan.remainingOne" : "plan.remainingMany").replace("{n}", work.remaining)}{work.minutes > 0 && ` · ${formatMinutesShort(work.minutes * 60)}`}</p></div>
-      <button className="btn-ghost min-h-11 px-3 text-sm" onClick={() => openDay(selectedDate)}>{t("common.add")}</button>
-    </div>
-    {exams.map(exam => <button key={exam.id} className="bt-planning-agenda-exam" onClick={() => openDay(selectedDate)}>
-      <span className="min-w-0 flex-1"><PlanningExamMark label={t("plan.examTag")} />{exam.exam_time && <span className="ml-2 text-sm">{exam.exam_time.slice(0, 5)}</span>}{exam.name && <strong className="mt-1 block">{exam.name}</strong>}<span className="mt-1 flex items-center gap-2 text-sm">{exam.course_id && <CourseMark id={exam.course_id} />}{[courseName(exam.course_id), exam.location].filter(Boolean).join(" · ")}</span><ExamBadge days={daysUntil(exam.exam_date)} /></span><IconChevron dir="right" />
-    </button>)}
-    {!items.length && <p className="py-4 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("plan.noObjectivesDay")}</p>}
-    <ul>{items.map(o => <li key={o.id} className="bt-planning-task">
-      <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" className="bt-task-check h-4 w-4" checked={o.done} onChange={() => toggle(o)} aria-label={o.title || courseName(o.course_id)} /></label>
-      <button className="min-w-0 flex-1 py-3 text-left" onClick={() => openDay(selectedDate)}>
-        <span className={`bt-strike ${o.done ? "is-done" : ""} max-w-full break-words text-sm font-semibold`}>{o.title || courseName(o.course_id)}</span>
-        <span className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--bt-text-2)" }}><CourseMark id={o.course_id} />{courseName(o.course_id) || t("plan.unassigned")}{o.scheduled_time && <span>{o.scheduled_time.slice(0, 5)}</span>}{o.target_minutes > 0 && <span>{formatMinutesShort(o.target_minutes * 60)}</span>}</span>
-      </button>
-      {!o.done && o.course_id && selectedDate === localToday() && <button className="bt-plan-icon-btn min-h-11 min-w-11" aria-label={`${t("plan.startStudying")} · ${o.title || courseName(o.course_id)}`} onClick={() => launchTimer(o.course_id, o.target_minutes, o.title)}><IconPlay size={16} /></button>}
-    </li>)}</ul>
-    <AcademicDeadlines events={academic.byDate[selectedDate]} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork} />
-  </section>;
-}
-
+// Les objectifs posés à une heure précise. La grille ne déroule que les
+// heures utiles (de la première à la dernière heure occupée, une heure de
+// marge de chaque côté) au lieu de seize rangées vides. Sur téléphone, elle
+// défile horizontalement plutôt que d'écraser sept colonnes.
 function TimeGrid({ days }) {
-  const { byDate, examsByDate, selectedDate, courseColor, courseName, openDay, t, lang } = usePlan();
+  const { byDate, examsByDate, selectedDate, courseName, openDay, t, lang } = usePlan();
   const today = localToday();
   const multi = days.length > 1;
   const gridMinWidth = multi ? TIMEGRID_GUTTER + days.length * TIMEGRID_MIN_COL : 0;
   const columns = `${TIMEGRID_GUTTER}px repeat(${days.length}, minmax(0, 1fr))`;
+  const used = days.flatMap(d => (byDate[ymd(d)] || []).map(o => getHour(o.scheduled_time))).filter(h => HOURS.includes(h));
+  const first = Math.max(HOURS[0], Math.min(...used) - 1);
+  const last = Math.min(HOURS[HOURS.length - 1], Math.max(...used) + 1);
+  const hours = used.length ? HOURS.filter(h => h >= first && h <= last) : HOURS;
 
-  // Clic sur un créneau : ouvre la fiche du jour, formulaire d'ajout
-  // pré-rempli sur l'heure cliquée (une seule surface d'ajout : le modal).
   function handleSlotClick(key, h) {
     openDay(key, h !== null ? String(h).padStart(2, "0") + ":00" : null);
   }
@@ -1446,8 +1203,6 @@ function TimeGrid({ days }) {
       <section className="card overflow-hidden">
         <div className="overflow-x-auto">
           <div style={{ minWidth: gridMinWidth || undefined }}>
-
-            {/* En-tête jours */}
             <div className="grid" style={{ gridTemplateColumns: columns, borderBottom: "1px solid var(--bt-border)" }}>
               <div style={{ borderRight: "1px solid var(--bt-border)" }} />
               {days.map(d => {
@@ -1455,7 +1210,7 @@ function TimeGrid({ days }) {
                 const isToday = key === today;
                 const isSel   = key === selectedDate;
                 return (
-                  <button key={key} onClick={() => openDay(key)}
+                  <button key={key} type="button" onClick={() => openDay(key)}
                     className="bt-plan-day-head py-2 text-center transition-colors"
                     aria-current={isToday ? "date" : undefined}
                     style={{ borderRight: "1px solid var(--bt-border)", backgroundColor: isSel ? "var(--bt-mint-strong)" : "transparent" }}>
@@ -1466,52 +1221,44 @@ function TimeGrid({ days }) {
                       style={isToday ? { backgroundColor: "var(--bt-action)", color: "#fff" } : { color: "var(--bt-text-1)" }}>
                       {d.getDate()}
                     </span>
-                    {/* Le compte et la durée du jour vivent dans la charge de la
-                        semaine, soixante pixels plus haut. Les répéter ici
-                        donnait deux chiffres différents pour la même journée —
-                        l'un « restant », l'autre « prévu ». */}
                   </button>
                 );
               })}
             </div>
 
-            {/* Ligne "toute la journée" (objectifs sans heure + examens) */}
-            <div className="grid min-h-[38px]"
-              style={{ gridTemplateColumns: columns, backgroundColor: "var(--bt-subtle)", borderBottom: "1px solid var(--bt-border)" }}>
-              <div className="flex items-center justify-center px-1" style={{ borderRight: "1px solid var(--bt-border)" }}>
-                <span className="text-[10px] font-medium" style={{ color: "var(--bt-text-3)" }}>{t("plan.allDayShort")}</span>
+            {/* Toute la journée : les examens seulement. */}
+            {days.some(d => (examsByDate[ymd(d)] || []).length) && (
+              <div className="grid min-h-[38px]"
+                style={{ gridTemplateColumns: columns, backgroundColor: "var(--bt-subtle)", borderBottom: "1px solid var(--bt-border)" }}>
+                <div className="flex items-center justify-center px-1" style={{ borderRight: "1px solid var(--bt-border)" }}>
+                  <span className="text-[10px] font-medium" style={{ color: "var(--bt-text-3)" }}>{t("plan.allDayShort")}</span>
+                </div>
+                {days.map(d => {
+                  const key       = ymd(d);
+                  const examItems = examsByDate[key] || [];
+                  return (
+                    <div key={key} className="bt-plan-slot cursor-pointer space-y-0.5 p-1"
+                      style={{ borderRight: "1px solid var(--bt-border)" }}
+                      onClick={() => handleSlotClick(key, null)}>
+                      {examItems.map(e => (
+                        <button key={e.id} type="button" className="bt-planning-week-exam"
+                          title={e.name}
+                          onClick={ev => { ev.stopPropagation(); openDay(key); }}>
+                          <PlanningExamMark label={t("plan.examTag")} />
+                          {e.exam_time && <span className="block text-xs">{e.exam_time.slice(0, 5)}</span>}
+                          <strong className="block truncate">{e.name}</strong>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
-              {days.map(d => {
-                const key       = ymd(d);
-                // Les objectifs SANS heure ne sont plus répétés ici : la charge
-                // de la semaine, juste au-dessus, les porte tous avec leur
-                // durée et leur cours. Cette grille ne montre que ce qui a une
-                // place dans le temps — ce que dit son sous-titre.
-                const examItems = examsByDate[key] || [];
-                return (
-                  <div key={key} className="bt-plan-slot cursor-pointer space-y-0.5 p-1"
-                    style={{ borderRight: "1px solid var(--bt-border)" }}
-                    onClick={() => handleSlotClick(key, null)}>
-                    {examItems.map(e => (
-                      <button key={e.id} className="bt-planning-week-exam"
-                        title={e.name}
-                        onClick={ev => { ev.stopPropagation(); openDay(key); }}>
-                        <PlanningExamMark label={t("plan.examTag")} />
-                        {e.exam_time && <span className="block text-xs">{e.exam_time.slice(0, 5)}</span>}
-                        <strong className="block truncate">{e.name}</strong>
-                        {e.course_id && <span className="flex items-center gap-1 text-xs"><CourseMark id={e.course_id} /><span className="truncate">{courseName(e.course_id)}</span></span>}
-                      </button>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
+            )}
 
-            {/* Grille horaire */}
-            <div className="overflow-y-auto" style={{ maxHeight: 520 }}>
-              {HOURS.map(h => (
+            <div>
+              {hours.map(h => (
                 <div key={h} className="grid"
-                  style={{ gridTemplateColumns: columns, minHeight: 64, borderBottom: "1px solid var(--bt-border)" }}>
+                  style={{ gridTemplateColumns: columns, minHeight: 48, borderBottom: "1px solid var(--bt-border)" }}>
                   <div className="shrink-0 px-2 pt-1.5" style={{ borderRight: "1px solid var(--bt-border)" }}>
                     <span className="font-num text-xs tabular-nums" style={{ color: "var(--bt-text-3)" }}>{String(h).padStart(2,"0")}h</span>
                   </div>
@@ -1531,7 +1278,7 @@ function TimeGrid({ days }) {
                             onClick={e => { e.stopPropagation(); openDay(key); }}>
                             <CourseMark id={o.course_id} /><span className="min-w-0"><span className="block truncate">{o.title || courseName(o.course_id) || "—"}</span><span className="sr-only">{courseName(o.course_id) || t("plan.unassigned")}</span>
                             {o.target_minutes > 0 && (
-                              <span className="font-num text-xs tabular-nums">{o.target_minutes} min</span>
+                              <span className="font-num text-xs tabular-nums">{formatMinutesShort(o.target_minutes * 60)}</span>
                             )}
                             </span>
                           </button>
@@ -1546,7 +1293,7 @@ function TimeGrid({ days }) {
         </div>
       </section>
       {multi && (
-        <p className="mt-2 px-1 text-[11px] no-print xl:hidden" style={{ color: "var(--bt-text-4)" }}>
+        <p className="mt-2 px-1 text-[11px] no-print xl:hidden" style={{ color: "var(--bt-text-2)" }}>
           {t("plan.weekScrollHint")}
         </p>
       )}
@@ -1555,26 +1302,20 @@ function TimeGrid({ days }) {
 }
 
 // ── WeekView ──────────────────────────────────────────────────
-// La répartition de la charge d'abord. La grille horaire reste disponible —
-// des étudiants posent de vraies heures — mais elle n'apparaît QUE si la
-// semaine affichée contient au moins un objectif horodaté. Une semaine sans
-// heure ne déroule plus seize rangées vides : ce n'est pas un réglage, c'est
-// la donnée qui décide.
+// La répartition d'abord ; la grille horaire n'apparaît que si la semaine
+// contient un objectif posé à une heure affichable.
 function WeekView({ days }) {
   const { byDate, t } = usePlan();
-  // Le créneau doit exister dans la grille : un objectif à 5 h ne s'y afficherait
-  // pas, et la grille serait vide en promettant le contraire. Il reste visible
-  // avec son heure dans la charge, au-dessus.
   const hasTimed = days.some(d => (byDate[ymd(d)] || [])
     .some(o => HOURS.includes(getHour(o.scheduled_time))));
   return (
     <>
       <WeekWorkload days={days} />
       {hasTimed && (
-        <section className="mt-5">
+        <section className="mt-4">
           <div className="mb-2 px-1">
             <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.timedSectionTitle")}</h2>
-            <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.timedSectionHint")}</p>
+            <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.timedSectionHint")}</p>
           </div>
           <TimeGrid days={days} />
         </section>
@@ -1583,22 +1324,18 @@ function WeekView({ days }) {
   );
 }
 
-// ── QuickAddBar ───────────────────────────────────────────────
-// Barre d'ajout rapide en langage naturel : « Bio 2h demain 14h » → objectif.
-// C'est la voie la plus rapide pour remplir un planning, mais rien ne le
-// disait : un champ nu, sans titre, ressemblait à une recherche. Aperçu live
-// de ce qui sera créé (le parsing est faillible → l'utilisateur voit et
-// corrige avant de valider). 100 % client (lib/planningQuickAdd).
-function QuickAddChip({ children, accent }) {
-  return (
-    <span className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-      style={accent
-        ? { backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-text)", border: "1px solid var(--bt-accent-border)" }
-        : { backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)", border: "1px solid var(--bt-border)" }}>
-      {children}
-    </span>
-  );
+// ── DayView ───────────────────────────────────────────────────
+function DayView() {
+  const { selectedDate } = usePlan();
+  return <section className="card bt-day-card"><DayPlan date={selectedDate} /></section>;
 }
+
+// ── QuickAddBar ───────────────────────────────────────────────
+// L'ajout rapide en langage naturel (« Bio 2h demain 14h »), en BARRE
+// d'outil : un champ, son bouton, et l'aperçu de ce qui sera créé seulement
+// pendant la saisie. Ce n'est plus une carte titrée qui disputait la place au
+// calendrier. 100 % client (lib/planningQuickAdd), l'étudiant voit et corrige
+// avant de valider.
 function QuickAddBar({ className = "" }) {
   const { activeCourses: courses, addObjectiveForDate, courseName, lang, t } = usePlan();
   const [text, setText] = useState("");
@@ -1621,138 +1358,99 @@ function QuickAddBar({ className = "" }) {
     if (data) setText("");
   }
 
-  return (
-    <form onSubmit={submit} onFocus={() => setFocused(true)} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }} className={`card p-3 no-print ${className}`}>
-      <div className="mb-2.5 flex items-center gap-1.5">
-        <span style={{ color: "var(--bt-accent)" }}><IconSparkle /></span>
-        <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.quickAddTitle")}</h2>
-      </div>
+  const preview = parsed && (parsed.courseId || parsed.title)
+    ? [parsed.courseId ? courseName(parsed.courseId) : null, parsed.title || null, quickDateLabel(parsed.dateISO, lang, t),
+       parsed.minutes > 0 ? formatMinutesShort(parsed.minutes * 60) : null, parsed.time || null].filter(Boolean)
+    : null;
 
-      {/* Empilé sur téléphone : côte à côte, le champ tombait sous ~200 px et
-          l'exemple du placeholder était coupé en plein milieu — or c'est lui
-          qui apprend la syntaxe. Le 16 px reste obligatoire (en dessous, iOS
-          zoome sur le champ au focus). */}
-      <div className="flex items-center gap-2">
+  return (
+    <form onSubmit={submit} onFocus={() => setFocused(true)} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }}
+      className={`bt-quick-add no-print ${className}`}>
+      <div className="bt-quick-add-field">
+        <span className="bt-quick-add-icon" aria-hidden="true"><IconSparkle /></span>
+        {/* 16 px sur téléphone : en dessous, iOS zoome sur le champ. */}
         <input value={text} onChange={e => setText(e.target.value)}
-          placeholder={t("plan.quickAddPlaceholder")} aria-label={t("plan.quickAddTitle")}
-          className="input min-w-0 flex-1 text-base sm:text-sm" />
-        <button type="submit" disabled={!canAdd || busy}
-          className={`${canAdd && !busy ? "btn-primary" : "btn-ghost"} min-h-11 shrink-0 px-3 text-sm font-semibold`}
-          style={!canAdd || busy ? { opacity: 0.6, cursor: "default" } : undefined}>
+          placeholder={t("plan.quickAddPrompt")} aria-label={t("plan.quickAddTitle")}
+          aria-describedby="bt-quick-add-help"
+          className="bt-quick-add-input" />
+        <button type="submit" disabled={!canAdd || busy} className={canAdd && !busy ? "btn-primary bt-quick-add-submit" : "bt-quick-add-submit bt-quick-add-submit--idle"}>
           {t("common.add")}
         </button>
       </div>
-
-      {focused && !trimmed && <p className="mt-2 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.quickAddHint")}</p>}
-      {trimmed && parsed && (
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <span className="shrink-0 text-[10px] uppercase tracking-wider" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddPreview")}</span>
-          {parsed.courseId
-            ? <QuickAddChip accent>{courseName(parsed.courseId)}</QuickAddChip>
-            : parsed.title
-              ? <QuickAddChip accent>{parsed.title}</QuickAddChip>
-              : <span className="text-xs" style={{ color: "var(--bt-text-4)" }}>{t("plan.quickAddNothing")}</span>}
-          {parsed.courseId && parsed.title && <QuickAddChip>{parsed.title}</QuickAddChip>}
-          {(parsed.courseId || parsed.title) && <QuickAddChip>{quickDateLabel(parsed.dateISO, lang, t)}</QuickAddChip>}
-          {parsed.minutes > 0 && <QuickAddChip>{parsed.minutes} min</QuickAddChip>}
-          {parsed.time && <QuickAddChip>{parsed.time}</QuickAddChip>}
-        </div>
-      )}
+      <p id="bt-quick-add-help" className="bt-quick-add-help" aria-live="polite">
+        {trimmed
+          ? preview
+            ? <><span className="bt-quick-add-help-label">{t("plan.quickAddPreview")}</span> {preview.join(" · ")}</>
+            : t("plan.quickAddNothing")
+          : focused ? t("plan.quickAddHint") : null}
+      </p>
     </form>
   );
 }
 
 // ── PlanToolbar ───────────────────────────────────────────────
-// Le mois d'abord, la navigation ensuite, les vues en dessous. Avant, six
-// boutons de même poids se disputaient une seule rangée qui repassait à la
-// ligne dès 390 px, et le mois — la seule info à lire — s'y perdait.
+// La période d'abord, la navigation ensuite. Les actions globales — calendrier
+// universitaire, export, partage, copie de la semaine — vivent toutes dans le
+// « … » ; sa pastille ne s'allume que pour une chose qui demande l'étudiant
+// (un cours importé à associer, une synchronisation en échec).
 function PlanToolbar({ periodLabel, onPrev, onNext, onToday, showToday, view, onViewChange, actions, actionsBadge, className = "" }) {
   const { t } = usePlan();
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") setMenuOpen(false); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
-
+  const viewOptions = [
+    { value: "day", label: t("plan.day") },
+    { value: "week", label: t("plan.week") },
+    { value: "month", label: t("plan.month") },
+  ];
+  const nav = (
+    <>
+      <button type="button" onClick={onPrev} aria-label={t("plan.prevPeriod")}
+        className="bt-plan-nav-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+        <IconChevron dir="left" />
+      </button>
+      <button type="button" onClick={onNext} aria-label={t("plan.nextPeriod")}
+        className="bt-plan-nav-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+        <IconChevron dir="right" />
+      </button>
+    </>
+  );
+  const menu = (
+    <PlanMenu label={t("plan.planningActions")} ariaLabel={actionsBadge ? `${t("plan.planningActions")} — ${t("plan.needsAttention")}` : t("plan.planningActions")}
+      triggerClassName="bt-plan-nav-btn relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" width={300} items={actions}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
+      </svg>
+      {actionsBadge && <span className="bt-plan-badge" aria-hidden="true" />}
+    </PlanMenu>
+  );
+  const today = showToday && (
+    <button type="button" onClick={onToday} className="bt-plan-action bt-plan-action--quiet bt-plan-today-btn shrink-0">
+      {t("common.today")}
+    </button>
+  );
   return (
     <div className={className}>
       <div className="bt-plan-toolbar-head flex items-center gap-2">
         <h1 className="bt-page-title bt-plan-toolbar-title min-w-0 flex-1">
           {sentenceCase(periodLabel)}
         </h1>
-
-        <div className="bt-plan-toolbar-actions flex shrink-0 items-center gap-1 no-print">
-          <div className="mr-2 hidden lg:block">
-            <SegmentedGlide
-          className="inline-flex"
-          buttonClassName="px-4 py-2 text-xs"
-          options={[
-            { value: "day", label: t("plan.day") },
-            { value: "week", label: t("plan.week") },
-            { value: "month", label: t("plan.month") },
-          ]}
-          value={view}
-          onChange={onViewChange}
-        />
+        {/* Ordinateur : bascule de vue, navigation, « Aujourd'hui » et « … »
+            sur la même ligne que la période. */}
+        <div className="bt-plan-toolbar-actions hidden shrink-0 items-center gap-1 no-print lg:flex">
+          <div className="mr-2">
+            <SegmentedGlide className="inline-flex" buttonClassName="px-4 py-2 text-xs" options={viewOptions} value={view} onChange={onViewChange} />
           </div>
-          <button onClick={onPrev} aria-label={t("plan.prevPeriod")}
-            className="bt-plan-nav-btn flex h-9 w-9 items-center justify-center rounded-xl">
-            <IconChevron dir="left" />
-          </button>
-          <button onClick={onNext} aria-label={t("plan.nextPeriod")}
-            className="bt-plan-nav-btn flex h-9 w-9 items-center justify-center rounded-xl">
-            <IconChevron dir="right" />
-          </button>
-          {showToday && (
-            <button onClick={onToday} className="btn-ghost ml-1 px-3 py-1.5 text-xs font-semibold">
-              {t("common.today")}
-            </button>
-          )}
-
-          <div className="relative ml-1">
-            <button onClick={() => setMenuOpen(v => !v)}
-              aria-label={t("plan.planningActions")} aria-expanded={menuOpen} aria-haspopup="menu"
-              className="bt-plan-nav-btn relative flex h-9 w-9 items-center justify-center rounded-xl">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>
-              </svg>
-              {actionsBadge && (
-                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: "var(--bt-accent)" }} />
-              )}
-            </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-                <div role="menu" className="absolute right-0 top-full z-30 mt-1.5 min-w-[230px] overflow-hidden rounded-2xl"
-                  style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 12px 32px var(--bt-shadow)" }}>
-                  <div className="flex flex-col gap-0.5 p-1.5" onClick={() => setMenuOpen(false)}>
-                    {actions}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          {nav}
+          {today}
+          <span className="ml-1">{menu}</span>
         </div>
+        <div className="no-print lg:hidden">{today}</div>
       </div>
 
-      {/* Sous le titre sur téléphone et tablette ; sur ordinateur la bascule
-          jour/semaine/mois remonte à droite du titre, dans la place libre. */}
-      <div className="mt-3 no-print lg:hidden">
-        <SegmentedGlide
-          className="w-full sm:w-auto sm:inline-flex"
-          buttonClassName="flex-1 sm:flex-none px-4 py-2 text-xs"
-          options={[
-            { value: "day", label: t("plan.day") },
-            { value: "week", label: t("plan.week") },
-            { value: "month", label: t("plan.month") },
-          ]}
-          value={view}
-          onChange={onViewChange}
-        />
+      {/* Téléphone et tablette : une seule seconde ligne — la vue occupe la
+          place libre, la navigation et le « … » restent à droite. */}
+      <div className="bt-plan-toolbar-mobile mt-3 flex items-center gap-1.5 no-print lg:hidden">
+        <SegmentedGlide className="min-w-0 flex-1" buttonClassName="flex-1 px-1.5 py-2 text-xs" options={viewOptions} value={view} onChange={onViewChange} />
+        {nav}
+        {menu}
       </div>
     </div>
   );
@@ -1780,6 +1478,10 @@ export default function Planning() {
   const exams = normalizePlanningExams(courses, examRows);
   const academic = useAcademicCalendar(user, courses, exams);
   const loadAcademic = academic.load;
+  // Vues d'ensemble (Aujourd'hui, Par cours) : un examen importé que
+  // l'étudiant a marqué comme examen EST un examen — le calendrier le dessine
+  // déjà ainsi. Un import converti en examen local n'apparaît qu'une fois.
+  const overviewExams = [...exams, ...confirmedImportedExams(academic.byDate)];
   const [examLoadWarning, setExamLoadWarning] = useState(false);
   // Serialise exam writes: deleting two same-day events concurrently could
   // otherwise let each assume the other still represents the legacy date.
@@ -1846,9 +1548,15 @@ export default function Planning() {
     setModalDate(date);
   }
 
-  function planAcademicWork(event) {
+  // « Planifier du travail » (échéance importée) et « Planifier une révision »
+  // (un cours) ouvrent le même formulaire d'objectif, prérempli, sur la fiche
+  // d'aujourd'hui, avec une date au choix. Aucune durée n'est inventée.
+  function planWork(prefill) {
     openDay(localToday());
-    setAcademicPrefill({ title: event.title, courseId: event.course_id || "" });
+    setAcademicPrefill(prefill);
+  }
+  function planAcademicWork(event) {
+    planWork({ title: event.title, courseId: event.course_id || "" });
   }
 
   async function toggle(o) {
@@ -2088,7 +1796,7 @@ export default function Planning() {
   const today = localToday();
   const todayObjectives = byDate[today] || [];
   const todayExams      = examsByDate[today] || [];
-  const nextExam = relevantUpcomingExams(exams, today)[0] || null;
+  const nextExam = relevantUpcomingExams(overviewExams, today)[0] || null;
   const nextExamDays = nextExam ? daysUntil(nextExam.exam_date) : null;
   const hasPreparationForNextExam = nextExam
     ? objectives.some(o => !o.done
@@ -2140,39 +1848,33 @@ export default function Planning() {
     return `${months[cursor.month]} ${cursor.year}`;
   }
 
-  // Actions globales du planning — toutes dans le menu « … », quelle que soit
-  // la largeur. Elles étaient inline sur desktop et encombraient la barre sans
-  // qu'aucune ne mérite d'être toujours visible.
-  const secondaryActions = (
-    <>
-      <button onClick={togglePlanningPublic} disabled={togglingShare}
-        role="switch" aria-checked={!!profile?.planning_public}
-        className="bt-plan-menu-item flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm"
-        style={{ opacity: togglingShare ? 0.6 : 1, cursor: togglingShare ? "wait" : "pointer" }}>
-        <Glyph size={15}  strokeWidth={1.8} className="shrink-0">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-        </Glyph>
-        <span className="min-w-0 flex-1 truncate">{t("plan.public")}</span>
-        <span className="shrink-0 text-[11px] font-bold"
-          style={{ color: profile?.planning_public ? "var(--bt-accent-text)" : "var(--bt-text-4)" }}>
-          {profile?.planning_public ? t("plan.shareShared") : t("plan.sharePrivate")}
-        </span>
-      </button>
-      <button onClick={duplicateWeek} title={t("plan.duplicateWeekHint")}
-        className="bt-plan-menu-item flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm">
-        <span className="shrink-0"><IconCopy /></span>
-        <span className="min-w-0 flex-1 truncate">{t("plan.duplicateWeek")}</span>
-      </button>
-      <button onClick={exportCalendar} title={t("plan.exportCalendarHint")}
-        className="bt-plan-menu-item flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm">
-        <span className="shrink-0"><IconCalendar /></span>
-        <span className="min-w-0 flex-1 truncate">{t("plan.exportCalendar")}</span>
-      </button>
-    </>
-  );
+  // Actions globales du planning — toutes dans le menu « … ». Le calendrier
+  // universitaire y vit aussi : sa gestion n'occupe plus de place sous le
+  // calendrier. La pastille du « … » ne s'allume que si l'étudiant a quelque
+  // chose à faire (cours importé à associer, examen modifié à la source,
+  // synchronisation en échec) — pas pour un réglage.
+  const providerLabel = source => ({ canvas: "Canvas", moodle: "Moodle", brightspace: "Brightspace" })[source.provider] || t("uc.otherProvider");
+  const ucPending = academic.sources.reduce((sum, source) => sum + externalCourses(academic.rows, academic.maps, source.id).filter(c => !c.mapping).length, 0);
+  const ucChanged = academic.sources.reduce((sum, source) => sum + calendarReview(academic.rows, academic.maps, academic.links, source.id, academic.hidden).attention.filter(row => row.link).length, 0);
+  const ucFailed = academic.error || academic.sources.some(source => source.sync_status === "error");
+  const ucAttention = !!(ucPending || ucChanged || ucFailed);
+  const ucDescription = !academic.sources.length ? t("plan.ucConnectHint")
+    : ucFailed ? t("plan.ucSyncFailed")
+    : ucChanged ? t(ucChanged === 1 ? "plan.ucChangedOne" : "plan.ucChangedMany").replace("{n}", ucChanged)
+    : ucPending ? t("uc.needsMatching").replace("{n}", ucPending)
+    : `${academic.sources.map(providerLabel).join(", ")} · ${t("uc.connected").toLocaleLowerCase()}`;
+  const planningActions = [
+    { key: "university", label: t("academic.settings"), description: ucDescription, onSelect: () => setCalendarOpen(true),
+      icon: <Glyph size={16}><path d="M22 10 12 5 2 10l10 5 10-5Z" /><path d="M6 12v5c3 2 9 2 12 0v-5" /></Glyph> },
+    { key: "export", label: t("plan.exportCalendar"), description: t("plan.exportCalendarShort"), icon: <IconCalendar size={16} />, onSelect: exportCalendar },
+    view === "week" && { key: "duplicate", label: t("plan.duplicateWeek"), description: t("plan.duplicateWeekHint"), icon: <IconCopy size={16} />, onSelect: duplicateWeek },
+    { key: "share", label: t("plan.shareMenu"), checked: !!profile?.planning_public, disabled: togglingShare, separated: true,
+      hint: profile?.planning_public ? t("plan.shareShared") : t("plan.sharePrivate"), onSelect: togglePlanningPublic,
+      icon: <Glyph size={16} strokeWidth={1.8}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></Glyph> },
+  ];
 
   const ctxValue = {
-    academic, academicPrefill, planAcademicWork,
+    academic, academicPrefill, planAcademicWork, planWork, overviewExams,
     view, isOnToday, courses, activeCourses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit, saveLegacyDate,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
@@ -2195,46 +1897,47 @@ export default function Planning() {
             Les deux enveloppes sont `display:contents` sous xl : les 6 blocs
             redeviennent enfants directs de la pile, et `order-*` fixe l'ordre
             mobile une bonne fois (l'ordre du DOM sert la colonne desktop). */}
-        <div className="bt-planning flex flex-col gap-5">
-          {examLoadWarning && <div role="status" className="flex flex-wrap items-center gap-3 text-sm">
-            <p>{t("plan.examLoadWarning")}</p><button className="btn-ghost min-h-11 px-3" onClick={load}>{t("plan.retryLoad")}</button>
+        <div className="bt-planning flex flex-col gap-4">
+          {examLoadWarning && <div role="status" className="bt-plan-notice">
+            <p>{t("plan.examLoadWarning")}</p><button type="button" className="bt-plan-action bt-plan-action--outline" onClick={load}>{t("plan.retryLoad")}</button>
+          </div>}
+          {academic.error && <div role="alert" className="bt-plan-notice">
+            <p>{t("academic.loadError")}</p><button type="button" className="bt-plan-action bt-plan-action--outline" onClick={academic.load}>{t("academic.retry")}</button>
           </div>}
           <TodayCard examMoment={examMoment} />
-          <div className="flex min-w-0 flex-col gap-5 xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:items-start">
-          <div className="contents xl:flex xl:flex-col xl:gap-5">
-            <PlanToolbar
-              className="order-1"
-              periodLabel={periodLabel()}
-              onPrev={handlePrev} onNext={handleNext} onToday={goToday} showToday={!isOnToday}
-              view={view} onViewChange={changeView}
-              actions={secondaryActions} actionsBadge={!!profile?.planning_public} />
+          <div className="flex min-w-0 flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_288px] xl:items-start xl:gap-6">
+            <div className="contents xl:flex xl:min-w-0 xl:flex-col xl:gap-3">
+              <PlanToolbar
+                className="order-1"
+                periodLabel={periodLabel()}
+                onPrev={handlePrev} onNext={handleNext} onToday={goToday} showToday={!isOnToday}
+                view={view} onViewChange={changeView}
+                actions={planningActions} actionsBadge={ucAttention} />
 
-            <QuickAddBar className="order-2" />
+              <QuickAddBar className="order-2" />
 
-            {/* Keyed on the view so switching mois/semaine/jour plays a soft fade.
-                Calendrier pleine largeur : le détail d'un jour vit dans le modal. */}
-            <div {...planningSwipe} className="order-5 min-w-0">
-              <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-tab-fade">
-                {view === "month" && <MonthView />}
-                {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
-                {view === "day"   && <DayAgenda />}
-                {view !== "day" && <CalendarLegend />}
-                <AcademicVisibility calendar={academic} t={t} onManage={() => setCalendarOpen(true)} />
+              {/* Keyed on the view so switching mois/semaine/jour plays a soft fade. */}
+              <div {...planningSwipe} className="order-5 min-w-0">
+                <div key={`${view}-${view === "month" ? `${cursor.year}-${cursor.month}` : selectedDate}`} className="bt-tab-fade">
+                  {view === "month" && <MonthView />}
+                  {view === "week"  && <WeekView days={getWeekDays(selectedDate)} />}
+                  {view === "day"   && <DayView />}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="contents xl:flex xl:flex-col xl:gap-5">
-
-            <RevisionChecklists className="order-6" />
-          </div>
+            <div className="contents xl:block xl:sticky xl:top-6">
+              <CourseOverview className="order-6"
+                courses={activeCourses} objectives={objectives} exams={overviewExams} academic={academic} today={today}
+                t={t} lang={lang} openDay={openDay} toggle={toggle} launchTimer={launchTimer} planWork={planWork} onPlanAcademic={planAcademicWork} />
+            </div>
           </div>
         </div>
       </Layout>
 
       {/* Day detail modal — mounted outside Layout to avoid stacking context issues */}
       <DayDetailModal />
-      {calendarOpen && <UniversityCalendar calendar={academic} courses={courses} exams={exams} t={t} lang={lang}
+      {calendarOpen && <UniversityCalendar calendar={academic} courses={activeCourses} exams={exams} t={t} lang={lang}
         onClose={() => setCalendarOpen(false)} refresh={load}
         onOpenExam={exam => { setCalendarOpen(false); openDay(exam.exam_date); }} />}
     </Ctx.Provider>

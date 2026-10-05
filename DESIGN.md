@@ -219,7 +219,18 @@ Completed time is filled; a live measured fraction is partial; paused time stops
 - Multiple exams: one marker with count and accessible event names, not stacked stripes. Other objectives remain secondary and available.
 - Error/delete UI uses its own icon, action and message; a warm exam is not an error.
 
-`PlanningExamMark` carries this stamp across Planning and course rooms. Month relies on course tint, planned titles and accessible exact load; the measured workload band belongs to Week, where days can be compared on a shared axis. In Week, the exam card carries the warm surface rather than repeating it on the entire row.
+`PlanningExamMark` carries this stamp across Planning and course rooms. Month relies on course tint, planned titles and a compact planned-time figure (computer only); the measured workload band belongs to Week, where days can be compared on a shared axis. In Week, the exam chip carries the warm surface rather than repeating it on the entire row.
+
+### Planning — one system, three questions
+
+Refactored 2026-10-04 (Mathias's brief): the Planning separates what the university **imposes** (exams, imported deadlines), what the student **chooses** (study objectives, with the bridge to the Timer) and the **overview** (Today strip, *By course*). They never share a visual form: an exam is a stamp on sand, an imported deadline is a quiet text row, an objective is a checkbox row with its course dot and a labelled *Start*.
+
+- **Day = act.** One day plan, shown in place (Day view) or as a sheet (from Month/Week): important academic items first (exams, exam candidates, major work), then the study plan, then small deadlines. One *+ Add* (study objective / exam); each row's secondary actions in its « … », delete last and red.
+- **Week = balance.** Seven one-line rows (two on a phone) on a shared left edge: load band + exact total, objective titles, exam chip, a deadline *count*. No repeated section headings; the hour grid only spans the hours actually used.
+- **Month = anticipate.** One cell anatomy: date (+ planned time on a computer), exam stamp, up to two objective titles, imported deadlines as a count at the foot. Never imported titles; no legend.
+- **Calendar first.** The Today strip (ink, the brand moment) and the quick-add bar are compact so the calendar starts high. University calendar management, export, sharing and *Duplicate week* (Week only) live in the « … » menu; its dot lights only when the student has something to do there.
+- **Actions.** One primary per surface (`.btn-primary`); secondary actions outlined or plain (`.bt-plan-action--outline/--quiet`), never another filled beige block; destructive actions red, separated, confirmed when irreversible. Floating actions use `components/planning/PlanPopover` + `PlanMenu`: an anchored popover on a computer, a bottom sheet on a phone, Escape for the top layer only, focus returned to the trigger.
+- **By course** summarises each course in one line (next exam countdown + what is planned before it, or this week's deadlines) and opens the course's context — exams, objectives, work to reschedule, deadlines. It reads objectives and exams; it is not a third task list (the old revision checklist stays on the Timer's course card).
 
 ### The Paused-Timer Exception — loud on purpose
 

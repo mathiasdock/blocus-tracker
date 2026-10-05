@@ -1,13 +1,15 @@
 /* An exam is a fixed academic date: a warm paper surface and a compact
-   calendar stamp. Shared course-room dates use the same vocabulary. */
-.bt-planning, .bt-planning-dialog, .bt-course-room {
+   calendar stamp. Shared course-room dates use the same vocabulary. Floating
+   Planning surfaces (popovers, sheets) live outside .bt-planning, so they
+   declare the same tokens. */
+.bt-planning, .bt-planning-dialog, .bt-course-room, .bt-plan-popover, .bt-plan-sheet, .uc-panel {
   --bt-exam-ink: #6d3723;
   --bt-exam-bg: #e8cfba;
   --bt-exam-border: #c99e7a;
   --bt-exam-stamp-bg: #8a4c33;
   --bt-exam-stamp-text: #fff4e9;
 }
-.dark .bt-planning, .dark .bt-planning-dialog, .dark .bt-course-room {
+.dark .bt-planning, .dark .bt-planning-dialog, .dark .bt-course-room, .dark .bt-plan-popover, .dark .bt-plan-sheet, .dark .uc-panel {
   --bt-exam-ink: #f6d9c4;
   --bt-exam-bg: #4d352a;
   --bt-exam-border: #9b6d53;
@@ -16,6 +18,102 @@
 }
 .bt-planning-next-exam { --bt-exam-stamp-bg: #d5a57d; --bt-exam-stamp-text: #3b2419; }
 .bt-planning { --bt-segment-track: var(--bt-border); }
+
+/* ── Action hierarchy ─────────────────────────────────────────
+   One primary per surface (.btn-primary). Secondary actions are outlined or
+   plain text — never another filled beige block. Destructive actions are
+   red text in menus, or a solid red button only inside their confirmation. */
+.bt-plan-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-block-size: 44px; padding: 0 14px; border-radius: var(--bt-r-control);
+  font-size: 14px; font-weight: 600; line-height: 1.2; white-space: nowrap;
+  color: var(--bt-text-1); background: transparent; border: 1px solid transparent;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease, transform .12s ease;
+}
+.bt-plan-action:active:not(:disabled) { transform: scale(.97); }
+.bt-plan-action:disabled { opacity: .45; cursor: not-allowed; }
+.bt-plan-action--outline { border-color: var(--bt-border); background: var(--bt-surface); }
+.bt-plan-action--quiet { color: var(--bt-text-2); }
+.bt-plan-action--danger-solid { background: var(--bt-danger-solid); color: #fff; }
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-action--outline:hover:not(:disabled), .bt-plan-action--quiet:hover:not(:disabled) { background: var(--bt-subtle); color: var(--bt-text-1); }
+  .bt-plan-action--danger-solid:hover:not(:disabled) { filter: brightness(.94); }
+}
+/* Icon-only action: 44 px target, quiet until hovered or focused. */
+.bt-plan-icon-action {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  inline-size: 44px; block-size: 44px; border-radius: var(--bt-r-control);
+  color: var(--bt-text-2); background: transparent;
+  transition: background-color .14s ease, color .14s ease;
+}
+.bt-plan-icon-action[aria-expanded="true"] { background: var(--bt-subtle); color: var(--bt-text-1); }
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-icon-action:hover:not(:disabled) { background: var(--bt-subtle); color: var(--bt-text-1); }
+}
+/* The bridge to the Timer: the one green, labelled action on a study row. */
+.bt-plan-start {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  min-block-size: 36px; padding: 0 12px; border-radius: 999px;
+  background: var(--bt-brand-surface); color: var(--bt-brand-text); border: 1px solid var(--bt-brand-border);
+  font-size: 13px; font-weight: 700;
+  position: relative;
+  transition: background-color .14s ease, transform .12s ease;
+}
+.bt-plan-start::after { content: ""; position: absolute; inset: -4px -2px; } /* 44 px target */
+.bt-plan-start:active { transform: scale(.97); }
+@media (hover: hover) and (pointer: fine) { .bt-plan-start:hover { background: var(--bt-brand-surface-strong); } }
+.bt-plan-section-label { display: block; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: var(--bt-text-2); margin-bottom: 6px; }
+.bt-plan-more-link { min-block-size: 44px; padding: 0 2px; font-size: 13px; font-weight: 600; color: var(--bt-text-2); text-decoration: underline; text-underline-offset: 3px; }
+.bt-plan-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-radius: var(--bt-r-inset); background: var(--bt-subtle); font-size: 14px; color: var(--bt-text-1); }
+
+/* ── Floating surfaces: popover (computer) / bottom sheet (phone) ───────── */
+.bt-plan-popover {
+  position: fixed; z-index: 70; max-block-size: min(72vh, 540px); overflow-y: auto;
+  padding: 6px; border-radius: 16px; background: var(--bt-surface);
+  border: 1px solid var(--bt-hairline); box-shadow: var(--bt-elev-3);
+  animation: bt-plan-pop .16s cubic-bezier(.23, 1, .32, 1);
+}
+.bt-plan-popover:focus { outline: none; }
+@keyframes bt-plan-pop { from { opacity: 0; transform: scale(.97); } }
+.bt-plan-sheet-root { position: fixed; inset: 0; z-index: 70; }
+.bt-plan-sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .38); animation: bt-plan-fade .2s ease-out; }
+.bt-plan-sheet {
+  position: absolute; inset-inline: 0; inset-block-end: 0; max-block-size: 86vh; overflow-y: auto;
+  padding: 4px 12px calc(16px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0;
+  background: var(--bt-surface); box-shadow: var(--bt-elev-3);
+  animation: bt-plan-rise .26s cubic-bezier(.32, .72, 0, 1);
+}
+.bt-plan-sheet:focus { outline: none; }
+.bt-plan-sheet-handle { display: block; inline-size: 36px; block-size: 4px; margin: 6px auto 10px; border-radius: 999px; background: var(--bt-border); }
+@keyframes bt-plan-rise { from { transform: translateY(24px); opacity: 0; } }
+@keyframes bt-plan-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bt-plan-popover, .bt-plan-sheet, .bt-plan-sheet-backdrop { animation: none; }
+}
+.bt-plan-menu { display: flex; flex-direction: column; gap: 1px; }
+.bt-plan-menu-item {
+  display: flex; align-items: center; gap: 10px; inline-size: 100%;
+  min-block-size: 44px; padding: 8px 10px; border-radius: 10px;
+  text-align: left; font-size: 14px; font-weight: 600; color: var(--bt-text-1);
+}
+.bt-plan-menu-item:disabled { opacity: .45; cursor: not-allowed; }
+.bt-plan-menu-item[data-danger] { color: var(--bt-danger); }
+.bt-plan-menu-item[aria-checked="true"] .bt-plan-menu-hint { color: var(--bt-accent-text); }
+.bt-plan-menu-icon { display: inline-flex; flex: none; inline-size: 18px; justify-content: center; color: var(--bt-text-2); }
+.bt-plan-menu-item[data-danger] .bt-plan-menu-icon { color: currentColor; }
+.bt-plan-menu-text { display: flex; flex-direction: column; min-inline-size: 0; flex: 1; }
+.bt-plan-menu-desc { font-size: 12px; font-weight: 400; line-height: 1.35; color: var(--bt-text-2); overflow-wrap: anywhere; }
+.bt-plan-menu-hint { flex: none; margin-inline-start: 8px; font-size: 12px; font-weight: 600; color: var(--bt-text-2); max-inline-size: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-plan-menu-sep { block-size: 1px; margin: 4px 8px; background: var(--bt-border); }
+/* A checked option shows a mark, not a colour alone. */
+.bt-plan-menu-check { display: inline-flex; flex: none; inline-size: 18px; justify-content: center; color: var(--bt-accent-text); }
+@media (hover: hover) and (pointer: fine) {
+  .bt-plan-menu-item:hover:not(:disabled) { background: var(--bt-subtle); }
+  .bt-plan-menu-item[data-danger]:hover:not(:disabled) { background: var(--bt-danger-bg); }
+}
+.bt-plan-sheet .bt-plan-menu-item { min-block-size: 52px; font-size: 16px; }
+
+/* ── Toolbar ──────────────────────────────────────────────── */
 .bt-planning .bt-plan-nav-btn {
   background-color: var(--bt-surface);
   color: var(--bt-text-1);
@@ -23,20 +121,76 @@
   min-width: 44px;
   min-height: 44px;
 }
-@media (max-width: 390px) {
-  .bt-plan-toolbar-head { flex-wrap: wrap; }
-  .bt-plan-toolbar-title { flex-basis: 100%; }
-  .bt-plan-toolbar-actions { margin-left: auto; }
-}
+.bt-plan-toolbar-mobile .bt-plan-nav-btn { inline-size: 44px; block-size: 44px; }
 @media (hover: hover) and (pointer: fine) {
   .bt-planning .bt-plan-nav-btn:hover { background-color: var(--bt-border); }
 }
-.bt-planning-today-summary { display: grid; gap: 16px; }
-.bt-planning-next-exam { border-top: 1px solid var(--bt-ink-border); padding-top: 16px; overflow-wrap: anywhere; }
-.bt-planning-today .mb-4 { margin-bottom: 8px; }
-.bt-planning-today ul > li { min-height: 44px; }
-.bt-planning-today .mt-3 { margin-top: 0; }
-.bt-planning .bt-plan-day-cell { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; min-width: 0; container-type: inline-size; }
+.bt-plan-nav-btn[aria-expanded="true"] { background-color: var(--bt-subtle) !important; }
+.bt-plan-today-btn { min-block-size: 44px; padding: 0 12px; font-size: 13px; color: var(--bt-text-1); }
+/* Something in the « … » needs the student (a course to match, a changed exam). */
+.bt-plan-badge { position: absolute; inset-block-start: 7px; inset-inline-end: 7px; inline-size: 8px; block-size: 8px; border-radius: 999px; background: var(--bt-warning); box-shadow: 0 0 0 2px var(--bt-surface); }
+
+/* ── Today strip ──────────────────────────────────────────────
+   The ink surface stays (brand moment), at the height of its content. */
+.bt-planning-today { padding: 14px 16px; }
+.bt-today-grid { position: relative; z-index: 1; display: grid; gap: 12px; }
+.bt-today-main { min-inline-size: 0; }
+.bt-today-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 10px; }
+.bt-today-eyebrow { font-size: 13px; font-weight: 800; color: var(--bt-ink-text); }
+.bt-today-date { min-block-size: 32px; font-size: 13px; color: var(--bt-ink-muted); text-underline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .bt-today-date:hover { text-decoration: underline; } }
+.bt-today-count { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 10px; font-size: 20px; font-weight: 800; line-height: 1.25; color: var(--bt-ink-text); }
+.bt-today-unit { font-size: 14px; font-weight: 600; }
+.bt-today-sub { font-size: 13px; font-weight: 600; color: var(--bt-ink-muted); }
+.bt-today-cta { display: inline-flex; align-items: center; gap: 8px; min-block-size: 40px; margin-top: 8px; padding: 0 14px; border-radius: 12px; font-size: 13px; font-weight: 700; }
+.bt-today-next { margin-top: 6px; }
+.bt-today-next li { display: flex; align-items: center; gap: 8px; min-block-size: 44px; font-size: 14px; color: var(--bt-ink-text); }
+.bt-today-check { display: flex; align-items: center; justify-content: center; flex: none; inline-size: 44px; block-size: 44px; margin-inline-start: -12px; margin-inline-end: -8px; }
+.bt-today-next-title { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-today-next-min { flex: none; font-size: 12px; color: var(--bt-ink-muted); }
+.bt-today-play { display: inline-flex; align-items: center; justify-content: center; flex: none; inline-size: 44px; block-size: 44px; border-radius: 12px; }
+.bt-today-more { min-block-size: 44px; padding-inline-start: 28px; font-size: 12px; color: var(--bt-ink-muted); text-decoration: underline; text-underline-offset: 2px; }
+.bt-planning-next-exam {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-inline-size: 0;
+  padding-top: 12px; border-top: 1px solid var(--bt-ink-border); text-align: left; overflow-wrap: anywhere;
+}
+.bt-next-exam-name { font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--bt-ink-text); }
+.bt-next-exam-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 13px; font-weight: 600; color: var(--bt-ink-muted); }
+.bt-next-exam-more { font-size: 12px; color: var(--bt-ink-muted); }
+@media (min-width: 640px) {
+  .bt-planning-today { padding: 16px 22px; }
+  .bt-today-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px; align-items: start; }
+  .bt-planning-next-exam { padding: 0 0 0 24px; border-top: 0; border-left: 1px solid var(--bt-ink-border); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .bt-planning-next-exam:hover .bt-next-exam-name { text-decoration: underline; text-underline-offset: 3px; }
+}
+
+/* ── Quick add: a utility bar ─────────────────────────────── */
+.bt-quick-add-field {
+  display: flex; align-items: center; gap: 8px; min-block-size: 48px; padding: 4px 4px 4px 14px;
+  border-radius: var(--bt-r-control); background: var(--bt-surface); border: 1px solid var(--bt-border);
+  box-shadow: var(--bt-elev-1);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.bt-quick-add-field:focus-within { border-color: var(--bt-focus-ring); box-shadow: 0 0 0 3px rgba(var(--bt-brand-rgb), .16); }
+.bt-quick-add-icon { display: inline-flex; flex: none; color: var(--bt-accent-text); }
+.bt-quick-add-input { flex: 1; min-inline-size: 0; min-block-size: 40px; border: 0; background: transparent; font-size: 16px; color: var(--bt-text-1); outline: none; }
+.bt-quick-add-input::placeholder { color: var(--bt-text-3); }
+html body .bt-quick-add-input:focus-visible { outline: none !important; box-shadow: none !important; }
+.bt-quick-add-submit { flex: none; min-block-size: 40px; padding: 0 16px; border-radius: 11px; font-size: 14px; font-weight: 700; }
+.bt-quick-add-submit--idle { color: var(--bt-text-3); background: var(--bt-subtle); cursor: default; }
+.bt-quick-add-help { min-block-size: 0; padding: 0 4px; font-size: 13px; line-height: 1.4; color: var(--bt-text-2); }
+.bt-quick-add-help:not(:empty) { margin-top: 6px; }
+.bt-quick-add-help-label { font-weight: 700; color: var(--bt-text-1); }
+@media (min-width: 640px) { .bt-quick-add-input { font-size: 14px; } }
+
+/* ── Month ────────────────────────────────────────────────── */
+.bt-planning .bt-plan-day-cell {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px;
+  min-width: 0; min-height: 88px; padding: 4px; container-type: inline-size;
+}
+@media (min-width: 640px) { .bt-planning .bt-plan-day-cell { min-height: 100px; padding: 6px 8px; } }
 .bt-planning .bt-plan-day-cell[data-fill="exam"] {
   background: var(--bt-exam-bg);
   /* A bounded milestone, independent of today's/selection outline. */
@@ -46,37 +200,49 @@
 .bt-planning .bt-plan-day-cell[data-fill="planned"] { background: var(--bt-surface); }
 .bt-planning .bt-plan-day-cell:not([data-fill="exam"]):not([data-fill="planned"]):not([data-fill="course"]) { background: var(--bt-surface); }
 .bt-planning .bt-plan-day-cell[data-outside-month="1"]:not([data-fill="exam"]):not([data-fill="course"]) { background: var(--bt-subtle); }
-.bt-plan-adjacent-month-label { color: var(--bt-text-2); font-size: 10px; font-weight: 700; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
-.bt-plan-month-objective-title { min-width: 0; font-size: 11px; line-height: 1.25; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-.bt-plan-month-objective .bt-plan-course-mark { margin-top: 4px; }
-/* One course owns the whole cell. The stronger wash keeps a busy month legible
-   as a study plan; other courses stay in the measured load and day detail. */
+/* One course owns the whole cell; other courses stay in Week and the day. */
 .bt-planning .bt-plan-day-cell[data-fill="course"] {
   --bt-course-tint-strength: .28;
   background-color: var(--bt-surface);
   background-image: linear-gradient(rgba(var(--bt-day-tint), var(--bt-course-tint-strength)), rgba(var(--bt-day-tint), var(--bt-course-tint-strength)));
 }
-.dark .bt-planning .bt-plan-day-cell[data-fill="course"] {
-  --bt-course-tint-strength: .26;
+.dark .bt-planning .bt-plan-day-cell[data-fill="course"] { --bt-course-tint-strength: .26; }
+.bt-planning .bt-plan-day-cell[data-fill="course"][data-past-complete="1"] { --bt-course-tint-strength: .21; }
+.dark .bt-planning .bt-plan-day-cell[data-fill="course"][data-past-complete="1"] { --bt-course-tint-strength: .19; }
+.bt-plan-month-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-inline-size: 0; }
+/* Planned study time: the month's compact load signal (Week compares it). */
+.bt-plan-month-load { display: none; font-size: 11px; font-weight: 700; color: var(--bt-text-2); }
+.bt-plan-adjacent-month-label { color: var(--bt-text-2); font-size: 10px; font-weight: 700; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
+.bt-planning-month-exam { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-inline-size: 0; color: var(--bt-text-1); font-size: 12px; line-height: 1.3; }
+.bt-plan-month-exam-name { display: flex; align-items: center; gap: 4px; min-inline-size: 0; max-inline-size: 100%; font-weight: 700; }
+.bt-plan-month-exam-text { display: none; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-plan-month-titles { display: none; flex-direction: column; gap: 2px; min-inline-size: 0; }
+.bt-plan-month-objective { display: flex; align-items: flex-start; gap: 4px; min-inline-size: 0; }
+.bt-plan-month-objective .bt-plan-course-mark { margin-top: 4px; }
+.bt-plan-month-objective[data-done="1"] .bt-plan-month-objective-title { text-decoration: line-through; color: var(--bt-text-2); }
+.bt-plan-month-objective-title { min-width: 0; font-size: 11px; line-height: 1.25; color: var(--bt-text-1); overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+/* Imported deadlines: a quiet count at the foot of the cell, never titles. */
+.bt-plan-month-due { margin-top: auto; font-size: 11px; font-weight: 600; line-height: 1.2; color: var(--bt-text-2); overflow-wrap: normal; }
+.bt-plan-month-due-long { display: none; }
+@media (min-width: 640px) {
+  .bt-plan-month-load { display: inline; }
+  .bt-plan-month-exam-text { display: block; }
+  .bt-plan-month-titles { display: flex; }
+  .bt-plan-month-due-long { display: inline; }
+  .bt-plan-month-due-short { display: none; }
 }
-.bt-planning .bt-plan-day-cell[data-fill="course"][data-past-complete="1"] {
-  --bt-course-tint-strength: .21;
-}
-.dark .bt-planning .bt-plan-day-cell[data-fill="course"][data-past-complete="1"] {
-  --bt-course-tint-strength: .19;
+@container (max-width: 96px) {
+  .bt-plan-month-load { display: none; }
 }
 .bt-plan-exam-mark { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; border-radius: 4px; background: var(--bt-exam-stamp-bg); color: var(--bt-exam-stamp-text); font-size: 11px; font-weight: 800; line-height: 18px; vertical-align: middle; }
 .bt-plan-exam-mark svg { flex: none; }
 .bt-plan-exam-count { font-variant-numeric: tabular-nums; }
 .bt-plan-exam-count::before { content: "×"; margin-inline-end: 2px; }
 .bt-plan-exam-countdown { display: block; margin-top: 4px; color: var(--bt-text-1); }
-.bt-planning-month-exam { color: var(--bt-text-1); font-size: 12px; line-height: 1.35; margin: 0 0 6px; min-width: 0; }
-.bt-planning-month-exam > .bt-plan-exam-mark { margin-bottom: 4px; }
 .bt-planning-agenda-exam, .bt-planning-week-exam, .bt-plan-exam-detail { background: var(--bt-exam-bg); color: var(--bt-text-1); border: 1px solid var(--bt-exam-border); border-radius: var(--bt-r-inset); min-height: 44px; width: 100%; text-align: left; }
 .bt-planning-agenda-exam { display: flex; align-items: center; gap: 12px; padding: 16px; margin-bottom: 12px; overflow-wrap: anywhere; }
 .bt-planning-week-exam { padding: 8px; font-size: 13px; }
-.bt-plan-exam-detail { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; padding: 12px; overflow-wrap: anywhere; }
-.bt-plan-exam-detail > div:first-child { min-width: min(100%, 160px); }
+.bt-plan-exam-detail { display: flex; align-items: flex-start; gap: 8px; padding: 12px 6px 12px 12px; overflow-wrap: anywhere; }
 .bt-plan-course-mark { display: inline-block; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 1px var(--bt-text-2); }
 .bt-plan-course-mark--unassigned { background: transparent; border-radius: 2px; border: 1px solid var(--bt-text-2); box-shadow: none; }
 .bt-plan-objective-chip { display: flex; align-items: center; gap: 6px; min-height: 44px; width: 100%; padding: 6px; border: 1px solid var(--bt-border); border-radius: 6px; background: var(--bt-surface); color: var(--bt-text-1); text-align: left; font-size: 12px; font-weight: 600; }
@@ -95,204 +261,238 @@
   .bt-plan-exam-mark--compact .bt-plan-exam-mark-label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .bt-plan-exam-mark--compact .bt-plan-exam-count::before { content: none; }
 }
-/* ── Bande de charge ──────────────────────────────────────────
-   Combien de travail est prévu, et à quels cours il appartient. La LONGUEUR
-   est la quantité (échelle absolue partagée mois/semaine, plein = 6 h), les
-   segments sont la part de chaque cours. Ni barre de progression, ni Study
-   Block : rien n'est « rempli », c'est du plan, pas du temps gagné. */
+
+/* ── Load band ────────────────────────────────────────────────
+   How much work is PLANNED, and for which courses: length = quantity on one
+   absolute scale, segments = each course's share. Not a progress bar, not a
+   Study Block — a bar resting on an axis. */
 .bt-plan-load {
   display: flex;
   align-items: flex-end;
   inline-size: 100%;
   block-size: 6px;
-  /* Une barre POSÉE SUR UN AXE, pas un remplissage dans une gouttière.
-     La version précédente était une pastille pleine longueur dont on peignait
-     le début : exactement l'idiome d'une barre de progression, et on y lisait
-     « X % terminé » au lieu de « tant de travail prévu ». Il ne reste qu'un
-     filet — la capacité de huit heures — sur lequel la quantité repose, comme
-     une barre d'histogramme sur son axe. Rien n'est « rempli ». */
   border-block-end: 1px solid var(--bt-border);
 }
-.bt-plan-load-fill {
-  display: flex;
-  block-size: 100%;
-  /* Coins presque droits : l'arrondi complet appartient aux jauges. */
-  border-radius: 2px 2px 0 0;
-  overflow: hidden;
-}
-.bt-plan-load-seg {
-  flex-basis: 0;
-  /* Plancher de RENDU : une part de 4 % reste visible sans devenir un trait
-     invisible. Il ne déforme que l'extrémité basse de l'échelle. */
-  min-inline-size: 3px;
-  background: var(--bt-text-3);
-}
-/* Travail sans cours : neutre clair. Pas d'identité de cours empruntée. */
+.bt-plan-load-fill { display: flex; block-size: 100%; border-radius: 2px 2px 0 0; overflow: hidden; }
+.bt-plan-load-seg { flex-basis: 0; min-inline-size: 3px; background: var(--bt-text-3); }
 .bt-plan-load-seg.is-unassigned { background: var(--bt-text-4); }
-/* Cours regroupés au-delà du plafond de segments : neutre foncé, et leur
-   nombre est écrit en toutes lettres dans la semaine. */
 .bt-plan-load-seg.is-rest { background: var(--bt-text-2); }
 
-/* ── Semaine : sept rangées de charge ─────────────────────────
-   Les bandes partagent le même bord gauche : comparer deux journées, c'est
-   comparer deux longueurs alignées. Une rangée occupe toute la largeur, donc
-   les titres restent lisibles à 320 px. Aucun défilement horizontal. */
-.bt-plan-week-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--bt-border);
+/* ── Week: seven dense rows ───────────────────────────────────
+   One line per day on a computer (two on a phone), one shared left edge for
+   the load bands, so comparing two days is comparing two lengths. */
+.bt-plan-week-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; padding: 10px 16px; border-bottom: 1px solid var(--bt-border); }
+.bt-plan-week-head .bt-plan-section-label { margin: 0; }
+.bt-plan-week-sum { font-size: 13px; color: var(--bt-text-2); }
+.bt-plan-week-sum strong { color: var(--bt-text-1); font-size: 14px; }
+.bt-plan-week-list > li + li { border-top: 1px solid var(--bt-border); }
+.bt-plan-week .bt-plan-week-row {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "date load" "date work" "date academic";
+  column-gap: 12px; row-gap: 4px; align-items: center;
+  inline-size: 100%; min-block-size: 56px; padding: 8px 14px; text-align: left;
+  transition: background-color .14s ease;
 }
-.bt-plan-week-row:first-child { border-top: 0; }
-/* Journée vide : la date sur une ligne, rien d'autre. La hauteur suit la
-   quantité d'information, et la semaine garde ses sept jours. */
-.bt-plan-week-row[data-empty="1"] { padding-block: 2px; }
-.bt-plan-week-row[data-empty="1"] .bt-plan-week-date {
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 8px;
-  inline-size: auto;
-  min-block-size: 44px;
-  padding-inline: 4px;
-  color: var(--bt-text-3);
-}
-.bt-plan-week-row[data-empty="1"] .bt-plan-week-daynum { font-size: 14px; font-weight: 700; }
-.bt-plan-week-row[data-empty="1"] .bt-plan-week-body { display: none; }
-.bt-plan-week-date {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 2px;
-  inline-size: 48px;
-  min-block-size: 44px;
-  padding: 2px 0;
-  border-radius: var(--bt-r-inset);
-  color: var(--bt-text-1);
-}
-.bt-plan-week-weekday { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--bt-text-3); }
-.bt-plan-week-daynum { font-size: 17px; font-weight: 800; line-height: 1.1; }
-.bt-plan-week-row[data-today="1"] .bt-plan-week-daynum {
+.bt-plan-week .bt-plan-week-row[data-today="1"] { background: rgba(var(--bt-brand-rgb), .06); }
+.bt-plan-week .bt-plan-week-row[data-empty="1"] { min-block-size: 44px; padding-block: 4px; }
+@media (hover: hover) and (pointer: fine) { .bt-plan-week .bt-plan-week-row:hover { background: var(--bt-subtle); } }
+.bt-plan-week .bt-plan-week-row:focus-visible { outline-offset: -3px !important; }
+.bt-plan-week .bt-plan-week-date { grid-area: date; display: flex; flex-direction: column; align-items: center; gap: 1px; inline-size: auto; min-block-size: 0; padding: 0; color: var(--bt-text-1); }
+.bt-plan-week-weekday { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--bt-text-2); }
+.bt-plan-week-daynum { font-size: 16px; font-weight: 800; line-height: 1.15; }
+.bt-plan-week .bt-plan-week-row[data-today="1"] .bt-plan-week-daynum {
   display: inline-flex; align-items: center; justify-content: center;
-  inline-size: 28px; block-size: 28px; border-radius: 999px;
-  background: var(--bt-action); color: #fff;
+  inline-size: 26px; block-size: 26px; border-radius: 999px; background: var(--bt-action); color: #fff;
 }
-.bt-plan-week-body { min-inline-size: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; }
-.bt-plan-week-exams { display: flex; flex-direction: column; gap: 6px; }
-.bt-plan-week-meter { display: flex; align-items: center; gap: 10px; }
-.bt-plan-week-meter .bt-plan-load { flex: 1; block-size: 10px; }
-.bt-plan-week-total { flex: none; font-size: 13px; font-weight: 700; color: var(--bt-text-1); }
-.bt-plan-week-meta { font-size: 12px; line-height: 1.4; color: var(--bt-text-2); }
-.bt-plan-week-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.bt-plan-week-chips .bt-plan-objective-chip { inline-size: auto; max-inline-size: 100%; flex: 0 1 auto; }
-.bt-plan-week-more {
-  display: inline-flex; align-items: center; min-block-size: 44px; padding: 0 10px;
-  border-radius: var(--bt-r-inset); font-size: 12px; font-weight: 600;
-  color: var(--bt-text-2); text-decoration: underline; text-underline-offset: 2px;
-}
-.bt-plan-week-date:focus-visible, .bt-plan-week-more:focus-visible { outline: 2px solid var(--bt-action); outline-offset: -2px; }
-@media (hover: hover) and (pointer: fine) {
-  .bt-plan-week-date:hover { background: var(--bt-subtle); }
-  .bt-plan-week-more:hover { color: var(--bt-text-1); }
-}
-@media (min-width: 640px) {
-  .bt-plan-week-row { gap: 16px; padding: 14px 20px; }
-  .bt-plan-week-row[data-empty="1"] { padding-block: 2px; }
-  .bt-plan-week-date { inline-size: 56px; }
-  .bt-plan-week-meter .bt-plan-load { block-size: 12px; }
-  .bt-plan-week-total { font-size: 14px; }
+.bt-plan-week .bt-plan-week-row[data-empty="1"] .bt-plan-week-date { flex-direction: row; gap: 6px; align-items: baseline; }
+.bt-plan-week-load { grid-area: load; display: flex; align-items: center; gap: 10px; min-inline-size: 0; }
+.bt-plan-week-load .bt-plan-load { flex: 1; block-size: 10px; }
+.bt-plan-week-total { flex: none; min-inline-size: 44px; font-size: 13px; font-weight: 800; color: var(--bt-text-1); text-align: right; }
+.bt-plan-week-none { font-size: 13px; color: var(--bt-text-2); }
+.bt-plan-week-work { grid-area: work; display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; min-inline-size: 0; font-size: 13px; color: var(--bt-text-1); }
+.bt-plan-week-work:empty, .bt-plan-week-academic:empty { display: none; }
+/* One line, one ellipsis at its end — not three truncated titles. */
+.bt-plan-week-titles { display: block; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bt-plan-week-title { display: inline; }
+.bt-plan-week-title + .bt-plan-week-title { margin-inline-start: 12px; }
+.bt-plan-week-title .bt-plan-course-mark { margin-inline-end: 5px; vertical-align: 1px; }
+.bt-plan-week-title[data-done="1"] { color: var(--bt-text-2); text-decoration: line-through; }
+.bt-plan-week-meta { font-size: 12px; font-weight: 600; color: var(--bt-text-2); white-space: nowrap; }
+.bt-plan-week-academic { grid-area: academic; display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; min-inline-size: 0; }
+.bt-plan-week-exam { display: inline-flex; align-items: center; gap: 6px; min-inline-size: 0; max-inline-size: 100%; padding: 2px 8px 2px 2px; border-radius: 6px; background: var(--bt-exam-bg); border: 1px solid var(--bt-exam-border); font-size: 12px; font-weight: 700; color: var(--bt-text-1); }
+.bt-plan-week-exam-name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-plan-week-due { font-size: 12px; font-weight: 600; color: var(--bt-text-2); white-space: nowrap; }
+@media (min-width: 900px) {
+  .bt-plan-week .bt-plan-week-row {
+    grid-template-columns: 52px minmax(150px, 26%) minmax(0, 1fr) auto;
+    grid-template-areas: "date load work academic"; row-gap: 0; min-block-size: 56px; padding: 6px 20px;
+  }
+  .bt-plan-week-work { flex-wrap: nowrap; }
+  .bt-plan-week-academic { flex-wrap: nowrap; justify-content: flex-end; max-inline-size: 300px; }
 }
 
-.bt-planning-task { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--bt-hairline, var(--bt-border)); }
-.bt-planning .bt-plan-revision-row { padding: 12px 4px; min-height: 44px; }
-@media (min-width: 640px) {
-  .bt-planning-today > div { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); column-gap: 24px; align-items: start; }
-  .bt-planning-today > div > div:first-child { grid-column: 1 / -1; }
-  .bt-planning-today-summary { display: contents; }
-  .bt-planning-next-exam { grid-column: 2; grid-row: 2 / span 4; border-top: 0; border-left: 1px solid var(--bt-ink-border); padding: 0 0 0 24px; }
-  .bt-planning-today > div > ul, .bt-planning-today > div > button, .bt-planning-today > div > .mt-4 { grid-column: 1; }
+/* ── Day plan: one day, inline (Day view) or in its sheet ─── */
+.bt-day-card { padding: 16px; }
+@media (min-width: 640px) { .bt-day-card { padding: 20px 22px; } }
+.bt-day-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.bt-day-summary { font-size: 15px; font-weight: 800; color: var(--bt-text-1); }
+.bt-day-summary-facts { font-weight: 600; color: var(--bt-text-2); }
+.bt-day-studied { display: flex; align-items: flex-start; gap: 6px; margin-top: 4px; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--bt-accent-text); }
+.bt-day-studied > svg { flex: none; margin-top: 1px; }
+.bt-day-studied-bar { display: block; inline-size: min(220px, 100%); block-size: 4px; margin-top: 6px; border-radius: 999px; background: var(--bt-subtle); overflow: hidden; }
+.bt-day-studied-bar > span { display: block; block-size: 100%; background: var(--bt-progress-fill); transform-origin: left; }
+.bt-day-head-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+.bt-day-sheet-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.bt-day-section { margin-top: 16px; }
+.bt-day-exams { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.bt-day-exam-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin-top: 4px; font-size: 13px; color: var(--bt-text-1); }
+.bt-day-empty { padding: 6px 0 2px; font-size: 14px; color: var(--bt-text-2); }
+.bt-day-tasks > li + li { border-top: 1px solid var(--bt-border); }
+.bt-day-task { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+.bt-day-check { display: flex; align-items: center; justify-content: center; flex: none; inline-size: 44px; block-size: 44px; margin-inline-start: -12px; }
+.bt-day-task-body { flex: 1; min-inline-size: 0; padding: 6px 0; }
+.bt-day-task-title { font-size: 15px; font-weight: 700; color: var(--bt-text-1); overflow-wrap: anywhere; }
+.bt-day-task[data-done="1"] .bt-day-task-title { color: var(--bt-text-2); }
+.bt-day-task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin-top: 2px; font-size: 13px; color: var(--bt-text-2); }
+.bt-day-task-studied { font-weight: 700; color: var(--bt-accent-text); }
+.bt-day-task-overdue { font-weight: 700; color: var(--bt-warning); }
+.bt-day-task-bar { display: block; block-size: 3px; margin-top: 6px; border-radius: 999px; background: var(--bt-subtle); overflow: hidden; }
+.bt-day-task-bar > span { display: block; block-size: 100%; background: var(--bt-progress-fill); transform-origin: left; }
+.bt-day-task-edit { padding: 12px 0; }
+.bt-day-inline-tool { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.bt-day-inline-label { font-size: 13px; font-weight: 600; color: var(--bt-text-2); }
+.bt-day-inline-tool .input { flex: 1 1 160px; min-inline-size: 0; font-size: 16px; }
+.bt-day-form { margin-top: 12px; padding: 14px; border-radius: 16px; background: var(--bt-subtle); border: 1px solid var(--bt-hairline); }
+.bt-day-form--plain { padding: 0; background: transparent; border: 0; }
+.bt-plan-start-label { display: inline; }
+@media (max-width: 380px) { .bt-plan-start-label { display: none; } .bt-plan-start { padding: 0 11px; } }
+
+/* ── Imported deadlines: quiet rows, actions on demand ────── */
+.bt-academic-list > li + li { border-top: 1px solid var(--bt-border); }
+.bt-academic-row { display: flex; inline-size: 100%; min-block-size: 52px; padding: 8px 4px; margin-inline: -4px; border-radius: 10px; text-align: left; transition: background-color .14s ease; }
+.bt-academic-row[aria-expanded="true"] { background: var(--bt-subtle); }
+@media (hover: hover) and (pointer: fine) { .bt-academic-row:hover { background: var(--bt-subtle); } }
+.bt-academic-identity { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-inline-size: 0; }
+.bt-academic-title { font-size: 14px; font-weight: 600; color: var(--bt-text-1); overflow-wrap: anywhere; }
+.bt-academic-item[data-major] .bt-academic-title { font-weight: 800; }
+.bt-academic-item[data-exam] .bt-academic-row { background: var(--bt-exam-bg); border: 1px solid var(--bt-exam-border); padding-inline: 10px; margin-inline: 0; margin-block: 4px; }
+.bt-academic-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; font-size: 13px; color: var(--bt-text-2); }
+.bt-academic-course { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.bt-academic-due { font-variant-numeric: tabular-nums; }
+.bt-academic-pop { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+.bt-academic-pop-title { font-size: 16px; font-weight: 800; color: var(--bt-text-1); overflow-wrap: anywhere; }
+.bt-academic-pop-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--bt-text-2); }
+.bt-academic-pop-decision { margin-top: 8px; padding: 10px; border-radius: var(--bt-r-inset); background: var(--bt-subtle); font-size: 13px; color: var(--bt-text-1); }
+.bt-academic-pop-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.bt-academic-pop-actions { margin-top: 12px; }
+.bt-academic-pop-head { display: flex; align-items: center; gap: 4px; margin: -2px 0 4px -6px; }
+.bt-academic-pop-heading { min-inline-size: 0; font-size: 14px; font-weight: 800; color: var(--bt-text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-academic-pop-note { padding: 6px 4px; font-size: 13px; color: var(--bt-text-2); }
+.bt-academic-pop-error { padding: 6px 4px; font-size: 13px; font-weight: 600; color: var(--bt-danger); }
+
+/* ── Courses: overview and context ────────────────────────── */
+.bt-course-overview { padding: 14px 12px 8px; }
+.bt-course-overview > .bt-plan-section-label { padding: 0 6px; }
+.bt-course-list > li + li { border-top: 1px solid var(--bt-border); }
+.bt-course-row { display: flex; align-items: center; gap: 8px; inline-size: 100%; min-block-size: 56px; padding: 8px 6px; border-radius: 10px; text-align: left; transition: background-color .14s ease; }
+@media (hover: hover) and (pointer: fine) { .bt-course-row:hover { background: var(--bt-subtle); } }
+.bt-course-row-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-inline-size: 0; }
+.bt-course-row-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--bt-text-1); }
+.bt-course-row-name .bt-plan-course-mark { width: 8px; height: 8px; }
+.bt-course-row-status { padding-inline-start: 16px; font-size: 12px; line-height: 1.4; color: var(--bt-text-2); }
+.bt-course-row-status[data-attention] { font-weight: 700; color: var(--bt-text-1); }
+.bt-course-row-chevron { flex: none; color: var(--bt-text-3); }
+.bt-course-back { display: inline-flex; align-items: center; gap: 4px; min-block-size: 44px; padding: 0 6px; margin: -6px 0 0 -4px; font-size: 13px; font-weight: 600; color: var(--bt-text-2); }
+.bt-course-name { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; font-size: 17px; font-weight: 800; color: var(--bt-text-1); }
+.bt-course-name .bt-plan-course-mark { width: 10px; height: 10px; }
+.bt-course-detail { display: flex; flex-direction: column; gap: 10px; padding: 0 2px 6px; }
+.bt-course-sheet { padding: 0 20px 8px; }
+.bt-course-exam { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; inline-size: 100%; padding: 10px 12px; border-radius: var(--bt-r-inset); background: var(--bt-exam-bg); border: 1px solid var(--bt-exam-border); text-align: left; color: var(--bt-text-1); }
+.bt-course-exam strong { font-size: 14px; overflow-wrap: anywhere; }
+.bt-course-exam > span:last-child { font-size: 12px; color: var(--bt-text-1); }
+.bt-course-facts { font-size: 13px; color: var(--bt-text-2); }
+.bt-course-facts[data-attention] { font-weight: 700; color: var(--bt-text-1); }
+.bt-course-muted { font-size: 13px; color: var(--bt-text-2); }
+.bt-course-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bt-course-section { margin-top: 6px; }
+.bt-course-line { display: flex; align-items: center; gap: 2px; }
+.bt-course-line + .bt-course-line { border-top: 1px solid var(--bt-border); }
+.bt-course-check { display: flex; align-items: center; justify-content: center; flex: none; inline-size: 40px; block-size: 44px; margin-inline-start: -10px; }
+.bt-course-line-body { display: flex; flex-direction: column; flex: 1; min-inline-size: 0; min-block-size: 44px; justify-content: center; padding: 4px 0; text-align: left; }
+.bt-course-line-title { font-size: 13px; font-weight: 600; color: var(--bt-text-1); overflow-wrap: anywhere; }
+.bt-course-line-meta { font-size: 12px; color: var(--bt-text-2); }
+.bt-course-overview .bt-academic-row { min-block-size: 48px; }
+@media (min-width: 1280px) {
+  .bt-course-overview { max-block-size: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; }
 }
+
+/* ── Interaction states ───────────────────────────────────── */
 @media (hover: hover) and (pointer: fine) {
-  .bt-planning-next-exam:hover { opacity: .85; }
-  .bt-planning-task:hover { background: var(--bt-subtle); }
-  .bt-planning-agenda-exam:hover, .bt-planning-week-exam:hover { border-color: var(--bt-exam-ink); }
+  .bt-planning-week-exam:hover { border-color: var(--bt-exam-ink); }
   .bt-plan-objective-chip:hover { background: var(--bt-subtle); }
+  .bt-course-exam:hover, .bt-plan-week-exam:hover { border-color: var(--bt-exam-ink); }
 }
 @media (prefers-reduced-motion: reduce) {
   .bt-planning *, .bt-planning *::after { animation: none !important; transition: none !important; }
 }
 
-/* Imported deadlines remain context, below the student's study plan. */
-.bt-academic-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--bt-border); }
-.bt-academic-heading { display: block; font-size: 12px; font-weight: 700; color: var(--bt-text-2); margin-bottom: 8px; }
-.bt-academic-item { border-bottom: 1px solid var(--bt-border); }
-.bt-academic-item:last-child { border-bottom: 0; }
-.bt-academic-summary { min-height: 64px; padding: 12px 0; display: flex; gap: 12px; justify-content: space-between; cursor: pointer; }
-.bt-academic-identity { min-width: 0; display: grid; gap: 4px; }
-.bt-academic-course { display: inline-flex; align-items: center; gap: 6px; font-size: inherit; overflow-wrap: anywhere; }
-.bt-academic-title { font-size: 15px; font-weight: 700; color: var(--bt-text-1); overflow-wrap: anywhere; }
-.bt-academic-kind, .bt-academic-time { font-size: 12px; color: var(--bt-text-2); }
-.bt-academic-time { flex-shrink: 0; padding-top: 2px; }
-.bt-academic-item[data-exam] { background: var(--bt-exam-bg); padding: 0 10px; border-radius: 8px; }
-.bt-academic-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 12px; }
-.bt-academic-edit { display: flex; align-items: end; gap: 8px; width: 100%; }
-.bt-academic-edit label { flex: 1; min-width: 0; font-size: 13px; color: var(--bt-text-2); }
-.bt-academic-edit select { display: block; width: 100%; margin-top: 4px; font-size: 16px; }
-.bt-academic-week { margin-top: 12px; border-top: 1px solid var(--bt-border); padding-top: 10px; }
-.bt-academic-week-exam { display: flex; align-items: center; gap: 8px; min-height: 44px; width: 100%; text-align: left; font-size: 14px; font-weight: 600; }
-.bt-academic-week-count { min-height: 44px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; color: var(--bt-text-2); }
-.bt-academic-month-count { display: block; font-size: 11px; line-height: 1.3; margin-top: 4px; color: var(--bt-text-2); overflow-wrap: normal; }
-.bt-academic-settings { font-size: 13px; color: var(--bt-text-2); }
-.bt-academic-settings summary { min-height: 44px; cursor: pointer; padding: 12px 0; }
-.bt-academic-settings label { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.bt-academic-settings p { margin-bottom: 8px; }
-
-.bt-academic-identity > .bt-plan-exam-mark { justify-self: start; }
-.bt-academic-item[data-exam] .bt-academic-title,
-.bt-academic-item[data-exam] .bt-academic-time { color: var(--bt-exam-ink); }
-.bt-academic-item[data-major] .bt-academic-title { font-weight: 600; color: var(--bt-text-1); }
-.bt-academic-tail { display: flex; align-items: start; gap: 8px; flex-shrink: 0; }
-.bt-academic-chevron { margin-top: 4px; color: var(--bt-text-2); }
-.bt-academic-item > details[open] > summary .bt-academic-chevron { transform: rotate(90deg); }
-
+/* ── University calendar (Manage sheet) ───────────────────── */
 .uc-panel { padding: 0 20px 20px; font-size: 14px; color: var(--bt-text-1); }
-.uc-panel h4 { font-size: 16px; font-weight: 700; }
-.uc-panel p { color: var(--bt-text-2); line-height: 1.5; }
+.uc-title { font-size: 16px; font-weight: 800; }
+.uc-subtitle { font-size: 13px; font-weight: 800; color: var(--bt-text-1); margin-bottom: 4px; }
+.uc-muted { font-size: 13px; line-height: 1.5; color: var(--bt-text-2); }
 .uc-stack { display: flex; flex-direction: column; gap: 14px; }
-.uc-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.uc-panel .input { font-size: 16px; min-height: 44px; min-width: 0; width: 100%; }
-.uc-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
-.uc-buttons .input { flex: 1; min-width: 140px; }
-.uc-source, .uc-review-item { padding: 16px 0; border-bottom: 1px solid var(--bt-border); }
-.uc-source p, .uc-review-item p { margin: 6px 0; }
-.uc-review-item strong { overflow-wrap: anywhere; }
-.uc-review-item summary { padding: 12px 0; cursor: pointer; min-height: 44px; }
-.uc-summary { color: var(--bt-text-2); display: grid; gap: 6px; }
+.uc-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; color: var(--bt-text-2); }
+.uc-panel .input { font-size: 16px; min-height: 44px; min-width: 0; width: 100%; color: var(--bt-text-1); font-weight: 400; }
+.uc-back { display: inline-flex; align-items: center; gap: 4px; min-block-size: 44px; margin: -6px 0 6px -6px; padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--bt-text-2); }
+.uc-message { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--bt-r-inset); background: var(--bt-subtle); font-size: 13px; }
+.uc-message--error { background: var(--bt-danger-bg); color: var(--bt-danger); font-weight: 600; }
+.uc-source { display: flex; flex-direction: column; gap: 10px; }
+.uc-source-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.uc-source-name { font-size: 16px; font-weight: 800; }
+.uc-source-status { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--bt-text-2); }
+.uc-status-dot { inline-size: 8px; block-size: 8px; border-radius: 999px; background: var(--bt-success, var(--bt-accent)); flex: none; }
+.uc-status-dot--error { background: var(--bt-danger); }
+.uc-source-warning { font-size: 13px; color: var(--bt-danger); }
+.uc-rows { border-radius: var(--bt-r-inset); background: var(--bt-subtle); padding: 2px 0; }
+.uc-rows > li + li { border-top: 1px solid var(--bt-border); }
+.uc-row { display: flex; align-items: center; gap: 10px; inline-size: 100%; min-block-size: 48px; padding: 0 12px; text-align: left; font-size: 14px; font-weight: 600; color: var(--bt-text-1); }
+.uc-row > span:first-child { flex: 1; min-inline-size: 0; }
+.uc-row-hint { font-size: 13px; font-weight: 500; color: var(--bt-text-2); white-space: nowrap; }
+.uc-row-hint--attention { font-weight: 700; color: var(--bt-warning); }
+.uc-chevron { flex: none; color: var(--bt-text-3); }
+.uc-danger-link { align-self: flex-start; min-block-size: 44px; padding: 0 2px; font-size: 13px; font-weight: 600; color: var(--bt-danger); }
+.uc-confirm { padding: 12px; border-radius: var(--bt-r-inset); border: 1px solid var(--bt-danger-border); background: var(--bt-danger-bg); font-size: 13px; color: var(--bt-text-1); }
+.uc-confirm .uc-footer { margin-top: 10px; }
+.uc-visibility { padding-top: 14px; border-top: 1px solid var(--bt-border); }
+.uc-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-block-size: 48px; font-size: 14px; }
+.uc-add-link { align-self: flex-start; min-block-size: 44px; padding: 0 2px; font-size: 14px; font-weight: 700; color: var(--bt-accent-text); }
+.uc-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.uc-footer--sticky { position: sticky; inset-block-end: 0; margin: 0 -20px -20px; padding: 12px 20px calc(16px + env(safe-area-inset-bottom)); background: var(--bt-surface); border-top: 1px solid var(--bt-border); }
+.uc-footnote { flex-basis: 100%; font-size: 12px; color: var(--bt-text-2); }
+.uc-link { min-block-size: 36px; font-size: 13px; font-weight: 700; color: var(--bt-accent-text); }
+.uc-match-list > li + li { border-top: 1px solid var(--bt-border); }
+.uc-match-row { display: grid; grid-template-columns: minmax(0, 40%) minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 0; }
+.uc-match-label { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.uc-review-group { display: flex; flex-direction: column; gap: 4px; }
+.uc-review-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.uc-review-head h5 { font-size: 13px; font-weight: 800; color: var(--bt-text-1); }
+.uc-review-group ul > li + li { border-top: 1px solid var(--bt-border); }
+.uc-candidate { display: flex; align-items: center; gap: 4px; }
+.uc-candidate-check { display: flex; align-items: flex-start; gap: 12px; flex: 1; min-inline-size: 0; min-block-size: 48px; padding: 10px 0; cursor: pointer; }
+.uc-candidate-check input { margin-top: 2px; flex: none; }
+.uc-candidate-text { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
+.uc-candidate-title { font-size: 14px; font-weight: 700; color: var(--bt-text-1); overflow-wrap: anywhere; }
+.uc-candidate-meta { font-size: 13px; color: var(--bt-text-2); }
+.uc-candidate-note { font-size: 12px; font-weight: 700; color: var(--bt-warning); }
+.uc-candidate--changed { flex-wrap: wrap; padding: 10px 0; }
+.uc-candidate-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .uc-date-time { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
-.uc-exam-form { margin-top: 14px; }
-.uc-message { margin: 12px 0; padding: 12px; background: var(--bt-subtle); border-radius: 12px; }
-
-/* Quiet course groups and progressive event actions. */
-.bt-academic-group + .bt-academic-group { margin-top: 18px; }
-.bt-academic-group-name { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--bt-text-2); padding: 8px 0 2px; }
-.bt-academic-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--bt-text-2); }
-.bt-academic-detail { padding-bottom: 12px; }
-.bt-academic-source { font-size: 13px; color: var(--bt-text-2); margin-bottom: 12px; }
-.bt-academic-actions { align-items: start; position: relative; padding-bottom: 0; }
-.bt-academic-actions > button { flex-shrink: 0; }
-.bt-academic-decisions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.bt-academic-overflow { flex: 1; min-width: 44px; }
-.bt-academic-overflow > summary { width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--bt-r-control); }
-.bt-academic-menu { display: flex; flex-direction: column; gap: 2px; position: relative; width: 100%; margin: 8px 0; padding: 8px; border-radius: var(--bt-r-inset); background: var(--bt-subtle); }
-.bt-academic-menu button, .bt-academic-menu a { min-height: 44px; padding: 8px; font-size: 14px; text-align: left; overflow-wrap: anywhere; }
-.bt-academic-menu p { font-size: 13px; color: var(--bt-text-2); padding: 4px 8px; }
-.bt-academic-overflow[open] { flex-basis: 100%; }
-.bt-academic-overflow > summary::-webkit-details-marker, .bt-academic-summary::-webkit-details-marker, .bt-planning-add-menu > summary::-webkit-details-marker { display: none; }
-.bt-planning-add-menu > summary { cursor: pointer; width: fit-content; list-style: none; }
-.uc-visibility label { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; }
-.uc-hidden-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--bt-border); padding: 12px 0; }
+.uc-hidden-list > li + li { border-top: 1px solid var(--bt-border); }
+.uc-hidden-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; }
 .uc-hidden-item > div { min-width: 0; overflow-wrap: anywhere; }
+.uc-hidden-item p { font-size: 13px; color: var(--bt-text-2); }
 .uc-hidden-item button { flex-shrink: 0; }
+@media (hover: hover) and (pointer: fine) {
+  .uc-row:hover:not(:disabled) { background: var(--bt-border); }
+  .uc-danger-link:hover, .uc-add-link:hover, .uc-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+}

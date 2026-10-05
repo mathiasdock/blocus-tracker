@@ -74,3 +74,46 @@ server fetch, cron, classifier rule, dependency or secret access is introduced.
 
 Full suite: 660 tests passed. Lint clean. Production build successful (existing
 3 MB PWA precache warning). No additional dependencies.
+
+## Planning UX refactor (2026-10-04, branch `claude/planning-ux-refactor`)
+
+No backend, migration, RPC or sync change. Presentation and one client flow.
+
+- **Management** moved into the Planning « … » menu (« University calendar »,
+  with its status as description). The permanent disclosure under the calendar
+  is gone; a load failure shows as a notice with Retry above the calendar.
+  Manage reads: source name, « Connected · Synced today at 08:12 », *Sync now*
+  (outlined), then quiet rows — course matches, review imported events, hidden
+  items — each with its count, then *Disconnect Canvas* in red behind a
+  confirmation. Visibility uses the app's switches. When a source exists, adding
+  one is a quiet « + Add another calendar » (limit 3), never a primary button.
+- **Imported rows** are a title and « course · type · due » only. A click opens
+  a popover (computer) or bottom sheet (phone) — nothing expands inline — with
+  *Plan work* as the single primary action and « … » for *Open in Canvas*,
+  *Change type*, *Change course* (both as option lists, saved on pick) and
+  *Hide*. A possible exam asks « Is this an exam? » with *Mark as exam* (the
+  existing `user_override = exam`, no local exam — renamed from « Confirm exam »
+  to stop it reading like the review's conversion) and *Keep as deadline*.
+- **Bulk exam confirmation** (first import and *Review imported events*):
+  `examReviewGroups` (`lib/calendarReview.mjs`) lists *Likely exams*
+  (effective exam/high, preselected), *Possible exams* (exam/medium: numbered
+  tests, a bare « Final » — never preselected) and *Changed in Canvas*
+  (converted exams whose source moved). Quizzes never reach the list (classifier
+  veto). A candidate on the same day as one of the student's exams for the same
+  course (or, unmatched, with the same name) is flagged « You already have … »
+  and left unselected. One primary button adds the selection — « Add all N
+  likely exams » when it is exactly the likely set — by calling the existing
+  `confirm_exam` action once per event, in sequence, then reloading once. The
+  server conversion stays the source of truth: serialized, idempotent per
+  natural key, exact-match linking, existing links untouched. A failure stops
+  the loop and says how many were not added; retrying is safe. Each row's « … »
+  keeps *Edit before adding* (the existing form) and *Not an exam*.
+- **Prefill**: when the course is matched, the exam name drops Canvas's
+  « [ADV 3001] » suffix; unmatched, it is kept as the only course clue.
+- **Overview**: imported events marked as exams count as exams in Today's next
+  exam and in *By course*, as Month/Week/Day already drew them.
+
+Verified offline: connect → match three courses → review (14 events: likely 3
+of which 1 flagged duplicate, possible 2, quizzes absent) → « Add all 2 likely
+exams » → 6 → 8 exams, 2 links, no duplicate; the list then holds only the
+flagged one and the possible ones.

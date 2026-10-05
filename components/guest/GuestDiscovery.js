@@ -106,60 +106,54 @@ function PlanningLoad({ minutes, segments, label }) {
   );
 }
 
+// Same structure as the signed-in Planning (pages/planning.js): seven dense
+// rows sharing one left edge, and the day as one plan. Demo data, no writes.
 function PlanningWeek({ days }) {
   const { t, lang } = useI18n();
   const locale = lang === "en" ? "en-GB" : "fr-BE";
   const plans = {
     1: { minutes: 45, course: "physics", title: t("guest.demo.physicsRevision"), time: "09:00" },
-    2: { minutes: 60, course: "economics", title: t("guest.demo.economicsExam"), time: "14:00", exam: true },
+    2: { minutes: 60, course: "economics", title: t("guest.demo.physicsRevision"), exam: t("guest.demo.economicsExam"), time: "14:00" },
     3: { minutes: 60, course: "economics", title: t("guest.demo.chapter4"), time: "16:30" },
   };
 
   return (
-    <section className="card overflow-hidden">
-      <div className="flex items-baseline justify-between gap-4 border-b px-4 py-2.5 sm:px-5" style={{ borderColor: "var(--bt-border)" }}>
-        <h2 className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--bt-text-3)" }}>{t("plan.weekLoadTitle")}</h2>
-        <p className="font-num shrink-0 text-sm font-bold tabular-nums">2 h 45</p>
+    <section className="card overflow-hidden bt-plan-week">
+      <div className="bt-plan-week-head">
+        <h2 className="bt-plan-section-label">{t("plan.weekLoadTitle")}</h2>
+        <p className="bt-plan-week-sum"><strong className="font-num tabular-nums">2h45</strong></p>
       </div>
-      <ol>
+      <ol className="bt-plan-week-list">
         {days.map((day, index) => {
           const plan = plans[index];
           const weekday = day.toLocaleDateString(locale, { weekday: "short" }).replace(".", "");
           return (
-            <li key={isoDay(day)} className="bt-plan-week-row" data-empty={plan ? undefined : "1"} data-exam={plan?.exam ? "1" : undefined}>
-              <div className="bt-plan-week-date">
-                <span className="bt-plan-week-weekday">{weekday}</span>
-                <span className="bt-plan-week-daynum font-num tabular-nums">{day.getDate()}</span>
-              </div>
-              <div className="bt-plan-week-body">
-                {plan?.exam ? (
-                  <div className="bt-plan-week-exams">
-                    <div className="bt-planning-week-exam">
-                      <PlanningExamMark label={t("plan.examTag")} />
-                      <strong className="mt-1 block truncate">{plan.title}</strong>
-                      <span className="mt-1 flex items-center gap-1 text-xs">
-                        <span className="font-num tabular-nums">{plan.time}</span>
-                        <CourseMarker course={{ color: COURSE_COLORS[plan.course] }} />
-                        {t("guest.demo.economics")}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-                {plan ? (
-                  <>
-                    <div className="bt-plan-week-meter">
-                      <PlanningLoad minutes={plan.minutes} segments={[{ id: plan.course, minutes: plan.minutes, color: COURSE_COLORS[plan.course] }]} label={`${plan.minutes} min`} />
-                      <span className="font-num bt-plan-week-total tabular-nums">{plan.minutes} min</span>
-                    </div>
-                    <div className="bt-plan-week-chips">
-                      <div className="bt-plan-objective-chip">
-                        <CourseMarker course={{ color: COURSE_COLORS[plan.course] }} />
-                        <span className="min-w-0 truncate">{plan.exam ? t("guest.demo.physicsRevision") : plan.title}</span>
-                        {!plan.exam && <span className="font-num shrink-0 tabular-nums" style={{ color: "var(--bt-text-3)" }}>{plan.time}</span>}
-                      </div>
-                    </div>
-                  </>
-                ) : <span className="sr-only">{t("plan.noPlan")}</span>}
+            <li key={isoDay(day)}>
+              <div className="bt-plan-week-row" data-empty={plan ? undefined : "1"} data-exam={plan?.exam ? "1" : undefined}>
+                <span className="bt-plan-week-date">
+                  <span className="bt-plan-week-weekday">{weekday}</span>
+                  <span className="bt-plan-week-daynum font-num tabular-nums">{day.getDate()}</span>
+                </span>
+                <span className="bt-plan-week-load">
+                  {plan
+                    ? <><PlanningLoad minutes={plan.minutes} segments={[{ id: plan.course, minutes: plan.minutes, color: COURSE_COLORS[plan.course] }]} label={`${plan.minutes} min`} /><span className="bt-plan-week-total font-num tabular-nums">{plan.minutes === 60 ? "1h" : `${plan.minutes} min`}</span></>
+                    : <span className="bt-plan-week-none">{t("plan.noPlan")}</span>}
+                </span>
+                {plan && (
+                  <span className="bt-plan-week-work">
+                    <span className="bt-plan-week-titles">
+                      <span className="bt-plan-week-title"><span className="bt-plan-course-mark" style={{ backgroundColor: COURSE_COLORS[plan.course] }} />{plan.title}</span>
+                    </span>
+                  </span>
+                )}
+                {plan?.exam && (
+                  <span className="bt-plan-week-academic">
+                    <span className="bt-plan-week-exam">
+                      <PlanningExamMark label={t("plan.examTag")} compact />
+                      <span className="bt-plan-week-exam-name">{plan.exam} · {plan.time}</span>
+                    </span>
+                  </span>
+                )}
               </div>
             </li>
           );
@@ -172,29 +166,48 @@ function PlanningWeek({ days }) {
 function PlanningDay({ onGate }) {
   const { t } = useI18n();
   return (
-    <section className="card p-4 sm:p-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div><h2 className="text-base font-bold">{t("plan.yourDay")}</h2><p className="text-sm" style={{ color: "var(--bt-text-2)" }}>2 {t("plan.todayCardObjectives")} · 1 h 45</p></div>
-        <button type="button" className="btn-ghost min-h-11 px-3 text-sm" onClick={() => onGate("planning")}>{t("guest.demo.add")}</button>
+    <section className="card bt-day-card">
+      <div className="bt-day-head">
+        <div className="min-w-0">
+          <p className="bt-day-summary">{t("plan.daySummaryDone").replace("{done}", "0").replace("{n}", "2")}</p>
+          <p className="bt-day-studied">
+            <Icon size={14}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></Icon>
+            <span>{t("plan.studiedOf").replace("{done}", "0 min").replace("{planned}", "1h45")}</span>
+          </p>
+        </div>
+        <div className="bt-day-head-actions">
+          <button type="button" className="bt-plan-action bt-plan-action--outline" onClick={() => onGate("planning")}>
+            <Icon size={13}><path d="M12 5v14M5 12h14" /></Icon>{t("guest.demo.add")}
+          </button>
+        </div>
       </div>
-      <div className="bt-planning-agenda-exam">
-        <span className="min-w-0 flex-1">
-          <PlanningExamMark label={t("plan.examTag")} />
-          <strong className="mt-1 block">{t("guest.demo.economicsExam")}</strong>
-          <span className="mt-1 flex items-center gap-2 text-sm"><CourseMarker course={{ color: COURSE_COLORS.economics }} />{t("guest.demo.economics")} · 14:00</span>
-        </span>
+      <div className="bt-day-exams">
+        <div className="bt-plan-exam-detail">
+          <div className="min-w-0 flex-1">
+            <PlanningExamMark label={t("plan.examTag")} />
+            <p className="mt-1 break-words text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{t("guest.demo.economicsExam")}</p>
+            <p className="bt-day-exam-meta"><span className="inline-flex items-center gap-1.5"><span className="bt-plan-course-mark" style={{ backgroundColor: COURSE_COLORS.economics }} />{t("guest.demo.economics")}</span><span>14:00</span></p>
+          </div>
+        </div>
       </div>
-      <ul>
-        {[["physics", t("guest.demo.physicsRevision"), "09:00", "45 min"], ["economics", t("guest.demo.chapter4"), "16:30", "1 h"]].map(([course, title, time, duration]) => (
-          <li key={title} className="bt-planning-task">
-            <label className="flex min-h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" className="bt-task-check h-4 w-4" checked={false} readOnly onClick={() => onGate("planning")} aria-label={title} /></label>
-            <div className="min-w-0 flex-1 py-3 text-left">
-              <span className="block max-w-full break-words text-sm font-semibold">{title}</span>
-              <span className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--bt-text-2)" }}><CourseMarker course={{ color: COURSE_COLORS[course] }} />{t(`guest.demo.${course}`)}<span>{time}</span><span>{duration}</span></span>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <section className="bt-day-section" aria-label={t("academic.studyPlan")}>
+        <h3 className="bt-plan-section-label">{t("academic.studyPlan")}</h3>
+        <ul className="bt-day-tasks">
+          {[["physics", t("guest.demo.physicsRevision"), "09:00", "45 min"], ["economics", t("guest.demo.chapter4"), "16:30", "1h"]].map(([course, title, time, duration]) => (
+            <li key={title} className="bt-day-task">
+              <label className="bt-day-check"><input type="checkbox" className="bt-task-check h-4 w-4" checked={false} readOnly onClick={() => onGate("planning")} aria-label={title} /></label>
+              <div className="bt-day-task-body">
+                <p className="bt-day-task-title">{title}</p>
+                <p className="bt-day-task-meta"><span className="inline-flex items-center gap-1.5"><span className="bt-plan-course-mark" style={{ backgroundColor: COURSE_COLORS[course] }} />{t(`guest.demo.${course}`)}</span><span>{time}</span><span>{duration}</span></p>
+              </div>
+              <button type="button" className="bt-plan-start" onClick={() => onGate("planning")} aria-label={`${t("plan.startStudying")} · ${title}`}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                <span className="bt-plan-start-label">{t("plan.start")}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
     </section>
   );
 }
@@ -216,18 +229,20 @@ function PlanningDemo({ onGate }) {
   }, [weekOffset]);
 
   return (
-    <div className={`${styles.page} bt-planning flex flex-col gap-5`}>
-      <section className="card-ink bt-planning-today p-5">
-        <div className="relative z-10">
-          <div className="mb-4 flex items-baseline justify-between gap-3"><h2 className="text-base font-bold" style={{ color: "var(--bt-ink-text)" }}>{t("plan.todayCardEyebrow")}</h2><DemoLabel className={styles.demoLabelInk} /></div>
-          <div className="bt-planning-today-summary">
-            <div className="min-w-0"><p className="text-xl font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>0/2 <span className="text-sm font-medium">{t("plan.todayCardObjectives")}</span></p><p className="mt-1 text-sm" style={{ color: "var(--bt-ink-muted)" }}>2 · 1 h 45</p></div>
-            <div className="bt-planning-next-exam min-w-0 text-left">
-              <PlanningExamMark label={t("plan.nextExam")} />
-              <p className="mt-1 text-lg font-bold" style={{ color: "var(--bt-ink-text)" }}>{t("guest.demo.economicsExam")}</p>
-              <p className="mt-1 flex items-center gap-2 text-sm" style={{ color: "var(--bt-ink-muted)" }}><CourseMarker course={{ color: COURSE_COLORS.economics }} />{t("guest.demo.economics")}</p>
-              <p className="mt-2 text-sm font-bold tabular-nums" style={{ color: "var(--bt-ink-text)" }}>12 {lang === "en" ? "days" : "jours"}</p>
-            </div>
+    <div className={`${styles.page} bt-planning flex flex-col gap-4`}>
+      <section className="card-ink bt-planning-today">
+        <div className="bt-today-grid">
+          <div className="bt-today-main">
+            <p className="bt-today-head"><span className="bt-today-eyebrow">{t("plan.todayCardEyebrow")}</span><DemoLabel className={styles.demoLabelInk} /></p>
+            <p className="bt-today-count tabular-nums">
+              <span>0/2 <span className="bt-today-unit">{t("plan.todayCardObjectives")}</span></span>
+              <span className="bt-today-sub">{t("plan.leftToDo").replace("{n}", "2")} · 1h45</span>
+            </p>
+          </div>
+          <div className="bt-planning-next-exam">
+            <PlanningExamMark label={t("plan.nextExam")} />
+            <span className="bt-next-exam-name">{t("guest.demo.economicsExam")}</span>
+            <span className="bt-next-exam-meta"><span className="bt-plan-course-mark" style={{ backgroundColor: COURSE_COLORS.economics }} />{t("guest.demo.economics")} · {t("plan.badgeDays").replace("{n}", "12")}</span>
           </div>
         </div>
       </section>

@@ -55,7 +55,7 @@ test("the stats preview is coherent: 8h15 equals the seven daily bars", async ()
 
 test("reading demo planning items stays open while personal changes are gated", async () => {
   const source = await readFile(COMPONENT_PATH, "utf8");
-  for (const className of ["bt-planning-next-exam", "bt-planning-week-exam", "bt-plan-objective-chip", "bt-planning-agenda-exam"]) {
+  for (const className of ["bt-planning-next-exam", "bt-plan-week-exam", "bt-plan-week-row", "bt-plan-exam-detail"]) {
     const line = source.split("\n").find((candidate) => candidate.includes(`className=\"${className}`));
     assert.ok(line, `missing ${className}`);
     assert.doesNotMatch(line, /onGate/, `${className} should remain consultable without a gate`);
@@ -88,7 +88,7 @@ test("the contextual gate becomes a bottom sheet while previews use the real exa
   assert.match(css, /@media \(max-width: 639px\)/);
   assert.match(css, /place-items: end center/);
   assert.match(component, /PlanningExamMark/);
-  assert.match(component, /bt-planning-week-exam/);
+  assert.match(component, /bt-plan-week-exam/);
   assert.doesNotMatch(css, /--guest-exam-/);
 });
 

@@ -1452,17 +1452,6 @@ html.bt-focus-active .bt-nav { display: none; }
    style inline à chaque survol. En CSS, la meme regle sert au focus clavier
    et se desactive toute seule sur les ecrans tactiles. */
 
-/* Boutons d'icone des listes (modifier, supprimer, reporter, lancer). */
-.bt-plan-icon-btn {
-  color: var(--bt-text-3);
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .bt-plan-icon-btn:hover { color: var(--bt-text-1); background-color: var(--bt-border); }
-  .bt-plan-icon-btn--danger:hover { color: var(--bt-danger); background-color: var(--bt-danger-bg); }
-  .bt-plan-icon-btn--accent:hover { color: var(--bt-accent-text); background-color: var(--bt-accent-bg); }
-}
-
 /* Fleches de navigation et bouton « … » de la barre d'outils. */
 .bt-plan-nav-btn {
   color: var(--bt-text-2);
@@ -1472,31 +1461,6 @@ html.bt-focus-active .bt-nav { display: none; }
 }
 @media (hover: hover) and (pointer: fine) {
   .bt-plan-nav-btn:hover { background-color: var(--bt-border); color: var(--bt-text-1); }
-}
-
-/* Entrees du menu d'actions globales. */
-.bt-plan-menu-item {
-  color: var(--bt-text-1);
-  background-color: transparent;
-  transition: background-color 0.15s ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .bt-plan-menu-item:hover:not(:disabled) { background-color: var(--bt-subtle); }
-}
-
-/* Action discrete (dupliquer ce jour) — presente sans peser. */
-.bt-plan-quiet-btn {
-  color: var(--bt-text-3);
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .bt-plan-quiet-btn:hover { color: var(--bt-text-1); background-color: var(--bt-subtle); }
-}
-
-/* Rangee de revision par cours. */
-.bt-plan-revision-row { transition: background-color 0.15s ease; }
-@media (hover: hover) and (pointer: fine) {
-  .bt-plan-revision-row:hover { background-color: var(--bt-subtle); }
 }
 
 /* Cases du calendrier et creneaux de la grille horaire. */

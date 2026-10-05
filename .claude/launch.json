@@ -14,6 +14,13 @@
       "runtimeArgs": ["start"],
       "port": 4321,
       "autoPort": true
+    },
+    {
+      "name": "blocus-offline-dev",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["NEXT_PUBLIC_OFFLINE_DEV=true", "npx", "next", "dev", "-p", "4340"],
+      "port": 4340,
+      "autoPort": false
     }
   ]
 }

@@ -19,6 +19,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Imported academic context | `components/AcademicDeadlines.js`, `components/useAcademicCalendar.js`, `lib/planningAcademicEvents.mjs` — `docs/university-calendar-planning.md` |
 | University connection / matches / exam review | `components/UniversityCalendar.js`, `lib/calendarReview.mjs`, `lib/calendarApi.js` — `docs/university-calendar-connection.md` |
 | Exam/calendar presentation | `pages/planning.js`, `styles/planning.css`, `lib/planningInsights.mjs` |
+| Planning floating actions / course overview | `components/planning/PlanPopover.js` (popover on a computer, bottom sheet on a phone), `PlanMenu.js` (command lists), `CourseOverview.js` (*By course*) |
 | Mascot poses / appearances | `components/Mascot.js`, `components/MascotMoment.js`, `lib/mascotMotion.mjs`, `lib/mascotMoments.js` |
 | Reward data / artwork | `lib/badges.js`, `lib/badgeArt.js`, `components/BadgeIcon.jsx` |
 | Structured activity bodies | `components/ActivityPostBody.jsx` |
