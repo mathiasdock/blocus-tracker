@@ -157,6 +157,22 @@
 .bt-next-exam-name { font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--bt-ink-text); }
 .bt-next-exam-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: 13px; font-weight: 600; color: var(--bt-ink-muted); }
 .bt-next-exam-more { font-size: 12px; color: var(--bt-ink-muted); }
+/* Phones: the same strip, about a quarter shorter — tighter padding, gaps
+   and leading, the exam stamp beside its name, its date on the line below.
+   Small controls keep a 44 px target through an invisible ::after. */
+@media (max-width: 639px) {
+  .bt-planning-today { padding: 10px 14px; }
+  .bt-today-grid { gap: 7px; }
+  .bt-today-date, .bt-today-cta { position: relative; }
+  .bt-today-date { min-block-size: 24px; }
+  .bt-today-date::after { content: ""; position: absolute; inset: -10px -6px; }
+  .bt-today-count { font-size: 18px; line-height: 1.2; }
+  .bt-today-cta { min-block-size: 36px; margin-top: 6px; }
+  .bt-today-cta::after { content: ""; position: absolute; inset: -4px 0; }
+  .bt-planning-next-exam { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 3px; padding-top: 7px; }
+  .bt-next-exam-name { flex: 1 1 10rem; min-inline-size: 0; font-size: 15px; line-height: 1.2; }
+  .bt-next-exam-meta, .bt-next-exam-more { flex-basis: 100%; line-height: 1.35; }
+}
 @media (min-width: 640px) {
   .bt-planning-today { padding: 16px 22px; }
   .bt-today-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px; align-items: start; }
@@ -330,18 +346,30 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
   .bt-plan-week-academic { flex-wrap: nowrap; justify-content: flex-end; max-inline-size: 300px; }
 }
 
+/* Scheduled times: collapsed until asked for. */
+.bt-plan-times { margin-top: 10px; }
+.bt-plan-times-toggle {
+  display: inline-flex; align-items: center; gap: 8px; min-block-size: 44px; padding: 0 12px;
+  border-radius: var(--bt-r-control); font-size: 13px; font-weight: 700; color: var(--bt-text-2);
+}
+.bt-plan-times-chevron { display: inline-flex; transition: transform .16s ease; }
+.bt-plan-times-toggle[aria-expanded="true"] .bt-plan-times-chevron { transform: rotate(90deg); }
+@media (hover: hover) and (pointer: fine) { .bt-plan-times-toggle:hover { background: var(--bt-subtle); color: var(--bt-text-1); } }
+
 /* ── Day plan: one day, inline (Day view) or in its sheet ─── */
 .bt-day-card { padding: 16px; }
 @media (min-width: 640px) { .bt-day-card { padding: 20px 22px; } }
 .bt-day-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .bt-day-summary { font-size: 15px; font-weight: 800; color: var(--bt-text-1); }
-.bt-day-summary-facts { font-weight: 600; color: var(--bt-text-2); }
+.bt-day-summary-facts { font-weight: 600; color: var(--bt-text-2); white-space: nowrap; } /* « · 4h30 to go » never splits */
 .bt-day-studied { display: flex; align-items: flex-start; gap: 6px; margin-top: 4px; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--bt-accent-text); }
 .bt-day-studied > svg { flex: none; margin-top: 1px; }
 .bt-day-studied-bar { display: block; inline-size: min(220px, 100%); block-size: 4px; margin-top: 6px; border-radius: 999px; background: var(--bt-subtle); overflow: hidden; }
 .bt-day-studied-bar > span { display: block; block-size: 100%; background: var(--bt-progress-fill); transform-origin: left; }
 .bt-day-head-actions { display: flex; align-items: center; gap: 4px; flex: none; }
 .bt-day-sheet-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+/* The last row stays clear of the iPhone home indicator. */
+.bt-day-sheet-body { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
 .bt-day-section { margin-top: 16px; }
 .bt-day-exams { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
 .bt-day-exam-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; margin-top: 4px; font-size: 13px; color: var(--bt-text-1); }
@@ -387,6 +415,8 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
 .bt-academic-pop-head { display: flex; align-items: center; gap: 4px; margin: -2px 0 4px -6px; }
 .bt-academic-pop-heading { min-inline-size: 0; font-size: 14px; font-weight: 800; color: var(--bt-text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bt-academic-pop-note { padding: 6px 4px; font-size: 13px; color: var(--bt-text-2); }
+.bt-academic-pop-note--warn { font-weight: 700; color: var(--bt-warning); }
+.bt-academic-confirm { display: flex; flex-direction: column; gap: 4px; }
 .bt-academic-pop-error { padding: 6px 4px; font-size: 13px; font-weight: 600; color: var(--bt-danger); }
 
 /* ── Courses: overview and context ────────────────────────── */
@@ -405,7 +435,7 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
 .bt-course-name { display: flex; align-items: center; gap: 8px; padding: 0 2px 10px; font-size: 17px; font-weight: 800; color: var(--bt-text-1); }
 .bt-course-name .bt-plan-course-mark { width: 10px; height: 10px; }
 .bt-course-detail { display: flex; flex-direction: column; gap: 10px; padding: 0 2px 6px; }
-.bt-course-sheet { padding: 0 20px 8px; }
+.bt-course-sheet { padding: 0 20px calc(8px + env(safe-area-inset-bottom)); }
 .bt-course-exam { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; inline-size: 100%; padding: 10px 12px; border-radius: var(--bt-r-inset); background: var(--bt-exam-bg); border: 1px solid var(--bt-exam-border); text-align: left; color: var(--bt-text-1); }
 .bt-course-exam strong { font-size: 14px; overflow-wrap: anywhere; }
 .bt-course-exam > span:last-child { font-size: 12px; color: var(--bt-text-1); }
@@ -436,7 +466,7 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
 }
 
 /* ── University calendar (Manage sheet) ───────────────────── */
-.uc-panel { padding: 0 20px 20px; font-size: 14px; color: var(--bt-text-1); }
+.uc-panel { padding: 0 20px calc(20px + env(safe-area-inset-bottom)); font-size: 14px; color: var(--bt-text-1); }
 .uc-title { font-size: 16px; font-weight: 800; }
 .uc-subtitle { font-size: 13px; font-weight: 800; color: var(--bt-text-1); margin-bottom: 4px; }
 .uc-muted { font-size: 13px; line-height: 1.5; color: var(--bt-text-2); }
@@ -467,7 +497,7 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
 .uc-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-block-size: 48px; font-size: 14px; }
 .uc-add-link { align-self: flex-start; min-block-size: 44px; padding: 0 2px; font-size: 14px; font-weight: 700; color: var(--bt-accent-text); }
 .uc-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.uc-footer--sticky { position: sticky; inset-block-end: 0; margin: 0 -20px -20px; padding: 12px 20px calc(16px + env(safe-area-inset-bottom)); background: var(--bt-surface); border-top: 1px solid var(--bt-border); }
+.uc-footer--sticky { position: sticky; inset-block-end: 0; margin: 0 -20px calc(-20px - env(safe-area-inset-bottom)); padding: 12px 20px calc(16px + env(safe-area-inset-bottom)); background: var(--bt-surface); border-top: 1px solid var(--bt-border); }
 .uc-footnote { flex-basis: 100%; font-size: 12px; color: var(--bt-text-2); }
 .uc-link { min-block-size: 36px; font-size: 13px; font-weight: 700; color: var(--bt-accent-text); }
 .uc-match-list > li + li { border-top: 1px solid var(--bt-border); }
@@ -484,6 +514,8 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
 .uc-candidate-title { font-size: 14px; font-weight: 700; color: var(--bt-text-1); overflow-wrap: anywhere; }
 .uc-candidate-meta { font-size: 13px; color: var(--bt-text-2); }
 .uc-candidate-note { font-size: 12px; font-weight: 700; color: var(--bt-warning); }
+.uc-candidate[data-duplicate] .uc-candidate-check { cursor: default; }
+.uc-candidate[data-duplicate] .uc-candidate-check input { opacity: .45; }
 .uc-candidate--changed { flex-wrap: wrap; padding: 10px 0; }
 .uc-candidate-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .uc-date-time { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px; }
@@ -495,4 +527,9 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
 @media (hover: hover) and (pointer: fine) {
   .uc-row:hover:not(:disabled) { background: var(--bt-border); }
   .uc-danger-link:hover, .uc-add-link:hover, .uc-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+}
+
+/* Preserve the full home-indicator inset below long Planning lists. */
+@media (max-width: 1023px) {
+  .bt-planning { padding-bottom: env(safe-area-inset-bottom); }
 }

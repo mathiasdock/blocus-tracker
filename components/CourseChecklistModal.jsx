@@ -1,18 +1,21 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/router";
 import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import { useI18n } from "../contexts/I18nContext";
 
-// Modale réutilisable (Planning + Chrono) : checklist de révision d'un cours.
+// Fiche d'un cours depuis le Chrono (carte « Mes cours »).
+// Le travail d'étude se planifie désormais en OBJECTIFS dans le Planning : on
+// ne crée plus de nouvelle tâche de checklist ici. Une ancienne checklist
+// reste lisible (cocher, renommer, supprimer) ; aucune donnée n'est effacée.
 // Props : course {id, name, color}, userId, onClose, onChanged(), onEdit().
 const FOCUSABLE_SELECTOR = "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])";
 
 export default function CourseChecklistModal({ course, userId, onClose, onChanged, onEdit }) {
   const { t } = useI18n();
+  const router = useRouter();
   const [items, setItems]       = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [newTitle, setNewTitle] = useState("");
-  const [busy, setBusy]         = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText]   = useState("");
   const dialogRef = useRef(null);
@@ -72,24 +75,6 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
     };
   }, [onClose]);
 
-  async function addItem(e) {
-    e.preventDefault();
-    const title = newTitle.trim();
-    if (!title || busy) return;
-    setBusy(true);
-    const position = items.length ? Math.max(...items.map(i => i.position || 0)) + 1 : 0;
-    const { data, error } = await supabase
-      .from("course_checklist_items")
-      .insert({ user_id: userId, course_id: course.id, title, position })
-      .select()
-      .maybeSingle();
-    setBusy(false);
-    if (error) return;
-    if (data) setItems(prev => [...prev, data]);
-    setNewTitle("");
-    onChanged?.();
-  }
-
   async function toggle(item) {
     const next = !item.is_done;
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_done: next } : i));
@@ -123,7 +108,7 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.45)" }} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="course-checklist-title" className="bt-dashboard-readable card w-full sm:max-w-md rounded-t-3xl sm:rounded-[22px] max-h-[85vh] overflow-y-auto focus:outline-none">
-        <div className="p-5">
+        <div className="p-5" style={{ paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
           {/* Header */}
           <div className="mb-0.5 flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
@@ -145,34 +130,31 @@ export default function CourseChecklistModal({ course, userId, onClose, onChange
               </button>
             </div>
           </div>
-          <p className="text-xs mb-3" style={{ color: "var(--bt-text-3)" }}>{t("checklist.title")}</p>
-
-          {/* Progress */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--bt-text-2)" }}>
-              <span className="font-medium">{done}/{total} {t("checklist.tasks")}</span>
-              <span className="font-semibold" style={{ color: "var(--bt-progress-text)" }}>{pct}%</span>
-            </div>
-            <div className="w-full h-2 rounded-full overflow-hidden" role="progressbar" aria-label={t("checklist.title")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} style={{ backgroundColor: "var(--bt-subtle)" }}>
-              <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none" style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-progress-fill)" }} />
-            </div>
+          {/* Plan study work as objectives, in Planning. */}
+          <div className="mb-4 mt-2 rounded-xl px-3 py-3" style={{ backgroundColor: "var(--bt-subtle)" }}>
+            <p className="text-sm" style={{ color: "var(--bt-text-1)" }}>{t("checklist.movedHint")}</p>
+            <button type="button" className="btn-primary mt-3 min-h-11 px-4"
+              onClick={() => { onClose(); router.push(`/planning?plan=${encodeURIComponent(course.id)}`); }}>
+              {t("course.planRevision")}
+            </button>
           </div>
 
-          {/* Add */}
-          <form onSubmit={addItem} className="flex gap-2 mb-3">
-            <input className="input" value={newTitle} maxLength={200}
-              onChange={e => setNewTitle(e.target.value)} placeholder={t("checklist.addPlaceholder")} />
-            <button type="submit" disabled={busy || !newTitle.trim()} className="btn-primary shrink-0">
-              {t("checklist.add")}
-            </button>
-          </form>
+          {!loading && items.length > 0 && (
+            <div className="mb-2">
+              <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--bt-text-2)" }}>
+                <span className="font-medium">{t("checklist.legacyTitle")} · {done}/{total}</span>
+                <span className="font-semibold" style={{ color: "var(--bt-progress-text)" }}>{pct}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full overflow-hidden" role="progressbar" aria-label={t("checklist.legacyTitle")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} style={{ backgroundColor: "var(--bt-subtle)" }}>
+                <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none" style={{ transform: `scaleX(${pct / 100})`, backgroundColor: "var(--bt-progress-fill)" }} />
+              </div>
+            </div>
+          )}
 
           {/* List */}
           {loading ? (
             <p className="text-sm py-4 text-center" style={{ color: "var(--bt-text-3)" }}>…</p>
-          ) : items.length === 0 ? (
-            <p className="text-sm py-6 text-center" style={{ color: "var(--bt-text-3)" }}>{t("checklist.empty")}</p>
-          ) : (
+          ) : items.length === 0 ? null : (
             <ul className="space-y-1.5">
               {items.map(item => (
                 <li key={item.id} className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 group"

@@ -4,6 +4,8 @@ import PlanningExamMark from './PlanningExamMark';
 import PlanPopover from './planning/PlanPopover';
 import { MenuList } from './planning/PlanMenu';
 import { ACADEMIC_EVENT_TYPES } from '../lib/academicEventClassification.mjs';
+import { calendarExamPrefill, examLinkForm } from '../lib/calendarReview.mjs';
+import { matchingLocalExam } from '../lib/planningAcademicEvents.mjs';
 
 // What the university imposes, as quiet rows: the title, then course · type ·
 // when it is due. Nothing to administer by default. A row opens a small
@@ -39,23 +41,42 @@ const IconBack = () => <Glyph size={16}><path d="m15 18-6-6 6-6" /></Glyph>;
 const IconExternal = () => <Glyph size={16}><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></Glyph>;
 
 // The popover's content. Exported on its own so it can be exercised without a
-// portal. Views: root → more → type | course. Each pick saves at once.
-export function AcademicActions({ event, calendar, courses = [], t, lang, onPlan, onClose }) {
+// portal. Views: root → more → type | course, and confirm.
+//
+// Marking an event as an exam has ONE meaning everywhere: it becomes the
+// student's exam. « Mark as exam », « Add to my exams » and choosing the Exam
+// type all lead to the same confirmation, which creates the exam — or links an
+// exam the student already has that day — through the server conversion
+// (idempotent, never a second exam). Nothing changes a label alone any more.
+export function AcademicActions({ event, calendar, courses = [], exams = [], t, lang, onPlan, onClose, onExamsChanged }) {
   const [view, setView] = useState('root');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const source = calendar.sources?.find(s => s.id === event.source_id);
   const provider = PROVIDERS[source?.provider] || null;
   const possible = event.event_type === 'exam' && !event.confirmedExam;
+  // Marked as an exam by the earlier label-only confirmation: not an exam of
+  // the student's yet. It is offered the same conversion.
+  const labelOnly = event.confirmedExam;
+  const prefill = calendarExamPrefill(event, calendar.maps || []);
+  const existing = matchingLocalExam(exams, { courseId: prefill.courseId, date: prefill.date, name: event.title, rawName: event.raw_title });
+  const linkForm = examLinkForm(existing);
+  const courseLabel = courses.find(c => c.id === prefill.courseId)?.name || event.course_name || t('academic.unmapped');
+  const examDay = new Date(`${prefill.date}T12:00:00`).toLocaleDateString(localeOf(lang), { weekday: 'short', day: 'numeric', month: 'short' });
   async function save(action) {
     if (busy) return;
     setBusy(true); setError(false);
     try { await action(); onClose?.(); }
     catch { setError(true); setBusy(false); }
   }
-  const back = title => (
+  const convert = form => save(async () => {
+    await calendar.act({ action: 'confirm_exam', source_id: event.source_id, external_uid: event.external_uid,
+      recurrence_id: event.recurrence_id || '', exam: form });
+    await onExamsChanged?.();
+  });
+  const back = (title, to) => (
     <div className="bt-academic-pop-head">
-      <button type="button" className="bt-plan-icon-action" onClick={() => setView(view === 'more' ? 'root' : 'more')} aria-label={t('common.back')}><IconBack /></button>
+      <button type="button" className="bt-plan-icon-action" onClick={() => setView(to)} aria-label={t('common.back')}><IconBack /></button>
       <p className="bt-academic-pop-heading">{title}</p>
     </div>
   );
@@ -69,8 +90,16 @@ export function AcademicActions({ event, calendar, courses = [], t, lang, onPlan
           <div className="bt-academic-pop-decision">
             <p>{t('academic.possibleExamQuestion')}</p>
             <div className="bt-academic-pop-row">
-              <button type="button" className="bt-plan-action bt-plan-action--outline" disabled={busy} onClick={() => save(() => calendar.override(event, 'exam'))}>{t('academic.markExam')}</button>
+              <button type="button" className="bt-plan-action bt-plan-action--outline" disabled={busy} onClick={() => setView('confirm')}>{t('academic.markExam')}</button>
               <button type="button" className="bt-plan-action bt-plan-action--quiet" disabled={busy} onClick={() => save(() => calendar.override(event, 'other'))}>{t('uc.keepDeadline')}</button>
+            </div>
+          </div>
+        )}
+        {labelOnly && (
+          <div className="bt-academic-pop-decision">
+            <p>{t('academic.notInExams')}</p>
+            <div className="bt-academic-pop-row">
+              <button type="button" className="bt-plan-action bt-plan-action--outline" disabled={busy} onClick={() => setView('confirm')}>{t('uc.createExam')}</button>
             </div>
           </div>
         )}
@@ -79,8 +108,24 @@ export function AcademicActions({ event, calendar, courses = [], t, lang, onPlan
           <button type="button" className="bt-plan-icon-action" aria-label={t('academic.moreActions')} disabled={busy} onClick={() => setView('more')}><IconMore /></button>
         </div>
       </>}
+      {view === 'confirm' && <>
+        {back(t('academic.confirmTitle'), 'root')}
+        <div className="bt-academic-confirm">
+          <p className="bt-academic-pop-title">{existing ? existing.name || courseLabel : prefill.name}</p>
+          <p className="bt-academic-pop-meta"><CourseDot event={event} />{courseLabel}</p>
+          <p className="bt-academic-pop-meta">{[examDay, prefill.time].filter(Boolean).join(' · ')}</p>
+          <p className={`bt-academic-pop-note${existing ? ' bt-academic-pop-note--warn' : ''}`}>
+            {existing ? t('uc.alreadyExam').replace('{name}', existing.name || courseLabel) : t('academic.confirmHint')}
+          </p>
+          <div className="bt-academic-pop-row">
+            {!existing && <button type="button" className="btn-primary min-h-11 flex-1 px-4" disabled={busy} onClick={() => convert(prefill)}>{t('uc.createExam')}</button>}
+            {existing && linkForm && <button type="button" className="btn-primary min-h-11 flex-1 px-4" disabled={busy} onClick={() => convert(linkForm)}>{t('academic.linkToExam')}</button>}
+            <button type="button" className="bt-plan-action bt-plan-action--quiet" disabled={busy} onClick={() => setView('root')}>{t('common.cancel')}</button>
+          </div>
+        </div>
+      </>}
       {view === 'more' && <>
-        {back(event.title)}
+        {back(event.title, 'root')}
         <MenuList label={t('academic.moreActions')} onDone={() => {}} items={[
           event.external_url && { key: 'open', label: provider ? t('academic.openIn').replace('{name}', provider) : t('academic.openSource'), icon: <IconExternal />, keepOpen: true,
             onSelect: () => { window.open(event.external_url, '_blank', 'noopener,noreferrer'); onClose?.(); } },
@@ -91,15 +136,16 @@ export function AcademicActions({ event, calendar, courses = [], t, lang, onPlan
         ]} />
       </>}
       {view === 'type' && <>
-        {back(t('academic.changeType'))}
+        {back(t('academic.changeType'), 'more')}
         <MenuList label={t('academic.changeType')} onDone={() => {}} items={[
           { key: 'auto', label: t('academic.automatic'), checked: !event.user_override, keepOpen: true, disabled: busy, onSelect: () => save(() => calendar.override(event, null)) },
+          // « Exam » is the same conversion as « Mark as exam », never a label.
           ...ACADEMIC_EVENT_TYPES.map(type => ({ key: type, label: t(`academic.type.${type}`), checked: event.user_override === type, keepOpen: true, disabled: busy,
-            onSelect: () => save(() => calendar.override(event, type)) })),
+            onSelect: () => (type === 'exam' ? setView('confirm') : save(() => calendar.override(event, type))) })),
         ]} />
       </>}
       {view === 'course' && <>
-        {back(t('academic.changeCourse'))}
+        {back(t('academic.changeCourse'), 'more')}
         {event.external_course_key
           ? <MenuList label={t('academic.changeCourse')} onDone={() => {}} items={[
             ...courses.filter(c => !c.archived_at || c.id === event.course_id).map(c => ({ key: c.id, label: c.name, checked: event.course_id === c.id, keepOpen: true, disabled: busy,
@@ -114,7 +160,7 @@ export function AcademicActions({ event, calendar, courses = [], t, lang, onPlan
   );
 }
 
-function AcademicRow({ event, calendar, courses, t, lang, onPlan, withDate, hideCourse }) {
+function AcademicRow({ event, calendar, courses, exams, t, lang, onPlan, onExamsChanged, withDate, hideCourse }) {
   const [open, setOpen] = useState(false);
   const anchor = useRef(null);
   return (
@@ -132,13 +178,14 @@ function AcademicRow({ event, calendar, courses, t, lang, onPlan, withDate, hide
         </span>
       </button>
       <PlanPopover open={open} anchorRef={anchor} onClose={() => setOpen(false)} label={event.title} align="start" width={320}>
-        <AcademicActions event={event} calendar={calendar} courses={courses} t={t} lang={lang} onPlan={onPlan} onClose={() => setOpen(false)} />
+        <AcademicActions event={event} calendar={calendar} courses={courses} exams={exams} t={t} lang={lang} onPlan={onPlan}
+          onExamsChanged={onExamsChanged} onClose={() => setOpen(false)} />
       </PlanPopover>
     </li>
   );
 }
 
-export default function AcademicDeadlines({ events = [], calendar, courses, t, lang, onPlan, heading, withDate = false, hideCourse = false, limit = 0, className = '' }) {
+export default function AcademicDeadlines({ events = [], calendar, courses, exams = [], t, lang, onPlan, onExamsChanged, heading, withDate = false, hideCourse = false, limit = 0, className = '' }) {
   const [expanded, setExpanded] = useState(false);
   if (!events.length) return null;
   const shown = limit && !expanded ? events.slice(0, limit) : events;
@@ -147,7 +194,7 @@ export default function AcademicDeadlines({ events = [], calendar, courses, t, l
     <section className={`bt-academic-section ${className}`} aria-label={heading || t('academic.heading')}>
       {heading !== null && <h3 className="bt-plan-section-label">{heading || t('academic.heading')}</h3>}
       <ul className="bt-academic-list">
-        {shown.map(event => <AcademicRow key={event.key} {...{ event, calendar, courses, t, lang, onPlan, withDate, hideCourse }} />)}
+        {shown.map(event => <AcademicRow key={event.key} {...{ event, calendar, courses, exams, t, lang, onPlan, onExamsChanged, withDate, hideCourse }} />)}
       </ul>
       {hidden > 0 && (
         <button type="button" className="bt-plan-more-link" onClick={() => setExpanded(true)}>

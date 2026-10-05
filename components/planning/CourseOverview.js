@@ -46,7 +46,7 @@ const IconBack = () => <Glyph size={16}><path d="m15 18-6-6 6-6" /></Glyph>;
 const IconChevron = () => <Glyph size={14}><path d="m9 18 6-6-6-6" /></Glyph>;
 const IconPlay = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" /></svg>;
 
-function CourseDetail({ row, objectives, exams, academic, courses, today, t, lang, openDay, toggle, launchTimer, planWork, onPlanAcademic }) {
+function CourseDetail({ row, objectives, exams, localExams, academic, courses, today, t, lang, openDay, toggle, launchTimer, planWork, onPlanAcademic, onExamsChanged }) {
   const course = row.course;
   const upcomingExams = exams.filter(e => e.course_id === course.id && e.exam_date >= today);
   const pending = objectives.filter(o => o.course_id === course.id && !o.done);
@@ -58,6 +58,9 @@ function CourseDetail({ row, objectives, exams, academic, courses, today, t, lan
     .filter(e => e.course_id === course.id && !e.confirmedExam && e.date >= today && e.date <= horizon)
     .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
   const exam = row.exam;
+  const todayObjective = upcoming.find(o => o.scheduled_date === today);
+  const start = () => (todayObjective ? launchTimer(course.id, todayObjective.target_minutes, todayObjective.title) : launchTimer(course.id));
+  const plan = () => planWork({ title: "", courseId: course.id });
   const planned = exam
     ? row.remaining
       ? t("course.beforeExamFacts").replace("{facts}", [count(t, "plan.objectiveCountOne", "plan.objectiveCountMany", row.remaining),
@@ -83,9 +86,17 @@ function CourseDetail({ row, objectives, exams, academic, courses, today, t, lan
         </button>
       )) : <p className="bt-course-muted">{t("course.noExam")}</p>}
       <p className="bt-course-facts" data-attention={exam && !row.remaining && row.examDays <= 7 ? "1" : undefined}>{planned}</p>
+      {/* The course's state picks the primary action: work already planned →
+          study now (today's objective when there is one); nothing planned →
+          plan it first. */}
       <div className="bt-course-actions">
-        <button type="button" className="btn-primary min-h-11 px-4" onClick={() => planWork({ title: "", courseId: course.id })}>{t("course.planRevision")}</button>
-        <button type="button" className="bt-plan-action bt-plan-action--outline" onClick={() => launchTimer(course.id)}><IconPlay />{t("plan.startStudying")}</button>
+        {upcoming.length > 0 ? <>
+          <button type="button" className="btn-primary min-h-11 px-4" onClick={start}><IconPlay />{t("plan.startStudying")}</button>
+          <button type="button" className="bt-plan-action bt-plan-action--outline" onClick={plan}>{t("course.planRevision")}</button>
+        </> : <>
+          <button type="button" className="btn-primary min-h-11 px-4" onClick={plan}>{t("course.planRevision")}</button>
+          <button type="button" className="bt-plan-action bt-plan-action--quiet" onClick={start}><IconPlay />{t("plan.startStudying")}</button>
+        </>}
       </div>
       {upcoming.length > 0 && (
         <section className="bt-course-section">
@@ -100,13 +111,13 @@ function CourseDetail({ row, objectives, exams, academic, courses, today, t, lan
           <ul>{overdue.slice(0, 6).map(line)}</ul>
         </section>
       )}
-      <AcademicDeadlines events={deadlines} calendar={academic} courses={courses} t={t} lang={lang} onPlan={onPlanAcademic}
+      <AcademicDeadlines events={deadlines} calendar={academic} courses={courses} exams={localExams} onExamsChanged={onExamsChanged} t={t} lang={lang} onPlan={onPlanAcademic}
         heading={t("course.dueSoon")} withDate hideCourse limit={5} className="bt-course-section" />
     </div>
   );
 }
 
-export default function CourseOverview({ courses, objectives, exams, academic, today, t, lang, openDay, toggle, launchTimer, planWork, onPlanAcademic, className = "" }) {
+export default function CourseOverview({ courses, objectives, exams, localExams = [], academic, today, t, lang, openDay, toggle, launchTimer, planWork, onPlanAcademic, onExamsChanged, className = "" }) {
   const [selectedId, setSelectedId] = useState(null);
   const [inline, setInline] = useState(false);
   useEffect(() => {
@@ -119,7 +130,7 @@ export default function CourseOverview({ courses, objectives, exams, academic, t
   if (!courses.length) return null;
   const rows = courseOverview(courses, objectives, exams, academic.byDate, today);
   const selected = rows.find(row => row.course.id === selectedId) || null;
-  const detail = selected && <CourseDetail row={selected} {...{ objectives, exams, academic, courses, today, t, lang, openDay, toggle, launchTimer, planWork, onPlanAcademic }} />;
+  const detail = selected && <CourseDetail row={selected} {...{ objectives, exams, localExams, academic, courses, today, t, lang, openDay, toggle, launchTimer, planWork, onPlanAcademic, onExamsChanged }} />;
 
   if (inline && selected) {
     return (

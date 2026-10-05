@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-04 — Codex — Planning : reprise et finalisation du travail de Claude (local)
+
+- Reprise des 16 fichiers modifiés dans le worktree `.claude/worktrees/dm-instagram`, branche `claude/planning-ux-refactor`, sans reset/stash/checkout. Conserve les correctifs de Claude : revue des examens liés/confirmés, conversion réelle, sélection groupée, CTA Par cours, grille horaire repliée, Chrono vers objectifs, anciennes checklist conservées, carte Aujourd’hui compacte, dot d’action.
+- Termine la déduplication dans un même lot (le deuxième import du même cours/jour réutilise les champs du premier examen), y compris après modification du formulaire. Ajoute le test de sélection 0/1/plusieurs et de liaison dans le lot. Aucun changement API, migration, sync ou classification.
+- Complète les safe areas de la fiche Chrono, de la navigation flottante et du bas de Planning. Corrige le zéro isolé des journées vides en Semaine. Clarifie que la liaison signale un changement de source sans déplacer automatiquement l’examen.
+- QA synthétique locale : liaison conserve 1 examen et retire le doublon de la revue ; Mark as exam crée le deuxième examen et son lien ; parcours Chrono vers objectif avec cours prérempli et durée vide, ancienne tâche conservée ; mobile/desktop FR/EN clair/sombre, semaine repliée, hiérarchie avec/sans travail, inset 34 px simulé. Captures et limites dans `artifacts/planning-final-pass/README.md`.
+- 674 tests complets, lint et build de production réussis (avertissement PWA de taille préexistant). Aucun accès Canvas privé, aucune écriture distante, push, merge ou déploiement.
+
 ## 2026-10-04 — Claude — Planning : refonte UX d'ensemble (branche `claude/planning-ux-refactor`, non poussée)
 
 - Brief de Mathias : un seul Planning cohérent après le Calendrier universitaire, sans nouvelle fonctionnalité. Trois notions séparées partout : ce que l'université impose (examens = estampille sur sable ; échéances importées = lignes de texte sobres), ce que l'étudiant choisit (objectifs, avec « Lancer » vers le Chrono), la vue d'ensemble (bande Aujourd'hui, « Par cours »).

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { examReviewGroups, calendarExamPrefill } from '../lib/calendarReview.mjs';
+import { examReviewGroups, calendarExamPrefill, examLinkForm } from '../lib/calendarReview.mjs';
 import { courseOverview } from '../lib/planningInsights.mjs';
 import { confirmedImportedExams, splitAcademicEvents, academicKey } from '../lib/planningAcademicEvents.mjs';
 import { classifyAcademicEvent } from '../lib/academicEventClassification.mjs';
@@ -29,12 +29,13 @@ test('exam review never preselects a probable duplicate of an existing exam', ()
   const rows = [row('a', 'Exam 1', '2026-10-05'), row('b', 'Midterm', '2026-11-02')];
   const exams = [{ id: 'local', course_id: 'adv', name: 'Advertising — written exam', exam_date: '2026-10-05' }];
   const groups = examReviewGroups(rows, maps, [], 's', [], exams);
-  const duplicate = groups.likely.find(item => item.external_uid === 'a');
-  assert.equal(duplicate.duplicate.id, 'local', 'same course, same day: flagged with the existing exam');
+  assert.deepEqual(groups.likely.map(item => item.external_uid), ['b'], 'the exam the student already has is not a likely exam');
+  assert.equal(groups.duplicates.find(item => item.external_uid === 'a').duplicate.id, 'local', 'same course, same day: set apart with the existing exam');
   assert.deepEqual(groups.preselected, [keyOf('b')]);
   // Without a matched course, only the same name on the same day counts.
   const unmatched = examReviewGroups(rows, [], [], 's', [], [{ id: 'other', course_id: 'adv', name: 'Exam 1 [ADV 3001]', exam_date: '2026-10-05' }]);
-  assert.equal(unmatched.likely.find(item => item.external_uid === 'a').duplicate.id, 'other');
+  assert.equal(unmatched.duplicates.find(item => item.external_uid === 'a').duplicate.id, 'other');
+  assert.ok(!unmatched.likely.some(item => item.external_uid === 'a'));
 });
 
 test('exam review leaves converted exams alone unless the source changed them', () => {
@@ -98,4 +99,23 @@ test('imported events the student marked as exams count as exams in the overview
     ['imported:k1', 'Midterm', 'c', '2026-10-14', null, 'imported'],
     ['imported:k5', 'Oral', 'c', '2026-10-15', '09:30', 'imported'],
   ], 'an unconfirmed candidate is never an exam');
+});
+
+test('events already marked as exams are never candidates again, and only real decisions count as « to review »', () => {
+  const rows = [row('a', 'Final Exam', '2026-12-08', { user_override: 'exam' }), row('b', 'Midterm', '2026-11-02'),
+    row('c', 'Test 1', '2026-10-07'), row('d', 'Exam 1', '2026-10-05')];
+  const exams = [{ id: 'local', source: 'exam', course_id: 'adv', name: 'Advertising — written exam', exam_date: '2026-10-05' }];
+  const groups = examReviewGroups(rows, maps, [], 's', [], exams);
+  assert.ok(![...groups.likely, ...groups.possible].some(item => item.external_uid === 'a'), 'marked as exam: decided');
+  assert.equal(groups.duplicates.find(item => item.external_uid === 'd').duplicate.id, 'local');
+  assert.ok(![...groups.likely, ...groups.possible].some(item => item.external_uid === 'd'), 'already an exam: neither likely nor possible');
+  assert.equal(groups.needsReview, 2, 'Midterm and Test 1 ask for a decision; the duplicate does not');
+});
+
+test('linking to an existing exam sends that exam’s own fields; a legacy course date cannot be linked', () => {
+  assert.deepEqual(examLinkForm({ source: 'exam', name: 'Finance', course_id: 'fin', exam_date: '2026-10-19', exam_time: '09:00:00', location: null }),
+    { name: 'Finance', courseId: 'fin', date: '2026-10-19', time: '09:00', location: '' });
+  assert.equal(examLinkForm({ source: 'course', name: null, course_id: 'fin', exam_date: '2026-10-19' }), null);
+  assert.equal(examLinkForm({ source: 'imported', name: 'Midterm', exam_date: '2026-10-19' }), null);
+  assert.equal(examLinkForm(null), null);
 });

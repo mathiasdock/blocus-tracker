@@ -91,19 +91,27 @@ No backend, migration, RPC or sync change. Presentation and one client flow.
   a popover (computer) or bottom sheet (phone) — nothing expands inline — with
   *Plan work* as the single primary action and « … » for *Open in Canvas*,
   *Change type*, *Change course* (both as option lists, saved on pick) and
-  *Hide*. A possible exam asks « Is this an exam? » with *Mark as exam* (the
-  existing `user_override = exam`, no local exam — renamed from « Confirm exam »
-  to stop it reading like the review's conversion) and *Keep as deadline*.
+  *Hide*. A possible exam asks « Is this an exam? » with *Mark as exam* and
+  *Keep as deadline*. Since the final pass (2026-10-04) *Mark as exam* — and
+  *Change type → Exam* — is the review's conversion, never a label: a
+  confirmation view (event, course, date; « Add to my exams ») then the server
+  `confirm_exam` action, which creates the exam with the mapped course and date
+  or links the student's existing exam that day (« Link to this exam »). An
+  event marked as exam before (label only, no exam) says « Marked as an exam,
+  but not in your exams yet » and offers the same conversion.
 - **Bulk exam confirmation** (first import and *Review imported events*):
   `examReviewGroups` (`lib/calendarReview.mjs`) lists *Likely exams*
   (effective exam/high, preselected), *Possible exams* (exam/medium: numbered
   tests, a bare « Final » — never preselected) and *Changed in Canvas*
   (converted exams whose source moved). Quizzes never reach the list (classifier
   veto). A candidate on the same day as one of the student's exams for the same
-  course (or, unmatched, with the same name) is flagged « You already have … »
-  and left unselected. One primary button adds the selection — « Add all N
-  likely exams » when it is exactly the likely set — by calling the existing
-  `confirm_exam` action once per event, in sequence, then reloading once. The
+  course (or, unmatched, with the same name) is that exam: it is neither likely
+  nor possible but sits in its own group, *Already in your exams* (« You
+  already have … », checkbox unticked and disabled, « … » → *Link to this
+  exam* / *Not an exam*). Planning (Month/Week/Day, By course) no longer shows
+  it as a deadline. One primary button, « Add N selected exams » (disabled at
+  0), adds the selection by calling the existing `confirm_exam` action once per
+  event, in sequence, then reloading once. The
   server conversion stays the source of truth: serialized, idempotent per
   natural key, exact-match linking, existing links untouched. A failure stops
   the loop and says how many were not added; retrying is safe. Each row's « … »
@@ -117,3 +125,11 @@ Verified offline: connect → match three courses → review (14 events: likely 
 of which 1 flagged duplicate, possible 2, quizzes absent) → « Add all 2 likely
 exams » → 6 → 8 exams, 2 links, no duplicate; the list then holds only the
 flagged one and the possible ones.
+
+Final pass (2026-10-04), offline semester fixture: the reported case
+(« International Marketing — final exam » + Canvas « Final Exam », same course
+and day) no longer appears in Month/Day or as a likely exam; *Mark as exam* on
+« Test 1 » → confirmation → 6 → 7 exams, 1 → 2 links, gone from the
+deadlines; review « Add 1 / 0 (disabled) / 1 / 2 selected exams »; *Link to
+this exam* on a duplicate → exams unchanged, links +1. *Needs review* (and the
+« … » dot) counts likely + possible + changed, never the duplicates.

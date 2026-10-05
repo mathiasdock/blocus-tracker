@@ -39,12 +39,19 @@ test('visibility filters display only, with normal events enabled but aggregated
   assert.deepEqual(rows, snapshot); assert.equal(academicVisibility().normal, true);
   assert.deepEqual(academicVisibility({ exams: false, major: 'bad' }), { exams: false, major: true, normal: true });
 });
-test('exact local exam deduplication preserves different exams and does not dedupe possible exams', () => {
-  const local = { course_id: course.id, exam_date: '2026-10-02', name: 'Final Exam' };
+test('an exam the student already has is shown once: the same course and day represent the import, whatever its wording', () => {
+  // The reported case: « International Marketing — final exam » is a real exam,
+  // « Final Exam » from Canvas must not appear next to it as a possible exam.
+  const local = { course_id: course.id, exam_date: '2026-10-02', name: 'International Marketing — final exam' };
   assert.equal(events([row('Final Exam [ADV 3001]')], undefined, undefined, [local]).length, 0);
-  assert.equal(events([row('Midterm')], undefined, undefined, [local]).length, 1);
+  assert.equal(events([row('Test 1')], undefined, undefined, [local]).length, 0, 'a possible exam too');
+  assert.equal(events([row('Final Exam', { user_override: 'exam' })], undefined, undefined, [local]).length, 0, 'and one marked as exam');
+  assert.equal(events([row('Group Assignment')], undefined, undefined, [local]).length, 1, 'work that is not an exam stays');
+  assert.equal(events([row('Final Exam')], undefined, undefined, [{ ...local, exam_date: '2026-10-03' }]).length, 1, 'another day stays');
+  assert.equal(events([row('Final Exam')], undefined, undefined, [{ ...local, course_id: 'other' }]).length, 1, 'another course stays');
+  // Without a matched course only the same name on the same day counts.
+  assert.equal(events([row('Final Exam')], [], undefined, [{ ...local, name: 'final exam' }]).length, 0);
   assert.equal(events([row('Final Exam')], [], undefined, [local]).length, 1);
-  assert.equal(events([row('Test 1')], undefined, undefined, [{ ...local, name: 'Test 1' }]).length, 1);
 });
 test('all-day and floating dates retain their calendar day while instants follow the device timezone', () => {
   assert.equal(academicDate(row('Quiz', { starts_at: '2026-10-01T23:00:00Z' })), '2026-10-02');

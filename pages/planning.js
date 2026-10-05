@@ -27,7 +27,7 @@ import UniversityCalendar from "../components/UniversityCalendar";
 import AcademicDeadlines from "../components/AcademicDeadlines";
 import useAcademicCalendar from "../components/useAcademicCalendar";
 import { academicSummary, confirmedImportedExams, splitAcademicEvents } from "../lib/planningAcademicEvents.mjs";
-import { externalCourses, calendarReview } from "../lib/calendarReview.mjs";
+import { externalCourses, examReviewGroups } from "../lib/calendarReview.mjs";
 import usePlanningSwipe from "../components/usePlanningSwipe";
 import PlanMenu from "../components/planning/PlanMenu";
 import CourseOverview from "../components/planning/CourseOverview";
@@ -556,7 +556,7 @@ function IconMore({ size = 18 }) {
 function DayPlan({ date, inSheet = false }) {
   const { academic, academicPrefill, planAcademicWork, courses, modalPrefillTime, byDate, examsByDate, sessions,
           courseName, toggle, remove, postpone, launchTimer,
-          addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, duplicateDay, lang, t } = usePlan();
+          addObjectiveForDate, saveObjEdit, addExam, removeExam, saveExamEdit, duplicateDay, exams: localExams, reload, lang, t } = usePlan();
   const prefill = inSheet ? academicPrefill : null;
   const prefillTime = inSheet ? modalPrefillTime : null;
 
@@ -748,7 +748,7 @@ function DayPlan({ date, inSheet = false }) {
           ))}
         </div>
       )}
-      <AcademicDeadlines events={important} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork}
+      <AcademicDeadlines events={important} calendar={academic} courses={courses} exams={localExams} onExamsChanged={reload} t={t} lang={lang} onPlan={planAcademicWork}
         heading={t("plan.dayAcademicImportant")} className="bt-day-section" />
 
       {/* 2 — Le plan d'étude. */}
@@ -865,7 +865,7 @@ function DayPlan({ date, inSheet = false }) {
       </section>
 
       {/* 3 — Les petites échéances importées, après le plan. */}
-      <AcademicDeadlines events={secondary} calendar={academic} courses={courses} t={t} lang={lang} onPlan={planAcademicWork}
+      <AcademicDeadlines events={secondary} calendar={academic} courses={courses} exams={localExams} onExamsChanged={reload} t={t} lang={lang} onPlan={planAcademicWork}
         heading={t(important.length || exams.length ? "plan.dayAlsoDue" : "plan.dayDue")} limit={inSheet ? 0 : 6} className="bt-day-section" />
     </div>
   );
@@ -922,7 +922,7 @@ function DayDetailModal() {
           <div className="flex justify-center pb-1 pt-3 sm:hidden">
             <div className="h-1 w-10 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
           </div>
-          <div className="px-5 pb-8 pt-2 sm:pt-5">
+          <div className="bt-day-sheet-body px-5 pt-2 sm:pt-5">
             <div className="bt-day-sheet-head">
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold leading-tight" style={{ color: "var(--bt-text-1)" }}>{dayTitle}</h2>
@@ -1151,7 +1151,7 @@ function WeekWorkload({ days }) {
                       ))}
                     </span>
                   )}
-                  {(items.length > 3 || overdue > 0 || (items.length && !pending.length)) && (
+                  {(items.length > 3 || overdue > 0 || (items.length > 0 && !pending.length)) && (
                     <span className="bt-plan-week-meta">
                       {[items.length > 3 && t(items.length === 1 ? "plan.objectiveCountOne" : "plan.objectiveCountMany").replace("{n}", items.length),
                         items.length > 0 && !pending.length && t("plan.allDone"),
@@ -1302,22 +1302,31 @@ function TimeGrid({ days }) {
 }
 
 // ── WeekView ──────────────────────────────────────────────────
-// La répartition d'abord ; la grille horaire n'apparaît que si la semaine
-// contient un objectif posé à une heure affichable.
+// La répartition d'abord. La grille horaire est repliée derrière un seul
+// contrôle (« Heures fixées · N ») et ne s'ouvre qu'à la demande ; elle
+// n'existe que si la semaine contient un objectif posé à une heure affichable.
 function WeekView({ days }) {
   const { byDate, t } = usePlan();
-  const hasTimed = days.some(d => (byDate[ymd(d)] || [])
-    .some(o => HOURS.includes(getHour(o.scheduled_time))));
+  const [timesOpen, setTimesOpen] = useState(false);
+  const timed = days.reduce((sum, d) => sum + (byDate[ymd(d)] || [])
+    .filter(o => HOURS.includes(getHour(o.scheduled_time))).length, 0);
   return (
     <>
       <WeekWorkload days={days} />
-      {hasTimed && (
-        <section className="mt-4">
-          <div className="mb-2 px-1">
-            <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("plan.timedSectionTitle")}</h2>
-            <p className="text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.timedSectionHint")}</p>
-          </div>
-          <TimeGrid days={days} />
+      {timed > 0 && (
+        <section className="bt-plan-times">
+          <button type="button" className="bt-plan-times-toggle" aria-expanded={timesOpen} aria-controls="bt-plan-times-grid"
+            onClick={() => setTimesOpen(open => !open)}>
+            <IconClock size={15} />
+            <span>{t("plan.scheduledTimes")} · <span className="tabular-nums">{timed}</span></span>
+            <span className="bt-plan-times-chevron" aria-hidden="true"><IconChevron dir="right" size={14} /></span>
+          </button>
+          {timesOpen && (
+            <div id="bt-plan-times-grid" className="mt-2">
+              <p className="mb-2 px-1 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("plan.timedSectionHint")}</p>
+              <TimeGrid days={days} />
+            </div>
+          )}
         </section>
       )}
     </>
@@ -1530,6 +1539,16 @@ export default function Planning() {
   }, [user, loadAcademic]);
 
   useEffect(() => { load().finally(() => setReady(true)); }, [load]);
+
+  // Arrivée depuis la fiche d'un cours du Chrono (« Planifier une révision ») :
+  // le travail d'étude se planifie en objectifs, ici, prérempli avec ce cours.
+  useEffect(() => {
+    if (!ready || !router.isReady) return;
+    const courseId = typeof router.query.plan === "string" ? router.query.plan : null;
+    if (!courseId) return;
+    if (courses.some(c => c.id === courseId && !c.archived_at)) planWork({ title: "", courseId });
+    router.replace("/planning", undefined, { shallow: true });
+  }, [ready, router.isReady, router.query.plan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (view === "month") {
@@ -1850,18 +1869,20 @@ export default function Planning() {
 
   // Actions globales du planning — toutes dans le menu « … ». Le calendrier
   // universitaire y vit aussi : sa gestion n'occupe plus de place sous le
-  // calendrier. La pastille du « … » ne s'allume que si l'étudiant a quelque
-  // chose à faire (cours importé à associer, examen modifié à la source,
-  // synchronisation en échec) — pas pour un réglage.
+  // calendrier. La pastille du « … » veut dire UNE chose : « une action
+  // t'attend » — un cours importé à associer, des examens importés à vérifier
+  // (y compris un examen modifié à la source), un flux dont la synchronisation
+  // échoue (son lien est à vérifier). Jamais un état passif : planning partagé,
+  // calendrier simplement connecté, chargement raté (réseau, réessayé seul).
   const providerLabel = source => ({ canvas: "Canvas", moodle: "Moodle", brightspace: "Brightspace" })[source.provider] || t("uc.otherProvider");
   const ucPending = academic.sources.reduce((sum, source) => sum + externalCourses(academic.rows, academic.maps, source.id).filter(c => !c.mapping).length, 0);
-  const ucChanged = academic.sources.reduce((sum, source) => sum + calendarReview(academic.rows, academic.maps, academic.links, source.id, academic.hidden).attention.filter(row => row.link).length, 0);
-  const ucFailed = academic.error || academic.sources.some(source => source.sync_status === "error");
-  const ucAttention = !!(ucPending || ucChanged || ucFailed);
+  const ucReview = academic.sources.reduce((sum, source) => sum + examReviewGroups(academic.rows, academic.maps, academic.links, source.id, academic.hidden, exams).needsReview, 0);
+  const ucFailed = academic.sources.some(source => source.sync_status === "error");
+  const ucAttention = !!(ucPending || ucReview || ucFailed);
   const ucDescription = !academic.sources.length ? t("plan.ucConnectHint")
     : ucFailed ? t("plan.ucSyncFailed")
-    : ucChanged ? t(ucChanged === 1 ? "plan.ucChangedOne" : "plan.ucChangedMany").replace("{n}", ucChanged)
     : ucPending ? t("uc.needsMatching").replace("{n}", ucPending)
+    : ucReview ? t(ucReview === 1 ? "plan.ucReviewOne" : "plan.ucReviewMany").replace("{n}", ucReview)
     : `${academic.sources.map(providerLabel).join(", ")} · ${t("uc.connected").toLocaleLowerCase()}`;
   const planningActions = [
     { key: "university", label: t("academic.settings"), description: ucDescription, onSelect: () => setCalendarOpen(true),
@@ -1878,7 +1899,7 @@ export default function Planning() {
     view, isOnToday, courses, activeCourses, objectives, byDate, examsByDate, cursor, selectedDate, setSelectedDate,
     toggle, remove, courseColor, courseName, exams, sessions, postpone, addExam, removeExam, saveExamEdit, saveLegacyDate,
     modalDate, setModalDate, modalPrefillTime, openDay, addObjectiveForDate, saveObjEdit,
-    launchTimer, duplicateDay, duplicateWeek,
+    launchTimer, duplicateDay, duplicateWeek, reload: load,
     lang, t,
   };
 
@@ -1928,7 +1949,7 @@ export default function Planning() {
 
             <div className="contents xl:block xl:sticky xl:top-6">
               <CourseOverview className="order-6"
-                courses={activeCourses} objectives={objectives} exams={overviewExams} academic={academic} today={today}
+                courses={activeCourses} objectives={objectives} exams={overviewExams} localExams={exams} onExamsChanged={load} academic={academic} today={today}
                 t={t} lang={lang} openDay={openDay} toggle={toggle} launchTimer={launchTimer} planWork={planWork} onPlanAcademic={planAcademicWork} />
             </div>
           </div>

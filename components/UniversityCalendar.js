@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import DetailSheet from './DetailSheet';
 import Glyph from './Glyph';
 import PlanMenu from './planning/PlanMenu';
-import { externalCourses, calendarReview, calendarExamPrefill, examReviewGroups } from '../lib/calendarReview.mjs';
+import { externalCourses, calendarExamPrefill, examReviewGroups, examLinkForm } from '../lib/calendarReview.mjs';
 import { calendarRequest } from '../lib/calendarApi';
-import { academicKey, hiddenAcademicKey, academicTitle } from '../lib/planningAcademicEvents.mjs';
+import { academicKey, hiddenAcademicKey, academicTitle, matchingLocalExam } from '../lib/planningAcademicEvents.mjs';
 
 // University calendar, reached from the Planning « … » menu. One connected
 // source reads as a status (« Canvas — Connected · Synced today 08:12 »)
@@ -111,11 +111,11 @@ function ExamConfirmation({ row, maps, courses, busy, t, onSave, onCancel }) {
 }
 
 // First-import convenience: every exam candidate in one list, likely exams
-// preselected, possible ones (tests, a bare « Final ») left to the student,
-// probable duplicates of an existing exam left unselected and named. One
+// preselected, possible ones (tests, a bare « Final ») left to the student.
+// Exams the student already has wait apart, unselectable, to be linked. One
 // primary action adds the selection through the same server conversion as a
 // single confirmation — idempotent, linked, never duplicating a linked exam.
-function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorking, setStatus, setError, refresh, onOpenExam, onDone }) {
+export function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorking, setStatus, setError, refresh, onOpenExam, onDone }) {
   const groups = useMemo(() => examReviewGroups(calendar.rows, calendar.maps, calendar.links, source.id, calendar.hidden, exams),
     [calendar.rows, calendar.maps, calendar.links, calendar.hidden, source.id, exams]);
   const [selected, setSelected] = useState(() => new Set(groups.preselected));
@@ -132,21 +132,25 @@ function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorkin
 
   const candidates = [...groups.likely, ...groups.possible];
   const chosen = candidates.filter(item => selected.has(item.key));
-  const allLikely = groups.preselected.length > 0 && chosen.length === groups.preselected.length
-    && chosen.every(item => groups.preselected.includes(item.key));
   const courseName = id => courses.find(c => c.id === id)?.name;
   const toggle = key => setSelected(previous => { const next = new Set(previous); next.has(key) ? next.delete(key) : next.add(key); return next; });
 
   async function confirmSelected() {
     if (busy || !chosen.length) return;
     setWorking(true); setError(''); setStatus('');
+    const knownExams = [...exams];
     let added = 0;
     let failed = null;
     for (const item of chosen) {
       setProgress({ done: added, total: chosen.length });
       try {
-        await calendarRequest({ action: 'confirm_exam', source_id: item.source_id, external_uid: item.external_uid,
-          recurrence_id: item.recurrence_id || '', exam: item.prefill });
+        // Earlier selections can have created this same course/day exam.
+        const existing = matchingLocalExam(knownExams, { ...item.prefill, rawName: item.raw_title });
+        const form = examLinkForm(existing) || item.prefill;
+        const result = await calendarRequest({ action: 'confirm_exam', source_id: item.source_id, external_uid: item.external_uid,
+          recurrence_id: item.recurrence_id || '', exam: form });
+        if (!existing) knownExams.push({ id: result.exam_id, name: form.name, course_id: form.courseId,
+          exam_date: form.date, exam_time: form.time, location: form.location });
         added += 1;
       } catch (error) { failed = error; break; }
     }
@@ -165,7 +169,9 @@ function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorkin
         onSave={async form => {
           setWorking(true); setError(''); setStatus('');
           try {
-            await calendarRequest({ action: 'confirm_exam', source_id: row.source_id, external_uid: row.external_uid, recurrence_id: row.recurrence_id || '', exam: form });
+            const existing = matchingLocalExam(exams, form);
+            await calendarRequest({ action: 'confirm_exam', source_id: row.source_id, external_uid: row.external_uid, recurrence_id: row.recurrence_id || '',
+              exam: examLinkForm(existing) || form });
             await calendar.load(); await refresh();
             setStatus(t('uc.examCreated')); setEditing(null);
           } catch (error) { setError(failure(error.message, t)); }
@@ -174,21 +180,37 @@ function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorkin
     }
   }
 
+  // Link an import to the exam the student already has (same course and day):
+  // the server links that exact exam instead of creating one.
+  async function linkExisting(item, form) {
+    setWorking(true); setError(''); setStatus('');
+    try {
+      await calendarRequest({ action: 'confirm_exam', source_id: item.source_id, external_uid: item.external_uid, recurrence_id: item.recurrence_id || '', exam: form });
+      await calendar.load(); await refresh();
+      setStatus(t('uc.examLinked'));
+    } catch (error) { setError(failure(error.message, t)); }
+    finally { setWorking(false); }
+  }
+
   const renderItem = item => {
     const course = courseName(item.prefill.courseId) || item.external_course_label || t('academic.unmapped');
     const when = [dayLabel(item.prefill.date, lang), item.prefill.time].filter(Boolean).join(' · ');
+    const linkForm = item.duplicate && examLinkForm(item.duplicate);
     return (
-      <li key={item.key} className="uc-candidate">
+      <li key={item.key} className="uc-candidate" data-duplicate={item.duplicate ? '1' : undefined}>
         <label className="uc-candidate-check">
-          <input type="checkbox" className="bt-task-check h-4 w-4" checked={selected.has(item.key)} disabled={busy} onChange={() => toggle(item.key)} />
+          <input type="checkbox" className="bt-task-check h-4 w-4" checked={!item.duplicate && selected.has(item.key)}
+            disabled={busy || !!item.duplicate} onChange={() => toggle(item.key)} />
           <span className="uc-candidate-text">
             <span className="uc-candidate-title">{academicTitle(item)}</span>
             <span className="uc-candidate-meta">{course} · {when}</span>
             {item.duplicate && <span className="uc-candidate-note">{t('uc.alreadyExam').replace('{name}', item.duplicate.name || course)}</span>}
           </span>
         </label>
-        <PlanMenu label={t('uc.examActions')} ariaLabel={t('uc.examActions')} triggerClassName="bt-plan-icon-action" width={240} items={[
-          { key: 'edit', label: t('uc.editExam'), onSelect: () => setEditing(item.key) },
+        <PlanMenu label={t('uc.examActions')} ariaLabel={t('uc.examActions')} triggerClassName="bt-plan-icon-action" width={260} items={[
+          item.duplicate
+            ? linkForm && { key: 'link', label: t('academic.linkToExam'), description: t('uc.linkHint'), onSelect: () => linkExisting(item, linkForm) }
+            : { key: 'edit', label: t('uc.editExam'), onSelect: () => setEditing(item.key) },
           { key: 'deadline', label: t('uc.notExam'), description: t('uc.notExamHint'), onSelect: async () => {
             setWorking(true); setError('');
             try { await calendar.override(item, 'other'); setSelected(previous => { const next = new Set(previous); next.delete(item.key); return next; }); }
@@ -200,7 +222,7 @@ function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorkin
     );
   };
   const groupToggle = items => {
-    const keys = items.filter(item => !item.duplicate).map(item => item.key);
+    const keys = items.map(item => item.key);
     if (!keys.length) return null;
     const all = keys.every(key => selected.has(key));
     return <button type="button" className="uc-link" disabled={busy}
@@ -224,9 +246,16 @@ function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorkin
       )}
       {groups.possible.length > 0 && (
         <section className="uc-review-group" aria-labelledby="uc-possible">
-          <div className="uc-review-head"><h5 id="uc-possible">{t('uc.possibleExams')}</h5>{groupToggle(groups.possible)}</div>
+          <div className="uc-review-head"><h5 id="uc-possible">{t('uc.possibleExams')}</h5></div>
           <p className="uc-muted">{t('uc.possibleHint')}</p>
           <ul>{groups.possible.map(renderItem)}</ul>
+        </section>
+      )}
+      {groups.duplicates.length > 0 && (
+        <section className="uc-review-group" aria-labelledby="uc-duplicates">
+          <div className="uc-review-head"><h5 id="uc-duplicates">{t('uc.alreadyInExams')}</h5></div>
+          <p className="uc-muted">{t('uc.alreadyInExamsHint')}</p>
+          <ul>{groups.duplicates.map(renderItem)}</ul>
         </section>
       )}
       {groups.changed.length > 0 && (
@@ -259,9 +288,7 @@ function ExamReview({ calendar, courses, exams, source, t, lang, busy, setWorkin
       {candidates.length > 0 && (
         <div className="uc-footer uc-footer--sticky">
           <button type="button" className="btn-primary min-h-11 px-4" disabled={busy || !chosen.length} onClick={confirmSelected}>
-            {!chosen.length ? t('uc.addNone')
-              : allLikely ? t(chosen.length === 1 ? 'uc.addLikelyOne' : 'uc.addLikelyMany').replace('{n}', chosen.length)
-                : t(chosen.length === 1 ? 'uc.addSelectedOne' : 'uc.addSelectedMany').replace('{n}', chosen.length)}
+            {t((lang === 'fr' ? chosen.length <= 1 : chosen.length === 1) ? 'uc.addSelectedOne' : 'uc.addSelectedMany').replace('{n}', chosen.length)}
           </button>
           <button type="button" className="bt-plan-action bt-plan-action--quiet" disabled={busy} onClick={onDone}>{t('uc.notNow')}</button>
           <p className="uc-footnote">{t('uc.reviewFootnote')}</p>
@@ -327,7 +354,7 @@ export default function UniversityCalendar({ calendar, courses, exams, t, lang, 
             {calendar.sources.map(s => {
               const courseKeys = externalCourses(calendar.rows, calendar.maps, s.id);
               const pending = courseKeys.filter(c => !c.mapping).length;
-              const attention = calendarReview(calendar.rows, calendar.maps, calendar.links, s.id, calendar.hidden).attention.length;
+              const attention = examReviewGroups(calendar.rows, calendar.maps, calendar.links, s.id, calendar.hidden, exams).needsReview;
               const name = providerName(s.provider, t);
               const syncing = syncingId === s.id;
               return (

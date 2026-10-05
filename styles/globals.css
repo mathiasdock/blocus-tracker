@@ -1655,7 +1655,7 @@ html.bt-focus-active .bt-nav { display: none; }
   z-index: 30;
   left: 0;
   right: 0;
-  bottom: max(10px, calc(env(safe-area-inset-bottom) * 0.8 + 2px));
+  bottom: max(10px, env(safe-area-inset-bottom));
   padding: 0 16px;
   pointer-events: none;
 }

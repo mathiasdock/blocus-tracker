@@ -124,6 +124,33 @@ Supersedes the bullets above where they differ.
 - **Overview exams** include imported events the student marked as exams
   (Today's next exam, By course), exactly as the calendar already drew them.
 
+### Final pass (2026-10-04)
+
+Fixes only, no redesign. Supersedes the bullets above where they differ.
+
+- **One exam, never asked twice.** An imported event linked to an exam, marked
+  as an exam, or on the same day as the student's exam for that course is never
+  a possible/likely exam or a Planning deadline again; in the review it waits
+  in *Already in your exams* (unselectable, *Link to this exam*). *Mark as
+  exam* (and *Change type → Exam*) = confirmation, then create or link the real
+  exam — never a label.
+- **Bulk CTA** « Add N selected exams », disabled at 0; likely preselected,
+  possible not, quizzes absent, duplicates disabled.
+- **Week**: the hour grid is folded behind « Scheduled times · N ».
+- **By course**: objectives planned → *Start studying* primary, *Plan
+  revision* outlined; nothing planned → *Plan revision* primary, *Start
+  studying* quiet.
+- **« … » dot** = action needed only (course to match, exams to review, failed
+  sync); not a load error, not « shared », not « connected ».
+- **Phones**: Today strip 139 px instead of 182 (−24 %; −20 % in French at
+  360 px where the stamp wraps), same facts. Sheets and the review footer pad
+  for the home indicator; long Day pages end ~30 px above the bottom bar with
+  a 34 px inset.
+- **Timer course card**: no new revision-checklist items; « Plan revision »
+  opens Planning's objective form for that course (`/planning?plan=<id>`).
+  Older items stay readable (tick, rename, delete); no data removed.
+- *Revision by course* label → *By course* / *Par cours* everywhere.
+
 Verification on synthetic offline data (a Canvas semester, the same plan
 without Canvas, an empty plan, the default demo seed, a first Canvas import),
 360/375/390/430/1366/1440/1920 px,
