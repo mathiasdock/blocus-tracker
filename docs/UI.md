@@ -26,6 +26,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Course spaces (Communities) | `components/course-spaces/*`, `lib/courseSpaces.mjs`, `styles/course-spaces.css` — `docs/course-spaces.md` |
 | Shared interface icons | `components/Glyph.js` |
 | Representative controls / sheets | `components/SegmentedGlide.js`, `components/InboxSheet.js`, `components/DetailSheet.js` |
+| Peer profile (Activity / Stats / Friends / Communities) | `components/UserProfileModal.js` + `.module.css`, `lib/socialProfile.mjs`; native `InboxSheet`, mobile bottom sheet; permissions documented in `.impeccable/surfaces/components-userprofilemodal-js.md` |
 | Signed-out discovery previews and contextual gates | `components/guest/GuestDiscovery.js`, `components/guest/GuestDiscovery.module.css` |
 | Consent-gated campaign attribution / Admin acquisition | `lib/campaignAttribution.mjs`, `components/CampaignCapture.js`, `pages/admin/activation.js` — `docs/ACQUISITION.md` |
 

@@ -3,11 +3,13 @@ import Glyph from "./Glyph";
 
 // Native modal behavior supplies focus containment, inert background and Escape.
 // `subheader` (optionnel) : une ligne d'actions qui reste collée sous le titre.
-export default function InboxSheet({ open, title, closeLabel, onClose, subheader = null, children }) {
+export default function InboxSheet({ open, title, closeLabel, onClose, onAfterClose, className = "", subheader = null, children }) {
   const ref = useRef(null);
   const closeTimer = useRef(null);
   const previousFocus = useRef(null);
   const previousOverflow = useRef("");
+  const afterClose = useRef(onAfterClose);
+  afterClose.current = onAfterClose;
   const [keepContent, setKeepContent] = useState(open);
   useEffect(() => {
     const dialog = ref.current;
@@ -18,6 +20,7 @@ export default function InboxSheet({ open, title, closeLabel, onClose, subheader
       document.body.style.overflow = previousOverflow.current;
       setKeepContent(false);
       if (previousFocus.current?.isConnected) previousFocus.current.focus();
+      afterClose.current?.();
     };
     if (open) {
       setKeepContent(true);
@@ -43,7 +46,7 @@ export default function InboxSheet({ open, title, closeLabel, onClose, subheader
       if (previousFocus.current?.isConnected) previousFocus.current.focus();
     }
   }, []);
-  return <dialog ref={ref} className="bt-inbox-sheet" aria-label={title}
+  return <dialog ref={ref} className={`bt-inbox-sheet ${className}`} aria-label={title}
     onCancel={event => { event.preventDefault(); onClose(); }}
     onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="bt-inbox-sheet-body">

@@ -2,6 +2,13 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-05 — Codex — Fiche de profil social
+
+- `UserProfileModal` conserve l'identité académique et le niveau ; action principale Ajouter / Accepter / Message selon la relation, gestion de l'amitié dans `…`, fermeture par ×/Échap sans gros bouton de pied. Réutilise `InboxSheet` natif et son mouvement réduit, avec ancrage mobile propre à la fiche.
+- Série et nombre de badges depuis le RPC public canonique. Temps des 30 derniers jours et cours restent réservés aux amis selon les permissions existantes ; aucune RLS élargie. Trois cours +N, cours communs prioritaires seulement si le nom et l'affiliation concordent. Retrait d'amitié masque immédiatement les données réservées.
+- Au maximum trois objets badges issus de réalisations structurées déjà partagées et visibles. Aucun accès à la collection privée `user_badges`, aucune déduction depuis l'XP. Retire présence live, historique, planning/objectifs et dates d'examen de cette surface et de ses requêtes.
+- Copie FR/EN, erreurs/réessai, garde anti-double-clic. Tests de permissions/sélection et tests React des actions ; fixture offline explicite `/dev/user-profile` pour QA, inaccessible en production. Aucun changement aux autres surfaces ni aux fichiers des sessions parallèles.
+
 ## 2026-10-05 — Codex — Mouvement ciblé de l'app
 
 - Chrono : les secondes restent stables, seuls les chiffres moins fréquents conservent l'effet odomètre. La nouvelle ligne d'un cours n'entre qu'après un enregistrement réussi ; le compteur « Bravo » ne réagit qu'après confirmation serveur. Badge : la fiche consultée ne rejoue plus l'animation de déblocage ; la célébration canonique du vrai déblocage reste intacte. Survol du catalogue limité au pointeur fin et à 1,04×.

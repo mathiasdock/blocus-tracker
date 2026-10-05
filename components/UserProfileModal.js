@@ -1,252 +1,160 @@
-import { useEffect, useState } from "react";
-import Glyph from "./Glyph";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import { Avatar } from "./Layout";
+import Glyph from "./Glyph";
+import InboxSheet from "./InboxSheet";
+import LevelPill from "./LevelPill";
+import BadgeIcon from "./BadgeIcon";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
-import { studyYearLabel } from "../lib/studyYears";
 import { supabase } from "../lib/supabaseClient";
-import { displayName, formatMinutesShort, todayISO } from "../lib/format";
-import { isStudyingLive } from "../lib/presence";
-import { loadUserLevelMap } from "../lib/userLevels";
-import LoadingScreen from "./LoadingScreen";
-import LevelPill from "./LevelPill";
+import { displayName, formatStudyTime } from "../lib/format";
+import { studyYearShortLabel } from "../lib/studyYears";
+import { fieldLabel } from "../lib/studySpaces.mjs";
+import { getLevelInfo } from "../lib/xp";
+import { BADGES } from "../lib/badges";
+import { clientRateLimit } from "../lib/security";
+import { notifyXPChanged } from "../lib/xpEvents";
+import { changeProfileFriendship, loadSocialProfile, profileCourses, sharedBadgeHighlights } from "../lib/socialProfile.mjs";
+import styles from "./UserProfileModal.module.css";
 
 export default function UserProfileModal({ userId, onClose }) {
   const { user } = useAuth();
   const { t, lang } = useI18n();
-  const [profile, setProfile] = useState(null);
-  const [relStatus, setRelStatus] = useState(null);
-  const [planning, setPlanning] = useState(null);
-  const [courses, setCourses] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [msg, setMsg] = useState("");
+  const router = useRouter();
+  const [open, setOpen] = useState(true);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [mutualCount, setMutualCount] = useState(0);
-  const [mutualSample, setMutualSample] = useState([]);
-  const [levelInfo, setLevelInfo] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [more, setMore] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const actionLock = useRef(false);
+  const generation = useRef(null);
 
   useEffect(() => {
-    if (!userId) return;
-    setLoading(true);
-    setMsg("");
-    setRelStatus(null);
-    setProfile(null);
-    setPlanning(null);
-    setCourses([]);
-    setStats(null);
-    setMutualCount(0);
-    setMutualSample([]);
-    setLevelInfo(null);
-    (async () => {
-      const [{ data: prof }, { data: coursesData }, { data: statsData }, levelMap] = await Promise.all([
-        // Colonnes explicites — n'exposer JAMAIS l'email d'un autre utilisateur
-        supabase.from("profiles")
-          .select("id, pseudo, first_name, last_name, university, study_field, study_year, bio, avatar_url, lang, planning_public, studying_since, is_admin, locked, created_at")
-          .eq("id", userId).maybeSingle(),
-        supabase.from("courses").select("id, user_id, name, color, exam_date").eq("user_id", userId).is("archived_at", null).order("name"),
-        supabase.rpc("get_user_profile_stats", { p_user_id: userId }),
-        loadUserLevelMap(supabase, [userId], { selfUserId: user?.id }),
-      ]);
-      setProfile(prof || { id: userId, pseudo: "Utilisateur" });
-      setCourses(coursesData || []);
-      if (statsData?.[0]) setStats(statsData[0]);
-      setLevelInfo(levelMap[userId] || null);
+    const request = { active: true };
+    generation.current = request;
+    setLoading(true); setFailed(false); setData(null); setError("");
+    setMore(false); setConfirmRemove(false); setOpen(true);
+    loadSocialProfile(supabase, user?.id, userId).then(result => {
+      if (request.active && generation.current === request) setData(result);
+    }).catch(() => {
+      if (request.active && generation.current === request) setFailed(true);
+    }).finally(() => {
+      if (request.active && generation.current === request) setLoading(false);
+    });
+    return () => { request.active = false; };
+  }, [user?.id, userId, attempt]);
 
-      if (userId !== user.id) {
-        // Mutual friends — fetch both friend lists and intersect
-        const [{ data: myLinks }, { data: theirLinks }] = await Promise.all([
-          supabase.from("friendships").select("requester, addressee").or(`requester.eq.${user.id},addressee.eq.${user.id}`).eq("status", "accepted"),
-          supabase.from("friendships").select("requester, addressee").or(`requester.eq.${userId},addressee.eq.${userId}`).eq("status", "accepted"),
-        ]);
-        const myFriendSet = new Set((myLinks || []).map(l => l.requester === user.id ? l.addressee : l.requester));
-        const theirFriendSet = new Set((theirLinks || []).map(l => l.requester === userId ? l.addressee : l.requester));
-        const mutualIds = [...myFriendSet].filter(id => theirFriendSet.has(id));
-        setMutualCount(mutualIds.length);
-        if (mutualIds.length > 0) {
-          const { data: mutualProfs } = await supabase
-            .from("profiles").select("id, pseudo, first_name, last_name, avatar_url")
-            .in("id", mutualIds.slice(0, 3));
-          setMutualSample(mutualProfs || []);
-        }
-
-        const { data: link } = await supabase
-          .from("friendships")
-          .select("status")
-          .or(
-            `and(requester.eq.${user.id},addressee.eq.${userId}),and(requester.eq.${userId},addressee.eq.${user.id})`
-          )
-          .maybeSingle();
-        setRelStatus(link?.status || null);
-
-        if (link?.status === "accepted" && prof?.planning_public) {
-          const { data: objs } = await supabase
-            .from("objectives")
-            .select("*")
-            .eq("user_id", userId)
-            .gte("scheduled_date", todayISO())
-            .order("scheduled_date")
-            .limit(10);
-          setPlanning(objs || []);
-        }
-      }
-      setLoading(false);
-    })();
-  }, [userId, user.id]);
-
-  async function addFriend() {
-    const { error } = await supabase
-      .from("friendships")
-      .insert({ requester: user.id, addressee: userId, status: "pending" });
-    if (error) setMsg(t("friends.requestError"));
-    else {
-      setMsg(t("friends.requestSent"));
-      setRelStatus("pending");
+  async function friendship(action) {
+    if (actionLock.current || !data) return;
+    if (action === "add" && !clientRateLimit(`friends:add:${user.id}`, 12, 60_000).ok) {
+      setError(t("security.rateLimited")); return;
     }
+    actionLock.current = true; setBusy(true); setError("");
+    const request = generation.current;
+    try {
+      const relationship = await changeProfileFriendship(supabase, {
+        viewerId: user.id, userId, relationship: data.relationship, action,
+      });
+      if (!request.active || generation.current !== request) return;
+      setData(previous => ({ ...previous, relationship,
+        // Discard friends-only content as soon as the link is removed.
+        ...(action === "remove" ? { seconds30d: null, courses: null, mine: [],
+          sharedPosts: previous.sharedPosts.filter(post => post.visibility === "public") } : {}),
+      }));
+      setMore(false); setConfirmRemove(false); notifyXPChanged();
+      if (action === "accept") setAttempt(value => value + 1);
+    } catch {
+      if (request.active && generation.current === request) setError(t("modal.actionError"));
+    } finally { actionLock.current = false; setBusy(false); }
   }
 
   if (!userId) return null;
+  const profile = data?.profile;
+  const relationship = data?.relationship;
+  const friends = relationship?.status === "accepted";
+  const incoming = relationship?.status === "pending" && relationship.addressee === user?.id;
+  const pending = relationship?.status === "pending";
+  const self = userId === user?.id;
+  const progress = data?.progression;
+  const level = progress?.totalXP !== null && progress?.totalXP !== undefined ? getLevelInfo(progress.totalXP) : null;
+  const courses = profileCourses(data?.courses || [], data?.mine || [], profile || {}, data?.viewer || {}, friends);
+  const highlights = sharedBadgeHighlights(data?.sharedPosts || [], BADGES.map(b => b.id), friends || self);
+  const studies = profile && [profile.study_field || fieldLabel(profile.broad_field, lang), studyYearShortLabel(profile.study_year, t)].filter(Boolean).join(" · ");
+  const metrics = [
+    ...(data?.seconds30d !== null && data?.seconds30d !== undefined ? [{ label: t("modal.study30d"), value: formatStudyTime(data.seconds30d) }] : []),
+    ...(progress?.streak !== null && progress?.streak !== undefined ? [{ label: t("modal.streak"), value: `${progress.streak} ${t(progress.streak === 1 ? "modal.day" : "modal.days")}` }] : []),
+    ...(progress?.badgeCount !== null && progress?.badgeCount !== undefined ? [{ label: t("modal.badges"), value: progress.badgeCount }] : []),
+  ];
 
-  return (
-    <div
-      className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="card max-w-sm w-full p-6 overflow-y-auto"
-        style={{ maxHeight: "90vh" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {loading ? (
-          <LoadingScreen compact />
-        ) : (
-          <>
-            {/* Header */}
-            <div className="flex flex-col items-center text-center">
-              <Avatar url={profile.avatar_url} pseudo={displayName(profile)} size={80} />
-              <h2 className="text-xl mt-3" style={{ color: "var(--bt-text-1)" }}>{displayName(profile)}</h2>
-              <p className="text-sm" style={{ color: "var(--bt-text-3)" }}>@{profile.pseudo}</p>
-              {(() => {
-                const isStudying = isStudyingLive(profile.studying_since);
-                return isStudying ? (
-                  <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full"
-                    style={{ backgroundColor: "var(--bt-brand-surface)", border: "1px solid var(--bt-brand-border)" }}>
-                    <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "var(--bt-brand-primary)" }} />
-                    <span className="text-xs font-medium" style={{ color: "var(--bt-brand-text)" }}>{t("profile.studyingNow")}</span>
-                  </div>
-                ) : null;
-              })()}
-              {/* Level pill + title */}
-              {levelInfo && Number(levelInfo.totalXP) > 0 && (
-                <div className="flex items-center gap-2 mt-2">
-                  <LevelPill level={levelInfo.current.level} size="sm" solid />
-                  <span className="text-xs font-medium" style={{ color: "var(--bt-text-2)" }}>
-                    {t(levelInfo.current.titleKey)}
-                  </span>
-                </div>
-              )}
-              {/* Mutual friends */}
-              {mutualCount > 0 && (
-                <div className="flex items-center gap-1.5 mt-2">
-                  {mutualSample.map(m => (
-                    <Avatar key={m.id} url={m.avatar_url} pseudo={displayName(m)} size={20} />
-                  ))}
-                  <span className="text-xs" style={{ color: "var(--bt-text-3)" }}>
-                    {mutualCount} {mutualCount === 1 ? t("modal.mutualFriend") : t("modal.mutualFriends")}
-                  </span>
-                </div>
-              )}
-              {(profile.university || profile.study_field) && (
-                <p className="text-sm mt-1.5" style={{ color: "var(--bt-text-2)" }}>
-                  {[profile.study_field, studyYearLabel(profile.study_year, t)].filter(Boolean).join(" · ")}
-                  {profile.university ? ` — ${profile.university}` : ""}
-                </p>
-              )}
-              {profile.bio && (
-                <p className="text-sm mt-2 italic" style={{ color: "var(--bt-text-3)" }}>
-                  &laquo; {profile.bio} &raquo;
-                </p>
-              )}
-            </div>
+  return <InboxSheet open={open} className={styles.sheet} title={t("modal.profileTitle")} closeLabel={t("common.close")}
+    onClose={() => setOpen(false)} onAfterClose={onClose}>
+    <div className={styles.body} aria-busy={loading}>
+      {loading ? <p className={styles.notice} role="status">{t("common.loading")}</p> : failed ?
+        <div className={styles.empty}><p role="alert">{t("modal.loadError")}</p>
+          <button className="btn-secondary" onClick={() => setAttempt(value => value + 1)}>{t("modal.retry")}</button></div> : profile && <>
+        <div className={styles.identity}>
+          <Avatar url={profile.avatar_url} pseudo={displayName(profile)} size={72} />
+          <div className={styles.identityText}>
+            <h3>{displayName(profile)}</h3>
+            {profile.pseudo && <p className={styles.username}>@{profile.pseudo}</p>}
+            {level && <div className={styles.level}><LevelPill level={level.current.level} size="sm" solid />
+              <span>{t(level.current.titleKey)}</span></div>}
+          </div>
+        </div>
+        {(profile.university || studies) && <div className={styles.academic}>
+          {profile.university && <p>{profile.university}</p>}
+          {studies && <p className={styles.secondary}>{studies}</p>}
+        </div>}
+        {profile.bio && <p className={styles.bio}>{profile.bio}</p>}
 
-            {/* Aggregate stats */}
-            {stats && (Number(stats.total_seconds) > 0) && (
-              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-                <p className="label mb-2">{t("modal.statsTitle")}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: t("profile.totalHours"), value: formatMinutesShort(Number(stats.total_seconds)) },
-                    { label: t("profile.hours30d"),   value: formatMinutesShort(Number(stats.seconds_30d)) },
-                  ].map((s, i) => (
-                    <div key={i} className="rounded-xl p-2.5 text-center" style={{ backgroundColor: "var(--bt-subtle)", border: "1px solid var(--bt-hairline)" }}>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: "var(--bt-text-3)" }}>{s.label}</p>
-                      <p className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-text-1)" }}>{s.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+        {!self && <div className={styles.actions}>
+          <button className="btn-primary" disabled={busy || (pending && !incoming)} onClick={() => {
+            if (friends) { setOpen(false); router.push(`/messages?dm=${encodeURIComponent(userId)}`); }
+            else friendship(incoming ? "accept" : "add");
+          }}>{busy ? t("common.loading") : friends ? t("social.messageBtn") : incoming ? t("friends.accept") : pending ? t("modal.pendingFriend") : t("modal.addFriend")}</button>
+          {relationship && <button className={styles.moreButton} aria-label={t("modal.friendshipOptions")}
+            aria-expanded={more} aria-controls="profile-friendship-options" disabled={busy}
+            onClick={() => { setMore(value => !value); setConfirmRemove(false); }}>
+            <Glyph size={20}><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></Glyph>
+          </button>}
+        </div>}
+        {more && <div id="profile-friendship-options" className={styles.options}>
+          {confirmRemove ? <><p>{t("modal.removeConfirm")}</p><div className={styles.confirmActions}>
+            <button className={styles.danger} disabled={busy} onClick={() => friendship("remove")}>{t("modal.removeFriend")}</button>
+            <button className="btn-ghost" disabled={busy} onClick={() => setConfirmRemove(false)}>{t("common.cancel")}</button>
+          </div></> : <button className={friends ? styles.danger : styles.neutralAction} disabled={busy}
+            onClick={() => friends ? setConfirmRemove(true) : friendship("remove")}>
+            {t(friends ? "modal.removeFriend" : incoming ? "friends.refuse" : "friends.cancel")}
+          </button>}
+        </div>}
+        {error && <p className={styles.error} role="alert">{error}</p>}
 
-            {/* Cours */}
-            {courses.length > 0 && (
-              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-                <p className="label mb-2">{t("friends.courses")}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {courses.map((c) => (
-                    <span key={c.id}
-                      className="text-xs px-2.5 py-1 rounded-full font-medium text-white"
-                      style={{ backgroundColor: c.color }}>
-                      {c.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+        {metrics.length > 0 && <dl className={styles.metrics} style={{ gridTemplateColumns: `repeat(${metrics.length}, minmax(0, 1fr))` }}>
+          {metrics.map(metric => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}</dd></div>)}
+        </dl>}
+        {!friends && !self && <p className={styles.notice}>{t("modal.friendsOnly")}</p>}
+        {data.partial && <p className={styles.notice} role="status">{t("modal.partial")}</p>}
 
-            {/* Planning */}
-            {planning && (
-              <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--bt-hairline)" }}>
-                <p className="label mb-2">{t("friends.upcoming")}</p>
-                {planning.length === 0 ? (
-                  <p className="text-xs" style={{ color: "var(--bt-text-3)" }}>{t("plan.nothing")}</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {planning.map((o) => (
-                      <li key={o.id} className="flex items-center gap-2 text-xs">
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-lg text-[10px] font-medium"
-                          style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-2)" }}>
-                          {new Date(o.scheduled_date).toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", { day: "numeric", month: "short" })}
-                        </span>
-                        <span className="flex-1 truncate" style={{ color: "var(--bt-text-1)" }}>{o.title}</span>
-                        {o.target_minutes > 0 && (
-                          <span style={{ color: "var(--bt-text-3)" }}>{o.target_minutes} min</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {/* Friend button */}
-            {userId !== user.id && (
-              <div className="mt-5">
-                {relStatus === "accepted" ? (
-                  <p className="flex items-center justify-center gap-1.5 text-sm" style={{ color: "var(--bt-success)" }}>
-                    <Glyph size={15}><path d="m5 12.8 4.4 4.4L19 7.6"/></Glyph>
-                    {t("modal.alreadyFriends")}
-                  </p>
-                ) : relStatus === "pending" ? (
-                  <p className="text-sm text-center" style={{ color: "var(--bt-text-3)" }}>{t("modal.pendingFriend")}</p>
-                ) : (
-                  <button onClick={addFriend} className="btn-primary w-full">{t("modal.addFriend")}</button>
-                )}
-                {msg && <p className="text-xs text-center mt-2" style={{ color: "var(--bt-brand-text)" }}>{msg}</p>}
-              </div>
-            )}
-          </>
-        )}
-        <button onClick={onClose} className="btn-ghost w-full mt-4">{t("common.close")}</button>
-      </div>
+        {courses.visible.length > 0 && <section className={styles.section}>
+          <h4>{t("friends.courses")}</h4>
+          <ul className={styles.courses}>{courses.visible.map(course => <li key={course.id} className={styles.course}>
+            <span className={styles.courseDot} style={{ background: course.color || "var(--bt-text-3)" }} aria-hidden="true" />
+            <span>{course.name}{course.shared && <small>{t("modal.sharedCourse")}</small>}</span>
+          </li>)}{courses.remaining > 0 && <li className={styles.remaining} aria-label={t("modal.moreCourses").replace("{n}", courses.remaining)}>+{courses.remaining}</li>}</ul>
+        </section>}
+        {highlights.length > 0 && <section className={styles.section}>
+          <h4>{t("modal.highlights")}</h4>
+          <ul className={styles.highlights}>{highlights.map(id => <li key={id}>
+            <BadgeIcon id={id} earned size={48} />
+            <span>{t(BADGES.find(b => b.id === id).labelKey)}</span>
+          </li>)}</ul>
+        </section>}
+      </>}
     </div>
-  );
+  </InboxSheet>;
 }
