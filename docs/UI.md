@@ -14,6 +14,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Shared navigation | `components/Layout.js` (desktop sidebar and route data), `components/ui/floating-nav.jsx` + `FloatingNav.module.css` (mobile tab indicator) |
 | Font families and responsive utilities | `tailwind.config.js`; self-hosted `public/fonts/` |
 | Timer units / daily time | `pages/dashboard.js`, `components/TodayProgressCard.js` |
+| Shared daily study goal | `lib/dailyStudyGoal.mjs` — today's positive planned durations, otherwise 2 h; Stats / Timer |
 | Goal-linked mascot position | `components/stats/StatsHero.js` |
 | Course palette | `lib/courseColors.js`; saved `course.color` is identity |
 | Imported academic context | `components/AcademicDeadlines.js`, `components/useAcademicCalendar.js`, `lib/planningAcademicEvents.mjs` — `docs/university-calendar-planning.md` |

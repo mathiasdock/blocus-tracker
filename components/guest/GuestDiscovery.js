@@ -287,7 +287,7 @@ function StatsDemo() {
     <div className={`${styles.page} bt-stats-readable flex flex-col gap-4 xl:gap-5`}>
       <h1 className="sr-only">{t("guest.demo.statsTitle")}</h1>
       <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
-        <StudyTimeChart series={demoSeries(lang)} goalMinutes={120} periodLabel={t("guest.demo.dataLabel")} period={period} periodOptions={periodOptions} onPeriodChange={setPeriod} />
+        <StudyTimeChart series={demoSeries(lang)} periodLabel={t("guest.demo.dataLabel")} period={period} periodOptions={periodOptions} onPeriodChange={setPeriod} />
         <StudyByCourse rows={rows} totalSecs={DEMO_TOTAL_SECS} periodLabel={t("guest.demo.dataLabel")} period={period} periodOptions={periodOptions} onPeriodChange={setPeriod} />
       </div>
     </div>

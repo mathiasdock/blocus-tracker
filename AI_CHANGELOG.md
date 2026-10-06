@@ -2,6 +2,14 @@
 
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
+## 2026-10-05 — Codex — Objectif quotidien partagé Stats / Chrono
+
+- `lib/dailyStudyGoal.mjs` devient la source commune : somme des `target_minutes` positives des objectifs à la date locale du jour, terminés inclus ; sans durée planifiée positive, repli à 2 h. Aucune durée attribuée aux objectifs non minutés. Lecture compte/date commune ; Chrono relit le plan même quand son historique est en cache.
+- Héros Stats, position/humeur de la mascotte, messages, progression du Chrono, jalon quotidien et récapitulatif de session utilisent cette cible. Dépassement toujours visible, pistes plafonnées comme avant. Objectif de session, missions XP, badges et règles de série inchangés.
+- Graphique historique : retire la ligne fixe « Objectif 2 h », le repère de couleur « objectif atteint » et l'échelle forcée par ce seuil. Barres, périodes, détails et interactions conservés ; aperçu invité aligné.
+- Tests du calcul (1 h, 2 h + 3 h, non minutés, terminé, autre jour, valeurs invalides), lecture commune et rendu réel FR/EN du héros/graphique. Aucun changement de schéma ou aux travaux des autres sessions.
+- Validation : 707 tests, lint propre, build de production réussi (avertissement PWA de taille préexistant). Navigateur local offline : Stats et Chrono affichent 1 h 15 pour 45 + 30 min planifiées, Stats 5 h pour 2 + 3 h, repli 2 h avec objectifs tous non minutés ; desktop clair FR et mobile 390 px sombre EN, sans ligne fixe ni débordement. Aucun compte ou objectif de production modifié pour les tests.
+
 ## 2026-10-05 — Codex — Fiche de profil social
 
 - `UserProfileModal` conserve l'identité académique et le niveau ; action principale Ajouter / Accepter / Message selon la relation, gestion de l'amitié dans `…`, fermeture par ×/Échap sans gros bouton de pied. Réutilise `InboxSheet` natif et son mouvement réduit, avec ancrage mobile propre à la fiche.

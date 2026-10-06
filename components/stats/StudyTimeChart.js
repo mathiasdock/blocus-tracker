@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid, ReferenceLine, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid, ResponsiveContainer,
 } from "recharts";
 import FilterMenu from "../FilterMenu";
 import { useI18n } from "../../contexts/I18nContext";
@@ -9,7 +9,7 @@ import { bucketLongLabel } from "../../lib/statsPeriod";
 
 // Recharts pose `tick.fill` / `stroke` en ATTRIBUTS SVG, où var(--bt-*) ne se
 // résout pas — mais `currentColor`, si. L'habillage (axes, grille, ligne
-// d'objectif) prend donc la couleur CSS du conteneur, `--bt-text-2` : 4,5:1 en
+// du graphique) prend donc la couleur CSS du conteneur, `--bt-text-2` : 4,5:1 en
 // clair, 6,6:1 en sombre. L'ancien taupe fixe #94908B ne tenait que 3,1:1 sur
 // fond clair, ce qui passait tant que l'axe était caché ; il ne l'est plus.
 const AXIS = "currentColor";
@@ -35,36 +35,15 @@ export function roundTicks(maxMinutes) {
 // Phase 2 — c'est l'objet d'analyse principal de la page, il en a désormais
 // les moyens :
 //   • un axe vertical gradué. Sans lui on comparait des hauteurs sans jamais
-//     pouvoir les lire ; la ligne d'objectif était le seul repère.
-//   • la ligne d'objectif porte son nom SUR le graphique, là où l'œil la voit,
-//     au lieu d'une phrase d'explication sous la carte.
+//     pouvoir les lire. Aucun objectif fixe ne s'applique à cet historique :
+//     l'objectif réel du jour appartient au héros, pas aux jours précédents.
 //   • les seaux INCOMPLETS (le mois en cours, la première semaine d'un
 //     historique commencé un mercredi) sont plus clairs et cernés de
 //     pointillés : ils comptent moins de jours que leurs voisins, et sans le
 //     dire ils se lisaient comme une chute d'effort.
 //   • des étiquettes à 11 px au lieu de 9.
-// Étiquette de la ligne d'objectif, posée sur un fond de carte. Dessinée
-// APRÈS les barres : sans fond, une barre plus haute que l'objectif la
-// recouvrait. Les propriétés `style` résolvent les variables CSS dans le SVG,
-// contrairement aux attributs de présentation.
-function GoalTag({ viewBox, value }) {
-  if (!viewBox) return null;
-  const width = Math.round(String(value).length * 6.1 + 12);
-  const x = viewBox.x + viewBox.width - width;
-  const y = viewBox.y - 19;
-  return (
-    <g transform={`translate(${x}, ${y})`}>
-      <rect width={width} height={17} rx={5} style={{ fill: "var(--bt-surface)", opacity: 0.94 }} />
-      <text x={width / 2} y={12} textAnchor="middle" fontSize={11} style={{ fill: "var(--bt-text-2)" }}>{value}</text>
-    </g>
-  );
-}
-
-function Chart({ data, goalMinutes, goalLabel, selectedIso, onSelect }) {
-  const showGoal = goalMinutes > 0 && data.length > 0 && data[0].gran === "day";
-  // Le domaine inclut l'objectif pour qu'il reste visible même une semaine
-  // sans aucune barre qui l'atteint.
-  const { ticks, end } = roundTicks(Math.max(...data.map((d) => d.minutes), showGoal ? goalMinutes : 0));
+function Chart({ data, selectedIso, onSelect }) {
+  const { ticks, end } = roundTicks(Math.max(0, ...data.map((d) => d.minutes)));
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} barCategoryGap="22%"
@@ -86,7 +65,7 @@ function Chart({ data, goalMinutes, goalLabel, selectedIso, onSelect }) {
             const base = d.partial ? 0.42 : 1;
             return (
               <Cell key={d.iso}
-                fill={showGoal && d.minutes >= goalMinutes ? "var(--bt-data-goal-met)" : "var(--bt-data-study)"}
+                fill="var(--bt-data-study)"
                 fillOpacity={dim ? base * 0.4 : base}
                 stroke={d.partial ? "var(--bt-data-study)" : "none"}
                 strokeDasharray={d.partial ? "3 2" : undefined}
@@ -94,10 +73,6 @@ function Chart({ data, goalMinutes, goalLabel, selectedIso, onSelect }) {
             );
           })}
         </Bar>
-        {showGoal && (
-          <ReferenceLine y={goalMinutes} stroke={AXIS} strokeDasharray="3 3" strokeOpacity={0.75}
-            label={<GoalTag value={goalLabel} />} />
-        )}
       </BarChart>
     </ResponsiveContainer>
   );
@@ -142,7 +117,7 @@ function BucketDetail({ bucket, lang }) {
 }
 
 export default function StudyTimeChart({
-  series, goalMinutes = 0, periodLabel,
+  series, periodLabel,
   period, periodOptions, onPeriodChange,
   className = "",
 }) {
@@ -157,7 +132,6 @@ export default function StudyTimeChart({
   const totalSecs = data.reduce((a, d) => a + d.secs, 0);
   const hasData = totalSecs > 0;
   const hasPartial = data.some((d) => d.partial);
-  const goalLabel = t("stats.chartGoalLabel").replace("{time}", formatStudyTime(goalMinutes * 60));
 
   // Parcours au clavier : ← → d'une barre à l'autre, Début/Fin aux extrémités,
   // Échap pour désélectionner. On part de la barre la plus récente — c'est
@@ -190,7 +164,7 @@ export default function StudyTimeChart({
         aria-label={`${t("stats.studyTimeTitle")} — ${periodLabel}`}
         className={`bt-chart-focus ${heightClass}`}>
         <div className="h-full" aria-hidden="true" style={{ color: "var(--bt-text-2)" }}>
-          <Chart data={data} goalMinutes={goalMinutes} goalLabel={goalLabel}
+          <Chart data={data}
             selectedIso={selectedIso} onSelect={setSelectedIso} />
         </div>
       </div>

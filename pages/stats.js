@@ -19,6 +19,7 @@ import { clearClientCache } from "../lib/clientCache";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { localISO } from "../lib/format";
+import { dailyStudyGoalSeconds, fetchDailyObjectives } from "../lib/dailyStudyGoal.mjs";
 import { computeInsights, regularityTrend } from "../lib/statsInsights.mjs";
 import { fetchStudyDays, mergeStudyDays, secondsOn, thisWeekSeconds } from "../lib/studyDays.mjs";
 import { studyDayMinSeconds } from "../lib/studyDayStates.mjs";
@@ -31,7 +32,6 @@ import {
 // Recharts ne sert qu'ici et pèse lourd : chargé à la demande, comme avant.
 const StudyTimeChart = dynamic(() => import("../components/stats/StudyTimeChart"), { ssr: false });
 
-const DAILY_GOAL_SECS = 7200; // 2 h — même objectif que le Chrono
 const CHART_PERIOD_KEY = "bt_stats_period_chart";
 const COURSE_PERIOD_KEY = "bt_stats_period_course";
 // Fenêtre fixe de la régularité : un mois est la bonne focale pour juger d'une
@@ -65,12 +65,15 @@ export default function Stats() {
   const { user, profile } = useAuth();
   const { t, lang } = useI18n();
   const { toast } = useToast();
+  const todayDate = localISO(new Date());
   // Premier chargement. Tant qu'il n'est pas fini on montre un squelette :
   // sinon la page affiche 0h00 partout, ce que les gens lisent comme un bug.
   const [ready, setReady] = useState(false);
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [todayObjectives, setTodayObjectives] = useState([]);
+  const dailyGoalSecs = dailyStudyGoalSeconds(todayObjectives, todayDate);
   // Lignes de session_days : la source de TOUT ce qui se compte par jour.
   // `sessions` ne sert plus qu'à la série, aux gels et aux habitudes de
   // session (heure de début, durée moyenne) — leur source d'avant.
@@ -107,22 +110,24 @@ export default function Stats() {
     // notes de session et l'identifiant client transitaient pour rien), et plus
     // de fenêtre à 370 jours : « Tout » doit pouvoir dire tout. Le total
     // all-time se déduit désormais de ces lignes — une requête de moins.
-    const [coursesRes, sessionsRes, daysRes] = await Promise.all([
+    const [coursesRes, sessionsRes, daysRes, objectivesRes] = await Promise.all([
       // Volontairement SANS filtre sur archived_at : un cours archivé est
       // justement celui dont on veut retrouver les heures du semestre passé.
       supabase.from("courses").select("id, name, color, archived_at").eq("user_id", user.id),
       supabase.from("sessions").select("course_id, duration_seconds, started_at").eq("user_id", user.id),
       fetchStudyDays(supabase, user.id),
+      fetchDailyObjectives(supabase, user.id, todayDate, "scheduled_date, target_minutes"),
     ]);
     // Les lectures alimentent toute la page : si l'une manque, aucun chiffre
     // n'est fiable. On ne remplace pas les données par des zéros.
-    if (coursesRes.error || sessionsRes.error || daysRes.error) { setLoadFailed(true); return; }
+    if (coursesRes.error || sessionsRes.error || daysRes.error || objectivesRes.error) { setLoadFailed(true); return; }
     setLoadFailed(false);
     setCourses(coursesRes.data || []);
     setSessions(sessionsRes.data || []);
     setServerDays(daysRes.data || []);
+    setTodayObjectives(objectivesRes.data || []);
     setQueued(listPending(user.id));
-  }, [user]);
+  }, [user, todayDate]);
 
   useEffect(() => { load().finally(() => setReady(true)); }, [load]);
 
@@ -262,7 +267,7 @@ export default function Stats() {
   // ── Chiffres du héros (indépendants du filtre : c'est « maintenant ») ──
   // La date de l'appareil choisit QUEL jour est aujourd'hui ; le jour de
   // chaque session, lui, vient de session_days.
-  const todaySecs = secondsOn(days, localISO(new Date()));
+  const todaySecs = secondsOn(days, todayDate);
   // « Cette semaine » = du lundi à aujourd'hui, même calcul que le Chrono.
   const weekSecs = thisWeekSeconds(days);
   const allTimeSecs = days.reduce((a, row) => a + (Number(row.seconds) || 0), 0);
@@ -351,7 +356,7 @@ export default function Stats() {
            lecture (voir styles/globals.css). */
         <div className="bt-stats-readable flex flex-col gap-4 xl:gap-5">
           <StatsHero
-            todaySecs={todaySecs} goalSecs={DAILY_GOAL_SECS}
+            todaySecs={todaySecs} goalSecs={dailyGoalSecs}
             weekSecs={weekSecs} streak={streak}
           />
 
@@ -368,7 +373,6 @@ export default function Stats() {
             <StudyTimeChart
               className="xl:absolute xl:inset-0"
               series={series}
-              goalMinutes={DAILY_GOAL_SECS / 60}
               periodLabel={rangeLabel(chartPeriod, chartRange)}
               period={chartPeriod}
               periodOptions={periodOptions}

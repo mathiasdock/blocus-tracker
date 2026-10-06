@@ -12,6 +12,7 @@ import { formatDuration, formatMinutesShort, todayISO, localISO, localDayStartIS
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost, shareSavedSession } from "../lib/autoShare";
 import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
+import { dailyStudyGoalSeconds, fetchDailyObjectives } from "../lib/dailyStudyGoal.mjs";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending, listPending } from "../lib/timerDraft";
 import { currentWeekDates, fetchStudyDays, mergeStudyDays, secondsByDay, secondsOn, sessionsOnDay, thisWeekSeconds, unsyncedSessionDays } from "../lib/studyDays.mjs";
@@ -122,7 +123,6 @@ function focusGreeting(t) {
 // en boucle le même jour, sans empêcher une nouvelle proposition plus tard.
 const FREEZE_DECLINED_KEY = "bt_freeze_declined_v1";
 
-const DAILY_GOAL_SECS = 7200; // 2 hours
 const POMO_WORK_OPTIONS  = [15, 20, 25, 30, 45, 50, 60];
 const POMO_BREAK_OPTIONS = [3, 5, 10, 15];
 
@@ -277,6 +277,8 @@ export default function Dashboard() {
     router.replace("/dashboard", undefined, { shallow: true });
   }, [router, router.isReady, router.query.quickstart, running, courseId, start]);
   const [todayObjectives, setTodayObjectives] = useState([]);
+  const todayDate = localISO(new Date());
+  const dailyGoalSecs = dailyStudyGoalSeconds(todayObjectives, todayDate);
   const [courseEditorOpen, setCourseEditorOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [courseEditorBusy, setCourseEditorBusy] = useState(false);
@@ -423,7 +425,6 @@ export default function Dashboard() {
 
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const todayDate = localISO(new Date());
 
     const [coursesRes, examsRes, sessionsRes, recentRes, objectivesRes, daysRes] = await Promise.all([
       supabase
@@ -444,12 +445,9 @@ export default function Dashboard() {
         .select("started_at, duration_seconds, course_id")
         .eq("user_id", user.id)
         .gte("started_at", ninetyDaysAgo.toISOString()),
-      cached ? Promise.resolve({ data: cached.objectives || [] }) : supabase
-        .from("objectives")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("scheduled_date", todayDate)
-        .order("done"),
+      // Re-read the plan even with cached study history: edits in Planning
+      // must update the daily goal immediately when returning to Timer.
+      fetchDailyObjectives(supabase, user.id, todayDate),
       cached ? Promise.resolve({ data: cached.days || [] }) : fetchStudyDays(supabase, user.id, { fromISO: localISO(ninetyDaysAgo) }),
     ]);
 
@@ -473,12 +471,12 @@ export default function Dashboard() {
       examRows: examsRes.error ? cached?.examRows || [] : examsRes.data || [],
       sessions: todaySessions,
       recentSessions: recentRes.data || [],
-      objectives: objectivesRes.data || [],
+      objectives: objectivesRes.error ? cached?.objectives || [] : objectivesRes.data || [],
       days,
     };
     setClientCache(cacheKey, data, 45000);
     applyDashboardData(data, user.id);
-  }, [applyDashboardData, dashboardCachePrefix, lang, user]);
+  }, [applyDashboardData, dashboardCachePrefix, lang, user, todayDate]);
 
   async function toggleObjective(o) {
     if (isGuest) return;
@@ -822,7 +820,7 @@ export default function Dashboard() {
     // Seule la part d'AUJOURD'HUI compte pour l'objectif du jour : une session
     // commencée avant minuit en laisse une partie à hier.
     const todayPart = secondsOn(unsyncedSessionDays(inserted || payload), localISO(new Date()));
-    const newGoalPct = Math.min(100, Math.round(((totalToday + todayPart) / DAILY_GOAL_SECS) * 100));
+    const newGoalPct = Math.min(100, Math.round(((totalToday + todayPart) / dailyGoalSecs) * 100));
     const xpGained = Math.floor(seconds / 60);
 
     // Optimistic update — use the server row si dispo, sinon notre payload
@@ -1112,7 +1110,6 @@ export default function Dashboard() {
   //     à l'instant précis où le crédit prend le relais.
   // « Aujourd'hui » est la date locale de l'appareil : elle choisit quelle
   // journée afficher, jamais le jour d'une session passée.
-  const todayDate = localISO(new Date());
   const unsyncedSessions = useMemo(
     () => [...queuedSessions, ...pendingCredits.map((c) => c.session)],
     [queuedSessions, pendingCredits],
@@ -1368,11 +1365,11 @@ export default function Dashboard() {
     const hours = Math.floor(elapsed / 3600);
     if (hours >= 1) fire(`hour${hours}`, t("dash.momentHour").replace("{h}", String(hours)));
     if (sessionGoalSecs && elapsed >= sessionGoalSecs) fire("sessionGoal", t("dash.momentSessionGoal"));
-    if (totalToday < DAILY_GOAL_SECS && totalToday + elapsed >= DAILY_GOAL_SECS) fire("daily", t("dash.momentDaily"));
+    if (totalToday < dailyGoalSecs && totalToday + elapsed >= dailyGoalSecs) fire("daily", t("dash.momentDaily"));
     if (longestSessionSecs > 0 && elapsed > longestSessionSecs) fire("longest", t("dash.momentLongest"));
     if (bestDaySecs > 0 && totalToday < bestDaySecs && totalToday + elapsed > bestDaySecs) fire("bestDay", t("dash.momentBestDay"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elapsed, running, pomodoro, pomoPhase]);
+  }, [elapsed, running, pomodoro, pomoPhase, dailyGoalSecs]);
 
   // Un crédit disparaît dès que la base connaît sa session : le total ne
   // bouge pas, il change juste de source.
@@ -1964,7 +1961,7 @@ export default function Dashboard() {
             className="order-3 lg:order-none lg:flex-1"
             totalToday={totalToday}
             liveSecs={liveStudySecs}
-            goalSecs={DAILY_GOAL_SECS}
+            goalSecs={dailyGoalSecs}
             weekSecs={weekSecs}
             weekDays={weekDays}
             weeklyGoalMin={weeklyGoalMin}
