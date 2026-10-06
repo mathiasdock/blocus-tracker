@@ -30,7 +30,6 @@ import { useConsent } from "../contexts/ConsentContext";
 import { isIOS, isStandalone, isPushSupported, getAppId, enablePush } from "../lib/onesignal";
 import { readPushOwner } from "../lib/pushOwner.mjs";
 import { pushErrorMessage } from "../lib/pushMessages";
-import { playSensoryCue } from "../lib/sensoryFeedback";
 import { isOfflineDev } from "../lib/supabaseClient";
 import styles from "./PushOptInPrompt.module.css";
 
@@ -169,7 +168,6 @@ export default function PushOptInPrompt() {
       if (res?.ok) {
         try { localStorage.removeItem("bt_push_last_error"); } catch (_) {}
         setPhase("done");
-        playSensoryCue("notification");
         window.setTimeout(() => close({ forever: true }), DONE_HOLD_MS);
         return;
       }

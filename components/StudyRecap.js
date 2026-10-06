@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Glyph from "./Glyph";
 import { supabase } from "../lib/supabaseClient";
 import Mascot from "./Mascot";
-import { playSensoryCue } from "../lib/sensoryFeedback";
 
 const STORY_WIDTH = 1080;
 const STORY_HEIGHT = 1920;
@@ -733,7 +732,6 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
     try {
       const blob = await prepareBlob();
       downloadBlob(blob, `blocus-recap-${period}.png`);
-      playSensoryCue("share");
       setStatus(t("stats.recapDownloaded"));
     } catch (_) {
       setStatus(t("stats.recapError"));
@@ -754,11 +752,9 @@ export default function StudyRecap({ sessions = [], courses = [], streak = 0, pr
           title: t("stats.recapShareTitle"),
           text: t("stats.recapShareText"),
         });
-        playSensoryCue("share");
         setStatus(t("stats.recapShared"));
       } else {
         downloadBlob(blob, file.name);
-        playSensoryCue("share");
         setStatus(t("stats.recapShareFallback"));
       }
     } catch (error) {

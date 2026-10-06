@@ -18,7 +18,6 @@ import { writeSessionGoal } from "../lib/sessionGoal";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost } from "../lib/autoShare";
 import Glyph from "../components/Glyph";
-import { playSensoryCue } from "../lib/sensoryFeedback";
 import { dayWorkload, dayLoad } from "../lib/planningInsights.mjs";
 import PlanningLoadBar from "../components/PlanningLoadBar";
 import { normalizePlanningExams, relevantUpcomingExams, deletePlanningExam, updateLegacyExamDate } from "../lib/planningExams.mjs";
@@ -1591,7 +1590,6 @@ export default function Planning() {
       setObjectives(p => p.map(x => x.id === o.id ? data : x));
       notifyXPChanged();
       if (!o.done) {
-        playSensoryCue("task");
         // A completed objective is shared at most once, even if rechecked.
         autoSharePost(supabase, {
           userId: user.id,

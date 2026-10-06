@@ -13,6 +13,8 @@ No mascot coach on the profile (Mathias, 2026-10-01): a new badge or the last le
 
 Motion pass (2026-10-05): an earned badge's detail sheet is static on every inspection; the existing canonical unlock celebration alone animates the badge. Detail sheets exit briefly without collapsing the page and close immediately under reduced motion. Catalogue hover is restrained to 1.04× for fine pointers; touch and reduced-motion users get no hover scale.
 
+Sound cleanup (2026-10-06): Profile never re-announces a badge discovered since the previous visit. Only the global canonical unlock celebration sounds. Preferences retains the same toggle, default and storage under the accurate FR/EN label “Effets sonores” / “App sound effects”; saving or copying is silent. No settings-layout change.
+
 ## Audience, job and task
 
 Students should recognize their current level, remaining XP and earned collection at a glance, then open the relevant detail page. The pair stays compact enough to keep the profile's other actions accessible on a phone.

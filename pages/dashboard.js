@@ -491,7 +491,6 @@ export default function Dashboard() {
       setTodayObjectives((prev) => prev.map((x) => (x.id === o.id ? data : x)));
       notifyXPChanged();
       if (data.done) {
-        playSensoryCue("goal");
         triggerHaptic("goal");
         // Au COCHAGE seulement : décocher n'est pas un évènement à annoncer.
         autoSharePost(supabase, {
@@ -727,6 +726,7 @@ export default function Dashboard() {
       pause();
       reset();
       setPomoPhase("work");
+      playSensoryCue("breakEnd");
       pomoHandled.current = false;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1410,7 +1410,7 @@ export default function Dashboard() {
     : isPaused
       ? (pauseSeconds >= 10 * 60 ? t("coach.timer.longPause") : null)
       : (!running && elapsed === 0)
-        ? t("coach.timer.ready")
+        ? t(pomodoro && pomoPhase === "work" && pomoCount > 0 ? "dash.breakEnded" : "coach.timer.ready")
         : null;
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
   const selectedCourseExam = courseId ? nextCourseExam(courseId) : null;
@@ -1607,7 +1607,7 @@ export default function Dashboard() {
           {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
           <div className="px-4 pb-3 pt-8 text-center sm:px-6 sm:pt-10">
             {pomodoro && (
-              <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]"
+              <div role="status" className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]"
                 style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "var(--bt-text-2)" }}>
                 {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
@@ -2076,7 +2076,7 @@ export default function Dashboard() {
           </p>
 
           {pomodoro && (
-            <p className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
+            <p role="status" className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
               style={{ color: pomoPhase === "work" ? "var(--bt-accent)" : "var(--bt-ink-muted)" }}>
               {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
               {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}

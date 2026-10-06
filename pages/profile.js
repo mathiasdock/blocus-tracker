@@ -367,7 +367,6 @@ function ReferralBody({ t, fallbackCode = "" }) {
     if (!shareLink) return;
     try {
       await navigator.clipboard.writeText(shareLink);
-      playSensoryCue("confirm");
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch (_) {}
@@ -673,7 +672,6 @@ export default function Profile() {
   // | "privacy". Une seule à la fois — deux surfaces modales empilées, c'est
   // un piège pour en sortir.
   const [sheet, setSheet] = useState(null);
-  const [newBadgeId, setNewBadgeId] = useState(null);
   const [canonicalLevelInfo, setCanonicalLevelInfo] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -725,10 +723,6 @@ export default function Profile() {
     if (key === "sound" && enabled) playSensoryCue("start");
   }
 
-  useEffect(() => {
-    if (newBadgeId) playSensoryCue("xp");
-  }, [newBadgeId]);
-
   // ── Load badge / XP data ─────────────────────────────────
   // Badges: the server's list only (lib/badgeTruth), exactly what the Badges
   // page reads. The profile used to recompute the rules here and add its own
@@ -746,23 +740,8 @@ export default function Profile() {
       ]);
       const allBadges = badgeIds || [];
 
-      // The celebration stays local: it shows a badge that appeared since the
-      // last visit, never on the first observation.
-      if (badgeIds) {
-        try {
-          const seenKey = `blocus:seen-badges:${user.id}`;
-          const rawSeen = localStorage.getItem(seenKey);
-          const seen = rawSeen ? JSON.parse(rawSeen) : null;
-          if (Array.isArray(seen)) {
-            const newlySeen = allBadges.filter(id => !seen.includes(id));
-            if (newlySeen.length) setNewBadgeId(newlySeen[0]);
-          }
-          localStorage.setItem(seenKey, JSON.stringify(allBadges));
-        } catch (_) {
-          // Progress remains correct if storage is unavailable.
-        }
-        setEarnedBadgeIds(allBadges);
-      }
+      // Only the global canonical unlock watcher announces new badges.
+      if (badgeIds) setEarnedBadgeIds(allBadges);
 
       setExamCount(examRes.count || 0);
       setCompletedObjCount(doneObjRes.count || 0);

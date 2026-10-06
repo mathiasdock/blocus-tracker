@@ -32,7 +32,7 @@ export default function Celebration({ data, onClose }) {
   const { t } = useI18n();
 
   useEffect(() => {
-    if (data) playSensoryCue(data.kind === "level" ? "xp" : "goal");
+    if (data) playSensoryCue(data.kind === "level" ? "levelUp" : "achievement");
   }, [data]);
 
   useEffect(() => {
