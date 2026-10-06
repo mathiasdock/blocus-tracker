@@ -1,5 +1,12 @@
 # AI_CHANGELOG.md
 
+## 2026-10-06 — Codex — Sons ElevenLabs sélectionnés
+
+- Intègre uniquement les choix validés : session v1, pause Pomodoro v2, récompense v2, niveau v1, social v3. Départ/reprise inchangés (hashes testés), ambiance Focus intacte. Aucun nouvel événement sonore ; nettoyage du commit `1442873` conservé, célébration canonique distingue `achievement` / `levelUp`, sans son pour accumulation ordinaire d’XP ni relecture dans le Profil.
+- Gain seul après mono, sonie mesurée ~−23 LUFS sur les MP3 finaux, crêtes ≤−3,9 dBTP ; 44,1 kHz / 64 kbps, cinq nouveaux assets ~36,5 KiB. Noms neufs pour le cache PWA ; anciens complete/XP/notification retirés (récupérables via Git). Script offline reproductible et provenance dans `public/sounds/README.md`.
+- Verrou partagé par fichier, délai des alertes 5 s, déduplication DM/cloche, mute et déverrouillage navigateur conservés. Fin de pause garde le retour visuel Travail et l’invitation à reprendre ; aucune reprise automatique. Pas de changement d’Auth, données, schéma, layout ou préférences.
+- Validation : 35 tests ciblés / 742 tests complets, lint et build production ; lecture/décodage Web Audio réels des cinq familles dans Chrome et Safari desktop, mute, verrou anti-doublon, ambiance Focus indépendante. Fixture locale retirée avant commit ; aucun test sur téléphone physique, l’écoute finale dépend encore du haut-parleur. Avertissement de précache PWA 3 MB préexistant ; aucun secret Supabase ajouté au worktree.
+
 ## 2026-10-06 — Codex — Nettoyage sonore ciblé (non déployé)
 
 - Toasts de succès, cases d'objectifs, publications/partages, exports/copies, sauvegardes et activation push silencieux. Profil ne rejoue plus un badge ; célébration globale au vrai déblocage conservée. Départ/reprise/pause, fin de session, objectifs temporels significatifs et paliers existants gardent leurs sons.

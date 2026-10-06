@@ -37,6 +37,25 @@ test("success toasts render without invoking any sound", () => {
   act(() => renderer.unmount());
 });
 
+test("saved session recap sounds once, not on its unrelated rerenders", () => {
+  const calls = [];
+  const Empty = () => null;
+  const Recap = compile("../components/SessionCompleteCard.js", {
+    "../lib/sensoryFeedback": { playSensoryCue: cue => calls.push(cue) },
+    "../contexts/I18nContext": { useI18n: () => ({ t: key => key }) },
+    "../lib/format": { formatMinutesShort: value => `${value}m`, displayName: () => "Friend" },
+    "./AnimatedNumber": Empty, "./Mascot": Empty, "./Glyph": Empty,
+    "./Layout": { Avatar: Empty },
+  }, { window: { addEventListener() {}, removeEventListener() {} },
+    requestAnimationFrame: () => 1, cancelAnimationFrame() {} }).default;
+  const data = { durationSecs: 1800, goalPct: 25, xpGained: 50, courseName: "Methods", courseColor: "#ec4899" };
+  let renderer;
+  act(() => { renderer = create(React.createElement(Recap, { data, onClose() {} })); });
+  act(() => renderer.update(React.createElement(Recap, { data, onClose() {}, friends: [] })));
+  assert.deepEqual(calls, ["complete"]);
+  act(() => renderer.unmount());
+});
+
 test("a real unlock celebration sounds once; inspecting Profile cannot announce a badge", () => {
   const calls = [];
   const Empty = () => null;
@@ -50,7 +69,14 @@ test("a real unlock celebration sounds once; inspecting Profile cannot announce 
   let renderer;
   act(() => { renderer = create(React.createElement(Celebration, { data, onClose })); });
   act(() => renderer.update(React.createElement(Celebration, { data, onClose })));
-  assert.deepEqual(calls, ["goal"]);
+  assert.deepEqual(calls, ["achievement"]);
+  const streak = { kind: "streak", days: 7 };
+  act(() => renderer.update(React.createElement(Celebration, { data: streak, onClose })));
+  act(() => renderer.update(React.createElement(Celebration, { data: streak, onClose })));
+  const level = { kind: "level", level: 2, titleKey: "level.title" };
+  act(() => renderer.update(React.createElement(Celebration, { data: level, onClose })));
+  act(() => renderer.update(React.createElement(Celebration, { data: level, onClose })));
+  assert.deepEqual(calls, ["achievement", "achievement", "levelUp"]);
   act(() => renderer.unmount());
   const profile = source("../pages/profile.js");
   assert.doesNotMatch(profile, /playSensoryCue\("xp"\)|seen-badges|newBadgeId/);

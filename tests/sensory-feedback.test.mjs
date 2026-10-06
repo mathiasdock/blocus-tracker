@@ -49,20 +49,43 @@ function setup({ htmlOnly = false, resume, fetchFails = false, htmlRejects = fal
     advance(ms) { now += ms; for (const [id, t] of timers) if (t.at <= now) { timers.delete(id); t.fn(); } } };
 }
 
-test("preloads only the five existing assets; removed ordinary cues cannot play", async () => {
+test("preloads seven canonical assets; removed ordinary/XP cues cannot play", async () => {
   const s = setup(); await s.preloadSensoryFeedback();
-  assert.equal(new Set(s.fetched).size, 5);
-  for (const cue of ["confirm", "share", "task"]) assert.equal(s.playSensoryCue(cue), false);
+  assert.equal(new Set(s.fetched).size, 7);
+  for (const cue of ["confirm", "share", "task", "xp"]) assert.equal(s.playSensoryCue(cue), false);
 });
 
 test("different cues sharing an MP3 cannot overlap; completion releases the lock", async () => {
   const s = setup(); await s.preloadSensoryFeedback();
   assert.equal(s.playSensoryCue("complete"), true);
-  assert.equal(s.playSensoryCue("goal"), false);
   assert.equal(s.playSensoryCue("pomodoro"), false);
   assert.equal(s.sources.length, 1);
   s.sources[0].onended();
+  assert.equal(s.playSensoryCue("pomodoro"), true);
+});
+
+test("achievement and study target aliases share the reward-file lock", async () => {
+  const s = setup(); await s.preloadSensoryFeedback();
+  assert.equal(s.playSensoryCue("achievement"), true);
+  assert.equal(s.playSensoryCue("goal"), false);
+  s.sources[0].onended();
   assert.equal(s.playSensoryCue("goal"), true);
+});
+
+test("selected sound families have distinct assets, common gain and unchanged pitch", async () => {
+  const s = setup(); await s.preloadSensoryFeedback();
+  for (const [cue, file] of [
+    ["complete", "bt-session-complete.mp3"], ["breakEnd", "bt-break-end.mp3"],
+    ["achievement", "bt-achievement.mp3"], ["levelUp", "bt-level-up.mp3"],
+    ["notification", "bt-social-incoming.mp3"],
+  ]) {
+    assert.equal(s.playSensoryCue(cue), true);
+    const playing = s.sources.at(-1);
+    assert.equal(playing.buffer.src, `/sounds/${file}`);
+    assert.equal(playing.output.gain.value, 0.4);
+    assert.equal(playing.playbackRate.value, 1);
+    playing.onended();
+  }
 });
 
 test("timer start/resume remain audible and pause shares the start-file lock", async () => {
@@ -73,12 +96,15 @@ test("timer start/resume remain audible and pause shares the start-file lock", a
   assert.equal(s.sources.length, 2);
 });
 
-test("break end uses the existing resume asset at a lower volume", async () => {
+test("break end uses its selected cue without changing timer resume", async () => {
   const s = setup(); await s.preloadSensoryFeedback();
   assert.equal(s.playSensoryCue("breakEnd"), true);
-  assert.equal(s.sources[0].buffer.src, "/sounds/bt-resume.mp3");
-  assert.equal(s.sources[0].output.gain.value, 0.14);
-  assert.equal(s.playSensoryCue("resume"), false);
+  assert.equal(s.sources[0].buffer.src, "/sounds/bt-break-end.mp3");
+  assert.equal(s.sources[0].output.gain.value, 0.4);
+  s.sources[0].onended();
+  assert.equal(s.playSensoryCue("resume"), true);
+  assert.equal(s.sources[1].buffer.src, "/sounds/bt-resume.mp3");
+  assert.equal(s.sources[1].output.gain.value, 0.24);
 });
 
 test("notifications cannot stack, then stay quiet through a five-second burst", async () => {
@@ -94,7 +120,7 @@ test("mute retains its local key, blocks every effect, and preserves haptics", a
   const s = setup(); await s.preloadSensoryFeedback();
   s.writeSensoryPreferences({ sound: false });
   assert.deepEqual(JSON.parse(s.storage.get("bt_sensory_v1")), { sound: false, haptics: true });
-  for (const cue of ["start", "resume", "goal", "complete", "xp", "notification", "breakEnd"]) {
+  for (const cue of ["start", "pause", "resume", "goal", "achievement", "complete", "levelUp", "notification", "breakEnd", "pomodoro"]) {
     assert.equal(s.playSensoryCue(cue), false);
   }
 });
@@ -104,7 +130,7 @@ test("pending browser resume reserves the MP3 before playback", async () => {
   const s = setup({ resume: ctx => new Promise(resolve => { unlock = () => { ctx.state = "running"; resolve(); }; }) });
   await s.preloadSensoryFeedback();
   s.playSensoryCue("complete");
-  assert.equal(s.playSensoryCue("goal"), false);
+  assert.equal(s.playSensoryCue("pomodoro"), false);
   unlock(); await Promise.resolve();
   assert.equal(s.sources.length, 1);
 });
@@ -128,22 +154,23 @@ test("an old pending alert is dropped instead of replayed after suspension", asy
 test("HTML Audio fallback also locks by file and releases on end/error", () => {
   const s = setup({ htmlOnly: true });
   s.playSensoryCue("complete");
-  assert.equal(s.playSensoryCue("goal"), false);
-  s.html[0].onended(); assert.equal(s.playSensoryCue("goal"), true);
-  s.html[1].onerror(); assert.equal(s.playSensoryCue("pomodoro"), true);
+  assert.equal(s.playSensoryCue("pomodoro"), false);
+  s.html[0].onended(); assert.equal(s.playSensoryCue("pomodoro"), true);
+  s.html[1].onerror(); assert.equal(s.playSensoryCue("complete"), false);
+  s.advance(500); assert.equal(s.playSensoryCue("complete"), true);
 });
 
 test("blocked HTML playback releases the file for a later gesture", async () => {
   const s = setup({ htmlOnly: true, htmlRejects: true });
   s.playSensoryCue("complete"); await Promise.resolve();
-  assert.equal(s.playSensoryCue("goal"), true);
+  assert.equal(s.playSensoryCue("pomodoro"), true);
 });
 
 test("offline synthesis uses the same lock and releases after its envelope", async () => {
   const s = setup({ fetchFails: true }); await s.preloadSensoryFeedback();
   s.playSensoryCue("complete"); assert.equal(s.tones.length, 3);
-  assert.equal(s.playSensoryCue("goal"), false);
-  s.advance(360); assert.equal(s.playSensoryCue("goal"), true);
+  assert.equal(s.playSensoryCue("pomodoro"), false);
+  s.advance(360); assert.equal(s.playSensoryCue("pomodoro"), true);
 });
 
 test("gesture unlock stays registered for pointer and keyboard", () => {

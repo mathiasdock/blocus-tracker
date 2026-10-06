@@ -1,12 +1,30 @@
 # App sound effects
 
-Effects use the five existing local MP3s in `public/sounds/` through
+Effects use seven local MP3s in `public/sounds/` through
 `lib/sensoryFeedback.js`. Do not add automatic sound to success toasts.
+
+## Canonical families (selected October 6, 2026)
+
+| Cue | Family / local file | Selected candidate |
+| --- | --- | --- |
+| `complete`, `pomodoro` work end | `bt-session-complete.mp3` | Session v1 |
+| `breakEnd` | `bt-break-end.mp3` | Break v2 |
+| `achievement`, `goal` meaningful study target | `bt-achievement.mp3` | Achievement v2 |
+| `levelUp` (not ordinary XP accumulation) | `bt-level-up.mp3` | Level v1 |
+| `notification` | `bt-social-incoming.mp3` | Social v3 |
+| `start`, `pause` | `bt-start.mp3` | Unchanged |
+| `resume` | `bt-resume.mp3` | Unchanged |
+
+New family files have matched measured integrated loudness (~−23 LUFS),
+unchanged pitch, gain 0.4 in the existing controller. Mono 44.1 kHz / 64 kbps;
+five new files total 37,416 bytes. See `public/sounds/README.md` for provenance,
+headroom and the reproducible offline preparation script. Fresh filenames
+avoid reusing the old cached MP3 URLs. Existing PWA precaching includes them.
 
 ## Audible events
 
 - Timer start, pause, resume; significant session/daily targets; saved session.
-- Pomodoro work end; break end reuses `bt-resume.mp3` at gain 0.14. The visible
+- Pomodoro work end; break end uses its dedicated selected gentle cue. The visible
   phase changes to Work, a translated ready-to-resume hint appears, and the
   phase is a live status. Work does not start automatically after the break.
 - Real badge/level/streak unlocks from the canonical global watcher only.
