@@ -23,7 +23,6 @@ import { signStorageRef } from "../lib/signedMedia";
 import { uploadRefusalText } from "../lib/mediaUploads";
 import { SkeletonRow } from "../components/Skeleton";
 import Glyph from "../components/Glyph";
-import { playSensoryCue } from "../lib/sensoryFeedback";
 import { buildActivityTimeline, emptyStateKind } from "../lib/activityFeed.mjs";
 import { isUuidLike } from "../lib/notificationRules.mjs";
 import {
@@ -314,7 +313,6 @@ export default function Feed() {
     const { error } = await supabase.from("posts").insert({
       user_id: user.id, image_url: imageUrl, caption: cleanCaption || null, visibility,
     });
-    if (!error) playSensoryCue("share");
     setCaption("");
     setFile(null);
     setVisibility("public");

@@ -1,5 +1,13 @@
 # AI_CHANGELOG.md
 
+## 2026-10-06 — Codex — Nettoyage sonore ciblé (non déployé)
+
+- Toasts de succès, cases d'objectifs, publications/partages, exports/copies, sauvegardes et activation push silencieux. Profil ne rejoue plus un badge ; célébration globale au vrai déblocage conservée. Départ/reprise/pause, fin de session, objectifs temporels significatifs et paliers existants gardent leurs sons.
+- Verrou partagé par MP3 pour Web Audio, HTML Audio et synthèse de secours, y compris pendant `resume()` ; aucun son supprimé n'est mis en attente. Notifications espacées de cinq secondes, dédupliquées par identité/date serveur entre DM temps réel et cloche ; réactions mineures silencieuses. Une page bornée via le RPC existant au repère initial et au changement du compteur, réutilisée pour la cloche ouverte ; aucun nouveau canal, sondage ou SQL.
+- Fin de pause Pomodoro : petit son de reprise existant à volume réduit, phase Travail annoncée et invitation FR/EN visible ; aucune reprise automatique ajoutée. Préférence renommée « Effets sonores » / « App sound effects », même stockage/mute. Ambiances Focus et cinq assets inchangés.
+- Contrat : `docs/sounds.md`. Tests couvrant overlap, mute, reprise navigateur, fallback hors ligne/HTML, déduplication réelle du Provider, réactions, badge, toasts et transition Pomodoro. Aucun déploiement ni changement production.
+- Validation : 28 tests ciblés et 735 tests de suite complète réussis, lint propre, build production réussi. Avertissement PWA préexistant (chunk de 3 MB non précaché) et configuration Supabase absente dans ce worktree local ; aucun secret copié. Lecture audio navigateur simulée dans les tests, sans validation auditive sur appareil physique.
+
 Ce fichier sert de suivi commun pour Claude Code et Codex. Toujours le lire avant de modifier le projet afin d'eviter les doublons, les inversions de changements ou les confusions entre mode local et production.
 
 ## 2026-10-05 — Codex — Objectif quotidien partagé Stats / Chrono

@@ -101,7 +101,6 @@ export default function SessionCompleteCard({
     const ok = await onShare?.(friend);
     setSending(null);
     if (ok) {
-      playSensoryCue("share");
       setSentTo(friend);
       setView("recap");
     }

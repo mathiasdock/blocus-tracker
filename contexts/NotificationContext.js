@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { playSensoryCue } from "../lib/sensoryFeedback";
+import { createNotificationSoundTracker } from "../lib/notificationSounds.mjs";
 import {
   destinationFor,
   emptyHidden,
@@ -119,7 +120,8 @@ export function NotificationProvider({ children }) {
   const pollingRef = useRef(false);
   const lastPollAtRef = useRef(0);
   const pollTimeoutRef = useRef(null);
-  const audibleBaselineRef = useRef(null);
+  const soundTrackerRef = useRef(createNotificationSoundTracker());
+  const soundBellRef = useRef(null);
   const inboxRef = useRef(inbox);
   // Ce que le membre a effacé pendant la session : une relecture partie avant
   // la confirmation de la base ne doit pas le faire réapparaître.
@@ -169,12 +171,12 @@ export function NotificationProvider({ children }) {
             table: "private_messages",
             filter: `receiver_id=eq.${user.id}`,
           },
-          () => {
+          (payload) => {
             setMessageCount((c) => c + 1);
-            if (audibleBaselineRef.current !== null) audibleBaselineRef.current += 1;
+            const fresh = soundTrackerRef.current.noteMessage(payload?.new);
             if (pathnameRef.current !== "/messages") {
               setMsgToast(true);
-              if (typeof document === "undefined" || !document.hidden) playSensoryCue("notification");
+              if (fresh && !document.hidden) playSensoryCue("notification");
             }
             schedulePollRef.current?.(POLL_DEBOUNCE_MS);
           }
@@ -232,13 +234,14 @@ export function NotificationProvider({ children }) {
   const poll = useCallback(async () => {
     if (!user || pollingRef.current) return;
     pollingRef.current = true;
+    const soundTracker = soundTrackerRef.current;
     lastPollAtRef.current = Date.now();
     try {
       const feedSince = getLastSeen("feed");
       if (!feedSince) setLastSeen("feed");
       const { rooms, groups } = seenMaps(seenEntries());
       const summary = await fetchSummary(rpc, { feedSince, rooms, groups });
-      if (!summary) return;
+      if (!summary || soundTracker !== soundTrackerRef.current) return;
 
       if (feedSince && summary.feed !== null) setFeedCount(summary.feed);
       setFriendCount(summary.friends);
@@ -256,27 +259,30 @@ export function NotificationProvider({ children }) {
       }
       setGroupCount(nextGroups);
 
-      // La cloche a bougé pendant que sa liste est ouverte : on relit la
-      // première page, sans perdre ce qui a déjà été chargé plus bas.
+      // Read at most one bounded page when the bell count changes (plus the
+      // initial silent baseline), using the existing RPC, not a new poll or
+      // channel. A reaction count alone must never trigger an alert.
       const open = inboxRef.current;
-      if (open.status === "ready" && summary.bell !== open.unread) {
-        fetchInbox(rpc).then((page) => {
-          setInbox((state) => ({
-            ...state, items: mergeItems(state.items, withoutHidden(page.items, hiddenRef.current)), unread: page.unread,
-          }));
-          setBellUnread(page.unread);
-        }).catch(() => {});
+      if (soundBellRef.current !== summary.bell
+          || (open.status === "ready" && summary.bell !== open.unread)) {
+        try {
+          const page = await fetchInbox(rpc);
+          if (soundTracker !== soundTrackerRef.current) return;
+          const audible = soundTracker.observe(page.items);
+          soundBellRef.current = summary.bell;
+          if (audible && !document.hidden && pathnameRef.current !== "/messages") {
+            playSensoryCue("notification");
+          }
+          if (open.status === "ready") {
+            setInbox((state) => ({
+              ...state, items: mergeItems(state.items, withoutHidden(page.items, hiddenRef.current)), unread: page.unread,
+            }));
+          }
+        } catch {
+          // Retry on the next existing poll; counters remain usable.
+        }
       }
       setBellUnread(summary.bell);
-
-      const audible = summary.bell + summary.messages;
-      if (audibleBaselineRef.current !== null
-          && audible > audibleBaselineRef.current
-          && (typeof document === "undefined" || !document.hidden)
-          && pathnameRef.current !== "/messages") {
-        playSensoryCue("notification");
-      }
-      audibleBaselineRef.current = audible;
 
       // Une seule fois : les annonces que l'ancienne cloche avait masquées
       // sur CET appareil sont effacées pour le compte.
@@ -292,7 +298,8 @@ export function NotificationProvider({ children }) {
   }, [user]);
 
   useEffect(() => {
-    audibleBaselineRef.current = null;
+    soundTrackerRef.current = createNotificationSoundTracker();
+    soundBellRef.current = null;
     hiddenRef.current = emptyHidden();
     setInbox(EMPTY_INBOX);
     setBellUnread(0);

@@ -1238,7 +1238,6 @@ export default function Messages() {
     setGrpActiveId(grp.id);
     setActiveType("group");
     setMobileView("chat");
-    playSensoryCue("confirm");
     await loadGroups();
   }
 
