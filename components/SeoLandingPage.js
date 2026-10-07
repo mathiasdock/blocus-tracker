@@ -21,6 +21,7 @@ const UI = {
     finalTitle: "Passe de l'intention à une vraie session.",
     finalText: "Tu peux tester le chrono tout de suite. Crée un compte quand tu veux sauvegarder ton planning, tes statistiques et ta progression.",
     startTimer: "Lancer le chrono",
+    sourcesTitle: "Sources utiles",
   },
   en: {
     signup: "Create an account",
@@ -35,6 +36,7 @@ const UI = {
     finalTitle: "Go from intention to a real session.",
     finalText: "You can try the timer right now. Create an account when you want to save your plan, your stats and your progress.",
     startTimer: "Start the timer",
+    sourcesTitle: "Useful sources",
   },
 };
 
@@ -87,6 +89,11 @@ export default function SeoLandingPage({ page }) {
                 <p className="mt-5 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
                   {p.lead}
                 </p>
+                {/* Date de mise à jour et auteur, quand la page les déclare :
+                    ce sont ceux du JSON-LD Article (lib/seo.js). */}
+                {p.byline && (
+                  <p className="mt-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{p.byline}</p>
+                )}
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <Link href="/dashboard" className="btn-primary px-6 py-3 text-center text-sm">
                     {p.ctaLabel}
@@ -223,6 +230,27 @@ export default function SeoLandingPage({ page }) {
               </div>
             </div>
           </section>
+
+          {/* Sources des faits de la page (dates, définitions), quand elle en
+              déclare : une note de bas de page, pas une bibliographie. */}
+          {p.sources?.length > 0 && (
+            <section className="px-5 pb-14">
+              <div className="mx-auto max-w-4xl">
+                <h2 className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>{ui.sourcesTitle}</h2>
+                <ul className="mt-2">
+                  {p.sources.map((source) => (
+                    <li key={source.href}>
+                      <a href={source.href} target="_blank" rel="noopener noreferrer"
+                        className="flex min-h-[44px] items-center py-2 text-sm leading-relaxed underline underline-offset-2"
+                        style={{ color: "var(--bt-text-2)" }}>
+                        {source.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
         </article>
       </main>
       <PublicFooter />

@@ -1,5 +1,13 @@
 # AI_CHANGELOG.md
 
+## 2026-10-07 — Claude Code — SEO P1-A : /blocus-belgique (non déployé)
+
+- Page réécrite pour l'intention « blocus étudiant en Belgique » (Search Console : `blocus belgique` 1 004 impressions, position ~10) sans viser le mot ambigu `blocus`, qui reste à l'accueil. URL, canonical, CTA, panneau, liens « Continuer » et gabarit inchangés.
+- Title « Blocus étudiant en Belgique : définition, planning et conseils », H1 « Le blocus étudiant en Belgique : comment bien le préparer », réponse courte qui définit le blocus. Sept sections : définition, dates (quadrimestres du décret Paysage, exemple UCLouvain Sciences 2026-2027, noms de sessions UCLouvain/ULB), planning, journée type, heures sans chiffre magique, janvier/juin/août, boucle planning → Chrono → temps réel → ajustement. FAQ de 5 questions calquée sur les requêtes réelles ; EN mis à jour en miroir.
+- Faits vérifiés le 2026-10-07 : art. 79 du décret Paysage (Gallilex, texte coordonné), calendriers PDF UCLouvain Sciences et ULB LTC 2026-2027 (lus en entier), Mes études (ARES), Univers Santé. Les exemples datés sont à mettre à jour chaque année académique.
+- `SeoLandingPage` : deux champs optionnels, n'affichant rien sur les 5 autres guides (0 pixel de différence) : `byline` (date + auteur, ceux du JSON-LD Article) et `sources` (« Sources utiles » en bas de page, liens ≥ 44 px). `lib/seo.js` : `dateModified` par page (2026-10-07 ici, 2026-07-06 par défaut).
+- Validation : lint, 742 tests, build (avertissement PWA préexistant ; JS commun +2 Ko car `lib/seo.js` embarque les textes des guides). Chrome headless en-US et fr-BE : HTML initial, `<html lang="fr">`, title/meta/H1, canonical, JSON-LD (headline = H1, FAQ = FAQ visible) en français ; mode Découverte et choix manuel EN inchangés ; 320/390/1440 px, clair/sombre, sans débordement.
+
 ## 2026-10-07 — Claude Code — SEO P0 : langue des pages publiques et fond des guides (non déployé)
 
 - Cause : depuis le 14/07, `I18nContext` appliquait la langue de l'appareil à toutes les pages après chargement. Google exécute les pages avec un navigateur en-US : il indexait un titre/description/JSON-LD français sur un texte, un H1 et un `<html lang>` anglais (extraits anglais visibles dans Google pour /pomodoro et /legal). Le commentaire « le SSG est ce que Google indexe » était faux.
