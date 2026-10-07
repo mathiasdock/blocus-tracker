@@ -1,5 +1,13 @@
 # AI_CHANGELOG.md
 
+## 2026-10-07 — Claude Code — SEO P0 : langue des pages publiques et fond des guides (non déployé)
+
+- Cause : depuis le 14/07, `I18nContext` appliquait la langue de l'appareil à toutes les pages après chargement. Google exécute les pages avec un navigateur en-US : il indexait un titre/description/JSON-LD français sur un texte, un H1 et un `<html lang>` anglais (extraits anglais visibles dans Google pour /pomodoro et /legal). Le commentaire « le SSG est ce que Google indexe » était faux.
+- Langue affichée : sur une page indexable (`index: true` dans `lib/seo.js`), celle de l'adresse (`contentLangForPath`, tirée de la locale → `fr`) pour tout visiteur non connecté. Choix manuel (Profil) respecté partout ; un compte connecté garde la langue de l'app sur ces pages, comme avant. Pages de l'app inchangées (appareil ou choix manuel). Une future page `/en/` déclarera `locale: "en_US"`.
+- `appLang` (langue de l'utilisateur) alimente les notifications push : une page publique en français ne bascule plus la langue des push d'un compte anglophone.
+- Fond des 6 guides retiré : `bg-mobile.png` (1,9 Mo) / `bg-desktop.png` (1,86 Mo) étaient invisibles (`-z-10` sous le fond opaque de la page : 0 pixel de différence en capture) mais devenaient l'élément LCP (14,1 s mesuré en 4G lente) et étaient précachés par le service worker pour chaque visiteur. Classe `.auth-bg` et images supprimées (aucune autre référence).
+- Validation : build prod (avertissements identiques à `origin/main`), lint, 742 tests ; Chrome headless fr-BE et en-US sur les 11 pages publiques (texte, H1, `<html lang>`, title, description, canonical, JSON-LD en français, aucune redirection), pages de l'app et compte connecté (offline) toujours selon l'appareil, sélecteur du Profil, navigation interne public ↔ app ; 6 guides identiques au pixel près en 390 et 1440 px ; LCP /pomodoro 14,1 s → 1,4 s, 2,7 Mo → 765 Ko.
+
 ## 2026-10-06 — Codex — Sons ElevenLabs sélectionnés
 
 - Intègre uniquement les choix validés : session v1, pause Pomodoro v2, récompense v2, niveau v1, social v3. Départ/reprise inchangés (hashes testés), ambiance Focus intacte. Aucun nouvel événement sonore ; nettoyage du commit `1442873` conservé, célébration canonique distingue `achievement` / `levelUp`, sans son pour accumulation ordinaire d’XP ni relecture dans le Profil.

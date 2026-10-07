@@ -488,11 +488,12 @@ function PushInit() {
 }
 
 // Les notifications push suivent la langue de l'APP, pas celle de l'appareil
-// (lib/onesignal.js). Ne charge jamais OneSignal : la langue n'est transmise
-// que si l'appareil est déjà associé au compte.
+// (lib/onesignal.js), ni celle d'une page publique, qui garde la langue de son
+// adresse. Ne charge jamais OneSignal : la langue n'est transmise que si
+// l'appareil est déjà associé au compte.
 function PushLanguageSync() {
-  const { lang } = useI18n();
-  useEffect(() => { setPushLanguage(lang); }, [lang]);
+  const { appLang } = useI18n();
+  useEffect(() => { setPushLanguage(appLang); }, [appLang]);
   return null;
 }
 

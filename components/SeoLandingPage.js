@@ -54,9 +54,9 @@ function BulletList({ items }) {
 
 export default function SeoLandingPage({ page }) {
   const { lang } = useI18n();
-  // Contenu visible : anglais si l'appareil est anglophone. Le SSG rend le
-  // français (indexé pour les mots-clés FR) ; l'anglais s'affiche après
-  // hydratation. Les meta/JSON-LD (SeoHead) restent toujours FR.
+  // Contenu visible : la langue de l'adresse (français) pour tout visiteur non
+  // connecté, Google compris ; l'anglais seulement sur choix manuel ou pour un
+  // compte connecté anglophone (I18nContext). Meta/JSON-LD (SeoHead) : FR.
   const ui = UI[lang === "en" ? "en" : "fr"];
   const en = lang === "en" ? SEO_LANDING_PAGES_EN[page.path] : null;
   const p = en ? { ...page, ...en } : page;
@@ -69,7 +69,6 @@ export default function SeoLandingPage({ page }) {
       <main>
         <article>
           <section className="relative px-5 pb-12 pt-8 sm:pt-14">
-            <div className="absolute inset-0 -z-10 auth-bg opacity-20" aria-hidden="true" />
             <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1fr_0.78fr]">
               <div>
                 <p

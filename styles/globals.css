@@ -115,19 +115,6 @@ html.bt-no-splash #bt-splash {
   display: none;
 }
 
-/* ── Background pages d'authentification ───────────────────── */
-.auth-bg {
-  background-image: url('/bg-desktop.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-@media (max-width: 767px) {
-  .auth-bg {
-    background-image: url('/bg-mobile.png');
-  }
-}
-
 /* Color/elevation values live in lib/colorTokens.cjs → styles/colors.css. */
 :root {
   --bt-r-inset: 12px;
