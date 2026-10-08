@@ -1,5 +1,12 @@
 # AI_CHANGELOG.md
 
+## 2026-10-08 — Claude Code — Bandeau cookies compact sur téléphone (non déployé)
+
+- `components/ConsentManager.js`, sous 640 px seulement : marges et interlignes resserrés, « Tout refuser » et « Tout accepter » côte à côte (même taille, mêmes classes qu'avant), « Personnaliser » placé dans la phrase après « politique cookies » (vrai bouton, zone de toucher élargie). Mêmes textes, rien de masqué, rien de pré-coché ; la logique de consentement (`lib/consent.js`, contexte, déclencheurs OneSignal et mesure) n'est pas touchée. Ordinateur et tablette identiques au pixel (32/32).
+- Correctif : sur téléphone, « Personnaliser » dépliait le détail dans le bandeau, qui montait à 809–988 px et dépassait le haut de l'écran (titre et premières catégories inaccessibles, jusqu'à 432 px hors écran à 320×568). Il ouvre désormais le panneau de préférences existant, qui défile ; un choix fait là est enregistré avec la source `settings`.
+- Hauteur du bandeau : 339 → 201 px (320×568), 316 → 201 px (375×667), 316 → 182 px FR / 201 px EN (390×664 et 390×844). Sur `/pomodoro`, « Démarrer » devient visible au premier écran à 390×844 ; ailleurs il reste sous le bandeau mais à 160 px de défilement au lieu de 250–330 (402 au lieu de 564 à 320×568), et les chiffres du minuteur sont visibles dès 360 px de large.
+- Validation : 788 tests (+4 sur les règles du bandeau), lint, build. Chrome headless FR/EN, clair/sombre, 320×568 à 1440×900 sur `/pomodoro`, l'accueil et 6 pages publiques : aucun débordement, aucune requête tierce avant décision, console propre ; refuser, accepter, personnaliser puis enregistrer, fermer sans choisir : 12/12.
+
 ## 2026-10-08 — Codex — Objets badges partagés
 
 - `BadgeIcon` compose 30 motifs distincts dans la palette satinée existante : quatre flammes de série, familles livres/calendriers et livres appariés. Cinq finitions structurelles, visibles dès 34 px ; verrou et trois tons neutres opaques pour les objets non acquis, ombre courte sans halo permanent pour les acquis. Montures acier/or adaptées au thème ; animation réservée au vrai déblocage, sons inchangés.

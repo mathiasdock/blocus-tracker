@@ -10,6 +10,10 @@
 //     peut le refermer, ce qui vaut refus jusqu'au prochain passage.
 //   • Le panneau reste accessible à vie depuis le pied de page et le profil :
 //     un consentement doit être aussi facile à retirer qu'à donner.
+//   • Sur téléphone, le bandeau reste compact (il recouvrait un tiers de
+//     l'écran) : mêmes textes, refuser et accepter côte à côte, et
+//     « Personnaliser » ouvre le panneau, qui défile — déplié dans le bandeau,
+//     le détail dépassait le haut de l'écran et devenait inaccessible.
 //
 // CE QUE LE BANDEAU NE FAIT PAS : il ne bloque rien de « strictement
 // nécessaire ». Session, chrono, thème, langue et cache hors-ligne continuent
@@ -200,7 +204,7 @@ export function ConsentSettingsPanel({ open, onClose }) {
 }
 
 export default function ConsentManager() {
-  const { needsDecision, gpc, acceptAll, rejectAll, save, settingsOpen, closeSettings } = useConsent();
+  const { needsDecision, gpc, acceptAll, rejectAll, save, settingsOpen, openSettings, closeSettings } = useConsent();
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(DENY_ALL);
@@ -211,27 +215,40 @@ export default function ConsentManager() {
     <>
       {needsDecision && (
         <div
-          className="fixed inset-x-0 bottom-0 z-[2900] px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2"
+          className="fixed inset-x-0 bottom-0 z-[2900] px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-1 sm:pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pt-2"
           role="dialog"
           aria-modal="false"
           aria-labelledby="consent-banner-title"
         >
           <div
-            className="mx-auto w-full max-w-2xl rounded-2xl p-4 sm:p-5"
+            className="mx-auto w-full max-w-2xl rounded-2xl p-3.5 sm:p-5"
             style={{
               backgroundColor: "var(--bt-surface)",
               border: "1px solid var(--bt-hairline)",
               boxShadow: "0 14px 44px rgba(31,26,23,0.18)",
             }}
           >
-            <h2 id="consent-banner-title" className="text-base font-bold" style={{ color: "var(--bt-text-1)" }}>
+            <h2 id="consent-banner-title" className="text-base font-bold leading-snug sm:leading-normal" style={{ color: "var(--bt-text-1)" }}>
               {t("consent.bannerTitle")}
             </h2>
-            <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
+            <p className="mt-1 text-sm leading-snug sm:mt-1.5 sm:leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
               {t("consent.bannerBody")}{" "}
               <Link href="/legal?doc=cookies" className="bt-accent-link font-medium underline underline-offset-2">
                 {t("consent.cookiePolicyLink")}
               </Link>
+              {/* Téléphone : « Personnaliser » prend place dans la phrase au lieu
+                  d'une ligne à lui, et ouvre le panneau de préférences. Sa zone
+                  de toucher déborde de quelques pixels autour du mot. */}
+              <span className="sm:hidden">
+                <span aria-hidden="true"> · </span>
+                <button
+                  type="button"
+                  className="relative font-semibold underline underline-offset-2 after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']"
+                  onClick={openSettings}
+                >
+                  {t("consent.customize")}
+                </button>
+              </span>
             </p>
 
             {expanded && (
@@ -248,7 +265,7 @@ export default function ConsentManager() {
 
             {/* Même taille, même hauteur, même poids visuel : refuser doit être
                 aussi immédiat qu'accepter (voir .btn-neutral dans globals.css). */}
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-4">
               <button type="button" className="btn-neutral min-h-11 w-full" onClick={rejectAll}>
                 {t("consent.rejectAll")}
               </button>
@@ -256,7 +273,7 @@ export default function ConsentManager() {
                 {t("consent.acceptAll")}
               </button>
             </div>
-            <div className="mt-2 flex justify-center">
+            <div className={`${expanded ? "flex" : "hidden sm:flex"} mt-2 justify-center`}>
               {expanded ? (
                 <button
                   type="button"
