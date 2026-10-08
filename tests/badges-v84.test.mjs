@@ -37,7 +37,7 @@ function objectBlock(src, name) {
 }
 const rarity = Object.fromEntries([...objectBlock(artSrc, "BADGE_RARITY").matchAll(/^\s+([a-zA-Z0-9_]+): "([a-z]+)",/gm)].map((m) => [m[1], m[2]]));
 const art = Object.fromEntries([...objectBlock(artSrc, "BADGE_ART").matchAll(/^\s+([a-zA-Z0-9_]+):\s+"([a-zA-Z]+)",/gm)].map((m) => [m[1], m[2]]));
-const drawings = new Set([...objectBlock(artSrc, "ART").matchAll(/^ {2}([a-zA-Z]+): \[/gm)].map((m) => m[1]));
+const drawings = new Set([...artSrc.matchAll(/^ {2}([a-zA-Z]+): \[/gm)].map((m) => m[1]));
 const sqlXp = Object.fromEntries([...sql.matchAll(/when '([a-z0-9_]+)'\s+then (\d+)/g)].map((m) => [m[1], Number(m[2])]));
 
 test("catalogue : 30 badges, les 10 nouveaux, plus les 2 retirés", () => {
@@ -63,8 +63,8 @@ test("XP : palier client = table serveur ; aucun montant existant ne bouge", () 
   assert.match(badgesSrc, /discovery: 50,[\s\S]*common: 125,[\s\S]*rare: 300,[\s\S]*epic: 600,[\s\S]*legendary: 1200,/);
 });
 
-test("dessin : chaque badge réutilise un objet existant, un seul groupe", () => {
-  const expectedArt = { early_bird: "sunrise", metronome: "stopwatch", steamroller: "bolt", exam_ready: "paper", study_buddy: "people", iron_month: "crown", regular: "book", relentless: "gem" };
+test("dessin : chaque badge a son objet sémantique, un seul groupe", () => {
+  const expectedArt = { early_bird: "sunrise", metronome: "metronome", steamroller: "bolt", exam_ready: "examSeal", study_buddy: "pairedBooks", iron_month: "ironCalendar", regular: "calendarDays", relentless: "calendarStack" };
   for (const [id, drawing] of Object.entries(expectedArt)) assert.equal(art[id], drawing, id);
   for (const id of CATALOG) assert.ok(drawings.has(art[id]), `drawing for ${id}`);
   const grouped = [...groupsSrc.matchAll(/ids: \[([^\]]*)\]/g)].flatMap((m) => [...m[1].matchAll(/"([a-z0-9_]+)"/g)].map((x) => x[1]));

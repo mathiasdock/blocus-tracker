@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import PageHeader from "../components/PageHeader";
 import BadgeIcon from "../components/BadgeIcon";
-import BadgeSheet from "../components/BadgeSheet";
+import BadgeSheet, { rarityLabel } from "../components/BadgeSheet";
 import AnimatedNumber from "../components/AnimatedNumber";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -10,6 +10,7 @@ import { supabase } from "../lib/supabaseClient";
 import { BADGES } from "../lib/badges";
 import { groupBadges } from "../lib/badgeGroups";
 import { fetchCanonicalBadges } from "../lib/badgeTruth.mjs";
+import styles from "../components/BadgeVisuals.module.css";
 
 const BADGE_IDS = BADGES.map((badge) => badge.id);
 
@@ -21,30 +22,27 @@ const BADGE_IDS = BADGES.map((badge) => badge.id);
 // qui répond à « qu'est-ce que je néglige ? » plutôt qu'au seul « combien il
 // m'en manque ? ».
 
-function Group({ group, earnedIds, onPick, t }) {
+export function BadgeGroup({ group, earnedIds, onPick, t }) {
   const earned = group.items.filter(b => earnedIds.includes(b.id)).length;
   const complete = earned === group.items.length;
   return (
     <section className="card p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t(group.labelKey)}</h2>
-        <span className="font-num shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums"
-          style={{
-            backgroundColor: complete ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-            color: complete ? "var(--bt-accent-dark)" : "var(--bt-text-3)",
-          }}>
+        <span className={styles.count} data-complete={complete}>
           {earned}/{group.items.length}
         </span>
       </div>
       {/* Grille et non enveloppe libre : à largeur variable, une rangée
           orpheline de deux badges cassait la lecture en vitrine. */}
-      <div className="grid gap-x-2 gap-y-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))" }}>
+      <div className={styles.collection}>
         {group.items.map(b => (
           <button key={b.id} type="button" onClick={() => onPick(b)}
-            title={t(b.labelKey)} aria-label={t(b.labelKey)}
-            className="bt-badge-pick bt-press flex justify-center"
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-            <BadgeIcon id={b.id} earned={earnedIds.includes(b.id)} size={56} />
+            aria-label={`${t(b.labelKey)} — ${rarityLabel(b.id, t)} — ${t(earnedIds.includes(b.id) ? "badge.earnedLabel" : "badge.locked")}`}
+            aria-haspopup="dialog" data-earned={earnedIds.includes(b.id)}
+            className={`bt-badge-pick bt-press ${styles.pick}`}>
+            <BadgeIcon id={b.id} earned={earnedIds.includes(b.id)} size={72} />
+            <span className={styles.pickName}>{t(b.labelKey)}</span>
           </button>
         ))}
       </div>
@@ -89,14 +87,13 @@ export default function BadgesPage() {
           title={t("badgePage.title")}
           visuallyHiddenTitle
           right={
-            <span className="font-num shrink-0 rounded-full px-3 py-1.5 text-sm font-bold tabular-nums"
-              style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
+            <span className="font-num shrink-0 text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
               <AnimatedNumber value={earnedIds.length} />/{BADGES.length}
             </span>
           }
         />
 
-        <div className="mb-6 h-2 w-full overflow-hidden rounded-full" role="progressbar"
+        <div className="mb-6 h-1 w-full overflow-hidden rounded-full" role="progressbar"
           aria-label={t("badgePage.title")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}
           style={{ backgroundColor: "var(--bt-subtle)" }}>
           <div className="h-full origin-left rounded-full transition-transform duration-500 motion-reduce:transition-none"
@@ -107,7 +104,7 @@ export default function BadgesPage() {
             empiler sur un écran large laisserait une colonne de vide à droite. */}
         <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-start">
           {groups.map(g => (
-            <Group key={g.id} group={g} earnedIds={earnedIds} onPick={setSelected} t={t} />
+            <BadgeGroup key={g.id} group={g} earnedIds={earnedIds} onPick={setSelected} t={t} />
           ))}
         </div>
       </div>
