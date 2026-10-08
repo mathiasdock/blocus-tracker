@@ -1,101 +1,51 @@
 import { useRef } from "react";
 import Glyph from "./Glyph";
 import BadgeIcon from "./BadgeIcon";
-import useExitPresence from "./useExitPresence";
-import { HUES, dominantHue, rarityOf, rgba } from "../lib/badgeArt";
+import InboxSheet from "./InboxSheet";
+import { rarityOf } from "../lib/badgeArt";
 import { badgeDescKey } from "../lib/badgeRules.mjs";
+import styles from "./BadgeVisuals.module.css";
 
 const RARITY_LABEL_KEYS = {
-  discovery: "badge.rarityDiscovery",
-  common: "badge.rarityCommon",
-  rare: "badge.rarityRare",
-  epic: "badge.rarityEpic",
-  legendary: "badge.rarityLegendary",
+  discovery: "badge.rarityDiscovery", common: "badge.rarityCommon",
+  rare: "badge.rarityRare", epic: "badge.rarityEpic", legendary: "badge.rarityLegendary",
 };
 
-// Étiquette de rareté. Elle emprunte la teinte dominante de l'objet plutôt
-// qu'une couleur à elle : deux systèmes de couleur dans une fiche de 300 px,
-// c'est un de trop. Le palier le plus bas reste affiché — masquer le bas de
-// l'échelle laisserait croire à un bug sur la moitié de la collection.
-export function RarityChip({ id, t }) {
-  const rarity = rarityOf(id);
-  const hue = HUES[dominantHue(id)].mid;
-  const neutral = rarity === "discovery";
-  const label = RARITY_LABEL_KEYS[rarity] ? t(RARITY_LABEL_KEYS[rarity]) : t("badge.rarityDiscovery");
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-      style={{
-        backgroundColor: neutral ? "var(--bt-subtle)" : rgba(hue, 0.14),
-        color: neutral ? "var(--bt-text-3)" : undefined,
-        boxShadow: `inset 0 0 0 1px ${neutral ? "var(--bt-border)" : rgba(hue, 0.32)}`,
-      }}>
-      <span aria-hidden="true" className="block h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: neutral ? "var(--bt-text-4)" : hue }} />
-      <span style={neutral ? undefined : { color: "var(--bt-text-1)" }}>{label}</span>
-    </span>
-  );
+export function rarityLabel(id, t) {
+  return t(RARITY_LABEL_KEYS[rarityOf(id)] || RARITY_LABEL_KEYS.common);
 }
 
-// Fiche d'un badge. Un seul objet à regarder de près : c'est le cas où une
-// surface par-dessus se justifie, contrairement à une liste qu'on vient
-// simplement lire.
-// Un badge gagné avant qu'on durcisse sa règle garde sa fiche d'époque :
-// la règle d'alors, puis celle d'aujourd'hui (lib/badgeRules.mjs).
+// Canonical condition and reward stay untouched, including pre-v84 awards.
+// The shared native dialog supplies keyboard containment and focus restoration.
 export default function BadgeSheet({ badge, earned, earnedAt = null, t, onClose }) {
   const last = useRef(null);
-  const { present, exiting } = useExitPresence(Boolean(badge));
   if (badge) last.current = { badge, earned, earnedAt };
-  if (!present || !last.current) return null;
-  ({ badge, earned, earnedAt } = last.current);
-  return (
-    <>
-      <div className="bt-motion-backdrop fixed inset-0 z-40" data-motion={exiting ? "exit" : "enter"} style={{ backgroundColor: "rgba(0,0,0,0.48)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <div className="fixed z-50 bottom-0 inset-x-0 sm:inset-0 sm:flex sm:items-center sm:justify-center" onClick={onClose}>
-        <div className="bt-motion-panel rounded-t-[28px] sm:rounded-[24px] sm:max-w-xs w-full sm:mx-4" data-motion={exiting ? "exit" : "enter"}
-          style={{ backgroundColor: "var(--bt-surface)", maxHeight: "90vh", overflowY: "auto", boxShadow: "var(--bt-elev-3)" }}
-          onClick={e => e.stopPropagation()}>
-          <div className="flex justify-center pt-3 pb-1 sm:hidden">
-            <div className="w-10 h-1 rounded-full" style={{ backgroundColor: "var(--bt-border)" }} />
-          </div>
-          <div className="p-6 pt-4 sm:pt-6 text-center">
-            {/* Pas de cadre autour : l'objet EST le badge. L'enfermer dans un
-                carré teinté ramènerait la tuile qu'on a justement enlevée. */}
-            <div className="mb-4 inline-flex">
-              <BadgeIcon id={badge.id} earned={earned} size={96} />
-            </div>
-            <h3 className="text-lg font-bold" style={{ color: "var(--bt-text-1)" }}>{t(badge.labelKey)}</h3>
-            <div className="mt-2 mb-4 flex flex-wrap items-center justify-center gap-2">
-              {earned ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)", border: "1px solid var(--bt-accent-border)" }}>
-                  <Glyph size={12}><polyline points="20 6 9 17 4 12" /></Glyph>
-                  {t("badge.earnedStatus")}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-3)", border: "1px solid var(--bt-hairline)" }}>
-                  <Glyph size={11}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></Glyph>
-                  {t("badge.locked")}
-                </span>
-              )}
-              <RarityChip id={badge.id} t={t} />
-              {badge.xp > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full"
-                  style={{ backgroundColor: "var(--bt-accent-bg)", color: "var(--bt-accent-dark)" }}>
-                  {t("badge.xpReward")} : +{badge.xp} XP
-                </span>
-              )}
-            </div>
-            {!earned && (
-              <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--bt-text-4)" }}>
-                {t("badge.howToEarn")}
-              </p>
-            )}
-            <p className="text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t(badgeDescKey(badge, { earned, earnedAt }))}</p>
-            <button onClick={onClose} className="btn-ghost w-full mt-5 text-sm">{t("common.close")}</button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+  const content = badge ? { badge, earned, earnedAt } : last.current;
+  return <InboxSheet open={Boolean(badge)} title={content ? t(content.badge.labelKey) : t("badgePage.title")}
+    closeLabel={t("common.close")} onClose={onClose} className={styles.sheet}>
+    {content && <BadgeDetail {...content} t={t} />}
+  </InboxSheet>;
+}
+
+function BadgeDetail({ badge, earned, earnedAt, t }) {
+  return <div className={styles.detail}>
+    <div className={styles.stage}><BadgeIcon id={badge.id} earned={earned} size={128} /></div>
+    <h3 className={styles.name}>{t(badge.labelKey)}</h3>
+    <div className={styles.metadata}>
+      <span className={styles.status} data-earned={earned}>
+        <Glyph size={14}>{earned ? <polyline points="20 6 9 17 4 12" /> : <>
+          <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+        </>}</Glyph>
+        {t(earned ? "badge.earnedLabel" : "badge.locked")}
+      </span>
+      <span className={styles.rarity}>{rarityLabel(badge.id, t)}</span>
+    </div>
+    <div className={styles.condition}>
+      {!earned && <p className={styles.conditionLabel}>{t("badge.howToEarn")}</p>}
+      <p>{t(badgeDescKey(badge, { earned, earnedAt }))}</p>
+    </div>
+    {badge.xp > 0 && <div className={styles.reward}>
+      <span>{t("badge.xpReward")}</span><span className={styles.rewardValue}>{`+${badge.xp} XP`}</span>
+    </div>}
+  </div>;
 }
