@@ -10,6 +10,8 @@ import {
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { deviceTimezone, isValidSessionTimezone } from "../lib/sessionDayParts.mjs";
+import { newClientId } from "../lib/clientId.mjs";
+import { POMODORO_DEFAULTS, normalizePomodoroState } from "../lib/pomodoro.mjs";
 
 const TimerContext = createContext(null);
 const LEGACY_KEY = "bt_timer_v1";
@@ -22,8 +24,10 @@ function timerStorageKey(owner) {
 }
 
 function emptyTimerSnapshot() {
-  return { courseId: "", note: "", running: false, startMs: 0, baseSeconds: 0, timezone: "" };
+  return { courseId: "", note: "", running: false, startMs: 0, baseSeconds: 0, timezone: "", sessionId: "", ...POMODORO_DEFAULTS };
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function TimerProvider({ children }) {
   const { user, loading } = useAuth();
@@ -37,6 +41,17 @@ export function TimerProvider({ children }) {
   // travers pauses, rechargements et file hors ligne, et c'est lui qui fixe ses
   // jours locaux (session_day_parts, v65) — pas le fuseau du moment de l'envoi.
   const [timezone, setTimezone] = useState("");
+  // Identifiant de la session en cours, tiré à son premier démarrage. Un même
+  // Pomodoro vu dans deux onglets enregistre ainsi son bloc de travail sous le
+  // même id : le second envoi est reconnu comme un doublon (voir dashboard).
+  const [sessionId, setSessionId] = useState("");
+  // Cycle Pomodoro (lib/pomodoro.mjs) : il voyage avec le chrono pour qu'un
+  // rechargement ou un changement de page ne le rende pas au mode Libre.
+  const [pomodoro, setPomodoro] = useState(POMODORO_DEFAULTS.pomodoro);
+  const [pomoPhase, setPomoPhase] = useState(POMODORO_DEFAULTS.pomoPhase);
+  const [pomoCount, setPomoCount] = useState(POMODORO_DEFAULTS.pomoCount);
+  const [pomoWorkMin, setPomoWorkMin] = useState(POMODORO_DEFAULTS.pomoWorkMin);
+  const [pomoBreakMin, setPomoBreakMin] = useState(POMODORO_DEFAULTS.pomoBreakMin);
   const [, forceRender] = useReducer((x) => x + 1, 0);
   // `hydratedOwner` est un STATE (pas une ref) : il est appliqué dans le même
   // batch que les valeurs restaurées. Avec une ref, le double-effect de
@@ -97,6 +112,10 @@ export function TimerProvider({ children }) {
         snapshot.startMs = nextStartMs;
         snapshot.baseSeconds = nextBase;
         snapshot.timezone = isValidSessionTimezone(s.timezone) ? s.timezone : "";
+        snapshot.sessionId = typeof s.sessionId === "string" && UUID_RE.test(s.sessionId) ? s.sessionId : "";
+        // Instantané d'avant ces champs : Libre, 25/5 — ce que donnait un
+        // rechargement jusqu'ici.
+        Object.assign(snapshot, normalizePomodoroState(s));
       }
     } catch {}
 
@@ -113,6 +132,12 @@ export function TimerProvider({ children }) {
     setStartMs(snapshot.startMs);
     setBaseSeconds(snapshot.baseSeconds);
     setTimezone(snapshot.timezone);
+    setSessionId(snapshot.sessionId);
+    setPomodoro(snapshot.pomodoro);
+    setPomoPhase(snapshot.pomoPhase);
+    setPomoCount(snapshot.pomoCount);
+    setPomoWorkMin(snapshot.pomoWorkMin);
+    setPomoBreakMin(snapshot.pomoBreakMin);
     setHydratedOwner(timerOwner);
     forceRender();
   }, [loading, timerOwner, user?.id]);
@@ -124,10 +149,14 @@ export function TimerProvider({ children }) {
     try {
       localStorage.setItem(
         timerStorageKey(timerOwner),
-        JSON.stringify({ courseId, note, running, startMs, baseSeconds, timezone })
+        JSON.stringify({
+          courseId, note, running, startMs, baseSeconds, timezone, sessionId,
+          pomodoro, pomoPhase, pomoCount, pomoWorkMin, pomoBreakMin,
+        })
       );
     } catch {}
-  }, [hydrated, timerOwner, courseId, note, running, startMs, baseSeconds, timezone]);
+  }, [hydrated, timerOwner, courseId, note, running, startMs, baseSeconds, timezone, sessionId,
+    pomodoro, pomoPhase, pomoCount, pomoWorkMin, pomoBreakMin]);
 
   // Re-render every 500ms while running and pause at the same 12-hour cap
   // enforced by the database. This also prevents a sleeping device from
@@ -193,8 +222,12 @@ export function TimerProvider({ children }) {
   ));
 
   const start = useCallback(() => {
-    // Premier démarrage d'une session (rien d'accumulé) : on fige le fuseau.
-    if (!baseSeconds && !startMs) setTimezone(deviceTimezone() || "");
+    // Premier démarrage d'une session (rien d'accumulé) : on fige le fuseau et
+    // on tire son identifiant.
+    if (!baseSeconds && !startMs) {
+      setTimezone(deviceTimezone() || "");
+      setSessionId(newClientId());
+    }
     setStartMs(Date.now());
     setRunning(true);
   }, [baseSeconds, startMs]);
@@ -210,12 +243,17 @@ export function TimerProvider({ children }) {
     setStartMs(0);
     setBaseSeconds(0);
     setTimezone("");
+    setSessionId("");
     setNote("");
   }, []);
 
   return (
     <TimerContext.Provider
-      value={{ courseId, setCourseId, note, setNote, running, elapsed, timezone, start, pause, reset, hydrated }}
+      value={{
+        courseId, setCourseId, note, setNote, running, elapsed, timezone, sessionId, start, pause, reset, hydrated,
+        pomodoro, setPomodoro, pomoPhase, setPomoPhase, pomoCount, setPomoCount,
+        pomoWorkMin, setPomoWorkMin, pomoBreakMin, setPomoBreakMin,
+      }}
     >
       {children}
     </TimerContext.Provider>

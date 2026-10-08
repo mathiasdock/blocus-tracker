@@ -5,6 +5,7 @@ import { STRINGS } from "../lib/i18n.js";
 
 const COMPONENT_PATH = new URL("../components/guest/GuestDiscovery.js", import.meta.url);
 const DASHBOARD_PATH = new URL("../pages/dashboard.js", import.meta.url);
+const GUEST_SPACE_PATH = new URL("../lib/guestStudySpace.js", import.meta.url);
 const CSS_PATH = new URL("../components/guest/GuestDiscovery.module.css", import.meta.url);
 const TIMER_PATH = new URL("../contexts/TimerContext.js", import.meta.url);
 const DIALOG_FOCUS_PATH = new URL("../components/useDialogFocus.js", import.meta.url);
@@ -71,15 +72,23 @@ test("commenting gates on the first click instead of opening a fake input", asyn
 });
 
 test("the guest timer uses only local demo courses and a separate storage version", async () => {
-  const source = await readFile(DASHBOARD_PATH, "utf8");
-  assert.match(source, /bt_guest_dashboard_v2/);
-  assert.match(source, /guest-course-physics/);
-  assert.match(source, /guest-course-economics/);
+  const [source, space] = await Promise.all([readFile(DASHBOARD_PATH, "utf8"), readFile(GUEST_SPACE_PATH, "utf8")]);
+  // L'espace invité local est sorti du Dashboard (lib/guestStudySpace.js) :
+  // même clé, mêmes cours d'exemple, aucun client de persistance.
+  assert.match(space, /bt_guest_dashboard_v2/);
+  assert.match(space, /guest-course-physics/);
+  assert.match(space, /guest-course-economics/);
+  assert.doesNotMatch(space.replace(/\/\/[^\n]*/g, ""), /supabase|timerDraft|enqueueSession|bt_pending_sessions/i);
+  assert.match(source, /from "\.\.\/lib\/guestStudySpace"/);
   assert.match(source, /writeGuestDashboardData/);
   assert.match(source, /challenge && !isGuest/);
   const guestSave = source.match(/async function stopAndSave\(\)[\s\S]*?if \(isGuest\) \{([\s\S]*?)\n    \}\n\n    enqueueSession\(payload\);/);
   assert.ok(guestSave, "guest save branch should remain explicit");
-  assert.doesNotMatch(guestSave[1], /supabase|xpGained|setCompletionToast/i);
+  assert.doesNotMatch(guestSave[1], /supabase|enqueueSession|xpGained|setCompletionToast/i);
+  // Le bloc de travail d'un Pomodoro terminé suit la même règle.
+  const pomodoroSave = source.match(/function savePomodoroWork\(payload\) \{[\s\S]*?if \(isGuest\) \{([\s\S]*?)\n    \} else \{/);
+  assert.ok(pomodoroSave, "guest Pomodoro save branch should remain explicit");
+  assert.doesNotMatch(pomodoroSave[1], /supabase|enqueueSession|flushPending/i);
 });
 
 test("the contextual gate becomes a bottom sheet while previews use the real exam vocabulary", async () => {

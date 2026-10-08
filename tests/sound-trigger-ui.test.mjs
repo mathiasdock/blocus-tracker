@@ -96,8 +96,11 @@ test("ordinary publications, exports, copies and push activation have no sound h
 });
 
 test("Pomodoro break end cues once and keeps the existing paused work-ready transition", () => {
-  const code = source("../pages/dashboard.js");
-  const ast = parseSync(code, { ...babel, filename: "dashboard.js" });
+  // Le cycle Pomodoro vit dans components/timer/useChrono.js, la carte et
+  // Focus dans leurs composants (sortis du Dashboard le 2026-10-07).
+  const code = source("../components/timer/useChrono.js");
+  const ui = source("../components/timer/ChronoCard.js") + source("../components/timer/ChronoFocus.js");
+  const ast = parseSync(code, { ...babel, filename: "useChrono.js" });
   let callback;
   function walk(node) {
     if (!node || typeof node !== "object") return;
@@ -112,7 +115,7 @@ test("Pomodoro break end cues once and keeps the existing paused work-ready tran
   walk(ast);
   assert.ok(callback);
   const calls = [];
-  const scope = { pomodoro: true, running: true, pomoHandled: { current: false }, pomoPhase: "break",
+  const scope = { enabled: true, pomodoro: true, running: true, pomoHandled: { current: false }, pomoPhase: "break",
     elapsed: 300, POMO_WORK: 1500, POMO_BREAK: 300,
     pause: () => calls.push("pause"), reset: () => calls.push("reset"),
     setPomoPhase: value => { scope.pomoPhase = value; }, playSensoryCue: cue => calls.push(cue) };
@@ -122,8 +125,8 @@ test("Pomodoro break end cues once and keeps the existing paused work-ready tran
   assert.equal(scope.pomoHandled.current, false);
   scope.running = false; vm.runInNewContext(`(${callback})()`, scope);
   assert.equal(calls.length, 3);
-  assert.match(code, /role="status" className="mb-3/);
-  assert.match(code, /role="status" className="text-xs font-semibold/);
+  assert.match(ui, /role="status" className="mb-3/);
+  assert.match(ui, /role="status" className="text-xs font-semibold/);
   assert.match(code, /pomoCount > 0 \? "dash.breakEnded"/);
 });
 

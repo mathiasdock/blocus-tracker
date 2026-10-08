@@ -5,20 +5,17 @@ import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleton";
 import { useAuth } from "../contexts/AuthContext";
-import { useTimer } from "../contexts/TimerContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { formatDuration, formatMinutesShort, todayISO, localISO, localDayStartISO, isStreakPaused } from "../lib/format";
+import { formatMinutesShort, todayISO, localISO, localDayStartISO, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost, shareSavedSession } from "../lib/autoShare";
-import { readSessionGoal, writeSessionGoal } from "../lib/sessionGoal";
 import { dailyStudyGoalSeconds, fetchDailyObjectives } from "../lib/dailyStudyGoal.mjs";
 import { clearClientCache, getClientCache, setClientCache } from "../lib/clientCache";
 import { newClientId, enqueueSession, removeFromQueue, flushPending, listPending } from "../lib/timerDraft";
 import { currentWeekDates, fetchStudyDays, mergeStudyDays, secondsByDay, secondsOn, sessionsOnDay, thisWeekSeconds, unsyncedSessionDays } from "../lib/studyDays.mjs";
 import { studyDayMinSeconds, studyStreaks } from "../lib/studyDayStates.mjs";
 import { useOfficialStreak } from "../lib/useOfficialStreak";
-import { useWakeLock } from "../lib/useWakeLock";
 import { COURSE_COLORS } from "../lib/courseColors";
 import { runStreakFreezeUpkeep, applyStreakFreezes, gapKey, invalidateStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { freezeGap, liveChronoDays, pendingSessionDays } from "../lib/streakFreezeGap.mjs";
@@ -32,17 +29,12 @@ import CourseChecklistModal from "../components/CourseChecklistModal";
 import CourseEditorModal from "../components/CourseEditorModal";
 import Mascot from "../components/Mascot";
 import MascotMoment from "../components/MascotMoment";
-import AmbientSoundControl from "../components/AmbientSoundControl";
-import FocusShaderBackground from "../components/FocusShaderBackground";
 import AnimatedNumber from "../components/AnimatedNumber";
-import FilterMenu from "../components/FilterMenu";
 import SessionCompleteCard from "../components/SessionCompleteCard";
 import MissionSummary from "../components/MissionSummary";
 import ChallengeStrip from "../components/ChallengeStrip";
 import { loadUserLevelMap } from "../lib/userLevels";
 import { getDailyMissionDefs, evaluateMissions } from "../lib/xp";
-import StudyBlocks, { RestTrack } from "../components/StudyBlocks";
-import { studyBlockLayout } from "../lib/studyBlocks.mjs";
 import TodayProgressCard from "../components/TodayProgressCard";
 import TodaySessionsCard from "../components/TodaySessionsCard";
 import DashboardCoursesCard from "../components/DashboardCoursesCard";
@@ -50,11 +42,14 @@ import BlocusCard from "../components/BlocusCard";
 import PushOptInPrompt from "../components/PushOptInPrompt";
 import { toRanges } from "../lib/blocus";
 import { normalizePlanningExams, nextExamForCourse } from "../lib/planningExams.mjs";
-import { timerExamUrgency } from "../lib/timerExamContext.mjs";
 import { buildSessionShareMessage } from "../lib/sessionShare";
 import { clientRateLimit } from "../lib/security";
 import { playSensoryCue, triggerHaptic } from "../lib/sensoryFeedback";
 import { GuestGate } from "../components/guest/GuestDiscovery";
+import { useChrono } from "../components/timer/useChrono";
+import ChronoCard from "../components/timer/ChronoCard";
+import ChronoFocus from "../components/timer/ChronoFocus";
+import { GUEST_USER_ID, appendGuestSession, readGuestDashboardData, writeGuestDashboardData } from "../lib/guestStudySpace";
 
 function daysUntilExam(dateStr) {
   if (!dateStr) return null;
@@ -64,138 +59,11 @@ function daysUntilExam(dateStr) {
   return Math.floor((exam - today) / 86400000);
 }
 
-// ── Blocus Blocks ─────────────────────────────────────────────
-// Le dessin et l'échelle vivent maintenant dans components/StudyBlocks.js et
-// lib/studyBlocks.mjs, partagés avec la carte « Progression du jour ». Ce qui a
-// disparu d'ici : le plafond à douze blocs suivi d'un « +N » (qui voulait dire
-// tantôt des blocs étudiés cachés, tantôt des blocs d'objectif cachés), la
-// rangée de six emplacements vides en mode libre alors qu'aucun objectif
-// n'était choisi, et le remplissage de TOUTES les cases dès l'objectif atteint
-// — vingt-cinq minutes y devenaient deux blocs pleins, soit trente annoncées.
-
-// Un caractère du chrono dans une fente à largeur fixe : quand sa valeur
-// change, le nouveau chiffre glisse vers le haut en fondu (effet odomètre).
-// Seuls les caractères qui changent s'animent — la clé porte la valeur.
-// Pas de clip : un overflow-hidden inline-block casserait la baseline.
-function RollChar({ ch, animate = true }) {
-  return (
-    <span className="inline-block" style={{ width: /\d/.test(ch) ? "1ch" : undefined }}>
-      <span key={ch} className={animate ? "bt-digit-roll" : undefined}>{ch}</span>
-    </span>
-  );
-}
-
-// Chiffres du chrono — heures:minutes en héros, secondes dé-emphasées
-// (plus petites, atténuées) : la lecture premium façon minuteur Apple.
-function TimerDigits({
-  seconds,
-  color,
-  size = "clamp(4.9rem, 23vw, 7.5rem)",
-  // Une session de plus d'une heure affiche TROIS groupes de chiffres. A la
-  // taille du cas courant, « 11:56:58 » debordait et le « 8 » des secondes
-  // passait a la ligne sous le chrono a 320 px. Le cas courant garde sa taille.
-  hoursSize = "clamp(3.4rem, 16vw, 6.4rem)",
-}) {
-  const [hh, mm, ss] = formatDuration(seconds).split(":");
-  const showHours = hh !== "00";
-  const main = showHours ? `${hh}:${mm}` : mm;
-  return (
-    <div className="font-num font-bold tabular-nums" data-coach-clear=""
-      style={{ fontSize: showHours ? hoursSize : size, lineHeight: 1, letterSpacing: "-0.04em", whiteSpace: "nowrap", color, transition: "color 0.3s" }}>
-      {main.split("").map((ch, i) => <RollChar key={`m${i}`} ch={ch} />)}
-      <span style={{ fontSize: "0.42em", fontWeight: 600, opacity: 0.72, marginLeft: "0.06em" }}>
-        :{ss.split("").map((ch, i) => <RollChar key={`s${i}`} ch={ch} animate={false} />)}
-      </span>
-    </div>
-  );
-}
-
-// Message contextuel selon l'heure — mode Focus uniquement, discret.
-function focusGreeting(t) {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12)  return t("dash.focusGreetingMorning");
-  if (h >= 12 && h < 18) return t("dash.focusGreetingAfternoon");
-  if (h >= 18 && h < 23) return t("dash.focusGreetingEvening");
-  return t("dash.focusGreetingNight");
-}
-
 // Refus de gel déjà exprimé pour un trou donné — évite de reposer la question
 // en boucle le même jour, sans empêcher une nouvelle proposition plus tard.
 const FREEZE_DECLINED_KEY = "bt_freeze_declined_v1";
 
-const POMO_WORK_OPTIONS  = [15, 20, 25, 30, 45, 50, 60];
-const POMO_BREAK_OPTIONS = [3, 5, 10, 15];
-
 const COLORS = COURSE_COLORS;
-
-const GUEST_USER_ID = "guest-local";
-const GUEST_DASHBOARD_KEY = "bt_guest_dashboard_v2";
-
-function guestCourseName(id, lang) {
-  if (id === "guest-course-physics") return lang === "en" ? "Physics" : "Physique";
-  if (id === "guest-course-economics") return lang === "en" ? "Economics" : "Économie";
-  return null;
-}
-
-function localizeGuestCourses(courses, lang) {
-  return (courses || []).map((course) => ({ ...course, name: guestCourseName(course.id, lang) || course.name }));
-}
-
-function defaultGuestDashboardData(lang = "fr") {
-  return {
-    courses: [
-      {
-        id: "guest-course-physics",
-        user_id: GUEST_USER_ID,
-        name: guestCourseName("guest-course-physics", lang),
-        color: COURSE_COLORS[11],
-        exam_date: null,
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: "guest-course-economics",
-        user_id: GUEST_USER_ID,
-        name: guestCourseName("guest-course-economics", lang),
-        color: COURSE_COLORS[1],
-        exam_date: null,
-        created_at: new Date().toISOString(),
-      },
-    ],
-    sessions: [],
-    recentSessions: [],
-    objectives: [],
-  };
-}
-
-function readGuestDashboardData(lang) {
-  if (typeof window === "undefined") return defaultGuestDashboardData(lang);
-  try {
-    const raw = localStorage.getItem(GUEST_DASHBOARD_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        ...defaultGuestDashboardData(lang),
-        ...parsed,
-        courses: localizeGuestCourses(parsed.courses, lang),
-        recentSessions: parsed.recentSessions || parsed.sessions || [],
-      };
-    }
-  } catch {}
-  const seed = defaultGuestDashboardData(lang);
-  try { localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(seed)); } catch {}
-  return seed;
-}
-
-function writeGuestDashboardData(data) {
-  if (typeof window === "undefined") return;
-  const snapshot = {
-    courses: data.courses || [],
-    sessions: data.sessions || [],
-    recentSessions: data.recentSessions || data.sessions || [],
-    objectives: data.objectives || [],
-  };
-  try { localStorage.setItem(GUEST_DASHBOARD_KEY, JSON.stringify(snapshot)); } catch {}
-}
 
 // Compte qui a choisi lui-même un cours depuis l'ouverture de l'app (module :
 // survit aux allers-retours entre pages). Avant ce choix, le chrono suit le
@@ -206,34 +74,37 @@ export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { t, lang } = useI18n();
   const { toast } = useToast();
-  const {
-    courseId,
-    setCourseId,
-    note,
-    setNote,
-    running,
-    elapsed,
-    timezone: timerTimezone,
-    start,
-    pause,
-    reset,
-    hydrated: timerHydrated,
-  } = useTimer();
-  const sensoryElapsedRef = useRef(elapsed);
-  sensoryElapsedRef.current = elapsed;
-  const startWithFeedback = useCallback(() => {
-    playSensoryCue(sensoryElapsedRef.current > 0 ? "resume" : "start");
-    triggerHaptic("start");
-    start();
-  }, [start]);
-  const pauseWithFeedback = useCallback(() => {
-    playSensoryCue("pause");
-    pause();
-  }, [pause]);
   // Premier chargement des donnees de la page. Tant qu'il n'est pas termine on
   // affiche un squelette : sinon la page rend des zeros et des listes vides,
   // que les gens lisent comme un bug et non comme un chargement.
   const [ready, setReady] = useState(false);
+  // Le Chrono (components/timer) : démarrage, pause, cycle Pomodoro, Blocus
+  // Blocks, Focus. La page dit où va un bloc de travail Pomodoro terminé (plus
+  // bas) ; le cycle attend que ses données soient chargées.
+  const chrono = useChrono({
+    ownerId: user?.id || GUEST_USER_ID,
+    enabled: ready,
+    defaultMode: "free",
+    onWorkComplete: savePomodoroWork,
+  });
+  const {
+    courseId,
+    setCourseId,
+    note,
+    running,
+    elapsed,
+    timezone: timerTimezone,
+    sessionId,
+    start,
+    pause,
+    reset,
+    hydrated: timerHydrated,
+    pomodoro,
+    pomoPhase,
+    liveStudySecs,
+    sessionGoalSecs,
+    hint,
+  } = chrono;
   const forceSkeleton = useSkeletonHatch();
   const [courses, setCourses] = useState([]);
   const [newCourseId, setNewCourseId] = useState(null);
@@ -251,10 +122,6 @@ export default function Dashboard() {
   // File hors ligne (lib/timerDraft) : sessions arrêtées, pas encore en base.
   const [queuedSessions, setQueuedSessions] = useState([]);
   const [focusMode, setFocusMode] = useState(false);
-  // Garde l'écran allumé tant qu'une session tourne (inline ou mode focus) :
-  // sans ça l'iPhone se verrouille après ~30 s et la respiration du mode focus
-  // s'éteint. Relâché automatiquement en pause / à l'arrêt. Voir lib/useWakeLock.
-  useWakeLock(running);
 
   // ── Raccourci PWA "Démarrer le chrono" (?quickstart=1, manifest.json) ──
   // Tient la promesse du raccourci : démarre la session (dernier cours utilisé,
@@ -295,7 +162,6 @@ export default function Dashboard() {
   // on ne les charge qu'au clic sur "Envoyer à un ami", pas à chaque fin de
   // session — la plupart des sessions ne sont pas partagées.
   const [shareFriends, setShareFriends] = useState(null);
-  const [showCourseMenu, setShowCourseMenu] = useState(false);
   const [guestGate, setGuestGate] = useState(null);
   const [checklistCounts, setChecklistCounts] = useState({}); // courseId -> { done, total }
   const [checklistCourse, setChecklistCourse] = useState(null);
@@ -303,20 +169,7 @@ export default function Dashboard() {
   const [freezeInfo, setFreezeInfo] = useState(null); // joker { supported, frozenDays, stock }
   const [freezeOfferOpen, setFreezeOfferOpen] = useState(false);
   const [freezeBusy, setFreezeBusy] = useState(false);
-  // Objectif de session — l'intention posée avant de démarrer. Persisté
-  // (localStorage) pour que l'habitude survive aux rechargements.
-  const [sessionGoalMin, setSessionGoalMin] = useState(null);
 
-  // Pomodoro
-  const [pomodoro, setPomodoro]     = useState(false);
-  const [pomoPhase, setPomoPhase]   = useState("work"); // "work" | "break"
-  const [pomoCount, setPomoCount]   = useState(0);
-  const [pomoWorkMin,  setPomoWorkMin]  = useState(25);
-  const [pomoBreakMin, setPomoBreakMin] = useState(5);
-  const pomoHandled = useRef(false);
-
-  const POMO_WORK  = pomoWorkMin  * 60;
-  const POMO_BREAK = pomoBreakMin * 60;
   const isGuest = !user;
   const dashboardCachePrefix = user ? `dashboard:${user.id}:` : "";
   // Espace dont la page doit montrer les données : le compte, ou la démo
@@ -511,56 +364,6 @@ export default function Dashboard() {
     load().finally(() => setReady(true));
   }, [authLoading, load]);
 
-  useEffect(() => {
-    if (!focusMode) return;
-    function handler(e) { if (e.key === "Escape") setFocusMode(false); }
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    // Fond racine vert + nav mobile masqué : le plein écran couvre la safe-area
-    // du home indicator iPhone (sinon une bande blanche reste en bas). → globals.css
-    document.documentElement.classList.add("bt-focus-active");
-    document.addEventListener("keydown", handler);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.documentElement.classList.remove("bt-focus-active");
-      document.removeEventListener("keydown", handler);
-    };
-  }, [focusMode]);
-
-  // Bascule Libre/Pomodoro. Regroupe la logique des deux anciens boutons sans
-  // la changer : garde-fou anti-perte de session, remise a zero du cycle, et
-  // reinitialisation du drapeau pomodoro seulement dans ce sens.
-  function pickMode(next) {
-    const wantPomodoro = next === "pomodoro";
-    if (wantPomodoro === pomodoro) return;
-    if (!confirmDiscardIfWorking()) return;
-    setPomodoro(wantPomodoro);
-    if (running || elapsed > 0) { pause(); reset(); }
-    setPomoPhase("work");
-    setPomoCount(0);
-    if (wantPomodoro) pomoHandled.current = false;
-  }
-
-  // La note ne s'affiche qu'a la demande : un champ toujours ouvert occupait
-  // une ligne avant chaque session pour une saisie rare.
-  const [noteOpen, setNoteOpen] = useState(false);
-
-  // Objectif de session : restaure le dernier choix (ou celui que le planning
-  // vient de poser en lançant « Commencer à réviser » sur un objectif daté).
-  useEffect(() => {
-    const v = readSessionGoal();
-    if (v) setSessionGoalMin(v);
-  }, []);
-
-  function pickSessionGoal(min) {
-    setSessionGoalMin(min);
-    writeSessionGoal(min);
-  }
-
-  // ── Suivi de la pause ──────────────────────────────────────────
-  // En pause on rend le chrono TRÈS visible : "Pause depuis mm:ss" +
-  // bordeaux doux qui pulse. On mémorise l'instant de mise en pause et on
-  // tick chaque seconde (le TimerContext ne re-rend plus quand il est figé).
   // Périodes de blocus — remontées par BlocusCard, qui les charge déjà. Les
   // jours hors blocus sont neutres pour la série (ne la cassent pas).
   const [blocusRanges, setBlocusRanges] = useState(null);
@@ -608,129 +411,36 @@ export default function Dashboard() {
     return () => window.removeEventListener("bt-xp-changed", onChange);
   }, [refreshMissions]);
 
-  const isPaused = !running && elapsed > 0;
-  const [pausedAt, setPausedAt] = useState(null);
-  const [, setPauseTick] = useState(0);
-  useEffect(() => {
-    if (!isPaused) { setPausedAt(null); return; }
-    setPausedAt(prev => prev ?? Date.now());
-    const id = setInterval(() => setPauseTick(x => x + 1), 1000);
-    return () => clearInterval(id);
-  }, [isPaused]);
-  const pauseSince = pausedAt
-    ? formatDuration(Math.max(0, Math.floor((Date.now() - pausedAt) / 1000))).replace(/^00:/, "")
-    : "00:00";
-  const pauseSeconds = pausedAt ? Math.max(0, Math.floor((Date.now() - pausedAt) / 1000)) : 0;
+  // Bloc de travail d'un Pomodoro terminé : components/timer/useChrono.js le
+  // détecte, remet le chrono à zéro et lance la pause ; la page l'enregistre.
+  // 1) Snapshot LOCAL (queue) AVANT toute tentative Supabase → zéro perte si
+  //    l'auto-stop pomodoro tombe pendant un creux réseau. Le bloc porte l'id
+  //    de la session du chrono : vu dans deux onglets, il n'est compté qu'une
+  //    fois (doublon reconnu par la base, ou par id dans l'espace invité, relu
+  //    au moment d'écrire).
+  function savePomodoroWork(payload) {
+    setPendingCredits((prev) => [...prev, { id: payload.id, session: payload }]);
 
-  // Contrôles du mode focus : s'estompent après 4,5 s d'inactivité (pattern
-  // lecteur vidéo) — tout mouvement / toucher / touche les fait réapparaître.
-  const [focusCtlVisible, setFocusCtlVisible] = useState(true);
-  const focusCtlTimer = useRef(null);
-  useEffect(() => {
-    if (!focusMode) return;
-    function poke() {
-      setFocusCtlVisible(true);
-      clearTimeout(focusCtlTimer.current);
-      focusCtlTimer.current = setTimeout(() => setFocusCtlVisible(false), 4500);
-    }
-    poke();
-    window.addEventListener("mousemove", poke);
-    window.addEventListener("touchstart", poke);
-    window.addEventListener("keydown", poke);
-    return () => {
-      clearTimeout(focusCtlTimer.current);
-      window.removeEventListener("mousemove", poke);
-      window.removeEventListener("touchstart", poke);
-      window.removeEventListener("keydown", poke);
-    };
-  }, [focusMode]);
-
-  // Barre espace en mode focus : pause / reprise.
-  useEffect(() => {
-    if (!focusMode) return;
-    function onKey(e) {
-      if (e.code !== "Space" || e.repeat) return;
-      if (/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName || "")) return;
-      e.preventDefault();
-      if (running) pauseWithFeedback();
-      else if (courseId || pomodoro) startWithFeedback();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [focusMode, running, courseId, pomodoro, pauseWithFeedback, startWithFeedback]);
-
-  // ── Pomodoro auto-transition ────────────────────────────────
-  useEffect(() => {
-    if (!pomodoro || !running || pomoHandled.current) return;
-    const target = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
-    if (elapsed < target) { pomoHandled.current = false; return; }
-    pomoHandled.current = true;
-
-    if (pomoPhase === "work") {
-      playSensoryCue("pomodoro");
-      triggerHaptic("goal");
-      const secs = Math.min(elapsed, POMO_WORK);
-      const endedAt = new Date().toISOString();
-      const startedAt = new Date(Date.now() - secs * 1000).toISOString();
-
-      // 1) Snapshot LOCAL (queue) AVANT toute tentative Supabase → zéro perte
-      //    si l'auto-stop pomodoro tombe pendant un creux réseau.
-      const payload = {
-        id: newClientId(),
-        user_id: user?.id || GUEST_USER_ID,
-        course_id: courseId || null,
-        duration_seconds: secs,
-        note: note || null,
-        started_at: startedAt,
-        ended_at: endedAt,
-        // Fuseau du démarrage (v65) ; absent → la base prend celui du profil.
-        ...(timerTimezone ? { timezone: timerTimezone } : {}),
-      };
-
-      pause();
-      reset();
-      setPendingCredits((prev) => [...prev, { id: payload.id, session: payload }]);
-
-      if (isGuest) {
-        const nextSessions = [payload, ...sessions];
-        const snapshot = {
-          courses,
-          sessions: nextSessions,
-          recentSessions: nextSessions,
-          objectives: todayObjectives,
-        };
-        writeGuestDashboardData(snapshot);
-        setSessions(nextSessions);
-      } else {
-        enqueueSession(payload);
-        // 2) Tentative d'envoi : la queue se vide d'elle-même via flushPending
-        //    (idempotent, dédupe via PK sur 23505).
-        flushPending(supabase, user.id).then((res) => {
-          const capped = res.results.find((r) => r.status === "rejected");
-          if (capped) {
-            setPendingCredits((prev) => prev.filter((c) => c.id !== capped.item.id));
-            toast(dailyCapMessage(t, lang, capped.date), "error");
-          }
-          if (res.synced + res.alreadyExists > 0) {
-            clearDashboardCache();
-            notifyXPChanged();
-            load();
-          }
-        });
-      }
-
-      setPomoPhase("break");
-      setPomoCount(c => c + 1);
-      setTimeout(() => { start(); pomoHandled.current = false; }, 80);
+    if (isGuest) {
+      setSessions(appendGuestSession(payload, lang));
     } else {
-      pause();
-      reset();
-      setPomoPhase("work");
-      playSensoryCue("breakEnd");
-      pomoHandled.current = false;
+      enqueueSession(payload);
+      // 2) Tentative d'envoi : la queue se vide d'elle-même via flushPending
+      //    (idempotent, dédupe via PK sur 23505).
+      flushPending(supabase, user.id).then((res) => {
+        const capped = res.results.find((r) => r.status === "rejected");
+        if (capped) {
+          setPendingCredits((prev) => prev.filter((c) => c.id !== capped.item.id));
+          toast(dailyCapMessage(t, lang, capped.date), "error");
+        }
+        if (res.synced + res.alreadyExists > 0) {
+          clearDashboardCache();
+          notifyXPChanged();
+          load();
+        }
+      });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elapsed, pomodoro, running, pomoPhase]);
+  }
 
   async function stopAndSave() {
     if (savingRef.current) return;
@@ -748,8 +458,12 @@ export default function Dashboard() {
     //    perdue : même si le navigateur crashe ou si l'utilisateur ferme l'app,
     //    elle reste dans la queue localStorage et sera renvoyée au prochain
     //    focus / online / mount du dashboard (via PendingSessionsBanner).
+    //    L'id est celui de la session du chrono (TimerContext) : terminée ici
+    //    pendant qu'un autre onglet la termine aussi (ou la clôt en fin de
+    //    Pomodoro), elle n'est comptée qu'une fois. Sans id (chrono restauré
+    //    d'avant ce champ), un id neuf comme auparavant.
     const payload = {
-      id: newClientId(),
+      id: sessionId || newClientId(),
       user_id: user?.id || GUEST_USER_ID,
       course_id: courseId || null,
       duration_seconds: seconds,
@@ -769,14 +483,7 @@ export default function Dashboard() {
 
     if (isGuest) {
       savingRef.current = false;
-      const nextSessions = [payload, ...sessions];
-      writeGuestDashboardData({
-        courses,
-        sessions: nextSessions,
-        recentSessions: nextSessions,
-        objectives: todayObjectives,
-      });
-      setSessions(nextSessions);
+      setSessions(appendGuestSession(payload, lang));
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2500);
       return;
@@ -1072,29 +779,6 @@ export default function Dashboard() {
     }
   }
 
-  // Objectif effectif des Blocus Blocks : phase pomodoro > objectif de
-  // session > mode libre (null → les blocs poussent sans fin).
-  const pomoTargetSecs = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
-  const sessionGoalSecs = !pomodoro && sessionGoalMin ? sessionGoalMin * 60 : null;
-  // Paliers proposés + la durée exacte venue du planning si elle n'en fait pas
-  // partie : sans ça, arriver depuis un objectif de 40 min posait bien la cible
-  // mais n'allumait aucune pastille — l'objectif semblait ignoré.
-  const sessionGoalChoices = useMemo(() => {
-    const base = [[25, "25 min"], [45, "45 min"], [60, "1 h"], [90, "1 h 30"], [120, "2 h"]];
-    const extra = sessionGoalMin && !base.some(([m]) => m === sessionGoalMin)
-      ? [[sessionGoalMin, `${sessionGoalMin} min`]]
-      : [];
-    return [...base, ...extra].sort((a, b) => a[0] - b[0]).concat([[null, "∞"]]);
-  }, [sessionGoalMin]);
-  const onBreak = pomodoro && pomoPhase === "break";
-  // La pause Pomodoro n'est pas du temps étudié : elle n'alimente ni les blocs,
-  // ni le total du jour, ni les moments.
-  const blockGoalSecs = onBreak ? null : (pomodoro ? pomoTargetSecs : sessionGoalSecs);
-  const liveStudySecs = onBreak ? 0 : elapsed;
-  // Marée du mode focus : monte vers l'objectif ; en libre, ambiance basse
-  // et constante (aucune "fin" à suggérer).
-  const focusTidePct = blockGoalSecs ? Math.min(1, elapsed / blockGoalSecs) : 0.22;
-
   // ── Session en cours vs journée ───────────────────────────────
   // « Chrono 16:19 / Aujourd'hui 1 min » était techniquement exact et
   // incompréhensible : le total du jour ne lisait que les sessions ENREGISTRÉES
@@ -1275,45 +959,6 @@ export default function Dashboard() {
     isFuture: date > todayDate,
   }));
 
-  // ── Ce que les blocs ne disent pas ───────────────────────────
-  // L'en-tete des blocs portait quatre encodages de la meme quantite : le
-  // libelle, la pastille d'unite, « N termines », puis une phrase « 3/8 blocs ·
-  // encore 1h12 » sous la piste — alors que le chrono geant donnait deja la
-  // valeur exacte. Il n'en reste qu'un slot, a droite, pour la seule question
-  // que le dessin ne tranche pas : ce qu'il reste, ou ce qui a ete fait en plus.
-  // Meme echelle que la piste : ni le libelle d'unite ni le compte a rebours ne
-  // peuvent la contredire. « Prochain bloc dans 15 min » pendant que la piste
-  // affiche des heures serait exactement l'ambiguite qu'on essaie de retirer.
-  const blockUnitSecs = studyBlockLayout({
-    earnedSecs: elapsed, plannedSecs: blockGoalSecs, maxUnits: 12,
-  }).unitSecs;
-  const nextBlockMin = Math.max(1, Math.ceil((blockUnitSecs - (elapsed % blockUnitSecs)) / 60));
-  function blockAside() {
-    // La pause du chrono comme celle du Pomodoro disent deja leur etat : le
-    // slot reste vide plutot que d'annoncer « 0 min etudiees ».
-    if (isPaused || onBreak) return null;
-    // Pomodoro : les chiffres comptent a rebours, donc la valeur exacte du
-    // temps etudie ne serait ecrite nulle part ailleurs.
-    if (pomodoro) return t("dash.blkStudied").replace("{t}", formatMinutesShort(elapsed));
-    if (blockGoalSecs) {
-      const over = elapsed - blockGoalSecs;
-      // Sous la minute, on ne raconte ni « +0 min » ni « encore 0 min » : on
-      // dit l'état. Au-delà, la valeur arrondie suffit — le chrono garde
-      // la seconde exacte juste au-dessus.
-      if (over >= 60) return t("dash.blkOver").replace("{t}", formatMinutesShort(over));
-      if (over >= 0) return t("dash.goalDone");
-      return t("dash.blkLeft").replace("{t}", formatMinutesShort(Math.max(60, -over)));
-    }
-    return t("dash.blkFreeNext").replace("{m}", String(nextBlockMin));
-  }
-  const blocksAside = blockAside();
-  const blocksAria = blockGoalSecs
-    ? t("dash.blkAriaGoal")
-        .replace("{done}", formatMinutesShort(elapsed))
-        .replace("{goal}", formatMinutesShort(blockGoalSecs))
-    : t("dash.blkStudied").replace("{t}", formatMinutesShort(elapsed));
-  // Une pause dit son etat une seule fois, dans son libelle.
-  const liveMessage = onBreak ? t("dash.nextAutoStart") : null;
 
   // ── Moments — le bon message au bon moment ────────────────────
   // Détectés au franchissement d'un seuil (une seule fois par session),
@@ -1322,10 +967,7 @@ export default function Dashboard() {
   const momentsFired = useRef(new Set());
   const momentTimer = useRef(null);
   const sessionActiveRef = useRef(false);
-  const hapticBlockRef = useRef(null);
   const timerMomentAnchor = useRef(null);
-  const focusMomentAnchor = useRef(null);
-  const focusGreetingRef = useRef(null);
 
   // La fin de session (retour à zéro) réarme les moments.
   useEffect(() => {
@@ -1381,49 +1023,15 @@ export default function Dashboard() {
     });
   }, [sessions, serverDays]);
 
-  // Ce jalon reste indépendant des Blocus Blocks de 15 min : un retour bref
-  // accompagne chaque tranche de 25 min réellement franchie.
-  useEffect(() => {
-    const milestone = Math.floor(elapsed / (25 * 60));
-    if (hapticBlockRef.current === null) {
-      hapticBlockRef.current = milestone;
-      return;
-    }
-    if (elapsed === 0) {
-      hapticBlockRef.current = 0;
-      return;
-    }
-    if (running && milestone > hapticBlockRef.current) triggerHaptic("block");
-    hapticBlockRef.current = milestone;
-  }, [elapsed, running]);
-
   // En découverte la mascotte est réservée aux gates contextuels. Les petits
   // jalons du chrono restent textuels et le récap XP n'existe pas : le visiteur
   // teste le cœur sans simuler une progression de compte.
   const timerMoment = !isGuest && moment ? { key: `timer-${moment.id}`, message: moment.text } : null;
-  // Ce que la mascotte ne dit plus, l'écran le dit en texte : l'état de pause
-  // et l'invitation à démarrer, qui n'ont jamais été des exploits.
-  // Le libellé « En pause · mm:ss » dit déjà l'état et sa durée : la phrase de
-  // coach n'apparaît que lorsqu'elle AJOUTE quelque chose, après dix minutes.
-  const timerHint = timerMoment
-    ? null
-    : isPaused
-      ? (pauseSeconds >= 10 * 60 ? t("coach.timer.longPause") : null)
-      : (!running && elapsed === 0)
-        ? t(pomodoro && pomoPhase === "work" && pomoCount > 0 ? "dash.breakEnded" : "coach.timer.ready")
-        : null;
-  const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
+  // La phrase du chrono (pause longue, invitation à démarrer : useChrono)
+  // s'efface quand un jalon de la mascotte parle à sa place.
+  const timerHint = timerMoment ? null : hint;
   const selectedCourseExam = courseId ? nextCourseExam(courseId) : null;
   const selectedExamDays = selectedCourseExam ? daysUntilExam(selectedCourseExam.exam_date) : null;
-
-  // Anti-effacement accidentel : demande confirmation si une session > 60s est
-  // en cours / en pause au moment d'un changement de mode (libre ↔ pomodoro).
-  function confirmDiscardIfWorking() {
-    if (elapsed > 60 && typeof window !== "undefined") {
-      return window.confirm(t("dash.discardConfirm"));
-    }
-    return true;
-  }
 
   // Quand la queue se vide en arrière-plan, on rafraîchit la liste pour que
   // les sessions précédemment "queued" apparaissent enfin sur le dashboard.
@@ -1439,11 +1047,6 @@ export default function Dashboard() {
   return (
     <Layout>
       {!isGuest && <PendingSessionsBanner onSynced={handlePendingSynced} />}
-      {/* Backdrop pour fermer le menu cours */}
-      {showCourseMenu && (
-        <div className="fixed inset-0 z-10" onClick={() => setShowCourseMenu(false)} />
-      )}
-
       <h1 className="sr-only">{t("dash.title")}</h1>
 
       {/* Mobile suit l'urgence quotidienne. Desktop assemble un vrai poste de
@@ -1462,140 +1065,34 @@ export default function Dashboard() {
             donnés en clair plutôt que remis à zéro : `lg:order-none` ne
             l'emportait pas de façon fiable sur le rang mobile. */}
         <div className="contents min-w-0 lg:flex lg:flex-col lg:gap-6">
-        {/* ── La carte entière change d'état en pause ──────────────────
-            Le lavis vert du travail s'éteint ET la carte prend la teinte
-            d'attention : fond, bordure et halo. C'est volontairement fort.
-            Ce n'est pas une sémantique d'erreur (voir DESIGN.md § The
-            Paused-Timer Exception) : c'est le rappel qu'une session est
-            ouverte et que le temps n'est plus compté. Les étudiants mettent
-            en pause, se laissent distraire, et oublient de relancer — un
-            traitement discret leur coûtait des heures de travail non
-            enregistrées. */}
-        <section className="bt-dashboard-timer order-1 lg:order-1 card relative min-w-0 overflow-hidden"
-          style={{
-            // La carte isole ses calques (globals.css) : menu des cours ouvert,
-            // elle doit passer devant le voile de fermeture (z-10), sinon
-            // chaque choix tombait sur le voile et refermait le menu.
-            zIndex: showCourseMenu ? 11 : undefined,
-            backgroundColor: isPaused ? "var(--bt-pause-bg)" : "var(--bt-surface)",
-            backgroundImage: isPaused ? "none" : "radial-gradient(90% 75% at 50% 100%, var(--bt-timer-wash), transparent 72%), linear-gradient(180deg, var(--bt-surface), var(--bt-timer-base))",
-            borderColor:     isPaused ? "var(--bt-pause-border)" : "var(--bt-border)",
-            boxShadow:       isPaused ? "0 4px 32px var(--bt-pause-shadow)" : "0 4px 32px var(--bt-shadow)",
-          }}>
-
-          {/* Halo de progression — le fond respire et s'intensifie avec la
-              session (opacité seule : GPU, aucun re-layout) */}
-          <div aria-hidden className="absolute inset-x-0 bottom-0 pointer-events-none"
-            style={{
-              height: "58%",
-              background: "radial-gradient(ellipse at 50% 100%, rgba(var(--bt-brand-rgb), 0.10), transparent 70%)",
-              opacity: (running || elapsed > 0) && !isPaused ? 0.35 + focusTidePct * 0.65 : 0,
-              transition: "opacity 1.5s ease",
-            }} />
-
-          {/* ── Barre de contexte : cours actif · modes · plein écran ──
-              z-30 et non z-20 : le défi du jour, juste en dessous, est aussi
-              en z-20 et vient APRÈS dans le DOM — il recouvrait donc le menu
-              des cours ouvert. */}
-          <div className="relative z-30 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="relative min-w-0 flex-1">
-                {activeCourses.length === 0 ? (
-                  <button type="button" onClick={() => isGuest ? setGuestGate("course") : openCourseEditor()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
-                    {t("courseEditor.addTitle")}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => !running && setShowCourseMenu((value) => !value)}
-                    disabled={running}
-                    className="bt-dashboard-control flex min-h-11 max-w-full flex-col items-stretch justify-center gap-0.5 rounded-xl px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                    style={{
-                      width: "100%",
-                      backgroundColor: "var(--bt-subtle)",
-                      border: `1px solid ${showCourseMenu ? "var(--bt-accent)" : "var(--bt-border)"}`,
-                      boxShadow: showCourseMenu ? "0 0 0 3px rgba(var(--bt-brand-rgb), 0.12)" : "none",
-                      color: courseId ? "var(--bt-text-1)" : "var(--bt-text-3)",
-                    }}
-                    aria-haspopup="listbox"
-                    aria-expanded={showCourseMenu}
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      {courseId && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: courses.find((item) => item.id === courseId)?.color }} aria-hidden="true" />}
-                      <span className="min-w-0 flex-1 truncate text-left">{courseId ? courseName(courseId) : t("dash.selectCourse")}</span>
-                      {!running && (
-                        <Glyph size={14} className={`shrink-0 transition-transform duration-200 motion-reduce:transition-none ${showCourseMenu ? "rotate-180" : ""}`}>
-                          <path d="m6 9 6 6 6-6" />
-                        </Glyph>
-                      )}
-                    </span>
-                    {selectedCourseExam && <span className="bt-timer-exam-context" data-urgency={timerExamUrgency(selectedExamDays)}>
-                      <Glyph size={12} aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></Glyph>
-                      <span className="sr-only">{t("plan.examTag")} · </span>
-                      <span className="font-num tabular-nums">{selectedExamDays === 0 ? t("exam.today") : selectedExamDays < 0 ? t("exam.passed") : t("exam.daysAway").replace("{n}", String(selectedExamDays))}</span>
-                    </span>}
-                  </button>
-                )}
-
-                {showCourseMenu && !running && (
-                  <div className="bt-dashboard-menu absolute left-0 top-full z-30 mt-1.5 w-72 max-w-[calc(100vw-3.5rem)] overflow-hidden rounded-2xl" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)", boxShadow: "0 14px 38px var(--bt-shadow)" }}>
-                    <div className="max-h-64 overflow-y-auto py-1" role="listbox" aria-label={t("dash.selectCourse")}>
-                      {activeCourses.map((course) => (
-                        <button key={course.id} type="button" role="option" aria-selected={courseId === course.id} onClick={() => { coursePickedBy = dataOwner; setCourseId(course.id); setShowCourseMenu(false); }} className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 px-4 text-left">
-                          <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: course.color }} aria-hidden="true" />
-                          <span className="min-w-0 flex-1 truncate text-sm font-semibold" style={{ color: "var(--bt-text-1)" }}>{course.name}</span>
-                          {courseId === course.id && (
-                            <Glyph size={15} strokeWidth={2.5} style={{ color: "var(--bt-accent)" }}>
-                              <path d="m20 6-11 11-5-5" />
-                            </Glyph>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="border-t p-1" style={{ borderColor: "var(--bt-border)" }}>
-                      <button
-                        type="button"
-                        onClick={() => { setShowCourseMenu(false); isGuest ? setGuestGate("course") : openCourseEditor(); }}
-                        className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold"
-                        style={{ color: "var(--bt-accent-text)" }}
-                      >
-                        <Glyph size={16}>
-                          <path d="M12 5v14M5 12h14" />
-                        </Glyph>
-                        {t("courseEditor.addTitle")}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-            </div>
-
-            {/* Rayon aligne sur le selecteur de cours et le bouton Focus qui
-                l'encadrent : en pilule, ce rail etait la seule forme ronde de
-                la rangee. Et les deux options se partagent la largeur — placees
-                dans une colonne `1fr`, elles restaient collees a gauche en
-                laissant un tiers de rail vide. */}
-            <button type="button" onClick={() => setFocusMode(true)} className="bt-dashboard-control flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold" style={{ backgroundColor: "var(--bt-accent-bg)", border: "1px solid var(--bt-accent-border)", color: "var(--bt-accent-text)" }}>
-              <Glyph size={16}>
-                <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
-                <circle cx="12" cy="12" r="2.5" />
-              </Glyph>
-              <span>{t("dash.focusShort")}</span>
-            </button>
-          </div>
-
-          {/* Le Défi du jour, SOUS le cours et avant le bouton Démarrer. Il
-              était au-dessus du sélecteur : une mission passait donc avant la
-              première question de la page, « qu'est-ce que j'étudie ». Il
-              s'efface aussi dès qu'une session existe — pendant une pause, il
-              venait commenter par-dessus un chrono arrêté. Sa place dans la
-              liste des objectifs du jour, elle, ne bouge pas.
-              Le tap n'est proposé QUE si le cours du défi existe encore dans la
-              liste : un bouton qui ne sélectionne rien, ou qui sélectionne un
-              cours supprimé pour se faire corriger à la frame suivante, vaut
-              moins qu'une simple ligne de texte. */}
-          {challenge && !isGuest && !running && elapsed === 0 && (
+        <ChronoCard
+          chrono={chrono}
+          className="order-1 lg:order-1"
+          courses={courses}
+          activeCourses={activeCourses}
+          onPickCourse={(id) => { coursePickedBy = dataOwner; setCourseId(id); }}
+          onAddCourse={() => isGuest ? setGuestGate("course") : openCourseEditor()}
+          courseExam={selectedCourseExam}
+          examDays={selectedExamDays}
+          onOpenFocus={() => setFocusMode(true)}
+          onStart={() => { chrono.startWithFeedback(); setFocusMode(true); }}
+          onFinish={stopAndSave}
+          saveStatus={saveStatus}
+          noteEnabled={!isGuest}
+          hint={timerHint}
+          momentShown={Boolean(timerMoment)}
+          blocksAnchorRef={timerMomentAnchor}
+          /* Le Défi du jour, SOUS le cours et avant le bouton Démarrer. Il
+             était au-dessus du sélecteur : une mission passait donc avant la
+             première question de la page, « qu'est-ce que j'étudie ». Il
+             s'efface aussi dès qu'une session existe — pendant une pause, il
+             venait commenter par-dessus un chrono arrêté. Sa place dans la
+             liste des objectifs du jour, elle, ne bouge pas.
+             Le tap n'est proposé QUE si le cours du défi existe encore dans la
+             liste : un bouton qui ne sélectionne rien, ou qui sélectionne un
+             cours supprimé pour se faire corriger à la frame suivante, vaut
+             moins qu'une simple ligne de texte. */
+          challenge={challenge && !isGuest && !running && elapsed === 0 && (
             <div className="relative z-20 mt-3 px-4 sm:px-6">
               <ChallengeStrip
                 challenge={challenge}
@@ -1603,249 +1100,7 @@ export default function Dashboard() {
               />
             </div>
           )}
-
-          {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
-          <div className="px-4 pb-3 pt-8 text-center sm:px-6 sm:pt-10">
-            {pomodoro && (
-              <div role="status" className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]"
-                style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "var(--bt-text-2)" }}>
-                {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
-                {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
-              </div>
-            )}
-            {/* La pastille d'état, franche et qui respire. Elle porte sa durée :
-                « En pause · 04:12 » répond d'un coup à « depuis quand est-ce
-                que je ne compte plus ? », ce qui est précisément la question
-                d'un retour de distraction.
-                L'annonce vocale est portée par un compagnon invisible au texte
-                FIXE. Mettre `role="status"` sur la pastille elle-même aurait
-                relu « En pause · 04:13 » à chaque seconde — un lecteur d'écran
-                serait devenu inutilisable. La durée reste lisible à la demande,
-                elle n'est simplement pas dans une région vivante. */}
-            {isPaused && !pomodoro && (
-              <div className="mb-3 flex justify-center">
-                <span className="sr-only" role="status">{t("dash.pausedStatus")}</span>
-                <span className="bt-pause-pulse inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em]"
-                  style={{ color: "#FFFFFF", backgroundColor: "var(--bt-pause-strong)", border: "1px solid var(--bt-pause-strong)" }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-                  <span className="font-num tabular-nums">{t("dash.pausedFor").replace("{t}", pauseSince)}</span>
-                </span>
-              </div>
-            )}
-
-            {/* Les chiffres passent à la teinte d'attention : c'est l'élément le
-                plus grand de l'écran, donc le plus sûr à reconnaître de loin. */}
-            <TimerDigits
-              seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={isPaused && !pomodoro ? "var(--bt-pause)" : "var(--bt-text-1)"} />
-
-            {(running || elapsed > 0) && (
-            <div ref={timerMomentAnchor} className="mx-auto mt-5 w-full max-w-[440px] sm:mt-6">
-              {/* Sur téléphone, la bulle d'un jalon se pose sur ces légendes :
-                  elles s'effacent sans quitter leur place pendant que le coach
-                  parle (globals.css), au lieu de dépasser à moitié de la bulle. */}
-              <div data-coach-under="studyBlocks" className="mb-2 flex items-center justify-between gap-3 text-xs" style={{ color: "var(--bt-text-3)" }}>
-                <span className="flex min-w-0 items-center gap-2">
-                  {/* Sous 380 px, « Blocs de la session » se reduisait a
-                      « Blo… » : la pastille d'unite dit deja de quoi parle la
-                      rangee. « Pause », lui, reste — c'est le seul libelle de
-                      la piste de repos. */}
-                  <span className={onBreak ? "truncate" : "hidden truncate xs:inline"}>
-                    {onBreak ? t("dash.pause") : t("dash.sessionBlocks")}
-                  </span>
-                  {/* L'unité est écrite parce qu'elle CHANGE : quinze minutes
-                      sur une session courte, une heure sur une journée de
-                      blocus. Compresser sans le dire rendrait la piste
-                      ambiguë. */}
-                  {!onBreak && (
-                  <span className="bt-timer-unit-context shrink-0 text-[11px] font-semibold tabular-nums" style={{ color: "var(--bt-text-2)" }}>
-                    {t("dash.blockUnitLabel").replace("{u}", formatMinutesShort(blockUnitSecs))}
-                  </span>
-                  )}
-                </span>
-                {blocksAside && (
-                  <span className="font-num shrink-0 font-semibold tabular-nums">{blocksAside}</span>
-                )}
-              </div>
-              {onBreak ? (
-                <RestTrack
-                  remainingSecs={Math.max(0, pomoTargetSecs - elapsed)}
-                  totalSecs={pomoTargetSecs}
-                  label={t("dash.breakAria").replace("{t}", formatMinutesShort(Math.max(0, pomoTargetSecs - elapsed)))}
-                />
-              ) : (
-                <StudyBlocks
-                  earnedSecs={elapsed}
-                  plannedSecs={blockGoalSecs}
-                  running={running}
-                  paused={isPaused}
-                  maxUnits={12}
-                  label={blocksAria}
-                />
-              )}
-            </div>
-            )}
-
-            {/* La ligne ordinaire reste textuelle. Un vrai jalon apparaît
-                hors de la grille, ancré à la piste qui l'a produit ; la ligne
-                s'efface alors sans quitter sa place, pour que rien ne bouge à
-                l'apparition ni à la fermeture du coach. */}
-            {(liveMessage || timerHint) && (
-              <div className="mt-4 flex items-center justify-center"
-                style={timerMoment ? { visibility: "hidden" } : undefined} aria-hidden={timerMoment ? true : undefined}>
-                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? "var(--bt-pause-text)" : "var(--bt-text-3)" }}>
-                  {liveMessage || timerHint}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* ── Reglages de session — compacts, entre le chrono et l'action ──
-               Avant : six pastilles d'objectif + une bascule Libre/Pomodoro
-               dans le bandeau + un champ note toujours ouvert, soit neuf
-               controles a franchir avant « Demarrer ». Meme fonctions, meme
-               valeurs, mais reduites a trois libelles qui disent deja leur
-               etat. Rien n'est retire : tout est a un tap. */}
-          {!running && elapsed === 0 && (
-            <div className="mt-3 px-4 sm:px-6">
-              <div className="mx-auto flex max-w-md flex-wrap items-center justify-center gap-2">
-                <FilterMenu
-                  value={pomodoro ? "pomodoro" : "free"}
-                  options={[{ value: "free", label: t("dash.free") }, { value: "pomodoro", label: "Pomodoro" }]}
-                  onChange={pickMode}
-                  ariaLabel={t("dash.modeLabel")}
-                  align="left"
-                />
-                {!pomodoro && (
-                  <FilterMenu
-                    value={sessionGoalMin == null ? "none" : String(sessionGoalMin)}
-                    options={sessionGoalChoices.map(([m, label]) => ({
-                      value: m == null ? "none" : String(m),
-                      label: m == null ? t("dash.noGoal") : label,
-                    }))}
-                    onChange={(v) => pickSessionGoal(v === "none" ? null : Number(v))}
-                    ariaLabel={t("dash.sessionGoalLabel")}
-                    align="left"
-                  />
-                )}
-                {pomodoro && (
-                  <>
-                    <FilterMenu
-                      value={String(pomoWorkMin)}
-                      options={POMO_WORK_OPTIONS.map((m) => ({ value: String(m), label: `${m} min` }))}
-                      onChange={(v) => { setPomoWorkMin(Number(v)); pomoHandled.current = false; }}
-                      ariaLabel={t("dash.workDuration")}
-                      align="left"
-                    />
-                    <FilterMenu
-                      value={String(pomoBreakMin)}
-                      options={POMO_BREAK_OPTIONS.map((m) => ({ value: String(m), label: `${m} min` }))}
-                      onChange={(v) => setPomoBreakMin(Number(v))}
-                      ariaLabel={t("dash.breakDuration")}
-                      align="left"
-                    />
-                  </>
-                )}
-                {!isGuest && (!pomodoro || pomoPhase === "work") && !noteOpen && !note && (
-                  <button type="button" onClick={() => setNoteOpen(true)}
-                    className="bt-filter-btn inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold">
-                    <Glyph size={12}>
-                      <path d="M12 5v14M5 12h14" />
-                    </Glyph>
-                    {t("dash.noteLabel")}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── Note — champ discret, souligné au focus seulement ── */}
-          {!isGuest && (!pomodoro || pomoPhase === "work") && (noteOpen || note || running || elapsed > 0) && (
-            <div className="mt-3 px-4 sm:px-6">
-              <label htmlFor="dashboard-session-note" className="sr-only">{t("dash.noteLabel")}</label>
-              <input
-                id="dashboard-session-note"
-                autoFocus={noteOpen && !note}
-                className="mx-auto block min-h-11 w-full max-w-xs bg-transparent py-2 text-center text-sm outline-none"
-                style={{ color: "var(--bt-text-1)", borderBottom: "1px solid transparent", transition: "border-color 0.2s" }}
-                onFocus={e => { e.currentTarget.style.borderBottomColor = "var(--bt-border)"; }}
-                onBlur={e => { e.currentTarget.style.borderBottomColor = "transparent"; }}
-                placeholder={t("dash.notePlaceholder")}
-                value={note}
-                onChange={(e) => setNote(e.target.value)} />
-            </div>
-          )}
-
-          {/* ── Actions ── */}
-          <div className="px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
-            {pomoPhase === "break" && pomodoro ? (
-              <div className="max-w-md mx-auto">
-                <button className="btn-ghost w-full py-3 text-sm"
-                  onClick={() => { pause(); reset(); setPomoPhase("work"); pomoHandled.current = false; }}>
-                  {t("dash.skipBreak")} →
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col xs:flex-row items-stretch justify-center gap-2.5 max-w-md mx-auto">
-                {!running ? (
-                  <button
-                    className="bt-dashboard-control btn-hero btn-raised flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-extrabold"
-                    style={{
-                      opacity: (!courseId && !pomodoro) ? 0.45 : 1,
-                    }}
-                    onClick={() => { startWithFeedback(); setFocusMode(true); }}
-                    disabled={!courseId && !pomodoro}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
-                    {elapsed > 0 ? t("dash.resume") : t("dash.start")}
-                  </button>
-                ) : (
-                  <button
-                    className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
-                    style={{ backgroundColor: "var(--bt-subtle)", color: "var(--bt-text-1)", border: "1px solid var(--bt-hairline)" }}
-                    onClick={pauseWithFeedback}>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-                    </svg>
-                    {t("dash.pause")}
-                  </button>
-                )}
-                {(elapsed >= 1 || saveStatus !== "idle") && (
-                  <button
-                    className="bt-dashboard-control flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold"
-                    style={{
-                      backgroundColor: saveStatus === "success" ? "var(--bt-success-bg)"
-                        : saveStatus === "error" ? "var(--bt-danger-solid)"
-                        : "var(--bt-text-1)",
-                      color: saveStatus === "success" ? "var(--bt-success)" : saveStatus === "error" ? "#fff" : "var(--bt-surface)",
-                      opacity: (elapsed < 1 && saveStatus === "idle") || saveStatus === "saving" ? 0.45 : 1,
-                    }}
-                    onClick={() => { setPomodoro(false); setPomoPhase("work"); setPomoCount(0); stopAndSave(); }}
-                    disabled={elapsed < 1 || saveStatus === "saving"}>
-                    {saveStatus === "saving" ? (
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : saveStatus === "success" ? (
-                      <Glyph size={13}>
-                        <polyline points="20 6 9 17 4 12"/>
-                      </Glyph>
-                    ) : (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                      </svg>
-                    )}
-                    {saveStatus === "saving"  ? t("common.saving")
-                      : saveStatus === "success" ? t("dash.saveSuccess")
-                      : saveStatus === "error"   ? t("dash.saveError")
-                      : t("dash.finish")}
-                  </button>
-                )}
-              </div>
-            )}
-            <p className="mt-3 hidden text-center text-[11px] sm:block" style={{ color: "var(--bt-text-4)" }}>{t("dash.subtitle")}</p>
-          </div>
-          {timerMoment && !focusMode && <MascotMoment
+          coach={timerMoment && !focusMode && <MascotMoment
             message={timerMoment.message}
             mood="proud"
             presentation="anchored"
@@ -1856,7 +1111,7 @@ export default function Dashboard() {
             onDismiss={() => setMoment(null)}
             streak={streak}
             live />}
-        </section>
+        />
 
         {isGuest && sessions.length > 0 && (
           <p className="order-2 px-2 text-center text-sm" style={{ color: "var(--bt-text-2)" }}>
@@ -2050,181 +1305,27 @@ export default function Dashboard() {
       />
 
       {focusMode && (
-        <div className="bt-focus-surface fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
-          style={{
-            background: (isPaused && !pomodoro) ? "#1A0605" : "var(--bt-ink)",
-            zIndex: 100,
-          }}>
-          {/* Vagues WebGL de marque. Le composant fournit son propre fallback
-              statique et coupe la boucle sous prefers-reduced-motion. En pause,
-              le champ vire au rouge : en plein écran il n'y a pas de carte pour
-              porter l'état, c'est l'environnement qui le porte. */}
-          <FocusShaderBackground paused={isPaused && !pomodoro} />
-
-          {/* Respiration rouge périphérique — le signal qui rattrape un regard
-              parti ailleurs. Cycle de 2,4 s, courbe douce et centre transparent
-              (voir globals.css) : aussi voyant que l'ancien battement à 1 Hz,
-              sans son attaque stroboscopique. En mouvement réduit, le halo
-              reste posé à pleine force au lieu de disparaître. */}
-          {isPaused && !pomodoro && <div aria-hidden className="bt-pause-flash" />}
-
-          {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
-          <AmbientSoundControl active={focusMode} visible={focusCtlVisible || !running} />
-
-          <p ref={focusGreetingRef} className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
-            {focusGreeting(t)}
-          </p>
-
-          {pomodoro && (
-            <p role="status" className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
-              style={{ color: pomoPhase === "work" ? "var(--bt-accent)" : "var(--bt-ink-muted)" }}>
-              {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
-              {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
-            </p>
-          )}
-
-          {/* Le cours garde son identité en plein écran : un marqueur de sa
-              couleur, pas un habillage complet de l'écran. Sans lui, Focus
-              perdait le seul repère visuel partagé avec le Chrono, le planning
-              et les stats. Le cercle clair l'isole du champ mouvant. */}
-          <p className="text-sm mb-2 relative z-10 flex items-center gap-2" style={{ color: "var(--bt-ink-muted)" }}>
-            {courseId && courses.find((c) => c.id === courseId)?.color && (
-              <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: courses.find((c) => c.id === courseId).color,
-                  boxShadow: "0 0 0 1.5px rgba(255,255,255,0.32)",
-                }} />
-            )}
-            <span>{courseId ? courseName(courseId) : t("dash.noCourse")}</span>
-          </p>
-
-          <div className="relative z-10 w-full text-center px-6">
-            <TimerDigits
-              seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
-              color={(isPaused && !pomodoro) ? "#FFEDEB" : "var(--bt-ink-text)"}
-              size="clamp(4.5rem, 16vw, 8.5rem)"
-              hoursSize="clamp(3.2rem, 11vw, 7rem)" />
-
-            {/* Même échelle et même plafond d'unités que le Chrono : le
-                plein écran ne compresse plus différemment. */}
-            <div ref={focusMomentAnchor} className="mt-10 mx-auto w-full max-w-[600px]">
-              {onBreak ? (
-                <RestTrack
-                  focus
-                  remainingSecs={Math.max(0, pomoTargetSecs - elapsed)}
-                  totalSecs={pomoTargetSecs}
-                  label={t("dash.breakAria").replace("{t}", formatMinutesShort(Math.max(0, pomoTargetSecs - elapsed)))}
-                />
-              ) : (
-                <StudyBlocks
-                  focus
-                  earnedSecs={elapsed}
-                  plannedSecs={blockGoalSecs}
-                  running={running}
-                  paused={isPaused}
-                  maxUnits={12}
-                  label={blocksAria}
-                />
-              )}
-            </div>
-
-            {(liveMessage || timerHint) && (
-              <div className="mt-5 flex items-center justify-center"
-                style={timerMoment ? { visibility: "hidden" } : undefined} aria-hidden={timerMoment ? true : undefined}>
-                <p key={liveMessage || timerHint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
-                  style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
-                  {liveMessage || timerHint}
-                </p>
-              </div>
-            )}
-
-            {/* En pause — pastille franche qui respire, avec sa durée. L'annonce
-                vocale vit dans le compagnon invisible de la carte : une seule
-                région vivante suffit, et elle ne doit pas relire la durée. */}
-            {isPaused && !pomodoro && (
-              <div className="bt-pause-pulse inline-flex items-center gap-1.5 mt-4 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest"
-                style={{ color: "#FFFFFF", backgroundColor: "var(--bt-pause-strong)", letterSpacing: "0.12em" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-                <span className="font-num tabular-nums">{t("dash.pausedFor").replace("{t}", pauseSince)}</span>
-              </div>
-            )}
-          </div>
-          {timerMoment && <MascotMoment
+        <ChronoFocus
+          chrono={chrono}
+          courses={courses}
+          onClose={() => setFocusMode(false)}
+          onFinish={stopAndSave}
+          saveStatus={saveStatus}
+          hint={timerHint}
+          momentShown={Boolean(timerMoment)}
+          renderCoach={({ anchorRef, frameRef }) => timerMoment && <MascotMoment
             message={timerMoment.message}
             mood="proud"
             presentation="anchored"
             anchorKind="focusBlocks"
-            anchorRef={focusMomentAnchor}
-            frameRef={focusGreetingRef}
+            anchorRef={anchorRef}
+            frameRef={frameRef}
             frequency="always"
             eventKey={timerMoment.key}
             onDismiss={() => setMoment(null)}
             streak={streak}
             live />}
-
-          <div className="relative z-10 mt-8 flex w-full max-w-[560px] justify-center gap-3 px-4"
-            style={{
-              opacity: (focusCtlVisible || !running) ? 1 : 0,
-              pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
-              transition: "opacity 0.25s ease-out",
-            }}>
-            {pomoPhase === "break" && pomodoro ? (
-              <button className="btn-ghost w-full border-white/20 px-6 py-3 text-white sm:w-auto sm:px-8"
-                onClick={() => { pause(); reset(); setPomoPhase("work"); pomoHandled.current = false; }}>
-                {t("dash.skipBreak")}
-              </button>
-            ) : (
-              <>
-                {!running ? (
-                  <button onClick={startWithFeedback} disabled={!courseId && !pomodoro}
-                    className={`btn btn-hero min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10 ${isPaused ? "bt-pause-cta" : ""}`}>
-                    {elapsed > 0 ? t("dash.resume") : t("dash.start")}
-                  </button>
-                ) : (
-                  <button onClick={pauseWithFeedback}
-                    className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
-                    style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
-                    {t("dash.pause")}
-                  </button>
-                )}
-                <button
-                  onClick={() => { setPomodoro(false); setPomoPhase("work"); setPomoCount(0); stopAndSave(); setFocusMode(false); }}
-                  disabled={elapsed < 1 || saveStatus === "saving"}
-                  className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
-                  style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
-                  {saveStatus === "saving" ? t("common.saving") : t("dash.finish")}
-                </button>
-              </>
-            )}
-          </div>
-
-          <button onClick={() => setFocusMode(false)}
-            className="relative z-10 mt-6 flex items-center gap-2 text-sm font-medium rounded-2xl px-5 py-2.5"
-            style={{
-              color: "var(--bt-ink-text)",
-              opacity: (focusCtlVisible || !running) ? 1 : 0,
-              pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
-              transition: "opacity 0.25s ease-out, color 0.2s ease-out",
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = "#FFFFFF"}
-            onMouseLeave={e => e.currentTarget.style.color = "var(--bt-ink-text)"}>
-            <Glyph size={14}>
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </Glyph>
-            {t("dash.exitFocus")}
-          </button>
-
-          {/* Raccourci clavier — desktop uniquement */}
-          <p className="hidden sm:block relative z-10 mt-2 text-[11px]"
-            style={{
-              color: "var(--bt-ink-text)",
-              opacity: (focusCtlVisible || !running) ? 1 : 0,
-              transition: "opacity 0.25s ease-out",
-            }}>
-            {t("dash.spaceHint")}
-          </p>
-
-        </div>
+        />
       )}
 
       {/* Récapitulatif de fin de session — voir components/SessionCompleteCard.js

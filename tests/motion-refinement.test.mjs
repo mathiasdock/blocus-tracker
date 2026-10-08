@@ -64,11 +64,12 @@ test("reduced motion closes a sheet immediately", () => {
 });
 
 test("motion stays attached to meaningful events, not every second or badge inspection", () => {
-  const dashboard = readFileSync(new URL("../pages/dashboard.js", import.meta.url), "utf8");
+  // Les chiffres du Chrono (sortis du Dashboard dans components/timer).
+  const digits = readFileSync(new URL("../components/timer/TimerDigits.js", import.meta.url), "utf8");
   const badgeSheet = readFileSync(new URL("../components/BadgeSheet.js", import.meta.url), "utf8");
   const celebration = readFileSync(new URL("../components/Celebration.js", import.meta.url), "utf8");
   const planning = readFileSync(new URL("../styles/planning.css", import.meta.url), "utf8");
-  assert.match(dashboard, /key={`s\$\{i\}`} ch=\{ch\} animate=\{false\}/);
+  assert.match(digits, /key={`s\$\{i\}`} ch=\{ch\} animate=\{false\}/);
   assert.doesNotMatch(badgeSheet, /badge-shine/);
   assert.match(celebration, /<BadgeIcon id=\{data\.badgeId\} earned size=\{88\} animate \/>/);
   assert.match(planning, /bt-plan-period-next 170ms/);

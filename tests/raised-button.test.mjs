@@ -21,11 +21,13 @@ test('raised variant only uses color tokens', () => {
 });
 
 test('raised stays reserved to one hero CTA per screen', () => {
-  const usage = { 'pages/dashboard.js': 1, 'pages/index.js': 1 };
+  // Le Démarrer du Chrono vit dans sa carte partagée (components/timer) : le
+  // Dashboard la rend, il n'en ajoute pas un second.
+  const usage = { 'components/timer/ChronoCard.js': 1, 'pages/index.js': 1 };
   for (const [file, count] of Object.entries(usage)) {
     assert.equal((read(file).match(/\bbtn-raised\b(?!-)/g) || []).length, count, file);
   }
-  for (const file of ['components/SeoLandingPage.js', 'pages/signup.js', 'pages/onboarding.js', 'pages/messages.js']) {
+  for (const file of ['pages/dashboard.js', 'components/timer/ChronoFocus.js', 'components/SeoLandingPage.js', 'pages/signup.js', 'pages/onboarding.js', 'pages/messages.js']) {
     assert.doesNotMatch(read(file), /\bbtn-raised\b/, file);
   }
 });
