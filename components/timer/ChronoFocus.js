@@ -22,13 +22,15 @@ function focusGreeting(t) {
 // bas masquée), Échap pour sortir, Espace pour pause/reprise et l'estompage des
 // commandes. Ce qui appartient à la page arrive par ses props : fermer,
 // Terminer, l'état d'enregistrement et la mascotte (`renderCoach`, ancrée aux
-// blocs et au message d'accueil).
+// blocs et au message d'accueil). `noCourseLabel` nomme une session sans cours
+// (/pomodoro : « Session Pomodoro ») à la place de « Aucun cours sélectionné ».
 export default function ChronoFocus({
   chrono,
   courses = [],
   onClose,
   onFinish,
   saveStatus = "idle",
+  noCourseLabel = null,
   hint = null,
   momentShown = false,
   renderCoach,
@@ -141,7 +143,7 @@ export default function ChronoFocus({
                   boxShadow: "0 0 0 1.5px rgba(255,255,255,0.32)",
                 }} />
             )}
-            <span>{courseId ? courseName(courseId) : t("dash.noCourse")}</span>
+            <span>{courseId ? courseName(courseId) : (noCourseLabel || t("dash.noCourse"))}</span>
           </p>
 
           <div className="relative z-10 w-full text-center px-6">

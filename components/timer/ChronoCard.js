@@ -18,7 +18,8 @@ import { timerExamUrgency } from "../../lib/timerExamContext.mjs";
 // Découverte ni de la mise en page de l'app.
 // `coursePicker={false}` retire le choix du cours (/pomodoro en Pomodoro, où
 // il n'est pas nécessaire) ; sans `onAddCourse`, le menu ne propose pas d'en
-// ajouter (une page qui ne sait pas créer de cours).
+// ajouter (une page qui ne sait pas créer de cours). `savedLabel` remplace
+// « Session enregistrée ! » (/pomodoro : la session reste sur l'appareil).
 export default function ChronoCard({
   chrono,
   className = "",
@@ -33,6 +34,7 @@ export default function ChronoCard({
   onStart,
   onFinish,
   saveStatus = "idle",
+  savedLabel = null,
   noteEnabled = false,
   hint = null,
   momentShown = false,
@@ -424,7 +426,7 @@ export default function ChronoCard({
                       </svg>
                     )}
                     {saveStatus === "saving"  ? t("common.saving")
-                      : saveStatus === "success" ? t("dash.saveSuccess")
+                      : saveStatus === "success" ? (savedLabel || t("dash.saveSuccess"))
                       : saveStatus === "error"   ? t("dash.saveError")
                       : t("dash.finish")}
                   </button>

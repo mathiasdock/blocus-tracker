@@ -55,7 +55,7 @@ function AccountChronoLink() {
 }
 
 function GuestChrono({ authKnown }) {
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const chrono = useChrono({
     ownerId: GUEST_USER_ID,
     enabled: authKnown,
@@ -74,9 +74,17 @@ function GuestChrono({ authKnown }) {
   const activeCourses = useMemo(() => courses.filter((course) => !course.archived_at), [courses]);
 
   // Libre demande un cours : au repos, le premier cours d'exemple si aucun
-  // n'est choisi (la règle du Dashboard). Un Pomodoro n'en demande pas.
+  // n'est choisi (la règle du Dashboard). Un Pomodoro n'en demande pas, et ici
+  // le cours n'est pas affiché : au repos, il n'en porte aucun, pour qu'aucun
+  // bloc ne soit enregistré sous une matière choisie ailleurs (le Dashboard en
+  // propose une) ou en Libre.
   useEffect(() => {
-    if (!interactive || pomodoro || running || elapsed > 0 || !activeCourses.length) return;
+    if (!interactive || running || elapsed > 0) return;
+    if (pomodoro) {
+      if (courseId) setCourseId("");
+      return;
+    }
+    if (!activeCourses.length) return;
     if (!activeCourses.some((course) => course.id === courseId)) setCourseId(activeCourses[0].id);
   }, [interactive, pomodoro, running, elapsed, activeCourses, courseId, setCourseId]);
 
@@ -124,6 +132,7 @@ function GuestChrono({ authKnown }) {
           }}
           onFinish={() => finish(view.pomodoro)}
           saveStatus={saveStatus}
+          savedLabel={t("publicChrono.savedOnDevice")}
           hint={view.hint}
         />
       </div>
@@ -134,6 +143,7 @@ function GuestChrono({ authKnown }) {
           onClose={() => setFocusOpen(false)}
           onFinish={() => finish(pomodoro)}
           saveStatus={saveStatus}
+          noCourseLabel={t("publicChrono.pomodoroSession")}
           hint={chrono.hint}
         />
       )}

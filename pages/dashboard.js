@@ -171,6 +171,13 @@ export default function Dashboard() {
   const [freezeBusy, setFreezeBusy] = useState(false);
 
   const isGuest = !user;
+  // Session ouverte sans cours : un Pomodoro lancé depuis /pomodoro, où le
+  // cours n'est pas demandé. Le Dashboard ne lui en donne pas en silence — il
+  // serait enregistré sous une matière jamais choisie ; le choix reste possible
+  // à la main, en pause. Lu par les replis de cours ci-dessous.
+  const courselessSession = !courseId && (running || elapsed > 0);
+  const courselessSessionRef = useRef(courselessSession);
+  courselessSessionRef.current = courselessSession;
   const dashboardCachePrefix = user ? `dashboard:${user.id}:` : "";
   // Espace dont la page doit montrer les données : le compte, ou la démo
   // invité. Aucun tant que l'auth n'a pas répondu — le chrono n'a pas encore
@@ -183,7 +190,7 @@ export default function Dashboard() {
     setCourses(c);
     setCoursesOwner(owner);
     setExamRows(data.examRows || []);
-    setCourseId(current => active.some((course) => course.id === current) ? current : active[0]?.id || "");
+    setCourseId(current => (!current && courselessSessionRef.current) || active.some((course) => course.id === current) ? current : active[0]?.id || "");
     setSessions(data.sessions || []);
     setServerDays(data.days || []);
     setRecentSessions(data.recentSessions || []);
@@ -207,9 +214,9 @@ export default function Dashboard() {
   // cours d'une session en cours manque forcément. Le remplacer là faisait
   // enregistrer la session sous le plus ancien cours du compte.
   useEffect(() => {
-    if (!dataOwner || coursesOwner !== dataOwner || !activeCourses.length) return;
+    if (!dataOwner || coursesOwner !== dataOwner || !activeCourses.length || courselessSession) return;
     if (!activeCourses.some((course) => course.id === courseId)) setCourseId(activeCourses[0].id);
-  }, [activeCourses, coursesOwner, dataOwner, courseId, setCourseId]);
+  }, [activeCourses, coursesOwner, dataOwner, courseId, setCourseId, courselessSession]);
 
   // À l'ouverture de l'app, le chrono propose le dernier cours étudié — pas
   // le plus ancien du compte, ni un cours choisi puis jamais travaillé. Les

@@ -74,7 +74,7 @@ function makeEnv({ user = null, loading = false, deviceLanguage = "en-US" } = {}
     "next/router": { useRouter: () => ({ pathname: "/pomodoro", asPath: "/pomodoro" }) },
     "next/link": { __esModule: true, default: ({ href, children, ...rest }) => h("a", { href, ...rest }, children) },
     "next/image": { __esModule: true, default: (props) => h("img", { src: props.src, alt: props.alt }) },
-    "next/dynamic": { __esModule: true, default: () => (props) => h("chrono-focus", { open: "1", onClose: props.onClose }) },
+    "next/dynamic": { __esModule: true, default: () => (props) => h("chrono-focus", { open: "1", onClose: props.onClose, noCourseLabel: props.noCourseLabel }) },
     "components/timer/ChronoFocus": { __esModule: true, default: () => null },
     "components/landing/PublicHeader": { __esModule: true, default: () => { env.headerRenders += 1; return h("header", null, "header"); } },
     "components/landing/PublicFooter": { __esModule: true, default: () => h("footer", null, "footer") },
@@ -271,6 +271,48 @@ test("invité : Libre avec les deux cours d'exemple de la Découverte, Terminer 
   assert.equal(env.store.has(QUEUE_KEY), false);
   assert.deepEqual(env.supabaseCalls, []);
   page.close();
+});
+
+test("invité : un Pomodoro lancé ici ne porte aucun cours, même choisi ailleurs ou en Libre — Focus dit « Session Pomodoro »", () => {
+  const env = makeEnv();
+  // Le Dashboard invité avait proposé Physique au repos.
+  env.store.set(GUEST_TIMER, JSON.stringify({ courseId: "guest-course-physics", note: "", running: false, startMs: 0, baseSeconds: 0,
+    timezone: "", sessionId: "", pomodoro: false, pomoPhase: "work", pomoCount: 0, pomoWorkMin: 25, pomoBreakMin: 5 }));
+  const page = mount(env);
+  assert.equal(read(env, GUEST_TIMER).courseId, "");
+  page.pick("Mode de session", "free");
+  assert.equal(read(env, GUEST_TIMER).courseId, "guest-course-physics");
+  page.pick("Mode de session", "pomodoro");
+  assert.equal(read(env, GUEST_TIMER).courseId, "");
+  page.click(/^Démarrer$/);
+  page.click(/Focus/);
+  const focus = page.renderer.root.findAll((n) => n.type === "chrono-focus")[0];
+  assert.equal(focus.props.noCourseLabel, "Session Pomodoro");
+  advance(env, 25 * 60_000);
+  advance(env, 100);
+  const sessions = read(env, GUEST_SPACE).sessions;
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0].course_id, null);
+  page.close();
+});
+
+test("invité : la fin d'une session dit honnêtement où elle est gardée", () => {
+  const env = makeEnv();
+  const page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 60_000);
+  page.click(/^Terminer/);
+  const text = page.text(page.tool());
+  assert.match(text, /Conservée sur cet appareil/);
+  assert.doesNotMatch(text, /Session enregistrée/);
+  page.close();
+});
+
+test("Dashboard : une session ouverte sans cours n'en reçoit pas en silence (les deux replis de cours)", () => {
+  const source = readFileSync(join(ROOT, "pages/dashboard.js"), "utf8");
+  assert.match(source, /const courselessSession = !courseId && \(running \|\| elapsed > 0\);/);
+  assert.match(source, /setCourseId\(current => \(!current && courselessSessionRef\.current\) \|\| active\.some/);
+  assert.match(source, /!activeCourses\.length \|\| courselessSession\) return;/);
 });
 
 test("invité : Terminer un Pomodoro l'enregistre et rend la page prête pour le suivant", () => {
