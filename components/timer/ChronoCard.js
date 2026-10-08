@@ -16,11 +16,15 @@ import { timerExamUrgency } from "../../lib/timerExamContext.mjs";
 // emplacements (`challenge`, `coach`) que le Dashboard remplit avec le défi du
 // jour et la mascotte. Elle n'importe rien du Dashboard, de Supabase, du mode
 // Découverte ni de la mise en page de l'app.
+// `coursePicker={false}` retire le choix du cours (/pomodoro en Pomodoro, où
+// il n'est pas nécessaire) ; sans `onAddCourse`, le menu ne propose pas d'en
+// ajouter (une page qui ne sait pas créer de cours).
 export default function ChronoCard({
   chrono,
   className = "",
   courses = [],
   activeCourses = [],
+  coursePicker = true,
   onPickCourse,
   onAddCourse,
   courseExam = null,
@@ -94,12 +98,13 @@ export default function ChronoCard({
               des cours ouvert. */}
           <div className="relative z-30 grid grid-cols-[minmax(0,1fr)_auto] gap-2 px-4 pt-4 sm:px-6 sm:pt-5">
             <div className="flex min-w-0 items-center gap-2">
+              {coursePicker && (
               <div className="relative min-w-0 flex-1">
-                {activeCourses.length === 0 ? (
+                {activeCourses.length === 0 ? (onAddCourse && (
                   <button type="button" onClick={() => onAddCourse?.()} className="bt-dashboard-control flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed px-3 text-sm font-semibold" style={{ borderColor: "var(--bt-border)", color: "var(--bt-accent-text)" }}>
                     {t("courseEditor.addTitle")}
                   </button>
-                ) : (
+                )) : (
                   <button
                     type="button"
                     onClick={() => !running && setShowCourseMenu((value) => !value)}
@@ -147,10 +152,11 @@ export default function ChronoCard({
                         </button>
                       ))}
                     </div>
+                    {onAddCourse && (
                     <div className="border-t p-1" style={{ borderColor: "var(--bt-border)" }}>
                       <button
                         type="button"
-                        onClick={() => { setShowCourseMenu(false); onAddCourse?.(); }}
+                        onClick={() => { setShowCourseMenu(false); onAddCourse(); }}
                         className="bt-dashboard-menu-item flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold"
                         style={{ color: "var(--bt-accent-text)" }}
                       >
@@ -160,9 +166,11 @@ export default function ChronoCard({
                         {t("courseEditor.addTitle")}
                       </button>
                     </div>
+                    )}
                   </div>
                 )}
               </div>
+              )}
 
             </div>
 

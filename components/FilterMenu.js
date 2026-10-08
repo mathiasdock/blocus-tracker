@@ -2,6 +2,11 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Glyph from "./Glyph";
 import { createPortal } from "react-dom";
 
+// Le placement se mesure avant la peinture dans le navigateur. Au rendu
+// serveur (le Chrono de /pomodoro), le menu est fermé : rien à mesurer, et
+// useLayoutEffect y déclenchait un avertissement de React.
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 // Contrôle de filtre compact : un bouton qui affiche la valeur courante, et
 // un menu qui ne s'ouvre qu'à la demande.
 //
@@ -88,7 +93,7 @@ export default function FilterMenu({
   // Placement en coordonnées d'écran, calculé à l'ouverture. Le menu s'aligne
   // sur un bord du bouton puis est ramené dans la fenêtre : près d'un bord, il
   // sortait de l'écran, et près du bas il passait sous la barre de navigation.
-  useLayoutEffect(() => {
+  useBrowserLayoutEffect(() => {
     if (!open || !btnRef.current) return;
     const b = btnRef.current.getBoundingClientRect();
     const el = menuRef.current;

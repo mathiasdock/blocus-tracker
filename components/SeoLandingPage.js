@@ -54,7 +54,11 @@ function BulletList({ items }) {
   );
 }
 
-export default function SeoLandingPage({ page }) {
+// `tool` : un outil à utiliser sur place (le Chrono de /pomodoro). Il prend la
+// place de l'illustration du héros — à droite sur ordinateur, juste sous le
+// titre sur téléphone — et remplace le bouton vers l'app, devenu redondant.
+// Sans `tool`, le héros est celui de tous les guides.
+export default function SeoLandingPage({ page, tool = null }) {
   const { lang } = useI18n();
   // Contenu visible : la langue de l'adresse (français) pour tout visiteur non
   // connecté, Google compris ; l'anglais seulement sur choix manuel ou pour un
@@ -70,67 +74,122 @@ export default function SeoLandingPage({ page }) {
 
       <main>
         <article>
-          <section className="relative px-5 pb-12 pt-8 sm:pt-14">
-            <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1fr_0.78fr]">
-              <div>
-                <p
-                  className="mb-4 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase"
-                  style={{
-                    color: "var(--bt-accent-dark)",
-                    backgroundColor: "var(--bt-accent-bg)",
-                    border: "1px solid var(--bt-accent-border)",
-                  }}
-                >
-                  {p.eyebrow}
-                </p>
-                <h1 className="max-w-3xl text-4xl leading-tight sm:text-6xl" style={{ color: "var(--bt-text-1)" }}>
-                  {p.h1}
-                </h1>
-                <p className="mt-5 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
-                  {p.lead}
-                </p>
-                {/* Date de mise à jour et auteur, quand la page les déclare :
-                    ce sont ceux du JSON-LD Article (lib/seo.js). */}
-                {p.byline && (
-                  <p className="mt-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{p.byline}</p>
-                )}
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <Link href="/dashboard" className="btn-primary px-6 py-3 text-center text-sm">
-                    {p.ctaLabel}
-                  </Link>
-                  <Link
-                    href={p.secondaryCtaHref}
-                    className="btn-ghost px-6 py-3 text-center text-sm"
-                    style={{ backgroundColor: "var(--bt-surface)" }}
+          {tool ? (
+            <section className="relative px-5 pb-12 pt-8 sm:pt-14">
+              {/* Même grille que le héros des guides. Sur téléphone : titre, outil,
+                  puis le reste ; sur ordinateur, l'outil occupe la colonne de
+                  l'illustration, sur la hauteur du texte. */}
+              <div className="mx-auto grid max-w-6xl gap-x-10 lg:grid-cols-[1fr_0.78fr] lg:items-center">
+                <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:self-end">
+                  <p
+                    className="mb-4 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase"
+                    style={{
+                      color: "var(--bt-accent-dark)",
+                      backgroundColor: "var(--bt-accent-bg)",
+                      border: "1px solid var(--bt-accent-border)",
+                    }}
                   >
-                    {p.secondaryCtaLabel}
-                  </Link>
+                    {p.eyebrow}
+                  </p>
+                  <h1 className="max-w-3xl text-4xl leading-tight sm:text-6xl" style={{ color: "var(--bt-text-1)" }}>
+                    {p.h1}
+                  </h1>
                 </div>
-                <dl className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
-                  {p.proofPoints.map((point) => (
-                    <div key={point} className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
-                      <dt className="text-xs font-bold uppercase" style={{ color: "var(--bt-accent-dark)" }}>{ui.included}</dt>
-                      <dd className="mt-1 text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{point}</dd>
-                    </div>
-                  ))}
-                </dl>
+                <div id="minuteur" className="mt-7 min-w-0 scroll-mt-24 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0">
+                  {tool}
+                </div>
+                <div className="min-w-0 lg:col-start-1 lg:row-start-2 lg:self-start">
+                  <p className="mt-7 max-w-2xl text-base leading-relaxed sm:text-lg lg:mt-5" style={{ color: "var(--bt-text-2)" }}>
+                    {p.lead}
+                  </p>
+                  {/* Date de mise à jour et auteur, quand la page les déclare :
+                      ce sont ceux du JSON-LD Article (lib/seo.js). */}
+                  {p.byline && (
+                    <p className="mt-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{p.byline}</p>
+                  )}
+                  <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                    <Link
+                      href={p.secondaryCtaHref}
+                      className="btn-ghost px-6 py-3 text-center text-sm"
+                      style={{ backgroundColor: "var(--bt-surface)" }}
+                    >
+                      {p.secondaryCtaLabel}
+                    </Link>
+                  </div>
+                  <dl className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
+                    {p.proofPoints.map((point) => (
+                      <div key={point} className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
+                        <dt className="text-xs font-bold uppercase" style={{ color: "var(--bt-accent-dark)" }}>{ui.included}</dt>
+                        <dd className="mt-1 text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{point}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
               </div>
-
-              <figure className="relative">
-                <div className="overflow-hidden rounded-[28px]" style={{ border: "1px solid var(--bt-hairline)", boxShadow: "0 20px 50px var(--bt-shadow)" }}>
-                  <Image
-                    src="/seo-preview.png"
-                    alt={ui.previewAlt}
-                    width={1200}
-                    height={630}
-                    priority
-                    sizes="(min-width: 1024px) 420px, 100vw"
-                    className="h-auto w-full"
-                  />
+            </section>
+          ) : (
+            <section className="relative px-5 pb-12 pt-8 sm:pt-14">
+              <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1fr_0.78fr]">
+                <div>
+                  <p
+                    className="mb-4 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase"
+                    style={{
+                      color: "var(--bt-accent-dark)",
+                      backgroundColor: "var(--bt-accent-bg)",
+                      border: "1px solid var(--bt-accent-border)",
+                    }}
+                  >
+                    {p.eyebrow}
+                  </p>
+                  <h1 className="max-w-3xl text-4xl leading-tight sm:text-6xl" style={{ color: "var(--bt-text-1)" }}>
+                    {p.h1}
+                  </h1>
+                  <p className="mt-5 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: "var(--bt-text-2)" }}>
+                    {p.lead}
+                  </p>
+                  {/* Date de mise à jour et auteur, quand la page les déclare :
+                      ce sont ceux du JSON-LD Article (lib/seo.js). */}
+                  {p.byline && (
+                    <p className="mt-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{p.byline}</p>
+                  )}
+                  <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                    <Link href="/dashboard" className="btn-primary px-6 py-3 text-center text-sm">
+                      {p.ctaLabel}
+                    </Link>
+                    <Link
+                      href={p.secondaryCtaHref}
+                      className="btn-ghost px-6 py-3 text-center text-sm"
+                      style={{ backgroundColor: "var(--bt-surface)" }}
+                    >
+                      {p.secondaryCtaLabel}
+                    </Link>
+                  </div>
+                  <dl className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
+                    {p.proofPoints.map((point) => (
+                      <div key={point} className="rounded-2xl p-4" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
+                        <dt className="text-xs font-bold uppercase" style={{ color: "var(--bt-accent-dark)" }}>{ui.included}</dt>
+                        <dd className="mt-1 text-sm font-semibold leading-snug" style={{ color: "var(--bt-text-1)" }}>{point}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
-              </figure>
-            </div>
-          </section>
+
+                <figure className="relative">
+                  <div className="overflow-hidden rounded-[28px]" style={{ border: "1px solid var(--bt-hairline)", boxShadow: "0 20px 50px var(--bt-shadow)" }}>
+                    <Image
+                      src="/seo-preview.png"
+                      alt={ui.previewAlt}
+                      width={1200}
+                      height={630}
+                      priority
+                      sizes="(min-width: 1024px) 420px, 100vw"
+                      className="h-auto w-full"
+                    />
+                  </div>
+                </figure>
+              </div>
+            </section>
+          )}
 
           <section className="px-5 py-10">
             <div className="mx-auto max-w-3xl rounded-3xl p-6 sm:p-7" style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
@@ -221,9 +280,17 @@ export default function SeoLandingPage({ page }) {
                 {ui.finalText}
               </p>
               <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link href="/dashboard" className="btn-primary px-6 py-3 text-center text-sm">
-                  {ui.startTimer}
-                </Link>
+                {/* Avec un outil sur la page, « Lancer le chrono » y ramène
+                    au lieu de quitter la page pour l'app. */}
+                {tool ? (
+                  <a href="#minuteur" className="btn-primary px-6 py-3 text-center text-sm">
+                    {ui.startTimer}
+                  </a>
+                ) : (
+                  <Link href="/dashboard" className="btn-primary px-6 py-3 text-center text-sm">
+                    {ui.startTimer}
+                  </Link>
+                )}
                 <Link href="/signup" className="btn-ghost px-6 py-3 text-center text-sm">
                   {ui.signup}
                 </Link>

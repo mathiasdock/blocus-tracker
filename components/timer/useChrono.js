@@ -3,7 +3,7 @@ import { useTimer } from "../../contexts/TimerContext";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatDuration, formatMinutesShort } from "../../lib/format";
 import { newClientId } from "../../lib/clientId.mjs";
-import { pomodoroCycleInProgress } from "../../lib/pomodoro.mjs";
+import { chronoSessionOpen } from "../../lib/pomodoro.mjs";
 import { readSessionGoal, writeSessionGoal } from "../../lib/sessionGoal";
 import { studyBlockLayout } from "../../lib/studyBlocks.mjs";
 import { playSensoryCue, triggerHaptic } from "../../lib/sensoryFeedback";
@@ -25,8 +25,13 @@ import { useWakeLock } from "../../lib/useWakeLock";
 //   enabled        — la page est prête à enregistrer (ses données sont là) :
 //                    tant que ce n'est pas le cas, le cycle Pomodoro attend
 //   defaultMode    — "free" | "pomodoro" : mode à l'ouverture de la page quand
-//                    aucun cycle Pomodoro n'est en cours (le Dashboard : Libre)
+//                    aucune session n'est ouverte (le Dashboard : Libre ;
+//                    /pomodoro : Pomodoro)
 //   onWorkComplete — enregistre le bloc de travail d'un Pomodoro terminé
+//
+// `modeReady` passe à vrai une fois le chrono restauré et le mode de la page
+// appliqué : avant, une page peut montrer son état de repos par défaut (rendu
+// serveur de /pomodoro) sans craindre de contredire ce qui va s'afficher.
 export function useChrono({ ownerId, enabled = true, defaultMode = "free", onWorkComplete }) {
   const { t } = useI18n();
   const timer = useTimer();
@@ -89,17 +94,20 @@ export function useChrono({ ownerId, enabled = true, defaultMode = "free", onWor
   const POMO_WORK  = pomoWorkMin  * 60;
   const POMO_BREAK = pomoBreakMin * 60;
 
-  // À l'ouverture de la page, sans Pomodoro en cours (lib/pomodoro.mjs), le
+  // À l'ouverture de la page, sans session ouverte (lib/pomodoro.mjs), le
   // Chrono prend le mode de la page avec un cycle neuf : le Dashboard s'ouvre
   // en Libre, comme quand ce mode ne survivait pas à la page (le Planning, les
-  // Communautés et Messages y envoient en comptant dessus). Un Pomodoro en
-  // cours — travail ou pause, qui compte ou mis en pause — garde son mode, sa
-  // phase et son cycle. Une fois par page, après restauration du chrono.
+  // Communautés et Messages y envoient en comptant dessus), /pomodoro en
+  // Pomodoro. Une session ouverte — Libre, ou Pomodoro en travail ou en pause,
+  // qui compte ou mise en pause — garde son mode, sa phase et son cycle. Une
+  // fois par page, après restauration du chrono.
   const modeChecked = useRef(false);
+  const [modeReady, setModeReady] = useState(false);
   useEffect(() => {
     if (!hydrated || modeChecked.current) return;
     modeChecked.current = true;
-    if (pomodoroCycleInProgress({ pomodoro, running, elapsed })) return;
+    setModeReady(true);
+    if (chronoSessionOpen({ running, elapsed })) return;
     setPomodoro(defaultMode === "pomodoro");
     setPomoPhase("work");
     setPomoCount(0);
@@ -163,10 +171,27 @@ export function useChrono({ ownerId, enabled = true, defaultMode = "free", onWor
     : "00:00";
   const pauseSeconds = pausedAt ? Math.max(0, Math.floor((Date.now() - pausedAt) / 1000)) : 0;
 
+  // Une session qui s'achève, telle que les pages l'enregistrent. Elle porte
+  // l'id de la session (TimerContext) : vue dans deux onglets, elle n'est
+  // enregistrée qu'une fois. Sans id (chrono restauré d'avant ce champ), un id
+  // neuf comme auparavant.
+  function sessionPayload(seconds) {
+    const endedAt = new Date().toISOString();
+    const startedAt = new Date(Date.now() - seconds * 1000).toISOString();
+    return {
+      id: sessionId || newClientId(),
+      user_id: ownerId,
+      course_id: courseId || null,
+      duration_seconds: seconds,
+      note: note || null,
+      started_at: startedAt,
+      ended_at: endedAt,
+      // Fuseau du démarrage (v65) ; absent → la base prend celui du profil.
+      ...(timerTimezone ? { timezone: timerTimezone } : {}),
+    };
+  }
+
   // ── Pomodoro auto-transition ────────────────────────────────
-  // Le bloc de travail terminé porte l'id de la session (TimerContext) : vu
-  // dans deux onglets, il n'est enregistré qu'une fois. Sans id (chrono
-  // restauré d'avant ce champ), un id neuf comme auparavant.
   useEffect(() => {
     if (!enabled || !pomodoro || !running || pomoHandled.current) return;
     const target = pomoPhase === "work" ? POMO_WORK : POMO_BREAK;
@@ -176,21 +201,7 @@ export function useChrono({ ownerId, enabled = true, defaultMode = "free", onWor
     if (pomoPhase === "work") {
       playSensoryCue("pomodoro");
       triggerHaptic("goal");
-      const secs = Math.min(elapsed, POMO_WORK);
-      const endedAt = new Date().toISOString();
-      const startedAt = new Date(Date.now() - secs * 1000).toISOString();
-
-      const payload = {
-        id: sessionId || newClientId(),
-        user_id: ownerId,
-        course_id: courseId || null,
-        duration_seconds: secs,
-        note: note || null,
-        started_at: startedAt,
-        ended_at: endedAt,
-        // Fuseau du démarrage (v65) ; absent → la base prend celui du profil.
-        ...(timerTimezone ? { timezone: timerTimezone } : {}),
-      };
+      const payload = sessionPayload(Math.min(elapsed, POMO_WORK));
 
       pause();
       reset();
@@ -302,6 +313,8 @@ export function useChrono({ ownerId, enabled = true, defaultMode = "free", onWor
 
   return {
     ...timer,
+    modeReady,
+    sessionPayload,
     startWithFeedback,
     pauseWithFeedback,
     sessionGoalMin,
