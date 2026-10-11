@@ -308,6 +308,146 @@ test("invité : la fin d'une session dit honnêtement où elle est gardée", () 
   page.close();
 });
 
+// Invitation à créer un compte après une vraie session (P1-B, phase 3). Sans
+// IntersectionObserver (ici), elle compte comme vue dès qu'elle s'affiche.
+const INVITE_KEY = "bt_pomodoro_invite_v1";
+const INVITE_TEXT_FR = [
+  "Bien joué : 25 min d'étude.",
+  "Cette session reste sur cet appareil : elle ne sera pas transférée vers un compte.",
+  "Avec un compte gratuit, tu enregistres tes prochaines sessions, tu organises ton planning et tu suis ta progression.",
+  "Créer un compte gratuit",
+  "Continuer sans compte",
+];
+const invitation = (page) => page.tool().findAll((n) => n.props?.["aria-labelledby"] === "public-chrono-invite-title")[0];
+
+test("invitation : bloc Pomodoro complet — rien pendant le travail ni le repos, puis au repos sous la carte ; une seule fois", () => {
+  const env = makeEnv();
+  let page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 24 * 60_000);
+  assert.equal(invitation(page), undefined, "pendant le travail");
+  advance(env, 60_000);
+  advance(env, 100);
+  // Bloc enregistré, repos lancé tout seul : toujours rien.
+  assert.equal(read(env, GUEST_SPACE).sessions.length, 1);
+  assert.match(page.text(page.tool()), /Pause· Cycle 1/);
+  assert.equal(invitation(page), undefined, "pendant le repos Pomodoro");
+  assert.equal(env.store.has(INVITE_KEY), false);
+  advance(env, 5 * 60_000);
+  // Fin du repos : le Chrono est prêt pour le bloc suivant, l'invitation dessous.
+  assert.match(page.text(page.tool()), /Travail· Cycle 1.*25:00/);
+  const invite = invitation(page);
+  assert.ok(invite);
+  assert.equal(textOf(invite), INVITE_TEXT_FR.join(""));
+  assert.equal(invite.findAll((n) => n.type === "a")[0].props.href, "/signup");
+  assert.ok(page.button(/^Démarrer$/), "Démarrer reste là, sans étape");
+  assert.equal(page.focusOpen(), false, "jamais de fenêtre");
+  assert.equal(read(env, INVITE_KEY).reason, "seen");
+  // Le bloc suivant l'efface ; elle ne revient ni après lui ni au rechargement.
+  page.click(/^Démarrer$/);
+  assert.equal(invitation(page), undefined);
+  advance(env, 25 * 60_000);
+  advance(env, 100);
+  advance(env, 5 * 60_000);
+  assert.equal(read(env, GUEST_SPACE).sessions.length, 2);
+  assert.match(page.text(page.tool()), /Cycle 2/);
+  assert.equal(invitation(page), undefined, "pas après chaque bloc");
+  page.close();
+  page = mount(env);
+  assert.equal(invitation(page), undefined, "pas au rechargement");
+  assert.deepEqual(env.supabaseCalls, []);
+  page.close();
+});
+
+test("invitation : « Terminer » — pas sous 10 min, ni en pause ni par-dessus Focus ; la durée est celle de la session", () => {
+  const env = makeEnv();
+  const page = mount(env);
+  page.pick("Mode de session", "free");
+  page.click(/^Démarrer$/);
+  advance(env, 9 * 60_000);
+  page.click(/^Terminer/);
+  assert.equal(read(env, GUEST_SPACE).sessions.length, 1);
+  assert.equal(invitation(page), undefined, "9 min : pas encore une vraie session");
+  page.click(/^Démarrer$/);
+  advance(env, 12 * 60_000);
+  page.click(/^Pause$/);
+  advance(env, 60_000);
+  assert.equal(invitation(page), undefined, "session en pause");
+  page.click(/Focus/);
+  page.click(/^Terminer/);
+  assert.equal(read(env, GUEST_SPACE).sessions.length, 2);
+  assert.equal(invitation(page), undefined, "pas par-dessus Focus");
+  act(() => page.renderer.root.findAll((n) => n.type === "chrono-focus")[0].props.onClose());
+  assert.match(textOf(invitation(page)), /^Bien joué : 12 min d'étude\./);
+  assert.equal(page.menu("Mode de session").props.value, "free");
+  page.close();
+});
+
+test("invitation : « Continuer sans compte » la ferme ; rien pendant 30 jours, puis une nouvelle vraie session peut la ramener", () => {
+  const env = makeEnv();
+  let page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 15 * 60_000);
+  page.click(/^Terminer/);
+  assert.ok(invitation(page));
+  page.click(/^Continuer sans compte$/);
+  assert.equal(invitation(page), undefined);
+  assert.equal(read(env, INVITE_KEY).reason, "dismissed");
+  page.click(/^Démarrer$/);
+  advance(env, 20 * 60_000);
+  page.click(/^Terminer/);
+  assert.equal(read(env, GUEST_SPACE).sessions.length, 2);
+  assert.equal(invitation(page), undefined, "fermée : pas après la session suivante");
+  page.close();
+  env.now += 31 * 24 * 60 * 60_000;
+  page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 15 * 60_000);
+  page.click(/^Terminer/);
+  assert.ok(invitation(page), "un mois plus tard");
+  page.close();
+});
+
+test("invitation : en anglais sur choix manuel ; jamais si l'appareil n'a pas pu garder la session", () => {
+  const env = makeEnv();
+  env.store.set("bt_lang_pref", "en");
+  let page = mount(env);
+  page.click(/^Start$/);
+  advance(env, 20 * 60_000);
+  page.click(/^Finish/);
+  assert.equal(textOf(invitation(page)), [
+    "Nice work: 20 min of study.",
+    "This session stays on this device: it won't be moved to an account.",
+    "With a free account, you save your next sessions, plan your revision and track your progress.",
+    "Create a free account",
+    "Continue without an account",
+  ].join(""));
+  page.close();
+
+  const full = makeEnv();
+  const setItem = full.localStorage.setItem;
+  full.localStorage.setItem = (k, v) => { if (k === GUEST_SPACE) throw new Error("QuotaExceededError"); setItem(k, v); };
+  page = mount(full);
+  page.click(/^Démarrer$/);
+  advance(full, 15 * 60_000);
+  page.click(/^Terminer/);
+  assert.equal(full.store.has(GUEST_SPACE), false);
+  assert.equal(invitation(page), undefined);
+  page.close();
+});
+
+test("invitation : jamais pour un compte connecté, jamais dans le HTML serveur", () => {
+  const env = makeEnv({ user: ACCOUNT, deviceLanguage: "fr-BE" });
+  const page = mount(env);
+  advance(env, 30 * 60_000);
+  assert.equal(invitation(page), undefined);
+  assert.doesNotMatch(page.text(page.tool()), /Bien joué|Créer un compte gratuit/);
+  assert.equal(env.store.has(INVITE_KEY), false);
+  page.close();
+  const html = renderToString(pageTree(makeEnv({ loading: true }))());
+  assert.doesNotMatch(html, /public-chrono-invite|Bien joué|Créer un compte gratuit|Continuer sans compte/);
+});
+
 test("Dashboard : une session ouverte sans cours n'en reçoit pas en silence (les deux replis de cours)", () => {
   const source = readFileSync(join(ROOT, "pages/dashboard.js"), "utf8");
   assert.match(source, /const courselessSession = !courseId && \(running \|\| elapsed > 0\);/);
