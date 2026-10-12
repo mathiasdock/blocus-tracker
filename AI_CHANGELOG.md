@@ -1,5 +1,11 @@
 # AI_CHANGELOG.md
 
+## 2026-10-12 — Claude Code — README GitHub actualisé (commit local, non poussé)
+
+- Le README public décrivait encore la première version : connexion par pseudo seule, fil de photos, et des notes techniques sur l'authentification et les règles d'accès. Il présente maintenant Blocus Tracker : à qui il s'adresse, Chrono Libre/Pomodoro, Focus, mode découverte, `/pomodoro`, planning, objectifs, statistiques, progression, fonctions sociales, gratuité, PWA, liens officiels. Chaque point a été vérifié dans le code ou dans les textes publics déjà validés (`lib/landingContent.js`, FAQ de `lib/seo.js`).
+- Écrit noir sur blanc : les sessions faites sans compte restent sur l'appareil et ne sont pas transférées vers un compte. Aucun chiffre, aucun témoignage. Le calendrier universitaire et la connexion Google sont laissés de côté, faute de preuve qu'ils sont actifs en production.
+- Partie développeur : notes de sécurité retirées (correspondance pseudo → adresse interne, règles RLS, dossiers Storage) ; mode hors ligne `NEXT_PUBLIC_OFFLINE_DEV=true npm run dev` ajouté (vérifié : `/dashboard` et `/pomodoro` affichent le chrono, console propre) ; installation Supabase décrite honnêtement (schéma initial puis migrations, renvoi à `docs/SUPABASE.md`) ; commandes de vérification à jour (`node --test tests/*.test.mjs` : 802/802). Aucun code, configuration, page ou donnée modifiés.
+
 ## 2026-10-12 — Claude Code — P1-B phase 3 : corrections avant déploiement
 
 - **Déployé en production le 2026-10-12** avec l'entrée suivante : `main` cbb3836 → 78a7f13 → 03ede70 en avance rapide, Vercel `dpl_Ac6xGQc7PED7iy4ZeUYVWWBN6xAW` (build `5OABmyTbsbTirD-Th6hNb`). Vérifié en production : parcours invité 39/42 — les 3 autres ne relèvent que le contrôle anti-robot Turnstile (`challenges.cloudflare.com`) que la page `/signup` existante charge quand le parcours y passe ; le compte connecté reste couvert hors ligne seulement. `/pomodoro` ne contacte que le site et jamais Supabase (aucune écriture), affichage identique au pixel à la version testée (30/30) et sans débordement avec l'invitation de 320 à 1440 px, titre et carte immobiles, CLS identique aux mesures locales, HTML SEO identique sur 8 pages (sur `/pomodoro`, seule la classe de la grille du héros change), console propre. Phase 3 terminée.
