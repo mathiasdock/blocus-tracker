@@ -1,6 +1,11 @@
 # AI_CHANGELOG.md
 
-## 2026-10-12 — Claude Code — Site public : /stats-etude et /objectifs-etude sur le gabarit éditorial (commit local, non déployé)
+## 2026-10-12 — Claude Code — Site public : /stats-etude et /objectifs-etude sur le gabarit éditorial
+
+- **Déployé en production le 2026-10-12** après validation de Mathias : `main` 16120a8 → f357f94 en avance rapide (aucun commit parallèle ; le travail de Codex sur le mode Focus reste dans sa copie, sans fichier commun), Vercel `dpl_7k6shwYksQHdjRBryCR8xfX4BNPe` (build `THSc-oH0hSEB-W_xX4zbk`). Vérifié en production :
+  - les deux pages : title, meta, canonical, 6 blocs JSON-LD, H1/H2/H3, liens et 52 fragments de texte identiques au HTML d'avant ; captures chargées ; 56/56 contrôles chacune ; identiques au pixel à la version validée en local (8/8) ;
+  - Pomodoro, Application et Blocus : HTML identique à la couleur du bouton près ; `/planning-revision` identique hors balises de script ; 9 autres URL identiques ;
+  - 30/44 captures publiques identiques au pixel, les autres étant exactement les deux pages refaites et la ligne du bouton en sombre ; console propre.
 
 - Deux guides de plus sur `GuideArticle`. Chacun a sa composition (prop `layout`), pour ne pas copier le pilote :
   - **`/stats-etude` (`panorama`) :** introduction et réponse courte côte à côte, puis le vrai écran Stats en grand (objectif du jour, temps d'étude, répartition par cours). « Quelles données suivre » devient une section large : la liste à filets à côté de la vraie carte Records, puis la carte Régularité (heatmap) sur toute la largeur.
