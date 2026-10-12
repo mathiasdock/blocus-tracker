@@ -1,5 +1,35 @@
 # AI_CHANGELOG.md
 
+## 2026-10-12 — Claude Code — Site public : audit, direction visuelle et page pilote /planning-revision (commit local, non déployé)
+
+- Audit des 11 pages publiques en production (320/390/1024/1440 px, clair/sombre). Les six guides partagent un gabarit à cartes (~10 encadrés par page : trois « INCLUS », réponse courte, panneau encre, trois guides liés, trois questions, appel final blanc), une pastille majuscule, la même illustration de partage (`/seo-preview.png`) au lieu du produit, des lignes de ~95 signes. Leur encadré latéral collant passe sous l'en-tête. En thème sombre, leur bouton « Créer mon espace » est illisible (vert pâle sur blanc). `/fonctionnalites` empile six rangées alternées de captures d'écran entières, et ses captures du Planning datent d'avant la refonte du 2026-10-04. `/legal` s'affiche dans la coquille de l'app (barre latérale, barre d'onglets sur téléphone) et seul le document actif est dans le HTML. L'accueil, la référence validée, n'a pas été touché.
+- Pilote : `/planning-revision` passe sur un gabarit éditorial, `components/landing/GuideArticle.js` + `Guide.module.css`, qui reprend la grammaire de l'accueil (`Landing.module.css`). Les cinq autres guides restent sur `SeoLandingPage`, inchangés.
+- Ce qui change sur la page :
+  - **Haut de page :** titre sur toute la largeur, surtitre sans pilule, « Inclus » en une liste. La réponse courte arrive en grand juste après l'introduction (téléphone : 760 px au lieu de ~950).
+  - **Capture :** la vraie capture du Planning actuel remplace l'illustration commune. Vue Mois, prise le 2026-10-12 avec `scripts/capture-site-shots.mjs`. Nouvelles entrées `guide-planning-month(-mobile)` dans `lib/siteShots.cjs`, FR/EN, 16 à 48 Ko, encodées avec les réglages du générateur, sans toucher aux images de l'accueil.
+  - **Article :** méthode en liste numérotée, colonne de lecture d'environ 65 signes, encadré latéral collé sous l'en-tête.
+  - **Guides liés :** un index au lieu de trois cartes.
+  - **Questions :** FAQ à réponses visibles, séparées par des filets.
+  - **Fin de page :** l'appel final des pages publiques (encre et mascotte), avec les textes et les liens du guide.
+  - **Typographie :** espaces insécables françaises, à l'affichage seulement.
+- Préservé, et vérifié sur le HTML serveur avant/après :
+  - title, meta, canonical et les 6 blocs JSON-LD identiques ;
+  - H1, 8 H2 et 6 H3 identiques, dans le même ordre ;
+  - 52/52 fragments de texte, aucun texte ajouté ;
+  - les 8 mêmes liens.
+  - Seule l'image visible change ; l'image de partage reste `/seo-preview.png`.
+- Pages publiques intactes :
+  - HTML serveur identique pour les 13 autres URL (accueil, sitemap, robots et llms.txt compris) ;
+  - 40/40 captures identiques au pixel (10 pages × 390/1440 × clair/sombre).
+  - Leur JS prend 0,05 à 0,09 Ko gz (manifeste des captures et nouveaux champs `productShot` / `ordered`), sans effet sur le rendu.
+- Mesures :
+  - JS de la page 23,9 → 20,9 Ko gz, CSS +2,0 Ko gz ;
+  - premier affichage mobile bridé 1 464 → 1 472 ms, ordinateur 288 → 260 ms ;
+  - CLS 0.
+  - De 320 à 1440 px, clair et sombre : aucun débordement, aucune cible tactile sous 44 px, aucun texte sous 13 px, contrastes ≥ 7:1 en sombre, focus visible au clavier, console propre.
+- Tests : 829/829 sur le `main` actuel (+6 dans `tests/guide-article.test.mjs` ; le test des autres guides passe de 5 à 4 guides), lint, build.
+- Langue : audit seulement, rien d'implémenté. La cause est la règle de `I18nContext` / `contentLangForPath` (page publique = français pour un visiteur non connecté, pages de l'app = langue de l'appareil), sans URL anglaise ni sélecteur sur le site public. Architecture `/en/` proposée à Mathias.
+
 ## 2026-10-12 — Codex — Podium Stats affiné — LOCAL NOT DEPLOYED
 
 - `components/Leaderboard.js` + `Leaderboard.module.css` : composition 2 · 1 · 3 conservée, trois marches fines jointives or/argent/bronze pour le rang seulement, avatar et marche du premier plus grands. Couronnes, anneaux métalliques et capsules de durée retirés ; valeurs exactes en encre normale, noms sur deux lignes avec nom complet accessible et au survol, rang réel annoncé. Actions de profil, repère personnel, bulle de niveau, métriques, filtres et requête existants conservés.
@@ -13,7 +43,7 @@
 - Records : session la plus longue en tête, journée → semaine → mois en ligne ouverte, total séparé. Habitudes : vrai créneau dominant, quatre barres et quatre faits compacts. Aucun sous-cadre, nouvelle animation, calcul, requête ou règle changé. Les deux cartes s'étirent à la même hauteur côte à côte ; hauteur naturelle sur mobile. Actions des cours archivés conservées.
 - Validation sur le `main` actuel : 34 tests Stats ciblés, 810 tests complets, lint sans avertissement/erreur et build production réussis. Avertissement de précache PWA 3 MB préexistant ; aucun secret copié. Publication isolée ; aucun fichier public/SEO, modification locale ou commit non publié de Claude intégré.
 
-## 2026-10-12 — Claude Code — README GitHub actualisé (commit local, non poussé)
+## 2026-10-12 — Claude Code — README GitHub actualisé (publié sur main, 535261f)
 
 - Le README public décrivait encore la première version : connexion par pseudo seule, fil de photos, et des notes techniques sur l'authentification et les règles d'accès. Il présente maintenant Blocus Tracker : à qui il s'adresse, Chrono Libre/Pomodoro, Focus, mode découverte, `/pomodoro`, planning, objectifs, statistiques, progression, fonctions sociales, gratuité, PWA, liens officiels. Chaque point a été vérifié dans le code ou dans les textes publics déjà validés (`lib/landingContent.js`, FAQ de `lib/seo.js`).
 - Écrit noir sur blanc : les sessions faites sans compte restent sur l'appareil et ne sont pas transférées vers un compte. Aucun chiffre, aucun témoignage. Le calendrier universitaire et la connexion Google sont laissés de côté, faute de preuve qu'ils sont actifs en production.
