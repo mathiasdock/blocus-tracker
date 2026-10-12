@@ -1,6 +1,11 @@
 # AI_CHANGELOG.md
 
-## 2026-10-12 — Claude Code — Site public : audit, direction visuelle et page pilote /planning-revision (commit local, non déployé)
+## 2026-10-12 — Claude Code — Site public : audit, direction visuelle et page pilote /planning-revision
+
+- **Déployé en production le 2026-10-12** après validation de Mathias : `main` a10552c → 861b225 en avance rapide (rebasé sur les deux commits Stats de Codex, seul conflit dans ce journal), Vercel `dpl_23t4svhaFKKj95GYap4tiM7p8qWf` (build `LkdAo3eP5aK6N_Ou3X8ZN`). Vérifié en production :
+  - HTML serveur avant/après de `/planning-revision` : title, meta, canonical, 6 blocs JSON-LD, H1/H2/H3, 8 liens et 52 fragments de texte identiques ; seule l'image change ;
+  - 13 autres URL publiques au HTML identique, 40/40 captures identiques au pixel (390/1440, clair/sombre) ;
+  - `/planning-revision` identique au pixel à la version validée en local ; 56/56 contrôles (320 à 1440 px, clair/sombre : capture du Planning chargée, aucun débordement, cibles ≥ 44 px, contrastes, encadré sous l'en-tête, clavier) ; console propre partout.
 
 - Audit des 11 pages publiques en production (320/390/1024/1440 px, clair/sombre). Les six guides partagent un gabarit à cartes (~10 encadrés par page : trois « INCLUS », réponse courte, panneau encre, trois guides liés, trois questions, appel final blanc), une pastille majuscule, la même illustration de partage (`/seo-preview.png`) au lieu du produit, des lignes de ~95 signes. Leur encadré latéral collant passe sous l'en-tête. En thème sombre, leur bouton « Créer mon espace » est illisible (vert pâle sur blanc). `/fonctionnalites` empile six rangées alternées de captures d'écran entières, et ses captures du Planning datent d'avant la refonte du 2026-10-04. `/legal` s'affiche dans la coquille de l'app (barre latérale, barre d'onglets sur téléphone) et seul le document actif est dans le HTML. L'accueil, la référence validée, n'a pas été touché.
 - Pilote : `/planning-revision` passe sur un gabarit éditorial, `components/landing/GuideArticle.js` + `Guide.module.css`, qui reprend la grammaire de l'accueil (`Landing.module.css`). Les cinq autres guides restent sur `SeoLandingPage`, inchangés.
