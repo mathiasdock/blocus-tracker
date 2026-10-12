@@ -1,5 +1,25 @@
 # AI_CHANGELOG.md
 
+## 2026-10-12 — Claude Code — Site public : /stats-etude et /objectifs-etude sur le gabarit éditorial (commit local, non déployé)
+
+- Deux guides de plus sur `GuideArticle`. Chacun a sa composition (prop `layout`), pour ne pas copier le pilote :
+  - **`/stats-etude` (`panorama`) :** introduction et réponse courte côte à côte, puis le vrai écran Stats en grand (objectif du jour, temps d'étude, répartition par cours). « Quelles données suivre » devient une section large : la liste à filets à côté de la vraie carte Records, puis la carte Régularité (heatmap) sur toute la largeur.
+  - **`/objectifs-etude` (`panel`) :** la vraie page Progression (niveau et XP, missions du jour, défis de la semaine avec leur avancement, paliers) dans le panneau vert clair de l'accueil, à gauche de l'introduction ; sur téléphone, la carte des missions et défis. Les 4 étapes pour écrire un objectif sont en liste numérotée.
+- Captures :
+  - écrans Stats (avec les Records et Habitudes de Codex) et Progression actuels, pris le 2026-10-12, FR/EN ;
+  - `scripts/capture-site-shots.mjs` capture aussi la page entière (`stats-full`, `progression-full`) ;
+  - 7 nouvelles entrées `guide-stats-*` / `guide-goals-*` dans `lib/siteShots.cjs`, de 5 à 63 Ko, mêmes recadrages en FR et EN ; les images de l'accueil ne sont pas touchées.
+- Contenu : seulement des champs de structure (`productShot`, `figures`, `ordered`) et les textes alternatifs FR/EN des captures ; aucun texte éditorial modifié.
+- Ancien gabarit (`SeoLandingPage`, encore utilisé par `/pomodoro`, `/application-etudiant`, `/blocus-belgique`) : le bouton blanc « Créer mon espace » passe de `--bt-brand-text` (vert pâle en sombre, ~1,6:1 sur blanc) à `--bt-action-hover` (#2D6A4F dans les deux thèmes, 6,4:1). Le thème clair est identique au pixel ; en sombre, seule la ligne du bouton change.
+- Vérifié sur des copies locales de `main` et de cette version :
+  - **HTML serveur des deux pages :** title, meta, canonical, 6 blocs JSON-LD, H1, 8 H2, 6 H3, liens (avec leur nombre) et 52/52 fragments de texte identiques, aucun texte ajouté ;
+  - **HTML des autres pages :** 9 URL publiques identiques ; les trois guides de l'ancien gabarit le sont à la couleur du bouton près ; `/planning-revision` l'est à une balise de script près (gabarit partagé) ;
+  - **Pixels :** 30/44 captures identiques (accueil, fonctionnalités, guides, FAQ, légal et `/planning-revision` en clair et sombre ; les trois guides en clair). Les 6 autres ne diffèrent que sur la ligne du bouton en sombre ;
+  - **Contrôles :** 56/56 par page (320 à 1440 px, clair/sombre) : captures chargées, aucun débordement, cibles ≥ 44 px, texte ≥ 13 px, CLS 0, encadré sous l'en-tête, contrastes, focus clavier, console propre ;
+  - **Poids :** JS des deux pages 23,97 → 21,85 Ko gz, CSS +2,3 Ko gz ; `/planning-revision` +0,94 Ko de JS et +0,31 Ko de CSS (gabarit partagé) ; les autres pages +0,13 à 0,16 Ko de JS (manifeste des captures) ;
+  - **Vitesse :** téléphone bridé `/stats-etude` 1 456 → 1 416 ms et `/objectifs-etude` 1 460 → 1 448 ms ; ordinateur 292 → 268 / 244 ms.
+- Tests : 835/835 (+6 : rendu des deux pages, captures, JSON-LD, anglais, contraste du bouton), lint, build.
+
 ## 2026-10-12 — Claude Code — Site public : audit, direction visuelle et page pilote /planning-revision
 
 - **Déployé en production le 2026-10-12** après validation de Mathias : `main` a10552c → 861b225 en avance rapide (rebasé sur les deux commits Stats de Codex, seul conflit dans ce journal), Vercel `dpl_23t4svhaFKKj95GYap4tiM7p8qWf` (build `LkdAo3eP5aK6N_Ou3X8ZN`). Vérifié en production :

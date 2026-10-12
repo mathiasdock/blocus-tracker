@@ -623,14 +623,17 @@ test("SEO : title, meta, canonical, Article/FAQ/Breadcrumb alignés sur la page 
   assert.match(html, /<a href="#minuteur"[^>]*>Lancer le chrono<\/a>/);
 });
 
-// /planning-revision est passé au gabarit éditorial (tests/guide-article.test.mjs).
-test("les quatre guides encore sur l'ancien gabarit gardent leur héros : illustration et bouton vers l'app, aucun outil", () => {
+// /planning-revision, /stats-etude et /objectifs-etude sont passés au gabarit
+// éditorial (tests/guide-article.test.mjs).
+test("les deux guides encore sur l'ancien gabarit gardent leur héros : illustration et bouton vers l'app, aucun outil", () => {
   const env = makeEnv({ loading: true });
   const { SEO_LANDING_PAGES, SEO_LANDING_PATHS } = env.load("lib/seoLandingPages");
   const { I18nProvider } = env.load("contexts/I18nContext");
   const SeoLandingPage = env.load("components/SeoLandingPage").default;
-  const others = SEO_LANDING_PATHS.filter((path) => path !== "/pomodoro" && path !== "/planning-revision");
-  assert.equal(others.length, 4);
+  // /pomodoro : son outil (tests ci-dessus) ; les trois autres : le nouveau gabarit.
+  const excluded = ["/pomodoro", "/planning-revision", "/stats-etude", "/objectifs-etude"];
+  const others = SEO_LANDING_PATHS.filter((path) => !excluded.includes(path));
+  assert.equal(others.length, 2);
   for (const path of others) assert.match(readFileSync(join(ROOT, `pages${path}.js`), "utf8"), /<SeoLandingPage /, path);
   for (const path of others) {
     const page = SEO_LANDING_PAGES[path];

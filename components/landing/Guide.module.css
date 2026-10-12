@@ -1,4 +1,5 @@
-/* ── Guides : gabarit éditorial (pilote /planning-revision) ──────────────────
+/* ── Guides : gabarit éditorial (/planning-revision, /stats-etude,
+   /objectifs-etude) ────────────────────────────────────────────────────────
    Complète Landing.module.css (en-tête, grille, boutons, appel final) sans en
    modifier une règle : l'accueil et les autres pages publiques ne chargent pas
    ce fichier. Couleurs : rôles --bt-* seulement. Aucune animation propre ;
@@ -31,6 +32,36 @@
   .copy { margin-top: 28px; }
   .figure { margin-top: 32px; }
   .answer { margin-top: 64px; }
+}
+
+/* Panorama (Stats) : l'introduction et la réponse courte côte à côte, puis
+   l'écran en grand sur toute la largeur — les graphiques avant tout. */
+@media (min-width: 1120px) {
+  .topGrid.layoutPanorama {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "intro intro" "copy answer" "figure figure";
+  }
+  .layoutPanorama .answer { display: block; margin-top: 28px; padding-top: 24px; }
+  .layoutPanorama .answerText { margin-top: 10px; font-size: 1.25rem; }
+  .layoutPanorama .figure { margin-top: 56px; }
+}
+
+/* Panneau (Objectifs) : la progression réelle sur le vert clair de l'accueil
+   (« Sur téléphone et ordinateur »), à gauche de l'introduction. */
+.layoutPanel .figure {
+  padding: 16px;
+  border-radius: var(--bt-r-sheet);
+  background-color: var(--bt-brand-surface);
+}
+@media (min-width: 768px) { .layoutPanel .figure { padding: 24px; } }
+/* Tablette : la capture est presque carrée, pleine largeur elle remplirait
+   l'écran. */
+@media (min-width: 640px) and (max-width: 1119px) { .layoutPanel .figure { max-width: 640px; } }
+@media (min-width: 1120px) {
+  .topGrid.layoutPanel {
+    grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
+    grid-template-areas: "intro intro" "figure copy" "answer answer";
+  }
 }
 
 .title {
@@ -117,6 +148,40 @@
   .screen { max-width: none; aspect-ratio: 1168 / 814; border-radius: 22px; }
 }
 
+/* Le même cadre pour toute autre capture : sa hauteur suit les dimensions de
+   l'image servie (attributs width/height de l'image et de la version
+   téléphone), réservées avant le chargement. */
+.frame {
+  display: block;
+  overflow: hidden;
+  border-radius: 18px;
+  background-color: var(--bt-bg);
+  border: 1px solid var(--bt-border);
+  box-shadow: var(--bt-elev-2);
+}
+.frame img { display: block; width: 100%; height: auto; }
+@media (min-width: 640px) { .frame { border-radius: 22px; } }
+
+/* Une première section illustrée (Stats) : le texte et une carte réelle côte
+   à côte, puis une carte sur toute la largeur. */
+.wide { display: grid; gap: 32px; padding-top: 64px; }
+.wideText { min-width: 0; max-width: 42rem; }
+.wideSide, .wideFull { min-width: 0; margin: 0; }
+.wideSide { max-width: 460px; }
+@media (min-width: 1024px) {
+  .wide {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+    grid-template-areas: "text side" "full full";
+    column-gap: 64px;
+    row-gap: 48px;
+    align-items: start;
+    padding-top: 96px;
+  }
+  .wideText { grid-area: text; }
+  .wideSide { grid-area: side; max-width: none; margin-top: 8px; }
+  .wideFull { grid-area: full; }
+}
+
 /* ── Article ─────────────────────────────────────────────────────────── */
 .body { display: grid; gap: 56px; padding-block: 64px 72px; }
 @media (min-width: 1024px) {
@@ -161,15 +226,23 @@
   font-variant-numeric: tabular-nums;
   color: var(--bt-brand-text);
 }
-.bullets { display: grid; gap: 10px; margin-top: 20px; }
-.bullet { position: relative; padding-left: 20px; font-size: 1.0625rem; line-height: 1.6; color: var(--bt-text-2); }
+/* Une liste sans ordre (des données, des critères) : mêmes filets, un point. */
+.bullets { margin-top: 24px; border-top: 1px solid var(--bt-border); }
+.bullet {
+  position: relative;
+  padding: 14px 0 14px 24px;
+  border-bottom: 1px solid var(--bt-border);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--bt-text-1);
+}
 .bullet::before {
   content: "";
   position: absolute;
-  left: 2px;
-  top: 0.7em;
-  width: 6px;
-  height: 6px;
+  left: 4px;
+  top: calc(14px + 0.5em);
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background-color: var(--bt-brand-primary);
 }

@@ -11,8 +11,9 @@ import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 
 // Gabarit éditorial des guides, sur la grammaire de l'accueil : même en-tête,
 // même grille, mêmes boutons et même appel final (Landing.module.css).
-// Pilote : /planning-revision. Les autres guides gardent SeoLandingPage
-// jusqu'à leur propre passage.
+// /planning-revision (pilote), /stats-etude et /objectifs-etude ; chaque guide
+// choisit sa composition (LAYOUT ci-dessous) selon ce qu'il montre du produit.
+// Les autres guides gardent SeoLandingPage jusqu'à leur propre passage.
 //
 // Le texte, les titres et les liens sont ceux de lib/seoLandingPages(.En).js,
 // mot pour mot : seule la mise en page change. Meta et JSON-LD restent dans
@@ -20,9 +21,9 @@ import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 // français pour tout visiteur non connecté, anglais sur choix manuel ou pour
 // un compte anglophone (I18nContext).
 //
-// Trois surfaces seulement, chacune pour une raison : la vraie capture du
-// produit, l'encadré « dans Blocus Tracker » à côté de l'article et l'appel
-// final. Le reste tient par l'espace, les filets et la typographie.
+// Peu de surfaces, chacune pour une raison : les vraies captures du produit,
+// l'encadré « dans Blocus Tracker » à côté de l'article et l'appel final. Le
+// reste tient par l'espace, les filets et la typographie.
 
 // Chaînes de la coquille, reprises telles quelles de SeoLandingPage (même texte
 // visible). Elles partiront avec lui, une fois le dernier guide migré.
@@ -80,14 +81,59 @@ function Check() {
   );
 }
 
-export default function GuideArticle({ page }) {
+// Une liste de section : numérotée quand ce sont des étapes, à filets sinon.
+function SectionList({ section }) {
+  if (!section.bullets?.length) return null;
+  const ordered = section.ordered === true;
+  const List = ordered ? "ol" : "ul";
+  return (
+    // role="list" : Safari retire la sémantique de liste à une liste sans
+    // puces natives.
+    <List role="list" className={ordered ? g.steps : g.bullets}>
+      {section.bullets.map((item) => (
+        <li key={item} className={ordered ? g.step : g.bullet}>{item}</li>
+      ))}
+    </List>
+  );
+}
+
+// La composition du haut de page, choisie par chaque guide selon ce qu'il
+// montre du produit :
+// - "screen" : l'introduction et un écran de l'app côte à côte (Planning) ;
+// - "panorama" : l'introduction et la réponse courte côte à côte, puis un
+//   écran en grand sur toute la largeur (Stats : les graphiques) ;
+// - "panel" : la capture dans un panneau vert, à gauche de l'introduction
+//   (Objectifs : la progression).
+const LAYOUT = {
+  screen: { className: "", sizes: "(min-width: 1120px) 550px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)", mobileSizes: "calc(100vw - 40px)" },
+  panorama: { className: g.layoutPanorama, sizes: "(min-width: 1120px) 1056px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)", mobileSizes: "calc(100vw - 40px)" },
+  panel: { className: g.layoutPanel, sizes: "(min-width: 1120px) 520px, (min-width: 768px) min(592px, calc(100vw - 112px)), min(608px, calc(100vw - 72px))", mobileSizes: "calc(100vw - 72px)" },
+};
+
+export default function GuideArticle({ page, layout = "screen" }) {
   const { lang } = useI18n();
   const isEn = lang === "en";
   const ui = isEn ? UI.en : UI_FR;
   const en = isEn ? SEO_LANDING_PAGES_EN[page.path] : null;
   const p = en ? { ...page, ...en } : typeset(page);
-  // La version anglaise ne redéclare que le texte alternatif de la capture.
+  const composition = LAYOUT[layout] || LAYOUT.screen;
+  // La version anglaise ne redéclare que les textes alternatifs des captures :
+  // les noms des captures et la forme des listes viennent de la version
+  // française, section par section.
   const shot = page.productShot ? { ...(isEn ? page.productShot : p.productShot), ...(en?.productShot || {}) } : null;
+  const sections = !en ? p.sections : p.sections.map((section, index) => {
+    const fr = page.sections[index] || {};
+    return {
+      ...section,
+      ordered: section.ordered ?? fr.ordered,
+      figures: fr.figures?.map((figure, k) => ({ ...figure, ...(section.figures?.[k] || {}) })),
+    };
+  });
+  // Une première section illustrée (Stats : les données à suivre et leurs
+  // vraies cartes) prend toute la largeur, avant la colonne de lecture.
+  const wide = sections[0]?.figures?.length ? sections[0] : null;
+  const prose = wide ? sections.slice(1) : sections;
+  const offset = wide ? 1 : 0;
 
   return (
     <div className={`${s.page} font-sans`}>
@@ -100,7 +146,7 @@ export default function GuideArticle({ page }) {
               Téléphone et tablette : titre, introduction, réponse courte, puis
               la capture — la réponse arrive avant l'image. */}
           <div className={g.top}>
-            <div className={`${s.container} ${g.topGrid} ${shot ? "" : g.topSolo}`}>
+            <div className={`${s.container} ${g.topGrid} ${shot ? "" : g.topSolo}${composition.className ? ` ${composition.className}` : ""}`}>
               <header className={g.intro}>
                 <p className={s.eyebrow}>{p.eyebrow}</p>
                 <h1 className={g.title}>{p.h1}</h1>
@@ -135,38 +181,53 @@ export default function GuideArticle({ page }) {
                     mobile={shot.mobile}
                     alt={shot.alt}
                     priority
-                    sizes="(min-width: 1120px) 550px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)"
-                    mobileSizes="calc(100vw - 40px)"
-                    className={g.screen}
+                    sizes={composition.sizes}
+                    mobileSizes={composition.mobileSizes}
+                    className={layout === "screen" ? g.screen : g.frame}
                   />
                 </figure>
               )}
             </div>
           </div>
 
+          {wide && (
+            <section className={`${s.container} ${g.wide}`} aria-labelledby="guide-section-1">
+              <div className={g.wideText}>
+                <h2 id="guide-section-1" className={`${g.h2} ${s.display}`}>{wide.title}</h2>
+                {wide.body.map((paragraph) => (
+                  <p key={paragraph} className={g.paragraph}>{paragraph}</p>
+                ))}
+                <SectionList section={wide} />
+              </div>
+              {wide.figures.map((figure, k) => (
+                <figure key={figure.name} className={k === 0 ? g.wideSide : g.wideFull}>
+                  <Shot
+                    lang={lang}
+                    name={figure.name}
+                    mobile={figure.mobile}
+                    alt={figure.alt}
+                    sizes={k === 0 ? "(min-width: 1024px) 420px, calc(100vw - 40px)" : "(min-width: 1120px) 1056px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)"}
+                    mobileSizes="calc(100vw - 40px)"
+                    className={g.frame}
+                  />
+                </figure>
+              ))}
+            </section>
+          )}
+
           {/* L'article dans une colonne de lecture ; à côté, sur ordinateur,
               ce que l'app fait du sujet, qui suit la lecture sous l'en-tête. */}
           <div className={`${s.container} ${g.body}`}>
             <div className={g.prose}>
-              {p.sections.map((section, index) => {
-                const id = `guide-section-${index + 1}`;
-                const ordered = section.ordered === true;
-                const List = ordered ? "ol" : "ul";
+              {prose.map((section, index) => {
+                const id = `guide-section-${index + 1 + offset}`;
                 return (
                   <section key={section.title} aria-labelledby={id}>
                     <h2 id={id} className={`${g.h2} ${s.display}`}>{section.title}</h2>
                     {section.body.map((paragraph) => (
                       <p key={paragraph} className={g.paragraph}>{paragraph}</p>
                     ))}
-                    {section.bullets?.length > 0 && (
-                      // role="list" : Safari retire la sémantique de liste à une
-                      // liste sans puces natives.
-                      <List role="list" className={ordered ? g.steps : g.bullets}>
-                        {section.bullets.map((item) => (
-                          <li key={item} className={ordered ? g.step : g.bullet}>{item}</li>
-                        ))}
-                      </List>
-                    )}
+                    <SectionList section={section} />
                   </section>
                 );
               })}

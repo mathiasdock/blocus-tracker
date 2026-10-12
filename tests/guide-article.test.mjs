@@ -35,7 +35,8 @@ function makeEnv({ deviceLanguage = "en-US", langPref = null } = {}) {
   };
   // Les modules CSS rendent leur nom de classe ; l'en-tête, le pied et la
   // mascotte sont des doublures (leur rendu est testé ailleurs).
-  const cssModule = new Proxy({}, { get: (_, key) => (typeof key === "string" ? key : undefined) });
+  // Pas de « __esModule » : l'import par défaut reçoit bien la doublure.
+  const cssModule = new Proxy({}, { get: (_, key) => (typeof key === "string" && key !== "__esModule" ? key : undefined) });
   const mocks = {
     "contexts/AuthContext": { useAuth: () => ({ user: null, loading: true }) },
     "next/router": { useRouter: () => ({ pathname: PATH, asPath: PATH }) },
@@ -208,4 +209,151 @@ test("pilote : français sous un navigateur anglais, anglais sur choix manuel", 
   assert.match(img.props.src, /\/site-web\/v2\/en\/guide-planning-month-1200\.webp/);
   assert.match(root.findByType("source").props.srcSet, /\/en\/guide-planning-month-mobile-600\.webp/);
   act(() => renderer.unmount());
+});
+
+// ── /stats-etude et /objectifs-etude : même gabarit, compositions propres ──
+const GUIDES = {
+  "/stats-etude": { file: "pages/stats-etude", hero: "guide-stats-overview", ordered: false },
+  "/objectifs-etude": { file: "pages/objectifs-etude", hero: "guide-goals-progress", ordered: true },
+};
+
+test("stats et objectifs : même H1, mêmes H2/H3 dans le même ordre, même texte et mêmes liens que l'ancien gabarit", () => {
+  const env = makeEnv();
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const Old = env.load("components/SeoLandingPage").default;
+  for (const [path, guide] of Object.entries(GUIDES)) {
+    const page = SEO_LANDING_PAGES[path];
+    const html = render(env, env.load(guide.file).default);
+    const before = render(env, Old, { page });
+    assert.deepEqual(tags(html, "h1"), [page.h1], path);
+    for (const tag of ["h1", "h2", "h3"]) assert.deepEqual(tags(html, tag), tags(before, tag), `${path} ${tag}`);
+    assert.deepEqual(links(html), links(before), path);
+    const visible = text(html);
+    const editorial = [page.eyebrow, page.lead, page.shortAnswer, page.ctaLabel, page.secondaryCtaLabel,
+      ...page.proofPoints, ...page.sections.flatMap((s) => [s.title, ...s.body, ...(s.bullets || [])]),
+      page.featurePanel.title, ...page.featurePanel.items, ...page.related.flatMap((r) => [r.label, r.text]),
+      ...page.faq.flatMap((q) => [q.q, q.a])];
+    for (const chunk of editorial) assert.ok(visible.includes(norm(chunk)), `${path} : ${chunk}`);
+    for (const shell of ["Inclus", "Créer mon espace", "Lancer le chrono", "Créer un compte", "Réponse courte"]) {
+      assert.ok(visible.includes(shell) && text(before).includes(shell), `${path} : ${shell}`);
+    }
+    assert.doesNotMatch(html, /seo-preview/, path);
+  }
+});
+
+test("stats : les vrais graphiques en panorama, puis deux cartes réelles à côté de la liste des données", () => {
+  const env = makeEnv();
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const { SHOTS } = env.load("lib/siteShots.cjs");
+  const page = SEO_LANDING_PAGES["/stats-etude"];
+  const html = render(env, env.load("pages/stats-etude").default);
+  const imgs = [...html.matchAll(/<img [^>]*>/g)].map((m) => ({ src: m[0].match(/src="([^"]+)"/)[1], alt: decode(m[0].match(/alt="([^"]+)"/)[1]), eager: /loading="eager"/.test(m[0]) }));
+  assert.deepEqual(imgs.map((i) => i.src), [
+    "/site-web/v2/fr/guide-stats-overview-1200.webp",
+    "/site-web/v2/fr/guide-stats-records-900.webp",
+    "/site-web/v2/fr/guide-stats-regularity-1200.webp",
+  ]);
+  // Seule la capture du haut est chargée tout de suite.
+  assert.deepEqual(imgs.map((i) => i.eager), [true, false, false]);
+  const alts = [page.productShot.alt, ...page.sections[0].figures.map((f) => f.alt)].map((a) => a.replace(/ :/g, " :"));
+  assert.deepEqual(imgs.map((i) => i.alt), alts);
+  assert.match(html, /<source media="\(max-width: 639px\)" srcSet="\/site-web\/v2\/fr\/guide-stats-overview-mobile-600\.webp 600w/);
+  assert.match(html, /<source media="\(max-width: 639px\)" srcSet="\/site-web\/v2\/fr\/guide-stats-regularity-mobile-600\.webp 600w/);
+  // Les données à suivre : une liste à filets, pas d'étapes numérotées.
+  assert.equal((html.match(/<ol[\s>]/g) || []).length, 0);
+  const ul = html.match(/<ul role="list" class="bullets">([\s\S]*?)<\/ul>/);
+  assert.ok(ul, "liste des données");
+  assert.deepEqual(tags(ul[1], "li"), plain(page.sections[0].bullets).map(norm));
+  // La première section, illustrée, précède les autres et garde son titre.
+  assert.ok(html.indexOf(page.sections[0].title) < html.indexOf("guide-stats-records") && html.indexOf("guide-stats-regularity") < html.indexOf(page.sections[1].title));
+  for (const name of ["guide-stats-overview", "guide-stats-overview-mobile", "guide-stats-records", "guide-stats-regularity", "guide-stats-regularity-mobile"]) {
+    for (const lang of ["fr", "en"]) for (const width of SHOTS[name].widths) {
+      assert.ok(existsSync(join(ROOT, "public/site-web/v2", lang, `${name}-${width}.webp`)), `${lang}/${name}-${width}`);
+    }
+  }
+});
+
+test("objectifs : la progression réelle dans le panneau, la méthode pour écrire un objectif en étapes numérotées", () => {
+  const env = makeEnv();
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const { SHOTS } = env.load("lib/siteShots.cjs");
+  const page = SEO_LANDING_PAGES["/objectifs-etude"];
+  const html = render(env, env.load("pages/objectifs-etude").default);
+  const img = html.match(/<img [^>]*>/g);
+  assert.equal(img.length, 1);
+  assert.match(img[0], /src="\/site-web\/v2\/fr\/guide-goals-progress-1200\.webp"/);
+  assert.match(img[0], /loading="eager"/);
+  assert.equal(decode(img[0].match(/alt="([^"]+)"/)[1]), page.productShot.alt.replace(/ :/g, " :"));
+  assert.match(html, /<source media="\(max-width: 639px\)" srcSet="\/site-web\/v2\/fr\/guide-goals-progress-mobile-600\.webp 600w/);
+  assert.match(html, /class="[^"]*layoutPanel/);
+  const ol = html.match(/<ol[^>]*>([\s\S]*?)<\/ol>/);
+  assert.ok(ol, "liste numérotée");
+  assert.deepEqual(tags(ol[1], "li"), plain(page.sections[0].bullets).map(norm));
+  for (const name of ["guide-goals-progress", "guide-goals-progress-mobile"]) {
+    for (const lang of ["fr", "en"]) for (const width of SHOTS[name].widths) {
+      assert.ok(existsSync(join(ROOT, "public/site-web/v2", lang, `${name}-${width}.webp`)), `${lang}/${name}-${width}`);
+    }
+  }
+});
+
+test("stats et objectifs : meta, canonical et JSON-LD inchangés, FAQ visible = FAQ du JSON-LD", () => {
+  const env = makeEnv();
+  const { getSeoForPath, structuredDataForPath } = env.load("lib/seo");
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const expected = {
+    "/stats-etude": "Statistiques d'étude | Suivre son temps de révision",
+    "/objectifs-etude": "Objectifs d'étude | Fixer des objectifs de révision réalistes",
+  };
+  for (const [path, guide] of Object.entries(GUIDES)) {
+    const page = SEO_LANDING_PAGES[path];
+    const seo = getSeoForPath(path);
+    assert.equal(seo.title, expected[path]);
+    assert.equal(seo.canonicalUrl, `https://www.blocus-tracker.com${path}`);
+    assert.match(seo.robots, /^index, follow/);
+    const nodes = JSON.parse(JSON.stringify(structuredDataForPath(path)));
+    assert.deepEqual(nodes.map((n) => n["@type"]), ["Organization", "WebSite", "WebPage", "Article", "FAQPage", "BreadcrumbList"]);
+    const article = nodes.find((n) => n["@type"] === "Article");
+    assert.equal(article.headline, page.h1);
+    assert.match(article.image, /\/seo-preview\.png/);
+    assert.ok(!JSON.stringify(nodes).includes("guide-"), `${path} : aucune capture dans le JSON-LD`);
+    const faq = nodes.find((n) => n["@type"] === "FAQPage");
+    assert.deepEqual(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), plain(page.faq.map((q) => [q.q, q.a])));
+    const visible = text(render(env, env.load(guide.file).default));
+    for (const q of faq.mainEntity) assert.ok(visible.includes(norm(q.name)) && visible.includes(norm(q.acceptedAnswer.text)), q.name);
+  }
+});
+
+test("stats et objectifs : anglais sur choix manuel, captures et textes alternatifs anglais", () => {
+  for (const [path, guide] of Object.entries(GUIDES)) {
+    const env = makeEnv({ deviceLanguage: "fr-BE", langPref: "en" });
+    const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
+    const { I18nProvider } = env.load("contexts/I18nContext");
+    const Page = env.load(guide.file).default;
+    let renderer;
+    act(() => { renderer = create(h(I18nProvider, null, h(Page))); });
+    const root = renderer.root;
+    const enPage = SEO_LANDING_PAGES_EN[path];
+    assert.equal(flat(root.findByType("h1").props.children), enPage.h1, path);
+    const all = flat(renderer.toJSON());
+    for (const chunk of [enPage.shortAnswer, ...enPage.sections[0].bullets, "Short answer", "Start the timer"]) assert.ok(all.includes(chunk), `${path} : ${chunk}`);
+    const imgs = root.findAllByType("img");
+    assert.equal(imgs[0].props.alt, enPage.productShot.alt, path);
+    assert.match(imgs[0].props.src, new RegExp(`/site-web/v2/en/${guide.hero}-1200\\.webp`));
+    if (path === "/stats-etude") assert.deepEqual(imgs.slice(1).map((i) => i.props.alt), plain(enPage.sections[0].figures.map((f) => f.alt)));
+    assert.equal(root.findAllByType("ol").length, guide.ordered ? 1 : 0, path);
+    act(() => renderer.unmount());
+  }
+});
+
+test("ancien gabarit : « Créer mon espace » reste lisible en thème sombre, et identique en clair", () => {
+  const source = readFileSync(join(ROOT, "components/SeoLandingPage.js"), "utf8");
+  const pill = source.match(/<Link href="\/signup" className="[^"]*bg-white[^"]*" style=\{\{ color: "var\((--bt-[a-z-]+)\)" \}\}>/);
+  assert.ok(pill, "bouton blanc de l'encadré");
+  const token = pill[1];
+  const css = readFileSync(join(ROOT, "styles/colors.css"), "utf8");
+  const values = [...css.matchAll(new RegExp(`${token}:\\s*(#[0-9A-Fa-f]{6})`, "g"))].map((m) => m[1].toUpperCase());
+  assert.equal(values.length, 1, `${token} : une seule valeur, aucun remplacement en sombre`);
+  assert.equal(values[0], "#2D6A4F", "même vert qu'avant en thème clair");
+  const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  assert.ok((1.05) / (lum(values[0]) + 0.05) >= 4.5, "contraste ≥ 4,5:1 sur blanc");
 });
