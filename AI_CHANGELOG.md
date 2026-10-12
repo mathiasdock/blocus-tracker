@@ -1,5 +1,11 @@
 # AI_CHANGELOG.md
 
+## 2026-10-12 — Codex — Publication du correctif Records / Habitudes retrouvé
+
+- Travail approuvé du 7 octobre retrouvé non commité dans `codex/stats-insight-cards` (base `870da33`), absent de `origin/main` et de la production `535261f`. Repris dans un worktree propre basé sur `origin/main`, sans réécriture des composants : fichiers de rendu, CSS et tests identiques au travail retrouvé ; six traductions FR/EN ajoutées sans écraser les ajouts récents.
+- Records : session la plus longue en tête, journée → semaine → mois en ligne ouverte, total séparé. Habitudes : vrai créneau dominant, quatre barres et quatre faits compacts. Aucun sous-cadre, nouvelle animation, calcul, requête ou règle changé. Les deux cartes s'étirent à la même hauteur côte à côte ; hauteur naturelle sur mobile. Actions des cours archivés conservées.
+- Validation sur le `main` actuel : 34 tests Stats ciblés, 810 tests complets, lint sans avertissement/erreur et build production réussis. Avertissement de précache PWA 3 MB préexistant ; aucun secret copié. Publication isolée ; aucun fichier public/SEO, modification locale ou commit non publié de Claude intégré.
+
 ## 2026-10-12 — Claude Code — README GitHub actualisé (commit local, non poussé)
 
 - Le README public décrivait encore la première version : connexion par pseudo seule, fil de photos, et des notes techniques sur l'authentification et les règles d'accès. Il présente maintenant Blocus Tracker : à qui il s'adresse, Chrono Libre/Pomodoro, Focus, mode découverte, `/pomodoro`, planning, objectifs, statistiques, progression, fonctions sociales, gratuité, PWA, liens officiels. Chaque point a été vérifié dans le code ou dans les textes publics déjà validés (`lib/landingContent.js`, FAQ de `lib/seo.js`).

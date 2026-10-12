@@ -1,9 +1,9 @@
 import { useState } from "react";
 import Glyph from "../Glyph";
 import ArchivedCourses from "./ArchivedCourses";
-import { StatRow } from "./StudyHabits";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatStudyTime } from "../../lib/format";
+import styles from "./StudySummary.module.css";
 
 // « Qu'ai-je déjà accompli ? » — HISTORIQUE.
 //
@@ -29,16 +29,33 @@ export default function StudyHistory({
   if (!hasRecords && archived.length === 0) return null;
 
   return (
-    <section className={`card p-4 sm:p-5 ${className}`}>
+    <section className={`card p-4 sm:p-5 ${styles.summary} ${className}`}>
       {hasRecords && (
         <>
           <h2 className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("stats.recordsTitle")}</h2>
-          <dl className="mt-2">
-            <StatRow label={t("stats.perfLongest")} value={formatStudyTime(insights.longestSessionSecs)} />
-            <StatRow label={t("stats.perfBestDay")} value={formatStudyTime(insights.bestDaySecs)} />
-            <StatRow label={t("stats.recBestWeek")} value={formatStudyTime(insights.bestWeekSecs)} />
-            <StatRow label={t("stats.recBestMonth")} value={formatStudyTime(insights.bestMonthSecs)} />
-            <StatRow label={t("stats.recTotal")} value={formatStudyTime(allTimeSecs)} />
+          <dl>
+            <div className={styles.mainRecord}>
+              <dt className={styles.recordLabel}>
+                {t("stats.perfLongest")}
+              </dt>
+              <dd className={`font-num ${styles.mainValue}`}>{formatStudyTime(insights.longestSessionSecs)}</dd>
+            </div>
+          </dl>
+          <dl className={styles.periodRecords}>
+            {[
+              ["stats.recordDay", "stats.perfBestDay", insights.bestDaySecs],
+              ["stats.recordWeek", "stats.recBestWeek", insights.bestWeekSecs],
+              ["stats.recordMonth", "stats.recBestMonth", insights.bestMonthSecs],
+            ].map(([label, accessibleLabel, seconds]) => <div key={label} className={styles.periodRecord}>
+              <dt className={styles.periodLabel} aria-label={t(accessibleLabel)}>{t(label)}</dt>
+              <dd className={`font-num ${styles.periodValue}`}>{formatStudyTime(seconds)}</dd>
+            </div>)}
+          </dl>
+          <dl>
+            <div className={styles.totalRecord}>
+              <dt>{t("stats.recTotal")}</dt>
+              <dd className={`font-num ${styles.totalValue}`}>{formatStudyTime(allTimeSecs)}</dd>
+            </div>
           </dl>
         </>
       )}

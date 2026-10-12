@@ -1,0 +1,173 @@
+.summary {
+  align-self: stretch;
+  width: 100%;
+}
+
+.mainRecord {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 20px;
+}
+
+.recordLabel {
+  color: var(--bt-text-1);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.mainValue {
+  margin: 0;
+  color: var(--bt-text-1);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Day → week → month is a sequence of measured periods, not three widgets. */
+.periodRecords {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.periodRecord {
+  min-width: 0;
+}
+
+.periodLabel {
+  color: var(--bt-text-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.periodValue {
+  margin: 6px 0 0;
+  color: var(--bt-text-1);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.totalRecord {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 24px;
+  color: var(--bt-text-2);
+  font-size: 13px;
+}
+
+.totalValue {
+  margin: 0;
+  color: var(--bt-text-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.habitsLead {
+  margin: 16px 0 0;
+  color: var(--bt-text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dominantPeriod {
+  color: var(--bt-text-1);
+  font-weight: 700;
+}
+
+.slots {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.slot {
+  display: grid;
+  grid-template-columns: minmax(76px, auto) minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 12px;
+}
+
+.slotLabel {
+  color: var(--bt-text-2);
+  font-size: 12px;
+}
+
+.slot[data-dominant="true"] .slotLabel {
+  color: var(--bt-text-1);
+  font-weight: 700;
+}
+
+.slotTrack {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--bt-r-inset);
+  background: var(--bt-subtle);
+}
+
+.slotFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bt-data-study);
+}
+
+.slot[data-dominant="true"] .slotFill {
+  background: var(--bt-data-text);
+}
+
+.slotShare {
+  color: var(--bt-text-1);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot[data-dominant="true"] .slotShare {
+  font-weight: 700;
+}
+
+.habitsFacts {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bt-border);
+}
+
+.habitFact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.factLabel {
+  min-width: 0;
+  color: var(--bt-text-2);
+}
+
+.factValue {
+  flex-shrink: 0;
+  margin: 0;
+  color: var(--bt-text-1);
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
