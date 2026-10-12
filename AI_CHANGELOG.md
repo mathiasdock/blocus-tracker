@@ -1,5 +1,12 @@
 # AI_CHANGELOG.md
 
+## 2026-10-12 — Codex — Podium Stats affiné — LOCAL NOT DEPLOYED
+
+- `components/Leaderboard.js` + `Leaderboard.module.css` : composition 2 · 1 · 3 conservée, trois marches fines jointives or/argent/bronze pour le rang seulement, avatar et marche du premier plus grands. Couronnes, anneaux métalliques et capsules de durée retirés ; valeurs exactes en encre normale, noms sur deux lignes avec nom complet accessible et au survol, rang réel annoncé. Actions de profil, repère personnel, bulle de niveau, métriques, filtres et requête existants conservés.
+- Une apparition à la première vue (240 ms, opacité 0,6 → 1, décalage 6 px → 0) ; repère partagé pour ne pas la rejouer après un filtre. Aucun compteur animé sur le podium ; contenu statique sous mouvement réduit ou sans API d'animation.
+- Validation locale hors ligne : 823 tests dont 13 nouveaux tests du podium, lint et build production réussis. Navigateur 1440/1280/320/390 px, EN clair et FR sombre, noms longs, profil au clavier, régularité mobile sans débordement. Contraste des chiffres de rang : or 4,53:1, argent 5,36:1, bronze 3,88:1 (grands caractères gras). Revue finale SHIP, aucun correctif matériel demandé.
+- Brief Stats et seule ligne de consolidation du podium dans `DESIGN.md` mis à jour ; aucun système global ou sidecar régénéré. Travail local non déployé. Avertissement de précache PWA 3 MB et configuration d'environnement absente du worktree préexistants ; aucun secret copié, aucune donnée de production utilisée.
+
 ## 2026-10-12 — Codex — Publication du correctif Records / Habitudes retrouvé
 
 - Travail approuvé du 7 octobre retrouvé non commité dans `codex/stats-insight-cards` (base `870da33`), absent de `origin/main` et de la production `535261f`. Repris dans un worktree propre basé sur `origin/main`, sans réécriture des composants : fichiers de rendu, CSS et tests identiques au travail retrouvé ; six traductions FR/EN ajoutées sans écraser les ajouts récents.

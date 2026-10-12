@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "./Layout";
 import { SkeletonList } from "./Skeleton";
 import EmptyState from "./EmptyState";
@@ -9,6 +9,7 @@ import { loadUserLevelMap } from "../lib/userLevels";
 import AnimatedNumber from "./AnimatedNumber";
 import FilterMenu from "./FilterMenu";
 import Flame from "./Flame";
+import styles from "./Leaderboard.module.css";
 
 // ── RankBadge ────────────────────────────────────────────────
 // Rang : un numéro, pas une médaille. Le podium or / argent / bronze habillait
@@ -30,10 +31,10 @@ export function RankBadge({ rank, isMe = false }) {
 // Le niveau n'est plus une pastille à côté du nom (elle poussait les noms
 // longs à la troncature) : c'est une petite bulle posée en bas à droite du
 // visage, comme une notification. Même encre que le sceau de niveau du profil.
-function RankAvatar({ row, size, level, medal, small = false, t }) {
+function RankAvatar({ row, size, level, small = false, t }) {
   return (
     <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
-      <span className="block rounded-full" style={medal ? { boxShadow: `0 0 0 2px var(--bt-surface), 0 0 0 4px ${medal.ring}` } : undefined}>
+      <span className="block rounded-full">
         <Avatar url={row.avatar_url} pseudo={row.name} size={size} />
       </span>
       {level > 0 && (
@@ -47,52 +48,54 @@ function RankAvatar({ row, size, level, medal, small = false, t }) {
 }
 
 // ── Podium ───────────────────────────────────────────────────
-// Demande de Mathias (2026-09-23, référence image) : un VRAI podium. Trois
-// marches de hauteurs différentes (2 · 1 · 3), chacune dans son métal avec son
-// numéro gravé ; au-dessus, le visage cerclé du même métal et coiffé d'une
-// couronne, le nom, puis le temps dans une pastille. Les métaux restent sur
-// l'objet du rang (marche, anneau, couronne) ; le temps garde l'encre verte.
-const MEDALS = {
-  1: { ring: "#E4B63C", crown: ["#FFE08A", "#E0A91E"], step: "bt-lb-step-gold", h: 76 },
-  2: { ring: "#B8C1CA", crown: ["#F1F4F7", "#A9B4BF"], step: "bt-lb-step-silver", h: 56 },
-  3: { ring: "#CF915F", crown: ["#F3C49B", "#C47C45"], step: "bt-lb-step-bronze", h: 42 },
-};
+// The metal belongs to the rank object only. Faces, names and exact quantities
+// stay unframed. One short reveal on first sight, never on each filter result.
+export function Podium({ entries, levelOf, userId, onViewUser, Value, t, entrancePlayedRef }) {
+  const podiumRef = useRef(null);
+  const localEntranceRef = useRef(false);
+  const played = entrancePlayedRef || localEntranceRef;
+  useEffect(() => {
+    const node = podiumRef.current;
+    if (!node || played.current) return undefined;
+    let animation;
+    const reveal = () => {
+      if (played.current) return;
+      played.current = true;
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || !node.animate) return;
+      animation = node.animate([
+        { opacity: 0.6, transform: "translateY(6px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ], { duration: 240, easing: "cubic-bezier(0.23, 1, 0.32, 1)" });
+    };
+    if (!window.IntersectionObserver) {
+      reveal();
+      return () => animation?.cancel();
+    }
+    const observer = new window.IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { reveal(); observer.disconnect(); }
+    }, { threshold: 0.2 });
+    observer.observe(node);
+    return () => { observer.disconnect(); animation?.cancel(); };
+  }, [played]);
 
-function Crown({ rank }) {
-  const [a, b] = MEDALS[rank].crown;
-  const id = `bt-crown-${rank}`;
-  return (
-    <svg width="30" height="24" viewBox="0 0 30 24" aria-hidden="true" className="block">
-      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={a} /><stop offset="1" stopColor={b} /></linearGradient></defs>
-      <path d="M3 8.5 9.2 13 15 3.5 20.8 13 27 8.5 24.6 21H5.4Z" fill={`url(#${id})`} stroke="rgba(60,40,5,.25)" strokeWidth=".8" strokeLinejoin="round" />
-      <circle cx="3" cy="8" r="1.8" fill={b} /><circle cx="15" cy="3" r="1.8" fill={b} /><circle cx="27" cy="8" r="1.8" fill={b} />
-      <text x="15" y="19" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#3A2A06" fontFamily="inherit">{rank}</text>
-    </svg>
-  );
-}
-
-function Podium({ entries, levelOf, userId, onViewUser, Value, t }) {
   const order = [entries[1], entries[0], entries[2]].filter(Boolean);
   return (
-    <ol className="bt-lb-podium mb-3 grid grid-cols-3 items-end" aria-label={t("stats.podiumLabel")}>
+    <ol ref={podiumRef} className={styles.podium} aria-label={t("stats.podiumLabel")}>
       {order.map(({ row, rank }) => {
         const first = rank === 1;
         const isMe = row.user_id === userId;
-        const medal = MEDALS[rank];
         return (
-          <li key={row.user_id} className="flex min-w-0 flex-col items-center">
+          <li key={row.user_id} value={rank} className={styles.place} data-rank={rank}>
             <button type="button" disabled={isMe} onClick={() => onViewUser(row.user_id)}
-              className="bt-lb-person flex w-full min-w-0 flex-col items-center px-1 pb-2 text-center">
-              <span className="relative flex flex-col items-center">
-                <span className="-mb-1.5 relative z-[1]"><Crown rank={rank} /></span>
-                <RankAvatar row={row} size={first ? 64 : 50} level={levelOf(row.user_id)} medal={medal} t={t} />
-              </span>
-              <span className="mt-2 w-full truncate text-xs font-semibold sm:text-sm" style={{ color: "var(--bt-text-1)" }}>
+              className={styles.person} title={row.name}>
+              <span className="sr-only">{rank}. </span>
+              <RankAvatar row={row} size={first ? 64 : 48} level={levelOf(row.user_id)} t={t} />
+              <span className={styles.name}>
                 {row.name}{isMe && <span className="font-normal"> {t("stats.me")}</span>}
               </span>
-              <span className="bt-lb-time mt-1 rounded-full px-2.5 py-0.5"><Value row={row} rank={rank} /></span>
+              <span className={styles.value}><Value row={row} rank={rank} staticValue /></span>
             </button>
-            <span className={`bt-lb-block ${medal.step} ${first ? "is-first" : ""} font-num`} style={{ height: medal.h }} aria-hidden="true">
+            <span className={`${styles.step} font-num`} aria-hidden="true">
               {rank}
             </span>
           </li>
@@ -150,6 +153,7 @@ export default function Leaderboard({
   const [levels,  setLevels]  = useState({});
   const [loading, setLoading] = useState(true);
   const [friendIds, setFriendIds] = useState([]);
+  const podiumEntrancePlayed = useRef(false);
 
   // Le sélecteur de métrique contraint la période : la série est
   // indépendante de la période, la régularité n'a pas de sens sur un jour.
@@ -248,8 +252,9 @@ export default function Leaderboard({
   ].filter(Boolean).join(" · ");
 
   // Valeur affichée à droite de chaque ligne, selon la métrique active.
-  function ValueCell({ row, rank }) {
-    const animate = rank <= 10;
+  function ValueCell({ row, rank, staticValue = false }) {
+    const animate = rank <= 10 && !staticValue;
+    const valueColor = staticValue ? "var(--bt-text-1)" : "var(--bt-accent-text)";
     // Encres lisibles : l'ambre (#D97706) et le vert (var(--bt-brand-text)) écrits en dur
     // tenaient 3,2:1 et 3,8:1 sur la carte. La flamme garde sa teinte chaude —
     // c'est elle qui dit « série » — et le nombre passe en encre de texte.
@@ -265,13 +270,13 @@ export default function Leaderboard({
     }
     if (metric === "regularity") {
       return (
-        <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
+        <span className="text-sm font-num font-semibold tabular-nums" style={{ color: valueColor }}>
           {animate ? <AnimatedNumber value={row.active_days} /> : row.active_days}/{periodDays} {t("stats.dayUnit")}
         </span>
       );
     }
     return (
-      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: "var(--bt-accent-text)" }}>
+      <span className="text-sm font-num font-semibold tabular-nums" style={{ color: valueColor }}>
         {animate
           ? <AnimatedNumber value={row.total_seconds} format={formatStudyTime} />
           : formatStudyTime(row.total_seconds)}
@@ -370,7 +375,7 @@ export default function Leaderboard({
         ) : (
           <>
           {podium.length > 0 && (
-            <Podium entries={podium} levelOf={levelOf} userId={user?.id} onViewUser={onViewUser} Value={ValueCell} t={t} />
+            <Podium entries={podium} levelOf={levelOf} userId={user?.id} onViewUser={onViewUser} Value={ValueCell} t={t} entrancePlayedRef={podiumEntrancePlayed} />
           )}
           <ul className="space-y-1">
             {visibleRows.map(({ row, rank, desktopOnly = false }) => {

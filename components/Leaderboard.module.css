@@ -1,0 +1,80 @@
+/* Rank metals are bounded object colours, not a reward or a study-time scale. */
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 2px;
+  margin: 16px 0 18px;
+}
+
+.place { display: flex; min-width: 0; flex-direction: column; align-items: center; }
+.person {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px 12px;
+  border-radius: var(--bt-r-inset);
+  color: var(--bt-text-1);
+  text-align: center;
+  transition: background-color 140ms ease-out;
+}
+.person:disabled { cursor: default; }
+.person:focus-visible { outline-offset: -2px; }
+.name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  width: 100%;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.value { margin-top: 3px; white-space: nowrap; }
+.value > span { font-size: 13px; }
+.place[data-rank="1"] .name { font-weight: 750; }
+
+.step {
+  display: flex;
+  width: 100%;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px 3px 2px 2px;
+  font-size: 24px;
+  font-weight: 750;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65), inset 0 -2px 0 rgba(0,0,0,.07);
+}
+.place[data-rank="1"] .step {
+  height: 70px;
+  border-radius: 8px 8px 2px 2px;
+  background: linear-gradient(180deg, #FBDC7C, #F1CD68);
+  color: #765315;
+  font-size: 30px;
+}
+.place[data-rank="2"] .step {
+  background: linear-gradient(180deg, #E9EDF1, #CCD3DA);
+  color: #46515C;
+}
+.place[data-rank="3"] .step {
+  height: 40px;
+  border-radius: 3px 8px 2px 2px;
+  background: linear-gradient(180deg, #F0BE93, #DBA578);
+  color: #70421F;
+}
+
+@media (min-width: 640px) {
+  .name { font-size: 14px; }
+  .value > span { font-size: 14px; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .person:not(:disabled):hover { background: var(--bt-subtle); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .person { transition: none; }
+}
