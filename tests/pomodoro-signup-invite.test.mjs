@@ -7,6 +7,7 @@ import {
   SIGNUP_INVITE_KEY, SIGNUP_INVITE_MIN_SECONDS, qualifiesForSignupInvite, rememberSignupInvite,
   signupInviteAtRest, signupInviteQuiet,
 } from "../lib/pomodoroSignupInvite.mjs";
+import { STRINGS } from "../lib/i18n.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-11T15:00:00+02:00");
@@ -39,15 +40,42 @@ test("au repos seulement : ni travail, ni pause, ni repos Pomodoro, ni Focus", (
   assert.equal(signupInviteAtRest({ ...rest, focusOpen: true }), false, "Focus");
 });
 
-test("vue ou fermée : silence 30 jours, puis le repère expiré est effacé", () => {
+test("vue à l'écran sans réponse : rappel possible après 7 jours, puis le repère expiré est effacé", () => {
   const storage = memoryStorage();
   assert.equal(signupInviteQuiet(storage, NOW), false);
   rememberSignupInvite(storage, "seen", NOW);
   assert.deepEqual(JSON.parse(storage.store.get(SIGNUP_INVITE_KEY)), { at: new Date(NOW).toISOString(), reason: "seen" });
   assert.equal(signupInviteQuiet(storage, NOW + DAY), true);
-  assert.equal(signupInviteQuiet(storage, NOW + 29 * DAY), true);
-  assert.equal(signupInviteQuiet(storage, NOW + 30 * DAY), false);
+  assert.equal(signupInviteQuiet(storage, NOW + 7 * DAY - 60_000), true);
+  assert.equal(signupInviteQuiet(storage, NOW + 7 * DAY), false);
   assert.equal(storage.store.has(SIGNUP_INVITE_KEY), false, "rien ne reste au-delà de la durée annoncée");
+});
+
+test("« Continuer sans compte » : 30 jours ; « Créer un compte gratuit » sans compte : 7 jours", () => {
+  const storage = memoryStorage();
+  rememberSignupInvite(storage, "seen", NOW);
+  // Fermée ensuite : la fermeture remplace la simple vue et compte à partir d'elle.
+  rememberSignupInvite(storage, "dismissed", NOW + 60_000);
+  assert.equal(signupInviteQuiet(storage, NOW + 8 * DAY), true);
+  assert.equal(signupInviteQuiet(storage, NOW + 29 * DAY), true);
+  assert.equal(signupInviteQuiet(storage, NOW + 30 * DAY + 60_000), false);
+  assert.equal(storage.store.has(SIGNUP_INVITE_KEY), false);
+
+  rememberSignupInvite(storage, "signup", NOW);
+  assert.equal(signupInviteQuiet(storage, NOW + 6 * DAY), true);
+  assert.equal(signupInviteQuiet(storage, NOW + 7 * DAY), false);
+});
+
+test("raison inconnue : pas de silence, repère effacé", () => {
+  const storage = memoryStorage();
+  storage.setItem(SIGNUP_INVITE_KEY, JSON.stringify({ at: new Date(NOW).toISOString(), reason: "toString" }));
+  assert.equal(signupInviteQuiet(storage, NOW + DAY), false);
+  assert.equal(storage.store.has(SIGNUP_INVITE_KEY), false);
+});
+
+test("Dashboard invité : la phrase sous le Chrono ne promet plus de garder la progression", () => {
+  assert.equal(STRINGS.fr["guest.timerProgressHint"], "Crée un compte pour enregistrer tes prochaines sessions et suivre ta progression.");
+  assert.equal(STRINGS.en["guest.timerProgressHint"], "Create an account to save your next sessions and track your progress.");
 });
 
 test("repère illisible ou stockage refusé : pas d'erreur, l'invitation reste possible", () => {

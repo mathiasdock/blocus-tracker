@@ -29,8 +29,9 @@ const ChronoFocus = dynamic(loadFocus, { ssr: false });
 // la file hors ligne des comptes. Démarrer n'ouvre pas Focus : c'est un choix.
 //
 // Après une vraie session (10 min au moins, relue dans l'espace local), une
-// invitation sous la carte propose un compte — au repos seulement, une fois
-// par appareil et par mois, jamais en fenêtre (lib/pomodoroSignupInvite.mjs).
+// invitation sous la carte propose un compte — au repos seulement, rappelée
+// au plus tôt 7 jours après (30 si fermée), jamais en fenêtre
+// (lib/pomodoroSignupInvite.mjs).
 // Elle dit que la session reste sur l'appareil : rien n'est transféré.
 //
 // Compte connecté : la page ne pilote pas son chrono. Une fois l'auth connue,
@@ -218,9 +219,10 @@ function SignupInvite({ seconds, onDismiss }) {
     return () => observer.disconnect();
   }, []);
 
-  // Elle se déroule sous la carte plutôt que d'y surgir : à la fin d'un repos,
-  // personne n'a cliqué, et le texte du guide descend d'un coup sinon. La
-  // carte et Démarrer ne bougent pas. Mouvement réduit : affichée d'emblée.
+  // Ni le titre ni la carte ne bougent quand elle apparaît (grille du héros,
+  // SeoLandingPage) ; seul ce qui suit descend de sa hauteur, d'où un
+  // téléphone plus serré. Elle se déroule plutôt que de surgir ; mouvement
+  // réduit : affichée d'emblée.
   const [unfolded, setUnfolded] = useState(false);
   useEffect(() => {
     if (typeof requestAnimationFrame !== "function") { setUnfolded(true); return undefined; }
@@ -232,14 +234,14 @@ function SignupInvite({ seconds, onDismiss }) {
     <div className="grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
       style={{ gridTemplateRows: unfolded ? "1fr" : "0fr", opacity: unfolded ? 1 : 0 }}>
       <div className="min-h-0 overflow-hidden">
-        <section ref={ref} aria-labelledby="public-chrono-invite-title" className="mt-4 rounded-2xl p-4 sm:p-5"
+        <section ref={ref} aria-labelledby="public-chrono-invite-title" className="mt-3 rounded-2xl p-4 sm:mt-4 sm:p-5"
           style={{ backgroundColor: "var(--bt-surface)", border: "1px solid var(--bt-hairline)" }}>
           <h2 id="public-chrono-invite-title" className="text-base leading-snug" style={{ color: "var(--bt-text-1)" }}>
             {t("publicChrono.inviteTitle").replace("{t}", formatMinutesShort(seconds))}
           </h2>
-          <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("publicChrono.inviteDevice")}</p>
-          <p className="mt-1.5 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("publicChrono.inviteValue")}</p>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <p className="mt-1 text-sm leading-snug sm:mt-1.5 sm:leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("publicChrono.inviteDevice")}</p>
+          <p className="mt-1 text-sm leading-snug sm:mt-1.5 sm:leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("publicChrono.inviteValue")}</p>
+          <div className="mt-3 flex flex-col gap-2 sm:mt-4 sm:flex-row">
             <Link href="/signup" className="btn-primary min-h-11 px-5" onClick={() => rememberSignupInvite(localStorage, "signup")}>
               {t("publicChrono.inviteSignup")}
             </Link>

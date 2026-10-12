@@ -311,6 +311,7 @@ test("invité : la fin d'une session dit honnêtement où elle est gardée", () 
 // Invitation à créer un compte après une vraie session (P1-B, phase 3). Sans
 // IntersectionObserver (ici), elle compte comme vue dès qu'elle s'affiche.
 const INVITE_KEY = "bt_pomodoro_invite_v1";
+const DAY = 24 * 60 * 60_000;
 const INVITE_TEXT_FR = [
   "Bien joué : 25 min d'étude.",
   "Cette session reste sur cet appareil : elle ne sera pas transférée vers un compte.",
@@ -399,12 +400,51 @@ test("invitation : « Continuer sans compte » la ferme ; rien pendant 30 jours,
   assert.equal(read(env, GUEST_SPACE).sessions.length, 2);
   assert.equal(invitation(page), undefined, "fermée : pas après la session suivante");
   page.close();
-  env.now += 31 * 24 * 60 * 60_000;
+  env.now += 8 * DAY;
   page = mount(env);
   page.click(/^Démarrer$/);
   advance(env, 15 * 60_000);
   page.click(/^Terminer/);
-  assert.ok(invitation(page), "un mois plus tard");
+  assert.equal(invitation(page), undefined, "fermée : toujours rien 8 jours plus tard");
+  page.close();
+  env.now += 23 * DAY;
+  page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 15 * 60_000);
+  page.click(/^Terminer/);
+  assert.ok(invitation(page), "31 jours après la fermeture");
+  page.close();
+});
+
+test("invitation : vue sans réponse — rien pendant 7 jours, puis une nouvelle vraie session la ramène ; rien pendant le travail ni le repos", () => {
+  const env = makeEnv();
+  let page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 12 * 60_000);
+  page.click(/^Terminer/);
+  assert.ok(invitation(page));
+  assert.equal(read(env, INVITE_KEY).reason, "seen");
+  page.close();
+  env.now += 6 * DAY;
+  page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 25 * 60_000);
+  advance(env, 100);
+  advance(env, 5 * 60_000);
+  assert.equal(read(env, GUEST_SPACE).sessions.length, 2);
+  assert.equal(invitation(page), undefined, "6 jours : pas encore");
+  page.close();
+  env.now += 2 * DAY;
+  page = mount(env);
+  page.click(/^Démarrer$/);
+  advance(env, 24 * 60_000);
+  assert.equal(invitation(page), undefined, "8 jours, pendant le travail : rien");
+  advance(env, 60_000);
+  advance(env, 100);
+  assert.match(page.text(page.tool()), /Pause· Cycle 1/);
+  assert.equal(invitation(page), undefined, "pendant le repos : rien");
+  advance(env, 5 * 60_000);
+  assert.ok(invitation(page), "8 jours, fin du repos : rappel");
   page.close();
 });
 
@@ -434,6 +474,15 @@ test("invitation : en anglais sur choix manuel ; jamais si l'appareil n'a pas pu
   assert.equal(full.store.has(GUEST_SPACE), false);
   assert.equal(invitation(page), undefined);
   page.close();
+});
+
+test("héros : sur ordinateur, titre et outil partent du haut — l'invitation allonge la page sans les déplacer", () => {
+  const html = renderToString(pageTree(makeEnv({ loading: true }))());
+  const grid = html.match(/<div class="([^"]*)"><div class="[^"]*lg:row-start-1 lg:self-end">/);
+  assert.ok(grid);
+  assert.match(grid[1], /lg:grid-rows-\[auto_1fr\]/);
+  assert.match(grid[1], /lg:items-start/);
+  assert.doesNotMatch(grid[1], /lg:items-center/);
 });
 
 test("invitation : jamais pour un compte connecté, jamais dans le HTML serveur", () => {

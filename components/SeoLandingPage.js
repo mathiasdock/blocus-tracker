@@ -78,8 +78,12 @@ export default function SeoLandingPage({ page, tool = null }) {
             <section className="relative px-5 pb-12 pt-8 sm:pt-14">
               {/* Même grille que le héros des guides. Sur téléphone : titre, outil,
                   puis le reste ; sur ordinateur, l'outil occupe la colonne de
-                  l'illustration, sur la hauteur du texte. */}
-              <div className="mx-auto grid max-w-6xl gap-x-10 lg:grid-cols-[1fr_0.78fr] lg:items-center">
+                  l'illustration. Les deux colonnes partent du haut et la seconde
+                  ligne prend la hauteur en plus : quand l'outil grandit (invitation
+                  sous le Chrono, carte qui change d'état), la page s'allonge vers
+                  le bas sans déplacer le titre ni l'outil. Centrées, elles se
+                  recentraient — titre décalé de 118 px à 1440. */}
+              <div className="mx-auto grid max-w-6xl gap-x-10 lg:grid-cols-[1fr_0.78fr] lg:grid-rows-[auto_1fr] lg:items-start">
                 <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:self-end">
                   <p
                     className="mb-4 inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase"
