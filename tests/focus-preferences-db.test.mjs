@@ -103,6 +103,67 @@ test("unlocks grow monotonically while Forest remains the explicit choice", asyn
   await assert.rejects(equip("reserved-12"), error => error.hint === "focus_invalid");
 });
 
+test("Zenitho requires canonical Level 12 and keeps its unlock/choice across sessions and XP reductions", async () => {
+  await study(7199);
+  await assert.rejects(equip("zenitho"), error => error.code === "42501" && error.hint === "focus_locked");
+  await study(1);
+  assert.deepEqual(await get(), { equipped_id: "forest", highest_level: 12 });
+  assert.deepEqual(await equip("zenitho"), { equipped_id: "zenitho", highest_level: 12 });
+  await db.query("delete from public.sessions where user_id=$1", [A]);
+  assert.deepEqual(await get(), { equipped_id: "zenitho", highest_level: 12 });
+  await equip("forest");
+  assert.deepEqual(await equip("zenitho"), { equipped_id: "zenitho", highest_level: 12 });
+  await assert.rejects(equip("zenitho", B), error => error.hint === "focus_locked");
+  await assert.rejects(equip("reserved-20"), error => error.hint === "focus_invalid");
+});
+
+test("pending migration upgrades original two-environment constraints without resetting saved choices", async () => {
+  await study(7200); await equip("gradient-wave");
+  await db.exec(`alter table focus_environment_preferences
+    drop constraint focus_environment_preferences_equipped_id_check,
+    drop constraint focus_equipped_is_unlocked;
+    alter table focus_environment_preferences
+    add constraint focus_environment_preferences_equipped_id_check check (equipped_id in ('forest','gradient-wave')),
+    add constraint focus_equipped_is_unlocked check (equipped_id <> 'gradient-wave' or highest_level >= 5);`);
+  await db.exec(migration);
+  assert.deepEqual(await get(), { equipped_id: "gradient-wave", highest_level: 12 });
+  assert.deepEqual(await equip("zenitho"), { equipped_id: "zenitho", highest_level: 12 });
+  await db.exec(migration);
+  assert.deepEqual(await get(), { equipped_id: "zenitho", highest_level: 12 });
+  assert.equal((await db.query("select pg_get_functiondef('public.get_gamification_levels(uuid[])'::regprocedure) definition")).rows[0].definition, originalLevelDefinition);
+});
+
+test("Glass Fold unlocks at canonical Level 20, never auto-equips and remains available after XP reduction", async () => {
+  await study(19999);
+  await assert.rejects(equip("glass-fold"), error => error.hint === "focus_locked");
+  assert.equal((await db.query("select count(*)::int n from focus_environment_preferences")).rows[0].n, 0);
+  await study(1);
+  assert.deepEqual(await get(), { equipped_id: "forest", highest_level: 20 });
+  assert.deepEqual(await equip("glass-fold"), { equipped_id: "glass-fold", highest_level: 20 });
+  await db.query("delete from public.sessions where user_id=$1", [A]);
+  assert.deepEqual(await get(), { equipped_id: "glass-fold", highest_level: 20 });
+  await equip("forest");
+  assert.deepEqual(await equip("glass-fold"), { equipped_id: "glass-fold", highest_level: 20 });
+  await assert.rejects(equip("glass-fold", B), error => error.hint === "focus_locked");
+});
+
+test("pending migration upgrades Zenitho-era constraints without changing its choice or XP rules", async () => {
+  await study(7200); await equip("zenitho");
+  await db.exec(`alter table focus_environment_preferences
+    drop constraint focus_environment_preferences_equipped_id_check,
+    drop constraint focus_equipped_is_unlocked;
+    alter table focus_environment_preferences
+    add constraint focus_environment_preferences_equipped_id_check check (equipped_id in ('forest','gradient-wave','zenitho')),
+    add constraint focus_equipped_is_unlocked check ((equipped_id <> 'gradient-wave' or highest_level >= 5) and (equipped_id <> 'zenitho' or highest_level >= 12));`);
+  await db.exec(migration);
+  assert.deepEqual(await get(), { equipped_id: "zenitho", highest_level: 12 });
+  await study(12800);
+  assert.deepEqual(await get(), { equipped_id: "zenitho", highest_level: 20 });
+  await equip("glass-fold"); await db.exec(migration);
+  assert.deepEqual(await get(), { equipped_id: "glass-fold", highest_level: 20 });
+  assert.equal((await db.query("select pg_get_functiondef('public.get_gamification_levels(uuid[])'::regprocedure) definition")).rows[0].definition, originalLevelDefinition);
+});
+
 test("RLS isolates users and neither can directly forge choices or levels", async () => {
   await study(1250); await equip("gradient-wave"); await get(B);
   assert.deepEqual((await asUser(B, "select equipped_id,highest_level from focus_environment_preferences")).rows, [{ equipped_id: "forest", highest_level: 1 }]);

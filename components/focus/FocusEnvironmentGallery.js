@@ -41,11 +41,11 @@ export default function FocusEnvironmentGallery({ preferences, inFocus = false, 
     {saving && <p className={styles.feedback} role="status">{t("common.saving")}</p>}
     {error && <p className={styles.feedback} role="alert">{t("focusEnv.saveError")} <button type="button" onClick={() => (retry || refresh)()}>{t("focusEnv.retry")}</button></p>}
     {!loading && next && <p className={styles.next}>{t("focusEnv.next").replace("{name}", t(next.nameKey)).replace("{n}", next.requiredLevel)}</p>}
-    <ul className={styles.reserved}>
+    {!inFocus && FOCUS_ENVIRONMENTS.some(environment => !environment.available) && <ul className={styles.reserved}>
       {FOCUS_ENVIRONMENTS.filter(environment => !environment.available).map(environment => <li key={environment.id}>
         <span>{t(environment.nameKey)} <span className={styles.reservedLevel}>· {levelLabel(environment.requiredLevel)}</span></span>
         <span>{t("focusEnv.comingSoon")}</span>
       </li>)}
-    </ul>
+    </ul>}
   </div>;
 }

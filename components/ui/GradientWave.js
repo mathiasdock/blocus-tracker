@@ -20,13 +20,13 @@ function normalizeColor(hexCode) {
 }
 
 class MiniGl {
-  constructor(canvas) {
+  constructor(canvas, { antialias = false } = {}) {
     this.canvas = canvas;
     this.meshes = [];
     this.buffers = new Set();
     this.shaders = new Set();
     this.programs = new Set();
-    const gl = canvas.getContext("webgl", { antialias: false, premultipliedAlpha: false, powerPreference: "low-power" });
+    const gl = canvas.getContext("webgl", { antialias, premultipliedAlpha: false, powerPreference: "low-power" });
     if (!gl) throw new Error("WebGL not supported");
     this.gl = gl;
     const context = gl;
@@ -208,7 +208,7 @@ class MiniGl {
         index.update();
       }
 
-      setSize(width = 1, height = 1) {
+      setSize(width = 1, height = 1, orientation = "xy") {
         this.width = width;
         this.height = height;
         const position = this.attributes.position;
@@ -222,8 +222,8 @@ class MiniGl {
           for (let x = 0; x <= this.xSegCount; x += 1) {
             const idx = y * (this.xSegCount + 1) + x;
             position.values[3 * idx] = offsetX + x * segWidth;
-            position.values[3 * idx + 1] = -posY;
-            position.values[3 * idx + 2] = 0;
+            position.values[3 * idx + 1] = orientation === "xz" ? 0 : -posY;
+            position.values[3 * idx + 2] = orientation === "xz" ? -posY : 0;
           }
         }
         position.update();
@@ -272,11 +272,11 @@ class MiniGl {
     this.commonUniforms.aspectRatio.value = width / height;
   }
 
-  setOrthographicCamera() {
+  setOrthographicCamera(depthScale = -0.001) {
     this.commonUniforms.projectionMatrix.value = [
       2 / this.width, 0, 0, 0,
       0, 2 / this.height, 0, 0,
-      0, 0, -0.001, 0,
+      0, 0, depthScale, 0,
       0, 0, 0, 1,
     ];
   }
@@ -411,13 +411,15 @@ void main() {
 }`;
 
 class Gradient {
-  constructor(canvas, colors, { scale = 0.5, fullColorLayers = false } = {}) {
+  constructor(canvas, colors, { scale = 0.5, fullColorLayers = false, planeOrientation = "xy", meshDensity = [0.02, 0.05] } = {}) {
     if (!colors.length) throw new Error("GradientWave requires at least one color");
     this.canvas = canvas;
     this.scale = scale;
+    this.planeOrientation = planeOrientation;
+    this.meshDensity = meshDensity;
     this.time = 0;
     this.last = 0;
-    this.minigl = new MiniGl(canvas);
+    this.minigl = new MiniGl(canvas, { antialias: planeOrientation === "xz" });
     const minigl = this.minigl;
     const sectionColors = colors.map(hex => normalizeColor(parseInt(hex.replace("#", "0x"), 16)));
     const uniforms = {
@@ -478,9 +480,14 @@ class Gradient {
 
   resize(width, height) {
     this.minigl.setSize(width, height, this.scale);
-    this.minigl.setOrthographicCamera();
-    this.mesh.geometry.setTopology(Math.ceil(width * 0.02), Math.ceil(height * 0.05));
-    this.mesh.geometry.setSize(width, height);
+    const sourcePlane = this.planeOrientation === "xz";
+    this.minigl.setOrthographicCamera(sourcePlane ? -0.0005 : -0.001);
+    // Zenitho's original XZ mesh lets the shader's tilt create the vertical
+    // extent exactly once. Cap only this denser opt-in mesh on large screens
+    // to keep vertex indices inside Uint16 and GPU work bounded.
+    const cap = sourcePlane ? 180 : Infinity;
+    this.mesh.geometry.setTopology(Math.min(cap, Math.ceil(width * this.meshDensity[0])), Math.min(cap, Math.ceil(height * this.meshDensity[1])));
+    this.mesh.geometry.setSize(width, height, this.planeOrientation);
   }
 
   // `elapsed` is real time in ms; a long pause (hidden tab) resumes smoothly.
@@ -498,6 +505,8 @@ class Gradient {
 /**
  * @param {string[]} colors      base colour first, then the wave layers
  * @param {boolean} fullColorLayers opt into every supplied layer (Focus only)
+ * @param {"xy"|"xz"} planeOrientation source XZ plane for Zenitho; existing XY stays the default
+ * @param {number[]} meshDensity source tessellation; independent of drawing-buffer scale
  * @param {number}   noiseSpeed  global speed (the 21st.dev default is 1e-5)
  * @param {number}   fps         frame cap; slow motion needs few frames
  * @param {number}   scale       drawing-buffer scale against CSS pixels
@@ -506,6 +515,8 @@ class Gradient {
 export default function GradientWave({
   colors = authColors.light,
   fullColorLayers = false,
+  planeOrientation = "xy",
+  meshDensity = [0.02, 0.05],
   isPlaying = true,
   className = "",
   shadowPower = 8,
@@ -528,6 +539,7 @@ export default function GradientWave({
   const colorKey = colors.join(",");
   const deformKey = JSON.stringify(deform);
   const frequencyKey = noiseFrequency.join(",");
+  const densityKey = meshDensity.join(",");
 
   useEffect(() => {
     const container = containerRef.current;
@@ -574,7 +586,7 @@ export default function GradientWave({
     };
     const initialize = (time) => {
       try {
-        gradient = new Gradient(canvas, colorKey ? colorKey.split(",") : [], { scale, fullColorLayers });
+        gradient = new Gradient(canvas, colorKey ? colorKey.split(",") : [], { scale, fullColorLayers, planeOrientation, meshDensity: densityKey.split(",").map(Number) });
         const { uniforms } = gradient;
         uniforms.u_shadow_power.value = shadowPower;
         uniforms.u_darken_top.value = darkenTop ? 1 : 0;
@@ -642,7 +654,7 @@ export default function GradientWave({
       canvas.remove();
       gradient?.dispose({ loseContext: true });
     };
-  }, [colorKey, fullColorLayers, shadowPower, darkenTop, noiseSpeed, frequencyKey, deformKey, fps, scale, seed]);
+  }, [colorKey, fullColorLayers, planeOrientation, densityKey, shadowPower, darkenTop, noiseSpeed, frequencyKey, deformKey, fps, scale, seed]);
 
   useEffect(() => { playRef.current?.(); }, [isPlaying]);
 

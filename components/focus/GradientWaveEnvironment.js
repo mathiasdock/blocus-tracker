@@ -11,7 +11,7 @@ export default function GradientWaveEnvironment({
   isPlaying = true,
   className = "",
   noiseFrequency = NOISE_FREQUENCY,
-  noiseSpeed = 0.0000032,
+  noiseSpeed = 0.000004,
 }) {
   return (
     <div className={`${styles.environment} ${className}`.trim()} data-paused={paused ? "true" : undefined} aria-hidden="true">

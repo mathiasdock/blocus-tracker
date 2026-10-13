@@ -106,7 +106,7 @@ function browser({ lang = "fr", environmentId = "forest", highestLevel = 1 } = {
         const values = Object.fromEntries([...readFileSync(resolve(dirname(filename), id), "utf8").matchAll(/\.([a-zA-Z][\w-]*)/g)].map(match => [match[1], match[1]]));
         return { __esModule: true, default: values };
       }
-      if (id === "next/dynamic") return () => function WaveRenderer(props) { return React.createElement("environment-renderer", { kind: "gradient-wave", ...props }); };
+      if (id === "next/dynamic") return loader => function EnvironmentRenderer(props) { return React.createElement("environment-renderer", { kind: String(loader).includes("GlassFold") ? "glass-fold" : String(loader).includes("Zenitho") ? "zenitho" : "gradient-wave", ...props }); };
       if (id.startsWith(".")) return load(resolve(dirname(filename), id));
       return require(id);
     };
@@ -155,12 +155,12 @@ const options = page => buttons(page).filter(button => button.props.className ==
 const click = async button => { assert.ok(button, "button exists"); assert.ok(!button.props.disabled, "button is enabled"); await act(async () => { await button.props.onClick(); }); };
 const renderers = page => page.renderer.root.findAllByType("environment-renderer");
 
-test("FR/EN gallery exposes equipped/locked levels and reserves future environments without preview or action", t => {
+test("FR/EN gallery exposes all four equipped/locked environments without future placeholders", t => {
   for (const lang of ["fr", "en"]) {
     const env = browser({ lang });
     const page = env.mount(t, "components/focus/FocusEnvironmentGallery");
-    const [forest, wave] = options(page);
-    assert.equal(options(page).length, 2);
+    const [forest, wave, zenitho, glass] = options(page);
+    assert.equal(options(page).length, 4);
     assert.equal(forest.props["aria-pressed"], true);
     assert.equal(forest.props.disabled, false);
     assert.match(text(forest), new RegExp(env.translate(lang, "focusEnv.forest")));
@@ -170,15 +170,13 @@ test("FR/EN gallery exposes equipped/locked levels and reserves future environme
     assert.equal(wave.props["aria-pressed"], false);
     assert.match(text(wave), new RegExp(env.translate(lang, "focusEnv.locked")));
     assert.match(text(wave), new RegExp(env.translate(lang, "focusEnv.level").replace("{n}", "5")));
-    const reserved = page.renderer.root.findByProps({ className: "reserved" });
-    assert.equal(reserved.findAllByType("li").length, 2);
-    assert.equal(reserved.findAllByType("button").length, 0);
-    assert.equal(reserved.findAll(node => node.props.style?.background).length, 0);
-    assert.match(text(reserved), /12/); assert.match(text(reserved), /20/);
-    assert.match(text(reserved), new RegExp(env.translate(lang, "focusEnv.future3")));
-    assert.match(text(reserved), new RegExp(env.translate(lang, "focusEnv.future4")));
-    assert.match(text(reserved), new RegExp(env.translate(lang, "focusEnv.comingSoon")));
-    assert.equal(page.renderer.root.findAllByProps({ className: "preview" }).length, 2);
+    assert.equal(page.renderer.root.findAllByProps({ className: "reserved" }).length, 0);
+    assert.equal(zenitho.props.disabled, true);
+    assert.match(text(zenitho), /Zenitho/);
+    assert.match(text(zenitho), /12/);
+    assert.equal(glass.props.disabled, true);
+    assert.match(text(glass), /Glass Fold.*20/);
+    assert.equal(page.renderer.root.findAllByProps({ className: "preview" }).length, 4);
     assert.equal(renderers(page).length, 0);
     assert.match(text(page.renderer.toJSON()), new RegExp(env.translate(lang, "focusEnv.next").replace("{name}", "Gradient Wave").replace("{n}", "5").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     page.close();
@@ -202,12 +200,109 @@ test("unlocked selection emits the exact id and closes only after a successful e
   assert.equal(selected, 1);
   assert.equal(options(page)[1].props["aria-pressed"], true);
   assert.match(text(options(page)[1]), /Equipped/);
-  assert.equal(page.renderer.root.findAllByProps({ className: "next" }).length, 0);
+  assert.match(text(page.renderer.root.findByProps({ className: "next" })), /Zenitho.*12/);
+});
+
+test("Zenitho is locked below 12, equips at 12 and mounts alone without changing study blocks", async t => {
+  for (const lang of ["fr", "en"]) {
+    const env = browser({ lang, highestLevel: 11 });
+    const page = env.mount(t, "components/timer/ChronoFocus");
+    const blocks = plain(page.renderer.root.findByType("study-blocks").props);
+    await click(buttonNamed(page, env.translate(lang, "focusEnv.title")));
+    assert.equal(options(page)[2].props.disabled, true);
+    env.preferences.highestLevel = 12;
+    page.rerender();
+    assert.equal(options(page)[2].props.disabled, false);
+    await click(options(page)[2]);
+    page.rerender();
+    assert.deepEqual(env.equips, ["zenitho"]);
+    assert.equal(renderers(page).length, 1);
+    assert.equal(renderers(page)[0].props.kind, "zenitho");
+    assert.equal(page.renderer.toJSON().props["data-environment"], "zenitho");
+    assert.deepEqual(plain(page.renderer.root.findByType("study-blocks").props), blocks);
+    page.close();
+  }
+});
+
+test("Zenitho uses a static real shader frame in both galleries, with no extra canvas", t => {
+  for (const inFocus of [false, true]) {
+    const env = browser({ environmentId: "zenitho", highestLevel: 12 });
+    const page = env.mount(t, "components/focus/FocusEnvironmentGallery", { inFocus });
+    assert.match(options(page)[2].findByProps({ className: "preview" }).props.style.background, /\/focus-environments\/zenitho\.jpg/);
+    assert.equal(page.renderer.root.findAllByType("canvas").length, 0);
+    page.close();
+  }
+});
+
+test("Glass Fold is locked below 20, equips at 20, mounts alone and keeps timer/StudyBlock inputs", async t => {
+  for (const lang of ["fr", "en"]) {
+    const env = browser({ lang, highestLevel: 19 });
+    const page = env.mount(t, "components/timer/ChronoFocus");
+    const blocks = plain(page.renderer.root.findByType("study-blocks").props);
+    await click(buttonNamed(page, env.translate(lang, "focusEnv.title")));
+    assert.equal(options(page)[3].props.disabled, true);
+    env.preferences.highestLevel = 20; page.rerender();
+    await click(options(page)[3]); page.rerender();
+    assert.deepEqual(env.equips, ["glass-fold"]);
+    assert.equal(renderers(page).length, 1); assert.equal(renderers(page)[0].props.kind, "glass-fold");
+    assert.equal(page.renderer.toJSON().props["data-environment"], "glass-fold");
+    assert.deepEqual(plain(page.renderer.root.findByType("study-blocks").props), blocks);
+    await click(buttonNamed(page, env.translate(lang, "dash.pause"))); page.updateChrono({ running: false, isPaused: true });
+    await click(buttonNamed(page, env.translate(lang, "dash.resume")));
+    assert.deepEqual(env.calls, ["pause", "start"]);
+    page.close();
+  }
+});
+
+test("Glass Fold galleries use a genuine static thumbnail and add no canvas", t => {
+  for (const inFocus of [false, true]) {
+    const env = browser({ highestLevel: 20, environmentId: "glass-fold" });
+    const page = env.mount(t, "components/focus/FocusEnvironmentGallery", { inFocus });
+    assert.match(options(page)[3].findByProps({ className: "preview" }).props.style.background, /\/focus-environments\/glass-fold\.jpg/);
+    assert.equal(page.renderer.root.findAllByType("canvas").length, 0); page.close();
+  }
+});
+
+test("Focus and Progression expose four real choices in FR/EN with no reserved rows", t => {
+  for (const lang of ["fr", "en"]) for (const highestLevel of [1, 5, 20, 30]) {
+    const env = browser({ lang, highestLevel });
+    const page = env.mount(t, "components/focus/FocusEnvironmentGallery", { inFocus: true });
+    assert.equal(options(page).length, 4);
+    assert.equal(page.renderer.root.findAllByProps({ className: "reserved" }).length, 0);
+    for (const key of ["future3", "future4", "comingSoon"]) {
+      assert.equal(text(page.renderer.toJSON()).includes(env.translate(lang, `focusEnv.${key}`)), false);
+    }
+    page.updateProps({ inFocus: false });
+    assert.equal(page.renderer.root.findAllByProps({ className: "reserved" }).length, 0);
+    page.close();
+  }
+});
+
+test("Pause and Resume share the environment primary treatment; Finish stays secondary with unchanged actions and blocks", async t => {
+  for (const lang of ["fr", "en"]) for (const environmentId of ["forest", "gradient-wave", "zenitho", "glass-fold"]) {
+    const env = browser({ lang, environmentId, highestLevel: 20 });
+    const page = env.mount(t, "components/timer/ChronoFocus");
+    const finish = () => buttonNamed(page, env.translate(lang, "dash.finish"));
+    const blocksBefore = plain(page.renderer.root.findByType("study-blocks").props);
+    assert.match(buttonNamed(page, env.translate(lang, "dash.pause")).props.className, /btn-hero primaryAction/);
+    assert.doesNotMatch(finish().props.className, /btn-hero|primaryAction/);
+    await click(buttonNamed(page, env.translate(lang, "dash.pause")));
+    page.updateChrono({ running: false, isPaused: true });
+    assert.match(buttonNamed(page, env.translate(lang, "dash.resume")).props.className, /btn-hero primaryAction/);
+    assert.doesNotMatch(finish().props.className, /btn-hero|primaryAction/);
+    const pausedBlocks = plain(page.renderer.root.findByType("study-blocks").props);
+    assert.equal(pausedBlocks.earnedSecs, blocksBefore.earnedSecs);
+    assert.equal(pausedBlocks.plannedSecs, blocksBefore.plannedSecs);
+    await click(buttonNamed(page, env.translate(lang, "dash.resume")));
+    await click(finish());
+    assert.deepEqual(env.calls, ["pause", "start", "leavePomodoro", "finish", "close"]);
+    page.close();
+  }
 });
 
 test("choosing an already-equipped environment closes without a server equip, including guest Forest", async t => {
-  for (const environmentId of ["forest", "gradient-wave"]) {
-    const env = browser({ environmentId, highestLevel: environmentId === "forest" ? 1 : 5 });
+  for (const environmentId of ["forest", "gradient-wave", "zenitho", "glass-fold"]) {
+    const env = browser({ environmentId, highestLevel: environmentId === "forest" ? 1 : 20 });
     env.equipOK = false;
     const page = env.mount(t, "components/focus/FocusEnvironmentControl");
     await click(buttonNamed(page, env.translate("fr", "focusEnv.title")));
@@ -352,9 +447,9 @@ test("free-study Focus retains elapsed time, course color, blocks, pause warning
   assert.equal(buttonNamed(page, env.translate("fr", "dash.finish")).props.disabled, true);
 });
 
-test("Pomodoro work and rest retain countdown, cycles, and skip-break behavior in either environment", async t => {
-  for (const environmentId of ["forest", "gradient-wave"]) {
-    const env = browser({ lang: "en", environmentId, highestLevel: 5 });
+test("Pomodoro work and rest retain countdown, cycles, and skip-break behavior in every environment", async t => {
+  for (const environmentId of ["forest", "gradient-wave", "zenitho"]) {
+    const env = browser({ lang: "en", environmentId, highestLevel: 12 });
     env.chrono = { ...env.chrono, courseId: null, pomodoro: true, elapsed: 120, pomoCount: 2 };
     const page = env.mount(t, "components/timer/ChronoFocus", { noCourseLabel: "Pomodoro session" });
     assert.equal(page.renderer.root.findByType("timer-digits").props.seconds, 1380);

@@ -11,6 +11,8 @@ import { useChrono } from "../../components/timer/useChrono";
 import ChronoFocus from "../../components/timer/ChronoFocus";
 import FocusEnvironmentGallery from "../../components/focus/FocusEnvironmentGallery";
 import { useFocusEnvironment } from "../../hooks/useFocusEnvironment";
+import ZenithoEnvironment from "../../components/focus/ZenithoEnvironment";
+import GlassFoldEnvironment from "../../components/focus/GlassFoldEnvironment";
 
 export function getServerSideProps() {
   return process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_OFFLINE_DEV === "true"
@@ -49,12 +51,24 @@ export default function FocusEnvironmentPreview() {
     setFocus(true);
   }
 
+  // Capture a genuine static thumbnail from the same renderer, without the
+  // Focus UI. This route is dev/offline-only, never a production preview.
+  if (router.query.shader === "zenitho") return <main style={{ position: "fixed", inset: 0, zIndex: 100 }}>
+    <Head><title>Zenitho — shader capture</title><meta name="robots" content="noindex" /></Head>
+    <ZenithoEnvironment />
+  </main>;
+  if (router.query.shader === "glass-fold") return <main style={{ position: "fixed", inset: 0, zIndex: 100 }}>
+    <Head><title>Glass Fold — shader capture</title><meta name="robots" content="noindex" /></Head>
+    <GlassFoldEnvironment profile={router.query.profile === "1"} />
+  </main>;
+
   return <main className="mx-auto max-w-3xl p-5">
     <Head><title>Focus environments — local fixtures</title><meta name="robots" content="noindex" /></Head>
     <h1 className="text-lg font-bold mb-4">Focus Environments · local fixtures</h1>
     <div className="flex flex-wrap gap-3 mb-5">
       <button className="btn-secondary px-3 min-h-11" onClick={() => prepare(1, true)}>New Level 1</button>
       <button className="btn-secondary px-3 min-h-11" onClick={() => prepare(5, true)}>New Level 5</button>
+      <button className="btn-secondary px-3 min-h-11" onClick={() => prepare(12, true)}>New Level 12</button>
       <button className="btn-secondary px-3 min-h-11" onClick={() => prepare(20)}>Level 20</button>
       <button className="btn-secondary px-3 min-h-11" onClick={() => prepare(1)}>Drop to Level 1</button>
       <button className="btn-secondary px-3 min-h-11" onClick={() => openFocus(false)}>Open Focus</button>

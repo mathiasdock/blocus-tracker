@@ -26,10 +26,9 @@
 .panelHeader h2 { font-size: 15px; font-weight: 700; }
 .panelHeader button { display: grid; place-items: center; min-width: 44px; min-height: 44px; margin: -6px; border-radius: 50%; }
 .focus[data-environment="gradient-wave"] { --bt-ink-text: var(--bt-focus-env-text); --bt-ink-muted: var(--bt-focus-env-muted); --bt-focus-ring: var(--bt-focus-env-ring); --bt-focus-gap: var(--bt-focus-env-panel); --bt-selected-bg: var(--bt-focus-env-selected); --bt-selected-text: var(--bt-focus-env-selected-text); }
-.focus[data-environment="gradient-wave"] :global(.btn-hero):not(:global(.bt-pause-cta)) { background: var(--bt-focus-env-action); color: var(--bt-focus-env-action-text); border-color: transparent; }
-.focus[data-environment="gradient-wave"] :global(.btn-hero):not(:global(.bt-pause-cta)):hover:not(:disabled) { background: var(--bt-focus-env-action-hover); }
-.focus[data-environment="gradient-wave"] :global(.btn-hero):not(:global(.bt-pause-cta)) { box-shadow: 0 5px 16px rgba(3,38,62,.25); }
-.focus[data-environment="gradient-wave"] :global(.btn-hero):not(:global(.bt-pause-cta)):active:not(:disabled) { background: var(--bt-focus-env-action-hover); }
+.focus[data-environment="gradient-wave"] .primaryAction { background: var(--bt-focus-env-action); color: var(--bt-focus-env-action-text); border-color: transparent; box-shadow: 0 5px 16px rgba(3,38,62,.25); }
+.focus[data-environment="gradient-wave"] .primaryAction:hover:not(:disabled),
+.focus[data-environment="gradient-wave"] .primaryAction:active:not(:disabled) { background: var(--bt-focus-env-action-hover); }
 .focus[data-environment="gradient-wave"] :global(.bt-block-fill) { background: var(--bt-focus-env-accent); }
 .focus[data-environment="gradient-wave"] :global(.bt-blocks.is-focus) { --bt-block-slot-bg: rgba(7,54,80,.12); --bt-block-slot-edge: rgba(7,54,80,.32); --bt-block-tick: #073650; --bt-block-tick-halo: rgba(255,255,255,.8); }
 .focus[data-environment="gradient-wave"] :global(.bt-rest.is-focus) { background: rgba(7,54,80,.1); border-color: rgba(7,54,80,.22); }
@@ -37,5 +36,65 @@
 .focus[data-environment="gradient-wave"] :global(.btn-ghost) { color: var(--bt-focus-env-text); border-color: var(--bt-focus-env-border); background: var(--bt-focus-env-secondary); }
 .focus[data-environment="gradient-wave"] [data-coach-clear] > span:last-child { opacity: 1 !important; }
 .focus[data-environment="gradient-wave"][data-paused] :global(.bt-blocks.is-focus) { --bt-block-slot-bg: rgba(255,255,255,.09); --bt-block-slot-edge: rgba(255,255,255,.17); --bt-block-tick: rgba(255,255,255,.92); --bt-block-tick-halo: rgba(0,0,0,.5); }
+.focus[data-environment="zenitho"] { --bt-ink-text: var(--bt-focus-env-stage-text); --bt-ink-muted: var(--bt-focus-env-stage-text); --bt-focus-ring: var(--bt-focus-env-ring); --bt-focus-gap: var(--bt-focus-env-panel); --bt-selected-bg: var(--bt-focus-env-selected); --bt-selected-text: var(--bt-focus-env-selected-text); }
+/* Keep clean glyph fills: neither environment adds a contrasting digit edge.
+   Caption contrast is local to the words, never a veil over the landscape. */
+.focus[data-environment="zenitho"]::after { display: none; }
+.focus[data-environment="zenitho"] :global([data-focus-reading]),
+.focus[data-environment="glass-fold"] :global([data-focus-reading]) {
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+}
+/* Small captions keep ordinary crisp type. Their feathered ground follows
+   only the text bounds, not the timer panel or the animated landscape. */
+.focus[data-environment="zenitho"]:not([data-paused]) :global(p[data-focus-reading]),
+.focus[data-environment="zenitho"]:not([data-paused]) :global(span[data-focus-reading]) {
+  position: relative;
+  isolation: isolate;
+  text-shadow: none;
+}
+.focus[data-environment="zenitho"]:not([data-paused]) :global(p[data-focus-reading])::before,
+.focus[data-environment="zenitho"]:not([data-paused]) :global(span[data-focus-reading])::before {
+  content: "";
+  position: absolute;
+  inset: -2px -4px;
+  z-index: -1;
+  pointer-events: none;
+  background: rgba(255,255,255,.55);
+  filter: blur(1px);
+}
+.focus[data-environment="zenitho"] :global([data-coach-clear] > span:last-child) { opacity: 1 !important; }
+.focus[data-environment="zenitho"] :global(.bt-blocks.is-focus) {
+  --bt-progress-fill: var(--bt-focus-env-block-fill);
+  --bt-progress-rgb: var(--bt-focus-env-block-rgb);
+  --bt-block-slot-bg: rgba(255,255,255,.22);
+  --bt-block-slot-edge: rgba(28,16,39,.45);
+  --bt-block-tick: #1C1027;
+  --bt-block-tick-halo: rgba(255,255,255,.85);
+}
+.focus[data-environment="zenitho"] :global(.bt-block-fill) { box-shadow: inset 0 0 0 1px rgba(255,255,255,.5); }
+.focus[data-environment="zenitho"][data-paused] :global(.bt-blocks.is-focus) { --bt-block-slot-bg: rgba(255,255,255,.09); --bt-block-slot-edge: rgba(255,255,255,.17); --bt-block-tick: rgba(255,255,255,.92); --bt-block-tick-halo: rgba(0,0,0,.5); }
+.focus[data-environment="zenitho"]:not([data-paused]) :global(.bt-rest.is-focus) { background: rgba(28,16,39,.12); box-shadow: inset 0 0 0 1px rgba(28,16,39,.3); }
+.focus[data-environment="zenitho"]:not([data-paused]) :global(.bt-rest-fill) { background: rgba(28,16,39,.55); }
+.focus[data-environment="zenitho"] .primaryAction { background: var(--bt-focus-env-action); color: var(--bt-focus-env-action-text); border-color: transparent; box-shadow: 0 5px 16px rgba(25,12,41,.25); }
+.focus[data-environment="zenitho"] .primaryAction:hover:not(:disabled),
+.focus[data-environment="zenitho"] .primaryAction:active:not(:disabled) { background: var(--bt-focus-env-action-hover); }
+.focus[data-environment="zenitho"] :global(.btn-ghost) { color: var(--bt-focus-env-text); border-color: var(--bt-focus-env-border); background: var(--bt-focus-env-secondary); }
+.focus[data-environment="glass-fold"] { --bt-ink-text: var(--bt-focus-env-text); --bt-ink-muted: var(--bt-focus-env-muted); --bt-focus-ring: var(--bt-focus-env-ring); --bt-focus-gap: var(--bt-focus-env-panel); --bt-selected-bg: var(--bt-focus-env-selected); --bt-selected-text: var(--bt-focus-env-selected-text); }
+.focus[data-environment="glass-fold"]::after { display: none; }
+.focus[data-environment="glass-fold"]:not([data-paused]) :global(p[data-focus-reading]),
+.focus[data-environment="glass-fold"]:not([data-paused]) :global(span[data-focus-reading]) { position: relative; isolation: isolate; text-shadow: none; }
+.focus[data-environment="glass-fold"]:not([data-paused]) :global(p[data-focus-reading])::before,
+.focus[data-environment="glass-fold"]:not([data-paused]) :global(span[data-focus-reading])::before { content: ""; position: absolute; inset: -2px -4px; z-index: -1; pointer-events: none; background: rgba(6,8,30,.7); filter: blur(1px); }
+.focus[data-environment="glass-fold"] :global([data-coach-clear] > span:last-child) { opacity: 1 !important; }
+.focus[data-environment="glass-fold"] :global(.bt-blocks.is-focus) { --bt-progress-fill: var(--bt-focus-env-block-fill); --bt-progress-rgb: var(--bt-focus-env-block-rgb); --bt-block-slot-bg: rgba(6,8,30,.6); --bt-block-slot-edge: rgba(150,215,255,.6); --bt-block-tick: #F2F9FF; --bt-block-tick-halo: #06081E; }
+.focus[data-environment="glass-fold"] :global(.bt-block-fill) { box-shadow: inset 0 0 0 1px rgba(6,8,30,.45); }
+.focus[data-environment="glass-fold"][data-paused] :global(.bt-blocks.is-focus) { --bt-block-slot-bg: rgba(255,255,255,.09); --bt-block-slot-edge: rgba(255,255,255,.17); --bt-block-tick: rgba(255,255,255,.92); --bt-block-tick-halo: rgba(0,0,0,.5); }
+.focus[data-environment="glass-fold"]:not([data-paused]) :global(.bt-rest.is-focus) { background: rgba(6,8,30,.65); box-shadow: inset 0 0 0 1px rgba(150,215,255,.6); }
+.focus[data-environment="glass-fold"]:not([data-paused]) :global(.bt-rest-fill) { background: #96D7FF; }
+.focus[data-environment="glass-fold"] .primaryAction { background: var(--bt-focus-env-action); color: var(--bt-focus-env-action-text); border-color: transparent; box-shadow: 0 5px 16px rgba(6,8,30,.25); }
+.focus[data-environment="glass-fold"] .primaryAction:hover:not(:disabled),
+.focus[data-environment="glass-fold"] .primaryAction:active:not(:disabled) { background: var(--bt-focus-env-action-hover); }
+.focus[data-environment="glass-fold"] :global(.btn-ghost) { color: var(--bt-focus-env-text); border-color: var(--bt-focus-env-border); background: var(--bt-focus-env-secondary); }
 @media (max-width: 639px) { .section { padding: 20px; } .optionMeta { display: block; } .state { display: flex; margin-top: 3px; } }
 @media (prefers-reduced-motion: reduce) { .control, .option { transition: none; } }

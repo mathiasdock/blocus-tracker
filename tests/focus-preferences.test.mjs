@@ -4,6 +4,10 @@ import { DEFAULT_FOCUS_PREFERENCES, normalizeFocusPreferences, loadFocusPreferen
 
 test("focus preferences accept server rows and keep a saved permanent unlock", () => {
   assert.deepEqual(normalizeFocusPreferences([{ equipped_id: "gradient-wave", highest_level: 5 }]), { environmentId: "gradient-wave", highestLevel: 5 });
+  assert.deepEqual(normalizeFocusPreferences([{ equipped_id: "zenitho", highest_level: 12 }]), { environmentId: "zenitho", highestLevel: 12 });
+  assert.deepEqual(normalizeFocusPreferences({ equipped_id: "zenitho", highest_level: 11 }), { environmentId: "forest", highestLevel: 11 });
+  assert.deepEqual(normalizeFocusPreferences({ equipped_id: "glass-fold", highest_level: 20 }), { environmentId: "glass-fold", highestLevel: 20 });
+  assert.deepEqual(normalizeFocusPreferences({ equipped_id: "glass-fold", highest_level: 19 }), { environmentId: "forest", highestLevel: 19 });
   assert.deepEqual(normalizeFocusPreferences({ equipped_id: "forest", highest_level: 12 }), { environmentId: "forest", highestLevel: 12 });
   assert.deepEqual(normalizeFocusPreferences({ equipped_id: "gradient-wave", highest_level: 4 }), { environmentId: "forest", highestLevel: 4 });
   assert.deepEqual(normalizeFocusPreferences({ equipped_id: "reserved-20", highest_level: 30 }), { environmentId: "forest", highestLevel: 30 });

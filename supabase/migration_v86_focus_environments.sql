@@ -5,11 +5,26 @@ begin;
 create table if not exists public.focus_environment_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   equipped_id text not null default 'forest'
-    check (equipped_id in ('forest', 'gradient-wave')),
+    check (equipped_id in ('forest', 'gradient-wave', 'zenitho', 'glass-fold')),
   highest_level integer not null default 1 check (highest_level between 1 and 30),
   constraint focus_equipped_is_unlocked
-    check (equipped_id <> 'gradient-wave' or highest_level >= 5)
+    check ((equipped_id <> 'gradient-wave' or highest_level >= 5)
+       and (equipped_id <> 'zenitho' or highest_level >= 12)
+       and (equipped_id <> 'glass-fold' or highest_level >= 20))
 );
+
+-- v86 is still pending in production. Also allow a local database which has
+-- already applied its two/three-environment version to upgrade without losing rows.
+alter table public.focus_environment_preferences
+  drop constraint if exists focus_environment_preferences_equipped_id_check,
+  drop constraint if exists focus_equipped_is_unlocked;
+alter table public.focus_environment_preferences
+  add constraint focus_environment_preferences_equipped_id_check
+    check (equipped_id in ('forest', 'gradient-wave', 'zenitho', 'glass-fold')),
+  add constraint focus_equipped_is_unlocked
+    check ((equipped_id <> 'gradient-wave' or highest_level >= 5)
+       and (equipped_id <> 'zenitho' or highest_level >= 12)
+       and (equipped_id <> 'glass-fold' or highest_level >= 20));
 
 alter table public.focus_environment_preferences enable row level security;
 revoke all on public.focus_environment_preferences from public, anon, authenticated;
@@ -95,7 +110,7 @@ begin
     raise exception 'Account suspended' using errcode = '42501', hint = 'suspended';
   end if;
   -- Reserved levels and future renderer IDs are never equippable in V1.
-  if p_environment_id is null or p_environment_id not in ('forest', 'gradient-wave') then
+  if p_environment_id is null or p_environment_id not in ('forest', 'gradient-wave', 'zenitho', 'glass-fold') then
     raise exception 'Unknown environment' using errcode = '22023', hint = 'focus_invalid';
   end if;
 
@@ -106,7 +121,9 @@ begin
   end if;
   select greatest(v_level, coalesce(prefs.highest_level, 1)) into v_highest
     from (select 1) seed left join public.focus_environment_preferences prefs on prefs.user_id = v_user;
-  if p_environment_id = 'gradient-wave' and v_highest < 5 then
+  if (p_environment_id = 'gradient-wave' and v_highest < 5)
+     or (p_environment_id = 'zenitho' and v_highest < 12)
+     or (p_environment_id = 'glass-fold' and v_highest < 20) then
     raise exception 'Environment locked' using errcode = '42501', hint = 'focus_locked';
   end if;
 

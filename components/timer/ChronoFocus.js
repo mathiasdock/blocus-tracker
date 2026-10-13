@@ -141,12 +141,12 @@ export default function ChronoFocus({
           <AmbientSoundControl active visible={focusCtlVisible || !running} />
           <FocusEnvironmentControl preferences={preferences} visible={focusCtlVisible || !running} onOpenChange={setEnvironmentOpen} />
 
-          <p ref={focusGreetingRef} className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
+          <p ref={focusGreetingRef} data-focus-reading="" className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}
           </p>
 
           {pomodoro && (
-            <p role="status" className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
+            <p data-focus-reading="" role="status" className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
               style={{ color: pomoPhase === "work" ? "var(--bt-focus-env-accent, var(--bt-accent))" : "var(--bt-ink-muted)" }}>
               {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
               {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
@@ -157,7 +157,7 @@ export default function ChronoFocus({
               couleur, pas un habillage complet de l'écran. Sans lui, Focus
               perdait le seul repère visuel partagé avec le Chrono, le planning
               et les stats. Le cercle clair l'isole du champ mouvant. */}
-          <p className="text-sm mb-2 relative z-10 flex items-center gap-2" style={{ color: "var(--bt-ink-muted)" }}>
+          <p data-focus-reading="" className="text-sm mb-2 relative z-10 flex items-center gap-2" style={{ color: "var(--bt-ink-muted)" }}>
             {courseId && courses.find((c) => c.id === courseId)?.color && (
               <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{
@@ -168,7 +168,7 @@ export default function ChronoFocus({
             <span>{courseId ? courseName(courseId) : (noCourseLabel || t("dash.noCourse"))}</span>
           </p>
 
-          <div className="relative z-10 w-full text-center px-6">
+          <div data-focus-reading="" className="relative z-10 w-full text-center px-6">
             <TimerDigits
               seconds={pomodoro ? Math.max(0, pomoTargetSecs - elapsed) : elapsed}
               color={(isPaused && !pomodoro) ? "#FFEDEB" : "var(--bt-ink-text)"}
@@ -201,7 +201,7 @@ export default function ChronoFocus({
             {(liveMessage || hint) && (
               <div className="mt-5 flex items-center justify-center"
                 style={momentShown ? { visibility: "hidden" } : undefined} aria-hidden={momentShown ? true : undefined}>
-                <p key={liveMessage || hint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
+                <p data-focus-reading="" key={liveMessage || hint} className={`text-sm ${isPaused ? "font-medium" : "bt-msg-swap"}`}
                   style={{ color: isPaused ? "#FFB0A8" : "var(--bt-ink-muted)" }}>
                   {liveMessage || hint}
                 </p>
@@ -236,20 +236,19 @@ export default function ChronoFocus({
               <>
                 {!running ? (
                   <button onClick={startWithFeedback} disabled={!courseId && !pomodoro}
-                    className={`btn btn-hero min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10 ${isPaused ? "bt-pause-cta" : ""}`}>
+                    className={`btn btn-hero ${environmentStyles.primaryAction} min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10 ${isPaused ? "bt-pause-cta" : ""}`}>
                     {elapsed > 0 ? t("dash.resume") : t("dash.start")}
                   </button>
                 ) : (
                   <button onClick={pauseWithFeedback}
-                    className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
-                    style={{ backgroundColor: "var(--bt-focus-env-secondary, rgba(255,255,255,0.1))", color: "var(--bt-focus-env-text, #fff)" }}>
+                    className={`btn btn-hero ${environmentStyles.primaryAction} min-w-0 flex-1 px-4 py-3 text-base bt-press sm:flex-none sm:px-10`}>
                     {t("dash.pause")}
                   </button>
                 )}
                 <button
                   onClick={() => { leavePomodoro(); onFinish?.(); onClose?.(); }}
                   disabled={elapsed < 1 || saveStatus === "saving"}
-                  className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
+                  className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-medium transition-colors bt-press sm:flex-none sm:px-10"
                   style={{ backgroundColor: "var(--bt-focus-env-secondary, rgba(255,255,255,0.1))", color: "var(--bt-focus-env-text, #fff)" }}>
                   {saveStatus === "saving" ? t("common.saving") : t("dash.finish")}
                 </button>
@@ -265,16 +264,16 @@ export default function ChronoFocus({
               pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
               transition: "opacity 0.25s ease-out, color 0.2s ease-out",
             }}
-            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-focus-env-text, #FFFFFF)"}
+            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-focus-env-stage-text, var(--bt-focus-env-text, #FFFFFF))"}
             onMouseLeave={e => e.currentTarget.style.color = "var(--bt-ink-text)"}>
             <Glyph size={14}>
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </Glyph>
-            {t("dash.exitFocus")}
+            <span data-focus-reading="">{t("dash.exitFocus")}</span>
           </button>
 
           {/* Raccourci clavier — desktop uniquement */}
-          <p className="hidden sm:block relative z-10 mt-2 text-[11px]"
+          <p data-focus-reading="" className="hidden sm:block relative z-10 mt-2 text-[11px]"
             style={{
               color: "var(--bt-ink-text)",
               opacity: (focusCtlVisible || !running) ? 1 : 0,

@@ -37,17 +37,69 @@ Le chrono est le centre de gravité. Sur mobile, l'ordre est Chrono → Missions
 
 ## Environnements Focus
 
-**Environnements Focus V1 (2026-10-12, branche locale non déployée).** Le
-sélecteur se place en haut à droite, face au son, avec deux aperçus de palette
-statiques : Forêt reste le fond original par défaut (niveau 1), Gradient Wave
+**Environnements Focus V1 (2026-10-13, branche locale non déployée).** Le
+sélecteur se place en haut à droite, face au son, avec quatre aperçus statiques :
+Forêt/Wave gardent leurs dégradés de palette, Zenitho montre une vraie capture
+du shader (`public/focus-environments/zenitho.jpg`, 27 654 octets) et Glass Fold
+sa propre capture (`public/focus-environments/glass-fold.jpg`, 640 × 400,
+22 086 octets), sans canvas supplémentaire. Forêt reste le fond original par
+défaut (niveau 1), Gradient Wave
 est disponible au niveau 5 avec ses six couleurs source alternées bleu/blanc,
-32 % de la vitesse source, 30 fps et un tampon à demi-résolution. Le choix et
-le plus haut niveau observé sont privés et persistés par le serveur ; un
-déblocage est permanent et n'équipe jamais automatiquement. Les niveaux 12/20
-restent « À venir », sans aperçu ni action. Le même catalogue suit le XP dans
+40 % de la vitesse source, 30 fps et un tampon à demi-résolution. Zenitho est
+disponible au niveau 12 : palette originale rose/bleu/violet/ambre et mêmes
+équations/uniformes UVCanvas 0.3.0 sur le moteur Gradient Wave partagé,
+avec plan XZ, densité `[0.06, 0.16]`, caméra Z `-0.0005` et antialiasing
+opt-in ; seuls ses axes sont plafonnés à 180 segments. Auth/Wave gardent
+leurs défauts XY et Forêt ne change pas. Zenitho garde
+55 % du temps shader réellement écoulé (indépendamment du plafond 30 fps) et un
+tampon à demi-résolution. Le voile sombre central en fonctionnement est retiré,
+et Zenitho masque son grain global. Chiffres en encre sombre sans contour
+contrasté ni ombre ; petites légendes ordinaires sur un fond clair doux limité
+à leurs mots, aucun grand panneau. Commandes prune locales à Focus ; voile
+rouge réservé à la pause. Les blocs acquis deviennent bleu/violet (`#5144B7`,
+glow RGB `81, 68, 183`) sans changer fraction, capacité, ticks, rythme du glow
+ou anneau rouge de pause ; le repos Pomodoro reste une piste neutre. Aucun
+changement global de sémantique des Study Blocks.
+
+Glass Fold remplace la réserve du niveau 20, quatrième et dernier choix du
+catalogue. Il garde le GLSL GradFlow fourni, la palette originale
+`#1e3cc8` / `#06081e` / `#96d7ff`, `speed=0.5`, `scale=1`, `noise=0.12`, sans
+ralentissement ajouté. Deux triangles, dessins plafonnés à 30 fps ; vitesse
+source indépendante. Le tampon suit les pixels CSS sans DPR retina, plafonné à
+1 048 576 pixels et 2 048 px par axe. Le champ de verre reste visible, sans
+voile sombre global en fonctionnement ni couche de grain ajoutée. Texte clair,
+chiffres sans contour contrasté ni ombre et petites légendes sur un fond sombre
+doux limité à leurs mots (débord 2/4 px, flou 1 px) ; Pause/Reprendre
+primaires cyan/encre sombre, Terminer secondaire marine/texte clair. Remplissage
+et glow acquis cyan source (`#96d7ff`, RGB `150, 215, 255`) ; en pause, le champ
+rouge et ses voiles de contraste restent en place, le temps acquis garde son
+cyan et son anneau rouge. Props, fractions, capacité, ticks, rythme du glow,
+timer, Pomodoro et son inchangés. Forêt/Wave/Zenitho gardent leur comportement.
+Le registre charge à la demande exactement un renderer sélectionné ; galerie
+sans canvas et Progression sans WebGL. Arrêt pause/onglet masqué/mouvement
+réduit, ResizeObserver, reprise de contexte au même temps shader,
+nettoyage des ressources et fallback avec la vraie capture. Aucun paquet,
+TypeScript ou shadcn ajouté.
+
+Le choix et le plus haut niveau canonique observé sont privés et persistés par
+le serveur ; un déblocage est permanent et n'équipe jamais automatiquement.
+Les quatre choix sont visibles dans les deux galeries. Pause/Reprendre
+sont primaires dans les couleurs de l'environnement, Terminer reste secondaire.
+Le même catalogue suit le XP dans
 Progression. Thème limité au plein écran Focus, avertissement rouge de pause,
 cours, temps, blocs, Pomodoro et son conservés ; Échap ferme d'abord le
-sélecteur, puis Focus. Migration v86 et production restent en attente. Contrat
+sélecteur, puis Focus. V86 en attente étendue seulement avec Glass Fold et son
+seuil canonique 20, mise à niveau des anciens ensembles à deux/trois choix sans
+perte de préférence ni XP. 86 tests Focus / 909 complets, lint et build production
+réussis ; navigateur FR/EN à 320/390/1280 px, fonctionnement/pause/Pomodoro,
+verrou niveau 12 puis choix niveau 20 conservé après reload/baisse, sans débordement.
+60 mesures GPU locales Mac par format : 1280 × 800 médiane 1,536125 ms / p95
+2,068458 ms ; 390 × 844 médiane 0,626291 ms / p95 1,984374 ms. Ces mesures ne
+certifient ni un iPhone physique ni un appareil PWA. Revue finale Glass Fold
+**SHIP** sur les captures fournies et le code, sans relance indépendante du
+navigateur/tests ni correctif matériel demandé ; migration distante,
+persistance de compte réelle et production
+restent en attente, aucun push/déploiement. Contrat
 et limites de validation : [docs/focus-environments.md](../../docs/focus-environments.md),
 brief complémentaire : [Progression](pages-progression-js.md).
 

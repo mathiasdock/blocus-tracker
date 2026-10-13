@@ -33,7 +33,7 @@ function eventTarget() {
 // API. This catches scheduling and resource leaks without needing a GPU in CI.
 function makeBrowser(options = {}) {
   const env = { canvases: [], rafs: new Map(), seq: 0, contexts: 0, draws: 0, loseCalls: 0,
-    uniforms: new Map(), vertexSources: [], deleted: { buffers: [], shaders: [], programs: [] },
+    uniforms: new Map(), vertexSources: [], buffers: new Map(), deleted: { buffers: [], shaders: [], programs: [] },
     live: { buffers: new Set(), shaders: new Set(), programs: new Set() }, failDraw: false };
   const allocate = kind => {
     const value = { kind, id: ++env.seq };
@@ -67,7 +67,9 @@ function makeBrowser(options = {}) {
     uniform1f: uniform, uniform1i: uniform, uniform2fv: uniform, uniform3fv: uniform, uniform4fv: uniform,
     uniformMatrix4fv: (location, _transpose, value) => uniform(location, value),
     getAttribLocation: (_program, name) => ({ position: 0, uv: 1, uvNorm: 2 }[name] ?? -1),
-    bindBuffer() {}, bufferData() {}, enableVertexAttribArray() {}, vertexAttribPointer() {},
+    bindBuffer(target, buffer) { env.buffers.set(target, buffer); },
+    bufferData(target, values) { env.buffers.get(target).values = Array.from(values); },
+    enableVertexAttribArray() {}, vertexAttribPointer() {},
     viewport() {}, clearColor() {}, clearDepth() {},
     drawElements() { if (env.failDraw) throw new Error("controlled draw failure"); env.draws += 1; },
     getExtension: () => ({ loseContext: () => { env.loseCalls += 1; } }),
@@ -83,7 +85,7 @@ function makeBrowser(options = {}) {
       const canvas = { ...eventTarget(), style: {}, dataset: {},
         setAttribute() {},
         removeAttribute(name) { if (name === "data-ready") delete this.dataset.ready; },
-        getContext() { env.contexts += 1; return options.noWebGL ? null : gl; },
+        getContext(type, attributes) { env.contexts += 1; env.contextAttributes = attributes; return options.noWebGL ? null : gl; },
         remove() {
           if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(c => c !== this);
           this.parentNode = null;
@@ -106,7 +108,7 @@ function makeBrowser(options = {}) {
       plugins: [require.resolve("@babel/plugin-transform-modules-commonjs")],
     });
     const localRequire = id => {
-      if (id.endsWith(".module.css")) return { environment: "environment", wave: "wave", pause: "pause", veil: "veil" };
+      if (id.endsWith(".module.css")) return { environment: "environment", wave: "wave", pause: "pause", veil: "veil", pauseVeil: "pauseVeil" };
       if (id.endsWith("colorTokens.cjs")) return require(resolve(dirname(filename), id));
       if (id.startsWith(".")) return load(`${resolve(dirname(filename), id)}.js`);
       return require(id);
@@ -115,7 +117,7 @@ function makeBrowser(options = {}) {
     return fixtureModule.exports;
   };
   env.mount = (t, { wrapper = false, props = {} } = {}) => {
-    const Component = load(wrapper ? "components/focus/GradientWaveEnvironment.js" : "components/ui/GradientWave.js").default;
+    const Component = load(wrapper === "zenitho" ? "components/focus/ZenithoEnvironment.js" : wrapper ? "components/focus/GradientWaveEnvironment.js" : "components/ui/GradientWave.js").default;
     let renderer;
     act(() => { renderer = create(React.createElement(Component, props), { createNodeMock: () => container }); });
     t.after(() => act(() => renderer.unmount()));
@@ -143,13 +145,130 @@ function assertReleased(env) {
   assert.equal(env.container.children.length, 0);
 }
 
+test("Zenitho preserves UVCanvas's four colors, original uniform parameters, layer gate and initial phase", t => {
+  const env = makeBrowser();
+  const page = env.mount(t, { wrapper: "zenitho" });
+  const colors = ["#ef008f", "#6ec3f4", "#7038ff", "#ffba27"];
+  const uploaded = [env.uniforms.get("u_baseColor"), ...Array.from({ length: 3 }, (_, i) => env.uniforms.get(`u_waveLayers[${i}].color`))];
+  assert.deepEqual(uploaded, colors.map(hex => hex.slice(1).match(/../g).map(v => parseInt(v, 16) / 255)));
+  assert.equal(env.uniforms.get("u_global.noiseSpeed"), 0.000005 * 0.55);
+  assert.deepEqual(env.uniforms.get("u_global.noiseFreq"), [0.00014, 0.00029]);
+  assert.equal(env.uniforms.get("u_time") * env.uniforms.get("u_global.noiseSpeed"), 1253106 * 0.000005);
+  assert.deepEqual(env.uniforms.get("u_active_colors"), [1, 1, 1, 1]);
+  assert.equal(env.uniforms.get("u_darken_top"), 0);
+  assert.equal(env.uniforms.get("u_shadow_power"), 5);
+  assert.equal(env.uniforms.get("u_vertDeform.noiseAmp"), 320);
+  assert.equal(env.uniforms.get("u_vertDeform.noiseSeed"), 5);
+  for (let i = 1; i < colors.length; i++) {
+    assert.deepEqual(env.uniforms.get(`u_waveLayers[${i - 1}].noiseFreq`), [2 + i / 4, 3 + i / 4]);
+    assert.equal(env.uniforms.get(`u_waveLayers[${i - 1}].noiseSeed`), 5 + 10 * i);
+  }
+  assert.match(env.vertexSources[0], /u_time \* u_global.noiseSpeed/);
+  assert.equal(env.contexts, 1);
+  assert.equal(env.canvases[0].width, 200);
+  assert.equal(env.canvases[0].height, 150);
+  page.close(); assertReleased(env);
+});
+
+test("Zenitho restores UVCanvas's XZ mesh, density and camera; other renderers retain their XY defaults", t => {
+  for (const wrapper of [false, true, "zenitho"]) {
+    const env = makeBrowser();
+    const page = env.mount(t, { wrapper });
+    const [positions, uv, uvNorm, indices] = [...env.live.buffers].map(buffer => buffer.values);
+    const source = wrapper === "zenitho";
+    assert.equal(env.contextAttributes.antialias, source, "only Zenitho restores source edge antialiasing");
+    const x = Math.ceil(400 * (source ? .06 : .02)), y = Math.ceil(300 * (source ? .16 : .05));
+    assert.equal(positions.length, 3 * (x + 1) * (y + 1));
+    assert.equal(indices.length, 6 * x * y);
+    assert.deepEqual(positions.slice(0, 3), source ? [-200, 0, 150] : [-200, 150, 0]);
+    assert.deepEqual(positions.slice(-3), source ? [200, 0, -150] : [200, -150, 0]);
+    for (let i = source ? 1 : 2; i < positions.length; i += 3) assert.equal(positions[i], 0);
+    assert.deepEqual(uv.slice(0, 2), [0, 1]);
+    assert.deepEqual(uvNorm.slice(0, 2), [-1, 1]);
+    assert.equal(env.uniforms.get("projectionMatrix")[10], source ? -.0005 : -.001);
+    page.close(); assertReleased(env);
+  }
+});
+
+test("Zenitho bounds its denser mesh on large displays without Uint16 overflow", t => {
+  const env = makeBrowser();
+  env.container.clientWidth = 3840;
+  env.container.clientHeight = 2160;
+  const page = env.mount(t, { wrapper: "zenitho" });
+  const [positions, , , indices] = [...env.live.buffers].map(buffer => buffer.values);
+  assert.equal(positions.length / 3, 181 * 181);
+  assert.ok(indices.every(index => index < positions.length / 3 && index < 65536));
+  assert.equal(env.canvases[0].width, 1920);
+  assert.equal(env.canvases[0].height, 1080);
+  page.close(); assertReleased(env);
+});
+
+test("Zenitho advances shader phase at 55% real time, independently of its drawing cadence", t => {
+  for (const cadence of [40, 50, 100]) {
+    const env = makeBrowser();
+    const page = env.mount(t, { wrapper: "zenitho" });
+    const phase = () => env.uniforms.get("u_time") * env.uniforms.get("u_global.noiseSpeed");
+    const initial = phase();
+    env.step(0);
+    for (let now = cadence; now <= 1000; now += cadence) env.step(now);
+    assert.ok(Math.abs((phase() - initial) - 1000 * 0.000005 * 0.55) < 1e-8);
+    page.close(); assertReleased(env);
+  }
+});
+
+test("Zenitho has no running dark veil/filter; contrast ground belongs to paused state only", t => {
+  const env = makeBrowser();
+  const page = env.mount(t, { wrapper: "zenitho" });
+  const pauseVeils = () => page.renderer.root.findAllByProps({ className: "pauseVeil" });
+  assert.equal(pauseVeils().length, 0);
+  assert.equal(env.uniforms.get("u_darken_top"), 0);
+  const css = readFileSync(resolve(ROOT, "components/focus/ZenithoEnvironment.module.css"), "utf8");
+  assert.doesNotMatch(css, /\.veil\s*\{|filter:|rgba\(25, 12, 41/);
+  page.update({ paused: true });
+  assert.equal(pauseVeils().length, 1);
+  page.update({ paused: false });
+  assert.equal(pauseVeils().length, 0);
+  assert.equal(env.contexts, 1);
+});
+
+test("Zenitho suspends on pause/background/reduced motion and resumes without reallocating or catching up", t => {
+  const env = makeBrowser();
+  const page = env.mount(t, { wrapper: "zenitho" });
+  env.step(100); env.step(150);
+  const time = env.uniforms.get("u_time");
+  page.update({ paused: true });
+  assert.equal(env.rafs.size, 0);
+  env.step(10000);
+  assert.equal(env.uniforms.get("u_time"), time);
+  page.update({ paused: false }); env.step(20000); env.step(20050);
+  assert.equal(env.uniforms.get("u_time"), time + 50);
+  env.hide(true); assert.equal(env.rafs.size, 0);
+  env.hide(false); env.step(30000); env.step(30050);
+  assert.equal(env.uniforms.get("u_time"), time + 100);
+  env.reduce(true); assert.equal(env.rafs.size, 0);
+  assert.equal(env.contexts, 1);
+  page.close(); assertReleased(env);
+});
+
+test("Zenitho has a still reduced-motion frame, graceful WebGL fallback and complete cleanup", t => {
+  for (const options of [{ reduced: true }, { noWebGL: true }, { failCompile: true }, { failLink: true }, { failBuffer: true }]) {
+    const env = makeBrowser(options);
+    const page = env.mount(t, { wrapper: "zenitho" });
+    env.step(1000);
+    assert.equal(env.rafs.size, 0);
+    assert.equal(env.container.children.length, options.reduced ? 1 : 0);
+    if (options.reduced) assert.equal(env.draws, 1);
+    page.close(); assertReleased(env);
+  }
+});
+
 test("Focus wrapper uses all six original blue/white entries and the source's real deformation defaults", t => {
   const env = makeBrowser();
   env.mount(t, { wrapper: true });
   assert.equal(env.container.children.length, 1, "the six-color shader initializes");
   const uploaded = [env.uniforms.get("u_baseColor"), ...Array.from({ length: 5 }, (_, i) => env.uniforms.get(`u_waveLayers[${i}].color`))];
   assert.deepEqual(uploaded, COLORS.map(hex => hex.slice(1).match(/../g).map(v => parseInt(v, 16) / 255)));
-  assert.equal(env.uniforms.get("u_global.noiseSpeed"), 0.0000032);
+  assert.equal(env.uniforms.get("u_global.noiseSpeed"), 0.000004);
   assert.deepEqual(env.uniforms.get("u_global.noiseFreq"), [0.0001, 0.0009]);
   assert.equal(env.uniforms.get("u_vertDeform.incline"), 0);
   assert.equal(env.uniforms.get("u_vertDeform.noiseAmp"), 320);
