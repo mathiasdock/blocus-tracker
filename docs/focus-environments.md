@@ -177,6 +177,16 @@ Space keeps its pause/resume role outside controls and the open gallery.
 
 ## Verification and limits
 
+Production code was verified on 2026-10-13 at `f29d7cd`, Vercel
+`dpl_HTsHjdpaqpfWU9k1LZSUivr418mh` READY on `www.blocus-tracker.com`.
+On the real level-15 account, levels 1/5/12 are available and Glass Fold is
+locked, including direct server refusal in a rolled-back test. Zenitho equip
+survived reload and appeared in a second browser session; the original Forest
+choice was restored and confirmed there too. FR desktop and EN Chrome at
+390 × 844 cover Progression, Focus and its gallery with one active canvas and
+no overflow. No fictitious study session, XP change or physical iPhone test
+was performed. A later documentation-only closing commit may have a newer SHA.
+
 The seven feature suites (`tests/focus-*.test.mjs`) pass 87 tests locally. They
 execute the migration in PGlite with the shipped canonical level function and
 cover RLS/privileges, suspension, persistence, reductions, idempotence and
