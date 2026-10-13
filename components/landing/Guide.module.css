@@ -130,6 +130,71 @@
   .layoutArticle .answerText { margin-top: 10px; font-size: 1.25rem; }
 }
 
+/* Outil (Pomodoro) : le vrai Chrono est la page. C'est la carte du
+   Dashboard (components/timer/PublicChrono), jamais restylée ici : seule sa
+   place change. Téléphone et tablette : un titre plus court, l'outil, puis
+   l'introduction et la réponse courte. Ordinateur : l'outil dans la colonne
+   de droite, à hauteur du titre, le texte à sa gauche. */
+.top:has(> .layoutTool) { padding-top: 20px; }
+.topGrid.layoutTool { grid-template-areas: "intro" "tool" "copy" "answer"; }
+.toolSlot {
+  grid-area: tool;
+  min-width: 0;
+  margin-top: 16px;
+  /* Ancre #minuteur (« Lancer le chrono ») : sous l'en-tête collant. */
+  scroll-margin-top: calc(63px + env(safe-area-inset-top) + 16px);
+}
+/* La place réservée à la carte espace déjà l'introduction de la carte. */
+.layoutTool .copy { margin-top: 20px; }
+@media (min-width: 640px) and (max-width: 1023px) { .toolSlot { max-width: 560px; } }
+@media (min-width: 768px) { .top:has(> .layoutTool) { padding-top: 40px; } }
+@media (min-width: 1024px) {
+  .top:has(> .layoutTool) { padding-top: 48px; }
+  .topGrid.layoutTool {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+    grid-template-areas: "intro tool" "copy tool" "answer tool";
+    column-gap: 56px;
+    align-items: start;
+  }
+  .toolSlot { margin-top: 0; }
+  .layoutTool .copy { margin-top: 24px; }
+  .layoutTool .answer { display: block; margin-top: 40px; padding-top: 24px; }
+  .layoutTool .answerText { margin-top: 10px; font-size: 1.25rem; }
+}
+/* Sous 1024 px, rien ne bouge quand le Chrono change d'état ni quand
+   l'invitation à créer un compte arrive :
+   - la place de la carte est réservée à sa plus grande hauteur (la pause
+     Pomodoro), le travail et le repos s'y succèdent sans déplacer le texte ;
+   - l'invitation (après une vraie session) se pose à la place de
+     l'introduction, qui garde sa place sans s'afficher, au lieu de la
+     pousser vers le bas. Fermée, l'introduction réapparaît au même endroit.
+   Sur ordinateur, l'outil a sa colonne : l'invitation s'y ajoute sous la
+   carte, à côté d'un texte plus long qu'elle. */
+@media (max-width: 1023px) {
+  .toolSlot { position: relative; }
+  /* Plus grande hauteur de la carte, mesurée dans tous ses états (repos,
+     travail, pause, repos Pomodoro), en français et en anglais, plus une
+     marge : 417 px de 340 à 639 px de large (416 px quand Pause et Terminer
+     s'empilent, sous 380 px) ; 431 px à 320 px, où les réglages passent sur
+     deux lignes ; 469 px de 640 à 1023 px. Sans carte (compte connecté),
+     rien n'est réservé. */
+  .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 418px; }
+  /* Sans `top`, la boîte garde sa place naturelle, juste sous la carte. */
+  .toolSlot > div:has(> div > section[aria-labelledby="public-chrono-invite-title"]) {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+  }
+  .toolSlot:has(section[aria-labelledby="public-chrono-invite-title"]) ~ .copy { visibility: hidden; }
+}
+@media (max-width: 339px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 434px; } }
+@media (min-width: 640px) and (max-width: 1023px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 472px; } }
+/* Ordinateur : la carte (469 px au plus) et l'invitation (227 px) tiennent
+   dans 720 px, toujours moins que le texte à côté (750 px et plus) ; la
+   réserve garantit que la page ne bouge pas même avec un texte plus court. */
+@media (min-width: 1024px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 720px; } }
+
 .title {
   max-width: 52rem;
   margin-top: 12px;
@@ -139,6 +204,10 @@
   color: var(--bt-text-1);
   text-wrap: balance;
 }
+/* Pomodoro : deux lignes sur téléphone, pour que la carte et Démarrer
+   arrivent dans le premier écran. */
+.layoutTool .title { font-size: clamp(1.75rem, 7.4vw, 2.25rem); }
+@media (min-width: 1024px) { .layoutTool .title { font-size: clamp(2.5rem, 4.4vw, 3.25rem); } }
 .lead {
   max-width: 34rem;
   font-size: 1.0625rem;

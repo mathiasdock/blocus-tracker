@@ -1,5 +1,26 @@
 # AI_CHANGELOG.md
 
+## 2026-10-13 — Claude Code — Site public : /pomodoro sur le gabarit éditorial, le vrai Chrono en premier
+
+- **Commit local, non déployé** : en attente de la validation de Mathias.
+- Le dernier guide passe sur `GuideArticle`, avec une composition propre à un outil (`layout="tool"`, prop `tool`) : le vrai Chrono suit le titre, avant l'introduction. Sur ordinateur, il occupe la colonne de droite à hauteur du titre ; à gauche, l'introduction, « Inclus » et la réponse courte. Le reste reprend la grammaire des guides : routine d'un bloc en étapes numérotées, encadré collé sous l'en-tête, guides liés en index, FAQ visible, appel final dont « Lancer le chrono » ramène à l'outil (`#minuteur`).
+- Rien du Chrono n'est touché : moteur, sessions, espace local, cycles Pomodoro, mode Focus, invitation après une vraie session et rappels à 7/30 jours restent ceux de `PublicChrono` / `useChrono` / `ChronoCard` ; la page ne fait que les placer.
+- Téléphone : titre sur deux lignes, Démarrer remonte d'environ 60 px (390 × 844 : 573 → 511 px). Avec le bandeau cookies, il reste visible sur 390 × 844 et 414 × 896, et le devient sur 360 × 780 ; sur les écrans plus courts (iPhone avec les barres de Safari, iPhone SE, 320 px), un petit défilement suffit, environ deux fois plus court qu'avant.
+- Plus de décalage de la page :
+  - la place de la carte est réservée à sa plus grande hauteur, mesurée dans tous ses états (repos, travail, pause, repos Pomodoro), en français et en anglais, de 320 à 1023 px ; sur ordinateur, la colonne de l'outil a sa réserve, toujours plus courte que le texte à côté ;
+  - sous 1024 px, l'invitation se pose sous la carte à la place de l'introduction, qui garde sa place sans s'afficher, au lieu de la pousser ; fermée, l'introduction réapparaît au même endroit (règles CSS sur la place de l'outil, sans toucher à `PublicChrono`) ;
+  - score de décalage d'un cycle Pomodoro complet pour la page autour de la carte : téléphone 0,050 → 0 (travail → repos) et 0,505 → 0 (fin du repos et invitation) ; ordinateur 0,017 → 0 et 0,315 → 0. Restent les mouvements internes de la carte du Chrono (ses boutons et son message changent d'état), inchangés.
+- Contenu : un seul champ ajouté, `ordered: true` sur la première section ; aucun texte modifié.
+- Vérifié sur des copies locales de `main` (78bb3dd) et de cette version :
+  - **HTML serveur :** title, meta, canonical, 6 blocs JSON-LD, H1, 8 H2, 6 H3, les 7 liens et 62/62 fragments de texte identiques, aucun texte ajouté, aucune image ; les 13 autres URL identiques ;
+  - **Pixels :** 40/44 captures identiques (les 10 autres pages publiques, clair et sombre) ;
+  - **Parcours réels** (Chrome, horloge pilotée) : Pomodoro (démarrer, pause, reprise, travail → repos → invitation), Libre (12 min puis Terminer → invitation), Focus (à la demande, temps qui passe, retour), « Continuer sans compte » (30 jours), inscription (/signup, invitation notée), rechargement au repos et en plein bloc ; 34/34 à 390, 768 et 1440 px, avec et sans animations, et en anglais ; 33/34 à 320 × 568, où l'invitation apparaît sous la ligne de flottaison comme avant (elle n'est notée vue qu'une fois à l'écran) ;
+  - **Contrôles :** 69/69 (320 à 1440 px, clair/sombre). Dans la carte du Chrono elle-même, inchangée, les menus Pomodoro / 25 min / 5 min font 32 px de haut et quelques étiquettes 11–12 px : à traiter avec le Dashboard ;
+  - **Poids :** JS de la page 35,75 → 35,32 Ko gz, CSS +3,61 Ko gz (feuille des guides) ; les cinq autres guides +0,10 Ko de JS et +0,34 Ko de CSS ;
+  - **Vitesse :** téléphone bridé 1 472 → 1 436 ms, ordinateur 312 → 292 ms (premier affichage), CLS 0 au chargement ; « Lancer le chrono » ramène l'outil juste sous l'en-tête, Démarrer visible.
+- Tests : 841/841 (le test du héros vérifie la nouvelle composition et les règles qui empêchent les décalages ; +1 : mêmes H1/H2/H3, liens et texte que l'ancien gabarit ; le banc d'essai lit désormais les modules CSS), lint, build.
+- `SeoLandingPage` n'est plus utilisé par aucune page : il reste la référence « avant » des tests de comparaison, à retirer avec eux une fois /pomodoro validé.
+
 ## 2026-10-12 — Claude Code — Site public : /application-etudiant et /blocus-belgique sur le gabarit éditorial
 
 - **Déployé en production le 2026-10-12** après validation de Mathias : `main` e4dc9d7 → 0a94374 en avance rapide (aucun commit parallèle ; les travaux de Codex — fonds du mode Focus, présence des amis, Stats — restent dans leurs copies, sans fichier commun), Vercel `dpl_GFvJzkosyzyJ7rCpxE2nf4JskAb2` (build `O9fj8LkKYRjkyCAExZ9AJ`). Vérifié en production :

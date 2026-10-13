@@ -1,9 +1,10 @@
 // /pomodoro avec le vrai Chrono (P1-B, phase 2) : la page réelle (pages/pomodoro.js,
-// SeoLandingPage, PublicChrono) montée sur les vrais moteurs (TimerContext,
+// GuideArticle, PublicChrono) montée sur les vrais moteurs (TimerContext,
 // I18nContext, useChrono, espace invité), horloge pilotée, stockage local qui
 // survit à un « rechargement », Supabase et les sons remplacés par des
-// enregistreurs. L'en-tête/pied publics, les menus déroulants, next/link et le
-// plein écran Focus sont des doublures (CSS modules, routeur, WebGL).
+// enregistreurs. L'en-tête/pied publics, la mascotte, les menus déroulants,
+// next/link et le plein écran Focus sont des doublures (CSS modules, routeur,
+// WebGL) ; un module CSS rend le nom de ses classes.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -78,6 +79,7 @@ function makeEnv({ user = null, loading = false, deviceLanguage = "en-US" } = {}
     "components/timer/ChronoFocus": { __esModule: true, default: () => null },
     "components/landing/PublicHeader": { __esModule: true, default: () => { env.headerRenders += 1; return h("header", null, "header"); } },
     "components/landing/PublicFooter": { __esModule: true, default: () => h("footer", null, "footer") },
+    "components/Mascot": { __esModule: true, default: () => h("svg", { "data-mascot": "1" }) },
     "components/FilterMenu": { __esModule: true, default: ({ value, options, onChange, ariaLabel }) =>
       h("filter-menu", { value, "aria-label": ariaLabel, onChange }, text(options.find((o) => o.value === value)?.label)) },
   };
@@ -87,11 +89,14 @@ function makeEnv({ user = null, loading = false, deviceLanguage = "en-US" } = {}
 
 function makeLoader(env) {
   const cache = new Map();
+  // Pas de « __esModule » : l'import par défaut reçoit bien le module.
+  const cssModule = new Proxy({}, { get: (_, key) => (typeof key === "string" && key !== "__esModule" ? key : undefined) });
   function resolveFile(abs) {
-    for (const candidate of [abs, `${abs}.js`, `${abs}.mjs`, `${abs}.jsx`]) if (existsSync(candidate) && !candidate.endsWith("/")) return candidate;
+    for (const candidate of [abs, `${abs}.js`, `${abs}.mjs`, `${abs}.jsx`, `${abs}.cjs`]) if (existsSync(candidate) && !candidate.endsWith("/")) return candidate;
     throw new Error(`cannot resolve ${abs}`);
   }
   function load(file) {
+    if (file.endsWith(".css")) return cssModule;
     const rel = relative(ROOT, file).replace(/\.(m?js|jsx|cjs)$/, "");
     if (env.mocks[rel]) return env.mocks[rel];
     if (cache.has(file)) return cache.get(file).exports;
@@ -476,13 +481,25 @@ test("invitation : en anglais sur choix manuel ; jamais si l'appareil n'a pas pu
   page.close();
 });
 
-test("héros : sur ordinateur, titre et outil partent du haut — l'invitation allonge la page sans les déplacer", () => {
+test("héros : le titre, puis l'outil, puis l'introduction — et les règles qui empêchent la page de bouger", () => {
   const html = renderToString(pageTree(makeEnv({ loading: true }))());
-  const grid = html.match(/<div class="([^"]*)"><div class="[^"]*lg:row-start-1 lg:self-end">/);
-  assert.ok(grid);
-  assert.match(grid[1], /lg:grid-rows-\[auto_1fr\]/);
-  assert.match(grid[1], /lg:items-start/);
-  assert.doesNotMatch(grid[1], /lg:items-center/);
+  // Composition « tool » du gabarit éditorial : l'outil juste après le titre.
+  assert.match(html, /<div class="container topGrid topSolo layoutTool">/);
+  const order = ["<h1", '<div id="minuteur" class="toolSlot">', "Règle ton bloc de travail", 'aria-labelledby="guide-answer-title"'].map((needle) => html.indexOf(needle));
+  assert.ok(order.every((at) => at > 0), JSON.stringify(order));
+  assert.deepEqual([...order].sort((a, b) => a - b), order);
+  // Sans bouton vers l'app en haut de page : l'outil le remplace.
+  assert.doesNotMatch(html.slice(0, html.indexOf('aria-labelledby="guide-answer-title"')), /href="\/dashboard"/);
+  // Ce qui garde la page immobile (Guide.module.css) : la place de la carte
+  // réservée à sa plus grande hauteur, l'invitation posée à la place de
+  // l'introduction sous 1024 px, une colonne réservée sur ordinateur.
+  const css = readFileSync(join(ROOT, "components/landing/Guide.module.css"), "utf8");
+  const reserve = [...css.matchAll(/\.toolSlot:has\(\[class~="bt-dashboard-timer"\]\) \{ min-height: (\d+)px; \}/g)].map((m) => Number(m[1]));
+  assert.deepEqual(reserve, [418, 434, 472, 720]);
+  assert.match(css, /\.toolSlot > div:has\(> div > section\[aria-labelledby="public-chrono-invite-title"\]\) \{\s*position: absolute;\s*left: 0;/);
+  assert.match(css, /\.toolSlot:has\(section\[aria-labelledby="public-chrono-invite-title"\]\) ~ \.copy \{ visibility: hidden; \}/);
+  // Le Chrono lui-même n'est pas restylé par la page.
+  assert.doesNotMatch(css, /bt-dashboard-timer[^"\]]/);
 });
 
 test("invitation : jamais pour un compte connecté, jamais dans le HTML serveur", () => {
@@ -623,19 +640,44 @@ test("SEO : title, meta, canonical, Article/FAQ/Breadcrumb alignés sur la page 
   assert.match(html, /<a href="#minuteur"[^>]*>Lancer le chrono<\/a>/);
 });
 
-// /planning-revision, /stats-etude, /objectifs-etude, /application-etudiant
-// et /blocus-belgique sont passés au gabarit éditorial
-// (tests/guide-article.test.mjs) : /pomodoro, avec son outil, est le seul
-// guide à garder SeoLandingPage.
-test("seul /pomodoro garde l'ancien gabarit, les cinq autres guides sont sur le gabarit éditorial, sans outil", () => {
+// Les six guides sont sur le gabarit éditorial (tests/guide-article.test.mjs
+// pour les cinq autres) ; seul /pomodoro y porte un outil.
+test("les six guides sont sur le gabarit éditorial ; seul /pomodoro porte un outil, le vrai Chrono", () => {
   const env = makeEnv({ loading: true });
   const { SEO_LANDING_PATHS } = env.load("lib/seoLandingPages");
-  assert.match(readFileSync(join(ROOT, "pages/pomodoro.js"), "utf8"), /<SeoLandingPage /);
-  const others = SEO_LANDING_PATHS.filter((path) => path !== "/pomodoro");
-  assert.equal(others.length, 5);
-  for (const path of others) {
+  assert.equal(SEO_LANDING_PATHS.length, 6);
+  for (const path of SEO_LANDING_PATHS) {
     const source = readFileSync(join(ROOT, `pages${path}.js`), "utf8");
     assert.match(source, /<GuideArticle /, path);
-    assert.doesNotMatch(source, /import SeoLandingPage|<SeoLandingPage|tool=/, path);
+    assert.doesNotMatch(source, /import SeoLandingPage|<SeoLandingPage/, path);
+    if (path === "/pomodoro") assert.match(source, /layout="tool" tool=\{<PublicChrono \/>\}/);
+    else assert.doesNotMatch(source, /tool=/, path);
   }
+});
+
+test("même H1, mêmes H2/H3 dans le même ordre, mêmes liens et tout le texte de l'ancien gabarit", () => {
+  const env = makeEnv({ loading: true });
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const { I18nProvider } = env.load("contexts/I18nContext");
+  const { TimerProvider } = env.load("contexts/TimerContext");
+  const SeoLandingPage = env.load("components/SeoLandingPage").default;
+  const PublicChrono = env.load("components/timer/PublicChrono").default;
+  const page = SEO_LANDING_PAGES["/pomodoro"];
+  const before = renderToString(h(I18nProvider, null, h(TimerProvider, null, h(SeoLandingPage, { page, tool: h(PublicChrono) }))));
+  const html = renderToString(pageTree(makeEnv({ loading: true }))());
+  const decode = (t) => t.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/\u00A0/g, " ");
+  const clean = (t) => decode(t.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  const tags = (t, tag) => [...t.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "g"))].map((m) => clean(m[1]));
+  const links = (t) => [...t.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]).sort();
+  for (const tag of ["h1", "h2", "h3"]) assert.deepEqual(tags(html, tag), tags(before, tag), tag);
+  assert.deepEqual(links(html), links(before));
+  assert.deepEqual(links(html), ["#minuteur", "/objectifs-etude", "/planning-revision", "/planning-revision", "/signup", "/signup", "/stats-etude"]);
+  // Chaque morceau de texte de l'ancienne page est là, mot pour mot.
+  const visible = clean(html);
+  const chunks = [...before.matchAll(/>([^<]+)</g)].map((m) => decode(m[1]).replace(/\s+/g, " ").trim()).filter((t) => t.length > 1);
+  const missing = chunks.filter((chunk) => !visible.includes(chunk));
+  assert.deepEqual(missing, []);
+  // La routine d'un bloc devient une liste numérotée, dans l'ordre.
+  const ol = html.match(/<ol[^>]*>([\s\S]*?)<\/ol>/);
+  assert.deepEqual(tags(ol[1], "li"), plain(page.sections[0].bullets).map((t) => t.replace(/\s+/g, " ")));
 });

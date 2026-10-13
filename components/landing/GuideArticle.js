@@ -11,10 +11,10 @@ import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 
 // Gabarit éditorial des guides, sur la grammaire de l'accueil : même en-tête,
 // même grille, mêmes boutons et même appel final (Landing.module.css).
-// /planning-revision (pilote), /stats-etude, /objectifs-etude,
-// /application-etudiant et /blocus-belgique ; chaque guide choisit sa
-// composition (LAYOUT ci-dessous) selon ce qu'il montre du produit. /pomodoro,
-// avec son Chrono sur la page, garde SeoLandingPage.
+// Les six guides : /planning-revision (pilote), /stats-etude, /objectifs-etude,
+// /application-etudiant, /blocus-belgique et /pomodoro, qui porte le vrai
+// Chrono (prop `tool`). Chaque guide choisit sa composition (LAYOUT
+// ci-dessous) selon ce qu'il montre du produit.
 //
 // Le texte, les titres et les liens sont ceux de lib/seoLandingPages(.En).js,
 // mot pour mot : seule la mise en page change. Meta et JSON-LD restent dans
@@ -26,8 +26,8 @@ import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 // l'encadré « dans Blocus Tracker » à côté de l'article et l'appel final. Le
 // reste tient par l'espace, les filets et la typographie.
 
-// Chaînes de la coquille, reprises telles quelles de SeoLandingPage (même texte
-// visible). Elles partiront avec lui, une fois le dernier guide migré.
+// Chaînes de la coquille, reprises telles quelles de l'ancien gabarit
+// (SeoLandingPage, gardé comme référence des tests) : même texte visible.
 const UI = {
   fr: {
     included: "Inclus",
@@ -132,7 +132,10 @@ function SectionList({ section }) {
 // - "devices" : le même écran sur ordinateur et sur téléphone, la paire
 //   d'appareils de l'accueil (Application : l'app elle-même) ;
 // - "article" : pas de capture en haut, l'introduction et la réponse courte
-//   côte à côte (Blocus : une définition, des dates, des sources).
+//   côte à côte (Blocus : une définition, des dates, des sources) ;
+// - "tool" : l'outil est la page (Pomodoro : le vrai Chrono). Il suit le
+//   titre, sans détour ; sur ordinateur, il occupe la colonne de droite à
+//   hauteur du titre, l'introduction et la réponse courte à sa gauche.
 const LAYOUT = {
   screen: { className: "", sizes: "(min-width: 1120px) 550px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)", mobileSizes: "calc(100vw - 40px)" },
   panorama: { className: g.layoutPanorama, sizes: "(min-width: 1120px) 1056px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)", mobileSizes: "calc(100vw - 40px)" },
@@ -140,6 +143,7 @@ const LAYOUT = {
   // L'écran de l'ordinateur et celui du téléphone (Guide.module.css, .devices).
   devices: { className: g.layoutDevices, sizes: "(min-width: 1120px) 430px, (min-width: 768px) 534px, calc(88vw - 76px)", phoneSizes: "(min-width: 1120px) 126px, (min-width: 768px) 157px, calc(27vw - 30px)" },
   article: { className: g.layoutArticle },
+  tool: { className: g.layoutTool },
 };
 
 // Une capture dans la colonne de lecture (Blocus : le Planning).
@@ -153,7 +157,10 @@ const GALLERY_SIZES = {
   phone: "(min-width: 640px) min(368px, calc(50vw - 44px)), calc(100vw - 40px)",
 };
 
-export default function GuideArticle({ page, layout = "screen" }) {
+// `tool` : un outil à utiliser sur place (le Chrono de /pomodoro), avec
+// `layout="tool"`. Il remplace la capture et le bouton vers l'app du haut de
+// page, et « Lancer le chrono » de l'appel final y ramène (#minuteur).
+export default function GuideArticle({ page, layout = "screen", tool = null }) {
   const { lang } = useI18n();
   const isEn = lang === "en";
   const ui = isEn ? UI.en : UI_FR;
@@ -204,13 +211,17 @@ export default function GuideArticle({ page, layout = "screen" }) {
                 <h1 className={g.title}>{p.h1}</h1>
               </header>
 
+              {/* L'outil juste après le titre, avant l'introduction : le
+                  premier geste de la page, Démarrer, arrive sans détour. */}
+              {tool && <div id="minuteur" className={g.toolSlot}>{tool}</div>}
+
               <div className={g.copy}>
                 <p className={g.lead}>{p.lead}</p>
                 {/* Date de mise à jour et auteur, quand la page les déclare :
                     ceux du JSON-LD Article (lib/seo.js). */}
                 {p.byline && <p className={g.byline}>{p.byline}</p>}
                 <div className={`${s.actions} ${g.heroActions}`}>
-                  <Link href="/dashboard" className={`btn-primary ${s.cta}`}>{p.ctaLabel}</Link>
+                  {!tool && <Link href="/dashboard" className={`btn-primary ${s.cta}`}>{p.ctaLabel}</Link>}
                   <Link href={p.secondaryCtaHref} className={`btn-ghost ${s.cta} ${s.ctaGhost}`}>
                     {p.secondaryCtaLabel}
                   </Link>
@@ -411,7 +422,13 @@ export default function GuideArticle({ page, layout = "screen" }) {
               <h2 id="guide-final-title" className={`${s.finalTitle} ${s.display}`}>{ui.finalTitle}</h2>
               <p className={s.finalText}>{ui.finalText}</p>
               <div className={`${s.actions} ${s.finalActions}`}>
-                <Link href="/dashboard" className={`btn btn-hero ${s.cta}`}>{ui.startTimer}</Link>
+                {/* Avec un outil sur la page, « Lancer le chrono » y ramène au
+                    lieu de quitter la page pour l'app. */}
+                {tool ? (
+                  <a href="#minuteur" className={`btn btn-hero ${s.cta}`}>{ui.startTimer}</a>
+                ) : (
+                  <Link href="/dashboard" className={`btn btn-hero ${s.cta}`}>{ui.startTimer}</Link>
+                )}
                 <Link href="/signup" className={`btn ${s.cta} ${s.ctaOnInk}`}>{ui.signup}</Link>
               </div>
             </div>
