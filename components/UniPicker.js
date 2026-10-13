@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import Glyph from "./Glyph";
 import { useI18n } from "../contexts/I18nContext";
-import { COUNTRIES } from "../lib/universities";
+import { ALL_UNIVERSITIES, COUNTRIES } from "../lib/universities";
+import { institutionNameForSelection, mergeInstitutionOptions } from "../lib/universitySelection.mjs";
 
 function SearchIcon() {
   return (
@@ -29,7 +30,7 @@ export default function UniPicker({
   error = false,
   ariaDescribedBy,
 }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const generatedId = useId().replace(/:/g, "");
   const inputId = id || `university-${generatedId}`;
   const listId = `${inputId}-listbox`;
@@ -38,7 +39,19 @@ export default function UniPicker({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [remote, setRemote] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [manual, setManual] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualError, setManualError] = useState(false);
   const ref = useRef(null);
+  const inputRef = useRef(null);
+  const manualOptions = useRef([]);
+  const focusAfterModeChange = useRef(false);
+
+  useEffect(() => {
+    if (!focusAfterModeChange.current) return;
+    inputRef.current?.focus();
+    focusAfterModeChange.current = false;
+  }, [manual]);
 
   useEffect(() => {
     setRemote([]);
@@ -50,7 +63,7 @@ export default function UniPicker({
         const response = await fetch(`/api/universities?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal });
         if (!response.ok) throw new Error("search");
         const result = await response.json();
-        if (!controller.signal.aborted) setRemote(result.universities || []);
+        if (!controller.signal.aborted) setRemote(Array.isArray(result.universities) ? result.universities : []);
       } catch { /* The curated list and explicit custom entry remain usable. */ }
       finally { if (!controller.signal.aborted) setSearching(false); }
     }, 280);
@@ -96,9 +109,38 @@ export default function UniPicker({
     countryCode: country.code,
     countryName: country.name,
   })));
-  const options = [...localOptions, ...remote.filter(row => !localOptions.some(local => local.full === row.full))];
-  if (query.trim().length >= 2 && !options.some(row => row.full.toLowerCase() === normalizedQuery)) {
-    options.push({ id: "custom", full: query.trim().slice(0, 180), name: query.trim(), countryCode: "custom", countryName: lang === "fr" ? "Établissement non répertorié" : "Unlisted institution", custom: true });
+  const options = mergeInstitutionOptions(localOptions, remote);
+
+  function enterManual() {
+    manualOptions.current = mergeInstitutionOptions(ALL_UNIVERSITIES, remote);
+    setManualName(query || value || "");
+    setManualError(false);
+    setOpen(false);
+    setActiveIndex(-1);
+    focusAfterModeChange.current = true;
+    setManual(true);
+    // Keep the draft local: entering/cancelling never clears a saved profile.
+  }
+
+  function returnToList() {
+    setManualError(false);
+    setQuery("");
+    setOpen(false);
+    focusAfterModeChange.current = true;
+    setManual(false);
+  }
+
+  function confirmManual() {
+    const name = institutionNameForSelection(manualName, manualOptions.current);
+    if (!name) {
+      setManualError(true);
+      inputRef.current?.focus();
+      return;
+    }
+    choose({ full: name });
+    setManualError(false);
+    focusAfterModeChange.current = true;
+    setManual(false);
   }
 
   function choose(university) {
@@ -116,6 +158,17 @@ export default function UniPicker({
   }
 
   function handleKeyDown(event) {
+    if (manual) {
+      if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+        event.preventDefault();
+        confirmManual();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        returnToList();
+      }
+      return;
+    }
     if (event.key === "Escape") {
       setOpen(false);
       setQuery("");
@@ -141,28 +194,36 @@ export default function UniPicker({
 
   return (
     <div ref={ref} className="relative">
-      <div className={`input flex items-center gap-2 px-3 ${error ? "input-error" : "focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10"}`}>
-        <span className="shrink-0" style={{ color: "var(--bt-text-3)" }}><SearchIcon /></span>
+      <div className={`input flex items-center gap-2 px-3 ${(error || manualError) ? "input-error" : "focus-within:border-accent focus-within:ring-4 focus-within:ring-accent/10"}`}>
+        {!manual && <span className="shrink-0" style={{ color: "var(--bt-text-3)" }}><SearchIcon /></span>}
         <input
+          ref={inputRef}
           id={inputId}
           type="text"
-          role="combobox"
-          aria-autocomplete="list"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-activedescendant={activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
-          aria-invalid={error}
-          aria-describedby={ariaDescribedBy}
+          role={manual ? undefined : "combobox"}
+          aria-label={id ? undefined : t("signup.university")}
+          aria-autocomplete={manual ? undefined : "list"}
+          aria-expanded={manual ? undefined : open}
+          aria-controls={manual ? undefined : listId}
+          aria-activedescendant={!manual && open && options[activeIndex] ? `${listId}-option-${activeIndex}` : undefined}
+          aria-invalid={error || manualError}
+          aria-describedby={[ariaDescribedBy, manual ? `${inputId}-manual-hint` : null, manualError ? `${inputId}-manual-error` : null].filter(Boolean).join(" ") || undefined}
           className="min-w-0 flex-1 bg-transparent py-0 outline-none !min-h-0"
           style={{ color: "var(--bt-text-1)" }}
-          placeholder={placeholder || t("signup.uniSearch")}
-          value={open ? query : (selectedLabel || query)}
+          placeholder={manual ? t("signup.uniCustom") : placeholder || t("signup.uniSearch")}
+          value={manual ? manualName : open ? query : (selectedLabel || query)}
           onChange={event => {
+            if (manual) {
+              setManualName(event.target.value);
+              setManualError(false);
+              return;
+            }
             setQuery(event.target.value);
             setOpen(true);
             setActiveIndex(-1);
           }}
           onFocus={() => {
+            if (manual || focusAfterModeChange.current) return;
             setQuery("");
             setOpen(true);
             setActiveIndex(-1);
@@ -172,7 +233,7 @@ export default function UniPicker({
           autoComplete="off"
           maxLength={180}
         />
-        {value && !disabled && (
+        {value && !manual && !disabled && (
           <button
             type="button"
             onMouseDown={event => event.preventDefault()}
@@ -186,6 +247,19 @@ export default function UniPicker({
         )}
       </div>
 
+      {manual ? (
+        <>
+          <p id={`${inputId}-manual-hint`} className="mt-2 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("signup.uniManualHint")}</p>
+          {manualError && <p id={`${inputId}-manual-error`} role="alert" className="mt-1 text-sm" style={{ color: "var(--bt-danger)" }}>{t("signup.uniNameInvalid")}</p>}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <button type="button" className="btn-secondary min-h-11 rounded-xl px-3 text-sm font-semibold" onClick={confirmManual} disabled={disabled}>{t("signup.uniConfirm")}</button>
+            <button type="button" className="min-h-11 text-sm underline underline-offset-4 transition-colors hover:text-[var(--bt-text-1)] disabled:opacity-50" style={{ color: "var(--bt-text-2)" }} onClick={returnToList} disabled={disabled}>{t("signup.backToList")}</button>
+          </div>
+        </>
+      ) : (
+        <button type="button" className="min-h-11 py-2 text-left text-sm font-semibold underline underline-offset-4 transition-colors hover:text-[var(--bt-text-1)] disabled:opacity-50" style={{ color: "var(--bt-brand-text)" }} onClick={enterManual} disabled={disabled}>{t("signup.uniNotFound")}</button>
+      )}
+
       {open && !disabled && (
         <div
           id={listId}
@@ -193,7 +267,7 @@ export default function UniPicker({
           className="absolute left-0 right-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-xl border shadow-lg"
           style={{ backgroundColor: "var(--bt-surface)", borderColor: "var(--bt-border)" }}
         >
-          {searching && <p role="status" className="px-4 py-2 text-xs" style={{ color: "var(--bt-text-2)" }}>{lang === "fr" ? "Recherche dans l’annuaire mondial…" : "Searching the worldwide directory…"}</p>}
+          {searching && <p role="status" className="px-4 py-2 text-xs" style={{ color: "var(--bt-text-2)" }}>{t("signup.uniSearching")}</p>}
           {options.length === 0 ? (
             <p className="px-4 py-3 text-sm" style={{ color: "var(--bt-text-2)" }}>{t("common.noResults")}</p>
           ) : (
@@ -221,7 +295,7 @@ export default function UniPicker({
                       fontWeight: value === university.full ? 600 : 400,
                     }}
                   >
-                    {university.custom ? `${lang === "fr" ? "Utiliser" : "Use"} « ${university.full} »` : dropdownLabel(university)}
+                    {dropdownLabel(university)}
                   </button>
                 </Fragment>
               );

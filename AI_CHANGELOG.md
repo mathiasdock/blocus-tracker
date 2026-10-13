@@ -1,5 +1,12 @@
 # AI_CHANGELOG.md
 
+## 2026-10-13 — Codex — Établissement non répertorié : saisie explicite — LOCAL
+
+- `UniPicker` affiche le lien FR/EN sous la recherche, hors des résultats : saisie manuelle préremplie depuis la recherche, confirmation explicite, retour à la liste ou Échap. Le brouillon reste local ; un établissement déjà enregistré n'est pas effacé à l'ouverture ou à l'annulation. Entrée confirme sans soumettre tout le formulaire, focus conservé, aides/erreurs associées et cibles de 44 px.
+- Validation 2–180 caractères, noms internationaux, nettoyage des espaces ; réutilisation des noms complets connus et IDs explicites (UCF), jamais déduction depuis un nom raccourci ambigu. Résultats locaux/distants dédoublonnés par le normaliseur académique existant. Stockage `profiles.university`, profils, échanges et logique des communautés inchangés ; aucune table, migration ou donnée production modifiée.
+- 10 nouvelles régressions du vrai composant et du helper : FR/EN, brouillon/annulation, clavier, validation, établissement inconnu, résultats vides, annuaire inaccessible, requête annulée, doublons/canonicalisation et champ désactivé. 54 tests ciblés / 945 tests complets, lint propre, build production réussi (avertissement de précache HEIC > 3 MB préexistant ; configuration Supabase non fournie au build local).
+- Vérifié avec données isolées du mode offline : saisie → cours → dashboard, nom conservé après navigation/rechargement et visible dans l'éditeur de profil ; ordinateur 1280 × 900 FR/clair et mobile émulé 320 × 800 EN/sombre, annuaire volontairement indisponible, Entrée/Échap, recherche UCF conservée, aucun débordement ni exception navigateur. Pas de test d'iPhone physique. Worktree `university-manual-entry` basé sur `origin/main` ; travaux calendriers/Claude et copies SW intacts. Aucun push/déploiement.
+
 ## 2026-10-13 — Codex — Préservation des historiques de cours — LOCAL
 
 - Audit en lecture seule du schéma et des fonctions production ; archivage Chrono, identité des anciens cours, sessions/jours canoniques, XP/badges, suppression définitive et restauration inspectés. Aucune donnée production modifiée.
