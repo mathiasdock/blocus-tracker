@@ -1,5 +1,24 @@
 # AI_CHANGELOG.md
 
+## 2026-10-12 — Claude Code — Site public : /application-etudiant et /blocus-belgique sur le gabarit éditorial
+
+- **Commit local, non déployé** : en attente de la validation de Mathias.
+- Les deux derniers guides sans outil passent sur `GuideArticle`, chacun avec sa composition (prop `layout`) :
+  - **`/application-etudiant` (`devices`) :** le vrai Chrono sur ordinateur et sur téléphone, la paire d'appareils de l'accueil sur son vert clair, à côté de l'introduction (les images de l'accueil, déjà en cache pour qui en vient). Sur ordinateur, les trois sections se partagent deux colonnes. L'encadré « Ce que Blocus Tracker regroupe » devient une galerie après l'article : chaque élément sous une vraie capture (mode Focus, vue Mois du Planning, Stats, espace d'un cours avec une date d'examen partagée). Sur ordinateur, deux rangées 5/7 puis 7/5 dont les deux captures ont toujours la même hauteur ; sous 1024 px, les écrans du téléphone, deux par rangée sur tablette.
+  - **`/blocus-belgique` (`article`) :** pas d'image en haut, la réponse courte (la définition du blocus) à côté de l'introduction, la date et l'auteur sous celle-ci. « Préparer son planning de blocus » en étapes numérotées, la journée type sur un fil du matin au soir, les trois sessions avec leur mois en tête de paragraphe, les fonctions de l'app nommées en gras, le vrai Planning sous la dernière section, et les sources en note de bas de page après l'appel final. L'encadré reste collé à côté de l'article.
+- Captures : mode Focus et espace de cours, FR/EN, pris le 2026-10-12 ; 6 nouvelles entrées `guide-app-*` dans `lib/siteShots.cjs` (6 à 29 Ko) ; le Planning et les Stats réutilisent les images des guides déjà en ligne. `scripts/capture-site-shots.mjs` ferme la bulle de la mascotte avant chaque capture (elle couvrait le Chrono et le mode Focus).
+- `Shot` accepte `mobileMedia` (le seuil de la version téléphone) ; par défaut, 640 px comme avant.
+- Contenu : seulement des champs de structure (`productShot`, `featurePanel.shots`, `ordered`, `timeline`, `periods`, `labelled`, `figure`) et les textes alternatifs FR/EN des captures ; aucun texte éditorial modifié. `/pomodoro`, avec son Chrono, est désormais le seul guide sur `SeoLandingPage`.
+- Vérifié sur des copies locales de `main` (e4dc9d7) et de cette version :
+  - **HTML serveur des deux pages :** title, meta, canonical, 6 blocs JSON-LD, H1, H2 (8 et 13), H3 (6 et 8), liens avec leur nombre (les 5 sources comprises) et 52 / 85 fragments de texte identiques, aucun texte ajouté ;
+  - **HTML des autres pages :** 11 URL identiques (accueil, sitemap, robots et llms.txt compris), dont `/planning-revision`, `/stats-etude` et `/objectifs-etude` ; `/pomodoro` l'est à une balise de script près (l'ancien gabarit n'est plus partagé) ;
+  - **Pixels :** 36/44 captures identiques (les 9 autres pages publiques en 390/1440, clair et sombre) ; seules les deux pages refaites changent ;
+  - **Contrôles :** 87/87 (Application) et 69/69 (Blocus), de 320 à 1440 px dont 768, clair et sombre : captures chargées, aucun débordement, cibles ≥ 44 px, texte ≥ 13 px, CLS 0, aucune animation en boucle, galerie alignée (même hauteur à moins d'un pixel), appareils dans leur panneau, encadré sous l'en-tête, contrastes ≥ 7:1 en sombre, focus clavier, console propre ;
+  - **Poids :** JS des deux pages 24,14 → 23,34 Ko gz, CSS +3,26 Ko gz ; les trois autres guides +1,48 Ko de JS et +0,94 Ko de CSS (gabarit partagé) ; `/pomodoro` −0,27 Ko ; JS commun (`_app`) +0,32 Ko gz (champs de structure du contenu, que `lib/seo.js` charge) ;
+  - **Vitesse :** téléphone bridé `/application-etudiant` 1 464 → 1 436 ms et `/blocus-belgique` 1 460 → 1 420 ms ; ordinateur 292 → 260 et 292 → 288 ms ; CLS 0.
+- Pages plus longues : l'Application passe de 3 357 à 5 004 px sur ordinateur (la galerie), le Blocus de 5 530 à 7 832 px (mise en page aérée des autres guides).
+- Tests : 840/840 (+5 dans `tests/guide-article.test.mjs` ; le test de l'ancien gabarit vérifie désormais que seul `/pomodoro` l'utilise), lint, build.
+
 ## 2026-10-12 — Claude Code — Site public : /stats-etude et /objectifs-etude sur le gabarit éditorial
 
 - **Déployé en production le 2026-10-12** après validation de Mathias : `main` 16120a8 → f357f94 en avance rapide (aucun commit parallèle ; le travail de Codex sur le mode Focus reste dans sa copie, sans fichier commun), Vercel `dpl_7k6shwYksQHdjRBryCR8xfX4BNPe` (build `THSc-oH0hSEB-W_xX4zbk`). Vérifié en production :

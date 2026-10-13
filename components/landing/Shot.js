@@ -2,15 +2,16 @@ import { shotImage } from "../../lib/siteShots.cjs";
 
 // Une capture du site public (lib/siteShots.cjs) dans la langue de la page.
 // `mobile` choisit une autre capture sous 640 px (téléphone au lieu
-// d'ordinateur) : le navigateur ne télécharge que celle qui s'affiche.
+// d'ordinateur), ou sous la largeur de `mobileMedia` quand la page en fixe une
+// autre : le navigateur ne télécharge que celle qui s'affiche.
 // Les dimensions intrinsèques réservent la place avant le chargement.
-export default function Shot({ lang, name, mobile, alt, sizes, mobileSizes, priority = false, className }) {
+export default function Shot({ lang, name, mobile, mobileMedia = "(max-width: 639px)", alt, sizes, mobileSizes, priority = false, className }) {
   const image = shotImage(lang, name);
   const phone = mobile ? shotImage(lang, mobile) : null;
   return (
     <picture className={className}>
       {phone && (
-        <source media="(max-width: 639px)" srcSet={phone.srcSet} sizes={mobileSizes || sizes}
+        <source media={mobileMedia} srcSet={phone.srcSet} sizes={mobileSizes || sizes}
           width={phone.width} height={phone.height} />
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}

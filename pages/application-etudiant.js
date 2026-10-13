@@ -1,6 +1,8 @@
-import SeoLandingPage from "../components/SeoLandingPage";
+import GuideArticle from "../components/landing/GuideArticle";
 import { SEO_LANDING_PAGES } from "../lib/seoLandingPages";
 
+// Guide sur le gabarit éditorial : le vrai Chrono sur ordinateur et téléphone
+// en haut, puis une vraie capture pour chaque fonction de l'encadré.
 export default function ApplicationEtudiant() {
-  return <SeoLandingPage page={SEO_LANDING_PAGES["/application-etudiant"]} />;
+  return <GuideArticle page={SEO_LANDING_PAGES["/application-etudiant"]} layout="devices" />;
 }

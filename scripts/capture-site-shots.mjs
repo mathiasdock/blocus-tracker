@@ -170,6 +170,9 @@ const byText = (sel, re) => [...document.querySelectorAll(sel)].find((n) => re.t
 const dismiss = async () => {
   const decline = byText('button', /^(Non, je repars de zéro|No, start over)$/i); if (decline) { decline.click(); await wait(400); }
   const reject = byText('button', /^(Tout refuser|Reject all)$/); if (reject) { reject.click(); await wait(300); }
+  // Bulle de la mascotte (« 2h du jour atteintes… ») : un vrai moment, mais
+  // passager, qui couvrirait le Chrono ou Focus dans une capture publique.
+  for (const coach of document.querySelectorAll('button[aria-label="Fermer le conseil"], button[aria-label="Dismiss tip"]')) { coach.click(); await wait(600); }
   sessionStorage.setItem('bt_legal_notice_snoozed', '1');
   sessionStorage.setItem('bt_pwa_closed', '1');
   for (const b of [...document.querySelectorAll('button')]) {
@@ -330,7 +333,7 @@ try {
   }
   if (want("focus") && (mode === "desktop" || only.includes("focus"))) {
     R.focus = await openDashboard(only.includes("focus"));
-    await run(`await dismiss(); const b = [...document.querySelectorAll('button')].find((x) => /^(Focus)$/.test(x.textContent.trim())); if (b) b.click(); await wait(2500); return 1;`);
+    await run(`await dismiss(); const b = [...document.querySelectorAll('button')].find((x) => /^(Focus)$/.test(x.textContent.trim())); if (b) b.click(); await wait(2500); await dismiss(); await wait(400); return 1;`);
     await save(`focus-${mode}`);
   }
   if (only.includes("chrono-finished")) {

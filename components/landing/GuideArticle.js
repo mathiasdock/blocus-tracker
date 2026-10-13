@@ -11,9 +11,10 @@ import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 
 // Gabarit éditorial des guides, sur la grammaire de l'accueil : même en-tête,
 // même grille, mêmes boutons et même appel final (Landing.module.css).
-// /planning-revision (pilote), /stats-etude et /objectifs-etude ; chaque guide
-// choisit sa composition (LAYOUT ci-dessous) selon ce qu'il montre du produit.
-// Les autres guides gardent SeoLandingPage jusqu'à leur propre passage.
+// /planning-revision (pilote), /stats-etude, /objectifs-etude,
+// /application-etudiant et /blocus-belgique ; chaque guide choisit sa
+// composition (LAYOUT ci-dessous) selon ce qu'il montre du produit. /pomodoro,
+// avec son Chrono sur la page, garde SeoLandingPage.
 //
 // Le texte, les titres et les liens sont ceux de lib/seoLandingPages(.En).js,
 // mot pour mot : seule la mise en page change. Meta et JSON-LD restent dans
@@ -40,6 +41,7 @@ const UI = {
     finalText: "Tu peux tester le chrono tout de suite. Crée un compte quand tu veux sauvegarder ton planning, tes statistiques et ta progression.",
     startTimer: "Lancer le chrono",
     signup: "Créer un compte",
+    sourcesTitle: "Sources utiles",
   },
   en: {
     included: "Included",
@@ -53,6 +55,7 @@ const UI = {
     finalText: "You can try the timer right now. Create an account when you want to save your plan, your stats and your progress.",
     startTimer: "Start the timer",
     signup: "Create an account",
+    sourcesTitle: "Useful sources",
   },
 };
 
@@ -81,9 +84,31 @@ function Check() {
   );
 }
 
+// « Le matin : la matière… » : l'étiquette, deux-points compris, puis la
+// suite. Le texte reste exactement le même ; seule l'étiquette ressort.
+function Labelled({ text, className }) {
+  const end = text.indexOf(":");
+  if (end < 0) return text;
+  return <><strong className={className}>{text.slice(0, end + 1)}</strong>{` ${text.slice(end + 1).trimStart()}`}</>;
+}
+
 // Une liste de section : numérotée quand ce sont des étapes, à filets sinon.
+// Deux formes à étiquettes : les moments d'une journée sur un fil
+// (`timeline`), des fonctions nommées (`labelled`).
 function SectionList({ section }) {
   if (!section.bullets?.length) return null;
+  if (section.timeline || section.labelled) {
+    const timeline = section.timeline === true;
+    return (
+      <ul role="list" className={timeline ? g.timeline : g.terms}>
+        {section.bullets.map((item) => (
+          <li key={item} className={timeline ? g.moment : g.term}>
+            <Labelled text={item} className={timeline ? g.momentLabel : g.termLabel} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
   const ordered = section.ordered === true;
   const List = ordered ? "ol" : "ul";
   return (
@@ -103,11 +128,29 @@ function SectionList({ section }) {
 // - "panorama" : l'introduction et la réponse courte côte à côte, puis un
 //   écran en grand sur toute la largeur (Stats : les graphiques) ;
 // - "panel" : la capture dans un panneau vert, à gauche de l'introduction
-//   (Objectifs : la progression).
+//   (Objectifs : la progression) ;
+// - "devices" : le même écran sur ordinateur et sur téléphone, la paire
+//   d'appareils de l'accueil (Application : l'app elle-même) ;
+// - "article" : pas de capture en haut, l'introduction et la réponse courte
+//   côte à côte (Blocus : une définition, des dates, des sources).
 const LAYOUT = {
   screen: { className: "", sizes: "(min-width: 1120px) 550px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)", mobileSizes: "calc(100vw - 40px)" },
   panorama: { className: g.layoutPanorama, sizes: "(min-width: 1120px) 1056px, (min-width: 768px) calc(100vw - 64px), calc(100vw - 40px)", mobileSizes: "calc(100vw - 40px)" },
   panel: { className: g.layoutPanel, sizes: "(min-width: 1120px) 520px, (min-width: 768px) min(592px, calc(100vw - 112px)), min(608px, calc(100vw - 72px))", mobileSizes: "calc(100vw - 72px)" },
+  // L'écran de l'ordinateur et celui du téléphone (Guide.module.css, .devices).
+  devices: { className: g.layoutDevices, sizes: "(min-width: 1120px) 430px, (min-width: 768px) 534px, calc(88vw - 76px)", phoneSizes: "(min-width: 1120px) 126px, (min-width: 768px) 157px, calc(27vw - 30px)" },
+  article: { className: g.layoutArticle },
+};
+
+// Une capture dans la colonne de lecture (Blocus : le Planning).
+const SECTION_FIGURE_SIZES = "(min-width: 1120px) 672px, (min-width: 1024px) calc(100vw - 428px), (min-width: 768px) min(672px, calc(100vw - 64px)), calc(100vw - 40px)";
+// La galerie de l'encadré (Application) : sur ordinateur, des captures sur
+// 5 et 7 douzièmes de la largeur ; sous 1024 px, les écrans du téléphone, deux
+// par rangée à partir de 640 px.
+const GALLERY_SIZES = {
+  five: "(min-width: 1120px) 430px, calc(41.67vw - 37px)",
+  seven: "(min-width: 1120px) 602px, calc(58.33vw - 51px)",
+  phone: "(min-width: 640px) min(368px, calc(50vw - 44px)), calc(100vw - 40px)",
 };
 
 export default function GuideArticle({ page, layout = "screen" }) {
@@ -126,9 +169,18 @@ export default function GuideArticle({ page, layout = "screen" }) {
     return {
       ...section,
       ordered: section.ordered ?? fr.ordered,
+      timeline: fr.timeline,
+      labelled: fr.labelled,
+      periods: fr.periods,
       figures: fr.figures?.map((figure, k) => ({ ...figure, ...(section.figures?.[k] || {}) })),
+      figure: fr.figure && { ...fr.figure, ...(section.figure || {}) },
     };
   });
+  // L'encadré en galerie, quand chaque élément a sa capture (Application).
+  const gallery = page.featurePanel.shots?.map((item, k) => ({
+    ...(isEn ? item : p.featurePanel.shots[k]),
+    ...(en?.featurePanel?.shots?.[k] || {}),
+  })) || null;
   // Une première section illustrée (Stats : les données à suivre et leurs
   // vraies cartes) prend toute la largeur, avant la colonne de lecture.
   const wide = sections[0]?.figures?.length ? sections[0] : null;
@@ -154,6 +206,9 @@ export default function GuideArticle({ page, layout = "screen" }) {
 
               <div className={g.copy}>
                 <p className={g.lead}>{p.lead}</p>
+                {/* Date de mise à jour et auteur, quand la page les déclare :
+                    ceux du JSON-LD Article (lib/seo.js). */}
+                {p.byline && <p className={g.byline}>{p.byline}</p>}
                 <div className={`${s.actions} ${g.heroActions}`}>
                   <Link href="/dashboard" className={`btn-primary ${s.cta}`}>{p.ctaLabel}</Link>
                   <Link href={p.secondaryCtaHref} className={`btn-ghost ${s.cta} ${s.ctaGhost}`}>
@@ -173,7 +228,18 @@ export default function GuideArticle({ page, layout = "screen" }) {
                 <p className={g.answerText}>{p.shortAnswer}</p>
               </section>
 
-              {shot && (
+              {shot && layout === "devices" && (
+                <figure className={g.figure}>
+                  <div className={g.devices}>
+                    <div className={g.deviceLaptop}>
+                      <Shot lang={lang} name={shot.name} alt={shot.alt} priority sizes={composition.sizes} className={g.deviceScreen} />
+                      <div className={g.deviceBase} aria-hidden="true" />
+                    </div>
+                    <Shot lang={lang} name={shot.phone} alt={shot.phoneAlt} sizes={composition.phoneSizes} className={g.devicePhone} />
+                  </div>
+                </figure>
+              )}
+              {shot && layout !== "devices" && (
                 <figure className={g.figure}>
                   <Shot
                     lang={lang}
@@ -216,37 +282,87 @@ export default function GuideArticle({ page, layout = "screen" }) {
           )}
 
           {/* L'article dans une colonne de lecture ; à côté, sur ordinateur,
-              ce que l'app fait du sujet, qui suit la lecture sous l'en-tête. */}
-          <div className={`${s.container} ${g.body}`}>
+              ce que l'app fait du sujet, qui suit la lecture sous l'en-tête.
+              Quand l'encadré devient une galerie, les sections se partagent
+              deux colonnes et la galerie les suit. */}
+          <div className={`${s.container} ${g.body}${gallery ? ` ${g.spread}` : ""}`}>
             <div className={g.prose}>
               {prose.map((section, index) => {
                 const id = `guide-section-${index + 1 + offset}`;
                 return (
                   <section key={section.title} aria-labelledby={id}>
                     <h2 id={id} className={`${g.h2} ${s.display}`}>{section.title}</h2>
-                    {section.body.map((paragraph) => (
+                    {section.body.map((paragraph) => (section.periods ? (
+                      <p key={paragraph} className={g.period}>
+                        <Labelled text={paragraph} className={`${g.periodLabel} ${s.display}`} />
+                      </p>
+                    ) : (
                       <p key={paragraph} className={g.paragraph}>{paragraph}</p>
-                    ))}
+                    )))}
                     <SectionList section={section} />
+                    {section.figure && (
+                      <figure className={g.sectionFigure}>
+                        <Shot
+                          lang={lang}
+                          name={section.figure.name}
+                          mobile={section.figure.mobile}
+                          alt={section.figure.alt}
+                          sizes={SECTION_FIGURE_SIZES}
+                          mobileSizes="min(420px, calc(100vw - 40px))"
+                          className={g.frame}
+                        />
+                      </figure>
+                    )}
                   </section>
                 );
               })}
             </div>
 
-            <aside className={g.aside} aria-labelledby="guide-panel-title">
-              <div className={g.panel}>
-                <h2 id="guide-panel-title" className={`${g.panelTitle} ${s.display}`}>{p.featurePanel.title}</h2>
-                <ul role="list" className={g.panelList}>
-                  {p.featurePanel.items.map((item) => (
-                    <li key={item} className={g.panelItem}><Check />{item}</li>
-                  ))}
-                </ul>
-                <Link href="/signup" className={`${s.textLink} ${g.panelLink}`}>
-                  {ui.createSpace} <Arrow />
-                </Link>
-              </div>
-            </aside>
+            {!gallery && (
+              <aside className={g.aside} aria-labelledby="guide-panel-title">
+                <div className={g.panel}>
+                  <h2 id="guide-panel-title" className={`${g.panelTitle} ${s.display}`}>{p.featurePanel.title}</h2>
+                  <ul role="list" className={g.panelList}>
+                    {p.featurePanel.items.map((item) => (
+                      <li key={item} className={g.panelItem}><Check />{item}</li>
+                    ))}
+                  </ul>
+                  <Link href="/signup" className={`${s.textLink} ${g.panelLink}`}>
+                    {ui.createSpace} <Arrow />
+                  </Link>
+                </div>
+              </aside>
+            )}
           </div>
+
+          {/* L'encadré en galerie : chaque élément avec sa vraie capture. */}
+          {gallery && (
+            <section className={`${s.container} ${g.gallery}`} aria-labelledby="guide-panel-title">
+              <h2 id="guide-panel-title" className={`${g.h2} ${s.display}`}>{p.featurePanel.title}</h2>
+              <ul role="list" className={g.galleryList}>
+                {p.featurePanel.items.map((item, k) => (
+                  <li key={item} className={g.galleryItem}>
+                    <figure className={g.galleryFigure}>
+                      <Shot
+                        lang={lang}
+                        name={gallery[k].name}
+                        mobile={gallery[k].mobile}
+                        mobileMedia="(max-width: 1023px)"
+                        alt={gallery[k].alt}
+                        sizes={k % 3 === 0 ? GALLERY_SIZES.five : GALLERY_SIZES.seven}
+                        mobileSizes={GALLERY_SIZES.phone}
+                        className={g.frame}
+                      />
+                      <figcaption className={g.galleryCaption}>{item}</figcaption>
+                    </figure>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/signup" className={`${s.textLink} ${g.galleryLink}`}>
+                {ui.createSpace} <Arrow />
+              </Link>
+            </section>
+          )}
 
           <section className={g.related} aria-labelledby="guide-related-title">
             <div className={s.container}>
@@ -287,7 +403,7 @@ export default function GuideArticle({ page, layout = "screen" }) {
 
           {/* L'appel final des pages publiques (FinalCta), avec le texte et les
               deux liens propres aux guides. */}
-          <section className={`${s.container} ${s.finalWrap}`} aria-labelledby="guide-final-title">
+          <section className={`${s.container} ${s.finalWrap}${p.sources?.length ? ` ${g.finalBeforeSources}` : ""}`} aria-labelledby="guide-final-title">
             <div className={s.final}>
               <div className={s.finalMascot} aria-hidden="true">
                 <Mascot mood="celebrating" size={104} />
@@ -300,6 +416,23 @@ export default function GuideArticle({ page, layout = "screen" }) {
               </div>
             </div>
           </section>
+
+          {/* Sources des faits de la page (dates, définitions), quand elle en
+              déclare : une note de bas de page, pas une bibliographie. */}
+          {p.sources?.length > 0 && (
+            <section className={`${s.container} ${g.sources}`} aria-labelledby="guide-sources-title">
+              <h2 id="guide-sources-title" className={g.sourcesTitle}>{ui.sourcesTitle}</h2>
+              <ul role="list" className={g.sourcesList}>
+                {p.sources.map((source) => (
+                  <li key={source.href}>
+                    <a href={source.href} target="_blank" rel="noopener noreferrer" className={g.sourceLink}>
+                      {source.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </article>
       </main>
 

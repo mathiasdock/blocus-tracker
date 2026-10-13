@@ -357,3 +357,183 @@ test("ancien gabarit : « Créer mon espace » reste lisible en thème sombre, e
   const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
   assert.ok((1.05) / (lum(values[0]) + 0.05) >= 4.5, "contraste ≥ 4,5:1 sur blanc");
 });
+
+// ── /application-etudiant et /blocus-belgique : les deux derniers guides ──
+const LAST = {
+  "/application-etudiant": { file: "pages/application-etudiant", title: "Application pour étudier | Chrono, planning et stats étudiant" },
+  "/blocus-belgique": { file: "pages/blocus-belgique", title: "Blocus étudiant en Belgique : définition, planning et conseils" },
+};
+const imgsOf = (html) => [...html.matchAll(/<img [^>]*>/g)].map((m) => ({
+  src: m[0].match(/src="([^"]+)"/)[1],
+  alt: decode(m[0].match(/alt="([^"]+)"/)[1]),
+  eager: /loading="eager"/.test(m[0]),
+}));
+const typeset = (s) => s.replace(/ ([?!:;»])/g, " $1").replace(/« /g, "« ");
+
+test("application et blocus : même H1, mêmes H2/H3 dans le même ordre, même texte et mêmes liens que l'ancien gabarit", () => {
+  const env = makeEnv();
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const Old = env.load("components/SeoLandingPage").default;
+  for (const [path, guide] of Object.entries(LAST)) {
+    const page = SEO_LANDING_PAGES[path];
+    const html = render(env, env.load(guide.file).default);
+    const before = render(env, Old, { page });
+    assert.deepEqual(tags(html, "h1"), [page.h1], path);
+    for (const tag of ["h1", "h2", "h3"]) assert.deepEqual(tags(html, tag), tags(before, tag), `${path} ${tag}`);
+    // Les mêmes liens, autant de fois chacun — sources comprises.
+    assert.deepEqual(links(html), links(before), path);
+    const visible = text(html);
+    const editorial = [page.eyebrow, page.lead, page.shortAnswer, page.ctaLabel, page.secondaryCtaLabel,
+      ...page.proofPoints, ...page.sections.flatMap((s) => [s.title, ...s.body, ...(s.bullets || [])]),
+      page.featurePanel.title, ...page.featurePanel.items, ...page.related.flatMap((r) => [r.label, r.text]),
+      ...page.faq.flatMap((q) => [q.q, q.a]), ...(page.byline ? [page.byline] : []),
+      ...(page.sources || []).map((source) => source.label)];
+    for (const chunk of editorial) assert.ok(visible.includes(norm(chunk)), `${path} : ${chunk}`);
+    for (const shell of ["Inclus", "Créer mon espace", "Lancer le chrono", "Créer un compte", "Réponse courte"]) {
+      assert.ok(visible.includes(shell) && text(before).includes(shell), `${path} : ${shell}`);
+    }
+    assert.doesNotMatch(html, /seo-preview/, path);
+  }
+});
+
+test("application : le vrai Chrono sur ordinateur et téléphone, puis une vraie capture par élément de l'encadré", () => {
+  const env = makeEnv();
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const { SHOTS } = env.load("lib/siteShots.cjs");
+  const page = SEO_LANDING_PAGES["/application-etudiant"];
+  const html = render(env, env.load("pages/application-etudiant").default);
+  const imgs = imgsOf(html);
+  assert.deepEqual(imgs.map((i) => i.src), [
+    "/site-web/v2/fr/chrono-desktop-1600.webp",
+    "/site-web/v2/fr/chrono-mobile-900.webp",
+    "/site-web/v2/fr/guide-app-focus-900.webp",
+    "/site-web/v2/fr/guide-planning-month-1200.webp",
+    "/site-web/v2/fr/guide-stats-overview-1200.webp",
+    "/site-web/v2/fr/guide-app-spaces-900.webp",
+  ]);
+  // Seul l'écran de l'ordinateur, en haut, est chargé tout de suite.
+  assert.deepEqual(imgs.map((i) => i.eager), [true, false, false, false, false, false]);
+  const shots = page.featurePanel.shots;
+  assert.deepEqual(imgs.map((i) => i.alt), [page.productShot.alt, page.productShot.phoneAlt, ...shots.map((s) => s.alt)].map(typeset));
+  assert.match(html, /class="[^"]*layoutDevices/);
+  // Sous 1024 px, les écrans du téléphone, un par élément.
+  const sources = [...html.matchAll(/<source media="([^"]+)" srcSet="([^ ]+) 600w/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(sources, plain(shots.map((s) => ["(max-width: 1023px)", `/site-web/v2/fr/${s.mobile}-600.webp`])));
+  // L'encadré devient la galerie, après les sections : chaque élément sous sa capture, dans l'ordre.
+  assert.doesNotMatch(html, /<aside/);
+  assert.deepEqual(tags(html, "figcaption"), plain(page.featurePanel.items).map(norm));
+  assert.ok(html.indexOf(page.sections[2].title) < html.indexOf('id="guide-panel-title"'));
+  assert.match(html, /<section class="container gallery" aria-labelledby="guide-panel-title">/);
+  assert.match(html, /class="container body spread"/);
+  // Les cinq critères : une liste à filets.
+  const ul = html.match(/<ul role="list" class="bullets">([\s\S]*?)<\/ul>/);
+  assert.deepEqual(tags(ul[1], "li"), plain(page.sections[0].bullets).map(norm));
+  // Deux voisines d'une rangée ont le même rapport, à 7/5 près (même hauteur à toute largeur).
+  const ratio = (name) => SHOTS[name].crop[2] / SHOTS[name].crop[3];
+  assert.ok(Math.abs(ratio("guide-planning-month") / ratio("guide-app-focus") - 1.4) < 0.001);
+  assert.ok(Math.abs(ratio("guide-stats-overview") / ratio("guide-app-spaces") - 1.4) < 0.001);
+  const phones = shots.map((s) => ratio(s.mobile));
+  assert.ok(phones.every((r) => r === phones[0]), "écrans du téléphone au même format");
+  for (const name of [page.productShot.name, page.productShot.phone, ...shots.flatMap((s) => [s.name, s.mobile])]) {
+    for (const lang of ["fr", "en"]) for (const width of SHOTS[name].widths) {
+      assert.ok(existsSync(join(ROOT, "public/site-web/v2", lang, `${name}-${width}.webp`)), `${lang}/${name}-${width}`);
+    }
+  }
+});
+
+test("blocus : un article — définition à côté de l'introduction, date et auteur, étapes, journée sur un fil, sources en note", () => {
+  const env = makeEnv();
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const page = SEO_LANDING_PAGES["/blocus-belgique"];
+  const html = render(env, env.load("pages/blocus-belgique").default);
+  assert.match(html, /class="[^"]*layoutArticle/);
+  // Date et auteur juste sous l'introduction, comme dans le JSON-LD.
+  assert.ok(html.indexOf(`<p class="byline">${page.byline}</p>`) > html.indexOf(typeset(page.lead).replace(/'/g, "&#x27;")));
+  // Une seule capture, dans la dernière section : le vrai Planning (téléphone à part).
+  const imgs = imgsOf(html);
+  assert.deepEqual(imgs.map((i) => [i.src, i.eager]), [["/site-web/v2/fr/guide-planning-month-1200.webp", false]]);
+  assert.equal(imgs[0].alt, typeset(page.sections[6].figure.alt));
+  assert.match(html, /<source media="\(max-width: 639px\)" srcSet="\/site-web\/v2\/fr\/guide-app-planning-mobile-600\.webp 600w/);
+  assert.ok(html.indexOf(page.sections[6].title) < html.indexOf("guide-planning-month-1200"));
+  // Préparer son planning : des étapes numérotées.
+  const ol = html.match(/<ol[^>]*>([\s\S]*?)<\/ol>/);
+  assert.deepEqual(tags(ol[1], "li"), plain(page.sections[2].bullets).map(norm));
+  assert.equal((html.match(/<ol[\s>]/g) || []).length, 1);
+  // La journée : les moments sur un fil, l'étiquette en gras, le texte inchangé.
+  const day = html.match(/<ul role="list" class="timeline">([\s\S]*?)<\/ul>/);
+  assert.deepEqual(tags(day[1], "li"), plain(page.sections[3].bullets).map(norm));
+  assert.ok(day[1].includes("<strong class=\"momentLabel\">Le matin :</strong> la matière"));
+  // Trois sessions : un paragraphe chacune, le mois en tête.
+  const periods = [...html.matchAll(/<p class="period">([\s\S]*?)<\/p>/g)].map((m) => m[1]);
+  assert.equal(periods.length, 3);
+  assert.deepEqual(periods.map((p) => norm(text(p))), plain(page.sections[5].body).map(norm));
+  assert.deepEqual(periods.map((p) => p.match(/<strong class="periodLabel display">([^<]+)<\/strong>/)[1]), ["Janvier :", "Juin :", "Août-septembre :"]);
+  // Les fonctions de l'app pendant le blocus : nommées, à filets.
+  const terms = html.match(/<ul role="list" class="terms">([\s\S]*?)<\/ul>/);
+  assert.deepEqual(tags(terms[1], "li"), plain(page.sections[6].bullets).map(norm));
+  // L'encadré reste à côté de l'article.
+  assert.match(html, /<aside class="aside" aria-labelledby="guide-panel-title">/);
+  // Les sources après l'appel final, dans l'ordre, ouvertes dans un nouvel onglet.
+  assert.ok(html.indexOf('id="guide-final-title"') < html.indexOf('id="guide-sources-title"'));
+  assert.match(html, /<h2 id="guide-sources-title" class="sourcesTitle">Sources utiles<\/h2>/);
+  const sources = [...html.matchAll(/<a href="(https:[^"]+)" target="_blank" rel="noopener noreferrer" class="sourceLink">/g)].map((m) => m[1]);
+  assert.deepEqual(sources, plain(page.sources.map((s) => s.href)));
+  assert.match(html, /class="container finalWrap finalBeforeSources"/);
+});
+
+test("application et blocus : meta, canonical et JSON-LD inchangés, FAQ visible = FAQ du JSON-LD", () => {
+  const env = makeEnv();
+  const { getSeoForPath, structuredDataForPath } = env.load("lib/seo");
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  for (const [path, guide] of Object.entries(LAST)) {
+    const page = SEO_LANDING_PAGES[path];
+    const seo = getSeoForPath(path);
+    assert.equal(seo.title, guide.title);
+    assert.equal(seo.canonicalUrl, `https://www.blocus-tracker.com${path}`);
+    assert.match(seo.robots, /^index, follow/);
+    const nodes = JSON.parse(JSON.stringify(structuredDataForPath(path)));
+    assert.deepEqual(nodes.map((n) => n["@type"]), ["Organization", "WebSite", "WebPage", "Article", "FAQPage", "BreadcrumbList"]);
+    const article = nodes.find((n) => n["@type"] === "Article");
+    assert.equal(article.headline, page.h1);
+    if (page.dateModified) assert.equal(article.dateModified, page.dateModified);
+    assert.ok(!/guide-|chrono-desktop|chrono-mobile/.test(JSON.stringify(nodes)), `${path} : aucune capture dans le JSON-LD`);
+    const faq = nodes.find((n) => n["@type"] === "FAQPage");
+    assert.deepEqual(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), plain(page.faq.map((q) => [q.q, q.a])));
+    const visible = text(render(env, env.load(guide.file).default));
+    for (const q of faq.mainEntity) assert.ok(visible.includes(norm(q.name)) && visible.includes(norm(q.acceptedAnswer.text)), q.name);
+  }
+});
+
+test("application et blocus : anglais sur choix manuel, captures, étiquettes et sources anglaises", () => {
+  for (const path of Object.keys(LAST)) {
+    const env = makeEnv({ deviceLanguage: "fr-BE", langPref: "en" });
+    const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
+    const { I18nProvider } = env.load("contexts/I18nContext");
+    const Page = env.load(LAST[path].file).default;
+    let renderer;
+    act(() => { renderer = create(h(I18nProvider, null, h(Page))); });
+    const root = renderer.root;
+    const enPage = SEO_LANDING_PAGES_EN[path];
+    assert.equal(flat(root.findByType("h1").props.children), enPage.h1, path);
+    const all = flat(renderer.toJSON());
+    for (const chunk of [enPage.shortAnswer, ...enPage.sections.flatMap((s) => s.bullets || []), enPage.featurePanel.title, "Short answer", "Start the timer"]) {
+      assert.ok(all.includes(chunk), `${path} : ${chunk}`);
+    }
+    const imgs = root.findAllByType("img");
+    if (path === "/application-etudiant") {
+      assert.deepEqual(imgs.map((i) => i.props.alt), plain([enPage.productShot.alt, enPage.productShot.phoneAlt, ...enPage.featurePanel.shots.map((s) => s.alt)]));
+      assert.ok(imgs.every((i) => i.props.src.startsWith("/site-web/v2/en/")), path);
+      assert.deepEqual(root.findAllByType("figcaption").map((f) => flat(f.props.children)), plain(enPage.featurePanel.items));
+    } else {
+      assert.deepEqual(imgs.map((i) => [i.props.alt, i.props.src]), [[enPage.sections[6].figure.alt, "/site-web/v2/en/guide-planning-month-1200.webp"]]);
+      assert.ok(all.includes(enPage.byline), "byline");
+      assert.equal(flat(root.find((n) => n.props.id === "guide-sources-title").props.children), "Useful sources");
+      assert.deepEqual(root.findAll((n) => n.type === "a" && n.props.target === "_blank").map((a) => flat(a.props.children)), plain(enPage.sources.map((s) => s.label)));
+      // Les étiquettes anglaises (« Morning: ») et la forme des listes viennent de la version française.
+      const labels = root.findAll((n) => n.type === "strong").map((n) => flat(n.props.children));
+      assert.deepEqual(labels.slice(0, 5), ["Morning:", "Lunch:", "Afternoon:", "Late afternoon:", "Evening:"]);
+      assert.equal(root.findAllByType("ol").length, 1);
+    }
+    act(() => renderer.unmount());
+  }
+});

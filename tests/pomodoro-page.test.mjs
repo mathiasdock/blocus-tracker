@@ -623,24 +623,19 @@ test("SEO : title, meta, canonical, Article/FAQ/Breadcrumb alignés sur la page 
   assert.match(html, /<a href="#minuteur"[^>]*>Lancer le chrono<\/a>/);
 });
 
-// /planning-revision, /stats-etude et /objectifs-etude sont passés au gabarit
-// éditorial (tests/guide-article.test.mjs).
-test("les deux guides encore sur l'ancien gabarit gardent leur héros : illustration et bouton vers l'app, aucun outil", () => {
+// /planning-revision, /stats-etude, /objectifs-etude, /application-etudiant
+// et /blocus-belgique sont passés au gabarit éditorial
+// (tests/guide-article.test.mjs) : /pomodoro, avec son outil, est le seul
+// guide à garder SeoLandingPage.
+test("seul /pomodoro garde l'ancien gabarit, les cinq autres guides sont sur le gabarit éditorial, sans outil", () => {
   const env = makeEnv({ loading: true });
-  const { SEO_LANDING_PAGES, SEO_LANDING_PATHS } = env.load("lib/seoLandingPages");
-  const { I18nProvider } = env.load("contexts/I18nContext");
-  const SeoLandingPage = env.load("components/SeoLandingPage").default;
-  // /pomodoro : son outil (tests ci-dessus) ; les trois autres : le nouveau gabarit.
-  const excluded = ["/pomodoro", "/planning-revision", "/stats-etude", "/objectifs-etude"];
-  const others = SEO_LANDING_PATHS.filter((path) => !excluded.includes(path));
-  assert.equal(others.length, 2);
-  for (const path of others) assert.match(readFileSync(join(ROOT, `pages${path}.js`), "utf8"), /<SeoLandingPage /, path);
+  const { SEO_LANDING_PATHS } = env.load("lib/seoLandingPages");
+  assert.match(readFileSync(join(ROOT, "pages/pomodoro.js"), "utf8"), /<SeoLandingPage /);
+  const others = SEO_LANDING_PATHS.filter((path) => path !== "/pomodoro");
+  assert.equal(others.length, 5);
   for (const path of others) {
-    const page = SEO_LANDING_PAGES[path];
-    const html = renderToString(h(I18nProvider, null, h(SeoLandingPage, { page })));
-    assert.match(html, /seo-preview/, path);
-    assert.ok(htmlText(html).includes(page.ctaLabel), path);
-    assert.doesNotMatch(html, /id="minuteur"|#minuteur/, path);
-    assert.match(html, /<a href="\/dashboard"[^>]*>Lancer le chrono<\/a>/, path);
+    const source = readFileSync(join(ROOT, `pages${path}.js`), "utf8");
+    assert.match(source, /<GuideArticle /, path);
+    assert.doesNotMatch(source, /import SeoLandingPage|<SeoLandingPage|tool=/, path);
   }
 });
