@@ -103,6 +103,20 @@ l'état du déploiement se vérifient dans le rapport de publication. Contrat
 et limites de validation : [docs/focus-environments.md](../../docs/focus-environments.md),
 brief complémentaire : [Progression](pages-progression-js.md).
 
+## Mini-chrono · V1 local
+
+Sur ordinateur (pointeur fin, hover, largeur ≥ 768 px), une action discrète en
+haut de Focus, à gauche du sélecteur d'environnement, ouvre la vraie fenêtre
+Document PiP. Sur navigateur non compatible, elle reste visible et explique
+Chrome/Edge en FR/EN ; aucune imitation. Option absente des layouts mobiles.
+La fenêtre utilise les neutres et le thème clair/sombre de l'app : repère et nom
+du cours, chiffres tabulaires ordinaires, état explicite, Revenir au Focus.
+Aucun shader, son, badge ni seconde commande de session.
+Le portail lit le même chrono : pas d'intervalle, stockage ou écriture serveur.
+Fermer/revenir/quitter Focus ferme seulement cette vue, jamais la session.
+La fenêtre principale doit rester ouverte. Détails et limites de vérification
+dans [Mini-chrono](../../docs/mini-timer.md). Aucun déploiement dans cette passe.
+
 ## Mascot frequency
 
 La mascotte ne réagit plus au quart d'heure — une journée de huit heures produisait trente-deux apparitions. L'accumulation ordinaire est portée par les unités elles-mêmes, plus un retour haptique bref toutes les vingt-cinq minutes. Restent les heures pleines, l'objectif de session, l'objectif du jour, la plus longue session et le record du jour : des événements déjà existants, aucun critère nouveau.

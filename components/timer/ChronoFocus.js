@@ -4,6 +4,7 @@ import StudyBlocks, { RestTrack } from "../StudyBlocks";
 import AmbientSoundControl from "../AmbientSoundControl";
 import FocusEnvironmentRenderer from "../focus/FocusEnvironmentRenderer";
 import FocusEnvironmentControl from "../focus/FocusEnvironmentControl";
+import FocusMiniTimer from "../focus/FocusMiniTimer";
 import environmentStyles from "../focus/FocusEnvironments.module.css";
 import { getFocusEnvironment } from "../../lib/focusEnvironments.mjs";
 import { useFocusEnvironment } from "../../hooks/useFocusEnvironment";
@@ -140,6 +141,7 @@ export default function ChronoFocus({
           {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
           <AmbientSoundControl active visible={focusCtlVisible || !running} />
           <FocusEnvironmentControl preferences={preferences} visible={focusCtlVisible || !running} onOpenChange={setEnvironmentOpen} />
+          <FocusMiniTimer chrono={chrono} courses={courses} noCourseLabel={noCourseLabel} visible={focusCtlVisible || !running} />
 
           <p ref={focusGreetingRef} data-focus-reading="" className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}
