@@ -7,6 +7,7 @@ import { PageContentSkeleton, useSkeletonHatch } from "../components/PageSkeleto
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
+import { fetchStudySessions } from "../lib/studyHistory.mjs";
 import { formatMinutesShort, todayISO, localISO, localDayStartISO, isStreakPaused } from "../lib/format";
 import { notifyXPChanged } from "../lib/xpEvents";
 import { autoSharePost, shareSavedSession } from "../lib/autoShare";
@@ -300,11 +301,8 @@ export default function Dashboard() {
         .eq("user_id", user.id)
         .gte("started_at", localDayStartISO())
         .order("started_at", { ascending: false }),
-      cached ? Promise.resolve({ data: cached.recentSessions || [] }) : supabase
-        .from("sessions")
-        .select("started_at, duration_seconds, course_id")
-        .eq("user_id", user.id)
-        .gte("started_at", ninetyDaysAgo.toISOString()),
+      cached ? Promise.resolve({ data: cached.recentSessions || [] }) : fetchStudySessions(
+        supabase, user.id, { fromISO: ninetyDaysAgo.toISOString() }),
       // Re-read the plan even with cached study history: edits in Planning
       // must update the daily goal immediately when returning to Timer.
       fetchDailyObjectives(supabase, user.id, todayDate),

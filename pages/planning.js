@@ -10,6 +10,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { useTimer } from "../contexts/TimerContext";
 import { supabase } from "../lib/supabaseClient";
+import { fetchStudySessions } from "../lib/studyHistory.mjs";
 import { formatMinutesShort } from "../lib/format";
 import { runStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { buildIcs, downloadIcs, countExportable } from "../lib/ics";
@@ -1528,10 +1529,9 @@ export default function Planning() {
       supabase.from("courses").select("*").eq("user_id", user.id).order("created_at"),
       supabase.from("objectives").select("*").eq("user_id", user.id).order("scheduled_date"),
       supabase.from("exams").select("*").eq("user_id", user.id).order("exam_date"),
-      supabase.from("sessions")
-        .select("user_id,course_id,duration_seconds,started_at")
-        .eq("user_id", user.id)
-        .gte("started_at", ninetyAgo),
+      fetchStudySessions(supabase, user.id, {
+        columns: "user_id,course_id,duration_seconds,started_at", fromISO: ninetyAgo,
+      }),
       loadAcademic(),
     ].map(query => Promise.resolve(query).catch(error => ({ data: null, error }))));
     if (!courseRes.error) setCourses(courseRes.data || []);

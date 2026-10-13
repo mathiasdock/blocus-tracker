@@ -18,6 +18,7 @@ import { useToast } from "../contexts/ToastContext";
 import { clearClientCache } from "../lib/clientCache";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
+import { fetchStudySessions } from "../lib/studyHistory.mjs";
 import { localISO } from "../lib/format";
 import { dailyStudyGoalSeconds, fetchDailyObjectives } from "../lib/dailyStudyGoal.mjs";
 import { computeInsights, regularityTrend } from "../lib/statsInsights.mjs";
@@ -114,7 +115,7 @@ export default function Stats() {
       // Volontairement SANS filtre sur archived_at : un cours archivé est
       // justement celui dont on veut retrouver les heures du semestre passé.
       supabase.from("courses").select("id, name, color, archived_at").eq("user_id", user.id),
-      supabase.from("sessions").select("course_id, duration_seconds, started_at").eq("user_id", user.id),
+      fetchStudySessions(supabase, user.id),
       fetchStudyDays(supabase, user.id),
       fetchDailyObjectives(supabase, user.id, todayDate, "scheduled_date, target_minutes"),
     ]);
@@ -158,11 +159,11 @@ export default function Stats() {
 
   async function restoreArchivedCourse(id) {
     setArchiveBusyId(id);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("courses").update({ archived_at: null })
-      .eq("id", id).eq("user_id", user.id);
+      .eq("id", id).eq("user_id", user.id).select("id").maybeSingle();
     setArchiveBusyId(null);
-    if (error) { toast(t("courseEditor.restoreError"), "error"); return; }
+    if (error || !data) { toast(t("courseEditor.restoreError"), "error"); return; }
     // Le dashboard lit les cours depuis son propre cache : sans purge, le cours
     // réactivé n'apparaîtrait dans le chrono qu'après expiration.
     clearClientCache(`dashboard:${user.id}:`);

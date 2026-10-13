@@ -18,6 +18,7 @@ import { useToast } from "../contexts/ToastContext";
 import { supabase } from "../lib/supabaseClient";
 import { displayName, formatStudyTime } from "../lib/format";
 import { fetchStudyDays } from "../lib/studyDays.mjs";
+import { fetchStudySessions } from "../lib/studyHistory.mjs";
 import { useOfficialStreak } from "../lib/useOfficialStreak";
 import { BADGES } from "../lib/badges";
 import { fetchCanonicalBadgeIds } from "../lib/badgeTruth.mjs";
@@ -762,14 +763,15 @@ export default function Profile() {
     const since370 = new Date();
     since370.setDate(since370.getDate() - 370);
     (async () => {
-      const [{ data: heatSessions }, { data: allSessions }, dayRes] = await Promise.all([
-        supabase.from("sessions").select("started_at, duration_seconds, course_id, note").eq("user_id", user.id).gte("started_at", since370.toISOString()),
-        supabase.from("sessions").select("duration_seconds").eq("user_id", user.id),
+      const [heatRes, dayRes] = await Promise.all([
+        fetchStudySessions(supabase, user.id, { columns: "started_at, duration_seconds, course_id, note", fromISO: since370.toISOString() }),
         fetchStudyDays(supabase, user.id),
       ]);
-      setProfileSessions(heatSessions || []);
-      if (!dayRes.error) setStudyDayRows(dayRes.data || []);
-      setProfileTotalSecs((allSessions || []).reduce((a, s) => a + s.duration_seconds, 0));
+      if (!heatRes.error) setProfileSessions(heatRes.data || []);
+      if (!dayRes.error) {
+        setStudyDayRows(dayRes.data || []);
+        setProfileTotalSecs((dayRes.data || []).reduce((a, row) => a + Number(row.seconds || 0), 0));
+      }
       // Gel de série : mêmes jours gelés que le dashboard (mémoïsé par jour).
       const freeze = await runStreakFreezeUpkeep(supabase, user.id);
       if (freeze.supported) { setFrozenDays(freeze.frozenDays); setFreezeStock(freeze.stock); }

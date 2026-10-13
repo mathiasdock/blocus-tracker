@@ -38,6 +38,7 @@ export default function Historique() {
       .select("*")
       .eq("user_id", user.id)
       .order("started_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
     if (filterCourse) q = q.eq("course_id", filterCourse);
     const { data } = await q;

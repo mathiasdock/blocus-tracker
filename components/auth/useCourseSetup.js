@@ -215,11 +215,13 @@ export default function useCourseSetup({ userId, t }) {
   const remove = useCallback((id) => {
     const row = listRef.current.find(course => course.id === id);
     if (!row || row.status === "saving") return Promise.resolve({ ok: false });
-    // A course whose save failed may still exist on the server (response
-    // lost), so it is deleted there too before leaving the list.
+    // Setup can resume with existing courses. Removal must archive here too:
+    // a course may already carry study history from another tab or semester.
+    // A failed save may also have reached the server, so update it there.
     const work = async () => {
       try {
-        const { error } = await supabase.from("courses").delete().eq("id", id).eq("user_id", userId);
+        const { error } = await supabase.from("courses")
+          .update({ archived_at: new Date().toISOString() }).eq("id", id).eq("user_id", userId);
         if (error) throw error;
         const list = update(current => current.filter(course => course.id !== id));
         queueRef.current = queueRef.current.filter(queued => queued !== id);

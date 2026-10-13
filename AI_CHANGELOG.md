@@ -1,5 +1,12 @@
 # AI_CHANGELOG.md
 
+## 2026-10-13 — Codex — Préservation des historiques de cours — LOCAL
+
+- Audit en lecture seule du schéma et des fonctions production ; archivage Chrono, identité des anciens cours, sessions/jours canoniques, XP/badges, suppression définitive et restauration inspectés. Aucune donnée production modifiée.
+- Lecture paginée stable des sessions pour Stats, Profil, repli XP et fenêtres récentes Timer/Planning ; total Profil depuis les jours canoniques complets. Retrait en onboarding repris désormais par archivage. Historique départ/ID stable ; restauration valide la ligne réellement mise à jour.
+- Limite silencieuse de 3 660 jours reproduite sur un historique 2010–2026 : migration ciblée et idempotente préparée, gardes dates finies et permissions conservées, aucune application distante. Aucun changement des seuils, formules XP/badges, UI ou styles.
+- Régressions PostgreSQL embarqué : 1 206 sessions, archivage, nouveau semestre, restauration répétée, suppression définitive, mêmes records/totaux/heatmap/séries/XP/badges ; pagination et échec de page. Rapport dans `docs/study-history-preservation.md`. Tests ciblés/complets, lint et build locaux ; aucun push/déploiement, travaux Planning découverte/Claude laissés intacts.
+
 ## 2026-10-13 — Codex — Zenitho : textes sans rectangles blancs
 
 - Fonds blancs `::before` retirés derrière toutes les légendes Zenitho (salutation, cours, message et raccourcis). Encre sombre, textes, chiffres sans contour, shader à 55 %, boutons, blocs et pause conservés ; aucun halo ou voile de remplacement. Forêt, Wave et Glass Fold inchangés. Test de non-régression ciblé et documentation Focus alignée ; pas de migration ni changement métier.
