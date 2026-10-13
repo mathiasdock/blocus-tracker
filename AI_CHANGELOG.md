@@ -1,5 +1,10 @@
 # AI_CHANGELOG.md
 
+## 2026-10-13 — Codex — Zenitho : textes sans rectangles blancs
+
+- Fonds blancs `::before` retirés derrière toutes les légendes Zenitho (salutation, cours, message et raccourcis). Encre sombre, textes, chiffres sans contour, shader à 55 %, boutons, blocs et pause conservés ; aucun halo ou voile de remplacement. Forêt, Wave et Glass Fold inchangés. Test de non-régression ciblé et documentation Focus alignée ; pas de migration ni changement métier.
+- Validation : 88 tests Focus / 929 tests complets, lint propre et build production réussi. Vrais rendus locaux 1280 × 720 FR et 390 × 844 EN : pseudo-fonds absents sur toutes les légendes, pas d'ombre de remplacement ni débordement, palette/shader et disposition inchangés. Aucun iPhone physique testé.
+
 ## 2026-10-13 — Codex — Focus : finition finale des quatre environnements — PRODUCTION
 
 - Chiffres Zenitho/Glass Fold sans liséré contrasté ni ombre. Les petites légendes gardent leur contraste local, avec un débord réduit à 2/4 px et un flou de 1 px au lieu de 4 ; aucun cercle ou voile global ajouté. Wave passe de 32 à 40 % du temps shader source (`0.000004`) ; Zenitho reste à 55 %, Glass Fold à 0,5 et Forêt inchangée. Couleurs des blocs et hiérarchie Pause/Reprendre primaire, Terminer secondaire conservées.

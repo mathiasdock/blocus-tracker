@@ -54,8 +54,8 @@ leurs défauts XY et Forêt ne change pas. Zenitho garde
 55 % du temps shader réellement écoulé (indépendamment du plafond 30 fps) et un
 tampon à demi-résolution. Le voile sombre central en fonctionnement est retiré,
 et Zenitho masque son grain global. Chiffres en encre sombre sans contour
-contrasté ni ombre ; petites légendes ordinaires sur un fond clair doux limité
-à leurs mots, aucun grand panneau. Commandes prune locales à Focus ; voile
+contrasté ni ombre ; petites légendes en encre sombre directement sur les vagues,
+sans rectangles blancs ni halo de remplacement. Commandes prune locales à Focus ; voile
 rouge réservé à la pause. Les blocs acquis deviennent bleu/violet (`#5144B7`,
 glow RGB `81, 68, 183`) sans changer fraction, capacité, ticks, rythme du glow
 ou anneau rouge de pause ; le repos Pomodoro reste une piste neutre. Aucun
@@ -90,7 +90,7 @@ Progression. Thème limité au plein écran Focus, avertissement rouge de pause,
 cours, temps, blocs, Pomodoro et son conservés ; Échap ferme d'abord le
 sélecteur, puis Focus. V86 appliquée une fois en production (`20261013152908`), avec Glass Fold et son
 seuil canonique 20, mise à niveau des anciens ensembles à deux/trois choix sans
-perte de préférence ni XP. 87 tests Focus / 928 complets après intégration à main, lint et build production
+perte de préférence ni XP. 88 tests Focus / 929 complets après intégration à main, lint et build production
 réussis ; navigateur FR/EN à 320/390/1280 px, fonctionnement/pause/Pomodoro,
 verrou niveau 12 puis choix niveau 20 conservé après reload/baisse, sans débordement.
 60 mesures GPU locales Mac par format : 1280 × 800 médiane 1,536125 ms / p95

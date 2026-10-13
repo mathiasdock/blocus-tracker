@@ -45,7 +45,7 @@ test("Focus timer glyphs have no contrasting outline and caption backing has no 
   assert.match(css, /filter: blur\(1px\)/);
 });
 
-test("Zenitho text, primary/secondary actions and panel have accessible local contrast", () => {
+test("Zenitho controls and large timer ink keep their source-palette contrast", () => {
   const environment = getFocusEnvironment("zenitho");
   for (const tokens of [environment.theme, { ...environment.theme, ...environment.pausedTheme }]) {
     for (const background of [tokens["--bt-focus-env-panel"], tokens["--bt-focus-env-secondary"], tokens["--bt-focus-env-selected"]]) {
@@ -58,13 +58,19 @@ test("Zenitho text, primary/secondary actions and panel have accessible local co
     assert.ok(contrast(tokens["--bt-focus-env-ring"], tokens["--bt-focus-env-panel"]) >= 3);
   }
   // Large digits use dark ink against the source palette, without a global
-  // veil. Small text has a feathered, text-sized light backing, never a panel.
+  // veil. Do not certify small moving captions with a removed white backing.
   const ink = environment.theme["--bt-focus-env-stage-text"];
   for (const frameColor of ["#ef008f", "#6ec3f4", "#7038ff", "#ffba27"]) {
     assert.ok(contrast(ink, frameColor) >= 3);
-    const captionGround = mix("#ffffff", frameColor, .4);
-    assert.ok(contrast(ink, captionGround) >= 4.5);
   }
+});
+
+test("Zenitho captions have no white backing or replacement halo; Glass Fold stays unchanged", () => {
+  const css = readFileSync(new URL("../components/focus/FocusEnvironments.module.css", import.meta.url), "utf8");
+  assert.doesNotMatch(css, /\.focus\[data-environment="zenitho"\][^{]*:global\([ps][^)]*data-focus-reading[^)]*\)::before/);
+  assert.doesNotMatch(css, /background:\s*rgba\(255,255,255,\.55\)/);
+  assert.match(css, /\.focus\[data-environment="glass-fold"\][^{]*::before\s*\{[^}]*background:\s*rgba\(6,8,30,\.7\)/);
+  assert.equal(getFocusEnvironment("zenitho").theme["--bt-focus-env-stage-text"], "#1C1027");
 });
 
 test("Zenitho alone overrides study fill/glow, keeps structural goal/paused markers and uses a lightweight real preview", () => {

@@ -45,24 +45,8 @@
   text-shadow: none;
   -webkit-text-stroke: 0;
 }
-/* Small captions keep ordinary crisp type. Their feathered ground follows
-   only the text bounds, not the timer panel or the animated landscape. */
-.focus[data-environment="zenitho"]:not([data-paused]) :global(p[data-focus-reading]),
-.focus[data-environment="zenitho"]:not([data-paused]) :global(span[data-focus-reading]) {
-  position: relative;
-  isolation: isolate;
-  text-shadow: none;
-}
-.focus[data-environment="zenitho"]:not([data-paused]) :global(p[data-focus-reading])::before,
-.focus[data-environment="zenitho"]:not([data-paused]) :global(span[data-focus-reading])::before {
-  content: "";
-  position: absolute;
-  inset: -2px -4px;
-  z-index: -1;
-  pointer-events: none;
-  background: rgba(255,255,255,.55);
-  filter: blur(1px);
-}
+/* Zenitho captions use plain dark ink directly on the original waves:
+   no white rectangles, caption halos or replacement overlay. */
 .focus[data-environment="zenitho"] :global([data-coach-clear] > span:last-child) { opacity: 1 !important; }
 .focus[data-environment="zenitho"] :global(.bt-blocks.is-focus) {
   --bt-progress-fill: var(--bt-focus-env-block-fill);

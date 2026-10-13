@@ -34,9 +34,9 @@ surface with navy text over the unchanged red pause field. Forest keeps its
 green primary treatment. Zenitho uses a pale plum primary with dark plum text,
 dark plum secondary controls. Its running waves have no broad dark veil or
 grain overlay. Stage text uses dark ink (`#1C1027`); timer digits have no
-contrasting stroke or text shadow. Small captions keep ordinary text over a soft light
-backing confined to their text bounds (2px vertically, 4px horizontally, 55%
-opacity, 1px blur), never a panel over the canvas. Zenitho's paused field and
+contrasting stroke or text shadow. Small captions use the same dark ink directly
+on the original waves, without white backing rectangles or replacement halos.
+Zenitho's paused field and
 paused-only red veil remain in place, with light pause captions.
 
 Zenitho's earned Study Blocks use a dedicated blue-purple fill (`#5144B7`) and
@@ -187,7 +187,7 @@ choice was restored and confirmed there too. FR desktop and EN Chrome at
 no overflow. No fictitious study session, XP change or physical iPhone test
 was performed. A later documentation-only closing commit may have a newer SHA.
 
-The seven feature suites (`tests/focus-*.test.mjs`) pass 87 tests locally. They
+The seven feature suites (`tests/focus-*.test.mjs`) pass 88 tests locally. They
 execute the migration in PGlite with the shipped canonical level function and
 cover RLS/privileges, suspension, persistence, reductions, idempotence and
 account deletion, including an account switch before the RPC write; the
@@ -200,14 +200,14 @@ cover all six Wave layers, Zenitho's source palette/uniforms and actual 55%
 shader speed at multiple frame cadences, the actual XZ vertices/camera/source
 antialiasing, preserved XY defaults and bounded 4K mesh indices, the frame cap,
 half buffer, hidden/reduced/paused states, context recovery and resource cleanup.
-Zenitho contrast cases cover its four source colors and local caption ground, plus
-controls/panels; they are not a certification of every moving pixel on hardware.
+Zenitho contrast cases cover large digits on its four source colors and
+controls/panels; they do not certify small captions on every moving pixel.
 Glass Fold tests additionally check source GLSL byte hashes, palette/uniforms,
 actual shader time, two-triangle drawing, buffer bounds, resize, visibility,
 pause/reduced-motion handling, context recovery, partial failure cleanup and
 fallback.
 
-The integrated release suite passes 928 tests; `npm run lint` is clean and
+The integrated release suite passes 929 tests; `npm run lint` is clean and
 `npm run build` succeeds. The build reports the absent local Supabase
 environment and the pre-existing HEIC chunk above the 3 MB PWA precache limit.
 
@@ -264,8 +264,9 @@ confirmed in usable desktop/320 px recaptures. Two other final gallery images
 had capture scaling/clipping artifacts and were not used to certify layout.
 The original Zenitho extension's finish review also ended **SHIP**. The
 2026-10-13 refinement review initially requested changes to outlined small text
-and stale documentation. Small text now has the local soft backing described
-above; the final independent refinement review ended **SHIP**, confirming both
+and stale documentation. That review verified the then-local caption backing;
+Zenitho's white backing was subsequently removed on user request on 2026-10-13.
+The final independent refinement review ended **SHIP**, confirming both
 findings resolved and no visible regression. Those earlier reviews were local
 and preceded the migration application and final release checks.
 Glass Fold's final independent finish review ended **SHIP**, with no material

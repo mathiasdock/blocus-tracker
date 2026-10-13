@@ -64,8 +64,8 @@ course identity, the red pause warning and opt-in audio remain intact.
 Pause/Resume remain primary and Finish & save secondary. Zenitho's plum
 controls are scoped to Focus. Its running shader has no broad dark central veil
 or grain overlay. Dark stage ink has no contrasting digit stroke or text shadow;
-small captions retain ordinary type over a soft light backing confined to their
-text bounds. The red pause field/paused-only veil and light pause captions stay
+small captions use plain dark ink on the waves, without white backing rectangles
+or replacement halos. The red pause field/paused-only veil and light pause captions stay
 intact. Zenitho's earned fill/glow is blue-purple (`#5144B7`, RGB `81, 68, 183`)
 with the same fraction, capacity, goal ticks, active timing and red pause ring.
 Stage/Pomodoro ink remains separate from block data; rest is a neutral continuous
@@ -89,7 +89,7 @@ application theme and the global forest identity is unchanged.
 
 ## Verification and unresolved decisions
 
-The seven feature suites pass 87 local tests, including actual migration execution
+The seven feature suites pass 88 local tests, including actual migration execution
 in PGlite, level-11/level-19 rejection and level-12/level-20 eligibility, permanent
 unlocks, no auto-equip, upgrade of both earlier v86 constraint sets with choices
 and XP preserved, reapplication, account-switch
@@ -101,7 +101,7 @@ four source colors and local caption ground. Glass Fold adds byte hashes for its
 supplied source GLSL, palette/uniforms, actual time, drawing/buffer bounds,
 resize, fallback, resource cleanup and lifecycle coverage. The current complete
 suite passes
-928 tests after integration with main, lint is clean and the production build succeeds, with the existing
+929 tests after integration with main, lint is clean and the production build succeeds, with the existing
 absent-Supabase-environment and HEIC precache warnings. Browser checks at
 1440/1280/390/320 px cover FR/EN, light/dark themes, confirmed selection,
 Escape, reload/level-drop persistence, no overflow, pause/resume/audio and
