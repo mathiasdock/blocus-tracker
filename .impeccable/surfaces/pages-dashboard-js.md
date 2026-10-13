@@ -37,7 +37,7 @@ Le chrono est le centre de gravité. Sur mobile, l'ordre est Chrono → Missions
 
 ## Environnements Focus
 
-**Environnements Focus V1 (2026-10-13, branche locale non déployée).** Le
+**Environnements Focus V1 (catalogue finalisé le 2026-10-13).** Le
 sélecteur se place en haut à droite, face au son, avec quatre aperçus statiques :
 Forêt/Wave gardent leurs dégradés de palette, Zenitho montre une vraie capture
 du shader (`public/focus-environments/zenitho.jpg`, 27 654 octets) et Glass Fold
@@ -88,18 +88,18 @@ sont primaires dans les couleurs de l'environnement, Terminer reste secondaire.
 Le même catalogue suit le XP dans
 Progression. Thème limité au plein écran Focus, avertissement rouge de pause,
 cours, temps, blocs, Pomodoro et son conservés ; Échap ferme d'abord le
-sélecteur, puis Focus. V86 en attente étendue seulement avec Glass Fold et son
+sélecteur, puis Focus. V86 appliquée une fois en production (`20261013152908`), avec Glass Fold et son
 seuil canonique 20, mise à niveau des anciens ensembles à deux/trois choix sans
-perte de préférence ni XP. 86 tests Focus / 909 complets, lint et build production
+perte de préférence ni XP. 87 tests Focus / 928 complets après intégration à main, lint et build production
 réussis ; navigateur FR/EN à 320/390/1280 px, fonctionnement/pause/Pomodoro,
 verrou niveau 12 puis choix niveau 20 conservé après reload/baisse, sans débordement.
 60 mesures GPU locales Mac par format : 1280 × 800 médiane 1,536125 ms / p95
 2,068458 ms ; 390 × 844 médiane 0,626291 ms / p95 1,984374 ms. Ces mesures ne
 certifient ni un iPhone physique ni un appareil PWA. Revue finale Glass Fold
 **SHIP** sur les captures fournies et le code, sans relance indépendante du
-navigateur/tests ni correctif matériel demandé ; migration distante,
-persistance de compte réelle et production
-restent en attente, aucun push/déploiement. Contrat
+navigateur/tests ni correctif matériel demandé. La migration distante a été
+vérifiée (RLS, privilèges, fonction XP inchangée) ; la validation connectée et
+l'état du déploiement se vérifient dans le rapport de publication. Contrat
 et limites de validation : [docs/focus-environments.md](../../docs/focus-environments.md),
 brief complémentaire : [Progression](pages-progression-js.md).
 

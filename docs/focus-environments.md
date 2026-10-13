@@ -1,11 +1,11 @@
 # Focus Environments V1
 
-Status (2026-10-13): implemented in the branch, with a local Zenitho fidelity
-refinement and Glass Fold as the fourth/final environment; **not deployed**.
-Current extension verification is recorded below; Glass Fold's independent
-finish review ended **SHIP** for the supplied screenshots and source.
-`supabase/migration_v86_focus_environments.sql` is pending and has not been
-applied to production. This is a cosmetic extension of the existing Focus
+V1 catalogue finalized on 2026-10-13, including the Zenitho fidelity refinement
+and Glass Fold as the fourth/final environment. Glass Fold's independent finish
+review ended **SHIP** for the supplied screenshots and source. Final polish
+removes contrasting digit outlines and sets Wave to 40% source speed.
+`supabase/migration_v86_focus_environments.sql` was applied once to production
+as `20261013152908_v86_focus_environments`. This is a cosmetic extension of the existing Focus
 surface, not a new XP system or an application-wide theme.
 
 ## Catalogue and UI
@@ -150,18 +150,21 @@ Space keeps its pause/resume role outside controls and the open gallery.
   the same four IDs and level thresholds. The fixture is development evidence;
   production eligibility still comes from the authenticated canonical-level RPC.
 
-## Pending migration and application
+## Migration and release
 
 1. Review `migration_v86_focus_environments.sql` against the intended database.
    Prerequisites are the existing `profiles.locked`, `block_suspended_actor()`
    and canonical `get_gamification_levels(uuid[])` functions. The additive SQL
    has its own transaction and is re-runnable without resetting saved choices.
-   The existing pending v86 is extended only with the new ID, level-20
+   V86 includes the new ID, level-20
    constraint and RPC guard; no new migration architecture is introduced.
    Its constraint upgrade accepts the original two-environment and subsequent
    three-environment v86, preserving equipped choices and XP.
-2. Once production application is authorized, apply that exact migration using
-   the project's established migration workflow, then verify owner-only read,
+2. The exact migration was applied once on 2026-10-13 through Supabase's migration
+   API. Live verification confirms owner-only read,
+   no anonymous table/RPC access, no direct authenticated writes, fixed function
+   search paths and no unbound legacy mutation overload. The canonical level
+   function's hash is unchanged. Local PGlite checks cover
    revoked client writes, anonymous access and suspended RPC refusal, level-5 and
    level-12 eligibility (level 11 must reject Zenitho) and level-20 eligibility
    (level 19 must reject Glass Fold),
@@ -169,12 +172,12 @@ Space keeps its pause/resume role outside controls and the open gallery.
    coverage is evidence for the SQL contract, not a live Supabase verification.
 3. Deploy the application after the database contract is verified. Verify both
    gallery locations and a second session/device, including error/retry and
-   Forest fallback. Record migration/deployment identifiers and results in
-   `AI_CHANGELOG.md`. No production application or deployment occurred here.
+   Forest fallback. Production SHA, READY status and browser smoke evidence
+   belong to the release report; do not infer them from local fixtures.
 
 ## Verification and limits
 
-The seven feature suites (`tests/focus-*.test.mjs`) pass 86 tests locally. They
+The seven feature suites (`tests/focus-*.test.mjs`) pass 87 tests locally. They
 execute the migration in PGlite with the shipped canonical level function and
 cover RLS/privileges, suspension, persistence, reductions, idempotence and
 account deletion, including an account switch before the RPC write; the
@@ -194,7 +197,7 @@ actual shader time, two-triangle drawing, buffer bounds, resize, visibility,
 pause/reduced-motion handling, context recovery, partial failure cleanup and
 fallback.
 
-The current complete suite passes 909 tests; `npm run lint` is clean and
+The integrated release suite passes 928 tests; `npm run lint` is clean and
 `npm run build` succeeds. The build reports the absent local Supabase
 environment and the pre-existing HEIC chunk above the 3 MB PWA precache limit.
 
@@ -208,8 +211,9 @@ inspect three distinct shader frames, actual blue-purple earned fill/glow and
 paused states, the new gallery image, and one half-resolution canvas at
 320 × 740 (160 × 370) and 1440 × 900 (720 × 450), without overflow.
 Automated checks additionally preserve Pomodoro work/rest, skip-break and
-audio behavior. These are local/offline checks; no remote Supabase migration
-was applied and no physical iPhone or PWA device was tested.
+audio behavior. These browser checks use the local/offline fixture and are
+separate from the live migration verification above. No physical iPhone or
+PWA device was tested.
 
 Glass Fold browser checks cover FR running Focus at 390 and 1280 px, its selector
 at 320 and 1280 px, paused Focus at 390 px, and EN Pomodoro start/pause plus audio
@@ -252,10 +256,11 @@ The original Zenitho extension's finish review also ended **SHIP**. The
 2026-10-13 refinement review initially requested changes to outlined small text
 and stale documentation. Small text now has the local soft backing described
 above; the final independent refinement review ended **SHIP**, confirming both
-findings resolved and no visible regression. All work remains local and
-uncommitted; no push, deployment or remote migration application occurred.
+findings resolved and no visible regression. Those earlier reviews were local
+and preceded the migration application and final release checks.
 Glass Fold's final independent finish review ended **SHIP**, with no material
 UI/renderer correction requested. The reviewer inspected the supplied screenshots
 and source, without independently rerunning browser checks or tests. Remote
-migration, live account persistence and physical iPhone/PWA verification remain
-pending; local PGlite/offline evidence does not certify them.
+account persistence must additionally be checked against the live server;
+local PGlite/offline evidence does not certify it. The migration is now applied
+as documented above. Physical iPhone/PWA verification remains unperformed.

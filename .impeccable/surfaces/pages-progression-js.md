@@ -10,7 +10,7 @@ related_targets: ["components/timer/ChronoFocus.js", "components/focus/FocusEnvi
 `/progression` is an **Operate** surface. This brief covers only Focus
 Environments V1, implemented in the branch on 2026-10-12, refined locally for
 Zenitho on 2026-10-13, extended with the fourth/final Glass Fold environment,
-and not deployed. Glass Fold's independent finish review ended **SHIP** for
+and finalized for release. Glass Fold's independent finish review ended **SHIP** for
 the supplied screenshots and source.
 `DESIGN.md` remains the visual authority; this extension creates no global
 theme or competing reward/XP system.
@@ -42,11 +42,11 @@ dependency, TypeScript or shadcn was added. A server-observed canonical unlock
 is permanent and
 never auto-equips. Eligibility and equipped choice are server-owned; guests
 and a missing migration use Forest. All four implemented choices appear in
-both galleries. The existing pending v86 adds only Glass Fold's ID, level-20
+both galleries. V86 includes Glass Fold's ID, level-20
 constraint and RPC guard; upgrades from its two/three-choice versions preserve
 equipped choices and XP. See
 [the feature contract](../../docs/focus-environments.md) for persistence and
-the pending migration.
+the production migration applied once as `20261013152908`.
 
 ## Chosen direction and interaction
 
@@ -89,7 +89,7 @@ application theme and the global forest identity is unchanged.
 
 ## Verification and unresolved decisions
 
-The seven feature suites pass 86 local tests, including actual migration execution
+The seven feature suites pass 87 local tests, including actual migration execution
 in PGlite, level-11/level-19 rejection and level-12/level-20 eligibility, permanent
 unlocks, no auto-equip, upgrade of both earlier v86 constraint sets with choices
 and XP preserved, reapplication, account-switch
@@ -101,7 +101,7 @@ four source colors and local caption ground. Glass Fold adds byte hashes for its
 supplied source GLSL, palette/uniforms, actual time, drawing/buffer bounds,
 resize, fallback, resource cleanup and lifecycle coverage. The current complete
 suite passes
-909 tests, lint is clean and the production build succeeds, with the existing
+928 tests after integration with main, lint is clean and the production build succeeds, with the existing
 absent-Supabase-environment and HEIC precache warnings. Browser checks at
 1440/1280/390/320 px cover FR/EN, light/dark themes, confirmed selection,
 Escape, reload/level-drop persistence, no overflow, pause/resume/audio and
@@ -128,7 +128,7 @@ p95 2.068458 ms; 390 × 844 median 0.626291 ms / p95 1.984374 ms. This is draw
 time on that Mac, not a physical iPhone/PWA, battery or end-to-end frame guarantee.
 Glass Fold's final independent finish review ended **SHIP**, without a material
 UI/renderer correction request; it reviewed the supplied screenshots and source
-without independently rerunning browser checks/tests. Remote migration, live account
-persistence, physical iPhone/PWA verification and deployment are pending. All
-work remains local, without a
-push or deployment, and remains uncommitted.
+without independently rerunning browser checks/tests. The production migration
+was applied once and its RLS, privileges and unchanged canonical XP function
+verified. Live account persistence and deployment evidence belong to the release
+report, separately from local fixtures. No physical iPhone/PWA was tested.
