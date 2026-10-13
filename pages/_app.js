@@ -22,6 +22,7 @@ import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
 import { shouldCaptureAuthCallback } from "../lib/authRecovery.mjs";
 import { deriveOnboardingState, shouldCheckOnboarding } from "../lib/onboarding.mjs";
 import { loadUserLevelMap, clearUserLevelCache } from "../lib/userLevels";
+import { syncFocusUnlock } from "../lib/focusPreferences.mjs";
 import Celebration from "../components/Celebration";
 import {
   deviceSubscriptionStatus, disablePush, finishPendingLogout, initOneSignal, loginUser, setPushLanguage,
@@ -214,6 +215,9 @@ function GlobalLevelUpWatcher() {
       const current = await loadCurrentStatus(user.id);
       lastCheckRef.current = Date.now();
       const currentLevel = current.level;
+      // Cosmetic unlock history is server-owned and never auto-equips. The
+      // helper deduplicates already recorded levels; XP/celebrations stay here.
+      void syncFocusUnlock(supabase, user.id, currentLevel);
       const streak = current.streak || 0;
       const reachedMilestone = highestStreakMilestone(streak);
 

@@ -11,6 +11,8 @@ import { authColors } from "../../lib/colorTokens.cjs";
 // - capped frame rate, and no frame at all while the tab is hidden;
 // - a single still frame under prefers-reduced-motion;
 // - the resize listener is removed on unmount (the original leaked it);
+// - GPU allocations are released even after partial initialization;
+// - a lost context shows CSS until its scene can be restored;
 // - any WebGL failure leaves the container's CSS background in place.
 
 function normalizeColor(hexCode) {
@@ -21,6 +23,9 @@ class MiniGl {
   constructor(canvas) {
     this.canvas = canvas;
     this.meshes = [];
+    this.buffers = new Set();
+    this.shaders = new Set();
+    this.programs = new Set();
     const gl = canvas.getContext("webgl", { antialias: false, premultipliedAlpha: false, powerPreference: "low-power" });
     if (!gl) throw new Error("WebGL not supported");
     this.gl = gl;
@@ -45,6 +50,7 @@ class MiniGl {
       getDeclaration(name, type, length) {
         if (this.excludeFrom === type) return "";
         if (this.type === "array") {
+          if (!this.value.length) return `const int ${name}_length = 0;`;
           return `${this.value[0].getDeclaration(name, type, this.value.length)}\nconst int ${name}_length = ${this.value.length};`;
         }
         if (this.type === "struct") {
@@ -64,6 +70,8 @@ class MiniGl {
         this.type = context.FLOAT;
         this.normalized = false;
         this.buffer = context.createBuffer();
+        if (!this.buffer) throw new Error("WebGL buffer allocation failed");
+        miniGl.buffers.add(this.buffer);
         Object.assign(this, options);
       }
 
@@ -75,7 +83,7 @@ class MiniGl {
 
       attach(name, program) {
         const location = context.getAttribLocation(program, name);
-        if (this.target === context.ARRAY_BUFFER) {
+        if (this.target === context.ARRAY_BUFFER && location >= 0) {
           context.bindBuffer(this.target, this.buffer);
           context.enableVertexAttribArray(location);
           context.vertexAttribPointer(location, this.size, this.type, this.normalized, 0, 0);
@@ -85,7 +93,7 @@ class MiniGl {
 
       use(location) {
         context.bindBuffer(this.target, this.buffer);
-        if (this.target === context.ARRAY_BUFFER) {
+        if (this.target === context.ARRAY_BUFFER && location >= 0) {
           context.enableVertexAttribArray(location);
           context.vertexAttribPointer(location, this.size, this.type, this.normalized, 0, 0);
         }
@@ -98,6 +106,8 @@ class MiniGl {
         this.uniformInstances = [];
         const shader = (type, source) => {
           const compiled = context.createShader(type);
+          if (!compiled) throw new Error("WebGL shader allocation failed");
+          miniGl.shaders.add(compiled);
           context.shaderSource(compiled, source);
           context.compileShader(compiled);
           if (!context.getShaderParameter(compiled, context.COMPILE_STATUS)) {
@@ -125,6 +135,8 @@ class MiniGl {
           ${fragments}
         `;
         this.program = context.createProgram();
+        if (!this.program) throw new Error("WebGL program allocation failed");
+        miniGl.programs.add(this.program);
         context.attachShader(this.program, shader(context.VERTEX_SHADER, vertexSource));
         context.attachShader(this.program, shader(context.FRAGMENT_SHADER, fragmentSource));
         context.linkProgram(this.program);
@@ -274,6 +286,19 @@ class MiniGl {
     this.gl.clearDepth(1);
     this.meshes.forEach(mesh => mesh.draw());
   }
+
+  // Track allocations as they happen, including an initialization that fails
+  // midway through compilation. Losing the context alone does not own them.
+  dispose({ loseContext = false } = {}) {
+    this.buffers.forEach(buffer => this.gl.deleteBuffer(buffer));
+    this.programs.forEach(program => this.gl.deleteProgram(program));
+    this.shaders.forEach(shader => this.gl.deleteShader(shader));
+    this.buffers.clear();
+    this.programs.clear();
+    this.shaders.clear();
+    this.meshes.length = 0;
+    if (loseContext) this.gl.getExtension("WEBGL_lose_context")?.loseContext();
+  }
 }
 
 const VERTEX_SHADER = `
@@ -365,6 +390,14 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
 }`;
 
+// Focus opts into all supplied colors. Auth retains the exact historical
+// vertex body and vec4 gate above: changing its composition is outside scope.
+// The opt-in removes the out-of-range read and permits a base-only palette.
+const FULL_COLOR_VERTEX_SHADER = VERTEX_SHADER
+  .replace("u_active_colors[i + 1] == 1.", "true")
+  .replace("  for (int i = 0; i < u_waveLayers_length; i++) {", "#if WAVE_LAYER_COUNT > 0\n  for (int i = 0; i < u_waveLayers_length; i++) {")
+  .replace("\n  gl_Position =", "\n#endif\n\n  gl_Position =");
+
 const FRAGMENT_SHADER = `
 varying vec3 v_color;
 
@@ -378,7 +411,8 @@ void main() {
 }`;
 
 class Gradient {
-  constructor(canvas, colors, { scale = 0.5 } = {}) {
+  constructor(canvas, colors, { scale = 0.5, fullColorLayers = false } = {}) {
+    if (!colors.length) throw new Error("GradientWave requires at least one color");
     this.canvas = canvas;
     this.scale = scale;
     this.time = 0;
@@ -390,7 +424,7 @@ class Gradient {
       u_time: new minigl.Uniform({ value: 0 }),
       u_shadow_power: new minigl.Uniform({ value: 5 }),
       u_darken_top: new minigl.Uniform({ value: 0 }),
-      u_active_colors: new minigl.Uniform({ value: [1, 1, 1, 1], type: "vec4" }),
+      ...(fullColorLayers ? {} : { u_active_colors: new minigl.Uniform({ value: [1, 1, 1, 1], type: "vec4" }) }),
       u_global: new minigl.Uniform({
         value: {
           noiseFreq: new minigl.Uniform({ value: [0.00014, 0.00029], type: "vec2" }),
@@ -429,9 +463,17 @@ class Gradient {
         type: "struct",
       }));
     }
-    const material = new minigl.Material(VERTEX_SHADER, FRAGMENT_SHADER, uniforms);
-    this.mesh = new minigl.Mesh(new minigl.PlaneGeometry(), material);
-    this.uniforms = material.uniforms;
+    try {
+      const vertexShader = fullColorLayers
+        ? `#define WAVE_LAYER_COUNT ${sectionColors.length - 1}\n${FULL_COLOR_VERTEX_SHADER}`
+        : VERTEX_SHADER;
+      const material = new minigl.Material(vertexShader, FRAGMENT_SHADER, uniforms);
+      this.mesh = new minigl.Mesh(new minigl.PlaneGeometry(), material);
+      this.uniforms = material.uniforms;
+    } catch (error) {
+      minigl.dispose();
+      throw error;
+    }
   }
 
   resize(width, height) {
@@ -447,10 +489,15 @@ class Gradient {
     this.uniforms.u_time.value = this.time;
     this.minigl.render();
   }
+
+  dispose(options) {
+    this.minigl.dispose(options);
+  }
 }
 
 /**
  * @param {string[]} colors      base colour first, then the wave layers
+ * @param {boolean} fullColorLayers opt into every supplied layer (Focus only)
  * @param {number}   noiseSpeed  global speed (the 21st.dev default is 1e-5)
  * @param {number}   fps         frame cap; slow motion needs few frames
  * @param {number}   scale       drawing-buffer scale against CSS pixels
@@ -458,6 +505,7 @@ class Gradient {
  */
 export default function GradientWave({
   colors = authColors.light,
+  fullColorLayers = false,
   isPlaying = true,
   className = "",
   shadowPower = 8,
@@ -474,6 +522,9 @@ export default function GradientWave({
   seed = 0,
 }) {
   const containerRef = useRef(null);
+  const playingRef = useRef(isPlaying);
+  const playRef = useRef(null);
+  playingRef.current = isPlaying;
   const colorKey = colors.join(",");
   const deformKey = JSON.stringify(deform);
   const frequencyKey = noiseFrequency.join(",");
@@ -485,60 +536,115 @@ export default function GradientWave({
     Object.assign(canvas.style, { position: "absolute", inset: "0", width: "100%", height: "100%", display: "block" });
     canvas.setAttribute("aria-hidden", "true");
 
-    let gradient;
-    try {
-      gradient = new Gradient(canvas, colorKey.split(","), { scale });
-    } catch (error) {
-      // The container's CSS background stays: the page still has its ground.
-      return undefined;
-    }
-    const { uniforms } = gradient;
-    uniforms.u_shadow_power.value = shadowPower;
-    uniforms.u_darken_top.value = darkenTop ? 1 : 0;
-    uniforms.u_global.value.noiseFreq.value = frequencyKey.split(",").map(Number);
-    uniforms.u_global.value.noiseSpeed.value = noiseSpeed;
-    Object.entries(JSON.parse(deformKey)).forEach(([key, value]) => {
-      if (uniforms.u_vertDeform.value[key]) uniforms.u_vertDeform.value[key].value = value;
-    });
-    gradient.time = seed;
-
-    const size = () => gradient.resize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
-    size();
-    gradient.frame(0);
-    container.appendChild(canvas);
-    requestAnimationFrame(() => { canvas.dataset.ready = "true"; });
-
+    let gradient = null;
+    let disposed = false;
+    let contextLost = false;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const interval = 1000 / fps;
     let raf = 0;
-    let last = 0;
+    let readyRaf = 0;
+    let last = null;
+    const size = () => gradient.resize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
+    const canPlay = () => !disposed && !contextLost && gradient && playingRef.current && !reduced.matches && !document.hidden;
     const tick = (now) => {
+      raf = 0;
+      if (!canPlay()) return;
+      if (last === null) last = now;
+      else if (now - last >= interval) {
+        try { gradient.frame(now - last); }
+        catch (error) { fallback(); return; }
+        last = now;
+      }
       raf = requestAnimationFrame(tick);
-      if (!last) { last = now; return; }
-      if (now - last < interval) return;
-      gradient.frame(now - last);
-      last = now;
     };
     const play = () => {
       cancelAnimationFrame(raf);
-      last = 0;
-      if (isPlaying && !reduced.matches && !document.hidden) raf = requestAnimationFrame(tick);
+      raf = 0;
+      last = null;
+      if (canPlay()) raf = requestAnimationFrame(tick);
     };
-    const onResize = () => { size(); gradient.frame(0); };
+    const fallback = () => {
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(readyRaf);
+      raf = 0;
+      readyRaf = 0;
+      gradient?.dispose();
+      gradient = null;
+      canvas.remove();
+    };
+    const initialize = (time) => {
+      try {
+        gradient = new Gradient(canvas, colorKey ? colorKey.split(",") : [], { scale, fullColorLayers });
+        const { uniforms } = gradient;
+        uniforms.u_shadow_power.value = shadowPower;
+        uniforms.u_darken_top.value = darkenTop ? 1 : 0;
+        uniforms.u_global.value.noiseFreq.value = frequencyKey.split(",").map(Number);
+        uniforms.u_global.value.noiseSpeed.value = noiseSpeed;
+        Object.entries(JSON.parse(deformKey)).forEach(([key, value]) => {
+          if (uniforms.u_vertDeform.value[key]) uniforms.u_vertDeform.value[key].value = value;
+        });
+        gradient.time = time;
+        size();
+        gradient.frame(0);
+        canvas.style.visibility = "";
+        if (!container.contains(canvas)) container.appendChild(canvas);
+        readyRaf = requestAnimationFrame(() => {
+          readyRaf = 0;
+          if (!disposed && !contextLost) canvas.dataset.ready = "true";
+        });
+        play();
+      } catch (error) {
+        // The CSS ground remains visible when allocation or setup fails.
+        fallback();
+      }
+    };
+    const onContextLost = (event) => {
+      event.preventDefault();
+      contextLost = true;
+      play();
+      cancelAnimationFrame(readyRaf);
+      readyRaf = 0;
+      canvas.removeAttribute("data-ready");
+      canvas.style.visibility = "hidden";
+    };
+    const onContextRestored = () => {
+      if (disposed || !contextLost) return;
+      const time = gradient?.time ?? seed;
+      gradient?.dispose();
+      gradient = null;
+      contextLost = false;
+      initialize(time);
+    };
+    const onResize = () => {
+      if (!disposed && !contextLost && gradient) {
+        try { size(); gradient.frame(0); }
+        catch (error) { fallback(); }
+      }
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
+    canvas.addEventListener("webglcontextrestored", onContextRestored);
     window.addEventListener("resize", onResize);
     document.addEventListener("visibilitychange", play);
     reduced.addEventListener("change", play);
-    play();
+    playRef.current = play;
+    initialize(seed);
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(readyRaf);
+      if (playRef.current === play) playRef.current = null;
+      canvas.removeEventListener("webglcontextlost", onContextLost);
+      canvas.removeEventListener("webglcontextrestored", onContextRestored);
       window.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", play);
       reduced.removeEventListener("change", play);
       canvas.remove();
-      gradient.minigl.gl.getExtension("WEBGL_lose_context")?.loseContext();
+      gradient?.dispose({ loseContext: true });
     };
-  }, [colorKey, isPlaying, shadowPower, darkenTop, noiseSpeed, frequencyKey, deformKey, fps, scale, seed]);
+  }, [colorKey, fullColorLayers, shadowPower, darkenTop, noiseSpeed, frequencyKey, deformKey, fps, scale, seed]);
+
+  useEffect(() => { playRef.current?.(); }, [isPlaying]);
 
   return <div ref={containerRef} className={`bt-gradient-wave ${className}`.trim()} aria-hidden="true" />;
 }

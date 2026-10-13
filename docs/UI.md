@@ -15,6 +15,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Font families and responsive utilities | `tailwind.config.js`; self-hosted `public/fonts/` |
 | Timer units / daily time | Chrono card, Focus, digits and behaviour (start/pause, Pomodoro cycle, pause tracking, block captions) in `components/timer/*` — `useChrono.js`, `ChronoCard.js`, `ChronoFocus.js`; mode/phase/durations persisted with the timer in `contexts/TimerContext.js` (`lib/pomodoro.mjs`); guest local space `lib/guestStudySpace.js`; account saving and Dashboard widgets in `pages/dashboard.js`; the public `/pomodoro` tool (guest Chrono, link to the app for an account) in `components/timer/PublicChrono.js`, placed by `SeoLandingPage`'s `tool` slot; daily time `components/TodayProgressCard.js` |
 | Selective sound effects / notification dedup | `lib/sensoryFeedback.js`, `lib/notificationSounds.mjs`, `contexts/NotificationContext.js` — `docs/sounds.md`; Focus ambience stays independent |
+| Focus environments (branch V1; migration/deployment pending) | `components/focus/*`, `hooks/useFocusEnvironment.js`, `lib/focusEnvironments.mjs`, `lib/focusPreferences.mjs`; `ChronoFocus` and `/progression` — `docs/focus-environments.md`, `.impeccable/surfaces/pages-progression-js.md` |
 | Shared daily study goal | `lib/dailyStudyGoal.mjs` — today's positive planned durations, otherwise 2 h; Stats / Timer |
 | Goal-linked mascot position | `components/stats/StatsHero.js` |
 | Course palette | `lib/courseColors.js`; saved `course.color` is identity |

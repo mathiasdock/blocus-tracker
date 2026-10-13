@@ -10,6 +10,9 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { loadUserLevelMap } from "../lib/userLevels";
 import { LEVELS } from "../lib/xp";
+import { useFocusEnvironment } from "../hooks/useFocusEnvironment";
+import FocusEnvironmentGallery from "../components/focus/FocusEnvironmentGallery";
+import environmentStyles from "../components/focus/FocusEnvironments.module.css";
 
 // Tout ce qui concerne l'XP, sur sa propre page.
 //
@@ -78,6 +81,7 @@ function LadderRow({ level, current, reached, t }) {
 export default function ProgressionPage() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const environmentPreferences = useFocusEnvironment();
   const [levelInfo, setLevelInfo] = useState(null);
   const [missions, setMissions] = useState([]);
   const [weekly, setWeekly] = useState([]);
@@ -179,6 +183,12 @@ export default function ProgressionPage() {
             largeur minimale — un libelle un peu long elargit alors la piste au
             lieu de se tronquer, et la carte deborde. `lg:items-stretch` pour
             qu'elles se terminent ensemble au lieu de laisser un bas dechire. */}
+        <section className={`card mt-4 ${environmentStyles.section}`} aria-labelledby="focus-environments-title">
+          <h2 id="focus-environments-title">{t("focusEnv.title")}</h2>
+          <p className={environmentStyles.intro}>{t("focusEnv.intro")}</p>
+          <FocusEnvironmentGallery preferences={environmentPreferences} />
+        </section>
+
         <div className="mt-4 grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-stretch">
 
           <div className="flex min-w-0 flex-col">

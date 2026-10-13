@@ -105,9 +105,9 @@ export default function AmbientSoundControl({ active, visible = true }) {
         aria-expanded={open}
         className="bt-tap flex items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold bt-press"
         style={{
-          color: on ? "var(--bt-ink-muted)" : "rgba(255,255,255,0.6)",
-          backgroundColor: on ? "rgba(var(--bt-brand-rgb), 0.18)" : "rgba(255,255,255,0.08)",
-          border: `1px solid ${on ? "rgba(var(--bt-brand-rgb), 0.35)" : "rgba(255,255,255,0.12)"}`,
+          color: on ? "var(--bt-ink-muted)" : "var(--bt-focus-env-muted, rgba(255,255,255,0.6))",
+          backgroundColor: on ? "var(--bt-focus-env-control-active, rgba(var(--bt-brand-rgb), 0.18))" : "var(--bt-focus-env-control, rgba(255,255,255,0.08))",
+          border: `1px solid var(--bt-focus-env-border, ${on ? "rgba(var(--bt-brand-rgb), 0.35)" : "rgba(255,255,255,0.12)"})`,
         }}>
         <IconSound on={on} />
         {on && <span className="tabular-nums">{t(LABEL_KEY[preset])}</span>}
@@ -115,7 +115,7 @@ export default function AmbientSoundControl({ active, visible = true }) {
 
       {open && (
         <div className="mt-2 w-60 rounded-2xl p-3"
-          style={{ backgroundColor: "rgba(var(--bt-brand-deepest-rgb), 0.92)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", boxShadow: "0 12px 40px rgba(0,0,0,0.45)" }}>
+          style={{ backgroundColor: "var(--bt-focus-env-panel, rgba(var(--bt-brand-deepest-rgb), 0.92))", border: "1px solid var(--bt-focus-env-border, rgba(255,255,255,0.14))", backdropFilter: "blur(8px)", boxShadow: "0 12px 40px rgba(0,0,0,0.45)" }}>
           <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--bt-ink-muted)" }}>
             {t("sound.label")}
           </p>
@@ -123,8 +123,8 @@ export default function AmbientSoundControl({ active, visible = true }) {
             <button type="button" onClick={turnOff}
               className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
               style={!on
-                ? { backgroundColor: "rgba(255,255,255,0.9)", color: "var(--bt-brand-deepest)" }
-                : { backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>
+                ? { backgroundColor: "var(--bt-focus-env-action, rgba(255,255,255,0.9))", color: "var(--bt-focus-env-action-text, var(--bt-brand-deepest))" }
+                : { backgroundColor: "var(--bt-focus-env-secondary, rgba(255,255,255,0.08))", color: "var(--bt-focus-env-muted, rgba(255,255,255,0.7))" }}>
               {t("sound.off")}
             </button>
             {AMBIENT_PRESETS.map((p) => (
@@ -132,7 +132,7 @@ export default function AmbientSoundControl({ active, visible = true }) {
                 className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors"
                 style={on && preset === p
                   ? { backgroundColor: "var(--bt-selected-bg)", color: "var(--bt-selected-text)" }
-                  : { backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}>
+                  : { backgroundColor: "var(--bt-focus-env-secondary, rgba(255,255,255,0.08))", color: "var(--bt-focus-env-muted, rgba(255,255,255,0.7))" }}>
                 {t(LABEL_KEY[p])}
               </button>
             ))}
@@ -143,7 +143,7 @@ export default function AmbientSoundControl({ active, visible = true }) {
               onChange={(e) => onVolume(parseFloat(e.target.value))}
               aria-label={t("sound.volume")}
               className="w-full"
-              style={{ accentColor: "var(--bt-brand-primary)" }} />
+              style={{ accentColor: "var(--bt-focus-env-accent, var(--bt-brand-primary))" }} />
           </div>
         </div>
       )}

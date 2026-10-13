@@ -2,7 +2,7 @@
 version: 1
 slug: "pages-dashboard-js"
 primary_target: "pages/dashboard.js"
-related_targets: ["components/StudyBlocks.js","lib/studyBlocks.mjs","components/TodayProgressCard.js","components/TodaySessionsCard.js","components/DailyProgressCard.js","components/DashboardCoursesCard.js","components/BlocusCard.js","components/CourseChecklistModal.jsx","components/FocusShaderBackground.js"]
+related_targets: ["components/StudyBlocks.js","lib/studyBlocks.mjs","components/TodayProgressCard.js","components/TodaySessionsCard.js","components/DailyProgressCard.js","components/DashboardCoursesCard.js","components/BlocusCard.js","components/CourseChecklistModal.jsx","components/FocusShaderBackground.js","components/timer/ChronoFocus.js","components/focus/FocusEnvironmentControl.js","components/focus/FocusEnvironmentGallery.js"]
 ---
 
 ## Scope and visitor mode
@@ -34,6 +34,22 @@ Le chrono est le centre de gravité. Sur mobile, l'ordre est Chrono → Missions
 **Sécurité du mouvement.** L'ancien battement plein écran à 1 Hz (opacité 0,14 → 1,0, attaque sèche) est remplacé par des respirations lentes (2,4–2,6 s), sans attaque, d'amplitude réduite, et la vignette du mode Focus garde son centre transparent pour que le chrono ne clignote jamais. Sous `prefers-reduced-motion`, chaque respiration devient sa version POSÉE à pleine force : l'avertissement n'est jamais retiré, le problème de comportement ne disparaissant pas pour ces personnes.
 
 **Listes du Chrono.** « Mes cours » et « Sessions du jour » séparent leurs rangées par l'espace, sans traits horizontaux ; les repères de cours, titres, heures et actions restent inchangés. La liste de l'Historique conserve ses séparateurs, utiles entre journées et sessions plus nombreuses.
+
+## Environnements Focus
+
+**Environnements Focus V1 (2026-10-12, branche locale non déployée).** Le
+sélecteur se place en haut à droite, face au son, avec deux aperçus de palette
+statiques : Forêt reste le fond original par défaut (niveau 1), Gradient Wave
+est disponible au niveau 5 avec ses six couleurs source alternées bleu/blanc,
+32 % de la vitesse source, 30 fps et un tampon à demi-résolution. Le choix et
+le plus haut niveau observé sont privés et persistés par le serveur ; un
+déblocage est permanent et n'équipe jamais automatiquement. Les niveaux 12/20
+restent « À venir », sans aperçu ni action. Le même catalogue suit le XP dans
+Progression. Thème limité au plein écran Focus, avertissement rouge de pause,
+cours, temps, blocs, Pomodoro et son conservés ; Échap ferme d'abord le
+sélecteur, puis Focus. Migration v86 et production restent en attente. Contrat
+et limites de validation : [docs/focus-environments.md](../../docs/focus-environments.md),
+brief complémentaire : [Progression](pages-progression-js.md).
 
 ## Mascot frequency
 

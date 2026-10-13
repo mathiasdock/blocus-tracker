@@ -626,7 +626,7 @@ html.bt-no-splash #bt-splash {
    la safe-area du home indicator → sans ça une bande blanche (le nav mobile) reste
    en bas. On peint donc le fond racine en vert ink et on masque le nav mobile. */
 html.bt-focus-active,
-html.bt-focus-active body { background-color: var(--bt-ink); }
+html.bt-focus-active body { background-color: var(--bt-focus-canvas, var(--bt-ink)); }
 html.bt-focus-active .bt-nav { display: none; }
 
 

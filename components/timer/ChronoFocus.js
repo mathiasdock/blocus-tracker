@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import Glyph from "../Glyph";
 import StudyBlocks, { RestTrack } from "../StudyBlocks";
 import AmbientSoundControl from "../AmbientSoundControl";
-import FocusShaderBackground from "../FocusShaderBackground";
+import FocusEnvironmentRenderer from "../focus/FocusEnvironmentRenderer";
+import FocusEnvironmentControl from "../focus/FocusEnvironmentControl";
+import environmentStyles from "../focus/FocusEnvironments.module.css";
+import { getFocusEnvironment } from "../../lib/focusEnvironments.mjs";
+import { useFocusEnvironment } from "../../hooks/useFocusEnvironment";
 import TimerDigits from "./TimerDigits";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
@@ -36,6 +40,11 @@ export default function ChronoFocus({
   renderCoach,
 }) {
   const { t } = useI18n();
+  const preferences = useFocusEnvironment();
+  const environment = getFocusEnvironment(preferences.environmentId);
+  const [environmentOpen, setEnvironmentOpen] = useState(false);
+  const environmentOpenRef = useRef(false);
+  environmentOpenRef.current = environmentOpen;
   const {
     courseId, running, elapsed, pomodoro, pomoPhase, pomoCount,
     isPaused, onBreak, pauseSince, pomoTargetSecs, blockGoalSecs, blocksAria, liveMessage,
@@ -48,7 +57,7 @@ export default function ChronoFocus({
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
 
   useEffect(() => {
-    function handler(e) { if (e.key === "Escape") closeRef.current?.(); }
+    function handler(e) { if (e.key === "Escape" && !environmentOpenRef.current && !e.defaultPrevented) closeRef.current?.(); }
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     // Fond racine vert + nav mobile masqué : le plein écran couvre la safe-area
@@ -61,6 +70,16 @@ export default function ChronoFocus({
       document.removeEventListener("keydown", handler);
     };
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = root.style.getPropertyValue("--bt-focus-canvas");
+    root.style.setProperty("--bt-focus-canvas", isPaused && !pomodoro ? "#1A0605" : environment.theme["--bt-focus-env-canvas"] || "var(--bt-ink)");
+    return () => {
+      if (previous) root.style.setProperty("--bt-focus-canvas", previous);
+      else root.style.removeProperty("--bt-focus-canvas");
+    };
+  }, [environment, isPaused, pomodoro]);
 
   // Contrôles du mode focus : s'estompent après 4,5 s d'inactivité (pattern
   // lecteur vidéo) — tout mouvement / toucher / touche les fait réapparaître.
@@ -88,26 +107,28 @@ export default function ChronoFocus({
   useEffect(() => {
     function onKey(e) {
       if (e.code !== "Space" || e.repeat) return;
-      if (/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName || "")) return;
+      if (environmentOpen || /INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target?.tagName || "")) return;
       e.preventDefault();
       if (running) pauseWithFeedback();
       else if (courseId || pomodoro) startWithFeedback();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [running, courseId, pomodoro, pauseWithFeedback, startWithFeedback]);
+  }, [running, courseId, pomodoro, pauseWithFeedback, startWithFeedback, environmentOpen]);
 
   return (
-        <div className="bt-focus-surface fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain"
+        <div data-environment={environment.id} data-paused={isPaused && !pomodoro || undefined} className={`${environmentStyles.focus} bt-focus-surface fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain`}
           style={{
-            background: (isPaused && !pomodoro) ? "#1A0605" : "var(--bt-ink)",
+            ...environment.theme,
+            ...(isPaused && !pomodoro ? environment.pausedTheme : {}),
+            background: (isPaused && !pomodoro) ? "#1A0605" : "var(--bt-focus-env-canvas, var(--bt-ink))",
             zIndex: 100,
           }}>
           {/* Vagues WebGL de marque. Le composant fournit son propre fallback
               statique et coupe la boucle sous prefers-reduced-motion. En pause,
               le champ vire au rouge : en plein écran il n'y a pas de carte pour
               porter l'état, c'est l'environnement qui le porte. */}
-          <FocusShaderBackground paused={isPaused && !pomodoro} />
+          <FocusEnvironmentRenderer environment={environment} paused={isPaused && !pomodoro} />
 
           {/* Respiration rouge périphérique — le signal qui rattrape un regard
               parti ailleurs. Cycle de 2,4 s, courbe douce et centre transparent
@@ -118,6 +139,7 @@ export default function ChronoFocus({
 
           {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
           <AmbientSoundControl active visible={focusCtlVisible || !running} />
+          <FocusEnvironmentControl preferences={preferences} visible={focusCtlVisible || !running} onOpenChange={setEnvironmentOpen} />
 
           <p ref={focusGreetingRef} className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}
@@ -125,7 +147,7 @@ export default function ChronoFocus({
 
           {pomodoro && (
             <p role="status" className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
-              style={{ color: pomoPhase === "work" ? "var(--bt-accent)" : "var(--bt-ink-muted)" }}>
+              style={{ color: pomoPhase === "work" ? "var(--bt-focus-env-accent, var(--bt-accent))" : "var(--bt-ink-muted)" }}>
               {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
               {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
             </p>
@@ -220,7 +242,7 @@ export default function ChronoFocus({
                 ) : (
                   <button onClick={pauseWithFeedback}
                     className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
-                    style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
+                    style={{ backgroundColor: "var(--bt-focus-env-secondary, rgba(255,255,255,0.1))", color: "var(--bt-focus-env-text, #fff)" }}>
                     {t("dash.pause")}
                   </button>
                 )}
@@ -228,7 +250,7 @@ export default function ChronoFocus({
                   onClick={() => { leavePomodoro(); onFinish?.(); onClose?.(); }}
                   disabled={elapsed < 1 || saveStatus === "saving"}
                   className="min-w-0 flex-1 rounded-2xl px-4 py-3 text-base font-semibold transition-colors bt-press sm:flex-none sm:px-10"
-                  style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "#fff" }}>
+                  style={{ backgroundColor: "var(--bt-focus-env-secondary, rgba(255,255,255,0.1))", color: "var(--bt-focus-env-text, #fff)" }}>
                   {saveStatus === "saving" ? t("common.saving") : t("dash.finish")}
                 </button>
               </>
@@ -243,7 +265,7 @@ export default function ChronoFocus({
               pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
               transition: "opacity 0.25s ease-out, color 0.2s ease-out",
             }}
-            onMouseEnter={e => e.currentTarget.style.color = "#FFFFFF"}
+            onMouseEnter={e => e.currentTarget.style.color = "var(--bt-focus-env-text, #FFFFFF)"}
             onMouseLeave={e => e.currentTarget.style.color = "var(--bt-ink-text)"}>
             <Glyph size={14}>
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
