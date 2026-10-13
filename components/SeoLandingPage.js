@@ -232,7 +232,10 @@ export default function SeoLandingPage({ page, tool = null }) {
                         </li>
                       ))}
                     </ul>
-                    <Link href="/signup" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold" style={{ color: "var(--bt-brand-text)" }}>
+                    {/* Fond blanc dans les deux thèmes : un vert foncé fixe
+                        (#2D6A4F, celui du thème clair). --bt-brand-text passe
+                        au vert pâle en sombre, illisible sur ce blanc. */}
+                    <Link href="/signup" className="mt-6 inline-flex rounded-full bg-white px-4 py-2 text-sm font-bold" style={{ color: "var(--bt-action-hover)" }}>
                       {ui.createSpace}
                     </Link>
                   </div>

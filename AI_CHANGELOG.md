@@ -47,6 +47,108 @@
 - Navigateur local à 1440/1280/390/320 px, FR/EN et clair/sombre : confirmation d'équipement, Échap, choix conservé après rechargement et baisse de niveau, aucun débordement horizontal, vrai Démarrer/Pause Pomodoro ; un seul canvas Wave, 195 × 422 pour un viewport 390 × 844. Travail/repos Pomodoro, saut du repos et son couverts aussi par les tests automatisés. Aucun iPhone physique ni appareil PWA testé, aucune migration Supabase distante appliquée ; les fixtures locales ne prouvent pas l'autorisation de production et 30 fps est un plafond configuré, pas une mesure de performance matérielle.
 - `docs/focus-environments.md`, entrée UI et briefs Dashboard/Progression documentent le contrat, les limites et les étapes d'application futures. `DESIGN.md` et le sidecar global inchangés ; aucune migration ni mise en production dans ce travail.
 - Revue visuelle finale **SHIP** : contraste de l'action Terminer en pause Gradient Wave corrigé, fermeture de galerie portée à 44 × 44 px ; deux points résolus dans les recaptures exploitables desktop/320 px. Aucun autre changement de composition.
+## 2026-10-13 — Claude Code — Site public : /pomodoro sur le gabarit éditorial, le vrai Chrono en premier
+
+- **Commit local, non déployé** : en attente de la validation de Mathias.
+- Le dernier guide passe sur `GuideArticle`, avec une composition propre à un outil (`layout="tool"`, prop `tool`) : le vrai Chrono suit le titre, avant l'introduction. Sur ordinateur, il occupe la colonne de droite à hauteur du titre ; à gauche, l'introduction, « Inclus » et la réponse courte. Le reste reprend la grammaire des guides : routine d'un bloc en étapes numérotées, encadré collé sous l'en-tête, guides liés en index, FAQ visible, appel final dont « Lancer le chrono » ramène à l'outil (`#minuteur`).
+- Rien du Chrono n'est touché : moteur, sessions, espace local, cycles Pomodoro, mode Focus, invitation après une vraie session et rappels à 7/30 jours restent ceux de `PublicChrono` / `useChrono` / `ChronoCard` ; la page ne fait que les placer.
+- Téléphone : titre sur deux lignes, Démarrer remonte d'environ 60 px (390 × 844 : 573 → 511 px). Avec le bandeau cookies, il reste visible sur 390 × 844 et 414 × 896, et le devient sur 360 × 780 ; sur les écrans plus courts (iPhone avec les barres de Safari, iPhone SE, 320 px), un petit défilement suffit, environ deux fois plus court qu'avant.
+- Plus de décalage de la page :
+  - la place de la carte est réservée à sa plus grande hauteur, mesurée dans tous ses états (repos, travail, pause, repos Pomodoro), en français et en anglais, de 320 à 1023 px ; sur ordinateur, la colonne de l'outil a sa réserve, toujours plus courte que le texte à côté ;
+  - sous 1024 px, l'invitation se pose sous la carte à la place de l'introduction, qui garde sa place sans s'afficher, au lieu de la pousser ; fermée, l'introduction réapparaît au même endroit (règles CSS sur la place de l'outil, sans toucher à `PublicChrono`) ;
+  - score de décalage d'un cycle Pomodoro complet pour la page autour de la carte : téléphone 0,050 → 0 (travail → repos) et 0,505 → 0 (fin du repos et invitation) ; ordinateur 0,017 → 0 et 0,315 → 0. Restent les mouvements internes de la carte du Chrono (ses boutons et son message changent d'état), inchangés.
+- Contenu : un seul champ ajouté, `ordered: true` sur la première section ; aucun texte modifié.
+- Vérifié sur des copies locales de `main` (78bb3dd) et de cette version :
+  - **HTML serveur :** title, meta, canonical, 6 blocs JSON-LD, H1, 8 H2, 6 H3, les 7 liens et 62/62 fragments de texte identiques, aucun texte ajouté, aucune image ; les 13 autres URL identiques ;
+  - **Pixels :** 40/44 captures identiques (les 10 autres pages publiques, clair et sombre) ;
+  - **Parcours réels** (Chrome, horloge pilotée) : Pomodoro (démarrer, pause, reprise, travail → repos → invitation), Libre (12 min puis Terminer → invitation), Focus (à la demande, temps qui passe, retour), « Continuer sans compte » (30 jours), inscription (/signup, invitation notée), rechargement au repos et en plein bloc ; 34/34 à 390, 768 et 1440 px, avec et sans animations, et en anglais ; 33/34 à 320 × 568, où l'invitation apparaît sous la ligne de flottaison comme avant (elle n'est notée vue qu'une fois à l'écran) ;
+  - **Contrôles :** 69/69 (320 à 1440 px, clair/sombre). Dans la carte du Chrono elle-même, inchangée, les menus Pomodoro / 25 min / 5 min font 32 px de haut et quelques étiquettes 11–12 px : à traiter avec le Dashboard ;
+  - **Poids :** JS de la page 35,75 → 35,32 Ko gz, CSS +3,61 Ko gz (feuille des guides) ; les cinq autres guides +0,10 Ko de JS et +0,34 Ko de CSS ;
+  - **Vitesse :** téléphone bridé 1 472 → 1 436 ms, ordinateur 312 → 292 ms (premier affichage), CLS 0 au chargement ; « Lancer le chrono » ramène l'outil juste sous l'en-tête, Démarrer visible.
+- Tests : 841/841 (le test du héros vérifie la nouvelle composition et les règles qui empêchent les décalages ; +1 : mêmes H1/H2/H3, liens et texte que l'ancien gabarit ; le banc d'essai lit désormais les modules CSS), lint, build.
+- `SeoLandingPage` n'est plus utilisé par aucune page : il reste la référence « avant » des tests de comparaison, à retirer avec eux une fois /pomodoro validé.
+
+## 2026-10-12 — Claude Code — Site public : /application-etudiant et /blocus-belgique sur le gabarit éditorial
+
+- **Déployé en production le 2026-10-12** après validation de Mathias : `main` e4dc9d7 → 0a94374 en avance rapide (aucun commit parallèle ; les travaux de Codex — fonds du mode Focus, présence des amis, Stats — restent dans leurs copies, sans fichier commun), Vercel `dpl_GFvJzkosyzyJ7rCpxE2nf4JskAb2` (build `O9fj8LkKYRjkyCAExZ9AJ`). Vérifié en production :
+  - les deux pages : title, meta, canonical, 6 blocs JSON-LD, H1/H2/H3, liens (les 5 sources comprises) et 52 / 85 fragments de texte identiques au HTML d'avant, aucun texte ajouté ; 87/87 et 69/69 contrôles (320 à 1440 px, clair/sombre : captures chargées, sources, débordement, cibles, contrastes, clavier, console propre) ; identiques au pixel à la version validée en local (8/8) ;
+  - 11 autres URL au HTML identique, `/pomodoro` à une balise de script près ; 36/44 captures publiques identiques au pixel, les 8 autres étant exactement les deux pages refaites.
+
+- Les deux derniers guides sans outil passent sur `GuideArticle`, chacun avec sa composition (prop `layout`) :
+  - **`/application-etudiant` (`devices`) :** le vrai Chrono sur ordinateur et sur téléphone, la paire d'appareils de l'accueil sur son vert clair, à côté de l'introduction (les images de l'accueil, déjà en cache pour qui en vient). Sur ordinateur, les trois sections se partagent deux colonnes. L'encadré « Ce que Blocus Tracker regroupe » devient une galerie après l'article : chaque élément sous une vraie capture (mode Focus, vue Mois du Planning, Stats, espace d'un cours avec une date d'examen partagée). Sur ordinateur, deux rangées 5/7 puis 7/5 dont les deux captures ont toujours la même hauteur ; sous 1024 px, les écrans du téléphone, deux par rangée sur tablette.
+  - **`/blocus-belgique` (`article`) :** pas d'image en haut, la réponse courte (la définition du blocus) à côté de l'introduction, la date et l'auteur sous celle-ci. « Préparer son planning de blocus » en étapes numérotées, la journée type sur un fil du matin au soir, les trois sessions avec leur mois en tête de paragraphe, les fonctions de l'app nommées en gras, le vrai Planning sous la dernière section, et les sources en note de bas de page après l'appel final. L'encadré reste collé à côté de l'article.
+- Captures : mode Focus et espace de cours, FR/EN, pris le 2026-10-12 ; 6 nouvelles entrées `guide-app-*` dans `lib/siteShots.cjs` (6 à 29 Ko) ; le Planning et les Stats réutilisent les images des guides déjà en ligne. `scripts/capture-site-shots.mjs` ferme la bulle de la mascotte avant chaque capture (elle couvrait le Chrono et le mode Focus).
+- `Shot` accepte `mobileMedia` (le seuil de la version téléphone) ; par défaut, 640 px comme avant.
+- Contenu : seulement des champs de structure (`productShot`, `featurePanel.shots`, `ordered`, `timeline`, `periods`, `labelled`, `figure`) et les textes alternatifs FR/EN des captures ; aucun texte éditorial modifié. `/pomodoro`, avec son Chrono, est désormais le seul guide sur `SeoLandingPage`.
+- Vérifié sur des copies locales de `main` (e4dc9d7) et de cette version :
+  - **HTML serveur des deux pages :** title, meta, canonical, 6 blocs JSON-LD, H1, H2 (8 et 13), H3 (6 et 8), liens avec leur nombre (les 5 sources comprises) et 52 / 85 fragments de texte identiques, aucun texte ajouté ;
+  - **HTML des autres pages :** 11 URL identiques (accueil, sitemap, robots et llms.txt compris), dont `/planning-revision`, `/stats-etude` et `/objectifs-etude` ; `/pomodoro` l'est à une balise de script près (l'ancien gabarit n'est plus partagé) ;
+  - **Pixels :** 36/44 captures identiques (les 9 autres pages publiques en 390/1440, clair et sombre) ; seules les deux pages refaites changent ;
+  - **Contrôles :** 87/87 (Application) et 69/69 (Blocus), de 320 à 1440 px dont 768, clair et sombre : captures chargées, aucun débordement, cibles ≥ 44 px, texte ≥ 13 px, CLS 0, aucune animation en boucle, galerie alignée (même hauteur à moins d'un pixel), appareils dans leur panneau, encadré sous l'en-tête, contrastes ≥ 7:1 en sombre, focus clavier, console propre ;
+  - **Poids :** JS des deux pages 24,14 → 23,34 Ko gz, CSS +3,26 Ko gz ; les trois autres guides +1,48 Ko de JS et +0,94 Ko de CSS (gabarit partagé) ; `/pomodoro` −0,27 Ko ; JS commun (`_app`) +0,32 Ko gz (champs de structure du contenu, que `lib/seo.js` charge) ;
+  - **Vitesse :** téléphone bridé `/application-etudiant` 1 464 → 1 436 ms et `/blocus-belgique` 1 460 → 1 420 ms ; ordinateur 292 → 260 et 292 → 288 ms ; CLS 0.
+- Pages plus longues : l'Application passe de 3 357 à 5 004 px sur ordinateur (la galerie), le Blocus de 5 530 à 7 832 px (mise en page aérée des autres guides).
+- Tests : 840/840 (+5 dans `tests/guide-article.test.mjs` ; le test de l'ancien gabarit vérifie désormais que seul `/pomodoro` l'utilise), lint, build.
+
+## 2026-10-12 — Claude Code — Site public : /stats-etude et /objectifs-etude sur le gabarit éditorial
+
+- **Déployé en production le 2026-10-12** après validation de Mathias : `main` 16120a8 → f357f94 en avance rapide (aucun commit parallèle ; le travail de Codex sur le mode Focus reste dans sa copie, sans fichier commun), Vercel `dpl_7k6shwYksQHdjRBryCR8xfX4BNPe` (build `THSc-oH0hSEB-W_xX4zbk`). Vérifié en production :
+  - les deux pages : title, meta, canonical, 6 blocs JSON-LD, H1/H2/H3, liens et 52 fragments de texte identiques au HTML d'avant ; captures chargées ; 56/56 contrôles chacune ; identiques au pixel à la version validée en local (8/8) ;
+  - Pomodoro, Application et Blocus : HTML identique à la couleur du bouton près ; `/planning-revision` identique hors balises de script ; 9 autres URL identiques ;
+  - 30/44 captures publiques identiques au pixel, les autres étant exactement les deux pages refaites et la ligne du bouton en sombre ; console propre.
+
+- Deux guides de plus sur `GuideArticle`. Chacun a sa composition (prop `layout`), pour ne pas copier le pilote :
+  - **`/stats-etude` (`panorama`) :** introduction et réponse courte côte à côte, puis le vrai écran Stats en grand (objectif du jour, temps d'étude, répartition par cours). « Quelles données suivre » devient une section large : la liste à filets à côté de la vraie carte Records, puis la carte Régularité (heatmap) sur toute la largeur.
+  - **`/objectifs-etude` (`panel`) :** la vraie page Progression (niveau et XP, missions du jour, défis de la semaine avec leur avancement, paliers) dans le panneau vert clair de l'accueil, à gauche de l'introduction ; sur téléphone, la carte des missions et défis. Les 4 étapes pour écrire un objectif sont en liste numérotée.
+- Captures :
+  - écrans Stats (avec les Records et Habitudes de Codex) et Progression actuels, pris le 2026-10-12, FR/EN ;
+  - `scripts/capture-site-shots.mjs` capture aussi la page entière (`stats-full`, `progression-full`) ;
+  - 7 nouvelles entrées `guide-stats-*` / `guide-goals-*` dans `lib/siteShots.cjs`, de 5 à 63 Ko, mêmes recadrages en FR et EN ; les images de l'accueil ne sont pas touchées.
+- Contenu : seulement des champs de structure (`productShot`, `figures`, `ordered`) et les textes alternatifs FR/EN des captures ; aucun texte éditorial modifié.
+- Ancien gabarit (`SeoLandingPage`, encore utilisé par `/pomodoro`, `/application-etudiant`, `/blocus-belgique`) : le bouton blanc « Créer mon espace » passe de `--bt-brand-text` (vert pâle en sombre, ~1,6:1 sur blanc) à `--bt-action-hover` (#2D6A4F dans les deux thèmes, 6,4:1). Le thème clair est identique au pixel ; en sombre, seule la ligne du bouton change.
+- Vérifié sur des copies locales de `main` et de cette version :
+  - **HTML serveur des deux pages :** title, meta, canonical, 6 blocs JSON-LD, H1, 8 H2, 6 H3, liens (avec leur nombre) et 52/52 fragments de texte identiques, aucun texte ajouté ;
+  - **HTML des autres pages :** 9 URL publiques identiques ; les trois guides de l'ancien gabarit le sont à la couleur du bouton près ; `/planning-revision` l'est à une balise de script près (gabarit partagé) ;
+  - **Pixels :** 30/44 captures identiques (accueil, fonctionnalités, guides, FAQ, légal et `/planning-revision` en clair et sombre ; les trois guides en clair). Les 6 autres ne diffèrent que sur la ligne du bouton en sombre ;
+  - **Contrôles :** 56/56 par page (320 à 1440 px, clair/sombre) : captures chargées, aucun débordement, cibles ≥ 44 px, texte ≥ 13 px, CLS 0, encadré sous l'en-tête, contrastes, focus clavier, console propre ;
+  - **Poids :** JS des deux pages 23,97 → 21,85 Ko gz, CSS +2,3 Ko gz ; `/planning-revision` +0,94 Ko de JS et +0,31 Ko de CSS (gabarit partagé) ; les autres pages +0,13 à 0,16 Ko de JS (manifeste des captures) ;
+  - **Vitesse :** téléphone bridé `/stats-etude` 1 456 → 1 416 ms et `/objectifs-etude` 1 460 → 1 448 ms ; ordinateur 292 → 268 / 244 ms.
+- Tests : 835/835 (+6 : rendu des deux pages, captures, JSON-LD, anglais, contraste du bouton), lint, build.
+
+## 2026-10-12 — Claude Code — Site public : audit, direction visuelle et page pilote /planning-revision
+
+- **Déployé en production le 2026-10-12** après validation de Mathias : `main` a10552c → 861b225 en avance rapide (rebasé sur les deux commits Stats de Codex, seul conflit dans ce journal), Vercel `dpl_23t4svhaFKKj95GYap4tiM7p8qWf` (build `LkdAo3eP5aK6N_Ou3X8ZN`). Vérifié en production :
+  - HTML serveur avant/après de `/planning-revision` : title, meta, canonical, 6 blocs JSON-LD, H1/H2/H3, 8 liens et 52 fragments de texte identiques ; seule l'image change ;
+  - 13 autres URL publiques au HTML identique, 40/40 captures identiques au pixel (390/1440, clair/sombre) ;
+  - `/planning-revision` identique au pixel à la version validée en local ; 56/56 contrôles (320 à 1440 px, clair/sombre : capture du Planning chargée, aucun débordement, cibles ≥ 44 px, contrastes, encadré sous l'en-tête, clavier) ; console propre partout.
+
+- Audit des 11 pages publiques en production (320/390/1024/1440 px, clair/sombre). Les six guides partagent un gabarit à cartes (~10 encadrés par page : trois « INCLUS », réponse courte, panneau encre, trois guides liés, trois questions, appel final blanc), une pastille majuscule, la même illustration de partage (`/seo-preview.png`) au lieu du produit, des lignes de ~95 signes. Leur encadré latéral collant passe sous l'en-tête. En thème sombre, leur bouton « Créer mon espace » est illisible (vert pâle sur blanc). `/fonctionnalites` empile six rangées alternées de captures d'écran entières, et ses captures du Planning datent d'avant la refonte du 2026-10-04. `/legal` s'affiche dans la coquille de l'app (barre latérale, barre d'onglets sur téléphone) et seul le document actif est dans le HTML. L'accueil, la référence validée, n'a pas été touché.
+- Pilote : `/planning-revision` passe sur un gabarit éditorial, `components/landing/GuideArticle.js` + `Guide.module.css`, qui reprend la grammaire de l'accueil (`Landing.module.css`). Les cinq autres guides restent sur `SeoLandingPage`, inchangés.
+- Ce qui change sur la page :
+  - **Haut de page :** titre sur toute la largeur, surtitre sans pilule, « Inclus » en une liste. La réponse courte arrive en grand juste après l'introduction (téléphone : 760 px au lieu de ~950).
+  - **Capture :** la vraie capture du Planning actuel remplace l'illustration commune. Vue Mois, prise le 2026-10-12 avec `scripts/capture-site-shots.mjs`. Nouvelles entrées `guide-planning-month(-mobile)` dans `lib/siteShots.cjs`, FR/EN, 16 à 48 Ko, encodées avec les réglages du générateur, sans toucher aux images de l'accueil.
+  - **Article :** méthode en liste numérotée, colonne de lecture d'environ 65 signes, encadré latéral collé sous l'en-tête.
+  - **Guides liés :** un index au lieu de trois cartes.
+  - **Questions :** FAQ à réponses visibles, séparées par des filets.
+  - **Fin de page :** l'appel final des pages publiques (encre et mascotte), avec les textes et les liens du guide.
+  - **Typographie :** espaces insécables françaises, à l'affichage seulement.
+- Préservé, et vérifié sur le HTML serveur avant/après :
+  - title, meta, canonical et les 6 blocs JSON-LD identiques ;
+  - H1, 8 H2 et 6 H3 identiques, dans le même ordre ;
+  - 52/52 fragments de texte, aucun texte ajouté ;
+  - les 8 mêmes liens.
+  - Seule l'image visible change ; l'image de partage reste `/seo-preview.png`.
+- Pages publiques intactes :
+  - HTML serveur identique pour les 13 autres URL (accueil, sitemap, robots et llms.txt compris) ;
+  - 40/40 captures identiques au pixel (10 pages × 390/1440 × clair/sombre).
+  - Leur JS prend 0,05 à 0,09 Ko gz (manifeste des captures et nouveaux champs `productShot` / `ordered`), sans effet sur le rendu.
+- Mesures :
+  - JS de la page 23,9 → 20,9 Ko gz, CSS +2,0 Ko gz ;
+  - premier affichage mobile bridé 1 464 → 1 472 ms, ordinateur 288 → 260 ms ;
+  - CLS 0.
+  - De 320 à 1440 px, clair et sombre : aucun débordement, aucune cible tactile sous 44 px, aucun texte sous 13 px, contrastes ≥ 7:1 en sombre, focus visible au clavier, console propre.
+- Tests : 829/829 sur le `main` actuel (+6 dans `tests/guide-article.test.mjs` ; le test des autres guides passe de 5 à 4 guides), lint, build.
+- Langue : audit seulement, rien d'implémenté. La cause est la règle de `I18nContext` / `contentLangForPath` (page publique = français pour un visiteur non connecté, pages de l'app = langue de l'appareil), sans URL anglaise ni sélecteur sur le site public. Architecture `/en/` proposée à Mathias.
 
 ## 2026-10-12 — Codex — Podium Stats affiné — LOCAL NOT DEPLOYED
 
@@ -61,7 +163,7 @@
 - Records : session la plus longue en tête, journée → semaine → mois en ligne ouverte, total séparé. Habitudes : vrai créneau dominant, quatre barres et quatre faits compacts. Aucun sous-cadre, nouvelle animation, calcul, requête ou règle changé. Les deux cartes s'étirent à la même hauteur côte à côte ; hauteur naturelle sur mobile. Actions des cours archivés conservées.
 - Validation sur le `main` actuel : 34 tests Stats ciblés, 810 tests complets, lint sans avertissement/erreur et build production réussis. Avertissement de précache PWA 3 MB préexistant ; aucun secret copié. Publication isolée ; aucun fichier public/SEO, modification locale ou commit non publié de Claude intégré.
 
-## 2026-10-12 — Claude Code — README GitHub actualisé (commit local, non poussé)
+## 2026-10-12 — Claude Code — README GitHub actualisé (publié sur main, 535261f)
 
 - Le README public décrivait encore la première version : connexion par pseudo seule, fil de photos, et des notes techniques sur l'authentification et les règles d'accès. Il présente maintenant Blocus Tracker : à qui il s'adresse, Chrono Libre/Pomodoro, Focus, mode découverte, `/pomodoro`, planning, objectifs, statistiques, progression, fonctions sociales, gratuité, PWA, liens officiels. Chaque point a été vérifié dans le code ou dans les textes publics déjà validés (`lib/landingContent.js`, FAQ de `lib/seo.js`).
 - Écrit noir sur blanc : les sessions faites sans compte restent sur l'appareil et ne sont pas transférées vers un compte. Aucun chiffre, aucun témoignage. Le calendrier universitaire et la connexion Google sont laissés de côté, faute de preuve qu'ils sont actifs en production.

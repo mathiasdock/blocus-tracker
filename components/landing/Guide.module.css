@@ -1,0 +1,598 @@
+/* ── Guides : gabarit éditorial (/planning-revision, /stats-etude,
+   /objectifs-etude, /application-etudiant, /blocus-belgique) ──────────────
+   Complète Landing.module.css (en-tête, grille, boutons, appel final) sans en
+   modifier une règle : l'accueil et les autres pages publiques ne chargent pas
+   ce fichier. Couleurs : rôles --bt-* seulement. Aucune animation propre ;
+   seul le survol des guides liés bouge, et pas sous mouvement réduit. */
+
+/* ── Haut de page ────────────────────────────────────────────────────── */
+/* Téléphone et tablette : titre, introduction, réponse courte, capture. À
+   partir de 1120 px (le conteneur à sa largeur pleine) : le titre sur toute la
+   largeur, l'introduction et la capture côte à côte, la réponse courte en
+   dessous. */
+.top { padding-top: 40px; }
+@media (min-width: 768px) { .top { padding-top: 64px; } }
+.topGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "intro" "copy" "answer" "figure";
+}
+.intro { grid-area: intro; min-width: 0; }
+.copy { grid-area: copy; min-width: 0; margin-top: 18px; }
+.answer { grid-area: answer; min-width: 0; margin-top: 40px; }
+.figure { grid-area: figure; min-width: 0; margin: 40px 0 0; }
+@media (min-width: 1120px) {
+  .topGrid {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-areas: "intro intro" "copy figure" "answer answer";
+    column-gap: 56px;
+    align-items: start;
+  }
+  .topSolo { grid-template-columns: minmax(0, 1fr); grid-template-areas: "intro" "copy" "answer"; }
+  .copy { margin-top: 28px; }
+  .figure { margin-top: 32px; }
+  .answer { margin-top: 64px; }
+}
+
+/* Panorama (Stats) : l'introduction et la réponse courte côte à côte, puis
+   l'écran en grand sur toute la largeur — les graphiques avant tout. */
+@media (min-width: 1120px) {
+  .topGrid.layoutPanorama {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "intro intro" "copy answer" "figure figure";
+  }
+  .layoutPanorama .answer { display: block; margin-top: 28px; padding-top: 24px; }
+  .layoutPanorama .answerText { margin-top: 10px; font-size: 1.25rem; }
+  .layoutPanorama .figure { margin-top: 56px; }
+}
+
+/* Panneau (Objectifs) : la progression réelle sur le vert clair de l'accueil
+   (« Sur téléphone et ordinateur »), à gauche de l'introduction. */
+.layoutPanel .figure {
+  padding: 16px;
+  border-radius: var(--bt-r-sheet);
+  background-color: var(--bt-brand-surface);
+}
+@media (min-width: 768px) { .layoutPanel .figure { padding: 24px; } }
+/* Tablette : la capture est presque carrée, pleine largeur elle remplirait
+   l'écran. */
+@media (min-width: 640px) and (max-width: 1119px) { .layoutPanel .figure { max-width: 640px; } }
+@media (min-width: 1120px) {
+  .topGrid.layoutPanel {
+    grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
+    grid-template-areas: "intro intro" "figure copy" "answer answer";
+  }
+}
+
+/* Appareils (Application) : le vrai Chrono sur ordinateur et sur téléphone,
+   les appareils de l'accueil (« Sur ton ordinateur… ») sur leur vert clair.
+   La grille est celle du Planning : la capture à droite de l'introduction.
+   Tout est en proportions de la largeur : le téléphone, posé devant le coin
+   de l'ordinateur, garde sa place à toute taille d'écran. */
+.layoutDevices .figure {
+  padding: 16px;
+  border-radius: var(--bt-r-sheet);
+  background-color: var(--bt-brand-surface);
+}
+@media (min-width: 768px) { .layoutDevices .figure { padding: 24px; } }
+/* Tablette : le panneau à la largeur des appareils, comme celui des
+   Objectifs, plutôt qu'une bande verte presque vide sur les côtés. */
+@media (min-width: 640px) and (max-width: 1119px) { .layoutDevices .figure { max-width: 680px; } }
+.devices {
+  position: relative;
+  width: min(100%, 620px);
+  margin-inline: auto;
+  aspect-ratio: 100 / 68.4;
+}
+.deviceLaptop { position: absolute; top: 0; left: 0; width: 88%; }
+.deviceScreen {
+  display: block;
+  overflow: hidden;
+  padding: 6px;
+  aspect-ratio: 1440 / 900;
+  border-radius: 15px 15px 5px 5px;
+  background-color: var(--bt-brand-deep);
+  box-shadow: 0 18px 32px -22px rgba(var(--bt-brand-deepest-rgb), 0.48);
+}
+.deviceBase {
+  position: relative;
+  left: -4%;
+  width: 108%;
+  height: 10px;
+  border-radius: 0 0 55% 55%;
+  background-color: var(--bt-subtle);
+  box-shadow: 0 12px 18px -14px rgba(var(--bt-brand-deepest-rgb), 0.5);
+}
+.devicePhone {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: block;
+  width: 27%;
+  padding: 5px;
+  aspect-ratio: 390 / 844;
+  border-radius: 19px;
+  background-color: var(--bt-brand-deep);
+  box-shadow: 0 19px 36px -18px rgba(var(--bt-brand-deepest-rgb), 0.52);
+}
+.deviceScreen img,
+.devicePhone img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.devicePhone img { border-radius: 14px; }
+
+/* Article (Blocus) : pas de capture en haut. Sur grand écran, l'introduction
+   et la réponse courte — la définition du blocus — côte à côte. */
+@media (min-width: 1120px) {
+  .topGrid.layoutArticle {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "intro intro" "copy answer";
+  }
+  .layoutArticle .answer { display: block; margin-top: 28px; padding-top: 24px; }
+  .layoutArticle .answerText { margin-top: 10px; font-size: 1.25rem; }
+}
+
+/* Outil (Pomodoro) : le vrai Chrono est la page. C'est la carte du
+   Dashboard (components/timer/PublicChrono), jamais restylée ici : seule sa
+   place change. Téléphone et tablette : un titre plus court, l'outil, puis
+   l'introduction et la réponse courte. Ordinateur : l'outil dans la colonne
+   de droite, à hauteur du titre, le texte à sa gauche. */
+.top:has(> .layoutTool) { padding-top: 20px; }
+.topGrid.layoutTool { grid-template-areas: "intro" "tool" "copy" "answer"; }
+.toolSlot {
+  grid-area: tool;
+  min-width: 0;
+  margin-top: 16px;
+  /* Ancre #minuteur (« Lancer le chrono ») : sous l'en-tête collant. */
+  scroll-margin-top: calc(63px + env(safe-area-inset-top) + 16px);
+}
+/* La place réservée à la carte espace déjà l'introduction de la carte. */
+.layoutTool .copy { margin-top: 20px; }
+@media (min-width: 640px) and (max-width: 1023px) { .toolSlot { max-width: 560px; } }
+@media (min-width: 768px) { .top:has(> .layoutTool) { padding-top: 40px; } }
+@media (min-width: 1024px) {
+  .top:has(> .layoutTool) { padding-top: 48px; }
+  .topGrid.layoutTool {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+    grid-template-areas: "intro tool" "copy tool" "answer tool";
+    column-gap: 56px;
+    align-items: start;
+  }
+  .toolSlot { margin-top: 0; }
+  .layoutTool .copy { margin-top: 24px; }
+  .layoutTool .answer { display: block; margin-top: 40px; padding-top: 24px; }
+  .layoutTool .answerText { margin-top: 10px; font-size: 1.25rem; }
+}
+/* Sous 1024 px, rien ne bouge quand le Chrono change d'état ni quand
+   l'invitation à créer un compte arrive :
+   - la place de la carte est réservée à sa plus grande hauteur (la pause
+     Pomodoro), le travail et le repos s'y succèdent sans déplacer le texte ;
+   - l'invitation (après une vraie session) se pose à la place de
+     l'introduction, qui garde sa place sans s'afficher, au lieu de la
+     pousser vers le bas. Fermée, l'introduction réapparaît au même endroit.
+   Sur ordinateur, l'outil a sa colonne : l'invitation s'y ajoute sous la
+   carte, à côté d'un texte plus long qu'elle. */
+@media (max-width: 1023px) {
+  .toolSlot { position: relative; }
+  /* Plus grande hauteur de la carte, mesurée dans tous ses états (repos,
+     travail, pause, repos Pomodoro), en français et en anglais, plus une
+     marge : 417 px de 340 à 639 px de large (416 px quand Pause et Terminer
+     s'empilent, sous 380 px) ; 431 px à 320 px, où les réglages passent sur
+     deux lignes ; 469 px de 640 à 1023 px. Sans carte (compte connecté),
+     rien n'est réservé. */
+  .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 418px; }
+  /* Sans `top`, la boîte garde sa place naturelle, juste sous la carte. */
+  .toolSlot > div:has(> div > section[aria-labelledby="public-chrono-invite-title"]) {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+  }
+  .toolSlot:has(section[aria-labelledby="public-chrono-invite-title"]) ~ .copy { visibility: hidden; }
+}
+@media (max-width: 339px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 434px; } }
+@media (min-width: 640px) and (max-width: 1023px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 472px; } }
+/* Ordinateur : la carte (469 px au plus) et l'invitation (227 px) tiennent
+   dans 720 px, toujours moins que le texte à côté (750 px et plus) ; la
+   réserve garantit que la page ne bouge pas même avec un texte plus court. */
+@media (min-width: 1024px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 720px; } }
+
+.title {
+  max-width: 52rem;
+  margin-top: 12px;
+  font-size: clamp(2.25rem, 6vw, 3.4rem);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  color: var(--bt-text-1);
+  text-wrap: balance;
+}
+/* Pomodoro : deux lignes sur téléphone, pour que la carte et Démarrer
+   arrivent dans le premier écran. */
+.layoutTool .title { font-size: clamp(1.75rem, 7.4vw, 2.25rem); }
+@media (min-width: 1024px) { .layoutTool .title { font-size: clamp(2.5rem, 4.4vw, 3.25rem); } }
+.lead {
+  max-width: 34rem;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--bt-text-2);
+}
+@media (min-width: 768px) { .lead { font-size: 1.1875rem; } }
+/* Date de mise à jour et auteur (Blocus). */
+.byline { margin-top: 12px; font-size: 0.875rem; line-height: 1.5; color: var(--bt-text-2); }
+/* Deux classes : l'emporte sur le centrage de .actions, quel que soit l'ordre
+   de chargement des feuilles. */
+.copy .heroActions { margin-top: 28px; justify-content: flex-start; }
+
+/* « Inclus » : une étiquette, trois faits. */
+.included { display: grid; gap: 8px; margin-top: 28px; }
+.includedLabel { font-size: 0.875rem; font-weight: 700; color: var(--bt-text-2); }
+.includedItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--bt-text-1);
+}
+.check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background-color: var(--bt-brand-surface);
+  color: var(--bt-brand-text);
+}
+
+/* Réponse courte : la première chose à lire après le titre, en grand, sans
+   carte — un filet la sépare du haut de page. */
+.answer { padding-top: 28px; border-top: 1px solid var(--bt-border); }
+@media (min-width: 900px) {
+  .answer {
+    display: grid;
+    grid-template-columns: minmax(0, 0.3fr) minmax(0, 1fr);
+    column-gap: 48px;
+    padding-top: 36px;
+  }
+}
+.answerTitle { font-size: 1.25rem; line-height: 1.3; letter-spacing: -0.015em; color: var(--bt-text-1); }
+.answerText {
+  max-width: 46rem;
+  margin-top: 10px;
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  color: var(--bt-text-1);
+}
+@media (min-width: 900px) { .answerText { margin-top: 0; font-size: 1.375rem; line-height: 1.55; } }
+
+/* La vraie capture : le haut de l'écran sur téléphone, la vue Mois sans la
+   barre latérale ailleurs. Le rapport largeur/hauteur suit la capture servie,
+   la place est réservée avant le chargement. */
+.screen {
+  display: block;
+  overflow: hidden;
+  max-width: 440px;
+  aspect-ratio: 390 / 636;
+  border-radius: 20px;
+  background-color: var(--bt-bg);
+  border: 1px solid var(--bt-border);
+  box-shadow: var(--bt-elev-2);
+}
+.screen img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+@media (min-width: 640px) {
+  .screen { max-width: none; aspect-ratio: 1168 / 814; border-radius: 22px; }
+}
+
+/* Le même cadre pour toute autre capture : sa hauteur suit les dimensions de
+   l'image servie (attributs width/height de l'image et de la version
+   téléphone), réservées avant le chargement. */
+.frame {
+  display: block;
+  overflow: hidden;
+  border-radius: 18px;
+  background-color: var(--bt-bg);
+  border: 1px solid var(--bt-border);
+  box-shadow: var(--bt-elev-2);
+}
+.frame img { display: block; width: 100%; height: auto; }
+@media (min-width: 640px) { .frame { border-radius: 22px; } }
+
+/* Une première section illustrée (Stats) : le texte et une carte réelle côte
+   à côte, puis une carte sur toute la largeur. */
+.wide { display: grid; gap: 32px; padding-top: 64px; }
+.wideText { min-width: 0; max-width: 42rem; }
+.wideSide, .wideFull { min-width: 0; margin: 0; }
+.wideSide { max-width: 460px; }
+@media (min-width: 1024px) {
+  .wide {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+    grid-template-areas: "text side" "full full";
+    column-gap: 64px;
+    row-gap: 48px;
+    align-items: start;
+    padding-top: 96px;
+  }
+  .wideText { grid-area: text; }
+  .wideSide { grid-area: side; max-width: none; margin-top: 8px; }
+  .wideFull { grid-area: full; }
+}
+
+/* ── Article ─────────────────────────────────────────────────────────── */
+.body { display: grid; gap: 56px; padding-block: 64px 72px; }
+@media (min-width: 1024px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    column-gap: 64px;
+    align-items: start;
+    padding-block: 96px;
+  }
+}
+/* Colonne de lecture : environ 70 signes par ligne. */
+.prose { display: grid; gap: 56px; max-width: 42rem; }
+@media (min-width: 1024px) { .prose { gap: 72px; } }
+.h2 {
+  font-size: clamp(1.625rem, 4.4vw, 2.25rem);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  color: var(--bt-text-1);
+  text-wrap: balance;
+}
+.paragraph { margin-top: 16px; font-size: 1.0625rem; line-height: 1.75; color: var(--bt-text-2); }
+@media (min-width: 768px) { .paragraph { font-size: 1.125rem; } }
+
+/* Une méthode en étapes : numérotée, dans l'ordre, séparée par des filets. */
+.steps { margin-top: 24px; counter-reset: guide-step; border-top: 1px solid var(--bt-border); }
+.step {
+  counter-increment: guide-step;
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  column-gap: 12px;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--bt-border);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--bt-text-1);
+}
+.step::before {
+  content: counter(guide-step, decimal-leading-zero);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  line-height: 1.75;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-brand-text);
+}
+/* Une liste sans ordre (des données, des critères) : mêmes filets, un point. */
+.bullets { margin-top: 24px; border-top: 1px solid var(--bt-border); }
+.bullet {
+  position: relative;
+  padding: 14px 0 14px 24px;
+  border-bottom: 1px solid var(--bt-border);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--bt-text-1);
+}
+.bullet::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: calc(14px + 0.5em);
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background-color: var(--bt-brand-primary);
+}
+
+/* Une journée (Blocus) : les moments du matin au soir sur un fil, chacun
+   avec son point ; l'étiquette (« Le matin : ») en gras, dans la phrase. */
+.timeline { margin-top: 28px; }
+.moment {
+  position: relative;
+  padding: 0 0 24px 32px;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--bt-text-2);
+}
+.moment:last-child { padding-bottom: 0; }
+/* Le fil, d'un point au suivant (centre de la première ligne : 0,8 em). */
+.moment::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: calc(0.8em + 9px);
+  bottom: calc(9px - 0.8em);
+  width: 2px;
+  border-radius: 1px;
+  background-color: var(--bt-border);
+}
+.moment:last-child::before { display: none; }
+.moment::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(0.8em - 7px);
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--bt-brand-primary);
+  border-radius: 999px;
+  background-color: var(--bt-bg);
+}
+.momentLabel { font-weight: 700; color: var(--bt-text-1); }
+
+/* Des fonctions nommées (Blocus) : les filets des listes, le nom en gras. */
+.terms { margin-top: 24px; border-top: 1px solid var(--bt-border); }
+.term {
+  padding-block: 14px;
+  border-bottom: 1px solid var(--bt-border);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--bt-text-2);
+}
+.termLabel { font-weight: 700; color: var(--bt-text-1); }
+
+/* Trois sessions (Blocus) : un paragraphe par session, entre deux filets,
+   son mois en tête de phrase dans la police des titres. */
+.period {
+  padding-block: 18px;
+  border-bottom: 1px solid var(--bt-border);
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--bt-text-2);
+}
+.period:first-of-type { margin-top: 20px; border-top: 1px solid var(--bt-border); }
+@media (min-width: 768px) { .period { font-size: 1.125rem; } }
+.periodLabel { font-size: 1.1875rem; color: var(--bt-text-1); }
+
+/* Une capture dans la colonne de lecture (Blocus : le Planning). */
+.sectionFigure { margin: 32px 0 0; }
+@media (max-width: 639px) { .sectionFigure { max-width: 420px; } }
+
+/* L'encadré « dans Blocus Tracker » : collé sous l'en-tête (62 px + filet)
+   pendant la lecture, jamais dessous. */
+.aside { min-width: 0; }
+@media (min-width: 1024px) {
+  .aside { position: sticky; top: calc(63px + env(safe-area-inset-top) + 24px); }
+}
+.panel {
+  padding: 24px;
+  border-radius: var(--bt-r-card);
+  background-color: var(--bt-surface);
+  border: 1px solid var(--bt-border);
+  box-shadow: var(--bt-elev-1);
+}
+.panelTitle { font-size: 1.25rem; line-height: 1.25; letter-spacing: -0.015em; color: var(--bt-text-1); }
+.panelList { display: grid; gap: 12px; margin-top: 16px; }
+.panelItem { display: flex; align-items: flex-start; gap: 10px; font-size: 0.9375rem; line-height: 1.5; color: var(--bt-text-1); }
+.panelLink { margin-top: 12px; }
+
+/* ── Galerie (Application) ──────────────────────────────────────────── */
+/* Sans encadré à côté, les trois sections se partagent deux colonnes sur
+   ordinateur : la première à gauche, les deux autres à droite. */
+@media (min-width: 1024px) {
+  .body.spread { grid-template-columns: minmax(0, 1fr); }
+  .spread .prose {
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 64px;
+    align-items: start;
+  }
+  .spread .prose > :first-child { grid-row: span 2; }
+}
+/* L'encadré « Ce que Blocus Tracker regroupe » : chaque élément sous sa
+   vraie capture. Téléphone : les écrans du téléphone, l'un sous l'autre ;
+   tablette : deux par rangée. */
+.gallery { padding-bottom: 72px; }
+@media (min-width: 1024px) { .gallery { padding-bottom: 104px; } }
+.galleryList { display: grid; gap: 40px; margin-top: 32px; }
+@media (max-width: 639px) { .galleryItem { max-width: 440px; } }
+@media (min-width: 640px) and (max-width: 1023px) {
+  .galleryList { max-width: 760px; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+}
+/* Ordinateur : deux rangées, 5/7 puis 7/5 douzièmes, sans gouttière de
+   grille. Les marges intérieures (24 px à elles deux) sont partagées pour que
+   les deux images d'une rangée, filet de 1 px du cadre déduit, gardent
+   exactement le rapport 5/7 : (5u − 9,67 − 2) × 7/5 = 7u − 14,33 − 2. Avec
+   leurs formats (lib/siteShots.cjs), elles ont la même hauteur à toute
+   largeur, et leurs légendes partent de la même ligne. */
+@media (min-width: 1024px) {
+  .galleryList {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 2fr) minmax(0, 5fr);
+    gap: 48px 0;
+    margin-top: 40px;
+  }
+  .galleryItem:nth-child(1) { grid-column: 1; padding-right: 9.6667px; }
+  .galleryItem:nth-child(2) { grid-column: 2 / span 2; padding-left: 14.3333px; }
+  .galleryItem:nth-child(3) { grid-column: 1 / span 2; padding-right: 14.3333px; }
+  .galleryItem:nth-child(4) { grid-column: 3; padding-left: 9.6667px; }
+}
+.galleryFigure { margin: 0; }
+.galleryCaption {
+  margin-top: 16px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--bt-text-1);
+}
+.galleryLink { margin-top: 36px; }
+
+/* ── Guides liés : un index, pas trois cartes ────────────────────────── */
+.related {
+  padding-block: 64px;
+  background-color: var(--bt-surface);
+  border-top: 1px solid var(--bt-border);
+  border-bottom: 1px solid var(--bt-border);
+}
+@media (min-width: 1024px) { .related { padding-block: 88px; } }
+.sectionText { max-width: 36rem; margin-top: 14px; font-size: 1.0625rem; line-height: 1.6; color: var(--bt-text-2); }
+.relatedList { display: grid; margin-top: 32px; border-top: 1px solid var(--bt-border); }
+@media (min-width: 900px) {
+  .relatedList { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 40px; border-top: 0; }
+}
+.relatedLink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 20px;
+  border-bottom: 1px solid var(--bt-border);
+  color: inherit;
+}
+@media (min-width: 900px) {
+  .relatedLink {
+    height: 100%;
+    align-items: start;
+    padding: 4px 28px;
+    border-bottom: 0;
+    border-left: 1px solid var(--bt-border);
+  }
+  .relatedItem:first-child .relatedLink { padding-left: 0; border-left: 0; }
+}
+.relatedTitle { grid-column: 1; font-size: 1.125rem; line-height: 1.3; color: var(--bt-text-1); }
+.relatedText { grid-column: 1; margin-top: 6px; font-size: 0.9375rem; line-height: 1.55; color: var(--bt-text-2); }
+.relatedArrow {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  color: var(--bt-brand-text);
+  transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (min-width: 900px) { .relatedArrow { grid-row: 1; margin-top: 3px; } }
+.relatedLink:hover .relatedTitle { text-decoration: underline; text-underline-offset: 3px; }
+.relatedLink:hover .relatedArrow { transform: translateX(3px); }
+
+/* ── Questions : réponses visibles, comme sur /faq ───────────────────── */
+.faqSection { padding-block: 64px 72px; }
+@media (min-width: 1024px) { .faqSection { padding-block: 96px; } }
+.faq { display: grid; gap: 28px; }
+@media (min-width: 960px) { .faq { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; } }
+.faqItem { padding-block: 24px; border-top: 1px solid var(--bt-border); }
+.faqItem:last-child { border-bottom: 1px solid var(--bt-border); }
+.faqQuestion { font-size: 1.125rem; line-height: 1.35; color: var(--bt-text-1); }
+.faqAnswer { max-width: 40rem; margin-top: 8px; line-height: 1.7; color: var(--bt-text-2); }
+
+/* ── Sources (Blocus) : une note de bas de page, après l'appel final ──── */
+/* Deux classes : l'emporte sur la marge du bas de .finalWrap. */
+.finalBeforeSources.finalBeforeSources { padding-bottom: 48px; }
+.sources { padding-bottom: 72px; }
+@media (min-width: 1024px) { .sources { padding-bottom: 96px; } }
+.sourcesTitle { font-size: 1rem; font-weight: 700; line-height: 1.4; color: var(--bt-text-1); }
+.sourcesList { max-width: 48rem; margin-top: 6px; }
+.sourceLink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 8px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--bt-text-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sourceLink:hover { color: var(--bt-text-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .relatedArrow { transition: none; }
+  .relatedLink:hover .relatedArrow { transform: none; }
+}

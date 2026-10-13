@@ -170,6 +170,9 @@ const byText = (sel, re) => [...document.querySelectorAll(sel)].find((n) => re.t
 const dismiss = async () => {
   const decline = byText('button', /^(Non, je repars de zéro|No, start over)$/i); if (decline) { decline.click(); await wait(400); }
   const reject = byText('button', /^(Tout refuser|Reject all)$/); if (reject) { reject.click(); await wait(300); }
+  // Bulle de la mascotte (« 2h du jour atteintes… ») : un vrai moment, mais
+  // passager, qui couvrirait le Chrono ou Focus dans une capture publique.
+  for (const coach of document.querySelectorAll('button[aria-label="Fermer le conseil"], button[aria-label="Dismiss tip"]')) { coach.click(); await wait(600); }
   sessionStorage.setItem('bt_legal_notice_snoozed', '1');
   sessionStorage.setItem('bt_pwa_closed', '1');
   for (const b of [...document.querySelectorAll('button')]) {
@@ -257,6 +260,17 @@ const shot = async (name) => {
   await run(`await dismiss(); window.scrollTo(0, 0); await wait(700); return 1;`);
   await save(`${name}-${mode}`);
 };
+// La page entière (<nom>-full-<format>.png) : la fenêtre prend la hauteur du
+// document le temps de la capture. Sert aux guides /stats-etude et
+// /objectifs-etude, dont les cartes sont plus bas que le premier écran.
+const full = async (name) => {
+  const height = await run(`await dismiss(); window.scrollTo(0, 0); await wait(500); return document.documentElement.scrollHeight;`);
+  await page.send("Emulation.setDeviceMetricsOverride", { width: W, height: Math.min(height, 3600), deviceScaleFactor: SCALE, mobile: mode === "mobile" });
+  await sleep(1800);
+  await save(`${name}-full-${mode}`);
+  await page.send("Emulation.setDeviceMetricsOverride", { width: W, height: H, deviceScaleFactor: SCALE, mobile: mode === "mobile" });
+  await sleep(400);
+};
 const want = (name) => !only.length || only.includes(name);
 const clickText = async (re, sel) => {
   const box = await run(`const re = ${re}; const el = [...document.querySelectorAll(${JSON.stringify(sel)})].filter((n) => re.test(n.textContent.trim()) && n.getBoundingClientRect().height > 0).sort((a, b) => a.textContent.length - b.textContent.length)[0]; if (!el) return null; el.scrollIntoView({ block: 'center' }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };`);
@@ -319,7 +333,7 @@ try {
   }
   if (want("focus") && (mode === "desktop" || only.includes("focus"))) {
     R.focus = await openDashboard(only.includes("focus"));
-    await run(`await dismiss(); const b = [...document.querySelectorAll('button')].find((x) => /^(Focus)$/.test(x.textContent.trim())); if (b) b.click(); await wait(2500); return 1;`);
+    await run(`await dismiss(); const b = [...document.querySelectorAll('button')].find((x) => /^(Focus)$/.test(x.textContent.trim())); if (b) b.click(); await wait(2500); await dismiss(); await wait(400); return 1;`);
     await save(`focus-${mode}`);
   }
   if (only.includes("chrono-finished")) {
@@ -340,8 +354,8 @@ try {
     await run(`const b = document.querySelector('button[aria-label*="suivant" i], button[aria-label*="next" i]'); if (b) { b.click(); await wait(900); } await dismiss(); window.scrollTo(0, 0); await wait(500); return 1;`);
     await save(`planning-week-${mode}`);
   }
-  if (want("stats")) { await page.nav(`${BASE}/stats${Q}`, 4500); await shot("stats"); }
-  if (want("progression")) { await page.nav(`${BASE}/progression${Q}`, 4000); await shot("progression"); }
+  if (want("stats")) { await page.nav(`${BASE}/stats${Q}`, 4500); await shot("stats"); await full("stats"); }
+  if (want("progression")) { await page.nav(`${BASE}/progression${Q}`, 4000); await shot("progression"); await full("progression"); }
   if (want("social")) {
     await page.nav(`${BASE}/messages${Q}`, 4000);
     await run(`await dismiss(); return 1;`);
