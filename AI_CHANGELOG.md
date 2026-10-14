@@ -1,6 +1,12 @@
 # AI_CHANGELOG.md
 
-## 2026-10-14 — Claude Code — Site public : /legal sur la mise en page publique — LOCAL, NON DÉPLOYÉ
+## 2026-10-14 — Claude Code — Site public : /legal sur la mise en page publique — PRODUCTION
+
+- **Déployé en production le 2026-10-14** après validation de Mathias : `main` a6859ab → 24eb96d en avance rapide (aucun commit parallèle), Vercel `dpl_8o2LfF3N4gN6KZDdcXpdZD5nHF96` READY, alias `www.blocus-tracker.com`. Vérifié en production :
+  - HTML : les 11 autres URL publiques (accueil, /faq, /guides, /fonctionnalites, /pomodoro, /planning-revision, /login, /signup, sitemap, robots.txt, llms.txt) identiques à avant le déploiement ; sur /legal et /legal?doc=terms, title, meta, canonical, Open Graph, JSON-LD et langue identiques, 192/192 fragments des quatre documents, 1 H1, 4 H2, 38 H3, aucun doublon ;
+  - 149 contrôles en navigateur (390 px clair, sombre et anglais ; 1440 px clair et sombre en anglais) : bon document pour `?doc=privacy|terms|cookies|notice`, changement de document sans allonger l'historique, aucun débordement, texte ≥ 13 px, cibles ≥ 44 px, sommaire sur ordinateur, console propre ;
+  - bandeau cookies → `?doc=cookies`, liens CGU et confidentialité de l'inscription inchangés ; le plus grand élément peint est le texte de la page à 390, 360 et 320 px ;
+  - profil et « Retour à l'app » : vérifiés hors ligne seulement (aucune connexion à un vrai compte en production).
 
 - **Avant :** `/legal` était affichée dans la coquille de l'app (barre latérale, barre d'onglets sur téléphone, « Créer un compte » dans la barre). Le HTML envoyé par le serveur ne contenait que « Préparation de ton espace… » : aucun titre, aucun des quatre documents (0 fragment sur 192). Le texte n'arrivait qu'avec le JavaScript, après le bandeau cookies. Sur téléphone, le quatrième onglet était coupé dans une rangée qui défilait de côté.
 - **Après :** en-tête et pied de page du site public, haut de page de la FAQ (surtitre « Documents légaux », titre, sous-titre), texte de lecture des guides (17 px, colonne d'environ 70 signes), aucune animation. Les quatre documents se choisissent par de vrais liens, deux par rangée sur téléphone, quatre dès 640 px. Sur ordinateur, ils forment une liste à filets collée à gauche, suivie des sections du document ouvert (« Dans ce document »).
