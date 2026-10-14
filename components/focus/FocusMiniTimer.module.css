@@ -38,36 +38,67 @@
   line-height: 1.5;
 }
 .feedback button { display: grid; place-items: center; min-width: 44px; min-height: 44px; margin-top: -8px; border-radius: 50%; }
-.windowBody { margin: 0; background: var(--bt-surface); color: var(--bt-text-1); }
+.windowBody { margin: 0; background: var(--bt-ink); }
 .timer {
-  min-height: 100dvh;
+  position: relative;
+  isolation: isolate;
+  height: 100dvh;
+  min-height: 112px;
+  overflow: hidden;
+  padding: 12px 16px;
+  color: var(--bt-ink-text);
+  font-family: "Nunito Sans", "Avenir Next", "Segoe UI", sans-serif;
+}
+.content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px 20px;
-  font-family: "Nunito Sans", "Avenir Next", "Segoe UI", sans-serif;
+  gap: 8px;
 }
-.course { display: flex; align-items: center; gap: 8px; max-width: 100%; font-size: 14px; font-weight: 600; }
-.course > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course { display: flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; color: var(--bt-ink-text); font-size: 14px; font-weight: 600; }
+.course > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .courseDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.time { margin: 12px 0 4px; font-size: clamp(28px, 16vw, 64px); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: -.03em; white-space: nowrap; }
-.time[data-paused] { color: var(--bt-pause); }
-.status { color: var(--bt-text-2); font-size: 13px; }
+.time { margin: 0; font-size: clamp(28px, 16vw, 64px); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: -.03em; white-space: nowrap; }
+.footer { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.status { color: var(--bt-ink-text); font-size: 13px; line-height: 1.3; }
 .returnButton {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  margin-top: 16px;
   padding: 8px 14px;
   border-radius: var(--bt-r-control);
-  color: var(--bt-brand-text);
-  background: var(--bt-brand-surface);
+  color: var(--bt-focus-env-text, var(--bt-ink-text));
+  background: var(--bt-focus-env-secondary, rgba(255,255,255,.14));
   font-size: 14px;
   font-weight: 600;
   transition: background-color 140ms ease-out;
 }
-.returnButton:hover { background: var(--bt-brand-surface-strong); }
+.returnButton:hover { background: var(--bt-focus-env-control-active, rgba(255,255,255,.22)); }
+.returnButton svg { flex-shrink: 0; }
+/* Reuse the landscape's own contrast layers, softened for the compact view.
+   No opaque content card, digit stroke, glow or new environment palette. */
+.timer:not([data-paused]) [data-focus-veil="wave"] { opacity: .28; }
+.readabilityVeil { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.timer[data-environment="zenitho"] .readabilityVeil {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bt-focus-env-action) 24%, transparent), transparent 42%, transparent 57%, color-mix(in srgb, var(--bt-focus-env-action) 24%, transparent));
+}
+.timer[data-environment="glass-fold"] .readabilityVeil {
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bt-focus-env-canvas) 38%, transparent) 28%, color-mix(in srgb, var(--bt-focus-env-canvas) 38%, transparent) 70%, transparent);
+}
+@media (max-height: 180px) {
+  .timer { padding: 6px 12px; }
+  .content { gap: 5px; }
+  .time { font-size: clamp(28px, 13vw, 42px); }
+  .footer { flex-direction: row; justify-content: space-between; gap: 8px; }
+  .status { font-size: 12px; }
+  .returnButton { padding: 6px 10px; gap: 6px; font-size: 13px; line-height: 1.25; }
+}
+@media (max-width: 240px) { .returnButton svg { display: none; } }
 @media (prefers-reduced-motion: reduce) { .control, .returnButton { transition: none; } }

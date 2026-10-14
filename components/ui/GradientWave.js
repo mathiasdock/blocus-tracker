@@ -544,20 +544,23 @@ export default function GradientWave({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
-    const canvas = document.createElement("canvas");
+    const ownerDocument = container.ownerDocument;
+    const ownerWindow = ownerDocument?.defaultView;
+    if (!ownerWindow) return undefined;
+    const canvas = ownerDocument.createElement("canvas");
     Object.assign(canvas.style, { position: "absolute", inset: "0", width: "100%", height: "100%", display: "block" });
     canvas.setAttribute("aria-hidden", "true");
 
     let gradient = null;
     let disposed = false;
     let contextLost = false;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reduced = ownerWindow.matchMedia("(prefers-reduced-motion: reduce)");
     const interval = 1000 / fps;
     let raf = 0;
     let readyRaf = 0;
     let last = null;
-    const size = () => gradient.resize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
-    const canPlay = () => !disposed && !contextLost && gradient && playingRef.current && !reduced.matches && !document.hidden;
+    const size = () => gradient.resize(container.clientWidth || ownerWindow.innerWidth, container.clientHeight || ownerWindow.innerHeight);
+    const canPlay = () => !disposed && !contextLost && gradient && playingRef.current && !reduced.matches && !ownerDocument.hidden;
     const tick = (now) => {
       raf = 0;
       if (!canPlay()) return;
@@ -567,17 +570,17 @@ export default function GradientWave({
         catch (error) { fallback(); return; }
         last = now;
       }
-      raf = requestAnimationFrame(tick);
+      raf = ownerWindow.requestAnimationFrame(tick);
     };
     const play = () => {
-      cancelAnimationFrame(raf);
+      ownerWindow.cancelAnimationFrame(raf);
       raf = 0;
       last = null;
-      if (canPlay()) raf = requestAnimationFrame(tick);
+      if (canPlay()) raf = ownerWindow.requestAnimationFrame(tick);
     };
     const fallback = () => {
-      cancelAnimationFrame(raf);
-      cancelAnimationFrame(readyRaf);
+      ownerWindow.cancelAnimationFrame(raf);
+      ownerWindow.cancelAnimationFrame(readyRaf);
       raf = 0;
       readyRaf = 0;
       gradient?.dispose();
@@ -600,7 +603,7 @@ export default function GradientWave({
         gradient.frame(0);
         canvas.style.visibility = "";
         if (!container.contains(canvas)) container.appendChild(canvas);
-        readyRaf = requestAnimationFrame(() => {
+        readyRaf = ownerWindow.requestAnimationFrame(() => {
           readyRaf = 0;
           if (!disposed && !contextLost) canvas.dataset.ready = "true";
         });
@@ -614,7 +617,7 @@ export default function GradientWave({
       event.preventDefault();
       contextLost = true;
       play();
-      cancelAnimationFrame(readyRaf);
+      ownerWindow.cancelAnimationFrame(readyRaf);
       readyRaf = 0;
       canvas.removeAttribute("data-ready");
       canvas.style.visibility = "hidden";
@@ -635,21 +638,24 @@ export default function GradientWave({
     };
     canvas.addEventListener("webglcontextlost", onContextLost);
     canvas.addEventListener("webglcontextrestored", onContextRestored);
-    window.addEventListener("resize", onResize);
-    document.addEventListener("visibilitychange", play);
+    ownerWindow.addEventListener("resize", onResize);
+    ownerDocument.addEventListener("visibilitychange", play);
     reduced.addEventListener("change", play);
+    const observer = ownerWindow.ResizeObserver ? new ownerWindow.ResizeObserver(onResize) : null;
+    observer?.observe(container);
     playRef.current = play;
     initialize(seed);
 
     return () => {
       disposed = true;
-      cancelAnimationFrame(raf);
-      cancelAnimationFrame(readyRaf);
+      ownerWindow.cancelAnimationFrame(raf);
+      ownerWindow.cancelAnimationFrame(readyRaf);
+      observer?.disconnect();
       if (playRef.current === play) playRef.current = null;
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
-      window.removeEventListener("resize", onResize);
-      document.removeEventListener("visibilitychange", play);
+      ownerWindow.removeEventListener("resize", onResize);
+      ownerDocument.removeEventListener("visibilitychange", play);
       reduced.removeEventListener("change", play);
       canvas.remove();
       gradient?.dispose({ loseContext: true });

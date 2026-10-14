@@ -32,7 +32,7 @@ function eventTarget() {
 // Execute the real component, with a controlled browser and recording WebGL
 // API. This catches scheduling and resource leaks without needing a GPU in CI.
 function makeBrowser(options = {}) {
-  const env = { canvases: [], rafs: new Map(), seq: 0, contexts: 0, draws: 0, loseCalls: 0,
+  const env = { canvases: [], rafs: new Map(), observers: new Set(), seq: 0, contexts: 0, draws: 0, loseCalls: 0,
     uniforms: new Map(), vertexSources: [], buffers: new Map(), deleted: { buffers: [], shaders: [], programs: [] },
     live: { buffers: new Set(), shaders: new Set(), programs: new Set() }, failDraw: false };
   const allocate = kind => {
@@ -78,11 +78,19 @@ function makeBrowser(options = {}) {
     appendChild(canvas) { this.children.push(canvas); canvas.parentNode = this; },
     contains(canvas) { return this.children.includes(canvas); } };
   const reduced = { ...eventTarget(), matches: !!options.reduced };
-  const fakeWindow = { ...eventTarget(), innerWidth: 400, innerHeight: 300, matchMedia: () => reduced };
+  const fakeWindow = { ...eventTarget(), innerWidth: 400, innerHeight: 300, matchMedia: () => reduced,
+    requestAnimationFrame(fn) { const id = ++env.seq; env.rafs.set(id, fn); return id; },
+    cancelAnimationFrame(id) { env.rafs.delete(id); },
+    ResizeObserver: class {
+      constructor(callback) { this.callback = callback; }
+      observe(element) { assert.equal(element, container); env.observers.add(this); }
+      disconnect() { env.observers.delete(this); }
+    },
+  };
   const fakeDocument = { ...eventTarget(), hidden: !!options.hidden,
     createElement(tag) {
       assert.equal(tag, "canvas");
-      const canvas = { ...eventTarget(), style: {}, dataset: {},
+      const canvas = { ...eventTarget(), ownerDocument: fakeDocument, style: {}, dataset: {},
         setAttribute() {},
         removeAttribute(name) { if (name === "data-ready") delete this.dataset.ready; },
         getContext(type, attributes) { env.contexts += 1; env.contextAttributes = attributes; return options.noWebGL ? null : gl; },
@@ -93,9 +101,15 @@ function makeBrowser(options = {}) {
       env.canvases.push(canvas);
       return canvas;
     } };
-  const globals = { window: fakeWindow, document: fakeDocument, console,
-    requestAnimationFrame(fn) { const id = ++env.seq; env.rafs.set(id, fn); return id; },
-    cancelAnimationFrame(id) { env.rafs.delete(id); } };
+  fakeDocument.defaultView = fakeWindow;
+  container.ownerDocument = fakeDocument;
+  const openerWindow = { ...eventTarget(), matchMedia() { throw Error("opener media query used"); } };
+  const openerDocument = { ...eventTarget(), hidden: true, createElement() { throw Error("opener canvas created"); } };
+  const globals = { window: options.separateOwner ? openerWindow : fakeWindow, document: options.separateOwner ? openerDocument : fakeDocument, console,
+    requestAnimationFrame() { throw Error("global RAF used"); },
+    cancelAnimationFrame() { throw Error("global RAF cancellation used"); },
+    ResizeObserver: class { constructor() { throw Error("global ResizeObserver used"); } },
+  };
   const cache = new Map();
   const load = rel => {
     const filename = resolve(ROOT, rel);
@@ -132,18 +146,45 @@ function makeBrowser(options = {}) {
   env.hide = hidden => { fakeDocument.hidden = hidden; act(() => fakeDocument.dispatch("visibilitychange")); };
   env.reduce = matches => { reduced.matches = matches; act(() => reduced.dispatch("change")); };
   env.resize = () => act(() => fakeWindow.dispatch("resize"));
-  return Object.assign(env, { container, fakeWindow, fakeDocument, reduced });
+  env.observeResize = () => act(() => [...env.observers].forEach(observer => observer.callback()));
+  return Object.assign(env, { container, fakeWindow, fakeDocument, reduced, openerWindow, openerDocument });
 }
 
 function assertReleased(env) {
   for (const resources of Object.values(env.live)) assert.equal(resources.size, 0);
   assert.equal(env.rafs.size, 0);
+  assert.equal(env.observers.size, 0);
   assert.equal(env.fakeWindow.listenerCount(), 0);
   assert.equal(env.fakeDocument.listenerCount(), 0);
   assert.equal(env.reduced.listenerCount(), 0);
   for (const canvas of env.canvases) assert.equal(canvas.listenerCount(), 0);
   assert.equal(env.container.children.length, 0);
 }
+
+test("PiP Wave and Zenitho use their visible owner document while the opener is hidden", t => {
+  for (const wrapper of [true, "zenitho"]) {
+    const env = makeBrowser({ separateOwner: true });
+    const page = env.mount(t, { wrapper });
+    env.step(0); env.step(50);
+    const time = env.uniforms.get("u_time");
+    assert.ok(time > 0);
+    assert.equal(env.canvases[0].ownerDocument, env.fakeDocument);
+    assert.equal(env.openerWindow.listenerCount(), 0);
+    assert.equal(env.openerDocument.listenerCount(), 0);
+    assert.equal(env.observers.size, 1);
+    env.container.clientWidth = 320; env.container.clientHeight = 240;
+    env.observeResize();
+    assert.equal(env.canvases[0].width, 160);
+    assert.equal(env.canvases[0].height, 120);
+    env.hide(true); assert.equal(env.rafs.size, 0);
+    env.step(10000); assert.equal(env.uniforms.get("u_time"), time);
+    env.hide(false); env.step(20000); env.step(20050);
+    assert.equal(env.uniforms.get("u_time"), time + 50);
+    env.reduce(true); assert.equal(env.rafs.size, 0);
+    env.reduce(false); assert.equal(env.rafs.size, 1);
+    page.close(); assertReleased(env);
+  }
+});
 
 test("Zenitho preserves UVCanvas's four colors, original uniform parameters, layer gate and initial phase", t => {
   const env = makeBrowser();

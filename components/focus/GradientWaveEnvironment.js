@@ -12,13 +12,14 @@ export default function GradientWaveEnvironment({
   className = "",
   noiseFrequency = NOISE_FREQUENCY,
   noiseSpeed = 0.000004,
+  fps = 30,
 }) {
   return (
     <div className={`${styles.environment} ${className}`.trim()} data-paused={paused ? "true" : undefined} aria-hidden="true">
       <GradientWave className={styles.wave} colors={COLORS} fullColorLayers isPlaying={isPlaying && !paused}
-        noiseFrequency={noiseFrequency} noiseSpeed={noiseSpeed} fps={30} scale={0.5} />
+        noiseFrequency={noiseFrequency} noiseSpeed={noiseSpeed} fps={fps} scale={0.5} />
       <div className={styles.pause} />
-      <div className={styles.veil} />
+      <div className={styles.veil} data-focus-veil="wave" />
     </div>
   );
 }

@@ -132,25 +132,28 @@ function gpuProfile(gl, enabled) {
 
 export default function GlassFold({
   color1 = "#1e3cc8", color2 = "#06081e", color3 = "#96d7ff",
-  speed = 0.5, scale = 1, noise = 0.12, isPlaying = true, profile = false, className = "",
+  speed = 0.5, scale = 1, noise = 0.12, isPlaying = true, fps = 30, profile = false, className = "",
 }) {
   const containerRef = useRef(null);
   const settings = useRef({});
-  settings.current = { color1, color2, color3, speed, scale, noise, isPlaying };
+  settings.current = { color1, color2, color3, speed, scale, noise, isPlaying, fps };
   const refreshRef = useRef(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const canvas = document.createElement("canvas");
+    const ownerDocument = container.ownerDocument;
+    const ownerWindow = ownerDocument?.defaultView;
+    if (!ownerWindow) return;
+    const canvas = ownerDocument.createElement("canvas");
     canvas.setAttribute("aria-hidden", "true");
     canvas.style.cssText = "display:block;width:100%;height:100%;opacity:0";
     container.appendChild(canvas);
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const reduced = ownerWindow.matchMedia("(prefers-reduced-motion: reduce)");
     let gl, program, buffer, uniforms, profiler;
     let shaders = [], frame = 0, elapsed = 0, last = null, lastDraw = null, lost = false, failed = false, disposed = false;
 
-    const stop = () => { cancelAnimationFrame(frame); frame = 0; last = null; lastDraw = null; };
+    const stop = () => { ownerWindow.cancelAnimationFrame(frame); frame = 0; last = null; lastDraw = null; };
     const release = () => {
       profiler?.dispose(); profiler = null;
       if (gl) {
@@ -170,7 +173,7 @@ export default function GlassFold({
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
     };
     const draw = () => {
-      if (disposed || failed || lost || document.hidden || !program) return;
+      if (disposed || failed || lost || ownerDocument.hidden || !program) return;
       try {
         const p = settings.current;
         gl.uniform1f(uniforms.time, elapsed);
@@ -184,7 +187,7 @@ export default function GlassFold({
         canvas.style.opacity = "1"; canvas.setAttribute("data-ready", "true");
       } catch { fail(); }
     };
-    const canAnimate = () => !disposed && !failed && !lost && !document.hidden && !reduced.matches && settings.current.isPlaying && settings.current.speed > 0;
+    const canAnimate = () => !disposed && !failed && !lost && !ownerDocument.hidden && !reduced.matches && settings.current.isPlaying && settings.current.speed > 0;
     const loop = now => {
       frame = 0;
       if (!canAnimate()) { last = null; return; }
@@ -192,10 +195,11 @@ export default function GlassFold({
       // changes perceived speed. Hidden/paused intervals are not accumulated.
       if (last !== null) elapsed += Math.min((now - last) / 1000, 0.1) * settings.current.speed;
       last = now;
-      if (lastDraw === null || now - lastDraw >= 1000 / 30 - 0.5) { draw(); lastDraw = now; }
-      if (canAnimate()) frame = requestAnimationFrame(loop);
+      const interval = 1000 / (settings.current.fps > 0 ? settings.current.fps : 30);
+      if (lastDraw === null || now - lastDraw >= interval - 0.5) { draw(); lastDraw = now; }
+      if (canAnimate()) frame = ownerWindow.requestAnimationFrame(loop);
     };
-    const refresh = () => { stop(); draw(); if (canAnimate()) frame = requestAnimationFrame(loop); };
+    const refresh = () => { stop(); draw(); if (canAnimate()) frame = ownerWindow.requestAnimationFrame(loop); };
     const onResize = () => { if (program && !lost && !failed) { resize(); draw(); } };
     const initialize = () => {
       if (disposed) return;
@@ -232,20 +236,20 @@ export default function GlassFold({
     const onRestored = () => initialize();
     canvas.addEventListener("webglcontextlost", onLost);
     canvas.addEventListener("webglcontextrestored", onRestored);
-    window.addEventListener("resize", onResize);
-    document.addEventListener("visibilitychange", refresh);
+    ownerWindow.addEventListener("resize", onResize);
+    ownerDocument.addEventListener("visibilitychange", refresh);
     reduced.addEventListener("change", refresh);
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(onResize);
+    const observer = ownerWindow.ResizeObserver ? new ownerWindow.ResizeObserver(onResize) : null;
     observer?.observe(container);
     refreshRef.current = refresh; initialize();
     return () => {
       disposed = true; stop(); observer?.disconnect();
-      window.removeEventListener("resize", onResize); document.removeEventListener("visibilitychange", refresh); reduced.removeEventListener("change", refresh);
+      ownerWindow.removeEventListener("resize", onResize); ownerDocument.removeEventListener("visibilitychange", refresh); reduced.removeEventListener("change", refresh);
       canvas.removeEventListener("webglcontextlost", onLost); canvas.removeEventListener("webglcontextrestored", onRestored);
       refreshRef.current = null; release(); gl?.getExtension("WEBGL_lose_context")?.loseContext(); canvas.remove();
     };
   }, [profile]);
 
-  useEffect(() => { refreshRef.current?.(); }, [color1, color2, color3, speed, scale, noise, isPlaying]);
+  useEffect(() => { refreshRef.current?.(); }, [color1, color2, color3, speed, scale, noise, isPlaying, fps]);
   return <div ref={containerRef} className={className} aria-hidden="true" />;
 }

@@ -19,6 +19,7 @@ function browser(t, options = {}) {
   const live = { buffers: new Set(), programs: new Set(), shaders: new Set() };
   const uniforms = new Map(), rafs = new Map();
   let draws = 0, contexts = 0, loses = 0, seq = 0, observed = 0;
+  const observers = new Set();
   const alloc = kind => { const object = {}; live[kind].add(object); return object; };
   const uniform = (location, value) => uniforms.set(location, JSON.parse(JSON.stringify(value)));
   const gl = {
@@ -41,24 +42,38 @@ function browser(t, options = {}) {
   const container = { clientWidth: 390, clientHeight: 844, children: [], appendChild: c => container.children.push(c) };
   const reduced = { ...target(), matches: !!options.reduced };
   const document = { ...target(), hidden: false, createElement: () => canvas };
-  const window = { ...target(), devicePixelRatio: 3, matchMedia: () => reduced };
+  const window = { ...target(), devicePixelRatio: 3, matchMedia: () => reduced,
+    requestAnimationFrame: fn => { const id = ++seq; rafs.set(id, fn); return id; }, cancelAnimationFrame: id => rafs.delete(id),
+    ResizeObserver: class {
+      constructor(callback) { this.callback = callback; }
+      observe(element) { assert.equal(element, container); observed++; observers.add(this); }
+      disconnect() { observed--; observers.delete(this); }
+    },
+  };
+  document.defaultView = window;
+  container.ownerDocument = document;
+  canvas.ownerDocument = document;
+  const openerDocument = { ...target(), hidden: true, createElement() { throw Error("opener canvas created"); } };
+  const openerWindow = { ...target(), matchMedia() { throw Error("opener media query used"); } };
   const module = { exports: {} };
   const { code } = transformSync(source, { filename: "GlassFold.js", babelrc: false, configFile: false, presets: [[require.resolve("next/babel"), { "preset-react": { runtime: "automatic" } }]], plugins: [require.resolve("@babel/plugin-transform-modules-commonjs")] });
-  vm.runInNewContext(code, { require, module, exports: module.exports, process: { env: { NODE_ENV: "test" } }, document, window, console,
-    requestAnimationFrame: fn => { const id = ++seq; rafs.set(id, fn); return id; }, cancelAnimationFrame: id => rafs.delete(id),
-    ResizeObserver: class { observe() { observed++; } disconnect() { observed--; } },
+  vm.runInNewContext(code, { require, module, exports: module.exports, process: { env: { NODE_ENV: "test" } },
+    document: options.separateOwner ? openerDocument : document, window: options.separateOwner ? openerWindow : window, console,
+    requestAnimationFrame() { throw Error("global RAF used"); }, cancelAnimationFrame() { throw Error("global RAF cancellation used"); },
+    ResizeObserver: class { constructor() { throw Error("global ResizeObserver used"); } },
   });
   let renderer;
   act(() => { renderer = create(React.createElement(module.exports.default, options.props), { createNodeMock: () => container }); });
   const close = () => act(() => renderer.unmount());
   t.after(close);
-  return { gl, canvas, container, uniforms, live, rafs, document, window, reduced, close,
+  return { gl, canvas, container, uniforms, live, rafs, document, window, reduced, openerWindow, openerDocument, close,
     get draws() { return draws; }, get contexts() { return contexts; }, get loses() { return loses; }, get observed() { return observed; },
     update: props => act(() => renderer.update(React.createElement(module.exports.default, props))),
     step: now => act(() => { const fns = [...rafs.values()]; rafs.clear(); fns.forEach(fn => fn(now)); }),
     hide: value => act(() => { document.hidden = value; document.dispatch("visibilitychange"); }),
     reduce: value => act(() => { reduced.matches = value; reduced.dispatch("change"); }),
     resize: (width, height) => act(() => { container.clientWidth = width; container.clientHeight = height; window.dispatch("resize"); }),
+    observeResize: (width, height) => act(() => { container.clientWidth = width; container.clientHeight = height; [...observers].forEach(observer => observer.callback()); }),
   };
 }
 
@@ -67,6 +82,40 @@ test("Glass Fold GLSL is byte-identical to the supplied original shader", () => 
     const shader = source.split(`const ${name} = \``)[1].split("`")[0];
     assert.equal(createHash("sha256").update(shader).digest("hex"), digest);
   }
+});
+
+test("PiP Glass Fold follows its owner window's frames, motion, resize and visibility while the opener is hidden", t => {
+  const env = browser(t, { separateOwner: true, props: { fps: 24 } });
+  env.step(0); env.step(50);
+  const time = env.uniforms.get("u_time");
+  assert.ok(time > 0);
+  assert.equal(env.canvas.ownerDocument, env.document);
+  assert.equal(env.observed, 1);
+  assert.equal(env.openerDocument.listeners.size, 0);
+  assert.equal(env.openerWindow.listeners.size, 0);
+  env.observeResize(320, 240);
+  assert.deepEqual(env.uniforms.get("u_resolution"), [320, 240]);
+  env.hide(true); assert.equal(env.rafs.size, 0);
+  env.step(10000); assert.equal(env.uniforms.get("u_time"), time);
+  env.hide(false); env.step(20000); env.step(20050);
+  assert.ok(Math.abs(env.uniforms.get("u_time") - time - .025) < 1e-9);
+  env.reduce(true); assert.equal(env.rafs.size, 0);
+  env.reduce(false); assert.equal(env.rafs.size, 1);
+  env.close();
+  assert.equal(env.rafs.size, 0); assert.equal(env.observed, 0);
+  for (const item of [env.document, env.window, env.reduced, env.canvas]) assert.equal(item.listeners.size, 0);
+  for (const resources of Object.values(env.live)) assert.equal(resources.size, 0);
+});
+
+test("the optional 24fps cap changes only draw cadence and retains source shader speed", t => {
+  const env = browser(t, { props: { fps: 24 } });
+  const initial = env.draws;
+  for (let i = 0; i <= 120; i++) env.step(i * 1000 / 120);
+  assert.ok(Math.abs(env.uniforms.get("u_time") - .5) < .00001);
+  assert.ok(env.draws - initial <= 25);
+  const contexts = env.contexts;
+  env.update({ fps: 30 });
+  assert.equal(env.contexts, contexts);
 });
 
 test("original palette/speed/scale/noise upload to one six-vertex program; time is independent of 30fps draws", t => {

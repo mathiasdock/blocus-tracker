@@ -2,7 +2,7 @@
 version: 1
 slug: "pages-dashboard-js"
 primary_target: "pages/dashboard.js"
-related_targets: ["components/StudyBlocks.js","lib/studyBlocks.mjs","components/TodayProgressCard.js","components/TodaySessionsCard.js","components/DailyProgressCard.js","components/DashboardCoursesCard.js","components/BlocusCard.js","components/CourseChecklistModal.jsx","components/FocusShaderBackground.js","components/timer/ChronoFocus.js","components/focus/FocusEnvironmentControl.js","components/focus/FocusEnvironmentGallery.js"]
+related_targets: ["components/StudyBlocks.js","lib/studyBlocks.mjs","components/TodayProgressCard.js","components/TodaySessionsCard.js","components/DailyProgressCard.js","components/DashboardCoursesCard.js","components/BlocusCard.js","components/CourseChecklistModal.jsx","components/FocusShaderBackground.js","components/timer/ChronoFocus.js","components/focus/FocusEnvironmentControl.js","components/focus/FocusEnvironmentGallery.js","components/focus/FocusMiniTimer.js","components/focus/FocusMiniTimer.module.css"]
 ---
 
 ## Scope and visitor mode
@@ -109,9 +109,20 @@ Sur ordinateur (pointeur fin, hover, largeur ≥ 768 px), une action discrète e
 haut de Focus, à gauche du sélecteur d'environnement, ouvre la vraie fenêtre
 Document PiP. Sur navigateur non compatible, elle reste visible et explique
 Chrome/Edge en FR/EN ; aucune imitation. Option absente des layouts mobiles.
-La fenêtre utilise les neutres et le thème clair/sombre de l'app : repère et nom
-du cours, chiffres tabulaires ordinaires, état explicite, Revenir au Focus.
-Aucun shader, son, badge ni seconde commande de session.
+La fenêtre reprend automatiquement l'environnement équipé et ses couleurs
+Focus (Forêt, Wave, Zenitho, Glass Fold), via le renderer partagé : aucune
+préférence, galerie, règle de niveau ou implémentation de fond supplémentaire.
+Repère/nom du cours, chiffres tabulaires sans contour ni halo, état explicite et
+Revenir au Focus restent au-dessus du paysage, sans grande carte opaque.
+Sous 180 px de hauteur, état et retour partagent une ligne ; la cible reste
+44 px, seul le glyphe décoratif disparaît sous 240 px de largeur.
+Le PiP plafonne les dessins à 24 fps et le DPR à 1 sans changer la vitesse ;
+l'animation principale se suspend pendant son ouverture, puis reprend.
+RAF/visibilité/resize suivent la fenêtre propriétaire du canvas. Les contrastes
+restent locaux au PiP (voile Wave allégé, lavis Zenitho léger haut/bas, voile
+marine Glass Fold et son fond limité aux mots), pause rouge conservée.
+Styles chargés à la demande et langue/thème synchronisés sans recréer la vue.
+Aucun son, badge ni seconde commande de session.
 Le portail lit le même chrono : pas d'intervalle, stockage ou écriture serveur.
 Fermer/revenir/quitter Focus ferme seulement cette vue, jamais la session.
 La fenêtre principale doit rester ouverte. Détails et limites de vérification

@@ -35,29 +35,59 @@ second app that continues a Pomodoro controller after its owning page closes.
   A request that resolves after unmount closes its window immediately.
 - `window.focus()` on the PiP return click precedes closing; the native
   back-to-tab control also stays available. No redirects or route parameters.
-- Copy loaded styles once (including self-hosted fonts); synchronize only the
-  app root's dark class and language. Never copy `bt-focus-active` or run a shader.
+- Copy loaded styles (including self-hosted fonts); synchronize the app root's
+  dark class/language and lazy-loaded stylesheet changes without recreating PiP.
+  Deduplicate linked and inline sheets; remove the observer/load listener on close.
+  Never copy the opener's `bt-focus-active` class or mount a second app root.
 
 ## Visual scope
 
-Neutral app surface in both themes, saved course marker/name, static tabular
-digits, textual session state, one secondary return action. No badge, shader,
-extra controls or animation in PiP. Long course names truncate visually while
-retaining their full title. The ticking value is not a live announcement;
-the state is. Keyboard focus uses the app's existing two-tone ring.
+The current equipped Focus environment is passed from `ChronoFocus` to the
+portal: Forest, Gradient Wave, Zenitho or Glass Fold. Both windows use the same
+registry, lazy renderer and scoped palette. No new preference, unlock or setting.
+Changing the equipped environment updates an already-open PiP window.
+
+The landscape fills the window, without an opaque content card. Course marker
+and name, plain tabular digits, explicit textual state and one secondary return
+action stay above it. Long names truncate while retaining their full title.
+At short heights the state and return action share a row; the decorative return
+icon hides below 240px, never its label. Minimum return target stays 44px.
+The ticking value is not a live announcement; the state is. Keyboard focus uses
+the app's existing two-tone ring. FR/EN and light/dark remain synchronized.
+
+Only compact PiP rendering opts into 24fps and a 1x DPR ceiling (Wave/Zenitho
+retain their existing half-resolution buffers). Speeds and shader palettes
+are unchanged. The main Focus landscape suspends while PiP is open and resumes
+on close, leaving the timer, audio and Pomodoro running normally. All renderer
+RAF, media, visibility and resize listeners follow the mounted element's owner
+document/window, not the opener. Reduced motion, WebGL fallback and cleanup are
+shared. Forest deletes its allocations without forcing native context loss on
+its React-owned canvas, which must survive StrictMode effect replay.
+
+Compact contrast stays environment-specific: a lighter Wave veil, subtle
+Zenitho light top/bottom treatment and a restrained Glass Fold navy veil plus
+its existing word-sized backing. No digit outline, glow or large opaque panel.
+Free pause keeps the existing red palette and stops the Wave/Zenitho/Glass Fold
+movement; Pomodoro preserves its existing running/break/paused semantics.
 
 ## Evidence
 
-Twelve focused tests run the real component with a simulated native API:
+Seventeen focused tests run the real component with a simulated native API:
 opening/double click, unsupported/error/retry FR/EN, mobile media changes,
 live time/course/paused/idle and Pomodoro display, close/return/reopen,
 unmount and late opening, stylesheet/local fonts, theme/language sync, and
-feedback Escape/outside-pointer/close dismissal with listener cleanup.
+feedback Escape/outside-pointer/close dismissal with listener cleanup,
+all four equipped identities, live environment switching, lazy stylesheet
+synchronization, open/close reporting and Free/Pomodoro pause palette boundaries.
+Renderer tests cover owner-window scheduling with a hidden opener, compact
+cadence versus actual shader time, resizing, reduced motion, fallback and
+allocation/listener cleanup, including Forest's same-canvas StrictMode replay.
 Existing real TimerProvider/useChrono behavioral tests cover Free/Pomodoro
 transitions, unique session IDs, pause/resume, restored cycles and saved work.
-Combined Mini-chrono/Chrono/Focus checks: 46 passing. Full suite: 957 tests
-passing; lint and production build pass. Build retains
-the pre-existing >3 MB HEIC precache warning. No backend migration or dependency.
+The original neutral V1 passed 46 combined and 957 full-suite checks. The
+environment follow-up passes 130 combined and 971 full-suite checks, lint and
+production build. The existing >3 MB HEIC precache warning and missing local
+Supabase configuration remain unrelated. No backend migration or dependency.
 
 Actual Chrome desktop checks used isolated local data: native opening by mouse
 and Enter, live course/time, pause/resume, native close/reopen, return by mouse
@@ -68,9 +98,16 @@ FR/dark and EN/light captures covered desktop Focus at 1086 × 688. Actual Chrom
 DevTools at 375 × 667 showed no mobile action. No console exceptions were
 observed. Details are recorded in [AI_CHANGELOG](../AI_CHANGELOG.md).
 
-Independent finish review: SHIP, based on screenshots and source; the reviewer
-did not independently rerun browser checks or tests. Physical Edge, real Safari,
+The environment follow-up was checked in a real Chrome desktop PiP at 320 × 240
+and 240 × 118 content sizes, all four scenes, changing Zenitho → Glass Fold
+without reopening, running time with another tab selected, native close/return,
+Free pause/resume, EN/dark and FR/light. Shader motion was compared across
+multiple frames; the main scene's StrictMode cleanup was corrected after a
+console warning exposed native context loss. Physical Edge, real Safari,
 iPhone/PWA and OS sleep were not tested. Edge compatibility is feature/API-based.
+After correction, fresh Forest/mini mounts produced no browser warnings/errors.
+The independent finish review's final disposition is SHIP; it reviewed supplied
+screenshots/source/docs, not an independently rerun browser or test suite.
 This validation covers a local implementation; no push or deployment was made.
 
 References: [Chrome Document PiP](https://developer.chrome.com/docs/web-platform/document-picture-in-picture),

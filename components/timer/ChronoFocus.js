@@ -44,6 +44,7 @@ export default function ChronoFocus({
   const preferences = useFocusEnvironment();
   const environment = getFocusEnvironment(preferences.environmentId);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
+  const [miniTimerOpen, setMiniTimerOpen] = useState(false);
   const environmentOpenRef = useRef(false);
   environmentOpenRef.current = environmentOpen;
   const {
@@ -129,7 +130,7 @@ export default function ChronoFocus({
               statique et coupe la boucle sous prefers-reduced-motion. En pause,
               le champ vire au rouge : en plein écran il n'y a pas de carte pour
               porter l'état, c'est l'environnement qui le porte. */}
-          <FocusEnvironmentRenderer environment={environment} paused={isPaused && !pomodoro} />
+          <FocusEnvironmentRenderer environment={environment} paused={isPaused && !pomodoro} isPlaying={!miniTimerOpen} />
 
           {/* Respiration rouge périphérique — le signal qui rattrape un regard
               parti ailleurs. Cycle de 2,4 s, courbe douce et centre transparent
@@ -141,7 +142,8 @@ export default function ChronoFocus({
           {/* Ambiance sonore synthétisée (opt-in, 0 fichier / 0 egress) */}
           <AmbientSoundControl active visible={focusCtlVisible || !running} />
           <FocusEnvironmentControl preferences={preferences} visible={focusCtlVisible || !running} onOpenChange={setEnvironmentOpen} />
-          <FocusMiniTimer chrono={chrono} courses={courses} noCourseLabel={noCourseLabel} visible={focusCtlVisible || !running} />
+          <FocusMiniTimer chrono={chrono} courses={courses} noCourseLabel={noCourseLabel} environment={environment}
+            onOpenChange={setMiniTimerOpen} visible={focusCtlVisible || !running} />
 
           <p ref={focusGreetingRef} data-focus-reading="" className="text-xs mb-5 relative z-10" style={{ color: "var(--bt-ink-muted)" }}>
             {focusGreeting(t)}

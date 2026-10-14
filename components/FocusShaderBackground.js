@@ -294,35 +294,50 @@ function compileShader(gl, type, source) {
 }
 
 function createProgram(gl) {
-  const vertex = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
-  const fragment = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
-  const program = gl.createProgram();
-  gl.attachShader(program, vertex);
-  gl.attachShader(program, fragment);
-  gl.linkProgram(program);
-  gl.deleteShader(vertex);
-  gl.deleteShader(fragment);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    const message = gl.getProgramInfoLog(program) || "Shader linking failed";
-    gl.deleteProgram(program);
-    throw new Error(message);
+  let vertex, fragment, program;
+  try {
+    vertex = compileShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
+    fragment = compileShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
+    program = gl.createProgram();
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      throw new Error(gl.getProgramInfoLog(program) || "Shader linking failed");
+    }
+    return program;
+  } catch (error) {
+    if (program) gl.deleteProgram(program);
+    throw error;
+  } finally {
+    if (vertex) gl.deleteShader(vertex);
+    if (fragment) gl.deleteShader(fragment);
   }
-  return program;
 }
 
-export default function FocusShaderBackground({ paused = false }) {
+// Main Focus keeps its historical uncapped cadence and 2x DPR ceiling. PiP
+// can opt into a smaller buffer/cadence or suspend the main view's animation.
+export default function FocusShaderBackground({ paused = false, isPlaying = true, fps = 0, maxDpr = 2 }) {
   const canvasRef = useRef(null);
   const pausedRef = useRef(paused);
+  const playbackRef = useRef({ isPlaying, fps, maxDpr });
+  playbackRef.current = { isPlaying, fps, maxDpr };
   const syncPausedRef = useRef(null);
+  const syncPlaybackRef = useRef(null);
 
   useEffect(() => {
     pausedRef.current = paused;
     syncPausedRef.current?.();
   }, [paused]);
 
+  useEffect(() => { syncPlaybackRef.current?.(); }, [isPlaying, fps, maxDpr]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
+    const ownerDocument = canvas.ownerDocument;
+    const ownerWindow = ownerDocument?.defaultView;
+    if (!ownerWindow) return undefined;
 
     const gl = canvas.getContext("webgl", {
       alpha: false,
@@ -381,7 +396,8 @@ export default function FocusShaderBackground({ paused = false }) {
     let height = 1;
     let rafId = 0;
     let elapsed = 0;
-    let previousTime = performance.now();
+    let previousTime = ownerWindow.performance.now();
+    let previousDraw = null;
     let pointerX = 0;
     let pointerY = 0;
     let targetX = 0;
@@ -389,12 +405,12 @@ export default function FocusShaderBackground({ paused = false }) {
     let presence = 0;
     let targetPresence = 0;
     let disposed = false;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const motion = ownerWindow.matchMedia("(prefers-reduced-motion: reduce)");
     let reduceMotion = motion.matches;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(ownerWindow.devicePixelRatio || 1, playbackRef.current.maxDpr);
       width = Math.max(1, Math.round(rect.width * dpr));
       height = Math.max(1, Math.round(rect.height * dpr));
       if (canvas.width !== width || canvas.height !== height) {
@@ -408,7 +424,7 @@ export default function FocusShaderBackground({ paused = false }) {
       resize();
       const blendTarget = pausedRef.current ? 1 : 0;
       if (Math.abs(blendTarget - blend) > 0.002) {
-        blend += (blendTarget - blend) * (reduceMotion ? 1 : 0.07);
+        blend += (blendTarget - blend) * (reduceMotion || !playbackRef.current.isPlaying ? 1 : 0.07);
         applyPalette();
       } else if (blend !== blendTarget) {
         blend = blendTarget;
@@ -429,25 +445,33 @@ export default function FocusShaderBackground({ paused = false }) {
     };
 
     const frame = (now) => {
-      if (disposed || document.hidden || reduceMotion) return;
+      rafId = 0;
+      if (disposed || ownerDocument.hidden || reduceMotion || !playbackRef.current.isPlaying) return;
       elapsed += Math.min((now - previousTime) / 1000, 0.05);
       previousTime = now;
-      draw();
-      rafId = window.requestAnimationFrame(frame);
+      const cap = playbackRef.current.fps;
+      if (cap <= 0 || previousDraw === null || now - previousDraw >= 1000 / cap - 0.5) {
+        draw();
+        previousDraw = now;
+      }
+      rafId = ownerWindow.requestAnimationFrame(frame);
     };
 
     const start = () => {
-      window.cancelAnimationFrame(rafId);
-      previousTime = performance.now();
-      if (reduceMotion || document.hidden) {
+      if (disposed) return;
+      ownerWindow.cancelAnimationFrame(rafId);
+      rafId = 0;
+      previousTime = ownerWindow.performance.now();
+      previousDraw = null;
+      if (reduceMotion || ownerDocument.hidden || !playbackRef.current.isPlaying) {
         draw();
         return;
       }
-      rafId = window.requestAnimationFrame(frame);
+      rafId = ownerWindow.requestAnimationFrame(frame);
     };
 
     const onPointerMove = (event) => {
-      if (reduceMotion || event.pointerType === "touch") return;
+      if (reduceMotion || !playbackRef.current.isPlaying || event.pointerType === "touch") return;
       const rect = canvas.getBoundingClientRect();
       targetX = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * 2 - 1;
       targetY = (1 - (event.clientY - rect.top) / Math.max(rect.height, 1)) * 2 - 1;
@@ -455,7 +479,7 @@ export default function FocusShaderBackground({ paused = false }) {
     };
     const onPointerLeave = () => { targetPresence = 0; };
     const onVisibilityChange = () => {
-      if (document.hidden) window.cancelAnimationFrame(rafId);
+      if (ownerDocument.hidden) { ownerWindow.cancelAnimationFrame(rafId); rafId = 0; }
       else start();
     };
     const onMotionChange = (event) => {
@@ -464,35 +488,40 @@ export default function FocusShaderBackground({ paused = false }) {
       start();
     };
 
-    const resizeObserver = typeof ResizeObserver !== "undefined"
-      ? new ResizeObserver(() => { resize(); if (reduceMotion) draw(); })
+    const resizeObserver = ownerWindow.ResizeObserver
+      ? new ownerWindow.ResizeObserver(() => { resize(); if (reduceMotion || !playbackRef.current.isPlaying) draw(); })
       : null;
     resizeObserver?.observe(canvas);
-    window.addEventListener("resize", resize, { passive: true });
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
-    document.documentElement.addEventListener("pointerleave", onPointerLeave);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    ownerWindow.addEventListener("resize", resize, { passive: true });
+    ownerWindow.addEventListener("pointermove", onPointerMove, { passive: true });
+    ownerDocument.documentElement.addEventListener("pointerleave", onPointerLeave);
+    ownerDocument.addEventListener("visibilitychange", onVisibilityChange);
     motion.addEventListener?.("change", onMotionChange);
     // Sans boucle rAF (reduced-motion / onglet caché), le changement de palette
     // n'arriverait jamais : on force un rendu unique.
     syncPausedRef.current = () => {
-      if (disposed || (!reduceMotion && !document.hidden)) return;
+      if (disposed || (!reduceMotion && !ownerDocument.hidden && playbackRef.current.isPlaying)) return;
       draw();
     };
+    syncPlaybackRef.current = start;
     start();
 
     return () => {
       disposed = true;
       syncPausedRef.current = null;
-      window.cancelAnimationFrame(rafId);
+      syncPlaybackRef.current = null;
+      ownerWindow.cancelAnimationFrame(rafId);
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", resize);
-      window.removeEventListener("pointermove", onPointerMove);
-      document.documentElement.removeEventListener("pointerleave", onPointerLeave);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      ownerWindow.removeEventListener("resize", resize);
+      ownerWindow.removeEventListener("pointermove", onPointerMove);
+      ownerDocument.documentElement.removeEventListener("pointerleave", onPointerLeave);
+      ownerDocument.removeEventListener("visibilitychange", onVisibilityChange);
       motion.removeEventListener?.("change", onMotionChange);
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
+      // This React-owned canvas is reused by StrictMode's setup/cleanup/setup.
+      // Delete GPU allocations, but do not permanently lose its native context.
+      // Removing the canvas on actual unmount releases that context naturally.
     };
   }, []);
 
