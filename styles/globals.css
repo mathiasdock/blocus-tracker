@@ -1630,6 +1630,26 @@ html.bt-focus-active .bt-nav { display: none; }
   .bt-filter-item:hover { background-color: var(--bt-subtle); }
 }
 
+/* Réglages de session du Chrono (mode, durées, objectif, note) : la pilule
+   garde ses 32 px de haut, l'appui en couvre 44 (`bt-tap-44`, posé par la
+   carte) et le libellé passe de 12 à 13 px. La marge intérieure passe de 10
+   à 7 px de chaque côté pour rendre la largeur gagnée par le texte : chaque
+   rangée reste au plus aussi large qu'avant, elle ne passe pas plus tôt sur
+   deux lignes (Libre · Sans objectif · Note de session tenait à 3,7 px près
+   dans le Dashboard à 390 px). Les autres filtres de l'app ne changent pas. */
+.bt-chrono-settings .bt-filter-btn {
+  padding-inline: 7px;
+  font-size: 13px;
+  line-height: 18px;
+}
+/* Leurs menus, rendus en portail hors de la carte : options de 44 px comme
+   celles du sélecteur de cours de la même carte, libellés de 13 px. */
+.bt-chrono-menu .bt-filter-item {
+  min-height: 44px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
 /* ── Champs date / heure ──────────────────────────────────────────────────
    Sur iOS, `input[type="time"]` et `[type="date"]` se dimensionnent sur leur
    contenu natif : le `width: 100%` de `.input` ne les empeche pas de depasser

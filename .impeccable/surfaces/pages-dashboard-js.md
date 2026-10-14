@@ -35,6 +35,8 @@ Le chrono est le centre de gravité. Sur mobile, l'ordre est Chrono → Missions
 
 **Listes du Chrono.** « Mes cours » et « Sessions du jour » séparent leurs rangées par l'espace, sans traits horizontaux ; les repères de cours, titres, heures et actions restent inchangés. La liste de l'Historique conserve ses séparateurs, utiles entre journées et sessions plus nombreuses.
 
+**Réglages de session (2026-10-13).** Mode, durées, objectif et note restent des pilules compactes de 32 px sous le chrono, mais chacune se touche sur 44 px de haut (`bt-tap-44`, zone invisible) et leurs libellés passent à 13 px, comme les options de leurs menus, hautes de 44 px comme celles du sélecteur de cours (`.bt-chrono-settings`, `.bt-chrono-menu`). Le libellé TRAVAIL / PAUSE du Pomodoro passe à 13 px dans la hauteur de ligne de l'ancien 11 px. Sur deux lignes (téléphone étroit, ou note en plus des réglages Pomodoro), 12 px séparent les pilules pour que leurs zones d'appui ne se chevauchent pas : la carte y prend 4 px, et seulement là. Les autres filtres de l'app ne changent pas.
+
 ## Environnements Focus
 
 **Environnements Focus V1 (catalogue finalisé le 2026-10-13).** Le

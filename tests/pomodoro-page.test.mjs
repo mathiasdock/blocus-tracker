@@ -495,7 +495,7 @@ test("héros : le titre, puis l'outil, puis l'introduction — et les règles qu
   // l'introduction sous 1024 px, une colonne réservée sur ordinateur.
   const css = readFileSync(join(ROOT, "components/landing/Guide.module.css"), "utf8");
   const reserve = [...css.matchAll(/\.toolSlot:has\(\[class~="bt-dashboard-timer"\]\) \{ min-height: (\d+)px; \}/g)].map((m) => Number(m[1]));
-  assert.deepEqual(reserve, [418, 434, 472, 720]);
+  assert.deepEqual(reserve, [418, 438, 472, 720]);
   assert.match(css, /\.toolSlot > div:has\(> div > section\[aria-labelledby="public-chrono-invite-title"\]\) \{\s*position: absolute;\s*left: 0;/);
   assert.match(css, /\.toolSlot:has\(section\[aria-labelledby="public-chrono-invite-title"\]\) ~ \.copy \{ visibility: hidden; \}/);
   // Le Chrono lui-même n'est pas restylé par la page.

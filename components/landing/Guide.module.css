@@ -175,9 +175,11 @@
   /* Plus grande hauteur de la carte, mesurée dans tous ses états (repos,
      travail, pause, repos Pomodoro), en français et en anglais, plus une
      marge : 417 px de 340 à 639 px de large (416 px quand Pause et Terminer
-     s'empilent, sous 380 px) ; 431 px à 320 px, où les réglages passent sur
-     deux lignes ; 469 px de 640 à 1023 px. Sans carte (compte connecté),
-     rien n'est réservé. */
+     s'empilent, sous 380 px) ; 435 px sous 340 px (437 px en thème sombre,
+     où la carte a un filet), quand les réglages passent sur deux lignes,
+     12 px l'une sous l'autre pour que leurs zones d'appui de 44 px ne se
+     chevauchent pas (mesuré le 2026-10-13) ; 469 px de 640 à 1023 px. Sans
+     carte (compte connecté), rien n'est réservé. */
   .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 418px; }
   /* Sans `top`, la boîte garde sa place naturelle, juste sous la carte. */
   .toolSlot > div:has(> div > section[aria-labelledby="public-chrono-invite-title"]) {
@@ -188,7 +190,7 @@
   }
   .toolSlot:has(section[aria-labelledby="public-chrono-invite-title"]) ~ .copy { visibility: hidden; }
 }
-@media (max-width: 339px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 434px; } }
+@media (max-width: 339px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 438px; } }
 @media (min-width: 640px) and (max-width: 1023px) { .toolSlot:has([class~="bt-dashboard-timer"]) { min-height: 472px; } }
 /* Ordinateur : la carte (469 px au plus) et l'invitation (227 px) tiennent
    dans 720 px, toujours moins que le texte à côté (750 px et plus) ; la

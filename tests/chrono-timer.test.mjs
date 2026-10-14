@@ -69,7 +69,7 @@ function makeBrowser() {
     "contexts/I18nContext": { useI18n: () => ({ t: (k) => k, lang: "fr" }) },
     "lib/sensoryFeedback": { playSensoryCue: (c) => env.cues.push(c), triggerHaptic: (h) => env.haptics.push(h) },
     "lib/useWakeLock": { useWakeLock: () => {} },
-    "components/FilterMenu": { default: ({ value, ariaLabel }) => React.createElement("filter-menu", { value, "aria-label": ariaLabel }) },
+    "components/FilterMenu": { __esModule: true, default: ({ value, ariaLabel }) => React.createElement("filter-menu", { value, "aria-label": ariaLabel }) },
   };
   env.load = makeLoader(env);
   return env;
@@ -511,4 +511,44 @@ test("la carte pendant un repos restauré : « Passer la pause », jamais « Ter
   assert.ok(!texts.some((t) => t.includes("dash.start") || t.includes("dash.resume")));
   act(() => card.unmount());
   reloaded.close();
+});
+
+// Mesuré le 2026-10-13 : réglages de 32 px de haut, libellés de 11-12 px.
+// Les pilules restent compactes ; l'appui couvre 44 px et le texte 13 px, sans
+// toucher aux autres filtres de l'app ni à la hauteur de la carte.
+test("réglages de session : appui de 44 px et libellés de 13 px, pilules compactes", () => {
+  const env = makeBrowser();
+  const page = mountApp(env);
+  const ChronoCard = env.load("components/timer/ChronoCard").default;
+  const FilterMenu = env.mocks["components/FilterMenu"].default;
+  for (const mode of ["free", "pomodoro"]) {
+    page.do((c) => c.pickMode(mode));
+    let card;
+    act(() => { card = create(React.createElement(ChronoCard, { chrono: page.chrono, courses: [], activeCourses: [], noteEnabled: true })); });
+    const menus = card.root.findAllByType(FilterMenu);
+    assert.equal(menus.length, mode === "free" ? 2 : 3);
+    for (const menu of menus) {
+      assert.equal(menu.props.buttonClassName, "bt-tap-44");
+      assert.equal(menu.props.menuClassName, "bt-chrono-menu");
+    }
+    const row = card.root.find((n) => n.type === "div" && /\bbt-chrono-settings\b/.test(n.props.className || ""));
+    // Sur deux lignes, 12 px d'écart : deux zones de 44 px autour de pilules
+    // de 32 px se touchent sans se chevaucher.
+    assert.match(row.props.className, /\bgap-y-3\b/);
+    const note = row.findAll((n) => n.type === "button");
+    assert.equal(note.length, 1);
+    assert.match(note[0].props.className, /\bbt-filter-btn\b.*\bbt-tap-44\b/);
+    const phase = card.root.findAll((n) => n.type === "div" && n.props.role === "status" && /\buppercase\b/.test(n.props.className || ""));
+    assert.equal(phase.length, mode === "pomodoro" ? 1 : 0);
+    // 13 px dans la hauteur de ligne de l'ancien libellé de 11 px (11 × 1,5).
+    if (phase.length) assert.match(phase[0].props.className, /\btext-\[13px\].*\bleading-\[16\.5px\]/);
+    act(() => card.unmount());
+  }
+  page.close();
+  const css = readFileSync(join(ROOT, "styles/globals.css"), "utf8");
+  assert.match(css, /\.bt-tap-44::after \{[^}]*block-size: max\(44px, 100%\);/);
+  assert.match(css, /\.bt-chrono-settings \.bt-filter-btn \{[^}]*font-size: 13px;/);
+  assert.match(css, /\.bt-chrono-menu \.bt-filter-item \{[^}]*min-height: 44px;[^}]*font-size: 13px;/);
+  // Les autres filtres de l'app (Stats, classement, messages) gardent leur taille.
+  assert.match(readFileSync(join(ROOT, "components/FilterMenu.js"), "utf8"), /`bt-filter-btn inline-flex min-h-8 max-w-full items-center gap-1 rounded-lg px-2\.5 py-1 text-xs font-semibold/);
 });

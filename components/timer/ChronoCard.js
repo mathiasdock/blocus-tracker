@@ -8,6 +8,10 @@ import { formatMinutesShort } from "../../lib/format";
 import { POMO_BREAK_OPTIONS, POMO_WORK_OPTIONS } from "../../lib/pomodoro.mjs";
 import { timerExamUrgency } from "../../lib/timerExamContext.mjs";
 
+// Les menus des réglages de session : pilule compacte mais zone d'appui de
+// 44 px (`bt-tap-44`), menu à options de 44 px (`bt-chrono-menu`, globals.css).
+const SETTINGS_MENU = { align: "left", buttonClassName: "bt-tap-44", menuClassName: "bt-chrono-menu" };
+
 // La carte du Chrono — sortie telle quelle de pages/dashboard.js (2026-10-07)
 // pour pouvoir s'afficher ailleurs que sur le Dashboard. Elle dessine l'état de
 // `chrono` (components/timer/useChrono.js) ; ce qui appartient à la page lui
@@ -196,8 +200,11 @@ export default function ChronoCard({
 
           {/* ── Héros : chiffres + onde de session + ligne vivante ── */}
           <div className="px-4 pb-3 pt-8 text-center sm:px-6 sm:pt-10">
+            {/* 13 px pour être lu, mais la ligne garde la hauteur de l'ancien
+                libellé de 11 px (11 × 1,5) : la carte ne grandit pas, et
+                /pomodoro réserve sa place au pixel près. */}
             {pomodoro && (
-              <div role="status" className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]"
+              <div role="status" className="mb-3 text-[13px] font-bold uppercase leading-[16.5px] tracking-[0.18em]"
                 style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "var(--bt-text-2)" }}>
                 {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
@@ -296,16 +303,20 @@ export default function ChronoCard({
                dans le bandeau + un champ note toujours ouvert, soit neuf
                controles a franchir avant « Demarrer ». Meme fonctions, meme
                valeurs, mais reduites a trois libelles qui disent deja leur
-               etat. Rien n'est retire : tout est a un tap. */}
+               etat. Rien n'est retire : tout est a un tap.
+               Les pilules gardent leurs 32 px ; l'appui en couvre 44 et les
+               libelles passent a 13 px (`.bt-chrono-settings`, globals.css).
+               Sur deux lignes, 12 px les separent : les zones d'appui se
+               touchent sans se chevaucher. */}
           {!running && elapsed === 0 && (
             <div className="mt-3 px-4 sm:px-6">
-              <div className="mx-auto flex max-w-md flex-wrap items-center justify-center gap-2">
+              <div className="bt-chrono-settings mx-auto flex max-w-md flex-wrap items-center justify-center gap-x-2 gap-y-3">
                 <FilterMenu
                   value={pomodoro ? "pomodoro" : "free"}
                   options={[{ value: "free", label: t("dash.free") }, { value: "pomodoro", label: "Pomodoro" }]}
                   onChange={pickMode}
                   ariaLabel={t("dash.modeLabel")}
-                  align="left"
+                  {...SETTINGS_MENU}
                 />
                 {!pomodoro && (
                   <FilterMenu
@@ -316,7 +327,7 @@ export default function ChronoCard({
                     }))}
                     onChange={(v) => pickSessionGoal(v === "none" ? null : Number(v))}
                     ariaLabel={t("dash.sessionGoalLabel")}
-                    align="left"
+                    {...SETTINGS_MENU}
                   />
                 )}
                 {pomodoro && (
@@ -326,20 +337,20 @@ export default function ChronoCard({
                       options={POMO_WORK_OPTIONS.map((m) => ({ value: String(m), label: `${m} min` }))}
                       onChange={(v) => pickWorkMin(Number(v))}
                       ariaLabel={t("dash.workDuration")}
-                      align="left"
+                      {...SETTINGS_MENU}
                     />
                     <FilterMenu
                       value={String(pomoBreakMin)}
                       options={POMO_BREAK_OPTIONS.map((m) => ({ value: String(m), label: `${m} min` }))}
                       onChange={(v) => setPomoBreakMin(Number(v))}
                       ariaLabel={t("dash.breakDuration")}
-                      align="left"
+                      {...SETTINGS_MENU}
                     />
                   </>
                 )}
                 {noteEnabled && (!pomodoro || pomoPhase === "work") && !noteOpen && !note && (
                   <button type="button" onClick={() => setNoteOpen(true)}
-                    className="bt-filter-btn inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold">
+                    className="bt-filter-btn bt-tap-44 inline-flex min-h-8 items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold">
                     <Glyph size={12}>
                       <path d="M12 5v14M5 12h14" />
                     </Glyph>
