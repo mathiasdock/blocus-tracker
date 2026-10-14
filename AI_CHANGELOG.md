@@ -1,5 +1,13 @@
 # AI_CHANGELOG.md
 
+## 2026-10-14 — Codex — F16 : distinguer historique vide et échec de lecture — LOCAL NOT DEPLOYED
+
+- Base `origin/main` `232b2cf`, branche et worktree isolés `codex/history-read-errors`. L'Historique ignorait `error` et remplaçait une réponse sans données par `[]` ; l'état vide exige désormais une lecture réussie du filtre courant. Alerte FR/EN et bouton Réessayer existant, sans nouvelle carte ni style global.
+- Lecture isolée dans `useSessionHistory` : les sessions connues restent affichées après une erreur ; un changement de filtre non abouti les identifie comme résultats précédents. Réessayer repart de 0 pour le filtre, ou du nombre actuel de lignes pour la page suivante. Verrou des lectures simultanées, générations et identité compte/filtre : réponses anciennes, A → B → A et réponses après démontage ignorées.
+- Pages de 25, tri `started_at DESC, id DESC`, filtre des cours archivés et sélection des seuls cours actifs pour l'édition conservés. Handlers d'édition/suppression, données enregistrées, calculs statistiques, XP et streaks inchangés. Aucun appel distant de test, migration, dépendance ou configuration modifiée.
+- 17 nouvelles régressions du vrai composant/hook ; 53/53 tests ciblés réussis, dont la préservation des historiques et les portions de jours. Test de contrat existant adapté au déplacement de la requête dans le hook. Lint propre ; build production réussi, avertissement HEIC de 3 MB non précaché préexistant.
+- Chrome réel et client Supabase sur API locale factice : 64 états à 1440/390 px, FR/EN, clair/sombre ; sessions, compte vide, erreur initiale, pagination en échec, réessais, ancien filtre conservé puis remplacé et réponse tardive ignorée. Aucun débordement horizontal ni exception de page ; focus clavier et cible Réessayer de 44 px vérifiés, bouton accessible au-dessus de la navigation mobile. Captures et scénario reproductible dans le dossier `f16-history-read-errors` des visualizations de ce chat. Pas d'iPhone/Safari physique ni lecteur d'écran ; aucun push, merge ou déploiement.
+
 ## 2026-10-14 — Codex — Audit visuel : premier lot de corrections locales — LOCAL NOT DEPLOYED
 
 - Base `origin/main` `849404d`, branche et worktree isolés `codex/audit-visual-fixes`. F07/F08/F09/F10/F11/F13/D01 revalidés sur cette base. Aucun changement métier, XP, timer, données, dépendance ou configuration ; aucun push/déploiement.

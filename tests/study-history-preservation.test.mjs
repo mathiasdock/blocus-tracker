@@ -184,7 +184,8 @@ test("all historical consumers use complete reads; ordinary removal archives, pe
   const stats=read("../pages/stats.js");
   assert.match(stats,/select\("id, name, color, archived_at"\)/);
   assert.match(stats,/if \(error \|\| !data\) \{ toast\(t\("courseEditor.restoreError"\)/);
-  assert.match(read("../pages/historique.js"),/order\("started_at", \{ ascending: false \}\)\s*\.order\("id", \{ ascending: false \}\)/);
+  assert.match(read("../pages/historique.js"), /useSessionHistory\(user\?\.id, filterCourse\)/);
+  assert.match(read("../hooks/useSessionHistory.js"),/order\("started_at", \{ ascending: false \}\)\s*\.order\("id", \{ ascending: false \}\)/);
   for(const key of ["stats.archivedDeleteKept","stats.archivedDeleteTitle","courseEditor.archiveConfirmHelp"]){
     assert.equal((read("../lib/i18n.js").match(new RegExp(`"${key}":`,"g"))||[]).length,2,key);
   }

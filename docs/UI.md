@@ -18,6 +18,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Focus environments (branch V1; migration/deployment pending) | `components/focus/*`, `hooks/useFocusEnvironment.js`, `lib/focusEnvironments.mjs`, `lib/focusPreferences.mjs`; `ChronoFocus` and `/progression` — `docs/focus-environments.md`, `.impeccable/surfaces/pages-progression-js.md` |
 | Mini-chrono (desktop V1, local) | `components/focus/FocusMiniTimer.js` + `.module.css`, mounted by `ChronoFocus`; native Document PiP, same chrono and equipped environment through `FocusEnvironmentRenderer`; compact shared shaders, no second clock/preference — `docs/mini-timer.md` |
 | Shared daily study goal | `lib/dailyStudyGoal.mjs` — today's positive planned durations, otherwise 2 h; Stats / Timer |
+| Session history and read-error recovery | `pages/historique.js`, `hooks/useSessionHistory.js`, existing `TodaySessionsCard` — `.impeccable/surfaces/pages-historique-js.md`; 25-row stable pagination, last-known rows and scoped retry |
 | Goal-linked mascot position | `components/stats/StatsHero.js` |
 | Course palette | `lib/courseColors.js`; saved `course.color` is identity |
 | Imported academic context | `components/AcademicDeadlines.js`, `components/useAcademicCalendar.js`, `lib/planningAcademicEvents.mjs` — `docs/university-calendar-planning.md` |

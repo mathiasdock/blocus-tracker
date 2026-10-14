@@ -12,8 +12,7 @@ import { mergeStudyDays } from "../lib/studyDays.mjs";
 import { daysLostByChange } from "../lib/sessionDayImpact.mjs";
 import { invalidateStreakFreezeUpkeep } from "../lib/streakFreezes";
 import { notifyXPChanged } from "../lib/xpEvents";
-
-const PAGE_SIZE = 25;
+import { useSessionHistory } from "../hooks/useSessionHistory";
 
 // « Tout voir » depuis le Chrono arrive ici. Les sessions sont rangées par
 // jour, chaque jour dans la même carte que « Sessions du jour » : mêmes lignes,
@@ -23,43 +22,15 @@ export default function Historique() {
   const { user } = useAuth();
   const { t, lang } = useI18n();
   const { toast } = useToast();
-  const [sessions, setSessions] = useState([]);
   const [courses, setCourses] = useState([]);
   const [filterCourse, setFilterCourse] = useState("");
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const { sessions, setSessions, hasMore, loading, error: loadError, empty, previousFilter, loadMore, retry } = useSessionHistory(user?.id, filterCourse);
   const locale = lang === "en" ? "en-US" : "fr-BE";
-
-  const fetchSessions = useCallback(async (offset, reset) => {
-    if (!user) return;
-    setLoading(true);
-    let q = supabase
-      .from("sessions")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("started_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (filterCourse) q = q.eq("course_id", filterCourse);
-    const { data } = await q;
-    const rows = data || [];
-    setSessions(prev => reset ? rows : [...prev, ...rows]);
-    setHasMore(rows.length === PAGE_SIZE);
-    setLoading(false);
-  }, [user, filterCourse]);
 
   useEffect(() => {
     if (!user) return;
     supabase.from("courses").select("*").eq("user_id", user.id).then(({ data }) => setCourses(data || []));
   }, [user]);
-
-  useEffect(() => {
-    fetchSessions(0, true);
-  }, [fetchSessions]);
-
-  function loadMore() {
-    fetchSessions(sessions.length, false);
-  }
 
   // Le Chrono garde ses chiffres en cache : une correction faite ici doit s'y
   // voir au retour, pas au prochain rechargement.
@@ -135,6 +106,17 @@ export default function Historique() {
 
   const activeCourses = courses.filter(c => !c.archived_at);
   const totalSecs = sessions.reduce((a, s) => a + s.duration_seconds, 0);
+  const errorNotice = loadError && (
+    <div className="flex flex-wrap items-center gap-3 py-4">
+      <p role="alert" className="text-sm" style={{ color: "var(--bt-danger)" }}>
+        {t("hist.loadError")}
+        {sessions.length > 0 && ` ${t("hist.keptSessions")}`}
+      </p>
+      <button type="button" onClick={retry} className="btn-ghost min-h-11 px-4 text-sm">
+        {t("plan.retryLoad")}
+      </button>
+    </div>
+  );
 
   return (
     <Layout>
@@ -168,7 +150,14 @@ export default function Historique() {
           )}
         </div>
 
-        {sessions.length === 0 && !loading ? (
+        {previousFilter && (
+          <p role="status" className="mb-4 text-sm" style={{ color: "var(--bt-text-2)" }}>
+            {t("hist.previousFilter")}
+          </p>
+        )}
+        {loadError?.reset && errorNotice}
+
+        {empty ? (
           <div className="card p-10 text-center text-sm" style={{ color: "var(--bt-text-3)" }}>{t("hist.empty")}</div>
         ) : (
           <div className="grid gap-4">
@@ -194,7 +183,8 @@ export default function Historique() {
         )}
 
         {loading && <LoadingScreen compact />}
-        {hasMore && !loading && (
+        {!loadError?.reset && errorNotice}
+        {hasMore && !loading && !loadError && (
           <div className="text-center mt-4">
             <button onClick={loadMore} className="btn-ghost text-sm px-6">{t("hist.loadMore")}</button>
           </div>
