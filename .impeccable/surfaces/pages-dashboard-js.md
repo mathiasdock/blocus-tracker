@@ -39,6 +39,14 @@ Le chrono est le centre de gravité. Sur mobile, l'ordre est Chrono → Missions
 
 ## Environnements Focus
 
+**Consignes de missions (2026-10-14, local).** Sous 640 px, les titres des
+`MissionRow` et le titre/sous-titre de `ChallengeStrip` reviennent à la ligne,
+y compris pour un nom de cours long sans espace. Les récompenses gardent
+leur largeur non réductible et leur position à droite. Seule la hauteur
+nécessaire au texte augmente ; typographie, couleurs, états acquis, choix du
+cours et XP sont conservés. Vérifié aussi dans le résumé des missions
+déplié. Dès 640 px, le comportement de troncature existant est préservé.
+
 **Environnements Focus V1 (catalogue finalisé le 2026-10-13).** Le
 sélecteur se place en haut à droite, face au son, avec quatre aperçus statiques :
 Forêt/Wave gardent leurs dégradés de palette, Zenitho montre une vraie capture

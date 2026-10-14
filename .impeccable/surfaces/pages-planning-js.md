@@ -8,6 +8,13 @@ Today (a compact ink strip) answers what remains and when the next exam is. The 
 
 ## Decisions
 
+- Scoped contrast fixes (2026-10-14, local): inactive Day/Week/Month labels
+  use `--bt-text-1` through Planning's local `--bt-segment-inactive-text`;
+  other SegmentedGlide consumers retain their existing default. The track,
+  thumb, type, geometry and spring stay intact. Ratios: 13.52 light / 12.78 dark.
+  Planned time on an exam month cell uses `--bt-exam-ink` (6.33 / 8.42),
+  preserving the warm exam background and existing small-cell hiding rules.
+
 - Today contains at most two unfinished actions outside Day; Day provides the full executable agenda. No duplicated future-event chip list.
 - The rare reminder for an exam within seven days without planned preparation is the mascot coach (DESIGN.md, event coach), anchored to Today's next exam as a dismissible overlay: « Examen demain. » the day before. It never becomes another sidebar row or changes the exam datum. Phones: the character sits on Today's bottom edge at the right, its bubble above it beside the exam's last lines, ending above « Ajouter un objectif ». Desktop: it peeks below the card's bottom-right corner with the bubble to its left. Both cover only the empty side of the exam button, never its text. When Today lists its next actions (calendar on another period), the phone coach stands above that list (`data-coach-floor`), never in front of its ▶ buttons.
 - Exams win the cell background: dedicated `--bt-exam-*` warm sand surface and straight-edged terracotta calendar stamp with explicit label or compact glyph/count. No vertical rail. `PlanningExamMark` is shared across Month, Week, Day, Today and day detail. Course identity stays secondary. Selection and Today remain independently green; no danger or pause tokens.

@@ -125,7 +125,8 @@
 .bt-course-exam { display: grid; justify-items: start; gap: 2px; margin-top: 6px; padding: 10px 12px; border: 1px solid var(--bt-exam-border); border-radius: var(--bt-r-inset); background: var(--bt-exam-bg); color: var(--bt-text-1); }
 .bt-course-exam time { font-size: 15px; font-weight: 700; }
 .bt-course-exam time::first-letter { text-transform: uppercase; }
-.bt-course-exam-add { min-height: 36px; color: var(--bt-accent-text); font-size: 14px; font-weight: 700; text-align: left; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.bt-course-exam-add { min-height: 36px; color: var(--bt-brand-deep); font-size: 14px; font-weight: 700; text-align: left; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.dark .bt-course-exam-add { color: var(--bt-brand-text); }
 .bt-course-exam-add:disabled { color: var(--bt-text-2); text-decoration: none; cursor: default; }
 
 .bt-course-attachment { margin-top: 6px; }

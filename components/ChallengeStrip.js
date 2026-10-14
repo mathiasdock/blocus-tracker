@@ -40,12 +40,12 @@ export default function ChallengeStrip({ challenge, onPickCourse, className = ""
       </span>
 
       <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-sm font-bold leading-snug"
+        <span className="block [overflow-wrap:anywhere] text-sm font-bold leading-snug sm:truncate sm:[overflow-wrap:normal]"
           style={{ color: "var(--bt-text-1)", textDecoration: done ? "line-through" : "none" }}>
           {title}
         </span>
         {body && (
-          <span className="block truncate text-xs leading-snug" style={{ color: "var(--bt-text-3)" }}>
+          <span className="block [overflow-wrap:anywhere] text-xs leading-snug sm:truncate sm:[overflow-wrap:normal]" style={{ color: "var(--bt-text-3)" }}>
             {body}
           </span>
         )}

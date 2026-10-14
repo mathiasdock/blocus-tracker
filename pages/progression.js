@@ -55,7 +55,7 @@ function LadderRow({ level, current, reached, t }) {
       <span className="font-num flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-extrabold tabular-nums"
         style={{
           backgroundColor: current ? "var(--bt-progress-fill)" : reached ? "var(--bt-accent-bg)" : "var(--bt-subtle)",
-          color: current ? "var(--bt-on-brand)" : reached ? "var(--bt-progress-text)" : "var(--bt-text-4)",
+          color: current ? "var(--bt-on-brand)" : reached ? "var(--bt-progress-text)" : "var(--bt-text-3)",
         }}>
         {level.level}
       </span>
@@ -70,7 +70,7 @@ function LadderRow({ level, current, reached, t }) {
         </span>
       ) : (
         <span className="font-num shrink-0 text-xs tabular-nums"
-          style={{ color: reached ? "var(--bt-text-4)" : "var(--bt-text-3)" }}>
+          style={{ color: "var(--bt-text-3)" }}>
           {level.xp.toLocaleString()}
         </span>
       )}

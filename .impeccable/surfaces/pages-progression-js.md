@@ -89,6 +89,13 @@ application theme and the global forest identity is unchanged.
 
 ## Verification and unresolved decisions
 
+Scoped audit fixes (2026-10-14, local): future level numerals and earned XP
+thresholds use `--bt-text-3`, with no change to the ladder geometry, levels or
+XP. All 30 numeral/threshold pairs were checked in FR/EN and both themes;
+minimum ratios are 4.62 light / 5.36 dark. Shared daily mission labels wrap
+below 640px (including long course names at 320px), keeping the XP column
+fixed. Desktop truncation and Focus environments remain unchanged.
+
 The seven feature suites pass 88 local tests, including actual migration execution
 in PGlite, level-11/level-19 rejection and level-12/level-20 eligibility, permanent
 unlocks, no auto-equip, upgrade of both earlier v86 constraint sets with choices

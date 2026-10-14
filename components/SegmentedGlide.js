@@ -60,7 +60,7 @@ export default function SegmentedGlide({
             style={{
               color: active
                 ? (tone === "accent" ? "var(--bt-selected-text)" : "var(--bt-text-1)")
-                : "var(--bt-text-2)",
+                : "var(--bt-segment-inactive-text, var(--bt-text-2))",
             }}>
             {o.label}
           </button>

@@ -26,4 +26,10 @@ Motion pass (2026-10-05): desktop link hover/selection transitions only the colo
 
 ## Verification
 
+Scoped contrast pass (2026-10-14, local): Social/Admin headings use `--bt-text-2`
+on the sidebar surface. The selected Profile username uses `--bt-selected-text`;
+the unselected username retains `--bt-text-3`. Desktop grouping, type sizes,
+232px width, selected mint background and all navigation motion are preserved.
+Measured light/dark ratios: headings 5.08/6.64; selected username 5.41/9.38.
+
 Check 320/390px and desktop, FR/EN, light/dark, keyboard focus, reduced motion, badge space and guest/authenticated states. The mobile nav must not cover the final actionable row; the existing app shell provides the content bottom spacing and safe-area placement.

@@ -17,7 +17,10 @@
   --bt-exam-stamp-text: #3b2419;
 }
 .bt-planning-next-exam { --bt-exam-stamp-bg: #d5a57d; --bt-exam-stamp-text: #3b2419; }
-.bt-planning { --bt-segment-track: var(--bt-border); }
+.bt-planning {
+  --bt-segment-track: var(--bt-border);
+  --bt-segment-inactive-text: var(--bt-text-1);
+}
 
 /* ── Action hierarchy ─────────────────────────────────────────
    One primary per surface (.btn-primary). Secondary actions are outlined or
@@ -242,6 +245,7 @@ html body .bt-quick-add-input:focus-visible { outline: none !important; box-shad
 .bt-plan-month-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-inline-size: 0; }
 /* Planned study time: the month's compact load signal (Week compares it). */
 .bt-plan-month-load { display: none; font-size: 11px; font-weight: 700; color: var(--bt-text-2); }
+.bt-planning .bt-plan-day-cell[data-fill="exam"] .bt-plan-month-load { color: var(--bt-exam-ink); }
 .bt-plan-adjacent-month-label { color: var(--bt-text-2); font-size: 10px; font-weight: 700; line-height: 1; text-transform: uppercase; letter-spacing: .02em; }
 .bt-planning-month-exam { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-inline-size: 0; color: var(--bt-text-1); font-size: 12px; line-height: 1.3; }
 .bt-plan-month-exam-name { display: flex; align-items: center; gap: 4px; min-inline-size: 0; max-inline-size: 100%; font-weight: 700; }

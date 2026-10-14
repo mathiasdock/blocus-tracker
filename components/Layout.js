@@ -373,7 +373,7 @@ export default function Layout({ children }) {
           {/* Social section */}
           <div className="pt-4 pb-1.5 px-3">
             <p className="text-[10px] font-semibold uppercase tracking-wider"
-              style={{ color: "var(--bt-text-4)" }}>Social</p>
+              style={{ color: "var(--bt-text-2)" }}>Social</p>
           </div>
           <div className="space-y-0.5">
             {NAV_SOCIAL.map(n => renderDesktopNavItem(n))}
@@ -384,7 +384,7 @@ export default function Layout({ children }) {
             <>
               <div className="pt-4 pb-1.5 px-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{ color: "var(--bt-text-4)" }}>Admin</p>
+                  style={{ color: "var(--bt-text-2)" }}>Admin</p>
               </div>
               <div className="space-y-0.5">
                 {renderDesktopNavItem(NAV_ADMIN)}
@@ -429,7 +429,7 @@ export default function Layout({ children }) {
                   <p className="text-sm font-semibold truncate" style={{ color: "var(--bt-text-1)" }}>
                     {displayName(profile)}
                   </p>
-                  <p className="text-xs truncate" style={{ color: "var(--bt-text-3)" }}>
+                  <p className="text-xs truncate" style={{ color: router.pathname === "/profile" ? "var(--bt-selected-text)" : "var(--bt-text-3)" }}>
                     @{profile?.pseudo}
                   </p>
                 </div>

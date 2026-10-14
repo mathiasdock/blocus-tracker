@@ -37,7 +37,7 @@ export function MissionRow({ row, t, lead = false }) {
             <path d="M12 3l2.6 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.8 6.6 19.7l1.2-6.1L3.3 9.4l6.1-.8z" />
           </Glyph>
         )}
-        <span className="min-w-0 flex-1 truncate">{missionText(t, row).title}</span>
+        <span className="min-w-0 flex-1 [overflow-wrap:anywhere] sm:truncate sm:[overflow-wrap:normal]">{missionText(t, row).title}</span>
       </span>
       <span className="font-num shrink-0 text-xs font-bold tabular-nums"
         style={{ color: done ? "var(--bt-text-3)" : "var(--bt-progress-text)" }}>

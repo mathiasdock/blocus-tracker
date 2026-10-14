@@ -42,6 +42,12 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 
 ## Verification
 
+Scoped exam-action contrast fix (2026-10-14, local): `--bt-brand-deep` on the
+light exam surface, existing `--bt-brand-text` in dark. Measured ratios are
+7.42 light / 6.69 dark. The shared guest preview receives the same ink.
+Underline, typography, warm ground, dimensions, focus and import behavior
+are preserved; no data or membership logic changed.
+
 Livré le 17 septembre 2026.
 
 - Base : `supabase/tests/course_spaces_security.sql`, 46 contrôles (adhésion, RLS, modération, anciennes données), tout annulé, aucune trace ; `resolve_my_course_links()` ≈ 0,3 s pour le plus gros établissement (transaction annulée).

@@ -1,5 +1,14 @@
 # AI_CHANGELOG.md
 
+## 2026-10-14 — Codex — Audit visuel : premier lot de corrections locales — LOCAL NOT DEPLOYED
+
+- Base `origin/main` `849404d`, branche et worktree isolés `codex/audit-visual-fixes`. F07/F08/F09/F10/F11/F13/D01 revalidés sur cette base. Aucun changement métier, XP, timer, données, dépendance ou configuration ; aucun push/déploiement.
+- F07 : Social/Admin en `text-2`. F08 : numéros futurs et seuils atteints en `text-3`. F09 : encre inactive `text-1` locale au Planning, rail et glissière conservés. F10 : action d'examen en `brand-deep` clair / `brand-text` sombre. F11 : pseudo du Profil actif en `selected-text`. D01 : temps prévu d'une case examen en `exam-ink`. Aucune nouvelle couleur ni modification de token global.
+- F13 : retour à la ligne sous 640 px dans les lignes de mission et la bande Défi du jour, sans réduction/déplacement de la colonne XP. Les noms de cours longs augmentent seulement la hauteur nécessaire ; composition et troncature desktop conservées.
+- Chrome réel, builds de production hors ligne et fixtures locales identiques avant/après : 1440 × 900 et 390 × 844, FR/EN, clair/sombre sur Profil, Progression, Planning, Communautés et Dashboard ; consignes longues à 320 × 844 dans les quatre combinaisons langue/thème. Trois vues Planning, hover/focus de l'action examen et missions du Dashboard dépliées contrôlés. Aucun débordement horizontal ni exception de page dans la matrice principale. Ni iPhone/Safari physique ni données de production testés.
+- Contrastes minimums clair/sombre après correction : F07 5,08/6,64 ; F08 4,62/5,36 ; F09 13,52/12,78 ; F10 7,42/6,69 ; F11 5,41/9,38 ; D01 6,33/8,42. Texte des consignes mesurées inchangé : minimum 5,08/5,81. Le temps prévu mensuel reste masqué sur les petites cellules, comme avant.
+- Validation : 75/75 tests ciblés (couleurs, missions, Planning, examens et communautés), lint sans avertissement, build réussi ; avertissement préexistant du chunk HEIC de 3 MB non précaché. Scan statique scoped : 26 avis préexistants, aucune erreur bloquante. Captures comparatives et mesures dans le dossier de livraison `lot-1-corrections-visuelles` sous les visualizations de ce chat.
+
 ## 2026-10-14 — Claude Code — Site public : /legal sur la mise en page publique — PRODUCTION
 
 - **Déployé en production le 2026-10-14** après validation de Mathias : `main` a6859ab → 24eb96d en avance rapide (aucun commit parallèle), Vercel `dpl_8o2LfF3N4gN6KZDdcXpdZD5nHF96` READY, alias `www.blocus-tracker.com`. Vérifié en production :
