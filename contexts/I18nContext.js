@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
 import { translate } from "../lib/i18n";
-import { contentLangForPath } from "../lib/seo";
-import { useAuth } from "./AuthContext";
+import {
+  LANG_PARAM, displayLang, forgetJourney, isEntryPath, langFromParam, readJourney, rememberJourney,
+} from "../lib/publicRoutes.mjs";
 
 const I18nContext = createContext({
   lang: "fr",
@@ -45,11 +46,20 @@ function readPref() {
   return "auto";
 }
 
+function sessionStore() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function I18nProvider({ children }) {
-  const { pathname } = useRouter();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { pathname } = router;
   const [deviceLang, setDeviceLang] = useState(null);    // langue de l'appareil, connue au montage
   const [langPref, setLangPrefState] = useState("auto"); // préférence (auto/fr/en)
+  const [journeyLang, setJourneyLang] = useState(null);  // parcours commencé sur une page anglaise
 
   // Résolu au montage (client) : navigator n'existe pas au rendu serveur, on
   // part donc de "fr" puis on corrige ici — même schéma que l'ancien restore.
@@ -57,6 +67,31 @@ export function I18nProvider({ children }) {
     setLangPrefState(readPref());
     setDeviceLang(detectDeviceLang());
   }, []);
+
+  // Parcours d'entrée (lib/publicRoutes.mjs) : une page anglaise envoie vers
+  // la connexion ou l'inscription avec ?lang=en. La langue est gardée pour
+  // cet onglet, puis retirée de l'adresse ; elle tient pendant le retour de
+  // Google et les premiers réglages, et s'efface dès qu'on quitte les pages
+  // d'entrée. Elle n'écrit jamais bt_lang_pref.
+  const entry = isEntryPath(pathname);
+  const handoff = entry ? langFromParam(router.query?.[LANG_PARAM]) : null;
+  useEffect(() => {
+    if (!router.isReady) return;
+    const storage = sessionStore();
+    if (!entry) {
+      forgetJourney(storage);
+      setJourneyLang(null);
+      return;
+    }
+    if (handoff) {
+      rememberJourney(storage, handoff);
+      setJourneyLang(handoff);
+      const { [LANG_PARAM]: _handoff, ...query } = router.query;
+      router.replace({ pathname: router.pathname, query }, undefined, { shallow: true, scroll: false });
+      return;
+    }
+    setJourneyLang(readJourney(storage));
+  }, [router, entry, handoff]);
 
   const setLangPref = useCallback((pref) => {
     const p = SUPPORTED.includes(pref) ? pref : "auto";
@@ -66,6 +101,9 @@ export function I18nProvider({ children }) {
       else localStorage.setItem(PREF_KEY, p);
     } catch {}
     if (p === "auto") setDeviceLang(detectDeviceLang());
+    // Un choix explicite remplace la langue du parcours en cours.
+    forgetJourney(sessionStore());
+    setJourneyLang(null);
   }, []);
 
   // Compat : setLang("fr"|"en") = choix manuel (ancienne API).
@@ -78,23 +116,23 @@ export function I18nProvider({ children }) {
   const appLang = langPref === "auto" ? (deviceLang || "fr") : langPref;
 
   // Langue AFFICHÉE. Une page publique indexable parle la langue de son
-  // adresse (lib/seo.js) à tout visiteur non connecté — donc aussi à Google,
-  // qui exécute les pages avec un navigateur américain. Quand l'appareil
-  // pilotait aussi ces pages, Google indexait un titre français sur un texte
-  // anglais. Un choix manuel reste respecté partout ; un compte connecté garde
-  // la langue de l'app, comme avant, y compris sur ces pages.
-  const routeLang = contentLangForPath(pathname);
-  const lang = routeLang && langPref === "auto" && !user ? routeLang : appLang;
+  // adresse, à tout le monde : visiteur, compte connecté, choix manuel,
+  // Google — qui exécute les pages avec un navigateur américain et indexait
+  // un titre français sur un texte anglais quand l'appareil pilotait ces
+  // pages. Les pages d'entrée suivent un parcours commencé en anglais ;
+  // l'app suit appLang.
+  const lang = displayLang({ pathname, journeyLang, appLang });
 
-  // _document.js sert toujours lang="fr" : on aligne la page sur la langue affichée.
+  // _document.js sert la langue de l'adresse (français pour l'app) : on
+  // aligne la page sur la langue affichée, y compris après une navigation.
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
 
   const t = useCallback((key) => translate(lang, key), [lang]);
 
-  // Le fournisseur se redessine désormais à chaque changement d'auth : sans
-  // mémo, tous les textes de l'app se redessineraient avec lui.
+  // Sans mémo, tous les textes de l'app se redessineraient à chaque rendu du
+  // fournisseur.
   const value = useMemo(
     () => ({ lang, appLang, langPref, setLangPref, setLang, t }),
     [lang, appLang, langPref, setLangPref, setLang, t],

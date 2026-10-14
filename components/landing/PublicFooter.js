@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useI18n } from "../../contexts/I18nContext";
 import { useConsent } from "../../contexts/ConsentContext";
 import { getLandingContent } from "../../lib/landingContent";
+import { publicHref } from "../../lib/publicRoutes.mjs";
 import s from "./Landing.module.css";
 
 // Pied de page du site public. Il porte les liens de toutes les pages
@@ -16,7 +17,7 @@ export default function PublicFooter({ signupHref = "/signup" }) {
       <div className={s.container}>
         <div className={s.footerGrid}>
           <div>
-            <Link href="/" className={`${s.wordmark} ${s.display}`}>
+            <Link href={publicHref("/", lang)} className={`${s.wordmark} ${s.display}`}>
               blocus<span className={s.wordmarkDot}>·</span>tracker
             </Link>
             <p className={s.footerTagline}>{c.tagline}</p>
@@ -27,7 +28,7 @@ export default function PublicFooter({ signupHref = "/signup" }) {
               <ul className={s.footerLinks}>
                 {column.links.map(([href, label]) => (
                   <li key={href}>
-                    <Link href={href === "/signup" ? signupHref : href} className={s.footerLink}>{label}</Link>
+                    <Link href={publicHref(href === "/signup" ? signupHref : href, lang)} className={s.footerLink}>{label}</Link>
                   </li>
                 ))}
               </ul>

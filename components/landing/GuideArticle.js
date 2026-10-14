@@ -18,9 +18,8 @@ import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 //
 // Le texte, les titres et les liens sont ceux de lib/seoLandingPages(.En).js,
 // mot pour mot : seule la mise en page change. Meta et JSON-LD restent dans
-// SeoHead (lib/seo.js). La langue suit la même règle que SeoLandingPage :
-// français pour tout visiteur non connecté, anglais sur choix manuel ou pour
-// un compte anglophone (I18nContext).
+// SeoHead (lib/seo.js). La langue est celle de l'adresse (I18nContext) : une
+// adresse française montre toujours le français.
 //
 // Peu de surfaces, chacune pour une raison : les vraies captures du produit,
 // l'encadré « dans Blocus Tracker » à côté de l'article et l'appel final. Le

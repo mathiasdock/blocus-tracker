@@ -6,6 +6,7 @@ import { Field, FieldGroup, FormNote, PasswordField, messageId } from "../compon
 import MascotGuide from "../components/auth/MascotGuide";
 import GoogleAuthButton from "../components/auth/GoogleAuthButton";
 import AuthCaptcha, { useAuthCaptcha } from "../components/auth/AuthCaptcha";
+import AuthLanguageChoice from "../components/auth/AuthLanguageChoice";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
@@ -16,7 +17,7 @@ import { supabase } from "../lib/supabaseClient";
 
 export default function Login() {
   const { signIn, user, loading, profileStatus } = useAuth();
-  const { t, lang } = useI18n();
+  const { t, appLang } = useI18n();
   const router = useRouter();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
@@ -67,8 +68,10 @@ export default function Login() {
       const { error: signInError } = await signIn(loginId.trim(), password, captcha.token);
       if (!signInError) {
         // The next recovery email can use this account's last known app
-        // language. This does not alter the login result or redirect.
-        void syncAuthEmailLanguage(supabase, lang);
+        // language. This does not alter the login result or redirect. The
+        // app's language, not this page's: a sign-in started from an English
+        // page may be shown in English while the app follows the device.
+        void syncAuthEmailLanguage(supabase, appLang);
       }
       if (signInError === "LOGIN_INVALID_CREDENTIALS") {
         setError(t("login.invalidCredentials"));
@@ -162,6 +165,7 @@ export default function Login() {
       </div>
 
       <p className="bt-auth-footnote">{t("login.repairHint")}</p>
+      <AuthLanguageChoice />
     </AuthShell>
   );
 }

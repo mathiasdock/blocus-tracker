@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { brand } from "../lib/colorTokens.cjs";
-import { BRAND_COLOR, SITE_AUTHOR, SITE_NAME, getSeoForPath, structuredDataForPath } from "../lib/seo";
+import { BRAND_COLOR, SITE_AUTHOR, SITE_NAME, absoluteUrl, getSeoForPath, structuredDataForPath } from "../lib/seo";
 
 function safeJsonLd(data) {
   return JSON.stringify(data).replace(/</g, "\\u003c");
@@ -31,6 +31,11 @@ export default function SeoHead() {
       <meta name="theme-color" content={chromeColor} />
       <meta name="google-site-verification" content="mhpsTs_xVeQeT2qhnbJfEEV5IehHEAK6LHAUaFZDQ9U" />
       <link rel="canonical" href={seo.canonicalUrl} />
+      {/* Les deux versions d'une page, réciproques, seulement quand elles
+          existent toutes les deux (lib/publicRoutes.mjs). Pas de x-default. */}
+      {seo.alternates && Object.entries(seo.alternates).map(([hreflang, path]) => (
+        <link key={`alternate-${hreflang}`} rel="alternate" hrefLang={hreflang} href={absoluteUrl(path)} />
+      ))}
 
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:title" content={seo.title} />
@@ -40,14 +45,14 @@ export default function SeoHead() {
       <meta property="og:image" content={seo.image} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta property="og:image:alt" content="Blocus Tracker, application d'étude pour étudiants" />
+      <meta property="og:image:alt" content={seo.imageAlt} />
       <meta property="og:locale" content={seo.locale} />
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={seo.title} />
       <meta name="twitter:description" content={seo.description} />
       <meta name="twitter:image" content={seo.image} />
-      <meta name="twitter:image:alt" content="Blocus Tracker, application d'étude pour étudiants" />
+      <meta name="twitter:image:alt" content={seo.imageAlt} />
 
       {jsonLd.map((item, index) => (
         <script

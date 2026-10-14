@@ -263,6 +263,28 @@
   color: var(--bt-text-2);
 }
 
+/* Language, last line of sign-in and sign-up: two quiet choices, the
+   current one in the reading colour and weight (never colour alone). */
+.bt-auth-language {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 18px;
+}
+.bt-auth-language button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bt-text-2);
+}
+.bt-auth-language button[aria-pressed="true"] { color: var(--bt-text-1); font-weight: 800; }
+.bt-auth-language button:hover { color: var(--bt-text-1); text-decoration: underline; text-underline-offset: 3px; }
+.bt-auth-language button:focus-visible { outline: 2px solid var(--bt-accent); outline-offset: 2px; }
+
 .bt-form-note {
   margin-top: 10px;
   font-size: 13px;

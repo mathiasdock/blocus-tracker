@@ -29,7 +29,7 @@ const GUEST_SPACE = "bt_guest_dashboard_v2";
 const QUEUE_KEY = "bt_pending_sessions_v1";
 const ACCOUNT = { id: "11111111-2222-4333-8444-555555555555" };
 
-function makeEnv({ user = null, loading = false, deviceLanguage = "en-US" } = {}) {
+function makeEnv({ user = null, loading = false, deviceLanguage = "en-US", pathname = "/pomodoro" } = {}) {
   const store = new Map();
   const localStorage = {
     getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -72,7 +72,7 @@ function makeEnv({ user = null, loading = false, deviceLanguage = "en-US" } = {}
     "lib/supabaseClient": { supabase: { from: query, rpc: (...args) => query(`rpc:${args[0]}`) } },
     "lib/sensoryFeedback": { playSensoryCue: (c) => env.cues.push(c), triggerHaptic: noop },
     "lib/useWakeLock": { useWakeLock: noop },
-    "next/router": { useRouter: () => ({ pathname: "/pomodoro", asPath: "/pomodoro" }) },
+    "next/router": { useRouter: () => ({ pathname, asPath: pathname }) },
     "next/link": { __esModule: true, default: ({ href, children, ...rest }) => h("a", { href, ...rest }, children) },
     "next/image": { __esModule: true, default: (props) => h("img", { src: props.src, alt: props.alt }) },
     "next/dynamic": { __esModule: true, default: () => (props) => h("chrono-focus", { open: "1", onClose: props.onClose, noCourseLabel: props.noCourseLabel }) },
@@ -453,10 +453,18 @@ test("invitation : vue sans réponse — rien pendant 7 jours, puis une nouvelle
   page.close();
 });
 
-test("invitation : en anglais sur choix manuel ; jamais si l'appareil n'a pas pu garder la session", () => {
-  const env = makeEnv();
-  env.store.set("bt_lang_pref", "en");
-  let page = mount(env);
+test("invitation : en anglais sous une adresse anglaise, pas sur choix manuel ; jamais si l'appareil n'a pas pu garder la session", () => {
+  // Le choix enregistré ne change pas la langue de l'adresse française.
+  const chosen = makeEnv();
+  chosen.store.set("bt_lang_pref", "en");
+  let page = mount(chosen);
+  assert.ok(page.button(/^Démarrer$/), "français sur /pomodoro malgré l'anglais choisi");
+  page.close();
+
+  // Une adresse anglaise : /en/pomodoro viendra (lib/publicRoutes.mjs), /en
+  // suffit à rendre la page en anglais.
+  const env = makeEnv({ pathname: "/en" });
+  page = mount(env);
   page.click(/^Start$/);
   advance(env, 20 * 60_000);
   page.click(/^Finish/);

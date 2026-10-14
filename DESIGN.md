@@ -360,6 +360,8 @@ Every page before the app — sign in, sign up, check email, forgot/reset passwo
 
 `/`, `/fonctionnalites`, `/guides`, `/faq`, the six guides and `/legal` share one header and footer (`components/landing/*`, `Landing.module.css`, copy in `lib/landingContent.js`; shipped 2026-09-27, `/legal` since 2026-10-14).
 
+- **Languages** (pilot `/en`, 2026-10-14; `docs/I18N.md`): each English page is the French page itself under an English address — same components, same captures in English. In the header, the other language is a quiet two-letter link (`EN` / `FR`, neutral, 44 px target) before "Sign in": it opens the same page in that language, never a setting. To keep one row on small phones, spacing tightens under 380 px, and under 360 px the wordmark is 14 px and "Se connecter" reads "Connexion". Sign-in and sign-up end with a two-word language choice (Français · English), the current one in the reading colour and weight.
+
 - **Legal documents** (`/legal`, `Legal.module.css`): one document visible at a time, chosen by real links (`/legal?doc=privacy|terms|cookies|notice`, the addresses the app already uses), all four in the server HTML. On a computer, the documents and the open document's sections stay beside the text; on one column, the four documents sit above it. A signed-in member gets "Back to the app" in the eyebrow line, without moving anything. No final call or mascot.
 
 - **Real product only.** Screens are captures of a demo student (never an admin account), light theme, in the page's language (`lib/siteShots.cjs`, `scripts/capture-site-shots.mjs` → `scripts/generate-site-shots.cjs`). Progress objects are drawn by the app's own components. No user counts, testimonials or invented figures.

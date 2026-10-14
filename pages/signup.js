@@ -7,6 +7,7 @@ import SpaceSheet from "../components/auth/SpaceSheet";
 import MascotGuide from "../components/auth/MascotGuide";
 import GoogleAuthButton from "../components/auth/GoogleAuthButton";
 import AuthCaptcha, { useAuthCaptcha } from "../components/auth/AuthCaptcha";
+import AuthLanguageChoice from "../components/auth/AuthLanguageChoice";
 import { PseudoStatus, isPseudoShapeValid, usePseudoAvailability } from "../components/auth/UsernameStatus";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
@@ -302,6 +303,7 @@ export default function Signup() {
       </form>
 
       <p className="bt-auth-footnote">{t("signup.noMarketing")}</p>
+      <AuthLanguageChoice />
     </AuthShell>
   );
 }

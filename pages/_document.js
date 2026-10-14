@@ -1,8 +1,12 @@
 import { Html, Head, Main, NextScript } from "next/document";
+import { publicPageLang } from "../lib/publicRoutes.mjs";
 
-export default function Document() {
+// La langue du HTML servi est celle de l'adresse pour une page publique
+// (/en → en), le français partout ailleurs. Dans l'app, I18nContext l'aligne
+// ensuite sur la langue affichée.
+export default function Document({ __NEXT_DATA__ }) {
   return (
-    <Html lang="fr">
+    <Html lang={publicPageLang(__NEXT_DATA__?.page) || "fr"}>
       <Head>
         {/* Polices : plus aucun appel a fonts.googleapis.com / fonts.gstatic.com.
             Elles sont servies depuis /fonts (voir styles/globals.css et

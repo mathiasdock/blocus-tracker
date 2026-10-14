@@ -2,6 +2,7 @@ import Link from "next/link";
 import Mascot from "../Mascot";
 import { useI18n } from "../../contexts/I18nContext";
 import { getLandingContent } from "../../lib/landingContent";
+import { publicHref } from "../../lib/publicRoutes.mjs";
 import s from "./Landing.module.css";
 
 // Dernier appel, commun aux pages publiques. La mascotte fête une fois
@@ -18,7 +19,7 @@ export default function FinalCta({ signupHref = "/signup" }) {
         <h2 id="final-title" className={`${s.finalTitle} ${s.display}`}>{c.title}</h2>
         <p className={s.finalText}>{c.text}</p>
         <div className={`${s.actions} ${s.finalActions}`}>
-          <Link href={signupHref} className={`btn btn-hero ${s.cta}`}>{c.primary}</Link>
+          <Link href={publicHref(signupHref, lang)} className={`btn btn-hero ${s.cta}`}>{c.primary}</Link>
           <Link href="/dashboard" className={`btn ${s.cta} ${s.ctaOnInk}`}>{c.secondary}</Link>
         </div>
       </div>

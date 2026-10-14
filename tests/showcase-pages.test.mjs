@@ -170,10 +170,26 @@ test("FAQ : les neuf réponses visibles, un sommaire qui mène à chacune, JSON-
   assert.deepEqual(faq.mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), plain(FAQ.map((q) => [q.q, q.a])));
 });
 
-test("les trois pages en anglais sur choix manuel, captures décrites en anglais", () => {
+test("les trois pages : français sur leur adresse même avec l'anglais choisi ; anglais sous une adresse anglaise, captures décrites en anglais", () => {
   const files = { "/fonctionnalites": "pages/fonctionnalites", "/guides": "pages/guides", "/faq": "pages/faq" };
   for (const [path, file] of Object.entries(files)) {
-    const env = makeEnv({ path, deviceLanguage: "fr-BE", langPref: "en" });
+    // Le choix enregistré se lit au montage : il ne change pas la langue de
+    // l'adresse française.
+    const chosen = makeEnv({ path, deviceLanguage: "en-US", langPref: "en" });
+    const fr = chosen.load("lib/landingContent").getLandingContent("fr");
+    {
+      const { I18nProvider } = chosen.load("contexts/I18nContext");
+      const Page = chosen.load(file).default;
+      let renderer;
+      act(() => { renderer = create(h(I18nProvider, null, h(Page))); });
+      const expected = { "/fonctionnalites": fr.features.title, "/guides": fr.guidesPage.title, "/faq": fr.faqPage.title }[path];
+      assert.equal(flat(renderer.root.findByType("h1").props.children), expected, path);
+      act(() => renderer.unmount());
+    }
+
+    // Une adresse anglaise : leur adresse /en/… viendra (lib/publicRoutes.mjs),
+    // /en suffit à rendre la page en anglais.
+    const env = makeEnv({ path: "/en", deviceLanguage: "fr-BE" });
     const content = env.load("lib/landingContent").getLandingContent("en");
     const { I18nProvider } = env.load("contexts/I18nContext");
     const Page = env.load(file).default;

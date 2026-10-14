@@ -16,10 +16,13 @@ import { isManagedOnboardingUser } from "../lib/onboarding.mjs";
 import { getLandingContent } from "../lib/landingContent";
 import { HOME_FAQ, HOME_FAQ_EN } from "../lib/seo";
 import { cleanCampaignSlug } from "../lib/campaignAttribution.mjs";
+import { publicHref } from "../lib/publicRoutes.mjs";
 
 // Accueil public. Six moments, pas plus : le hero (le vrai Chrono), ce qui
 // entoure le chrono, la régularité, les autres, trois questions, l'appel
 // final. Le détail vit sur /fonctionnalites, /guides et /faq.
+// La même page sert /en (pages/en/index.js) : la langue vient de l'adresse,
+// et chaque lien mène à la page de même langue (lib/publicRoutes.mjs).
 // Les captures montrent un étudiant de démo (jamais un compte admin), en
 // thème clair ; aucun chiffre d'utilisateurs n'est avancé.
 
@@ -75,7 +78,7 @@ export default function Home() {
               </h1>
               <p className={s.heroLead}>{c.hero.lead}</p>
               <div className={`${s.actions} ${s.heroActions}`}>
-                <Link href={signupHref} className={`btn-primary btn-raised btn-raised-action ${s.cta} ${s.ctaPrimary}`}>
+                <Link href={publicHref(signupHref, lang)} className={`btn-primary btn-raised btn-raised-action ${s.cta} ${s.ctaPrimary}`}>
                   {c.hero.primary}
                 </Link>
                 <Link href="/dashboard" className={`btn-ghost ${s.cta} ${s.ctaGhost}`}>
@@ -131,7 +134,7 @@ export default function Home() {
             </div>
 
             <p className="mt-8">
-              <Link href="/fonctionnalites" className={s.textLink}>
+              <Link href={publicHref("/fonctionnalites", lang)} className={s.textLink}>
                 {c.tour.more} <Arrow />
               </Link>
             </p>
@@ -187,7 +190,7 @@ export default function Home() {
             <div>
               <h2 id="faq-title" className={`${s.h2} ${s.display}`}>{c.faq.title}</h2>
               <p className="mt-4">
-                <Link href="/faq" className={s.textLink}>
+                <Link href={publicHref("/faq", lang)} className={s.textLink}>
                   {c.faq.more} <Arrow />
                 </Link>
               </p>

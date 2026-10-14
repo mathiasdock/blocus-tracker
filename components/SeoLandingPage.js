@@ -60,9 +60,8 @@ function BulletList({ items }) {
 // Sans `tool`, le héros est celui de tous les guides.
 export default function SeoLandingPage({ page, tool = null }) {
   const { lang } = useI18n();
-  // Contenu visible : la langue de l'adresse (français) pour tout visiteur non
-  // connecté, Google compris ; l'anglais seulement sur choix manuel ou pour un
-  // compte connecté anglophone (I18nContext). Meta/JSON-LD (SeoHead) : FR.
+  // Contenu visible : la langue de l'adresse, pour tout le monde (I18nContext).
+  // Meta/JSON-LD (SeoHead) : FR.
   const ui = UI[lang === "en" ? "en" : "fr"];
   const en = lang === "en" ? SEO_LANDING_PAGES_EN[page.path] : null;
   const p = en ? { ...page, ...en } : page;

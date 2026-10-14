@@ -23,7 +23,7 @@ const babel = { babelrc: false, configFile: false,
   plugins: [require.resolve("@babel/plugin-transform-modules-commonjs")] };
 const h = React.createElement;
 
-function makeEnv({ query = {}, isReady = false, user = null, langPref = null } = {}) {
+function makeEnv({ query = {}, isReady = false, user = null, langPref = null, pathname = "/legal" } = {}) {
   const store = new Map(langPref ? [["bt_lang_pref", langPref]] : []);
   const noop = () => {};
   const globals = {
@@ -39,7 +39,7 @@ function makeEnv({ query = {}, isReady = false, user = null, langPref = null } =
   const href = (value) => (typeof value === "string" ? value : `${value.pathname}?${new URLSearchParams(value.query)}`);
   const mocks = {
     "contexts/AuthContext": { useAuth: () => ({ user, loading: !user }) },
-    "next/router": { useRouter: () => ({ pathname: "/legal", asPath: "/legal", query, isReady }) },
+    "next/router": { useRouter: () => ({ pathname, asPath: pathname, query, isReady }) },
     "next/link": { __esModule: true, default: ({ href: to, children, replace, shallow, scroll, ...rest }) => h("a", { href: href(to), "data-replace": replace ? "1" : undefined, ...rest }, children) },
     "components/landing/PublicHeader": { __esModule: true, default: () => h("header", null, "header") },
     "components/landing/PublicFooter": { __esModule: true, default: () => h("footer", null, "footer") },
@@ -137,9 +137,22 @@ test("légal : un compte connecté retrouve le chemin de l'app, à la place du s
   assert.deepEqual(articles(html).filter((a) => !a.hidden).map((a) => a.id), ["privacy"]);
 });
 
-test("légal : en anglais sur choix manuel, tous les documents dans leur version anglaise", () => {
-  // La langue choisie s'applique après le premier rendu (I18nContext) : rendu vivant.
-  const env = makeEnv({ langPref: "en" });
+test("légal : français sur son adresse même avec l'anglais choisi ; anglais sous une adresse anglaise, tous les documents", () => {
+  // Le choix enregistré se lit après le premier rendu (I18nContext) : rendu
+  // vivant. Il ne change pas la langue d'une adresse française.
+  const chosen = makeEnv({ langPref: "en" });
+  {
+    const { I18nProvider } = chosen.load("contexts/I18nContext");
+    const Page = chosen.load("pages/legal").default;
+    let renderer;
+    act(() => { renderer = create(h(I18nProvider, null, h(Page))); });
+    assert.deepEqual(renderer.root.findAllByType("h1").map((n) => norm(flat(n.props.children))), ["Légal & confidentialité"]);
+    act(() => renderer.unmount());
+  }
+
+  // Une adresse anglaise : /en/legal viendra (lib/publicRoutes.mjs), /en
+  // suffit à rendre la page en anglais.
+  const env = makeEnv({ pathname: "/en" });
   const { LEGAL_DOCS } = env.load("lib/legal");
   const { I18nProvider } = env.load("contexts/I18nContext");
   const Page = env.load("pages/legal").default;

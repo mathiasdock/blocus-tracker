@@ -9,11 +9,12 @@ function xmlEscape(value) {
     .replace(/'/g, "&apos;");
 }
 
+// lastmod : la date réelle du contenu de chaque page (lib/seo.js), et non plus
+// la date du jour, qui annonçait chaque jour toutes les pages comme modifiées.
 function buildSitemap() {
-  const lastmod = new Date().toISOString().slice(0, 10);
   const urls = SEO_INDEXABLE_ROUTES.map((route) => `  <url>
     <loc>${xmlEscape(absoluteUrl(route.path))}</loc>
-    <lastmod>${lastmod}</lastmod>
+    <lastmod>${route.lastmod}</lastmod>
     <changefreq>${route.changefreq}</changefreq>
     <priority>${route.priority}</priority>
   </url>`).join("\n");

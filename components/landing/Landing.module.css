@@ -87,6 +87,24 @@
   transition: background-color 0.15s ease;
 }
 .loginLink:hover { background-color: var(--bt-subtle); }
+/* L'autre langue : un code de deux lettres, neutre, cible de 44 px —
+   rectangle entier (::after), pas seulement la pastille arrondie. */
+.langLink {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--bt-text-2);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.langLink::after { content: ""; position: absolute; inset: 0; }
+.langLink:hover { background-color: var(--bt-subtle); color: var(--bt-text-1); }
 .headerActions .headerCta {
   display: inline-flex;
   align-items: center;
@@ -98,9 +116,23 @@
   white-space: nowrap;
 }
 .headerCtaDesktop { display: none; }
+.loginShort { display: none; }
+/* Petits téléphones : le lien de langue tient dans la rangée — espaces et
+   marges intérieures resserrés, le lien de langue garde 44 px de cible. */
 @media (max-width: 379px) {
   .wordmark { font-size: 1rem; }
-  .headerInner { gap: 6px; }
+  .headerInner { gap: 4px; }
+  .headerActions { gap: 2px; }
+  .langLink { min-width: 40px; }
+  .langLink::after { inset: 0 -2px; }
+  .loginLink { padding: 0 2px; }
+  .headerActions .headerCta { padding: 0 9px; }
+}
+/* Sous 360 px (anciens petits téléphones) : logo plus petit, « Connexion ». */
+@media (max-width: 359px) {
+  .wordmark { font-size: 0.875rem; }
+  .loginLong { display: none; }
+  .loginShort { display: inline; }
 }
 @media (min-width: 640px) {
   .wordmark { font-size: 1.25rem; }
@@ -955,7 +987,7 @@
 /* ── Mouvement réduit : valeurs finales, sans trajet ─────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .markFill { animation: none; transform: none; }
-  .stopsFill, .stopDot, .qaChevron, .textLink svg, .guideCard, .navLink, .loginLink { transition: none; }
+  .stopsFill, .stopDot, .qaChevron, .textLink svg, .guideCard, .navLink, .loginLink, .langLink { transition: none; }
   .guideCard:hover { transform: none; }
   .qa::details-content { transition: none; }
   .demoTickOne, .demoTickTwo, .demoFocus, .demoProgress, .demoReward,

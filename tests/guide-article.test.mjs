@@ -23,7 +23,7 @@ const babel = { babelrc: false, configFile: false,
 const h = React.createElement;
 const PATH = "/planning-revision";
 
-function makeEnv({ deviceLanguage = "en-US", langPref = null } = {}) {
+function makeEnv({ deviceLanguage = "en-US", langPref = null, pathname = PATH } = {}) {
   const store = new Map(langPref ? [["bt_lang_pref", langPref]] : []);
   const noop = () => {};
   const globals = {
@@ -39,7 +39,7 @@ function makeEnv({ deviceLanguage = "en-US", langPref = null } = {}) {
   const cssModule = new Proxy({}, { get: (_, key) => (typeof key === "string" && key !== "__esModule" ? key : undefined) });
   const mocks = {
     "contexts/AuthContext": { useAuth: () => ({ user: null, loading: true }) },
-    "next/router": { useRouter: () => ({ pathname: PATH, asPath: PATH }) },
+    "next/router": { useRouter: () => ({ pathname, asPath: pathname }) },
     "next/link": { __esModule: true, default: ({ href, children, ...rest }) => h("a", { href, ...rest }, children) },
     "next/image": { __esModule: true, default: (props) => h("img", { src: props.src, alt: props.alt }) },
     "components/landing/PublicHeader": { __esModule: true, default: () => h("header", null, "header") },
@@ -183,14 +183,31 @@ test("pilote : typographie française à l'affichage seulement — le contenu et
   assert.ok(page.faq[1].q.endsWith("journée ?"), "donnée source inchangée");
 });
 
-test("pilote : français sous un navigateur anglais, anglais sur choix manuel", () => {
+// Une adresse anglaise. Les guides n'ont pas encore la leur
+// (lib/publicRoutes.mjs) : /en suffit à rendre le gabarit en anglais, comme
+// le fera leur future adresse /en/….
+const EN_ADDRESS = "/en";
+
+test("pilote : français sur son adresse, même sous un navigateur anglais ou avec l'anglais choisi ; anglais sous une adresse anglaise", () => {
   const fr = makeEnv({ deviceLanguage: "en-US" });
   const frHtml = render(fr, fr.load("pages/planning-revision").default);
   assert.match(frHtml, /<h1[^>]*>Créer un planning de révision qui tient vraiment<\/h1>/);
   assert.doesNotMatch(text(frHtml), /Build a revision plan|Short answer/);
 
-  // Le choix manuel est lu au montage (I18nContext) : rendu client.
-  const en = makeEnv({ deviceLanguage: "fr-BE", langPref: "en" });
+  // Le choix manuel est lu au montage (I18nContext) : rendu client. Il ne
+  // change pas la langue d'une adresse française.
+  const chosen = makeEnv({ deviceLanguage: "en-US", langPref: "en" });
+  {
+    const { I18nProvider } = chosen.load("contexts/I18nContext");
+    const Page = chosen.load("pages/planning-revision").default;
+    let renderer;
+    act(() => { renderer = create(h(I18nProvider, null, h(Page))); });
+    assert.equal(flat(renderer.root.findByType("h1").props.children), "Créer un planning de révision qui tient vraiment");
+    assert.doesNotMatch(flat(renderer.toJSON()), /Short answer/);
+    act(() => renderer.unmount());
+  }
+
+  const en = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS });
   const { SEO_LANDING_PAGES_EN } = en.load("lib/seoLandingPagesEn");
   const { I18nProvider } = en.load("contexts/I18nContext");
   const Page = en.load("pages/planning-revision").default;
@@ -323,9 +340,9 @@ test("stats et objectifs : meta, canonical et JSON-LD inchangés, FAQ visible = 
   }
 });
 
-test("stats et objectifs : anglais sur choix manuel, captures et textes alternatifs anglais", () => {
+test("stats et objectifs : anglais sous une adresse anglaise, captures et textes alternatifs anglais", () => {
   for (const [path, guide] of Object.entries(GUIDES)) {
-    const env = makeEnv({ deviceLanguage: "fr-BE", langPref: "en" });
+    const env = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS });
     const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
     const { I18nProvider } = env.load("contexts/I18nContext");
     const Page = env.load(guide.file).default;
@@ -504,9 +521,9 @@ test("application et blocus : meta, canonical et JSON-LD inchangés, FAQ visible
   }
 });
 
-test("application et blocus : anglais sur choix manuel, captures, étiquettes et sources anglaises", () => {
+test("application et blocus : anglais sous une adresse anglaise, captures, étiquettes et sources anglaises", () => {
   for (const path of Object.keys(LAST)) {
-    const env = makeEnv({ deviceLanguage: "fr-BE", langPref: "en" });
+    const env = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS });
     const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
     const { I18nProvider } = env.load("contexts/I18nContext");
     const Page = env.load(LAST[path].file).default;
