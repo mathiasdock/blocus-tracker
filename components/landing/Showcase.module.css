@@ -1,0 +1,365 @@
+/* ── Pages vitrines : /fonctionnalites, /guides, /faq ──────────────────────
+   Sur la grammaire de l'accueil et des guides (Landing.module.css,
+   Guide.module.css), sans en modifier une règle : l'accueil ne charge pas ce
+   fichier. Couleurs : rôles --bt-* seulement. Aucune animation ; seuls les
+   survols de liens bougent, et pas sous mouvement réduit. */
+
+/* ── Haut de page commun ─────────────────────────────────────────────── */
+.hero { padding-block: 40px 8px; }
+@media (min-width: 768px) { .hero { padding-block: 64px 16px; } }
+.heroLead { margin-top: 18px; }
+
+/* Une coche, comme « Inclus » dans les guides. */
+.check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background-color: var(--bt-brand-surface);
+  color: var(--bt-brand-text);
+}
+
+/* ── Fonctionnalités ─────────────────────────────────────────────────── */
+/* Le sommaire des six domaines : un index numéroté, pas des pastilles. */
+.index { margin-top: 32px; }
+.indexList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 20px;
+  counter-reset: feature;
+  border-top: 1px solid var(--bt-border);
+}
+@media (min-width: 900px) { .indexList { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 32px; } }
+.indexItem { counter-increment: feature; border-bottom: 1px solid var(--bt-border); }
+.indexLink {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 52px;
+  padding-block: 14px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--bt-text-1);
+}
+.indexLink::before {
+  content: counter(feature, decimal-leading-zero);
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-brand-text);
+}
+.indexLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Un domaine : un titre, une phrase, trois points — puis le vrai produit,
+   chaque fois cadré à sa façon. */
+.area { padding-block: 72px 0; scroll-margin-top: calc(63px + env(safe-area-inset-top) + 16px); }
+@media (min-width: 1024px) { .area { padding-block: 112px 0; } }
+.areaText { min-width: 0; }
+.areaTitle {
+  font-size: clamp(1.75rem, 4.6vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--bt-text-1);
+  text-wrap: balance;
+}
+.areaLead {
+  max-width: 34rem;
+  margin-top: 14px;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--bt-text-2);
+}
+@media (min-width: 768px) { .areaLead { font-size: 1.125rem; } }
+.points { display: grid; gap: 10px; margin-top: 22px; }
+.point {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--bt-text-1);
+}
+/* Grand écran : la phrase à gauche, les points à droite, au-dessus des
+   captures (Chrono, Stats). */
+@media (min-width: 1024px) {
+  .areaHeadSplit {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    column-gap: 64px;
+    align-items: end;
+  }
+  .areaHeadSplit .points { margin-top: 0; }
+}
+
+/* Le cadre des captures, celui des guides. */
+.frame {
+  display: block;
+  overflow: hidden;
+  border-radius: 16px;
+  background-color: var(--bt-bg);
+  border: 1px solid var(--bt-border);
+  box-shadow: var(--bt-elev-2);
+}
+.frame img { display: block; width: 100%; height: auto; }
+@media (min-width: 640px) { .frame { border-radius: 22px; } }
+.figure { margin: 0; min-width: 0; }
+
+/* Chrono : la carte pendant une session et le mode Focus, au même format,
+   côte à côte — deux états d'une même session. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 36px;
+}
+@media (min-width: 640px) { .pair { gap: 24px; margin-top: 48px; } }
+
+/* Planning : le texte à gauche, le vrai Planning en grand à droite. */
+.split { display: grid; gap: 36px; }
+@media (min-width: 1024px) {
+  .split {
+    grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
+    column-gap: 56px;
+    align-items: center;
+  }
+}
+.screenCap { max-width: 460px; }
+@media (min-width: 640px) { .screenCap { max-width: none; } }
+
+/* Stats : l'écran sur toute la largeur, sous le texte. */
+.wideFigure { margin: 36px 0 0; }
+@media (min-width: 640px) { .wideFigure { margin-top: 48px; } }
+
+/* Progression : la capture dans le panneau vert clair de l'accueil, à
+   gauche du texte sur grand écran (le texte reste premier à la lecture). */
+.panelArea { display: grid; gap: 36px; }
+.panel {
+  margin: 0;
+  max-width: 640px;
+  padding: 16px;
+  border-radius: var(--bt-r-sheet);
+  background-color: var(--bt-brand-surface);
+}
+@media (min-width: 768px) { .panel { padding: 24px; } }
+@media (min-width: 1024px) {
+  .panelArea {
+    grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
+    grid-template-areas: "media text";
+    column-gap: 64px;
+    align-items: center;
+  }
+  .panelArea .areaText { grid-area: text; }
+  .panelArea .panel { grid-area: media; max-width: none; }
+}
+
+/* Amis et espaces de cours : deux téléphones, chacun sous son texte, alignés
+   par le bas même quand les textes n'ont pas la même longueur. */
+.duo { display: grid; gap: 72px; }
+@media (min-width: 900px) {
+  .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 64px; }
+}
+.duoItem { display: grid; grid-template-rows: auto 1fr; row-gap: 32px; }
+.duoItem.area { padding-top: 0; }
+.phoneSlot { align-self: end; }
+
+.areasEnd { padding-bottom: 96px; }
+@media (min-width: 1024px) { .areasEnd { padding-bottom: 128px; } }
+
+/* ── Guides ──────────────────────────────────────────────────────────── */
+.sectionHead { max-width: 40rem; }
+.h2 {
+  font-size: clamp(1.75rem, 4.6vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--bt-text-1);
+}
+.sectionText { margin-top: 14px; font-size: 1.0625rem; line-height: 1.65; color: var(--bt-text-2); }
+
+/* La boucle en quatre temps : un fil numéroté. Téléphone et tablette :
+   vertical ; grand écran : quatre temps côte à côte sur le même fil, le
+   quatrième ramenant au premier. */
+.loopSection { padding-block: 56px 24px; }
+@media (min-width: 1024px) { .loopSection { padding-block: 80px 32px; } }
+.loop { position: relative; display: grid; margin-top: 36px; }
+.loopStep {
+  position: relative;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  column-gap: 16px;
+  padding-bottom: 32px;
+}
+.loopStep:last-child { padding-bottom: 0; }
+/* Le fil, d'un numéro au suivant. */
+.loopStep::before {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 44px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 1px;
+  background-color: var(--bt-border);
+}
+.loopStep:last-child::before { display: none; }
+.loopNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 2px solid var(--bt-brand-primary);
+  background-color: var(--bt-bg);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-brand-text);
+}
+.loopBody { min-width: 0; padding-top: 8px; }
+.loopTitle { font-size: 1.1875rem; line-height: 1.3; color: var(--bt-text-1); }
+.loopText { margin-top: 8px; font-size: 1rem; line-height: 1.6; color: var(--bt-text-2); }
+.loopLink { margin-top: 12px; }
+/* Sur deux lignes, la flèche suit le texte au lieu de partir à droite ; la
+   marge intérieure garde une cible de 44 px de haut. */
+.loopLink a { display: inline; padding-block: 13px; }
+.loopLink a svg { display: inline-block; margin-left: 4px; vertical-align: -3px; }
+.keep { white-space: nowrap; }
+@media (min-width: 1024px) {
+  .loop { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 32px; margin-top: 48px; }
+  .loopStep { grid-template-columns: minmax(0, 1fr); padding-bottom: 0; }
+  /* Sur grand écran, le fil passe à l'horizontale, d'un numéro à l'autre. */
+  .loopStep::before { left: 44px; right: -32px; top: 21px; bottom: auto; width: auto; height: 2px; }
+  .loopStep:last-child::before { display: none; }
+  .loopBody { padding-top: 20px; }
+}
+
+/* Tous les guides : un sommaire, chaque guide avec une vraie capture du
+   produit dont il parle. Des lignes à filets, pas des cartes. */
+.indexSection { padding-block: 48px 96px; }
+@media (min-width: 1024px) { .indexSection { padding-block: 72px 128px; } }
+.guideIndex { display: grid; margin-top: 32px; border-top: 1px solid var(--bt-border); }
+@media (min-width: 960px) { .guideIndex { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px; margin-top: 40px; } }
+.guideItem { border-bottom: 1px solid var(--bt-border); }
+.guideEntry {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-areas: "thumb eyebrow" "thumb title" "thumb text" "thumb more";
+  grid-template-rows: auto auto 1fr auto;
+  column-gap: 16px;
+  min-height: 44px;
+  padding-block: 20px;
+  color: inherit;
+}
+@media (min-width: 640px) {
+  .guideEntry { grid-template-columns: 176px minmax(0, 1fr); column-gap: 24px; padding-block: 24px; }
+}
+.guideThumb {
+  grid-area: thumb;
+  align-self: start;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  border: 1px solid var(--bt-border);
+  background-color: var(--bt-surface);
+}
+.guideThumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.guideThumbCenter img { object-position: center; }
+.guideThumbLeft img { object-position: top left; }
+.guideEyebrow { grid-area: eyebrow; font-size: 0.8125rem; font-weight: 700; color: var(--bt-brand-text); }
+.guideTitle { grid-area: title; margin-top: 4px; font-size: 1.125rem; line-height: 1.3; color: var(--bt-text-1); }
+.guideText { grid-area: text; margin-top: 6px; font-size: 0.9375rem; line-height: 1.55; color: var(--bt-text-2); }
+.guideMore {
+  grid-area: more;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--bt-brand-text);
+}
+.guideMore svg { transition: transform 0.18s cubic-bezier(0.23, 1, 0.32, 1); }
+.guideEntry:hover .guideTitle { text-decoration: underline; text-underline-offset: 3px; }
+.guideEntry:hover .guideMore svg { transform: translateX(3px); }
+
+/* ── FAQ ─────────────────────────────────────────────────────────────── */
+/* Toutes les réponses visibles (ce sont celles du JSON-LD FAQPage). Sur
+   grand écran, un sommaire des questions, collé à gauche sous l'en-tête, mène
+   à chacune. Sur une colonne, les questions numérotées se suivent sans
+   sommaire : la première réponse reste dans le premier écran (sinon le
+   bandeau cookies, affiché plus tard, devient le plus grand élément peint). */
+.faqLayout { display: grid; gap: 40px; padding-block: 32px 96px; }
+.faqNav { display: none; }
+@media (min-width: 1024px) {
+  .faqLayout {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    column-gap: 72px;
+    align-items: start;
+    padding-block: 48px 128px;
+  }
+  .faqNav { display: block; position: sticky; top: calc(63px + env(safe-area-inset-top) + 24px); }
+}
+.faqNavList { counter-reset: faq-nav; border-top: 1px solid var(--bt-border); }
+.faqNavItem { counter-increment: faq-nav; border-bottom: 1px solid var(--bt-border); }
+.faqNavLink {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: baseline;
+  min-height: 44px;
+  padding-block: 11px;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--bt-text-1);
+}
+.faqNavLink::before {
+  content: counter(faq-nav, decimal-leading-zero);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-brand-text);
+}
+.faqNavLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+.faqList { counter-reset: faq; }
+.faqItem {
+  counter-increment: faq;
+  padding-block: 28px;
+  border-top: 1px solid var(--bt-border);
+  scroll-margin-top: calc(63px + env(safe-area-inset-top) + 16px);
+}
+.faqItem:first-child { padding-top: 0; border-top: 0; }
+.faqItem:last-child { border-bottom: 1px solid var(--bt-border); }
+.faqItem::before {
+  content: counter(faq, decimal-leading-zero);
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--bt-brand-text);
+}
+.faqQuestion {
+  font-size: clamp(1.25rem, 3.4vw, 1.5rem);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--bt-text-1);
+  text-wrap: balance;
+}
+.faqAnswer {
+  max-width: 42rem;
+  margin-top: 12px;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--bt-text-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guideMore svg { transition: none; }
+  .guideEntry:hover .guideMore svg { transform: none; }
+}

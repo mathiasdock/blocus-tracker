@@ -1,5 +1,20 @@
 # AI_CHANGELOG.md
 
+## 2026-10-13 — Claude Code — Site public : /fonctionnalites, /guides et /faq refaites — COMMIT LOCAL, NON DÉPLOYÉ
+
+- **Fonctionnalités** : sommaire numéroté des six domaines sous le titre, puis chaque domaine cadré selon ce qu'il montre (plus six rangées interchangeables) : Chrono et mode Focus côte à côte (captures du 2026-10-13), Planning en vue Mois en grand, Stats en panorama, Progression dans le panneau vert de l'accueil, amis et espaces de cours sur deux téléphones. Textes alternatifs des captures mis à jour (FR/EN).
+- **Guides** : « Une boucle en quatre temps » en étapes numérotées reliées par un fil, chaque étape vers son guide (la flèche reste avec le dernier mot) ; « Tous les guides » en sommaire à filets, chaque guide avec une vignette réelle et décorative (`thumb-*`, 360 px, ≈ 35 Ko au total au lieu de ≈ 100 Ko avec les grandes largeurs).
+- **FAQ** : les neuf réponses restent visibles (aucun accordéon), numérotées. Sur ordinateur, un sommaire des questions collé sous l'en-tête (9 ancres `#question-N`). Sur une colonne (téléphone, tablette), pas de sommaire : la première réponse reste dans le premier écran. Avec le sommaire en tête, le texte du bandeau cookies, peint après l'hydratation, devenait le plus grand élément : LCP mobile ralenti 1,46 → 2,93 s ; sans lui, 1,41 s.
+- Nouvelle feuille `components/landing/Showcase.module.css` (ces trois pages seulement) ; `g.title`/`g.lead` repris des guides. Accueil, `Landing.module.css`, `/legal`, bilingue et Dashboard non touchés.
+- Vérifié sur des copies locales de `main` (5e61a00) et de cette version :
+  - **HTML serveur :** title, meta, canonical, JSON-LD, H1/H2/H3, liens et tout le texte identiques sur les trois pages (seul ajout : les 9 ancres FAQ) ; les 11 autres URL identiques ;
+  - **captures :** accueil et 8 autres pages identiques au pixel (1440/390, clair/sombre) ;
+  - **275 contrôles** à 320/390/768/1024/1440, clair/sombre : pas de débordement, images chargées et nettes, cibles ≥ 44 px, texte ≥ 13 px, contrastes AA, CLS 0, ancres sous l'en-tête, sommaire FAQ collé, première réponse dans le premier écran sur une colonne, clavier, console propre ;
+  - **vitesse** (téléphone lent : CPU ×4, 1,6 Mbit/s ; ordinateur), LCP médian de 3 chargements : fonctionnalités 1464 → 1412 ms et 444 → 256 ms ; guides 1452 → 1416 ms et 292 → 256 ms ; FAQ 1452 → 1412 ms et 296 → 256 ms ; aucun décalage au chargement ;
+  - **poids :** HTML 39,2 → 41,6 Ko (fonctionnalités), 33,9 → 36,8 Ko (guides), 33,2 → 35,4 Ko (FAQ) ; CSS propre +6,1 Ko gz (feuilles Guide + Showcase) ; JS de l'accueil +0,2 Ko gz (textes partagés de `landingContent`/`siteShots`, rendu identique) ;
+  - lint propre, 976/976 tests, build de production réussi.
+- Laissé en place : les anciennes images de `/fonctionnalites` (`*-desktop`, `progression-mobile`) et les règles de `Landing.module.css` qu'elles servaient, pour ne pas toucher à l'accueil.
+
 ## 2026-10-13 — Claude Code — Chrono : réglages de session à 44 px et 13 px — PRODUCTION
 
 - **Déployé en production le 2026-10-14** après validation de Mathias : `main` 5e61a00 → 31b8deb en avance rapide. Un seul commit linéaire dont l'arbre est identique, octet pour octet, à la version vérifiée (fusionnée avec le mini-chrono de Codex). Vercel `dpl_5QxtqEWjUZYZrcauyHqimAXisdwo` READY, alias `www.blocus-tracker.com` et `blocus-tracker.com`. Pages en ligne non consultées par les outils automatiques : la protection anti-robots de Vercel (« Security Checkpoint ») répond à curl et au Chrome headless, et elle n'a pas été contournée.
