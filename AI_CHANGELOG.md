@@ -1,6 +1,8 @@
 # AI_CHANGELOG.md
 
-## 2026-10-13 — Claude Code — Chrono : réglages de session à 44 px et 13 px — LOCAL, NON DÉPLOYÉ
+## 2026-10-13 — Claude Code — Chrono : réglages de session à 44 px et 13 px — PRODUCTION
+
+- **Déployé en production le 2026-10-14** après validation de Mathias : `main` 5e61a00 → 31b8deb en avance rapide. Un seul commit linéaire dont l'arbre est identique, octet pour octet, à la version vérifiée (fusionnée avec le mini-chrono de Codex). Vercel `dpl_5QxtqEWjUZYZrcauyHqimAXisdwo` READY, alias `www.blocus-tracker.com` et `blocus-tracker.com`. Pages en ligne non consultées par les outils automatiques : la protection anti-robots de Vercel (« Security Checkpoint ») répond à curl et au Chrome headless, et elle n'a pas été contournée.
 
 - Constat mesuré le 2026-10-13 (Chrome headless, 320–1440 px, clair/sombre) : dans la carte du Chrono (Dashboard et /pomodoro), les réglages de session (mode, durée de travail, durée de pause, objectif, note) se touchaient sur 32 px de haut et s'écrivaient en 12 px ; leurs menus aussi (options de 32 px, 12 px) ; le libellé TRAVAIL / PAUSE était en 11 px.
 - Les pilules gardent leur allure (32 px, mêmes couleurs). L'appui couvre 44 px de haut (`bt-tap-44`, zone invisible déjà utilisée par les filtres des Stats), les libellés passent à 13 px, et la marge intérieure de 10 à 7 px rend la largeur gagnée par le texte : chaque rangée est même un peu plus étroite qu'avant (Libre · Sans objectif · Note de session 314,3 → 311,7 px ; Pomodoro · 25 min · 5 min · Note 387,5 → 381,1 px), aucune ne passe plus tôt sur deux lignes. Leurs menus (portail) : options de 44 px comme celles du sélecteur de cours, en 13 px (`bt-chrono-menu`). TRAVAIL / PAUSE · Cycle passe à 13 px dans la hauteur de ligne de l'ancien 11 px : la carte ne grandit pas.
