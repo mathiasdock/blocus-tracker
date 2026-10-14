@@ -1,7 +1,12 @@
 # AI_CHANGELOG.md
 
-## 2026-10-13 — Claude Code — Site public : /fonctionnalites, /guides et /faq refaites — COMMIT LOCAL, NON DÉPLOYÉ
+## 2026-10-13 — Claude Code — Site public : /fonctionnalites, /guides et /faq refaites — PRODUCTION
 
+- **Déployé en production le 2026-10-14** après validation de Mathias : `main` ac9a8bd → 09ec427 en avance rapide, Vercel `dpl_5vPrUgv9Wx9v2h4uL6H7rnBHodNi`. Vérifié en production :
+  - HTML : accueil et 10 autres URL identiques à avant ; sur les trois pages, title, meta, canonical, JSON-LD, H1/H2/H3, liens et texte identiques (seul ajout : les 9 ancres de la FAQ) ;
+  - captures : les trois pages identiques au pixel à la version validée en local, l'accueil identique à la production d'avant (1440/390, clair/sombre) ;
+  - 275/275 contrôles (320 → 1440 px, clair/sombre) ; versions anglaises : titres, captures `/en/`, aucun mot français, console propre ;
+  - LCP : sur les trois pages, téléphone et ordinateur, le plus grand élément est le texte de la page dès le premier affichage (jamais le bandeau cookies), aucun décalage au chargement.
 - **Fonctionnalités** : sommaire numéroté des six domaines sous le titre, puis chaque domaine cadré selon ce qu'il montre (plus six rangées interchangeables) : Chrono et mode Focus côte à côte (captures du 2026-10-13), Planning en vue Mois en grand, Stats en panorama, Progression dans le panneau vert de l'accueil, amis et espaces de cours sur deux téléphones. Textes alternatifs des captures mis à jour (FR/EN).
 - **Guides** : « Une boucle en quatre temps » en étapes numérotées reliées par un fil, chaque étape vers son guide (la flèche reste avec le dernier mot) ; « Tous les guides » en sommaire à filets, chaque guide avec une vignette réelle et décorative (`thumb-*`, 360 px, ≈ 35 Ko au total au lieu de ≈ 100 Ko avec les grandes largeurs).
 - **FAQ** : les neuf réponses restent visibles (aucun accordéon), numérotées. Sur ordinateur, un sommaire des questions collé sous l'en-tête (9 ancres `#question-N`). Sur une colonne (téléphone, tablette), pas de sommaire : la première réponse reste dans le premier écran. Avec le sommaire en tête, le texte du bandeau cookies, peint après l'hydratation, devenait le plus grand élément : LCP mobile ralenti 1,46 → 2,93 s ; sans lui, 1,41 s.
