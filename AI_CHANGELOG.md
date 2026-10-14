@@ -1,5 +1,24 @@
 # AI_CHANGELOG.md
 
+## 2026-10-14 — Claude Code — Site public : /legal sur la mise en page publique — LOCAL, NON DÉPLOYÉ
+
+- **Avant :** `/legal` était affichée dans la coquille de l'app (barre latérale, barre d'onglets sur téléphone, « Créer un compte » dans la barre). Le HTML envoyé par le serveur ne contenait que « Préparation de ton espace… » : aucun titre, aucun des quatre documents (0 fragment sur 192). Le texte n'arrivait qu'avec le JavaScript, après le bandeau cookies. Sur téléphone, le quatrième onglet était coupé dans une rangée qui défilait de côté.
+- **Après :** en-tête et pied de page du site public, haut de page de la FAQ (surtitre « Documents légaux », titre, sous-titre), texte de lecture des guides (17 px, colonne d'environ 70 signes), aucune animation. Les quatre documents se choisissent par de vrais liens, deux par rangée sur téléphone, quatre dès 640 px. Sur ordinateur, ils forment une liste à filets collée à gauche, suivie des sections du document ouvert (« Dans ce document »).
+  - Les liens et le comportement restent ceux d'avant : un seul document visible ; `/legal?doc=privacy|terms|cookies|notice` ouvre le bon (bandeau cookies, inscription, onboarding, profil, rappel des CGU, pied de page de l'app) ; changer de document remplace l'adresse sans allonger l'historique. Une valeur inconnue retombe sur la confidentialité.
+  - Un compte connecté voit « Retour à l'app » (→ /dashboard) à la place du surtitre, à la même hauteur : rien ne bouge quand la session est reconnue. L'en-tête public reste le même pour tout le monde (« Se connecter » / « Commencer »).
+  - Les quatre documents sont dans le HTML serveur, les fermés seulement masqués.
+- Contenu : `lib/legal.js` intouché, texte rendu tel quel (paragraphes et listes). Trois libellés FR/EN ajoutés : `legal.eyebrow`, `legal.backToApp`, `legal.inThisDocument`. « Last updated: » sans espace avant les deux-points en anglais.
+- Référencement : title, meta, canonical, robots, Open Graph, fil d'Ariane JSON-LD et langue identiques (produits par `lib/seo.js` via `SeoHead`) ; plan du site, robots.txt, llms.txt et les HTML de l'accueil, /faq, /guides, /fonctionnalites, /pomodoro, /planning-revision, /login et /signup identiques. Le HTML de /legal passe de 0 à 192/192 fragments des quatre documents, avec 1 H1, 4 H2 et 38 H3.
+- Poids : JavaScript au premier chargement 393 → 369 Ko (la coquille de l'app n'est plus chargée) ; CSS propre à la page 3,3 Ko.
+- Vérifié sur des copies hors ligne de `main` (a6859ab) et de cette version, en Chrome headless :
+  - 298 contrôles sur 10 configurations (320, 390, 768, 1024 et 1440 px ; clair et sombre ; FR et EN ; visiteur et compte connecté) : le bon document pour chaque `?doc=`, document courant signalé, adresse remplacée, aucun débordement, texte ≥ 13 px, choix des documents ≥ 44 px, retour à l'app seulement pour un compte, console propre. Décalage au chargement nul en français, liens `?doc=` compris ; 0,003 à 0,006 avec l'anglais choisi à la main (page servie en français puis traduite, comme les autres pages publiques) ;
+  - sur ordinateur, changer de document depuis le bas de la confidentialité affiche le nouveau document depuis son début, et le sommaire place chaque section juste sous l'en-tête ;
+  - clavier : en-tête, puis les quatre documents, puis le sommaire ; anneau de focus visible ; Entrée ouvre un document ;
+  - premier écran sur téléphone, bandeau cookies affiché : le plus grand élément peint est le texte de la page (avant : d'abord le bandeau, puis le texte vers 0,4–0,5 s ; après : le texte vers 0,03–0,06 s, en local) ;
+  - liens réels de l'app : bandeau cookies → `?doc=cookies`, profil → Compte → « Légal & confidentialité », pied de page de l'app sur ordinateur, liens CGU et confidentialité de l'inscription (nouvel onglet), « Retour à l'app » → /dashboard ;
+  - tests : 982/982 (+5 dans `tests/legal-page.test.mjs`, dont 4 échouent sur l'ancienne page), lint, build.
+- `/en/` non touché.
+
 ## 2026-10-13 — Claude Code — Site public : /fonctionnalites, /guides et /faq refaites — PRODUCTION
 
 - **Déployé en production le 2026-10-14** après validation de Mathias : `main` ac9a8bd → 09ec427 en avance rapide, Vercel `dpl_5vPrUgv9Wx9v2h4uL6H7rnBHodNi`. Vérifié en production :

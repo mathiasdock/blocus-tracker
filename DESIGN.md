@@ -358,7 +358,9 @@ Every page before the app — sign in, sign up, check email, forgot/reset passwo
 
 ### Public site — the real product, told briefly
 
-`/`, `/fonctionnalites`, `/guides`, `/faq` and the six guides share one header and footer (`components/landing/*`, `Landing.module.css`, copy in `lib/landingContent.js`; shipped 2026-09-27).
+`/`, `/fonctionnalites`, `/guides`, `/faq`, the six guides and `/legal` share one header and footer (`components/landing/*`, `Landing.module.css`, copy in `lib/landingContent.js`; shipped 2026-09-27, `/legal` since 2026-10-14).
+
+- **Legal documents** (`/legal`, `Legal.module.css`): one document visible at a time, chosen by real links (`/legal?doc=privacy|terms|cookies|notice`, the addresses the app already uses), all four in the server HTML. On a computer, the documents and the open document's sections stay beside the text; on one column, the four documents sit above it. A signed-in member gets "Back to the app" in the eyebrow line, without moving anything. No final call or mascot.
 
 - **Real product only.** Screens are captures of a demo student (never an admin account), light theme, in the page's language (`lib/siteShots.cjs`, `scripts/capture-site-shots.mjs` → `scripts/generate-site-shots.cjs`). Progress objects are drawn by the app's own components. No user counts, testimonials or invented figures.
 - **Short home.** Hero, one bento answering "why not just a timer", a compact phone/computer pair using real Chrono captures, rhythm, others, three questions, final call. Detail and long answers live on the indexable subpages, linked from the footer.
