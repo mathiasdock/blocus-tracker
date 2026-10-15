@@ -138,7 +138,9 @@ export default function ChronoCard({
                     {courseExam && <span className="bt-timer-exam-context" data-urgency={timerExamUrgency(examDays)}>
                       <Glyph size={12} aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></Glyph>
                       <span className="sr-only">{t("plan.examTag")} · </span>
-                      <span className="font-num tabular-nums">{examDays === 0 ? t("exam.today") : examDays < 0 ? t("exam.passed") : t("exam.daysAway").replace("{n}", String(examDays))}</span>
+                      {/* « J-5 » est une convention française : en anglais, « 5 days » et
+                          « Tomorrow » la veille (comme le Planning). */}
+                      <span className="font-num tabular-nums">{examDays === 0 ? t("exam.today") : examDays < 0 ? t("exam.passed") : examDays === 1 ? t("exam.dayAway") : t("exam.daysAway").replace("{n}", String(examDays))}</span>
                     </span>}
                   </button>
                 )}
@@ -206,7 +208,9 @@ export default function ChronoCard({
             {pomodoro && (
               <div role="status" className="mb-3 text-[13px] font-bold uppercase leading-[16.5px] tracking-[0.18em]"
                 style={{ color: pomoPhase === "work" ? "var(--bt-accent-text)" : "var(--bt-text-2)" }}>
-                {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
+                {/* La phase de repos : « Pause » en français, « Break » en
+                    anglais — pas le verbe du bouton Pause. */}
+                {pomoPhase === "work" ? t("dash.work") : t("dash.breakPhase")}
                 {pomoCount > 0 && <span className="font-medium ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
               </div>
             )}
@@ -248,7 +252,7 @@ export default function ChronoCard({
                       rangee. « Pause », lui, reste — c'est le seul libelle de
                       la piste de repos. */}
                   <span className={onBreak ? "truncate" : "hidden truncate xs:inline"}>
-                    {onBreak ? t("dash.pause") : t("dash.sessionBlocks")}
+                    {onBreak ? t("dash.breakPhase") : t("dash.sessionBlocks")}
                   </span>
                   {/* L'unité est écrite parce qu'elle CHANGE : quinze minutes
                       sur une session courte, une heure sur une journée de

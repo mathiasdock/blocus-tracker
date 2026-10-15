@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { equivalentPath } from "../lib/publicRoutes.mjs";
 
 const require = createRequire(import.meta.url);
 const React = require("react");
@@ -183,10 +184,12 @@ test("pilote : typographie française à l'affichage seulement — le contenu et
   assert.ok(page.faq[1].q.endsWith("journée ?"), "donnée source inchangée");
 });
 
-// Une adresse anglaise. Les guides n'ont pas encore la leur
-// (lib/publicRoutes.mjs) : /en suffit à rendre le gabarit en anglais, comme
-// le fera leur future adresse /en/….
-const EN_ADDRESS = "/en";
+// L'adresse anglaise de chaque guide (lib/publicRoutes.mjs).
+const EN_ADDRESS = (path) => equivalentPath(path, "en");
+// Une page anglaise ne mène qu'à des pages anglaises, à l'inscription en
+// anglais, à l'app (inchangée), à son propre Chrono ou à ses sources.
+const englishLinks = (hrefs) => hrefs.filter((href) => !(href === "/dashboard" || href === "/signup?lang=en" || href === "#minuteur"
+  || href.startsWith("https://") || (href.startsWith("/en/") && equivalentPath(href.split(/[?#]/)[0], "fr"))));
 
 test("pilote : français sur son adresse, même sous un navigateur anglais ou avec l'anglais choisi ; anglais sous une adresse anglaise", () => {
   const fr = makeEnv({ deviceLanguage: "en-US" });
@@ -207,7 +210,7 @@ test("pilote : français sur son adresse, même sous un navigateur anglais ou av
     act(() => renderer.unmount());
   }
 
-  const en = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS });
+  const en = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS(PATH) });
   const { SEO_LANDING_PAGES_EN } = en.load("lib/seoLandingPagesEn");
   const { I18nProvider } = en.load("contexts/I18nContext");
   const Page = en.load("pages/planning-revision").default;
@@ -216,10 +219,15 @@ test("pilote : français sur son adresse, même sous un navigateur anglais ou av
   const root = renderer.root;
   const enPage = SEO_LANDING_PAGES_EN[PATH];
   const all = flat(renderer.toJSON());
+  assert.equal(EN_ADDRESS(PATH), "/en/study-planner");
   assert.equal(flat(root.findByType("h1").props.children), enPage.h1);
-  for (const chunk of [enPage.shortAnswer, ...enPage.sections[0].bullets, "Short answer", "Keep going, smartly", "Start the timer"]) {
+  for (const chunk of [enPage.shortAnswer, ...enPage.sections[0].bullets, "Short answer", "Keep going", "Start the timer"]) {
     assert.ok(all.includes(chunk), chunk);
   }
+  // Les mêmes liens que la page française, dans leur version anglaise.
+  assert.deepEqual(root.findAllByType("a").map((a) => a.props.href).sort(), [
+    "/dashboard", "/dashboard", "/en/blocus-belgium", "/en/pomodoro", "/en/study-goals", "/en/study-stats", "/signup?lang=en", "/signup?lang=en",
+  ]);
   assert.equal(root.findAllByType("ol").length, 1);
   const img = root.findByType("img");
   assert.equal(img.props.alt, enPage.productShot.alt);
@@ -340,9 +348,9 @@ test("stats et objectifs : meta, canonical et JSON-LD inchangés, FAQ visible = 
   }
 });
 
-test("stats et objectifs : anglais sous une adresse anglaise, captures et textes alternatifs anglais", () => {
+test("stats et objectifs : anglais sous leur adresse anglaise, captures et textes alternatifs anglais, liens anglais", () => {
   for (const [path, guide] of Object.entries(GUIDES)) {
-    const env = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS });
+    const env = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS(path) });
     const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
     const { I18nProvider } = env.load("contexts/I18nContext");
     const Page = env.load(guide.file).default;
@@ -358,6 +366,9 @@ test("stats et objectifs : anglais sous une adresse anglaise, captures et textes
     assert.match(imgs[0].props.src, new RegExp(`/site-web/v2/en/${guide.hero}-1200\\.webp`));
     if (path === "/stats-etude") assert.deepEqual(imgs.slice(1).map((i) => i.props.alt), plain(enPage.sections[0].figures.map((f) => f.alt)));
     assert.equal(root.findAllByType("ol").length, guide.ordered ? 1 : 0, path);
+    const hrefs = root.findAllByType("a").map((a) => a.props.href);
+    assert.deepEqual(englishLinks(hrefs), [], `${path} : ${hrefs.join(" ")}`);
+    for (const item of enPage.related) assert.ok(hrefs.includes(EN_ADDRESS(item.href)), `${path} → ${item.href}`);
     act(() => renderer.unmount());
   }
 });
@@ -521,9 +532,9 @@ test("application et blocus : meta, canonical et JSON-LD inchangés, FAQ visible
   }
 });
 
-test("application et blocus : anglais sous une adresse anglaise, captures, étiquettes et sources anglaises", () => {
+test("application et blocus : anglais sous leur adresse anglaise, captures, étiquettes et sources anglaises, liens anglais", () => {
   for (const path of Object.keys(LAST)) {
-    const env = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS });
+    const env = makeEnv({ deviceLanguage: "fr-BE", pathname: EN_ADDRESS(path) });
     const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
     const { I18nProvider } = env.load("contexts/I18nContext");
     const Page = env.load(LAST[path].file).default;
@@ -551,6 +562,11 @@ test("application et blocus : anglais sous une adresse anglaise, captures, étiq
       assert.deepEqual(labels.slice(0, 5), ["Morning:", "Lunch:", "Afternoon:", "Late afternoon:", "Evening:"]);
       assert.equal(root.findAllByType("ol").length, 1);
     }
+    const hrefs = root.findAllByType("a").map((a) => a.props.href);
+    assert.deepEqual(englishLinks(hrefs), [], `${path} : ${hrefs.join(" ")}`);
+    for (const item of enPage.related) assert.ok(hrefs.includes(EN_ADDRESS(item.href)), `${path} → ${item.href}`);
+    const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+    assert.ok(hrefs.includes(EN_ADDRESS(SEO_LANDING_PAGES[path].secondaryCtaHref)), `${path} : bouton secondaire`);
     act(() => renderer.unmount());
   }
 });

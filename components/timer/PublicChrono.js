@@ -7,6 +7,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
 import { chronoSessionOpen } from "../../lib/pomodoro.mjs";
+import { publicHref } from "../../lib/publicRoutes.mjs";
 import {
   GUEST_USER_ID, appendGuestSession, defaultGuestDashboardData, readGuestDashboardData,
 } from "../../lib/guestStudySpace";
@@ -199,7 +200,7 @@ function GuestChrono({ authKnown }) {
 // L'invitation après une vraie session : une surface discrète, celle des
 // encadrés « Inclus » de la page, pas une seconde carte du Chrono.
 function SignupInvite({ seconds, onDismiss }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const ref = useRef(null);
   // « Vue » quand la moitié au moins est à l'écran : montée sous la ligne de
   // flottaison d'un petit téléphone, personne ne l'a lue — elle pourra revenir
@@ -242,7 +243,9 @@ function SignupInvite({ seconds, onDismiss }) {
           <p className="mt-1 text-sm leading-snug sm:mt-1.5 sm:leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("publicChrono.inviteDevice")}</p>
           <p className="mt-1 text-sm leading-snug sm:mt-1.5 sm:leading-relaxed" style={{ color: "var(--bt-text-2)" }}>{t("publicChrono.inviteValue")}</p>
           <div className="mt-3 flex flex-col gap-2 sm:mt-4 sm:flex-row">
-            <Link href="/signup" className="btn-primary min-h-11 px-5" onClick={() => rememberSignupInvite(localStorage, "signup")}>
+            {/* Depuis /en/pomodoro, l'inscription commence en anglais
+                (lib/publicRoutes.mjs) ; depuis /pomodoro, inchangé. */}
+            <Link href={publicHref("/signup", lang)} className="btn-primary min-h-11 px-5" onClick={() => rememberSignupInvite(localStorage, "signup")}>
               {t("publicChrono.inviteSignup")}
             </Link>
             <button type="button" className="btn-ghost min-h-11 px-5" onClick={onDismiss}>

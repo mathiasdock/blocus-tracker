@@ -1,9 +1,10 @@
-// Bilinguisme du site public, pilote /en (2026-10-14) : le registre des pages
-// FR/EN (lib/publicRoutes.mjs), la langue affichée (contexts/I18nContext.js),
-// le passage du site vers l'app (connexion, inscription, retour de Google),
-// le référencement des deux accueils et le sitemap. Les pages et composants
-// sont rendus pour de vrai (React + Babel dans un contexte vm), comme dans
-// tests/guide-article.test.mjs.
+// Bilinguisme du site public : pilote /en (2026-10-14), puis les quatre pages
+// et les six guides — les onze paires FR/EN. Le registre des pages
+// (lib/publicRoutes.mjs), la langue affichée (contexts/I18nContext.js), le
+// passage du site vers l'app (connexion, inscription, retour de Google), le
+// référencement des deux versions de chaque page et le sitemap. Les pages et
+// composants sont rendus pour de vrai (React + Babel dans un contexte vm),
+// comme dans tests/guide-article.test.mjs.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -124,17 +125,23 @@ const attrs = (html, tag) => [...html.matchAll(new RegExp(`<${tag}\\b([^>]*)>`, 
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const leaves = (value) => (typeof value === "string" ? [value] : value && typeof value === "object" ? Object.values(value).flatMap(leaves) : []);
 
-// Les pages qui ont leur version anglaise, et celles qui l'attendent.
-const PAIRS = { "/": "/en", "/fonctionnalites": "/en/features", "/guides": "/en/guides", "/faq": "/en/faq", "/legal": "/en/legal" };
+// Chaque page française et sa version anglaise : les onze paires validées.
+const PAIRS = {
+  "/": "/en", "/fonctionnalites": "/en/features", "/guides": "/en/guides", "/faq": "/en/faq",
+  "/pomodoro": "/en/pomodoro", "/planning-revision": "/en/study-planner", "/stats-etude": "/en/study-stats",
+  "/objectifs-etude": "/en/study-goals", "/application-etudiant": "/en/study-app", "/blocus-belgique": "/en/blocus-belgium",
+  "/legal": "/en/legal",
+};
 const EN_PAGES = Object.values(PAIRS);
 const NOT_YET = FR_PAGES.filter((path) => !PAIRS[path]);
+const GUIDES = ["/pomodoro", "/planning-revision", "/stats-etude", "/objectifs-etude", "/application-etudiant", "/blocus-belgique"];
 
 // ── Le registre ────────────────────────────────────────────────────────────
-test("registre : les onze adresses françaises inchangées, cinq adresses anglaises, chaque page a son fichier", () => {
+test("registre : les onze adresses françaises inchangées, onze adresses anglaises, chaque page a son fichier", () => {
   assert.deepEqual(PUBLIC_PAGES.map((page) => page.fr), FR_PAGES);
   assert.deepEqual(PUBLIC_PAGES.filter((page) => page.en).map((page) => page.en), EN_PAGES);
   assert.deepEqual(PUBLIC_PAGE_PATHS, [...FR_PAGES, ...EN_PAGES]);
-  assert.deepEqual(NOT_YET, ["/pomodoro", "/planning-revision", "/stats-etude", "/objectifs-etude", "/application-etudiant", "/blocus-belgique"]);
+  assert.deepEqual(NOT_YET, []);
   for (const path of FR_PAGES) {
     const file = path === "/" ? "pages/index.js" : `pages${path}.js`;
     assert.ok(existsSync(join(ROOT, file)), file);
@@ -150,7 +157,7 @@ test("registre : les onze adresses françaises inchangées, cinq adresses anglai
     const target = fr === "/" ? "index" : fr.slice(1);
     assert.match(readFileSync(join(ROOT, file), "utf8"), new RegExp(`export \\{ default \\} from "\\.\\./${target}";`), file);
   }
-  for (const app of ["/dashboard", "/signup", "/login", "/admin", "/profile", "/en/dashboard", "/en/signup", "/en/admin", "/en/profile", "/en/pomodoro"]) {
+  for (const app of ["/dashboard", "/signup", "/login", "/admin", "/profile", "/en/dashboard", "/en/signup", "/en/admin", "/en/profile", "/en/planning"]) {
     assert.equal(publicPageLang(app), null, app);
     assert.equal(existsSync(join(ROOT, `pages${app}.js`)) && app.startsWith("/en/"), false, app);
   }
@@ -163,11 +170,12 @@ test("registre : les deux versions d'une page seulement quand les deux existent"
     assert.equal(equivalentPath(fr, "en"), en);
     assert.equal(equivalentPath(en, "fr"), fr);
   }
-  for (const path of NOT_YET) {
+  // Hors du registre : ni version, ni équivalent.
+  for (const path of ["/dashboard", "/en/dashboard", "/en/planning", "/404"]) {
     assert.equal(pageAlternates(path), null, path);
     assert.equal(equivalentPath(path, "en"), null, path);
+    assert.equal(equivalentPath(path, "fr"), null, path);
   }
-  assert.equal(pageAlternates("/dashboard"), null);
 });
 
 test("registre : toute page indexable de lib/seo.js est dans le registre, avec la locale de sa langue", () => {
@@ -207,8 +215,10 @@ test("liens d'une page anglaise : connexion et inscription en anglais, pages de 
   assert.equal(publicHref("/guides", "en"), "/en/guides");
   assert.equal(publicHref("/faq#question-3", "en"), "/en/faq#question-3");
   assert.equal(publicHref("/legal?doc=cookies", "en"), "/en/legal?doc=cookies");
-  // Pas encore traduites : l'adresse française, en attendant.
-  for (const href of NOT_YET) assert.equal(publicHref(href, "en"), href);
+  // Les guides : leur adresse anglaise, ancre comprise.
+  assert.equal(publicHref("/pomodoro#minuteur", "en"), "/en/pomodoro#minuteur");
+  assert.equal(publicHref("/blocus-belgique", "en"), "/en/blocus-belgium");
+  for (const [fr, en] of Object.entries(PAIRS)) assert.equal(publicHref(fr, "en"), en, fr);
   // L'app garde ses adresses ; le mode découverte suit la langue de l'app.
   for (const href of ["/dashboard", "/profile", "https://elevenlabs.io", "//evil.example", "#question-2"]) assert.equal(publicHref(href, "en"), href);
   // Une page française ne transmet rien.
@@ -249,8 +259,11 @@ test("sélecteur : même page dans l'autre langue, paramètres prévus et ancre 
   assert.equal(languageSwitchHref({ pathname: "/faq", query: {}, hash: "#question-3" }, "en"), "/en/faq#question-3");
   assert.equal(languageSwitchHref({ pathname: "/en/features", query: {}, hash: "#planning" }, "fr"), "/fonctionnalites#planning");
   assert.equal(languageSwitchHref({ pathname: "/en/guides", query: {} }, "fr"), "/guides");
-  // Sans version anglaise : l'accueil anglais, sans le document ni l'ancre de la page.
-  assert.equal(languageSwitchHref({ pathname: "/pomodoro", query: { campaign: "x", doc: "terms" }, hash: "#minuteur" }, "en"), "/en?campaign=x");
+  // Les guides : le même guide dans l'autre langue, ancre comprise.
+  assert.equal(languageSwitchHref({ pathname: "/pomodoro", query: { campaign: "x" }, hash: "#minuteur" }, "en"), "/en/pomodoro?campaign=x#minuteur");
+  assert.equal(languageSwitchHref({ pathname: "/en/blocus-belgium", query: {}, hash: "#guide-section-2" }, "fr"), "/blocus-belgique#guide-section-2");
+  // Hors du registre : l'accueil de l'autre langue, sans le document ni l'ancre de la page.
+  assert.equal(languageSwitchHref({ pathname: "/404", query: { campaign: "x", doc: "terms" }, hash: "#minuteur" }, "en"), "/en?campaign=x");
 });
 
 test("langue affichée : l'adresse sur le site, le parcours sur les pages d'entrée, sinon la langue de l'app", () => {
@@ -444,26 +457,37 @@ test("SEO : / et /en — titre, description, canonical propre, locale, image de 
   assert.match(en.robots, /^index, follow/);
   assert.deepEqual(plain(fr.alternates), { fr: "/", en: "/en" });
   assert.deepEqual(plain(en.alternates), { fr: "/", en: "/en" });
-  // Une page française sans version anglaise, une page de l'app : pas de hreflang.
-  for (const path of NOT_YET) assert.equal(getSeoForPath(path).alternates, null, path);
+  // Une page de l'app, une adresse anglaise inexistante : pas de hreflang, pas d'index.
   assert.equal(getSeoForPath("/dashboard").alternates, null);
   assert.equal(getSeoForPath("/en/dashboard").index, false);
-  assert.equal(getSeoForPath("/en/pomodoro").index, false);
+  assert.equal(getSeoForPath("/en/planning").index, false);
 });
 
-test("SEO : /en/features, /en/guides, /en/faq, /en/legal — leur titre, leur description, leur canonical, hreflang réciproques ; les pages françaises inchangées", () => {
+test("SEO : les dix pages anglaises hors accueil — leur titre, leur description, leur canonical, hreflang réciproques ; les pages françaises inchangées", () => {
   const env = makeEnv();
   const { getSeoForPath } = env.load("lib/seo");
   const expected = {
     "/en/features": ["Features: study timer, planner, stats | Blocus Tracker", "Timer and Focus mode, exam planner, stats, XP and badges, friends and course spaces: everything Blocus Tracker does for your revision."],
     "/en/guides": ["Study guides to revise better | Blocus Tracker", "The Pomodoro method, revision planning, goals, study stats and the blocus: practical guides to organize your revision."],
     "/en/faq": ["Frequently asked questions | Blocus Tracker", "Price, account, planning, social features, phone and personal data: answers to frequently asked questions about Blocus Tracker."],
+    "/en/pomodoro": ["Free Pomodoro timer for studying | Blocus Tracker", "Start a free Pomodoro timer, set your work and break times, and track the time you actually spend studying."],
+    "/en/study-planner": ["Study planner: build a revision plan that holds up", "Learn how to build a realistic revision plan for your exams, with priorities, goals, breaks and tracking in Blocus Tracker."],
+    "/en/study-stats": ["Study stats: track your revision time and progress", "Find out which stats to track to study more consistently: study time, streaks, records, goals and progress."],
+    "/en/study-goals": ["Study goals: set realistic revision goals", "A simple method to set study goals that are motivating, measurable and suited to your exams, with Blocus Tracker."],
+    "/en/study-app": ["Study app: timer, planner and stats for students", "Choose a study app that brings together a timer, a revision planner, stats, goals and motivation from your friends."],
+    "/en/blocus-belgium": ["Student blocus in Belgium: definition, planning and tips", "What is the blocus in Belgium, when does it happen and how do you organize it? Definition, exam session dates, a realistic plan and a typical day."],
     "/en/legal": ["Privacy, terms and legal notice | Blocus Tracker", "Read Blocus Tracker's privacy policy, terms of service, local storage information and legal notice."],
   };
   const frenchBefore = {
     "/fonctionnalites": "Fonctionnalités : chrono, planning, stats | Blocus Tracker",
     "/guides": "Guides pour mieux réviser | Blocus Tracker",
     "/faq": "Questions fréquentes | Blocus Tracker",
+    "/pomodoro": "Minuteur Pomodoro gratuit pour étudier | Blocus Tracker",
+    "/planning-revision": "Planning de révision efficace | Méthode et outil étudiant",
+    "/stats-etude": "Statistiques d'étude | Suivre son temps de révision",
+    "/objectifs-etude": "Objectifs d'étude | Fixer des objectifs de révision réalistes",
+    "/application-etudiant": "Application pour étudier | Chrono, planning et stats étudiant",
+    "/blocus-belgique": "Blocus étudiant en Belgique : définition, planning et conseils",
     "/legal": "Confidentialité, CGU et mentions légales | Blocus Tracker",
   };
   for (const [fr, en] of Object.entries(PAIRS).filter(([path]) => path !== "/")) {
@@ -479,7 +503,10 @@ test("SEO : /en/features, /en/guides, /en/faq, /en/legal — leur titre, leur de
     assert.equal(seoFr.canonicalUrl, `https://www.blocus-tracker.com${fr}`);
     assert.equal(seoFr.locale, "fr_BE");
     assert.deepEqual(plain(seoFr.alternates), { fr, en });
+    // Un guide reste un article dans les deux langues.
+    assert.equal(seoEn.type, seoFr.type, en);
   }
+  for (const fr of GUIDES) assert.equal(getSeoForPath(PAIRS[fr]).type, "article", fr);
 });
 
 test("SEO : les balises du head — hreflang fr et en sur les deux versions de chaque page traduite, seulement là, pas de x-default", () => {
@@ -550,11 +577,13 @@ test("JSON-LD : fonctionnalités, guides, FAQ et légal en anglais, égaux à le
   assert.deepEqual(types("/en/legal"), ["Organization", "WebPage", "BreadcrumbList"]);
   assert.deepEqual(types("/en/faq"), ["Organization", "WebPage", "FAQPage", "BreadcrumbList"]);
   assert.deepEqual(types("/en/guides"), ["Organization", "WebPage", "ItemList", "BreadcrumbList"]);
+  for (const fr of GUIDES) assert.deepEqual(types(PAIRS[fr]), ["Organization", "WebPage", "Article", "FAQPage", "BreadcrumbList"], PAIRS[fr]);
   // Les françaises gardent leur forme.
   assert.deepEqual(types("/fonctionnalites"), ["Organization", "WebSite", "WebPage", "BreadcrumbList"]);
   assert.deepEqual(types("/legal"), ["Organization", "WebSite", "WebPage", "BreadcrumbList"]);
   assert.deepEqual(types("/faq"), ["Organization", "WebSite", "WebPage", "FAQPage", "BreadcrumbList"]);
   assert.deepEqual(types("/guides"), ["Organization", "WebSite", "WebPage", "ItemList", "BreadcrumbList"]);
+  for (const fr of GUIDES) assert.deepEqual(types(fr), ["Organization", "WebSite", "WebPage", "Article", "FAQPage", "BreadcrumbList"], fr);
 
   // FAQ : les neuf questions affichées sur /en/faq.
   const faqEn = plain(structuredDataForPath("/en/faq"));
@@ -562,10 +591,10 @@ test("JSON-LD : fonctionnalités, guides, FAQ et légal en anglais, égaux à le
   const faqFr = plain(structuredDataForPath("/faq"));
   assert.deepEqual(byType(faqFr, "FAQPage").mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), plain(FAQ.map((q) => [q.q, q.a])));
 
-  // Guides : les titres anglais affichés, l'adresse que la page donne (française tant que le guide n'est pas traduit).
+  // Guides : les titres anglais affichés, l'adresse anglaise de chaque guide.
   const guidesEn = byType(plain(structuredDataForPath("/en/guides")), "ItemList");
   assert.equal(guidesEn.name, "Blocus Tracker guides");
-  assert.deepEqual(guidesEn.itemListElement.map((i) => [i.name, i.url]), plain(SEO_LANDING_PATHS.map((path) => [SEO_LANDING_PAGES_EN[path].h1, `${site}${path}`])));
+  assert.deepEqual(guidesEn.itemListElement.map((i) => [i.name, i.url]), plain(SEO_LANDING_PATHS.map((path) => [SEO_LANDING_PAGES_EN[path].h1, `${site}${PAIRS[path]}`])));
   const guidesFr = byType(plain(structuredDataForPath("/guides")), "ItemList");
   assert.equal(guidesFr.name, "Guides Blocus Tracker");
   assert.deepEqual(guidesFr.itemListElement.map((i) => [i.name, i.url]), plain(SEO_LANDING_PATHS.map((path) => [SEO_LANDING_PAGES[path].h1, `${site}${path}`])));
@@ -582,6 +611,42 @@ test("JSON-LD : fonctionnalités, guides, FAQ et légal en anglais, égaux à le
     assert.doesNotMatch(JSON.stringify(nodes), /fr-BE|Accueil|Questions fréquentes|Fonctionnalités|mentions légales/, en);
     const frCrumbs = byType(plain(structuredDataForPath(fr)), "BreadcrumbList").itemListElement;
     assert.deepEqual(frCrumbs.map((c) => [c.name, c.item]).slice(0, 1), [["Accueil", `${site}/`]], fr);
+  }
+});
+
+test("JSON-LD : les six guides anglais — un article en anglais (titre, description, sujet, dates de la page française) et la FAQ affichée ; les guides français inchangés", () => {
+  const env = makeEnv();
+  const { structuredDataForPath, getSeoForPath } = env.load("lib/seo");
+  const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+  const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
+  const byType = (nodes, type) => nodes.find((n) => n["@type"] === type);
+  const site = "https://www.blocus-tracker.com";
+  for (const fr of GUIDES) {
+    const en = PAIRS[fr];
+    const page = SEO_LANDING_PAGES_EN[fr];
+    const nodes = plain(structuredDataForPath(en));
+    const article = byType(nodes, "Article");
+    assert.equal(article["@id"], `${site}${en}#article`, en);
+    assert.equal(article.inLanguage, "en", en);
+    assert.equal(article.headline, page.h1, en);
+    assert.equal(article.description, getSeoForPath(en).description, en);
+    assert.equal(article.about, page.eyebrow, en);
+    assert.deepEqual(article.mainEntityOfPage, { "@id": `${site}${en}#webpage` }, en);
+    // Une traduction partage les dates de sa page.
+    const frArticle = byType(plain(structuredDataForPath(fr)), "Article");
+    assert.equal(article.datePublished, frArticle.datePublished, en);
+    assert.equal(article.dateModified, frArticle.dateModified, en);
+    assert.equal(article.dateModified, SEO_LANDING_PAGES[fr].dateModified || "2026-07-06", en);
+    // La FAQ du JSON-LD est celle qu'affiche la page anglaise.
+    assert.deepEqual(byType(nodes, "FAQPage").mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), plain(page.faq.map((q) => [q.q, q.a])), en);
+    const crumbs = byType(nodes, "BreadcrumbList").itemListElement;
+    assert.deepEqual(crumbs.map((c) => [c.name, c.item]), [["Home", `${site}/en`], [getSeoForPath(en).title.replace(" | Blocus Tracker", ""), `${site}${en}`]], en);
+    assert.doesNotMatch(JSON.stringify(nodes), /fr-BE|Accueil|"inLanguage":"fr/, en);
+    // Le guide français : son article, sa FAQ, en français.
+    const frNodes = plain(structuredDataForPath(fr));
+    assert.equal(byType(frNodes, "Article").inLanguage, "fr-BE", fr);
+    assert.equal(byType(frNodes, "Article").headline, SEO_LANDING_PAGES[fr].h1, fr);
+    assert.deepEqual(byType(frNodes, "FAQPage").mainEntity.map((q) => q.name), plain(SEO_LANDING_PAGES[fr].faq.map((q) => q.q)), fr);
   }
 });
 
@@ -648,9 +713,9 @@ test("accueil : liens de même langue, inscription et connexion en anglais depui
   assert.ok(hrefs(en).includes("/dashboard"));
   // Sous /en, seulement des pages publiques qui existent — jamais une adresse privée.
   assert.ok(hrefs(en).filter((href) => href.startsWith("/en/")).every((href) => EN_PAGES.includes(href.split(/[?#]/)[0])), hrefs(en).join(" "));
-  // Pages traduites : leur adresse anglaise ; pas encore traduites : leur adresse française.
-  for (const href of ["/en/features", "/en/faq", "/en/guides", "/en/legal", "/pomodoro"]) assert.ok(hrefs(en).includes(href), href);
-  for (const href of ["/fonctionnalites", "/faq", "/guides", "/legal"]) assert.ok(!hrefs(en).includes(href), href);
+  // Toutes les pages publiques : leur adresse anglaise, jamais la française.
+  for (const href of ["/en/features", "/en/faq", "/en/guides", "/en/legal", "/en/pomodoro"]) assert.ok(hrefs(en).includes(href), href);
+  for (const href of FR_PAGES.filter((path) => path !== "/")) assert.ok(!hrefs(en).includes(href), href);
   // En français, aucun paramètre de langue ni adresse anglaise, sauf le sélecteur.
   assert.ok(hrefs(fr).every((href) => !/[?&]lang=/.test(href)), hrefs(fr).join(" "));
   assert.deepEqual(hrefs(fr).filter((href) => href.startsWith("/en")), ["/en"]);
@@ -658,8 +723,8 @@ test("accueil : liens de même langue, inscription et connexion en anglais depui
 });
 
 // ── Les quatre pages anglaises rendues côté serveur ────────────────────────
-function renderPage(file, pathname, { query = {}, isReady = false } = {}) {
-  const env = makeEnv({ pathname, query, isReady, device: "de-DE", langPref: publicPageLang(pathname) === "fr" ? "en" : "fr" });
+function renderPage(file, pathname, { query = {}, isReady = false, mocks = {} } = {}) {
+  const env = makeEnv({ pathname, query, isReady, device: "de-DE", langPref: publicPageLang(pathname) === "fr" ? "en" : "fr", mocks });
   const { I18nProvider } = env.load("contexts/I18nContext");
   const Page = env.load(file).default;
   return { html: renderToString(h(I18nProvider, null, h(Page))), env };
@@ -716,9 +781,74 @@ test("pages anglaises : menu, pied de page et guides — liens anglais vers les 
     assert.deepEqual(hrefs(htmlFr).filter((href) => href.startsWith("/en")), [], fr);
     assert.deepEqual(attrs(htmlFr, "a").filter((a) => a.class === "langLink").map((a) => a.href), [en], fr);
   }
-  // Les guides, pas encore traduits, gardent leur adresse française — sur la page et dans le JSON-LD.
+  // /en/guides mène aux six guides anglais, jamais aux français.
   const { html: guides } = renderPage("pages/en/guides", "/en/guides");
-  for (const path of NOT_YET) assert.ok(hrefs(guides).includes(path), path);
+  for (const fr of GUIDES) {
+    assert.ok(hrefs(guides).includes(PAIRS[fr]), PAIRS[fr]);
+    assert.ok(!hrefs(guides).includes(fr), fr);
+  }
+});
+
+// ── Les six guides anglais rendus côté serveur ─────────────────────────────
+const GUIDE_FILES = {
+  "/pomodoro": "pomodoro", "/planning-revision": "study-planner", "/stats-etude": "study-stats",
+  "/objectifs-etude": "study-goals", "/application-etudiant": "study-app", "/blocus-belgique": "blocus-belgium",
+};
+// Les textes d'une page de guide : les chaînes avec une espace (phrases,
+// libellés), hors adresses et noms de captures ; les textes alternatifs des
+// captures à part (attributs, pas texte visible).
+const ALT_KEYS = ["alt", "phoneAlt"];
+const walk = (value, keep, key = null) => (typeof value === "string" ? (keep(key) ? [value] : [])
+  : value && typeof value === "object" ? Object.entries(value).flatMap(([k, v]) => walk(v, keep, Array.isArray(value) ? key : k)) : []);
+const guideStrings = (page) => walk(page, (key) => !ALT_KEYS.includes(key) && !["href", "name", "mobile", "phone", "path"].includes(key))
+  .filter((s) => / /.test(s) && !/^(\/|https?:)/.test(s));
+const guideAlts = (page) => walk(page, (key) => ALT_KEYS.includes(key));
+// Le Chrono de /pomodoro a ses propres tests (tests/pomodoro-page.test.mjs) :
+// ici, une doublure à sa place.
+const CHRONO_STUB = { "components/timer/PublicChrono": { __esModule: true, default: () => h("div", { "data-chrono": "1" }) } };
+
+test("guides anglais : le contenu anglais dans le HTML serveur, aucun texte français ; menu, pied de page, sélecteur et tous les liens en anglais", () => {
+  const hrefs = (html) => attrs(html, "a").filter((a) => a.class !== "langLink").map((a) => a.href);
+  for (const fr of GUIDES) {
+    const en = PAIRS[fr];
+    assert.equal(`/en/${GUIDE_FILES[fr]}`, en);
+    const { html: htmlEn, env } = renderPage(`pages${en}`, en, { mocks: CHRONO_STUB });
+    const { html: htmlFr } = renderPage(`pages${fr}`, fr, { mocks: CHRONO_STUB });
+    const { SEO_LANDING_PAGES } = env.load("lib/seoLandingPages");
+    const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
+    const h1 = (html) => text(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1]).trim();
+    assert.equal(h1(htmlEn), SEO_LANDING_PAGES_EN[fr].h1, en);
+    // text() ramène les espaces insécables de la typographie française à des espaces.
+    assert.equal(h1(htmlFr), SEO_LANDING_PAGES[fr].h1, fr);
+    // Aucun mélange : les phrases d'une langue n'apparaissent pas dans l'autre.
+    const frText = guideStrings(SEO_LANDING_PAGES[fr]).filter((s) => s.length >= 12);
+    const enText = guideStrings(SEO_LANDING_PAGES_EN[fr]).filter((s) => s.length >= 12);
+    for (const s of frText.filter((s) => !enText.includes(s))) assert.ok(!text(htmlEn).includes(s), `français dans ${en} : ${s}`);
+    for (const s of enText.filter((s) => !frText.includes(s))) assert.ok(!text(htmlFr).includes(s), `anglais dans ${fr} : ${s}`);
+    for (const s of enText) assert.ok(text(htmlEn).includes(s), `${en} : ${s}`);
+    // Captures de la langue de la page, avec leurs textes alternatifs anglais.
+    const images = (html) => attrs(html, "img").map((i) => i.src).filter((src) => src?.startsWith("/site-web/"));
+    assert.ok(images(htmlEn).every((src) => /\/site-web\/[^/]+\/en\//.test(src)), en);
+    assert.ok(images(htmlFr).every((src) => /\/site-web\/[^/]+\/fr\//.test(src)), fr);
+    const alts = attrs(htmlEn, "img").filter((i) => i.src?.startsWith("/site-web/")).map((i) => i.alt);
+    assert.deepEqual([...new Set(alts)].sort(), [...new Set(guideAlts(SEO_LANDING_PAGES_EN[fr]))].sort(), en);
+    // Menu anglais, aucune page marquée ; le sélecteur mène au guide français.
+    assert.deepEqual(attrs(htmlEn, "a").filter((a) => a.class === "navLink").map((a) => a.href), ["/en/features", "/en/guides", "/en/faq"], en);
+    assert.deepEqual(attrs(htmlEn, "a").filter((a) => a["aria-current"] === "page"), [], en);
+    assert.deepEqual(attrs(htmlEn, "a").filter((a) => a.class === "langLink").map((a) => a.href), [fr], en);
+    assert.deepEqual(attrs(htmlFr, "a").filter((a) => a.class === "langLink").map((a) => a.href), [en], fr);
+    // Tous les liens : pages anglaises qui existent, inscription et connexion en
+    // anglais, l'app, le Chrono de la page, les sources.
+    for (const href of hrefs(htmlEn)) {
+      const path = href.split(/[?#]/)[0];
+      const ok = EN_PAGES.includes(path) || href === "/signup?lang=en" || href === "/login?lang=en" || href === "/dashboard"
+        || href === "#minuteur" || href.startsWith("https://");
+      assert.ok(ok, `${en} → ${href}`);
+    }
+    for (const item of SEO_LANDING_PAGES[fr].related) assert.ok(hrefs(htmlEn).includes(PAIRS[item.href]), `${en} → ${PAIRS[item.href]}`);
+    // Version française : aucun lien anglais hors du sélecteur, aucun paramètre de langue.
+    assert.deepEqual(hrefs(htmlFr).filter((href) => href.startsWith("/en") || /[?&]lang=/.test(href)), [], fr);
+  }
 });
 
 test("/en/legal : les quatre documents anglais dans le HTML, un visible ; ?doc=privacy|terms|cookies|notice ouvre le bon et reste sur /en/legal", () => {
@@ -810,7 +940,7 @@ test("en-tête sur petits téléphones : une seule rangée, le lien de langue ga
 });
 
 // ── Sitemap ────────────────────────────────────────────────────────────────
-test("sitemap : les onze adresses françaises dans le même ordre et au même rythme, de vraies dates, puis les cinq anglaises", async () => {
+test("sitemap : les onze adresses françaises dans le même ordre et au même rythme, de vraies dates, puis les onze anglaises", async () => {
   const env = makeEnv();
   const { getServerSideProps } = env.load("pages/sitemap.xml");
   let xml = "";
@@ -833,6 +963,12 @@ test("sitemap : les onze adresses françaises dans le même ordre et au même ry
     ["/en/features", "2026-10-14", "monthly", "0.8"],
     ["/en/guides", "2026-10-14", "monthly", "0.8"],
     ["/en/faq", "2026-09-27", "monthly", "0.7"],
+    ["/en/pomodoro", "2026-10-07", "weekly", "0.86"],
+    ["/en/study-planner", "2026-07-06", "weekly", "0.9"],
+    ["/en/study-stats", "2026-07-06", "weekly", "0.78"],
+    ["/en/study-goals", "2026-07-06", "weekly", "0.76"],
+    ["/en/study-app", "2026-07-06", "weekly", "0.88"],
+    ["/en/blocus-belgium", "2026-10-07", "weekly", "0.92"],
     ["/en/legal", "2026-09-27", "monthly", "0.3"],
   ]);
   // Chaque guide : la date qu'il déclare lui-même (JSON-LD, mention sur la page).

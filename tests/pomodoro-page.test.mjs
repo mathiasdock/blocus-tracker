@@ -461,9 +461,9 @@ test("invitation : en anglais sous une adresse anglaise, pas sur choix manuel ; 
   assert.ok(page.button(/^Démarrer$/), "français sur /pomodoro malgré l'anglais choisi");
   page.close();
 
-  // Une adresse anglaise : /en/pomodoro viendra (lib/publicRoutes.mjs), /en
-  // suffit à rendre la page en anglais.
-  const env = makeEnv({ pathname: "/en" });
+  // L'adresse anglaise, /en/pomodoro (lib/publicRoutes.mjs) : la même page, le
+  // même Chrono, en anglais ; l'inscription y commence en anglais.
+  const env = makeEnv({ pathname: "/en/pomodoro" });
   page = mount(env);
   page.click(/^Start$/);
   advance(env, 20 * 60_000);
@@ -475,6 +475,9 @@ test("invitation : en anglais sous une adresse anglaise, pas sur choix manuel ; 
     "Create a free account",
     "Continue without an account",
   ].join(""));
+  assert.equal(invitation(page).findAll((n) => n.type === "a")[0].props.href, "/signup?lang=en");
+  // Même espace invité que /pomodoro et le Dashboard invité : sur l'appareil.
+  assert.equal(read(env, GUEST_SPACE).sessions.length, 1);
   page.close();
 
   const full = makeEnv();
@@ -487,6 +490,29 @@ test("invitation : en anglais sous une adresse anglaise, pas sur choix manuel ; 
   assert.equal(full.store.has(GUEST_SPACE), false);
   assert.equal(invitation(page), undefined);
   page.close();
+});
+
+test("/en/pomodoro : la phase de repos s'appelle « Break », le bouton reste « Pause » ; le français garde « Pause »", () => {
+  const env = makeEnv({ pathname: "/en/pomodoro" });
+  const page = mount(env);
+  page.click(/^Start$/);
+  advance(env, 60_000);
+  assert.ok(page.button(/^Pause$/), "le bouton Pause");
+  assert.match(page.text(page.tool()), /Work/);
+  advance(env, 24 * 60_000);
+  advance(env, 100);
+  const text = page.text(page.tool());
+  assert.match(text, /Break· Cycle 1/);
+  assert.doesNotMatch(text, /Pause· Cycle/);
+  page.close();
+
+  const fr = makeEnv();
+  const pageFr = mount(fr);
+  pageFr.click(/^Démarrer$/);
+  advance(fr, 25 * 60_000);
+  advance(fr, 100);
+  assert.match(pageFr.text(pageFr.tool()), /Pause· Cycle 1/);
+  pageFr.close();
 });
 
 test("héros : le titre, puis l'outil, puis l'introduction — et les règles qui empêchent la page de bouger", () => {

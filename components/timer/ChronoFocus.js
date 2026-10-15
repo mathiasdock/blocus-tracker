@@ -152,7 +152,7 @@ export default function ChronoFocus({
           {pomodoro && (
             <p data-focus-reading="" role="status" className="text-xs font-semibold uppercase tracking-widest mb-3 relative z-10"
               style={{ color: pomoPhase === "work" ? "var(--bt-focus-env-accent, var(--bt-accent))" : "var(--bt-ink-muted)" }}>
-              {pomoPhase === "work" ? t("dash.work") : t("dash.pause")}
+              {pomoPhase === "work" ? t("dash.work") : t("dash.breakPhase")}
               {pomoCount > 0 && <span className="font-normal ml-2 opacity-60">· {t("dash.cycle")} {pomoCount}</span>}
             </p>
           )}

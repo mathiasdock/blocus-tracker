@@ -7,6 +7,7 @@ import Shot from "./Shot";
 import s from "./Landing.module.css";
 import g from "./Guide.module.css";
 import { useI18n } from "../../contexts/I18nContext";
+import { publicHref } from "../../lib/publicRoutes.mjs";
 import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 
 // Gabarit éditorial des guides, sur la grammaire de l'accueil : même en-tête,
@@ -19,7 +20,9 @@ import { SEO_LANDING_PAGES_EN } from "../../lib/seoLandingPagesEn";
 // Le texte, les titres et les liens sont ceux de lib/seoLandingPages(.En).js,
 // mot pour mot : seule la mise en page change. Meta et JSON-LD restent dans
 // SeoHead (lib/seo.js). La langue est celle de l'adresse (I18nContext) : une
-// adresse française montre toujours le français.
+// adresse française montre toujours le français. Les liens passent par
+// publicHref : une page anglaise mène aux guides anglais et à l'inscription en
+// anglais ; une page française, inchangée.
 //
 // Peu de surfaces, chacune pour une raison : les vraies captures du produit,
 // l'encadré « dans Blocus Tracker » à côté de l'article et l'appel final. Le
@@ -46,10 +49,10 @@ const UI = {
     included: "Included",
     shortAnswer: "Short answer",
     createSpace: "Create my space",
-    relatedTitle: "Keep going, smartly",
+    relatedTitle: "Keep going",
     relatedText: "These guides connect to build a real revision system: method, planning, goals, tracking and motivation.",
     faqTitle: "Frequently asked questions",
-    faqText: "Direct answers to help you choose a method and a tool without losing an evening comparing.",
+    faqText: "Direct answers to help you choose a method and a tool without spending an evening comparing them.",
     finalTitle: "Go from intention to a real session.",
     finalText: "You can try the timer right now. Create an account when you want to save your plan, your stats and your progress.",
     startTimer: "Start the timer",
@@ -163,6 +166,7 @@ export default function GuideArticle({ page, layout = "screen", tool = null }) {
   const { lang } = useI18n();
   const isEn = lang === "en";
   const ui = isEn ? UI.en : UI_FR;
+  const href = (path) => publicHref(path, lang);
   const en = isEn ? SEO_LANDING_PAGES_EN[page.path] : null;
   const p = en ? { ...page, ...en } : typeset(page);
   const composition = LAYOUT[layout] || LAYOUT.screen;
@@ -220,8 +224,8 @@ export default function GuideArticle({ page, layout = "screen", tool = null }) {
                     ceux du JSON-LD Article (lib/seo.js). */}
                 {p.byline && <p className={g.byline}>{p.byline}</p>}
                 <div className={`${s.actions} ${g.heroActions}`}>
-                  {!tool && <Link href="/dashboard" className={`btn-primary ${s.cta}`}>{p.ctaLabel}</Link>}
-                  <Link href={p.secondaryCtaHref} className={`btn-ghost ${s.cta} ${s.ctaGhost}`}>
+                  {!tool && <Link href={href("/dashboard")} className={`btn-primary ${s.cta}`}>{p.ctaLabel}</Link>}
+                  <Link href={href(p.secondaryCtaHref)} className={`btn-ghost ${s.cta} ${s.ctaGhost}`}>
                     {p.secondaryCtaLabel}
                   </Link>
                 </div>
@@ -337,7 +341,7 @@ export default function GuideArticle({ page, layout = "screen", tool = null }) {
                       <li key={item} className={g.panelItem}><Check />{item}</li>
                     ))}
                   </ul>
-                  <Link href="/signup" className={`${s.textLink} ${g.panelLink}`}>
+                  <Link href={href("/signup")} className={`${s.textLink} ${g.panelLink}`}>
                     {ui.createSpace} <Arrow />
                   </Link>
                 </div>
@@ -368,7 +372,7 @@ export default function GuideArticle({ page, layout = "screen", tool = null }) {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className={`${s.textLink} ${g.galleryLink}`}>
+              <Link href={href("/signup")} className={`${s.textLink} ${g.galleryLink}`}>
                 {ui.createSpace} <Arrow />
               </Link>
             </section>
@@ -381,7 +385,7 @@ export default function GuideArticle({ page, layout = "screen", tool = null }) {
               <ul role="list" className={g.relatedList}>
                 {p.related.map((item) => (
                   <li key={item.href} className={g.relatedItem}>
-                    <Link href={item.href} className={g.relatedLink}>
+                    <Link href={href(item.href)} className={g.relatedLink}>
                       <h3 className={g.relatedTitle}>{item.label}</h3>
                       <p className={g.relatedText}>{item.text}</p>
                       <span className={g.relatedArrow} aria-hidden="true"><Arrow /></span>
@@ -426,9 +430,9 @@ export default function GuideArticle({ page, layout = "screen", tool = null }) {
                 {tool ? (
                   <a href="#minuteur" className={`btn btn-hero ${s.cta}`}>{ui.startTimer}</a>
                 ) : (
-                  <Link href="/dashboard" className={`btn btn-hero ${s.cta}`}>{ui.startTimer}</Link>
+                  <Link href={href("/dashboard")} className={`btn btn-hero ${s.cta}`}>{ui.startTimer}</Link>
                 )}
-                <Link href="/signup" className={`btn ${s.cta} ${s.ctaOnInk}`}>{ui.signup}</Link>
+                <Link href={href("/signup")} className={`btn ${s.cta} ${s.ctaOnInk}`}>{ui.signup}</Link>
               </div>
             </div>
           </section>

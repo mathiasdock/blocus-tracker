@@ -552,3 +552,27 @@ test("réglages de session : appui de 44 px et libellés de 13 px, pilules compa
   // Les autres filtres de l'app (Stats, classement, messages) gardent leur taille.
   assert.match(readFileSync(join(ROOT, "components/FilterMenu.js"), "utf8"), /`bt-filter-btn inline-flex min-h-8 max-w-full items-center gap-1 rounded-lg px-2\.5 py-1 text-xs font-semibold/);
 });
+
+// « J-5 » est une convention française ; l'anglais affichait « D-5 », qui ne
+// veut rien dire. Comme le Planning : « 5 days », et « Tomorrow » la veille.
+test("compte à rebours d'examen sur la carte : « J-5 » et « J-1 » en français, « 5 days » et « Tomorrow » en anglais", () => {
+  for (const [lang, expected] of [["fr", ["J-5", "J-1", "Aujourd'hui !"]], ["en", ["5 days", "Tomorrow", "Today!"]]]) {
+    const env = makeBrowser();
+    const { STRINGS } = env.load("lib/i18n");
+    env.mocks["contexts/I18nContext"] = { useI18n: () => ({ t: (k) => STRINGS[lang][k] ?? k, lang }) };
+    const page = mountApp(env);
+    const ChronoCard = env.load("components/timer/ChronoCard").default;
+    const course = { id: "course-1", name: "Research Methods", color: "#2D6A4F" };
+    const seen = [5, 1, 0].map((examDays) => {
+      let card;
+      act(() => { card = create(React.createElement(ChronoCard, { chrono: page.chrono, courses: [course], activeCourses: [course], courseExam: { id: "exam-1" }, examDays })); });
+      const badge = card.root.find((n) => n.type === "span" && n.props.className === "bt-timer-exam-context");
+      const label = badge.find((n) => n.type === "span" && /\btabular-nums\b/.test(n.props.className || ""));
+      const value = label.children.join("");
+      act(() => card.unmount());
+      return value;
+    });
+    assert.deepEqual(seen, expected, lang);
+    page.close();
+  }
+});
