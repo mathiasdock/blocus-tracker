@@ -137,7 +137,7 @@ test("légal : un compte connecté retrouve le chemin de l'app, à la place du s
   assert.deepEqual(articles(html).filter((a) => !a.hidden).map((a) => a.id), ["privacy"]);
 });
 
-test("légal : français sur son adresse même avec l'anglais choisi ; anglais sous une adresse anglaise, tous les documents", () => {
+test("légal : français sur son adresse même avec l'anglais choisi ; anglais sur /en/legal, tous les documents", () => {
   // Le choix enregistré se lit après le premier rendu (I18nContext) : rendu
   // vivant. Il ne change pas la langue d'une adresse française.
   const chosen = makeEnv({ langPref: "en" });
@@ -150,9 +150,8 @@ test("légal : français sur son adresse même avec l'anglais choisi ; anglais s
     act(() => renderer.unmount());
   }
 
-  // Une adresse anglaise : /en/legal viendra (lib/publicRoutes.mjs), /en
-  // suffit à rendre la page en anglais.
-  const env = makeEnv({ pathname: "/en" });
+  // Son adresse anglaise, /en/legal (lib/publicRoutes.mjs).
+  const env = makeEnv({ pathname: "/en/legal" });
   const { LEGAL_DOCS } = env.load("lib/legal");
   const { I18nProvider } = env.load("contexts/I18nContext");
   const Page = env.load("pages/legal").default;

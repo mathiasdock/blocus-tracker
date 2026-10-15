@@ -11,10 +11,12 @@ import { useI18n } from "../contexts/I18nContext";
 import { getLandingContent } from "../lib/landingContent";
 import { SEO_LANDING_PAGES, SEO_LANDING_PATHS } from "../lib/seoLandingPages";
 import { SEO_LANDING_PAGES_EN } from "../lib/seoLandingPagesEn";
+import { publicHref } from "../lib/publicRoutes.mjs";
 
 // Sommaire des guides : la méthode en quatre temps, où chaque temps mène au
 // guide qui l'outille, puis les six guides, chacun avec une vraie capture du
-// produit dont il parle — pour choisir d'un coup d'œil.
+// produit dont il parle — pour choisir d'un coup d'œil. Sert aussi /en/guides :
+// chaque lien mène au guide dans la langue de la page quand il existe.
 function Arrow() {
   return <Glyph size={16}><path d="M5 12h14M13 6l6 6-6 6" /></Glyph>;
 }
@@ -62,7 +64,7 @@ export default function Guides() {
                     <h3 className={sh.loopTitle}>{step.title}</h3>
                     <p className={sh.loopText}>{step.text}</p>
                     <p className={sh.loopLink}>
-                      <Link href={step.href} className={s.textLink}><LinkText text={step.link} /></Link>
+                      <Link href={publicHref(step.href, lang)} className={s.textLink}><LinkText text={step.link} /></Link>
                     </p>
                   </div>
                 </li>
@@ -80,7 +82,7 @@ export default function Guides() {
                 const thumb = THUMBS[path] || {};
                 return (
                   <li key={path} className={sh.guideItem}>
-                    <Link href={path} className={sh.guideEntry}>
+                    <Link href={publicHref(path, lang)} className={sh.guideEntry}>
                       <Shot lang={lang} name={`thumb${path.replace("/", "-")}`} alt="" sizes="(min-width: 640px) 176px, 112px"
                         className={`${sh.guideThumb}${thumb.center ? ` ${sh.guideThumbCenter}` : ""}${thumb.left ? ` ${sh.guideThumbLeft}` : ""}`} />
                       <span className={sh.guideEyebrow}>{page.eyebrow}</span>

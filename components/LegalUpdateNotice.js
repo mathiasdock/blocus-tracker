@@ -20,12 +20,13 @@ import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
 import { loadPrivacySettings, recordLegalAcceptance } from "../lib/privacySettings";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
+import { legalHref } from "../lib/publicRoutes.mjs";
 
 const SNOOZE_KEY = "bt_legal_notice_snoozed";
 
 export default function LegalUpdateNotice() {
   const { user, profileStatus } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -86,11 +87,11 @@ export default function LegalUpdateNotice() {
             <p className="text-sm font-bold" style={{ color: "var(--bt-text-1)" }}>{t("legalUpdate.title")}</p>
             <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
               {t("legalUpdate.body")}{" "}
-              <Link href="/legal?doc=terms" className="bt-accent-link font-medium underline underline-offset-2">
+              <Link href={legalHref(lang, "terms")} className="bt-accent-link font-medium underline underline-offset-2">
                 {t("legalUpdate.readTerms")}
               </Link>
               {" · "}
-              <Link href="/legal?doc=privacy" className="bt-accent-link font-medium underline underline-offset-2">
+              <Link href={legalHref(lang, "privacy")} className="bt-accent-link font-medium underline underline-offset-2">
                 {t("legalUpdate.readPrivacy")}
               </Link>
             </p>

@@ -28,6 +28,8 @@ const DEFAULT_DOC = "privacy";
 // dans le HTML — les documents fermés sont seulement masqués — pour être lus
 // sans JavaScript par les moteurs ; avant, seul le premier y figurait.
 // Le titre, la description et le fil d'Ariane viennent de lib/seo.js (SeoHead).
+// Sert aussi /en/legal, en anglais : les liens de document restent sur
+// l'adresse de la page (/en/legal?doc=terms).
 export default function Legal() {
   const { t, lang } = useI18n();
   const { user } = useAuth();
@@ -87,7 +89,7 @@ export default function Legal() {
               <ul role="list" className={l.docList}>
                 {LEGAL_DOCS.map((d) => (
                   <li key={d.id} className={l.docItem}>
-                    <Link href={{ pathname: "/legal", query: { doc: d.id } }} replace shallow scroll={false}
+                    <Link href={{ pathname: router.pathname, query: { doc: d.id } }} replace shallow scroll={false}
                       className={l.docLink} aria-current={d.id === active ? "page" : undefined}>
                       {t(TAB_KEYS[d.id])}
                     </Link>

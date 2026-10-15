@@ -23,7 +23,9 @@ test("le texte du consentement reste entier, avec la politique cookies", async (
   const source = await banner();
   assert.match(source, /\{t\("consent\.bannerTitle"\)\}/);
   assert.match(source, /\{t\("consent\.bannerBody"\)\}/);
-  assert.match(source, /href="\/legal\?doc=cookies"/);
+  // La politique cookies, dans la langue affichée (/legal ou /en/legal) :
+  // comportement vérifié dans tests/bilingual-pilot.test.mjs.
+  assert.match(source, /href=\{legalHref\(lang, "cookies"\)\}/);
 });
 
 test("les préférences détaillées restent accessibles : panneau sur téléphone, dépliage sur ordinateur", async () => {

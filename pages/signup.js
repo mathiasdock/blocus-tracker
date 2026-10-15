@@ -16,6 +16,7 @@ import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
 import { hasConsent } from "../lib/consent";
 import { pendingCampaignVisit, recordCampaignLanding } from "../lib/campaignAttribution.mjs";
+import { legalHref } from "../lib/publicRoutes.mjs";
 import { supabase } from "../lib/supabaseClient";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -281,9 +282,9 @@ export default function Signup() {
           />
           <span>
             {t("signup.termsPre")}{" "}
-            <Link href="/legal?doc=terms" target="_blank" rel="noopener">{t("signup.termsLink")}</Link>{" "}
+            <Link href={legalHref(lang, "terms")} target="_blank" rel="noopener">{t("signup.termsLink")}</Link>{" "}
             {t("signup.termsMid")}{" "}
-            <Link href="/legal?doc=privacy" target="_blank" rel="noopener">{t("signup.privacyLink")}</Link>.
+            <Link href={legalHref(lang, "privacy")} target="_blank" rel="noopener">{t("signup.privacyLink")}</Link>.
           </span>
         </label>
         {shown("terms") && <FormNote id="signup-terms-message" tone="error">{shown("terms")}</FormNote>}

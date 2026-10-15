@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import {
   ENTRY_PATHS, JOURNEY_KEY, PUBLIC_PAGES, PUBLIC_PAGE_PATHS, displayLang, equivalentPath, isEntryPath,
-  languageSwitchHref, pageAlternates, publicHref, publicPageLang,
+  languageSwitchHref, legalHref, pageAlternates, publicHref, publicPageLang,
 } from "../lib/publicRoutes.mjs";
 import { shouldCheckOnboarding } from "../lib/onboarding.mjs";
 import { shouldRedirectToProfileRepair } from "../lib/authProfile.mjs";
@@ -62,7 +62,14 @@ function makeEnv({ pathname = "/", query = {}, isReady = true, device = "fr-BE",
     "contexts/AuthContext": { useAuth: () => ({ user, loading: false, profileStatus: user ? "ready" : null }) },
     "contexts/ConsentContext": { useConsent: () => ({ openSettings: () => {}, allows: () => false, hydrated: true }) },
     "next/router": { useRouter: () => ({ ...router, replace: (url) => { router.replaced.push(url); router.query = url.query; return Promise.resolve(true); } }) },
-    "next/link": { __esModule: true, default: ({ href, children, ...rest }) => h("a", { href, ...rest }, children) },
+    // Une adresse donnée en objet ({ pathname, query }) s'écrit comme Next l'écrirait.
+    "next/link": {
+      __esModule: true,
+      default: ({ href, children, replace, shallow, scroll, ...rest }) => h("a", {
+        href: typeof href === "object" ? `${href.pathname}${href.query ? `?${new URLSearchParams(href.query)}` : ""}` : href,
+        ...rest,
+      }, children),
+    },
     "next/head": { __esModule: true, default: ({ children }) => h(React.Fragment, null, children) },
     "components/Mascot": { __esModule: true, default: () => h("svg", { "data-mascot": "1" }) },
     ...extra,
@@ -117,34 +124,50 @@ const attrs = (html, tag) => [...html.matchAll(new RegExp(`<${tag}\\b([^>]*)>`, 
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const leaves = (value) => (typeof value === "string" ? [value] : value && typeof value === "object" ? Object.values(value).flatMap(leaves) : []);
 
+// Les pages qui ont leur version anglaise, et celles qui l'attendent.
+const PAIRS = { "/": "/en", "/fonctionnalites": "/en/features", "/guides": "/en/guides", "/faq": "/en/faq", "/legal": "/en/legal" };
+const EN_PAGES = Object.values(PAIRS);
+const NOT_YET = FR_PAGES.filter((path) => !PAIRS[path]);
+
 // ── Le registre ────────────────────────────────────────────────────────────
-test("registre : les onze adresses françaises inchangées, /en comme seule adresse anglaise, chaque page a son fichier", () => {
+test("registre : les onze adresses françaises inchangées, cinq adresses anglaises, chaque page a son fichier", () => {
   assert.deepEqual(PUBLIC_PAGES.map((page) => page.fr), FR_PAGES);
-  assert.deepEqual(PUBLIC_PAGES.filter((page) => page.en).map((page) => page.en), ["/en"]);
-  assert.deepEqual(PUBLIC_PAGE_PATHS, [...FR_PAGES, "/en"]);
+  assert.deepEqual(PUBLIC_PAGES.filter((page) => page.en).map((page) => page.en), EN_PAGES);
+  assert.deepEqual(PUBLIC_PAGE_PATHS, [...FR_PAGES, ...EN_PAGES]);
+  assert.deepEqual(NOT_YET, ["/pomodoro", "/planning-revision", "/stats-etude", "/objectifs-etude", "/application-etudiant", "/blocus-belgique"]);
   for (const path of FR_PAGES) {
     const file = path === "/" ? "pages/index.js" : `pages${path}.js`;
     assert.ok(existsSync(join(ROOT, file)), file);
   }
   // pages/en ne contient que des pages du registre — aucune page de l'app.
   const enFiles = readdirSync(join(ROOT, "pages/en")).sort();
-  const enPaths = enFiles.map((file) => (file === "index.js" ? "/en" : `/en/${file.replace(/\.js$/, "")}`));
-  assert.deepEqual(enPaths, PUBLIC_PAGES.filter((page) => page.en).map((page) => page.en));
+  const enPaths = enFiles.map((file) => (file === "index.js" ? "/en" : `/en/${file.replace(/\.js$/, "")}`)).sort();
+  assert.deepEqual(enPaths, [...EN_PAGES].sort());
   for (const path of enPaths) assert.equal(publicPageLang(path), "en");
-  for (const app of ["/dashboard", "/signup", "/login", "/admin", "/profile", "/en/dashboard", "/en/signup", "/en/admin", "/en/faq"]) {
+  // Chaque page anglaise est la page française elle-même : aucun second gabarit.
+  for (const [fr, en] of Object.entries(PAIRS)) {
+    const file = en === "/en" ? "pages/en/index.js" : `pages${en}.js`;
+    const target = fr === "/" ? "index" : fr.slice(1);
+    assert.match(readFileSync(join(ROOT, file), "utf8"), new RegExp(`export \\{ default \\} from "\\.\\./${target}";`), file);
+  }
+  for (const app of ["/dashboard", "/signup", "/login", "/admin", "/profile", "/en/dashboard", "/en/signup", "/en/admin", "/en/profile", "/en/pomodoro"]) {
     assert.equal(publicPageLang(app), null, app);
     assert.equal(existsSync(join(ROOT, `pages${app}.js`)) && app.startsWith("/en/"), false, app);
   }
 });
 
 test("registre : les deux versions d'une page seulement quand les deux existent", () => {
-  assert.deepEqual(pageAlternates("/"), { fr: "/", en: "/en" });
-  assert.deepEqual(pageAlternates("/en?campaign=affiche#faq-title"), { fr: "/", en: "/en" });
-  for (const path of FR_PAGES.slice(1)) assert.equal(pageAlternates(path), null, path);
+  for (const [fr, en] of Object.entries(PAIRS)) {
+    assert.deepEqual(pageAlternates(fr), { fr, en }, fr);
+    assert.deepEqual(pageAlternates(`${en}?doc=terms#x`), { fr, en }, en);
+    assert.equal(equivalentPath(fr, "en"), en);
+    assert.equal(equivalentPath(en, "fr"), fr);
+  }
+  for (const path of NOT_YET) {
+    assert.equal(pageAlternates(path), null, path);
+    assert.equal(equivalentPath(path, "en"), null, path);
+  }
   assert.equal(pageAlternates("/dashboard"), null);
-  assert.equal(equivalentPath("/", "en"), "/en");
-  assert.equal(equivalentPath("/en", "fr"), "/");
-  assert.equal(equivalentPath("/faq", "en"), null);
 });
 
 test("registre : toute page indexable de lib/seo.js est dans le registre, avec la locale de sa langue", () => {
@@ -180,12 +203,34 @@ test("liens d'une page anglaise : connexion et inscription en anglais, pages de 
   assert.equal(publicHref("/login", "en"), "/login?lang=en");
   assert.equal(publicHref("/", "en"), "/en");
   assert.equal(publicHref("/?campaign=affiche#faq-title", "en"), "/en?campaign=affiche#faq-title");
+  assert.equal(publicHref("/fonctionnalites", "en"), "/en/features");
+  assert.equal(publicHref("/guides", "en"), "/en/guides");
+  assert.equal(publicHref("/faq#question-3", "en"), "/en/faq#question-3");
+  assert.equal(publicHref("/legal?doc=cookies", "en"), "/en/legal?doc=cookies");
   // Pas encore traduites : l'adresse française, en attendant.
-  for (const href of ["/fonctionnalites", "/faq", "/legal?doc=cookies", "/pomodoro"]) assert.equal(publicHref(href, "en"), href);
+  for (const href of NOT_YET) assert.equal(publicHref(href, "en"), href);
   // L'app garde ses adresses ; le mode découverte suit la langue de l'app.
   for (const href of ["/dashboard", "/profile", "https://elevenlabs.io", "//evil.example", "#question-2"]) assert.equal(publicHref(href, "en"), href);
   // Une page française ne transmet rien.
-  for (const href of ["/signup", "/signup?campaign=affiche", "/login", "/", "/faq"]) assert.equal(publicHref(href, "fr"), href);
+  for (const href of ["/signup", "/signup?campaign=affiche", "/login", "/", "/faq", "/legal?doc=terms"]) assert.equal(publicHref(href, "fr"), href);
+});
+
+test("liens légaux : dans la langue affichée — /legal en français, /en/legal en anglais, avec le document demandé", () => {
+  assert.equal(legalHref("fr"), "/legal");
+  assert.equal(legalHref("en"), "/en/legal");
+  for (const doc of ["privacy", "terms", "cookies", "notice"]) {
+    assert.equal(legalHref("fr", doc), `/legal?doc=${doc}`);
+    assert.equal(legalHref("en", doc), `/en/legal?doc=${doc}`);
+  }
+  // Plus aucun lien légal écrit en dur dans l'app : tous passent par legalHref
+  // (profil, inscription, premiers réglages, pied de page, bandeau cookies,
+  // rappel des CGU), ou par publicHref sur le site public.
+  const files = ["pages/profile.js", "pages/signup.js", "pages/login.js", "pages/onboarding.js", "components/Layout.js",
+    "components/ConsentManager.js", "components/LegalUpdateNotice.js", "components/landing/PublicFooter.js"];
+  for (const file of files) {
+    const source = readFileSync(join(ROOT, file), "utf8");
+    assert.doesNotMatch(source, /href=["'{]\s*["'`]?\/legal/, file);
+  }
 });
 
 test("sélecteur : même page dans l'autre langue, paramètres prévus et ancre gardés, rien d'autre", () => {
@@ -198,14 +243,19 @@ test("sélecteur : même page dans l'autre langue, paramètres prévus et ancre 
   assert.equal(languageSwitchHref({ pathname: "/en", query: { campaign: ["a", "b"] }, hash: "#x" }, "fr"), "/?campaign=a#x");
   // Valeurs ou ancres suspectes : ignorées.
   assert.equal(languageSwitchHref({ pathname: "/", query: { campaign: "<script>", ref: "a b" }, hash: "#a\"b" }, "en"), "/en");
+  // Le document légal et l'ancre suivent sur la page équivalente.
+  assert.equal(languageSwitchHref({ pathname: "/legal", query: { doc: "terms", campaign: "x" }, hash: "#legal-terms-2" }, "en"), "/en/legal?campaign=x&doc=terms#legal-terms-2");
+  assert.equal(languageSwitchHref({ pathname: "/en/legal", query: { doc: "notice" } }, "fr"), "/legal?doc=notice");
+  assert.equal(languageSwitchHref({ pathname: "/faq", query: {}, hash: "#question-3" }, "en"), "/en/faq#question-3");
+  assert.equal(languageSwitchHref({ pathname: "/en/features", query: {}, hash: "#planning" }, "fr"), "/fonctionnalites#planning");
+  assert.equal(languageSwitchHref({ pathname: "/en/guides", query: {} }, "fr"), "/guides");
   // Sans version anglaise : l'accueil anglais, sans le document ni l'ancre de la page.
-  assert.equal(languageSwitchHref({ pathname: "/legal", query: { doc: "terms", campaign: "x" }, hash: "#legal-terms-2" }, "en"), "/en?campaign=x");
-  assert.equal(languageSwitchHref({ pathname: "/faq", query: {}, hash: "#question-3" }, "en"), "/en");
+  assert.equal(languageSwitchHref({ pathname: "/pomodoro", query: { campaign: "x", doc: "terms" }, hash: "#minuteur" }, "en"), "/en?campaign=x");
 });
 
 test("langue affichée : l'adresse sur le site, le parcours sur les pages d'entrée, sinon la langue de l'app", () => {
   for (const pathname of FR_PAGES) assert.equal(displayLang({ pathname, journeyLang: "en", appLang: "en" }), "fr", pathname);
-  assert.equal(displayLang({ pathname: "/en", journeyLang: "fr", appLang: "fr" }), "en");
+  for (const pathname of EN_PAGES) assert.equal(displayLang({ pathname, journeyLang: "fr", appLang: "fr" }), "en", pathname);
   for (const pathname of ENTRY_PATHS) {
     assert.equal(isEntryPath(pathname), true);
     assert.equal(displayLang({ pathname, journeyLang: "en", appLang: "fr" }), "en", pathname);
@@ -218,7 +268,7 @@ test("langue affichée : l'adresse sur le site, le parcours sur les pages d'entr
 
 // ── La langue dans un vrai navigateur simulé ───────────────────────────────
 test("pages publiques : la langue de l'adresse, sans bascule après le chargement, quels que soient l'appareil, le choix enregistré ou le compte", () => {
-  for (const [pathname, expected] of [["/", "fr"], ["/faq", "fr"], ["/en", "en"]]) {
+  for (const [pathname, expected] of [["/", "fr"], ["/faq", "fr"], ["/legal", "fr"], ["/en", "en"], ["/en/faq", "en"], ["/en/legal", "en"]]) {
     for (const device of ["fr-BE", "en-US", "de-DE"]) {
       for (const langPref of [null, "fr", "en"]) {
         for (const user of [null, { id: "u" }]) {
@@ -395,22 +445,59 @@ test("SEO : / et /en — titre, description, canonical propre, locale, image de 
   assert.deepEqual(plain(fr.alternates), { fr: "/", en: "/en" });
   assert.deepEqual(plain(en.alternates), { fr: "/", en: "/en" });
   // Une page française sans version anglaise, une page de l'app : pas de hreflang.
-  assert.equal(getSeoForPath("/faq").alternates, null);
-  assert.equal(getSeoForPath("/legal?doc=terms").alternates, null);
+  for (const path of NOT_YET) assert.equal(getSeoForPath(path).alternates, null, path);
   assert.equal(getSeoForPath("/dashboard").alternates, null);
   assert.equal(getSeoForPath("/en/dashboard").index, false);
+  assert.equal(getSeoForPath("/en/pomodoro").index, false);
 });
 
-test("SEO : les balises du head — hreflang fr et en sur les deux accueils, seulement là, pas de x-default", () => {
+test("SEO : /en/features, /en/guides, /en/faq, /en/legal — leur titre, leur description, leur canonical, hreflang réciproques ; les pages françaises inchangées", () => {
+  const env = makeEnv();
+  const { getSeoForPath } = env.load("lib/seo");
+  const expected = {
+    "/en/features": ["Features: study timer, planner, stats | Blocus Tracker", "Timer and Focus mode, exam planner, stats, XP and badges, friends and course spaces: everything Blocus Tracker does for your revision."],
+    "/en/guides": ["Study guides to revise better | Blocus Tracker", "The Pomodoro method, revision planning, goals, study stats and the blocus: practical guides to organize your revision."],
+    "/en/faq": ["Frequently asked questions | Blocus Tracker", "Price, account, planning, social features, phone and personal data: answers to frequently asked questions about Blocus Tracker."],
+    "/en/legal": ["Privacy, terms and legal notice | Blocus Tracker", "Read Blocus Tracker's privacy policy, terms of service, local storage information and legal notice."],
+  };
+  const frenchBefore = {
+    "/fonctionnalites": "Fonctionnalités : chrono, planning, stats | Blocus Tracker",
+    "/guides": "Guides pour mieux réviser | Blocus Tracker",
+    "/faq": "Questions fréquentes | Blocus Tracker",
+    "/legal": "Confidentialité, CGU et mentions légales | Blocus Tracker",
+  };
+  for (const [fr, en] of Object.entries(PAIRS).filter(([path]) => path !== "/")) {
+    const seoEn = getSeoForPath(`${en}?doc=terms`);
+    assert.deepEqual([seoEn.title, seoEn.description], expected[en], en);
+    assert.equal(seoEn.canonicalUrl, `https://www.blocus-tracker.com${en}`);
+    assert.equal(seoEn.locale, "en_US");
+    assert.equal(seoEn.imageAlt, "Blocus Tracker, a study app for students");
+    assert.match(seoEn.robots, /^index, follow/);
+    assert.deepEqual(plain(seoEn.alternates), { fr, en });
+    const seoFr = getSeoForPath(fr);
+    assert.equal(seoFr.title, frenchBefore[fr]);
+    assert.equal(seoFr.canonicalUrl, `https://www.blocus-tracker.com${fr}`);
+    assert.equal(seoFr.locale, "fr_BE");
+    assert.deepEqual(plain(seoFr.alternates), { fr, en });
+  }
+});
+
+test("SEO : les balises du head — hreflang fr et en sur les deux versions de chaque page traduite, seulement là, pas de x-default", () => {
   const head = (pathname) => {
     const env = makeEnv({ pathname });
     const SeoHead = env.load("components/SeoHead").default;
     return renderToStaticMarkup(h(SeoHead));
   };
   const links = (html) => attrs(html, "link").filter((l) => l.rel === "alternate").map((l) => [l.hreflang, l.href]);
-  const pair = [["fr", "https://www.blocus-tracker.com/"], ["en", "https://www.blocus-tracker.com/en"]];
-  for (const pathname of ["/", "/en"]) assert.deepEqual(links(head(pathname)), pair, pathname);
-  for (const pathname of ["/faq", "/pomodoro", "/legal", "/dashboard", "/signup"]) assert.deepEqual(links(head(pathname)), [], pathname);
+  for (const [fr, en] of Object.entries(PAIRS)) {
+    const pair = [["fr", `https://www.blocus-tracker.com${fr}`], ["en", `https://www.blocus-tracker.com${en}`]];
+    for (const pathname of [fr, en]) {
+      const html = head(pathname);
+      assert.deepEqual(links(html), pair, pathname);
+      assert.equal(attrs(html, "link").find((l) => l.rel === "canonical").href, `https://www.blocus-tracker.com${pathname}`, pathname);
+    }
+  }
+  for (const pathname of [...NOT_YET, "/dashboard", "/signup"]) assert.deepEqual(links(head(pathname)), [], pathname);
   const en = head("/en");
   const meta = (html, key) => attrs(html, "meta").find((m) => m.property === key || m.name === key)?.content;
   assert.equal(meta(en, "og:locale"), "en_US");
@@ -450,6 +537,54 @@ test("JSON-LD : l'accueil anglais en anglais, égal à son texte visible ; l'acc
   for (const path of FR_PAGES) assert.doesNotMatch(JSON.stringify(structuredDataForPath(path)), /"inLanguage":"en"|"name":"Home"/, path);
 });
 
+test("JSON-LD : fonctionnalités, guides, FAQ et légal en anglais, égaux à leur texte visible ; les versions françaises inchangées", () => {
+  const env = makeEnv();
+  const { structuredDataForPath, FAQ, FAQ_EN } = env.load("lib/seo");
+  const { SEO_LANDING_PAGES, SEO_LANDING_PATHS } = env.load("lib/seoLandingPages");
+  const { SEO_LANDING_PAGES_EN } = env.load("lib/seoLandingPagesEn");
+  const byType = (nodes, type) => nodes.find((n) => n["@type"] === type);
+  const types = (path) => plain(structuredDataForPath(path)).map((n) => n["@type"]);
+  const site = "https://www.blocus-tracker.com";
+
+  assert.deepEqual(types("/en/features"), ["Organization", "WebPage", "BreadcrumbList"]);
+  assert.deepEqual(types("/en/legal"), ["Organization", "WebPage", "BreadcrumbList"]);
+  assert.deepEqual(types("/en/faq"), ["Organization", "WebPage", "FAQPage", "BreadcrumbList"]);
+  assert.deepEqual(types("/en/guides"), ["Organization", "WebPage", "ItemList", "BreadcrumbList"]);
+  // Les françaises gardent leur forme.
+  assert.deepEqual(types("/fonctionnalites"), ["Organization", "WebSite", "WebPage", "BreadcrumbList"]);
+  assert.deepEqual(types("/legal"), ["Organization", "WebSite", "WebPage", "BreadcrumbList"]);
+  assert.deepEqual(types("/faq"), ["Organization", "WebSite", "WebPage", "FAQPage", "BreadcrumbList"]);
+  assert.deepEqual(types("/guides"), ["Organization", "WebSite", "WebPage", "ItemList", "BreadcrumbList"]);
+
+  // FAQ : les neuf questions affichées sur /en/faq.
+  const faqEn = plain(structuredDataForPath("/en/faq"));
+  assert.deepEqual(byType(faqEn, "FAQPage").mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), plain(FAQ_EN.map((q) => [q.q, q.a])));
+  const faqFr = plain(structuredDataForPath("/faq"));
+  assert.deepEqual(byType(faqFr, "FAQPage").mainEntity.map((q) => [q.name, q.acceptedAnswer.text]), plain(FAQ.map((q) => [q.q, q.a])));
+
+  // Guides : les titres anglais affichés, l'adresse que la page donne (française tant que le guide n'est pas traduit).
+  const guidesEn = byType(plain(structuredDataForPath("/en/guides")), "ItemList");
+  assert.equal(guidesEn.name, "Blocus Tracker guides");
+  assert.deepEqual(guidesEn.itemListElement.map((i) => [i.name, i.url]), plain(SEO_LANDING_PATHS.map((path) => [SEO_LANDING_PAGES_EN[path].h1, `${site}${path}`])));
+  const guidesFr = byType(plain(structuredDataForPath("/guides")), "ItemList");
+  assert.equal(guidesFr.name, "Guides Blocus Tracker");
+  assert.deepEqual(guidesFr.itemListElement.map((i) => [i.name, i.url]), plain(SEO_LANDING_PATHS.map((path) => [SEO_LANDING_PAGES[path].h1, `${site}${path}`])));
+
+  // Page, fil d'Ariane : en anglais, vers les adresses anglaises.
+  for (const [fr, en] of Object.entries(PAIRS).filter(([path]) => path !== "/")) {
+    const nodes = plain(structuredDataForPath(en));
+    const page = byType(nodes, "WebPage");
+    assert.equal(page.inLanguage, "en", en);
+    assert.equal(page.url, `${site}${en}`);
+    const crumbs = byType(nodes, "BreadcrumbList").itemListElement;
+    assert.deepEqual(crumbs.map((c) => c.item), [`${site}/en`, `${site}${en}`], en);
+    assert.equal(crumbs[0].name, "Home");
+    assert.doesNotMatch(JSON.stringify(nodes), /fr-BE|Accueil|Questions fréquentes|Fonctionnalités|mentions légales/, en);
+    const frCrumbs = byType(plain(structuredDataForPath(fr)), "BreadcrumbList").itemListElement;
+    assert.deepEqual(frCrumbs.map((c) => [c.name, c.item]).slice(0, 1), [["Accueil", `${site}/`]], fr);
+  }
+});
+
 test("_document : <html lang> de l'adresse dès le serveur — en pour /en, fr ailleurs", () => {
   const env = makeEnv({
     mocks: {
@@ -463,8 +598,8 @@ test("_document : <html lang> de l'adresse dès le serveur — en pour /en, fr a
   });
   const Document = env.load("pages/_document").default;
   const lang = (page) => attrs(renderToStaticMarkup(h(Document, { __NEXT_DATA__: { page } })), "html")[0].lang;
-  assert.equal(lang("/en"), "en");
-  for (const page of ["/", "/faq", "/legal", "/dashboard", "/signup", "/_error", undefined]) assert.equal(lang(page), "fr", String(page));
+  for (const page of EN_PAGES) assert.equal(lang(page), "en", page);
+  for (const page of ["/", "/faq", "/legal", "/fonctionnalites", "/pomodoro", "/dashboard", "/signup", "/_error", undefined]) assert.equal(lang(page), "fr", String(page));
 });
 
 // ── Les deux accueils rendus côté serveur ──────────────────────────────────
@@ -511,12 +646,130 @@ test("accueil : liens de même langue, inscription et connexion en anglais depui
   assert.ok(hrefs(en).filter((href) => href.startsWith("/login")).every((href) => href === "/login?lang=en"));
   assert.equal(hrefs(en).filter((href) => href.startsWith("/signup")).length, 4);
   assert.ok(hrefs(en).includes("/dashboard"));
-  assert.deepEqual(hrefs(en).filter((href) => href.startsWith("/en/")), []);
-  // Pages pas encore traduites : leur adresse française.
-  for (const href of ["/fonctionnalites", "/faq", "/guides", "/legal", "/pomodoro"]) assert.ok(hrefs(en).includes(href), href);
-  // En français, aucun paramètre de langue nulle part.
+  // Sous /en, seulement des pages publiques qui existent — jamais une adresse privée.
+  assert.ok(hrefs(en).filter((href) => href.startsWith("/en/")).every((href) => EN_PAGES.includes(href.split(/[?#]/)[0])), hrefs(en).join(" "));
+  // Pages traduites : leur adresse anglaise ; pas encore traduites : leur adresse française.
+  for (const href of ["/en/features", "/en/faq", "/en/guides", "/en/legal", "/pomodoro"]) assert.ok(hrefs(en).includes(href), href);
+  for (const href of ["/fonctionnalites", "/faq", "/guides", "/legal"]) assert.ok(!hrefs(en).includes(href), href);
+  // En français, aucun paramètre de langue ni adresse anglaise, sauf le sélecteur.
   assert.ok(hrefs(fr).every((href) => !/[?&]lang=/.test(href)), hrefs(fr).join(" "));
+  assert.deepEqual(hrefs(fr).filter((href) => href.startsWith("/en")), ["/en"]);
   assert.equal(hrefs(fr).filter((href) => href === "/signup").length, 4);
+});
+
+// ── Les quatre pages anglaises rendues côté serveur ────────────────────────
+function renderPage(file, pathname, { query = {}, isReady = false } = {}) {
+  const env = makeEnv({ pathname, query, isReady, device: "de-DE", langPref: publicPageLang(pathname) === "fr" ? "en" : "fr" });
+  const { I18nProvider } = env.load("contexts/I18nContext");
+  const Page = env.load(file).default;
+  return { html: renderToString(h(I18nProvider, null, h(Page))), env };
+}
+const PAGE_FILES = { "/fonctionnalites": "pages/fonctionnalites", "/guides": "pages/guides", "/faq": "pages/faq", "/legal": "pages/legal" };
+
+test("pages anglaises : le contenu anglais dans le HTML serveur, aucun texte français ; les pages françaises sans anglais", () => {
+  for (const [fr, file] of Object.entries(PAGE_FILES)) {
+    const en = PAIRS[fr];
+    const { html: htmlEn, env } = renderPage(`pages${en}`, en);
+    const { html: htmlFr } = renderPage(file, fr);
+    const { getLandingContent } = env.load("lib/landingContent");
+    const section = { "/fonctionnalites": "features", "/guides": "guidesPage", "/faq": "faqPage" }[fr];
+    const h1 = (html) => text(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1]).trim();
+    if (section) {
+      assert.equal(h1(htmlEn), getLandingContent("en")[section].title, en);
+      assert.equal(h1(htmlFr), getLandingContent("fr")[section].title, fr);
+      const frOnly = leaves(getLandingContent("fr")[section]).filter((s) => s.length >= 12 && !leaves(getLandingContent("en")[section]).includes(s));
+      const enOnly = leaves(getLandingContent("en")[section]).filter((s) => s.length >= 12 && !leaves(getLandingContent("fr")[section]).includes(s));
+      for (const s of frOnly) assert.ok(!text(htmlEn).includes(s), `français dans ${en} : ${s}`);
+      for (const s of enOnly) assert.ok(!text(htmlFr).includes(s), `anglais dans ${fr} : ${s}`);
+    } else {
+      assert.equal(h1(htmlEn), "Legal & privacy");
+      assert.equal(h1(htmlFr), "Légal & confidentialité");
+    }
+    // L'en-tête et le pied de page : textes et liens de la langue de la page.
+    const enHeader = getLandingContent("en").header;
+    assert.ok(text(htmlEn).includes(enHeader.signup) && !text(htmlEn).includes("Commencer gratuitement"), en);
+    // Images de la langue de la page.
+    const images = (html) => attrs(html, "img").map((i) => i.src).filter((src) => src?.startsWith("/site-web/"));
+    assert.ok(images(htmlEn).every((src) => /\/site-web\/[^/]+\/en\//.test(src)), en);
+    assert.ok(images(htmlFr).every((src) => /\/site-web\/[^/]+\/fr\//.test(src)), fr);
+  }
+});
+
+test("pages anglaises : menu, pied de page et guides — liens anglais vers les pages traduites, rien vers une adresse privée", () => {
+  // Tous les liens, hors le sélecteur de langue (vérifié à part).
+  const hrefs = (html) => attrs(html, "a").filter((a) => a.class !== "langLink").map((a) => a.href);
+  for (const [fr, file] of Object.entries(PAGE_FILES)) {
+    const en = PAIRS[fr];
+    const { html: htmlEn } = renderPage(`pages${en}`, en);
+    const { html: htmlFr } = renderPage(file, fr);
+    // Menu : Features, Guides, FAQ en anglais ; la page courante marquée.
+    const nav = attrs(htmlEn, "a").filter((a) => a.class === "navLink");
+    assert.deepEqual(nav.map((a) => a.href), ["/en/features", "/en/guides", "/en/faq"], en);
+    assert.deepEqual(nav.filter((a) => a["aria-current"] === "page").map((a) => a.href), EN_PAGES.includes(en) && en !== "/en/legal" ? [en] : [], en);
+    // Pied de page : l'accueil, les pages traduites et les documents légaux en anglais.
+    for (const href of ["/en", "/en/features", "/en/guides", "/en/faq", "/en/legal", "/login?lang=en", "/signup?lang=en"]) assert.ok(hrefs(htmlEn).includes(href), `${en} → ${href}`);
+    for (const href of ["/", "/fonctionnalites", "/guides", "/faq", "/legal", "/login", "/signup"]) assert.ok(!hrefs(htmlEn).includes(href), `${en} ne doit pas mener à ${href}`);
+    assert.ok(hrefs(htmlEn).filter((href) => href.startsWith("/en/")).every((href) => EN_PAGES.includes(href.split(/[?#]/)[0])), en);
+    // Le sélecteur mène à la page française équivalente.
+    assert.deepEqual(attrs(htmlEn, "a").filter((a) => a.class === "langLink").map((a) => a.href), [fr], en);
+    // Version française : aucun lien anglais hors du sélecteur.
+    assert.deepEqual(hrefs(htmlFr).filter((href) => href.startsWith("/en")), [], fr);
+    assert.deepEqual(attrs(htmlFr, "a").filter((a) => a.class === "langLink").map((a) => a.href), [en], fr);
+  }
+  // Les guides, pas encore traduits, gardent leur adresse française — sur la page et dans le JSON-LD.
+  const { html: guides } = renderPage("pages/en/guides", "/en/guides");
+  for (const path of NOT_YET) assert.ok(hrefs(guides).includes(path), path);
+});
+
+test("/en/legal : les quatre documents anglais dans le HTML, un visible ; ?doc=privacy|terms|cookies|notice ouvre le bon et reste sur /en/legal", () => {
+  const env = makeEnv();
+  const { LEGAL_DOCS } = env.load("lib/legal");
+  const visible = (html) => [...html.matchAll(/<article id="legal-(\w+)"([^>]*)>/g)].filter((m) => !/\shidden(=|\s|$)/.test(m[2])).map((m) => m[1]);
+  const { html } = renderPage("pages/en/legal", "/en/legal");
+  for (const doc of LEGAL_DOCS) {
+    assert.ok(text(html).includes(doc.en.title), doc.id);
+    for (const section of doc.en.sections) assert.ok(text(html).includes(section.h), `${doc.id} : ${section.h}`);
+    assert.ok(!text(html).includes(doc.fr.title), `titre français de ${doc.id}`);
+  }
+  assert.deepEqual(visible(html), ["privacy"]);
+  assert.deepEqual(attrs(html, "a").filter((a) => /doc=/.test(a.href)).map((a) => a.href),
+    ["/en/legal?doc=privacy", "/en/legal?doc=terms", "/en/legal?doc=cookies", "/en/legal?doc=notice"]);
+  for (const doc of ["privacy", "terms", "cookies", "notice"]) {
+    const { html: opened } = renderPage("pages/en/legal", "/en/legal", { query: { doc }, isReady: true });
+    assert.deepEqual(visible(opened), [doc], doc);
+    assert.deepEqual(attrs(opened, "a").filter((a) => a["aria-current"] === "page" && /doc=/.test(a.href)).map((a) => a.href), [`/en/legal?doc=${doc}`], doc);
+    // Le sélecteur garde le document : la version française du même document.
+    assert.deepEqual(attrs(opened, "a").filter((a) => a.class === "langLink").map((a) => a.href), [`/legal?doc=${doc}`], doc);
+  }
+  // La page française : mêmes documents en français, liens sur /legal.
+  const { html: fr } = renderPage("pages/legal", "/legal");
+  assert.deepEqual(attrs(fr, "a").filter((a) => /doc=/.test(a.href)).map((a) => a.href),
+    ["/legal?doc=privacy", "/legal?doc=terms", "/legal?doc=cookies", "/legal?doc=notice"]);
+  for (const doc of LEGAL_DOCS) assert.ok(text(fr).includes(doc.fr.title), doc.id);
+});
+
+test("bandeau cookies : la politique cookies dans la langue affichée — page publique, app anglaise, app française", () => {
+  for (const [pathname, device, langPref, expected] of [
+    ["/en/faq", "fr-BE", null, "/en/legal?doc=cookies"],
+    ["/faq", "en-US", "en", "/legal?doc=cookies"],
+    ["/dashboard", "en-US", null, "/en/legal?doc=cookies"],
+    ["/dashboard", "fr-BE", null, "/legal?doc=cookies"],
+    ["/dashboard", "fr-BE", "en", "/en/legal?doc=cookies"],
+  ]) {
+    const env = makeEnv({
+      pathname, device, langPref,
+      mocks: {
+        "contexts/ConsentContext": {
+          useConsent: () => ({ needsDecision: true, gpc: false, categories: {}, acceptAll() {}, rejectAll() {}, save() {}, settingsOpen: false, openSettings() {}, closeSettings() {} }),
+        },
+      },
+    });
+    const ConsentManager = env.load("components/ConsentManager").default;
+    const app = mountI18n(env, h(ConsentManager));
+    const links = app.renderer.root.findAll((n) => n.type === "a").map((a) => a.props.href);
+    assert.ok(links.length > 0 && links.every((href) => href === expected), `${pathname} ${device} ${langPref} → ${links.join(" ")}`);
+    app.unmount();
+  }
 });
 
 test("accueil : le sélecteur — EN sur /, FR sur /en, dans le HTML serveur, nommé et annoncé dans sa langue", () => {
@@ -557,7 +810,7 @@ test("en-tête sur petits téléphones : une seule rangée, le lien de langue ga
 });
 
 // ── Sitemap ────────────────────────────────────────────────────────────────
-test("sitemap : les onze adresses françaises dans le même ordre et au même rythme, de vraies dates, puis /en", async () => {
+test("sitemap : les onze adresses françaises dans le même ordre et au même rythme, de vraies dates, puis les cinq anglaises", async () => {
   const env = makeEnv();
   const { getServerSideProps } = env.load("pages/sitemap.xml");
   let xml = "";
@@ -577,6 +830,10 @@ test("sitemap : les onze adresses françaises dans le même ordre et au même ry
     ["/blocus-belgique", "2026-10-07", "weekly", "0.92"],
     ["/legal", "2026-09-27", "monthly", "0.3"],
     ["/en", "2026-09-29", "weekly", "1.0"],
+    ["/en/features", "2026-10-14", "monthly", "0.8"],
+    ["/en/guides", "2026-10-14", "monthly", "0.8"],
+    ["/en/faq", "2026-09-27", "monthly", "0.7"],
+    ["/en/legal", "2026-09-27", "monthly", "0.3"],
   ]);
   // Chaque guide : la date qu'il déclare lui-même (JSON-LD, mention sur la page).
   const { structuredDataForPath } = env.load("lib/seo");

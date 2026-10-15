@@ -16,6 +16,7 @@ import GuestDiscovery from "./guest/GuestDiscovery";
 import Avatar from "./Avatar";
 import NotificationCenter from "./NotificationCenter";
 import FloatingNav from "./ui/floating-nav";
+import { legalHref } from "../lib/publicRoutes.mjs";
 
 // ── Icônes ─────────────────────────────────────────────────
 // Dessins seulement : grille, épaisseur et accessibilité viennent de
@@ -233,7 +234,7 @@ export default function Layout({ children }) {
     msgToast,
     clearMsgToast,
   } = useNotifications();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { openSettings: openConsentSettings } = useConsent();
   const router = useRouter();
   const socialSurfaceRef = useSocialSwipe(router, SOCIAL_PATHS);
@@ -536,7 +537,7 @@ export default function Layout({ children }) {
           style={{ color: "var(--bt-text-3)" }}>
           <span>{t("footer.tagline")}</span>
           <span aria-hidden="true">·</span>
-          <Link href="/legal" className="transition-colors hover:underline"
+          <Link href={legalHref(lang)} className="transition-colors hover:underline"
             onMouseEnter={e => e.currentTarget.style.color = "var(--bt-accent-dark)"}
             onMouseLeave={e => e.currentTarget.style.color = ""}>
             {t("footer.legal")}

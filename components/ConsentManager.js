@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useConsent } from "../contexts/ConsentContext";
 import { useI18n } from "../contexts/I18nContext";
 import { CONSENT_CATEGORIES, DENY_ALL } from "../lib/consent";
+import { legalHref } from "../lib/publicRoutes.mjs";
 
 const CATEGORY_KEYS = {
   functional: { label: "consent.cat.functional", desc: "consent.cat.functionalDesc" },
@@ -110,7 +111,7 @@ function CategoryList({ draft, setDraft, gpc, t }) {
 
 export function ConsentSettingsPanel({ open, onClose }) {
   const { categories, gpc, save } = useConsent();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [draft, setDraft] = useState(categories);
   const dialogRef = useRef(null);
 
@@ -181,7 +182,7 @@ export function ConsentSettingsPanel({ open, onClose }) {
           <CategoryList draft={draft} setDraft={setDraft} gpc={gpc} t={t} />
           <p className="py-3 text-xs leading-relaxed" style={{ borderTop: "1px solid var(--bt-hairline)", color: "var(--bt-text-3)" }}>
             {t("consent.noSaleNotice")}{" "}
-            <Link href="/legal?doc=cookies" className="bt-accent-link font-medium underline underline-offset-2" onClick={onClose}>
+            <Link href={legalHref(lang, "cookies")} className="bt-accent-link font-medium underline underline-offset-2" onClick={onClose}>
               {t("consent.cookiePolicyLink")}
             </Link>
           </p>
@@ -205,7 +206,7 @@ export function ConsentSettingsPanel({ open, onClose }) {
 
 export default function ConsentManager() {
   const { needsDecision, gpc, acceptAll, rejectAll, save, settingsOpen, openSettings, closeSettings } = useConsent();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(DENY_ALL);
 
@@ -233,7 +234,7 @@ export default function ConsentManager() {
             </h2>
             <p className="mt-1 text-sm leading-snug sm:mt-1.5 sm:leading-relaxed" style={{ color: "var(--bt-text-2)" }}>
               {t("consent.bannerBody")}{" "}
-              <Link href="/legal?doc=cookies" className="bt-accent-link font-medium underline underline-offset-2">
+              <Link href={legalHref(lang, "cookies")} className="bt-accent-link font-medium underline underline-offset-2">
                 {t("consent.cookiePolicyLink")}
               </Link>
               {/* Téléphone : « Personnaliser » prend place dans la phrase au lieu

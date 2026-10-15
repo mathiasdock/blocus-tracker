@@ -23,6 +23,7 @@ import { guideText, setupGuide } from "../lib/setupGuide.mjs";
 import { loadPrivacySettings, recordLegalAcceptance } from "../lib/privacySettings";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../lib/legalVersions";
 import { googleNamePrefill } from "../lib/googleName.mjs";
+import { legalHref } from "../lib/publicRoutes.mjs";
 
 function TaskSkeleton({ label }) {
   return (
@@ -438,9 +439,9 @@ export default function Onboarding() {
               />
               <span>
                 {t("signup.termsPre")}{" "}
-                <a href="/legal?doc=terms" target="_blank" rel="noopener noreferrer">{t("signup.termsLink")}</a>{" "}
+                <a href={legalHref(lang, "terms")} target="_blank" rel="noopener noreferrer">{t("signup.termsLink")}</a>{" "}
                 {t("signup.termsMid")}{" "}
-                <a href="/legal?doc=privacy" target="_blank" rel="noopener noreferrer">{t("signup.privacyLink")}</a>.
+                <a href={legalHref(lang, "privacy")} target="_blank" rel="noopener noreferrer">{t("signup.privacyLink")}</a>.
               </span>
             </label>
           )}

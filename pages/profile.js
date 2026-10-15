@@ -34,6 +34,7 @@ import { clearPushOwner, readPushOwner } from "../lib/pushOwner.mjs";
 import { pushErrorMessage } from "../lib/pushMessages";
 import { buildDataExport, downloadJson } from "../lib/dataExport";
 import { mediaUploadStatus, refusalKey } from "../lib/mediaUploads";
+import { legalHref } from "../lib/publicRoutes.mjs";
 import {
   DEFAULT_PRIVACY_SETTINGS,
   loadPrivacySettings,
@@ -639,7 +640,7 @@ function EditProfileModal({ open, onClose, onOpenExchange, exchangeSummary, form
 // ── Main page ────────────────────────────────────────────────
 export default function Profile() {
   const { user, profile, refreshProfile, signOut, updateEmail } = useAuth();
-  const { t, langPref, setLangPref } = useI18n();
+  const { t, lang, langPref, setLangPref } = useI18n();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const { openSettings: openConsentSettings } = useConsent();
@@ -1173,7 +1174,7 @@ export default function Profile() {
           </div>
         )}
         {sep}
-        <SettingsRow icon={<IconLegal />} href="/legal"
+        <SettingsRow icon={<IconLegal />} href={legalHref(lang)}
           label={t("legal.profileRow")} right={<IconChevronRight />} />
         {sep}
         <SettingsRow icon={<IconInfo />} label={t("profile.about")}
@@ -1203,7 +1204,7 @@ export default function Profile() {
             ? <span className="text-xs font-semibold" style={{ color: "var(--bt-text-3)" }}>…</span>
             : <IconChevronRight />} />
         {sep}
-        <SettingsRow icon={<IconLegal />} href="/legal?doc=privacy"
+        <SettingsRow icon={<IconLegal />} href={legalHref(lang, "privacy")}
           label={t("privacy.yourRights")} description={t("privacy.yourRightsDesc")}
           right={<IconChevronRight />} />
         {sep}
