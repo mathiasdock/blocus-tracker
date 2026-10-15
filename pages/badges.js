@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import PageHeader from "../components/PageHeader";
 import BadgeIcon from "../components/BadgeIcon";
@@ -6,13 +6,12 @@ import BadgeSheet, { rarityLabel } from "../components/BadgeSheet";
 import AnimatedNumber from "../components/AnimatedNumber";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
-import { supabase } from "../lib/supabaseClient";
 import { BADGES } from "../lib/badges";
 import { groupBadges } from "../lib/badgeGroups";
-import { fetchCanonicalBadges } from "../lib/badgeTruth.mjs";
+import { useBadgeRead } from "../hooks/useAchievementReads";
+import AchievementReadStatus from "../components/AchievementReadStatus";
 import styles from "../components/BadgeVisuals.module.css";
 
-const BADGE_IDS = BADGES.map((badge) => badge.id);
 
 // La collection, sur sa propre page.
 //
@@ -53,28 +52,13 @@ export function BadgeGroup({ group, earnedIds, onPick, t }) {
 export default function BadgesPage() {
   const { user } = useAuth();
   const { t } = useI18n();
-  const [earnedIds, setEarnedIds] = useState([]);
-  const [earnedAt, setEarnedAt] = useState({});
-  const [selected, setSelected] = useState(null);
-
-  const load = useCallback(async () => {
-    if (!user) return;
-    // Les badges appartiennent au serveur depuis la v28. Le profil lit la même
-    // liste par la même fonction (lib/badgeTruth) : les deux écrans ne peuvent
-    // plus annoncer deux totaux différents. Un échec de lecture garde ce qu'on
-    // avait plutôt que d'afficher une collection vide.
-    try {
-      const result = await fetchCanonicalBadges(supabase, user.id, BADGE_IDS);
-      if (result) {
-        setEarnedIds(result.ids);
-        setEarnedAt(result.earnedAt);
-      }
-    } catch (error) {
-      console.warn("Badge load failed:", error);
-    }
-  }, [user]);
-
-  useEffect(() => { load(); }, [load]);
+  const badges = useBadgeRead(user?.id || null);
+  const earnedIds = badges.data?.ids || [];
+  const earnedAt = badges.data?.earnedAt || {};
+  const [selection, setSelection] = useState(null);
+  const selected = selection && selection.ownerId === user?.id ? selection.badge : null;
+  const setSelected = badge => setSelection(badge ? { ownerId: user?.id, badge } : null);
+  useEffect(() => { setSelection(null); }, [user?.id]);
 
   const groups = groupBadges(BADGES);
   const pct = BADGES.length ? Math.round((earnedIds.length / BADGES.length) * 100) : 0;
@@ -86,13 +70,15 @@ export default function BadgesPage() {
           backHref="/profile"
           title={t("badgePage.title")}
           visuallyHiddenTitle
-          right={
+          right={badges.data &&
             <span className="font-num shrink-0 text-sm font-bold tabular-nums" style={{ color: "var(--bt-text-1)" }}>
               <AnimatedNumber value={earnedIds.length} />/{BADGES.length}
             </span>
           }
         />
 
+        <AchievementReadStatus state={badges} kind="badgePage" t={t} />
+        {badges.data && <>
         <div className="mb-6 h-1 w-full overflow-hidden rounded-full" role="progressbar"
           aria-label={t("badgePage.title")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}
           style={{ backgroundColor: "var(--bt-subtle)" }}>
@@ -107,9 +93,11 @@ export default function BadgesPage() {
             <BadgeGroup key={g.id} group={g} earnedIds={earnedIds} onPick={setSelected} t={t} />
           ))}
         </div>
+        </>}
       </div>
 
       <BadgeSheet
+        key={user?.id || "guest"}
         badge={selected}
         earned={selected ? earnedIds.includes(selected.id) : false}
         earnedAt={selected ? earnedAt[selected.id] : null}

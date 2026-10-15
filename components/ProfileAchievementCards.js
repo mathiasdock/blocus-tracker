@@ -46,13 +46,13 @@ export default function ProfileAchievementCards({ levelInfo, earnedBadgeIds, t }
   const known = Array.isArray(earnedBadgeIds);
   const earned = known ? BADGES.filter(badge => earnedBadgeIds.includes(badge.id)) : [];
   const preview = collectionPreview(earned);
-  const { current, next, progressXP, rangeXP, progressPct } = levelInfo;
+  const { current, next, progressXP, rangeXP, progressPct } = levelInfo || {};
   const progress = Math.max(0, Math.min(100, progressPct || 0));
   const countLabel = t("stats.badgesEarned").replace("{n}", earned.length).replace("{total}", BADGES.length);
 
   return (
     <div className={styles.cards}>
-      <Link href="/progression" className={`${styles.card} ${styles.level}`}>
+      {levelInfo && <Link href="/progression" className={`${styles.card} ${styles.level}`}>
         <span className={styles.heading}>{t("profile.tileProgress")}<Arrow /></span>
         <span className={styles.levelScene}>
           <span className={styles.levelNumber}>
@@ -82,9 +82,9 @@ export default function ProfileAchievementCards({ levelInfo, earnedBadgeIds, t }
             <span className="bt-level-fill" style={{ transform: `scaleX(${progress / 100})` }} />
           </span>
         </span>
-      </Link>
+      </Link>}
 
-      <Link href="/badges" className={`${styles.card} ${styles.collection}`}>
+      {known && <Link href="/badges" className={`${styles.card} ${styles.collection}`}>
         <span className={styles.heading}>{t("profile.tileBadges")}<Arrow /></span>
         <span className={styles.badgeScene} data-count={preview.length} aria-hidden="true">
           {preview.length ? preview.map((badge, index) => (
@@ -99,7 +99,7 @@ export default function ProfileAchievementCards({ levelInfo, earnedBadgeIds, t }
           {known && <span className={styles.count}>{countLabel}</span>}
           <span className={styles.openCollection}>{t("profile.viewCollection")}</span>
         </span>
-      </Link>
+      </Link>}
     </div>
   );
 }

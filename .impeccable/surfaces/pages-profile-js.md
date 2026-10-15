@@ -54,3 +54,11 @@ Avatar-flow verification additionally covers a desktop and 390 px mobile selecti
 ## Unresolved decisions
 
 None for this bounded extension. `DESIGN.md` and the global design sidecar remain unchanged.
+
+## F14/F15 — reliable achievement previews (2026-10-14, local, not deployed)
+
+The achievement cards now render only known data. An unknown collection has neither a zero count nor a falsely locked first-session teaser; an unknown level has no level-1 fallback. Known zero retains both shipped zero states. Independent flat FR/EN feedback and existing Retry controls leave the rest of Profile available if either read fails. Existing successful card artwork, mascot, links and geometry are unchanged.
+
+Profile uses `useProfileAchievementReads`: badges settle before the first fresh canonical XP read, preserving the previous sync-before-XP order. A successful badge retry that changes the known collection refreshes an already loaded XP snapshot once; an unchanged collection does not trigger that extra query. The old two exam/objective count queries and global level-cache flush were only feeding Profile's misleading local XP fallback and are removed. Other users' cached levels are not flushed. Heatmap, study/streak metrics, settings and persistence logic are untouched. Both previews use the same account/generation safeguards as the detail pages.
+
+These rules supersede the older sentence authorizing Profile's XP fallback. Validation uses local synthetic API responses, with no production mutation or live award test.

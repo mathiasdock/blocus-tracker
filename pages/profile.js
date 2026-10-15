@@ -20,10 +20,8 @@ import { displayName, formatStudyTime } from "../lib/format";
 import { fetchStudyDays } from "../lib/studyDays.mjs";
 import { fetchStudySessions } from "../lib/studyHistory.mjs";
 import { useOfficialStreak } from "../lib/useOfficialStreak";
-import { BADGES } from "../lib/badges";
-import { fetchCanonicalBadgeIds } from "../lib/badgeTruth.mjs";
-import { computeTotalXP, getLevelInfo } from "../lib/xp";
-import { clearUserLevelCache, loadUserLevelMap } from "../lib/userLevels";
+import { useProfileAchievementReads } from "../hooks/useAchievementReads";
+import AchievementReadStatus from "../components/AchievementReadStatus";
 import ProfileAchievementCards from "../components/ProfileAchievementCards";
 import ProfileExchange from "../components/ProfileExchange";
 import { exchangeState } from "../lib/exchange.mjs";
@@ -47,9 +45,6 @@ import {
   readSensoryPreferences,
   writeSensoryPreferences,
 } from "../lib/sensoryFeedback";
-
-// The catalogue order every badge count follows (lib/badgeTruth).
-const BADGE_IDS = BADGES.map((badge) => badge.id);
 
 // AuthContext.updateEmail codes → sentences in the reader's language.
 const EMAIL_ERROR_KEYS = {
@@ -653,7 +648,9 @@ export default function Profile() {
   const [avatarMsg, setAvatarMsg] = useState(null);
   // null = the server did not answer: the card then says nothing about the
   // count rather than announcing an empty collection.
-  const [earnedBadgeIds, setEarnedBadgeIds] = useState(null);
+  const { badges: badgeRead, level: levelRead } = useProfileAchievementReads(user?.id || null);
+  const earnedBadgeIds = badgeRead.data?.ids ?? null;
+  const levelInfo = levelRead.data;
   const [profileSessions, setProfileSessions] = useState([]);
   const [frozenDays, setFrozenDays] = useState([]); // gel de série (v29)
   // Jours session_days : repli local de la série officielle si le serveur ne
@@ -667,13 +664,10 @@ export default function Profile() {
   const [showAbout, setShowAbout] = useState(false);
   const [showPwa, setShowPwa] = useState(false);
   const [pwaPlatform, setPwaPlatform] = useState(null);
-  const [examCount, setExamCount] = useState(0);
-  const [completedObjCount, setCompletedObjCount] = useState(0);
   // Feuille de détail ouverte : "activity" | "referral" | "prefs" | "account"
   // | "privacy". Une seule à la fois — deux surfaces modales empilées, c'est
   // un piège pour en sortir.
   const [sheet, setSheet] = useState(null);
-  const [canonicalLevelInfo, setCanonicalLevelInfo] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   // Préférences vie privée rattachées au compte. `unavailable` = migration v44
@@ -686,12 +680,6 @@ export default function Profile() {
   const [emailInput, setEmailInput] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMsg, setEmailMsg] = useState(null);
-  // Premier chargement des donnees du profil. Tant qu'il n'est pas termine on
-  // affiche un squelette : sinon la page rend un niveau 1, zero badge et des
-  // compteurs a zero, que les gens lisent comme un bug.
-  // NOTE : cette page a deja un `ready` qui concerne la restauration du THEME,
-  // rien a voir — d'ou un nom distinct.
-  const [dataReady, setDataReady] = useState(false);
   const forceSkeleton = useSkeletonHatch();
   const [sensoryPrefs, setSensoryPrefs] = useState(DEFAULT_SENSORY_PREFERENCES);
   const [form, setForm] = useState({
@@ -723,39 +711,6 @@ export default function Profile() {
     setSensoryPrefs(writeSensoryPreferences({ [key]: enabled }));
     if (key === "sound" && enabled) playSensoryCue("start");
   }
-
-  // ── Load badge / XP data ─────────────────────────────────
-  // Badges: the server's list only (lib/badgeTruth), exactly what the Badges
-  // page reads. The profile used to recompute the rules here and add its own
-  // result — with UTC days and without blocus periods — so it announced more
-  // badges than the collection it links to. Level and XP come from the
-  // canonical RPC (loadUserLevelMap); the counts below only feed its offline
-  // fallback.
-  useEffect(() => {
-    if (!user) return;
-    async function loadBadges() {
-      const [examRes, doneObjRes, badgeIds] = await Promise.all([
-        supabase.from("exams").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("objectives").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("done", true),
-        fetchCanonicalBadgeIds(supabase, user.id, BADGE_IDS),
-      ]);
-      const allBadges = badgeIds || [];
-
-      // Only the global canonical unlock watcher announces new badges.
-      if (badgeIds) setEarnedBadgeIds(allBadges);
-
-      setExamCount(examRes.count || 0);
-      setCompletedObjCount(doneObjRes.count || 0);
-
-      clearUserLevelCache();
-      const levelMap = await loadUserLevelMap(supabase, [user.id], {
-        selfUserId: user.id,
-        includeSelfReferralStats: true,
-      });
-      setCanonicalLevelInfo(levelMap[user.id] || null);
-    }
-    loadBadges().finally(() => setDataReady(true));
-  }, [user]);
 
   // ── Load sessions for heatmap + profile activity stats ───
   useEffect(() => {
@@ -932,13 +887,6 @@ export default function Profile() {
   const official = useOfficialStreak({ supabase, userId: user?.id || null, serverRows: studyDayRows, rows: studyDayRows, freezes: frozenDays });
   const streak = official.current;
   const best = official.best;
-  const fallbackTotalXP = computeTotalXP({
-    totalMinutes: profileTotalSecs / 60,
-    completedObjectives: completedObjCount,
-    bestStreak: best, examCount, badgeIds: earnedBadgeIds || [],
-    bonusXP: profile?.bonus_xp || 0,
-  });
-  const levelInfo = canonicalLevelInfo || getLevelInfo(fallbackTotalXP);
   // Pas de mascotte ici : la notification et l'animation du badge ou du
   // niveau disent déjà l'événement (décision de Mathias, 2026-10-01). Le
   // coach est réservé aux moments qui ajoutent du contexte : examen proche,
@@ -979,7 +927,8 @@ export default function Profile() {
     theme === "dark" ? t("profile.themeDark") : theme === "system" ? t("profile.themeSystem") : t("profile.themeLight"),
   ].join(" · ");
 
-  if (!dataReady || forceSkeleton) return <Layout><PageContentSkeleton pathname="/profile" /></Layout>;
+  if ((!badgeRead.data && badgeRead.loading && !levelRead.data && !levelRead.error) || forceSkeleton)
+    return <Layout><PageContentSkeleton pathname="/profile" /></Layout>;
 
   return (
     <Layout>
@@ -1040,6 +989,8 @@ export default function Profile() {
             l'identité — elles étaient serrées dans une demi-colonne pendant
             que l'en-tête et les réglages occupaient l'écran. */}
         <div className="bt-profile-doors">
+          <AchievementReadStatus state={levelRead} kind="prog" t={t} />
+          <AchievementReadStatus state={badgeRead} kind="badgePage" t={t} />
           <ProfileAchievementCards levelInfo={levelInfo} earnedBadgeIds={earnedBadgeIds} t={t} />
         </div>
 

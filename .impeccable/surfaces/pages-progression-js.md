@@ -139,3 +139,11 @@ without independently rerunning browser checks/tests. The production migration
 was applied once and its RLS, privileges and unchanged canonical XP function
 verified. Live account persistence and deployment evidence belong to the release
 report, separately from local fixtures. No physical iPhone/PWA was tested.
+
+## F15 — known XP versus unavailable XP (2026-10-14, local, not deployed)
+
+`useLevelRead` uses the opt-in `loadCanonicalUserLevelMap` reader. No level seal, total, progress bar or current/reached ladder state is emitted until canonical XP is known. A successful numeric zero still means level 1 and zero XP. Initial loading/error use existing compact loading feedback and a flat FR/EN error with ghost Retry. A failed refresh keeps reliable values; obsolete account/generation responses cannot replace them. Static thresholds, XP rules, sources, daily/weekly missions and the independent permanent Focus-unlock gallery are preserved. Mission read results are also tied to their account and cancelled generation.
+
+The new reader rejects unavailable, malformed or incomplete canonical totals and never runs the legacy calculation. `readCanonicalLevelRows` shares the canonical RPC transport, a three-minute in-memory success cache and pending requests with `loadUserLevelMap`, scoped by client, requested users and viewer. Failed/degraded fallback calculations cannot enter that cache. Force retry bypasses cache/pending reads; older responses cannot overwrite a newer cache entry, including after invalidation. A missing source breakdown remains unknown rather than fabricated zero terms.
+
+`loadUserLevelMap` retains its return shape, fallback calculation and its existing fallback cache for other consumers (Dashboard, leaderboard and global watcher). This bounded fix does not generalize their error UX or change reward/Focus logic. Existing XP invalidation clears both cache layers. No focus polling, SQL changes or dependency changes are added. Local test and browser evidence lives in this chat's `f14-f15-achievement-read-errors` artifact folder.

@@ -27,6 +27,7 @@ See DESIGN.md's consolidation list before copying a legacy pattern.
 | Planning floating actions / course overview | `components/planning/PlanPopover.js` (popover on a computer, bottom sheet on a phone), `PlanMenu.js` (command lists), `CourseOverview.js` (*By course*) |
 | Mascot poses / appearances | `components/Mascot.js`, `components/MascotMoment.js`, `lib/mascotMotion.mjs`, `lib/mascotMoments.js` |
 | Reward data / artwork | `lib/badges.js`, `lib/badgeArt.js`, `components/BadgeIcon.jsx` + `components/BadgeVisuals.module.css`; `components/BadgeSheet.js` uses native `InboxSheet` — `.impeccable/surfaces/pages-badges-js.md` |
+| Badge / XP read states (F14/F15) | `hooks/useAchievementReads.js`, `hooks/useAccountRead.js`, `components/AchievementReadStatus.js`; canonical-only XP reader in `lib/userLevels.js` and shared transport/cache in `lib/canonicalLevelRead.js`; badge completeness in `lib/badgeTruth.mjs` |
 | Structured activity bodies | `components/ActivityPostBody.jsx` |
 | Course spaces (Communities) | `components/course-spaces/*`, `lib/courseSpaces.mjs`, `styles/course-spaces.css` — `docs/course-spaces.md` |
 | Shared interface icons | `components/Glyph.js` |

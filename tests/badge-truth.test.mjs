@@ -17,7 +17,7 @@ test("an id the app does not know never counts, so earned can never exceed total
   assert.ok(ids.length <= catalog.length);
 });
 
-test("one answering source is enough, and garbage is ignored", () => {
+test("the pure union ignores missing inputs; the reader separately enforces completeness", () => {
   assert.deepEqual(canonicalBadgeIds({ synced: null, stored: ["planner"], catalog }), ["planner"]);
   assert.deepEqual(canonicalBadgeIds({ synced: "nope", stored: undefined, catalog }), []);
 });
@@ -28,14 +28,14 @@ function client({ synced, stored, failSync = false, failRows = false }) {
     rpc: () => Promise.resolve(failSync ? { data: null, error: { message: "x" } } : { data: synced, error: null }),
     from: () => ({
       select: () => ({
-        eq: () => Promise.resolve(failRows ? { data: null, error: { message: "x" } } : { data: (stored || []).map((badge_id) => ({ badge_id })), error: null }),
+        eq: () => Promise.resolve(failRows ? { data: null, error: { message: "x" } } : { data: (stored || []).map((badge_id) => ({ badge_id, earned_at: "2026-09-01T10:00:00Z" })), error: null }),
       }),
     }),
   };
 }
 
 test("Profile and Badges read the same list: the count is the same on both screens", async () => {
-  const db = client({ synced: ["first_session", "streak_3"], stored: ["first_session", "hours_10"] });
+  const db = client({ synced: ["first_session", "streak_3"], stored: ["first_session", "streak_3", "hours_10"] });
   const onProfile = await fetchCanonicalBadgeIds(db, "u", catalog);
   const onBadges = await fetchCanonicalBadgeIds(db, "u", catalog);
   assert.deepEqual(onProfile, onBadges);
@@ -44,6 +44,6 @@ test("Profile and Badges read the same list: the count is the same on both scree
 
 test("a total read failure returns null instead of an empty collection", async () => {
   assert.equal(await fetchCanonicalBadgeIds(client({ failSync: true, failRows: true }), "u", catalog), null);
-  assert.deepEqual(await fetchCanonicalBadgeIds(client({ failSync: true, stored: ["planner"] }), "u", catalog), ["planner"]);
+  assert.equal(await fetchCanonicalBadgeIds(client({ failSync: true, stored: ["planner"] }), "u", catalog), null);
   assert.equal(await fetchCanonicalBadgeIds(null, "u", catalog), null);
 });

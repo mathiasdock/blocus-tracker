@@ -58,3 +58,11 @@ The fixture at `/dev/badges` requires development mode plus `NEXT_PUBLIC_OFFLINE
 ## Unresolved decisions
 
 None for this bounded extension. The approved implementation was prepared and validated on `codex/badge-visual-system` before publication. The known stale `.impeccable/design.json` is outside this task; no global documentation repair was performed.
+
+## F14 — reliable collection reads (2026-10-14, local, not deployed)
+
+`useBadgeRead` renders the existing compact loader before the first successful complete response. Unknown data has no total, progress track, category counts, locked objects or detail claim. A flat translated error and existing ghost Retry replace that loader on failure; a refresh failure retains the last reliable collection and all earning dates. Successful zero retains the shipped empty collection. No category, artwork, tier, condition, XP or composition changes.
+
+`fetchCanonicalBadges` now requires both successful sources. The existing `sync_my_badges` RPC returns all persisted ids (v28/v84); `user_badges` provides earning dates, including historical pre-v84 awards. Parallel reads can precede an award, so a missing synchronized known id triggers one table reread after sync. Incomplete/error/malformed responses return null, including a missing earning date for a recognized badge. The union keeps catalog order and stored historical ids; the client invents no award and changes no SQL. The existing sync RPC and its server rules are preserved.
+
+Requests are scoped to account and mount generations, including A→B→A; a new explicit XP invalidation supersedes old reads. No polling is added. A retry genuinely rereads the sources; failed refreshes do not turn known objects into locked ones. Profile uses the same hook/contract. Local test and browser evidence lives in the `f14-f15-achievement-read-errors` artifact folder of this chat.

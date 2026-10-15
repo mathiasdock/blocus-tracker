@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import PageHeader from "../components/PageHeader";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -8,7 +8,8 @@ import { MissionRow, WeeklyRow } from "../components/MissionRows";
 import { useAuth } from "../contexts/AuthContext";
 import { useI18n } from "../contexts/I18nContext";
 import { supabase } from "../lib/supabaseClient";
-import { loadUserLevelMap } from "../lib/userLevels";
+import { useLevelRead } from "../hooks/useAchievementReads";
+import AchievementReadStatus from "../components/AchievementReadStatus";
 import { LEVELS } from "../lib/xp";
 import { useFocusEnvironment } from "../hooks/useFocusEnvironment";
 import FocusEnvironmentGallery from "../components/focus/FocusEnvironmentGallery";
@@ -82,35 +83,35 @@ export default function ProgressionPage() {
   const { user } = useAuth();
   const { t } = useI18n();
   const environmentPreferences = useFocusEnvironment();
-  const [levelInfo, setLevelInfo] = useState(null);
-  const [missions, setMissions] = useState([]);
-  const [weekly, setWeekly] = useState([]);
+  const levelRead = useLevelRead(user?.id || null);
+  const levelInfo = levelRead.data;
+  const [missionData, setMissionData] = useState({ ownerId: null, missions: [], weekly: [] });
+  const missions = missionData.ownerId === user?.id ? missionData.missions : [];
+  const weekly = missionData.ownerId === user?.id ? missionData.weekly : [];
 
-  const load = useCallback(async () => {
-    if (!user) return;
-    const [levels, missionsRes, weeklyRes] = await Promise.all([
-      loadUserLevelMap(supabase, [user.id], { selfUserId: user.id }).catch(() => null),
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    let cancelled = false;
+    Promise.all([
       supabase.rpc("get_my_daily_missions").then(r => r).catch(() => ({ data: null })),
       supabase.rpc("get_my_weekly_missions").then(r => r).catch(() => ({ data: null })),
-    ]);
-    if (levels?.[user.id]) setLevelInfo(levels[user.id]);
-    if (Array.isArray(missionsRes?.data)) {
-      setMissions(missionsRes.data.map(m => ({
-        id: m.mission_id, key: m.label_key, xp: m.xp, done: m.done,
-        kind: m.kind || "daily", params: m.params || {},
-      })));
-    }
-    if (Array.isArray(weeklyRes?.data)) {
-      setWeekly(weeklyRes.data.map(w => ({
-        id: w.mission_id, key: w.label_key, target: Number(w.target || 0),
-        progress: Number(w.progress || 0), xp: Number(w.xp || 0), done: Boolean(w.done),
-      })));
-    }
-  }, [user]);
+    ]).then(([missionsRes, weeklyRes]) => {
+      if (cancelled) return;
+      setMissionData({ ownerId: user.id,
+        missions: Array.isArray(missionsRes?.data) ? missionsRes.data.map(m => ({
+          id: m.mission_id, key: m.label_key, xp: m.xp, done: m.done,
+          kind: m.kind || "daily", params: m.params || {},
+        })) : [],
+        weekly: Array.isArray(weeklyRes?.data) ? weeklyRes.data.map(w => ({
+          id: w.mission_id, key: w.label_key, target: Number(w.target || 0),
+          progress: Number(w.progress || 0), xp: Number(w.xp || 0), done: Boolean(w.done),
+        })) : [],
+      });
+    });
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
-  useEffect(() => { load(); }, [load]);
-
-  const current = levelInfo?.current || LEVELS[0];
+  const current = levelInfo?.current || null;
   const next = levelInfo?.next || null;
   const totalXP = levelInfo?.totalXP || 0;
   const breakdown = levelInfo?.breakdown || null;
@@ -126,9 +127,10 @@ export default function ProgressionPage() {
       <div className="bt-stagger mx-auto w-full" style={{ maxWidth: 900 }}>
         <PageHeader backHref="/profile" title={t("prog.title")} visuallyHiddenTitle />
 
+        <AchievementReadStatus state={levelRead} kind="prog" t={t} />
         {/* Le niveau sur surface de marque : c'est un moment de progression
             acquise, exactement ce à quoi l'encre verte est réservée. */}
-        <section className="card-ink bt-grain relative overflow-hidden p-5 sm:p-6">
+        {levelInfo && <section className="card-ink bt-grain relative overflow-hidden p-5 sm:p-6">
           <div className="relative z-10">
             {/* The same object as the Profile's Progression card, which is
                 how the student got here: "Niv." above a large numeral on the
@@ -175,7 +177,7 @@ export default function ProgressionPage() {
               </div>
             )}
           </div>
-        </section>
+        </section>}
 
         {/* Deux listes, cote a cote et de meme rang : ce qui est en jeu
             aujourd'hui, et ce qui reste a parcourir. `min-w-0` sur les colonnes
@@ -228,8 +230,8 @@ export default function ProgressionPage() {
             <ul className="bt-scroll-y max-h-[26rem] min-h-0 flex-1 overflow-y-auto pr-2 lg:max-h-none lg:basis-0">
               {LEVELS.map(l => (
                 <LadderRow key={l.level} level={l} t={t}
-                  current={l.level === current.level}
-                  reached={totalXP >= l.xp} />
+                  current={l.level === current?.level}
+                  reached={Boolean(levelInfo) && totalXP >= l.xp} />
               ))}
             </ul>
           </section>
