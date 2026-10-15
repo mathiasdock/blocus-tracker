@@ -564,6 +564,21 @@ test("JSON-LD : l'accueil anglais en anglais, égal à son texte visible ; l'acc
   for (const path of FR_PAGES) assert.doesNotMatch(JSON.stringify(structuredDataForPath(path)), /"inLanguage":"en"|"name":"Home"/, path);
 });
 
+test("FAQ : un compte enregistre les prochaines sessions — aucune réponse ne laisse croire que les sessions invitées passent sur un compte", () => {
+  const env = makeEnv();
+  const { FAQ, FAQ_EN, HOME_FAQ, HOME_FAQ_EN, structuredDataForPath } = env.load("lib/seo");
+  assert.match(HOME_FAQ[0].a, /créer un compte gratuit pour enregistrer tes prochaines sessions et ta progression\./);
+  assert.match(FAQ[1].a, /créer un compte gratuit pour enregistrer tes prochaines sessions et conserver ton planning/);
+  assert.match(HOME_FAQ_EN[0].a, /create a free account to save your next sessions and your progress\./);
+  assert.match(FAQ_EN[1].a, /create a free account to save your next sessions and keep your planning/);
+  assert.doesNotMatch(JSON.stringify([FAQ, FAQ_EN, HOME_FAQ, HOME_FAQ_EN]), /garder tes sessions|synchroniser tes sessions|keep your sessions|sync your sessions/);
+  // Les données structurées reprennent ces mêmes réponses, mot pour mot.
+  for (const [path, list] of [["/", HOME_FAQ], ["/faq", FAQ], ["/en", HOME_FAQ_EN], ["/en/faq", FAQ_EN]]) {
+    const faq = plain(structuredDataForPath(path)).find((n) => n["@type"] === "FAQPage");
+    assert.deepEqual(faq.mainEntity.map((q) => q.acceptedAnswer.text), plain(list.map((q) => q.a)), path);
+  }
+});
+
 test("JSON-LD : fonctionnalités, guides, FAQ et légal en anglais, égaux à leur texte visible ; les versions françaises inchangées", () => {
   const env = makeEnv();
   const { structuredDataForPath, FAQ, FAQ_EN } = env.load("lib/seo");
