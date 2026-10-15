@@ -38,13 +38,6 @@ export function useAccountRead(userId, read) {
     return () => { mounted.current = false; generation.current += 1; pending.current = null; };
   }, [userId, refresh]);
 
-  // Existing explicit XP invalidation only: no focus polling or new subscription.
-  useEffect(() => {
-    const changed = () => { void refresh({ supersede: true }); };
-    window.addEventListener("bt-xp-changed", changed);
-    return () => window.removeEventListener("bt-xp-changed", changed);
-  }, [refresh]);
-
   const owned = state.ownerId === userId;
   return { data: owned ? state.data : null, loading: owned ? state.loading : Boolean(userId),
     error: owned && state.error, refresh, retry: () => refresh({ force: true }) };

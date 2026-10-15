@@ -13,7 +13,18 @@ const readLevel = async (userId, options) => {
 };
 
 export const useBadgeRead = userId => useAccountRead(userId, readBadges);
-export const useLevelRead = userId => useAccountRead(userId, readLevel);
+export function useLevelRead(userId) {
+  const state = useAccountRead(userId, readLevel);
+  const { refresh } = state;
+  // Only XP reads subscribe. Badge sync can award persisted badges and must
+  // retain its explicit mount/account/retry triggers, not follow XP events.
+  useEffect(() => {
+    const changed = () => { void refresh({ supersede: true }); };
+    window.addEventListener("bt-xp-changed", changed);
+    return () => window.removeEventListener("bt-xp-changed", changed);
+  }, [refresh]);
+  return state;
+}
 
 export function useProfileAchievementReads(userId) {
   const badges = useBadgeRead(userId);

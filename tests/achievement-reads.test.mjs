@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFileSync, existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import { fetchCanonicalBadges } from "../lib/badgeTruth.mjs";
@@ -21,7 +22,7 @@ const row = (id = "a", xp = 0) => ({ user_id: id, total_xp: xp, streak: 0, study
 const textOf = node => typeof node === "string" ? node : Array.isArray(node) ? node.map(textOf).join(" ") : textOf(node?.children || []);
 async function flush() { await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); }); }
 
-function setup() {
+function setup({ revision = process.env.BT_ACHIEVEMENT_REVISION, clock } = {}) {
   const listeners = new Map();
   const env = { user: { id: "a" }, lang: "fr", calls: [], reply: () => ok([]), states: {} };
   env.client = {
@@ -40,7 +41,9 @@ function setup() {
     if (!existsSync(path)) path += path.endsWith("BadgeIcon") ? ".jsx" : ".js";
     if (cache.has(path)) return cache.get(path).exports;
     const module = { exports: {} }; cache.set(path, module);
-    if (!compiled.has(path)) compiled.set(path, transformSync(readFileSync(path, "utf8"), {
+    const compiledKey = `${revision || "working"}:${path}`;
+    const source = () => revision ? execFileSync("git", ["show", `${revision}:${relative(root, path)}`], { cwd: root, encoding: "utf8" }) : readFileSync(path, "utf8");
+    if (!compiled.has(compiledKey)) compiled.set(compiledKey, transformSync(source(), {
       filename: path, babelrc: false, configFile: false,
       presets: [[require.resolve("next/babel"), { "preset-react": { runtime: "automatic" } }]],
       plugins: [require.resolve("@babel/plugin-transform-modules-commonjs")],
@@ -61,7 +64,7 @@ function setup() {
       "../hooks/useFocusEnvironment": { useFocusEnvironment: () => ({}) },
       "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
     };
-    vm.runInNewContext(compiled.get(path), { module, exports: module.exports, Date, Intl, console,
+    vm.runInNewContext(compiled.get(compiledKey), { module, exports: module.exports, Date: clock ? class extends Date { static now() { return clock.now; } } : Date, Intl, console,
       window: { addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(fn); }, removeEventListener(name, fn) { listeners.get(name)?.delete(fn); } },
       require(id) {
         if (mocks[id]) return { __esModule: true, ...mocks[id] };
@@ -192,7 +195,10 @@ for (const kind of ["badges", "level"]) {
     act(() => { env.states[kind].retry(); env.states[kind].retry(); }); await flush();
     const reliable = env.states[kind].data; assert.ok(reliable); assert.equal(env.states[kind].error, false);
     const calls = env.calls.length;
-    env.reply = () => failed(); env.emit(); await flush();
+    env.reply = () => failed();
+    if (kind === "badges") act(() => { env.states.badges.refresh(); });
+    else env.emit();
+    await flush();
     assert.equal(env.states[kind].error, true); assert.equal(env.states[kind].data, reliable);
     assert.ok(env.calls.length > calls);
     env.reply = name => name === "get_gamification_levels" ? ok([row("a", 200)]) : ok([]);
@@ -215,10 +221,10 @@ test("account A→B→A hides all old data synchronously and ignores old respons
   assert.equal(env.states.level.data.totalXP, 50); env.user = null; env.render(); assert.equal(env.states.level.data, null); assert.equal(env.states.badges.data, null); env.close();
 });
 
-test("a newer explicit invalidation supersedes an older badge response", async () => {
+test("a newer explicit badge read supersedes an older badge response", async () => {
   const env = setup(); const old = deferred(); env.reply = name => name === "get_gamification_levels" ? ok([row()]) : old.promise;
   env.mount(); await flush(); env.reply = name => name === "get_gamification_levels" ? ok([row()]) : ok([]);
-  env.emit(); await flush(); assert.equal(env.states.badges.data.ids.length, 0);
+  act(() => { env.states.badges.refresh({ supersede: true }); }); await flush(); assert.equal(env.states.badges.data.ids.length, 0);
   old.resolve(ok(stored(catalog))); await flush(); assert.equal(env.states.badges.data.ids.length, 0); env.close();
 });
 
@@ -297,4 +303,120 @@ test("Profile reads XP only after badges settle, and a successful badge retry re
   assert.equal(env.calls.filter(c => c.name === "get_gamification_levels").length, 2);
   act(() => { env.states.badges.refresh(); }); await flush();
   assert.equal(env.calls.filter(c => c.name === "get_gamification_levels").length, 2); env.close();
+});
+
+for (const profile of [false, true]) test(`regression: ${profile ? "Profile" : "Badges reader"} syncs only on mount, account change and explicit retry, never XP events`, async () => {
+  const env = setup();
+  env.reply = (name, args) => name === "get_gamification_levels" ? ok(args.p_user_ids.map(id => row(id, 200))) : ok([]);
+  env.mount(null, profile); await flush();
+  const count = name => env.calls.filter(call => call.name === name).length;
+  assert.equal(count("sync_my_badges"), 1, "one legitimate initial badge sync");
+  assert.equal(count("get_gamification_levels"), 1);
+  const before = env.calls.length;
+  env.emit(); env.emit(); env.emit(); await flush();
+  assert.deepEqual(env.calls.slice(before).map(call => call.name), ["get_gamification_levels"], "XP burst must deduplicate XP reads without syncing badges or reading their table");
+  for (let i = 0; i < 3; i++) { env.emit(); await flush(); }
+  assert.equal(count("sync_my_badges"), 1);
+  assert.equal(count("get_gamification_levels"), 5);
+  // Same-account auth-object renewal does not introduce a new trigger.
+  env.user = { id: "a" }; env.render(); await flush(); assert.equal(count("sync_my_badges"), 1);
+  env.reply = (name, args) => name === "get_gamification_levels" ? ok(args.p_user_ids.map(id => row(id, 300))) : failed();
+  env.user = { id: "b" }; env.render(); await flush();
+  assert.equal(count("sync_my_badges"), 2, "account change syncs exactly once");
+  assert.equal(env.states.badges.error, true);
+  env.reply = (name, args) => name === "get_gamification_levels" ? ok(args.p_user_ids.map(id => row(id, 300))) : ok([]);
+  act(() => { env.states.badges.retry(); env.states.badges.retry(); }); await flush();
+  assert.equal(count("sync_my_badges"), 3, "double retry shares one sync");
+  assert.equal(env.states.badges.error, false);
+  env.user = null; env.render(); await flush(); const afterLogout = env.calls.length;
+  env.emit(); await flush(); assert.equal(env.calls.length, afterLogout);
+  env.close(); env.emit(); await flush(); assert.equal(env.calls.length, afterLogout);
+});
+
+test("regression: legacy freshness at 179 seconds matches main instead of restarting TTL from shared cached rows", async () => {
+  const observations = [];
+  for (const revision of ["0729a0808558226888eebd444df3ac5aeeb43e94", process.env.BT_ACHIEVEMENT_REVISION]) {
+    const clock = { now: 0 }; const env = setup({ revision, clock }); let xp = 100;
+    env.reply = () => ok([row("a", xp)]);
+    const load = env.load("lib/userLevels.js").loadUserLevelMap;
+    const a = { selfUserId: "a" }, b = { selfUserId: "a", includeSelfReferralStats: true };
+    const at0 = (await load(env.client, ["a"], a)).a.totalXP;
+    clock.now = 179000; xp = 200;
+    const at179 = (await load(env.client, ["a"], b)).a.totalXP;
+    clock.now = 181000;
+    const at181 = (await load(env.client, ["a"], b)).a.totalXP;
+    observations.push({ revision: revision || "working", at0, at179, at181, rpcCalls: env.calls.length });
+  }
+  assert.deepEqual(observations.map(({ at0, at179, at181, rpcCalls }) => ({ at0, at179, at181, rpcCalls })), [
+    { at0: 100, at179: 200, at181: 200, rpcCalls: 2 },
+    { at0: 100, at179: 200, at181: 200, rpcCalls: 2 },
+  ]);
+});
+
+test("regression: a newer canonical cache must neither extend nor prematurely refresh the legacy three-minute TTL", async () => {
+  const clock = { now: 0 }; const env = setup({ clock }); let xp = 100;
+  env.reply = () => ok([row("a", xp)]);
+  const { loadUserLevelMap: legacy, loadCanonicalUserLevelMap: strict } = env.load("lib/userLevels.js");
+  const options = { selfUserId: "a" };
+  assert.equal((await legacy(env.client, ["a"], options)).a.totalXP, 100);
+  clock.now = 120000; xp = 200;
+  assert.equal((await strict(env.client, ["a"], { ...options, force: true })).a.totalXP, 200);
+  clock.now = 179999; xp = 300;
+  assert.equal((await legacy(env.client, ["a"], options)).a.totalXP, 100, "legacy cache still valid until its original expiry");
+  assert.equal(env.calls.length, 2);
+  clock.now = 180000;
+  assert.equal((await legacy(env.client, ["a"], options)).a.totalXP, 300, "expired legacy read needs fresh data, not a younger shared cached value");
+  assert.equal(env.calls.length, 3);
+  clock.now = 359999; xp = 400;
+  assert.equal((await legacy(env.client, ["a"], options)).a.totalXP, 300);
+  assert.equal(env.calls.length, 3);
+  clock.now = 360000;
+  assert.equal((await legacy(env.client, ["a"], options)).a.totalXP, 400);
+  assert.equal(env.calls.length, 4);
+});
+
+test("regression: XP events during a pending badge load never supersede it or add a sync", async () => {
+  const env = setup(); const pending = deferred();
+  env.reply = name => name === "get_gamification_levels" ? ok([row()]) : pending.promise;
+  env.mount(); await flush();
+  const before = env.calls.filter(c => c.name === "sync_my_badges").length;
+  env.emit(); env.emit(); await flush();
+  assert.equal(env.calls.filter(c => c.name === "sync_my_badges").length, before);
+  assert.equal(env.states.badges.loading, true);
+  pending.resolve(ok([])); await flush();
+  assert.deepEqual(JSON.parse(JSON.stringify(env.states.badges.data.ids)), []);
+  env.close();
+});
+
+test("expired historical keys and strict readers still share a fresh in-flight RPC", async () => {
+  const clock = { now: 0 }; const env = setup({ clock });
+  const levels = env.load("lib/userLevels.js"); const a = { selfUserId: "a" }, b = { ...a, includeSelfReferralStats: true };
+  env.reply = () => ok([row("a", 100)]);
+  await levels.loadUserLevelMap(env.client, ["a"], a);
+  clock.now = 180000; const pending = deferred(); env.reply = () => pending.promise;
+  const reads = [levels.loadUserLevelMap(env.client, ["a"], a), levels.loadUserLevelMap(env.client, ["a"], a),
+    levels.loadUserLevelMap(env.client, ["a"], b), levels.loadCanonicalUserLevelMap(env.client, ["a"], a)];
+  await flush(); assert.equal(env.calls.length, 2, "one initial RPC and one shared fresh RPC");
+  pending.resolve(ok([row("a", 200)]));
+  const values = await Promise.all(reads); assert.deepEqual(values.map(v => v.a.totalXP), [200, 200, 200, 200]);
+  await levels.loadCanonicalUserLevelMap(env.client, ["a"], a);
+  await levels.loadUserLevelMap(env.client, ["a"], b); assert.equal(env.calls.length, 2);
+});
+
+test("strict cache hits never slide their deadline; real retries bypass success and in-flight reads", async () => {
+  const clock = { now: 0 }; const env = setup({ clock }); const options = { selfUserId: "a" };
+  const strict = env.load("lib/userLevels.js").loadCanonicalUserLevelMap;
+  env.reply = () => ok([row("a", 100)]);
+  await strict(env.client, ["a"], options);
+  clock.now = 179999; await strict(env.client, ["a"], options); assert.equal(env.calls.length, 1);
+  clock.now = 180000; const pending = deferred(); env.reply = () => pending.promise;
+  const old = strict(env.client, ["a"], options); await flush();
+  env.reply = () => ok([row("a", 200)]);
+  const retried = await strict(env.client, ["a"], { ...options, force: true }); assert.equal(retried.a.totalXP, 200);
+  pending.resolve(ok([row("a", 150)])); await old;
+  assert.equal((await strict(env.client, ["a"], options)).a.totalXP, 200);
+  assert.equal(env.calls.length, 3);
+  env.reply = () => ok([row("a", 300)]);
+  assert.equal((await strict(env.client, ["a"], { ...options, force: true })).a.totalXP, 300);
+  assert.equal(env.calls.length, 4);
 });

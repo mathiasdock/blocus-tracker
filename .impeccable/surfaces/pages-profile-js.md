@@ -62,3 +62,7 @@ The achievement cards now render only known data. An unknown collection has neit
 Profile uses `useProfileAchievementReads`: badges settle before the first fresh canonical XP read, preserving the previous sync-before-XP order. A successful badge retry that changes the known collection refreshes an already loaded XP snapshot once; an unchanged collection does not trigger that extra query. The old two exam/objective count queries and global level-cache flush were only feeding Profile's misleading local XP fallback and are removed. Other users' cached levels are not flushed. Heatmap, study/streak metrics, settings and persistence logic are untouched. Both previews use the same account/generation safeguards as the detail pages.
 
 These rules supersede the older sentence authorizing Profile's XP fallback. Validation uses local synthetic API responses, with no production mutation or live award test.
+
+### Pre-push regression correction — local, not deployed
+
+XP events update the level preview without invoking `sync_my_badges`. Badge sync retains mount/account identity and explicit Retry triggers. Profile’s badge-before-XP order and its one necessary XP refresh after a successful badge Retry that changes the collection remain intact. Historical XP consumers keep their own result-cache freshness: a cache miss cannot re-stamp a completed canonical cache value as new. No profile rendering, translation, setting or write handler changed in this correction.
