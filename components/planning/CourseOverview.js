@@ -130,7 +130,14 @@ export default function CourseOverview({ courses, objectives, exams, localExams 
   if (!courses.length) return null;
   const rows = courseOverview(courses, objectives, exams, academic.byDate, today);
   const selected = rows.find(row => row.course.id === selectedId) || null;
-  const detail = selected && <CourseDetail row={selected} {...{ objectives, exams, localExams, academic, courses, today, t, lang, openDay, toggle, launchTimer, planWork, onPlanAcademic, onExamsChanged }} />;
+  // Hand off to the existing day/form dialog instead of leaving a native
+  // modal above it. The inline desktop detail keeps its current selection.
+  const leaveSheet = action => (...args) => {
+    if (!inline) setSelectedId(null);
+    action(...args);
+  };
+  const detail = selected && <CourseDetail row={selected} {...{ objectives, exams, localExams, academic, courses, today, t, lang, toggle, launchTimer, onExamsChanged }}
+    openDay={leaveSheet(openDay)} planWork={leaveSheet(planWork)} onPlanAcademic={leaveSheet(onPlanAcademic)} />;
 
   if (inline && selected) {
     return (

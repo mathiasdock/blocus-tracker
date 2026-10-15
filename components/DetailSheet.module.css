@@ -1,0 +1,21 @@
+/* The native dialog only owns modality. The existing children keep all
+   geometry, paint and motion; neutralize the browser's dialog defaults. */
+.modal {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
+}
+.modal::backdrop { background: transparent; }
+
+/* No saved overflow value to race with InboxSheet's independent body lock.
+   This lock disappears on close/unmount, including during route changes. */
+:global(html):has(.modal[open]) { overflow: hidden; }

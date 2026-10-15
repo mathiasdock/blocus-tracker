@@ -668,6 +668,7 @@ export default function Profile() {
   // | "privacy". Une seule à la fois — deux surfaces modales empilées, c'est
   // un piège pour en sortir.
   const [sheet, setSheet] = useState(null);
+  const afterPrivacyClose = useRef(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   // Préférences vie privée rattachées au compte. `unavailable` = migration v44
@@ -1189,10 +1190,11 @@ export default function Profile() {
           consulter, exporter, régler ce qui la suit, supprimer. Éclaté sur
           trois écrans, un droit n'est un droit que sur le papier. */}
       <DetailSheet open={sheet === "privacy"} title={t("privacy.section")}
-        closeLabel={t("common.close")} onClose={closeSheet}>
+        closeLabel={t("common.close")} onClose={closeSheet}
+        onAfterClose={() => { const next = afterPrivacyClose.current; afterPrivacyClose.current = null; next?.(); }}>
         <SettingsRow icon={<IconCookie />} label={t("privacy.cookieSettings")}
           description={t("privacy.cookieSettingsDesc")}
-          onClick={() => { closeSheet(); openConsentSettings(); }} right={<IconChevronRight />} />
+          onClick={() => { afterPrivacyClose.current = openConsentSettings; closeSheet(); }} right={<IconChevronRight />} />
         {sep}
         <SettingsRow icon={<IconDownload />} label={t("privacy.exportData")}
           description={t("privacy.exportDataDesc")}

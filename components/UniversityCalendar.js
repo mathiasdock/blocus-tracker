@@ -310,21 +310,6 @@ export default function UniversityCalendar({ calendar, courses, exams, t, lang, 
   const [disconnectId, setDisconnectId] = useState('');
   const [syncingId, setSyncingId] = useState('');
   const secret = useRef(null);
-  const root = useRef(null);
-  useEffect(() => {
-    const previous = document.activeElement;
-    const dialog = root.current.closest('[role=dialog]');
-    dialog.querySelector('button')?.focus();
-    const trap = event => {
-      if (event.key !== 'Tab') return;
-      const nodes = [...dialog.querySelectorAll('button,input,select,a[href],summary')].filter(el => !el.disabled && el.getClientRects().length);
-      const first = nodes[0], last = nodes[nodes.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    };
-    dialog.addEventListener('keydown', trap);
-    return () => { dialog.removeEventListener('keydown', trap); previous?.focus(); };
-  }, []);
   async function run(action, message) {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError(''); setStatus('');
@@ -342,7 +327,7 @@ export default function UniversityCalendar({ calendar, courses, exams, t, lang, 
   const title = step === 'sources' || !calendar.sources.length ? t('academic.settings') : providerName(source?.provider, t) || t('academic.settings');
   return (
     <DetailSheet open title={title} closeLabel={t('common.close')} onClose={close}>
-      <div ref={root} className="uc-panel" aria-busy={busy}>
+      <div className="uc-panel" aria-busy={busy}>
         {step !== 'sources' && calendar.sources.length > 0 && (
           <button type="button" className="uc-back" disabled={busy} onClick={() => go('sources')}><IconBack />{t('academic.settings')}</button>
         )}

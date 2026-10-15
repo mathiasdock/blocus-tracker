@@ -151,6 +151,9 @@ export default function PlanPopover({
   }
 
   if (!present || !mounted) return null;
+  // A popover opened inside a native sheet must stay in that modal's top
+  // layer. A body portal would be both behind it and inert.
+  const portalRoot = anchorRef?.current?.closest("dialog[open]") || document.body;
   if (sheet) {
     return createPortal(
       <div className="bt-plan-sheet-root">
@@ -161,7 +164,7 @@ export default function PlanPopover({
           {children}
         </div>
       </div>,
-      document.body,
+      portalRoot,
     );
   }
   return createPortal(
@@ -176,6 +179,6 @@ export default function PlanPopover({
       }}>
       {children}
     </div>,
-    document.body,
+    portalRoot,
   );
 }
