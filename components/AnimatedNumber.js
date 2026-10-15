@@ -14,7 +14,7 @@ function roundForDisplay(value, decimals) {
 /**
  * Count-up for important product metrics. It runs only on mount or when the
  * value changes, so scrolling cannot replay it. Screen readers receive the
- * final value once instead of every animation frame.
+ * final value as text instead of every animation frame, without live announcements.
  */
 export default function AnimatedNumber({
   value,
@@ -68,7 +68,8 @@ export default function AnimatedNumber({
   };
 
   return (
-    <span className={`font-num tabular-nums ${className}`.trim()} style={style} aria-label={renderValue(target)}>
+    <span className={`font-num tabular-nums ${className}`.trim()} style={style}>
+      <span className="sr-only">{renderValue(target)}</span>
       <span aria-hidden="true">{renderValue(display)}</span>
     </span>
   );
