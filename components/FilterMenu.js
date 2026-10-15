@@ -57,32 +57,65 @@ export default function FilterMenu({
   const btnRef = useRef(null);
   const menuRef = useRef(null);
   const menuId = useId();
+  const [activeKey, setActiveKey] = useState(null);
+  const pendingFocus = useRef(null);
+  const previousValue = useRef(value);
+  const search = useRef({ text: "", time: 0 });
+  const pageScroll = useRef(null);
+  const keyOf = item => isActions ? (item.key || item.label) : item.value;
 
   useEffect(() => { setMounted(true); }, []);
 
   const current = options.find((o) => o.value === value) || options[0];
 
+  function close(restore = false) {
+    setOpen(false);
+    if (restore) btnRef.current?.focus({ preventScroll: true });
+  }
+
+  function show(edge = "selected") {
+    pendingFocus.current = edge;
+    previousValue.current = value;
+    search.current = { text: "", time: 0 };
+    pageScroll.current = { x: window.scrollX, y: window.scrollY };
+    setCoords(null);
+    setOpen(true);
+  }
+
+  function focusItem(index) {
+    const menu = menuRef.current;
+    const node = menu?.querySelectorAll('[role="option"], [role="menuitem"]')[index];
+    if (!node) { menu?.focus({ preventScroll: true }); return; }
+    node.focus({ preventScroll: true });
+    // Scroll only this menu, never an ancestor/page (which would close it).
+    const bounds = menu.getBoundingClientRect(), item = node.getBoundingClientRect();
+    if (item.top < bounds.top + 4) menu.scrollTop -= bounds.top + 4 - item.top;
+    else if (item.bottom > bounds.bottom - 4) menu.scrollTop += item.bottom - bounds.bottom + 4;
+  }
+
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => {
-      if (e.key === "Escape") { setOpen(false); btnRef.current?.focus(); }
-    };
+    const inside = target => wrapRef.current?.contains(target) || menuRef.current?.contains(target);
     const onPointer = (e) => {
-      const inTrigger = wrapRef.current && wrapRef.current.contains(e.target);
-      const inMenu = menuRef.current && menuRef.current.contains(e.target);
-      if (!inTrigger && !inMenu) setOpen(false);
+      if (!inside(e.target)) setOpen(false);
     };
     // Le menu est positionné en coordonnées d'écran : il ne suit pas le
     // défilement. On le referme plutôt que de le laisser flotter au mauvais
     // endroit — c'est le comportement attendu d'un menu natif.
-    const onScroll = () => setOpen(false);
-    document.addEventListener("keydown", onKey);
+    const onScroll = e => {
+      if (e.target !== window && menuRef.current?.contains(e.target)) return;
+      // A scroll queued before the opening click may arrive afterwards.
+      if (e.type === "scroll" && e.target === document && window.scrollX === pageScroll.current.x && window.scrollY === pageScroll.current.y) return;
+      close(menuRef.current?.contains(document.activeElement));
+    };
+    const onFocus = e => { if (!inside(e.target)) setOpen(false); };
+    document.addEventListener("focusin", onFocus);
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("touchstart", onPointer);
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
     return () => {
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocus);
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("touchstart", onPointer);
       window.removeEventListener("scroll", onScroll, true);
@@ -113,15 +146,74 @@ export default function FilterMenu({
     setCoords({ top, left });
   }, [open, align, items.length]);
 
+  // Run after placement, also reconciling external value/options updates.
+  // Keep an existing focused item by identity when the list is reordered.
+  useBrowserLayoutEffect(() => {
+    if (!open || !mounted || !coords) return;
+    const selected = isActions ? -1 : items.findIndex(item => item.value === value);
+    const edge = pendingFocus.current;
+    const changed = previousValue.current !== value;
+    pendingFocus.current = null;
+    previousValue.current = value;
+    if (edge || changed || !menuRef.current?.contains(document.activeElement) || (items.length && document.activeElement === menuRef.current)) {
+      const retained = items.findIndex(item => keyOf(item) === activeKey);
+      const index = edge === "last" ? items.length - 1
+        : edge === "first" ? 0
+        : selected >= 0 && (edge || changed) ? selected
+        : !edge && retained >= 0 ? retained : Math.max(0, selected);
+      focusItem(index);
+    }
+  });
+
+  function onTriggerKeyDown(event) {
+    if (event.repeat && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault(); event.stopPropagation();
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault(); event.stopPropagation();
+      if (!open) show(isActions ? (event.key === "ArrowUp" ? "last" : "first") : "selected");
+      else focusItem(event.key === "ArrowUp" ? items.length - 1 : 0);
+    } else if (event.key === "Escape" && open) {
+      event.preventDefault(); event.stopPropagation(); close(true);
+    }
+  }
+
+  function onMenuKeyDown(event) {
+    const nodes = [...menuRef.current.querySelectorAll('[role="option"], [role="menuitem"]')];
+    const index = nodes.indexOf(document.activeElement);
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+      event.preventDefault(); event.stopPropagation();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1
+        : index < 0 ? (event.key === "ArrowDown" ? 0 : items.length - 1)
+        : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+      focusItem(next);
+    } else if (event.key === "Escape") {
+      event.preventDefault(); event.stopPropagation(); close(true);
+    } else if (event.key === "Tab") {
+      // A body portal is last in DOM order. Rebase native Tab traversal on
+      // its trigger, then let the browser leave the widget in either direction.
+      event.stopPropagation(); close(true);
+    } else if (event.key === "Enter" || event.key === " ") {
+      // Native button activation is the only path to onChange/onSelect.
+      event.stopPropagation();
+      if (event.repeat) event.preventDefault();
+    } else if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      event.preventDefault(); event.stopPropagation();
+      const letter = event.key.toLocaleLowerCase();
+      const text = event.timeStamp - search.current.time < 500 ? search.current.text + letter : letter;
+      search.current = { text, time: event.timeStamp };
+      const prefix = [...text].every(char => char === letter) ? letter : text;
+      const match = items.findIndex((_, offset) => String(items[(index + 1 + offset) % items.length].label).trim().toLocaleLowerCase().startsWith(prefix));
+      if (match >= 0) focusItem((index + 1 + match) % items.length);
+    }
+  }
+
   function pick(v) {
     if (onChange) onChange(v);
-    setOpen(false);
-    btnRef.current?.focus();
+    close(true);
   }
 
   function run(action) {
-    setOpen(false);
-    btnRef.current?.focus();
+    close(true);
     action.onSelect?.();
   }
 
@@ -129,8 +221,10 @@ export default function FilterMenu({
     <div ref={wrapRef} className={`relative shrink-0 ${className}`}>
       <button
         ref={btnRef}
+        id={`${menuId}-trigger`}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => open ? close() : show()}
+        onKeyDown={onTriggerKeyDown}
         aria-haspopup={isActions ? "menu" : "listbox"}
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -155,6 +249,9 @@ export default function FilterMenu({
           id={menuId}
           role={isActions ? "menu" : "listbox"}
           aria-label={ariaLabel}
+          aria-labelledby={ariaLabel ? undefined : `${menuId}-trigger`}
+          tabIndex={-1}
+          onKeyDown={onMenuKeyDown}
           className={`min-w-[9.5rem] overflow-hidden rounded-xl p-1 ${menuClassName}`}
           style={{
             position: "fixed",
@@ -164,6 +261,7 @@ export default function FilterMenu({
             visibility: coords ? "visible" : "hidden",
             maxHeight: "min(60vh, 24rem)",
             overflowY: "auto",
+            overscrollBehavior: "contain",
             backgroundColor: "var(--bt-surface)",
             border: "1px solid var(--bt-hairline)",
             boxShadow: "var(--bt-elev-3)",
@@ -177,6 +275,8 @@ export default function FilterMenu({
                 type="button"
                 role="option"
                 aria-selected={active}
+                tabIndex={activeKey === o.value ? 0 : -1}
+                onFocus={() => setActiveKey(o.value)}
                 onClick={() => pick(o.value)}
                 className="bt-filter-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium"
                 style={active ? { color: "var(--bt-accent-text)" } : undefined}
@@ -197,6 +297,8 @@ export default function FilterMenu({
               key={a.key || a.label}
               type="button"
               role="menuitem"
+              tabIndex={activeKey === keyOf(a) ? 0 : -1}
+              onFocus={() => setActiveKey(keyOf(a))}
               onClick={() => run(a)}
               className="bt-filter-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium"
               style={a.danger ? { color: "var(--bt-danger)" } : undefined}
@@ -206,7 +308,7 @@ export default function FilterMenu({
             </button>
           ))}
         </div>,
-        document.body
+        btnRef.current?.closest("dialog[open]") || document.body
       )}
     </div>
   );
