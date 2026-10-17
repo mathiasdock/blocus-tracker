@@ -44,11 +44,17 @@ function browser({ lang = "fr", environmentId = "forest", highestLevel = 1 } = {
     style: { getPropertyValue: key => style.get(key) || "", setProperty: (key, value) => style.set(key, value), removeProperty: key => style.delete(key) },
     classList: { add: name => classes.add(name), remove: name => classes.delete(name), contains: name => classes.has(name) } } };
   const window = events();
+  const opener = { isConnected: true, focus() { document.activeElement = this; } };
+  document.activeElement = opener;
+  const dialog = {};
+  env.isolation = { starts: 0, releases: 0 };
+  let focusRenderer;
+
   const focusNode = name => ({ ...events(), name, insideControl: true, tagName: "BUTTON", focus() { env.focused = this; } });
   const trigger = focusNode("environment-trigger");
   const firstGalleryButton = focusNode("gallery-close");
   const controlRoot = { ...events(), tagName: "DIV", insideControl: true,
-    contains: target => !!target?.insideControl,
+    contains: target => !!target?.insideControl, closest: () => dialog,
     querySelector: selector => selector === "[data-gallery] button" ? firstGalleryButton : null };
   env.preferences = { environmentId, highestLevel, loading: false, saving: false, error: null,
     async equip(id) {
@@ -69,6 +75,14 @@ function browser({ lang = "fr", environmentId = "forest", highestLevel = 1 } = {
     skipBreak: () => env.calls.push("skipBreak"), leavePomodoro: () => env.calls.push("leavePomodoro") };
   const port = name => function Port(props) { return React.createElement(name, props); };
   const mocks = {
+    // DOM inert/top-layer behavior is exercised in chrono-focus.browser.mjs.
+    // This port checks React lifetime and the existing timer/gallery contract.
+    "components/timer/focusIsolation": { isolateFocus(root, initial, close) {
+      env.isolation.starts++;
+      const onKey = e => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); close(); } };
+      document.addEventListener("keydown", onKey);
+      return () => { env.isolation.releases++; document.removeEventListener("keydown", onKey); };
+    } },
     "contexts/I18nContext": { useI18n: () => ({ lang: env.lang, t: key => env.translate(env.lang, key) }) },
     "hooks/useFocusEnvironment": { useFocusEnvironment: () => {
       const [, update] = React.useState(0);
@@ -125,10 +139,12 @@ function browser({ lang = "fr", environmentId = "forest", highestLevel = 1 } = {
     const tree = () => React.createElement(Component, props());
     let renderer;
     act(() => { renderer = create(tree(), { createNodeMock: element => {
+      if (element.props["data-focus-modal"] !== undefined) return dialog;
       if (element.props.className === "control") return controlRoot;
       if (element.props.className === "trigger") return trigger;
       return { focus() {}, getBoundingClientRect: () => ({ x: 0, y: 0, width: 0, height: 0 }) };
     } }); });
+    if (isFocus) focusRenderer = renderer;
     t.after(() => act(() => renderer.unmount()));
     return { renderer, rerender: () => act(() => renderer.update(tree())),
       updateChrono(next) { env.chrono = { ...env.chrono, ...next }; this.rerender(); },
@@ -136,17 +152,24 @@ function browser({ lang = "fr", environmentId = "forest", highestLevel = 1 } = {
       close: () => act(() => renderer.unmount()) };
   };
   env.key = ({ key, code, target = { tagName: "DIV" }, repeat = false, defaultPrevented = false }) => {
+    target.ownerDocument = document;
+    target.closest = selector => selector === 'dialog, [data-focus-modal], [aria-modal="true"]' ? dialog : /BUTTON|INPUT|TEXTAREA|SELECT/.test(target.tagName) ? target : null;
     const event = { key, code, target, repeat, defaultPrevented, propagationStopped: false,
       preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.propagationStopped = true; } };
     act(() => {
       document.dispatch("keydown", event, "capture");
       if (!event.propagationStopped && target.insideControl) controlRoot.dispatch("keydown", event);
-      if (!event.propagationStopped) document.dispatch("keydown", event, "bubble");
+      if (!event.propagationStopped) {
+        const modal = focusRenderer?.root.findAllByProps({ "data-focus-modal": "" })[0];
+        modal?.props.onKeyDownCapture?.(event);
+        modal?.props.onKeyDown?.(event);
+        document.dispatch("keydown", event, "bubble");
+      }
       if (!event.propagationStopped) window.dispatch("keydown", event);
     });
     return event;
   };
-  return Object.assign(env, { document, window, style, classes, trigger, firstGalleryButton, controlRoot });
+  return Object.assign(env, { document, window, style, classes, trigger, firstGalleryButton, controlRoot, dialog, opener });
 }
 
 const buttons = page => page.renderer.root.findAllByType("button");
@@ -218,7 +241,7 @@ test("Zenitho is locked below 12, equips at 12 and mounts alone without changing
     assert.deepEqual(env.equips, ["zenitho"]);
     assert.equal(renderers(page).length, 1);
     assert.equal(renderers(page)[0].props.kind, "zenitho");
-    assert.equal(page.renderer.toJSON().props["data-environment"], "zenitho");
+    assert.equal(page.renderer.root.findAll(node => node.props["data-environment"])[0].props["data-environment"], "zenitho");
     assert.deepEqual(plain(page.renderer.root.findByType("study-blocks").props), blocks);
     page.close();
   }
@@ -245,7 +268,7 @@ test("Glass Fold is locked below 20, equips at 20, mounts alone and keeps timer/
     await click(options(page)[3]); page.rerender();
     assert.deepEqual(env.equips, ["glass-fold"]);
     assert.equal(renderers(page).length, 1); assert.equal(renderers(page)[0].props.kind, "glass-fold");
-    assert.equal(page.renderer.toJSON().props["data-environment"], "glass-fold");
+    assert.equal(page.renderer.root.findAll(node => node.props["data-environment"])[0].props["data-environment"], "glass-fold");
     assert.deepEqual(plain(page.renderer.root.findByType("study-blocks").props), blocks);
     await click(buttonNamed(page, env.translate(lang, "dash.pause"))); page.updateChrono({ running: false, isPaused: true });
     await click(buttonNamed(page, env.translate(lang, "dash.resume")));
@@ -337,15 +360,15 @@ test("selection mounts exactly one renderer and keeps environment tokens scoped 
   const page = env.mount(t, "components/timer/ChronoFocus");
   assert.equal(renderers(page).length, 1);
   assert.equal(renderers(page)[0].props.kind, "forest");
-  assert.equal(page.renderer.toJSON().props["data-environment"], "forest");
+  assert.equal(page.renderer.root.findAll(node => node.props["data-environment"])[0].props["data-environment"], "forest");
   await click(buttonNamed(page, env.translate("fr", "focusEnv.title")));
   assert.equal(env.refreshes, 1);
   await click(options(page)[1]);
   assert.deepEqual(env.equips, ["gradient-wave"]);
   assert.equal(renderers(page).length, 1);
   assert.equal(renderers(page)[0].props.kind, "gradient-wave");
-  assert.equal(page.renderer.toJSON().props["data-environment"], "gradient-wave");
-  assert.equal(page.renderer.toJSON().props.style["--bt-focus-env-canvas"], "#38bdf8");
+  assert.equal(page.renderer.root.findAll(node => node.props["data-environment"])[0].props["data-environment"], "gradient-wave");
+  assert.equal(page.renderer.root.findAll(node => node.props["data-environment"])[0].props.style["--bt-focus-env-canvas"], "#38bdf8");
   assert.equal(env.style.get("--bt-focus-canvas"), "#38bdf8");
   assert.equal(env.style.get("--bt-ink-text"), undefined);
   assert.equal(env.style.get("--bt-focus-env-text"), undefined);
@@ -357,7 +380,7 @@ test("selection mounts exactly one renderer and keeps environment tokens scoped 
   assert.equal(renderers(page).length, 1);
   assert.equal(renderers(page)[0].props.kind, "forest");
   assert.equal(env.style.get("--bt-focus-canvas"), "var(--bt-ink)");
-  assert.equal(page.renderer.toJSON().props.style["--bt-focus-env-canvas"], undefined);
+  assert.equal(page.renderer.root.findAll(node => node.props["data-environment"])[0].props.style["--bt-focus-env-canvas"], undefined);
   page.close();
   assert.equal(env.style.get("--bt-focus-canvas"), "previous-canvas");
   assert.equal(env.document.body.style.overflow, "auto");
@@ -502,4 +525,42 @@ test("an open gallery stays visible after the timer's idle controls fade", async
   assert.equal(control.props.style.pointerEvents, "auto");
   assert.equal(page.renderer.root.findByType("ambient-control").props.visible, false);
   assert.equal(page.renderer.root.findAllByProps({ id: "focus-environment-gallery" }).length, 1);
+});
+
+
+test("F02 names its modal surface and releases isolation once on unmount", t => {
+  const env = browser();
+  const page = env.mount(t, "components/timer/ChronoFocus");
+  const modal = page.renderer.root.findByProps({ "data-focus-modal": "" });
+  assert.equal(modal.props["aria-modal"], "true");
+  assert.equal(modal.props["aria-label"], env.translate("fr", "dash.focusMode"));
+  assert.equal(page.renderer.root.findAllByType("dialog").length, 0);
+  assert.equal(env.isolation.starts, 1);
+  page.updateChrono({ elapsed: 300 });
+  assert.equal(env.isolation.starts, 1, "ticks do not reopen/refocus the modal");
+  page.close();
+  assert.equal(env.isolation.releases, 1);
+  assert.equal(env.classes.has("bt-focus-active"), false);
+});
+
+test("F02 account change removes the previous Focus tree before requesting close", t => {
+  const env = browser();
+  const page = env.mount(t, "components/timer/ChronoFocus", { ownerId: "account-a" });
+  page.updateProps({ ownerId: "account-b" });
+  assert.equal(page.renderer.toJSON(), null);
+  assert.equal(env.isolation.releases, 1);
+  assert.deepEqual(env.calls, ["close"]);
+  page.rerender();
+  assert.deepEqual(env.calls, ["close"], "no duplicate callback");
+});
+
+test("F02 keyboard activity keeps controls visible past the idle deadline", t => {
+  const env = browser();
+  const page = env.mount(t, "components/timer/ChronoFocus");
+  env.key({ key: "ArrowDown", code: "ArrowDown" });
+  act(() => { for (const [id, timer] of [...env.timers]) { env.timers.delete(id); timer.fn(); } });
+  assert.equal(page.renderer.root.findByType("ambient-control").props.visible, true);
+  act(() => env.window.dispatch("mousemove"));
+  act(() => { for (const [id, timer] of [...env.timers]) { env.timers.delete(id); timer.fn(); } });
+  assert.equal(page.renderer.root.findByType("ambient-control").props.visible, false, "pointer idle behavior preserved");
 });

@@ -119,7 +119,7 @@ export function ConsentSettingsPanel({ open, onClose }) {
 
   useEffect(() => {
     if (!open) return undefined;
-    function onKey(event) { if (event.key === "Escape") onClose(); }
+    function onKey(event) { if (event.key === "Escape" && !event.defaultPrevented && !dialogRef.current?.closest("[inert]")) onClose(); }
     window.addEventListener("keydown", onKey);
     dialogRef.current?.focus();
     return () => window.removeEventListener("keydown", onKey);

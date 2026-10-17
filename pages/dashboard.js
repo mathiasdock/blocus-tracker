@@ -1311,6 +1311,7 @@ export default function Dashboard() {
 
       {focusMode && (
         <ChronoFocus
+          ownerId={user?.id || GUEST_USER_ID}
           chrono={chrono}
           courses={courses}
           onClose={() => setFocusMode(false)}

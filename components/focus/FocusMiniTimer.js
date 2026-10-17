@@ -96,7 +96,7 @@ export default function FocusMiniTimer({ chrono, courses = [], noCourseLabel, vi
     if (!feedback) return undefined;
     const onPointer = event => { if (!control.current?.contains(event.target)) setFeedback(null); };
     const onKey = event => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented || event.target.closest('dialog, [data-focus-modal], [aria-modal="true"]') !== control.current?.closest('dialog, [data-focus-modal], [aria-modal="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
       setFeedback(null);
@@ -188,7 +188,7 @@ export default function FocusMiniTimer({ chrono, courses = [], noCourseLabel, vi
     : chrono.onBreak ? "miniTimer.break" : chrono.running ? "miniTimer.studying" : "miniTimer.ready";
 
   return <>
-    {desktop && <div ref={control} className={styles.control} data-visible={visible || opening || feedback ? "true" : "false"}>
+    {desktop && <div ref={control} data-focus-controls="" className={styles.control} data-visible={visible || opening || feedback ? "true" : "false"}>
       <button ref={trigger} type="button" className={styles.trigger} onClick={open}
         disabled={opening} aria-busy={opening} aria-describedby={feedback ? "mini-timer-feedback" : undefined}>
         <Glyph size={17}><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="11" y="11" width="7" height="6" rx="1"/></Glyph>

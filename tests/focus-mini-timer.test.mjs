@@ -62,7 +62,7 @@ function browser({ lang = "fr", desktop = true, supported = true } = {}) {
     matchMedia(query) { env.mediaQuery = query; return media; },
     open() { throw new Error("Mini timer must not use window.open"); } };
   const trigger = { focus() { env.order.push("trigger.focus"); } };
-  const control = { contains: node => node === trigger };
+  const control = { contains: node => node === trigger, closest: () => null };
   env.makeWindow = () => {
     const pip = { ...events(), closed: false, focusCount: 0,
       document: { title: "", createElement: element, documentElement: element("html"), head: element("head"), body: element("body") },
@@ -225,7 +225,7 @@ test("unsupported feedback dismisses with Escape, outside pointer and close, the
   };
   await click(trigger(page));
   assert.equal(env.document.listenerCount(), 2);
-  const escape = { key: "Escape", defaultPrevented: false, propagationStopped: false,
+  const escape = { target: { closest: () => null }, key: "Escape", defaultPrevented: false, propagationStopped: false,
     preventDefault() { this.defaultPrevented = true; },
     stopPropagation() { this.propagationStopped = true; } };
   act(() => env.document.dispatch("keydown", escape));

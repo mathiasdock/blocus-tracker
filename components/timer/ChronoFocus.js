@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Glyph from "../Glyph";
 import StudyBlocks, { RestTrack } from "../StudyBlocks";
 import AmbientSoundControl from "../AmbientSoundControl";
@@ -11,6 +11,8 @@ import { useFocusEnvironment } from "../../hooks/useFocusEnvironment";
 import TimerDigits from "./TimerDigits";
 import { useI18n } from "../../contexts/I18nContext";
 import { formatMinutesShort } from "../../lib/format";
+import styles from "./ChronoFocus.module.css";
+import { isolateFocus } from "./focusIsolation";
 
 // Message contextuel selon l'heure — mode Focus uniquement, discret.
 function focusGreeting(t) {
@@ -39,14 +41,17 @@ export default function ChronoFocus({
   hint = null,
   momentShown = false,
   renderCoach,
+  ownerId = null,
 }) {
   const { t } = useI18n();
   const preferences = useFocusEnvironment();
   const environment = getFocusEnvironment(preferences.environmentId);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const [miniTimerOpen, setMiniTimerOpen] = useState(false);
-  const environmentOpenRef = useRef(false);
-  environmentOpenRef.current = environmentOpen;
+  const surfaceRef = useRef(null);
+  const exitRef = useRef(null);
+  const initialOwner = useRef(ownerId);
+  const ownerChanged = initialOwner.current !== ownerId;
   const {
     courseId, running, elapsed, pomodoro, pomoPhase, pomoCount,
     isPaused, onBreak, pauseSince, pomoTargetSecs, blockGoalSecs, blocksAria, liveMessage,
@@ -59,19 +64,16 @@ export default function ChronoFocus({
   const courseName = (id) => courses.find((c) => c.id === id)?.name || "—";
 
   useEffect(() => {
-    function handler(e) { if (e.key === "Escape" && !environmentOpenRef.current && !e.defaultPrevented) closeRef.current?.(); }
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    // Fond racine vert + nav mobile masqué : le plein écran couvre la safe-area
-    // du home indicator iPhone (sinon une bande blanche reste en bas). → globals.css
+    if (ownerChanged) { closeRef.current?.(); return undefined; }
+    const surface = surfaceRef.current;
+    const wasFocusActive = document.documentElement.classList.contains("bt-focus-active");
+    const release = isolateFocus(surface, exitRef.current, () => closeRef.current?.());
     document.documentElement.classList.add("bt-focus-active");
-    document.addEventListener("keydown", handler);
     return () => {
-      document.body.style.overflow = previousOverflow;
-      document.documentElement.classList.remove("bt-focus-active");
-      document.removeEventListener("keydown", handler);
+      release();
+      if (!wasFocusActive) document.documentElement.classList.remove("bt-focus-active");
     };
-  }, []);
+  }, [ownerChanged]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -87,38 +89,49 @@ export default function ChronoFocus({
   // lecteur vidéo) — tout mouvement / toucher / touche les fait réapparaître.
   const [focusCtlVisible, setFocusCtlVisible] = useState(true);
   const focusCtlTimer = useRef(null);
+  const keyboardControls = useRef(false);
+  const revealControls = useCallback((keyboard = false) => {
+    if (keyboard) keyboardControls.current = true;
+    setFocusCtlVisible(true);
+    clearTimeout(focusCtlTimer.current);
+    focusCtlTimer.current = setTimeout(() => {
+      if (!keyboardControls.current) setFocusCtlVisible(false);
+    }, 4500);
+  }, []);
   useEffect(() => {
-    function poke() {
-      setFocusCtlVisible(true);
-      clearTimeout(focusCtlTimer.current);
-      focusCtlTimer.current = setTimeout(() => setFocusCtlVisible(false), 4500);
-    }
-    poke();
+    function poke() { keyboardControls.current = false; revealControls(); }
+    revealControls();
     window.addEventListener("mousemove", poke);
     window.addEventListener("touchstart", poke);
-    window.addEventListener("keydown", poke);
     return () => {
       clearTimeout(focusCtlTimer.current);
       window.removeEventListener("mousemove", poke);
       window.removeEventListener("touchstart", poke);
-      window.removeEventListener("keydown", poke);
     };
-  }, []);
+  }, [revealControls]);
 
-  // Barre espace en mode focus : pause / reprise.
-  useEffect(() => {
-    function onKey(e) {
-      if (e.code !== "Space" || e.repeat) return;
-      if (environmentOpen || /INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target?.tagName || "")) return;
+  function ownsKey(event) {
+    // React portals also bubble from the PiP document. Leave that window and
+    // higher native dialogs to their own keyboard handlers.
+    return event.target.ownerDocument === document && event.target.closest('dialog, [data-focus-modal], [aria-modal="true"]') === surfaceRef.current;
+  }
+  function onKeyDown(e) {
+    if (!ownsKey(e) || e.defaultPrevented) return;
+    if (e.code === "Space" && !e.repeat && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      if (environmentOpen || e.target.closest('button, input, textarea, select, a[href], summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"], [role="menuitem"], [role="option"]')) return;
       e.preventDefault();
       if (running) pauseWithFeedback();
       else if (courseId || pomodoro) startWithFeedback();
     }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [running, courseId, pomodoro, pauseWithFeedback, startWithFeedback, environmentOpen]);
+  }
+
+  if (ownerChanged) return null;
 
   return (
+      <div role="dialog" ref={surfaceRef} className={styles.modal} data-focus-modal="" aria-label={t("dash.focusMode")} aria-modal="true"
+        onKeyDown={onKeyDown}
+        onKeyDownCapture={event => { if (ownsKey(event)) revealControls(true); }}
+        onFocusCapture={event => { if (event.target.ownerDocument === document) revealControls(event.target.matches(":focus-visible")); }}>
         <div data-environment={environment.id} data-paused={isPaused && !pomodoro || undefined} className={`${environmentStyles.focus} bt-focus-surface fixed inset-0 flex flex-col items-center justify-center transition-colors duration-300 overflow-hidden bt-grain`}
           style={{
             ...environment.theme,
@@ -225,7 +238,7 @@ export default function ChronoFocus({
           </div>
           {renderCoach?.({ anchorRef: focusMomentAnchor, frameRef: focusGreetingRef })}
 
-          <div className="relative z-10 mt-8 flex w-full max-w-[560px] justify-center gap-3 px-4"
+          <div data-focus-controls="" className="relative z-10 mt-8 flex w-full max-w-[560px] justify-center gap-3 px-4"
             style={{
               opacity: (focusCtlVisible || !running) ? 1 : 0,
               pointerEvents: (focusCtlVisible || !running) ? "auto" : "none",
@@ -260,7 +273,7 @@ export default function ChronoFocus({
             )}
           </div>
 
-          <button onClick={() => onClose?.()}
+          <button ref={exitRef} data-focus-controls="" onClick={() => onClose?.()}
             className="relative z-10 mt-6 flex items-center gap-2 text-sm font-medium rounded-2xl px-5 py-2.5"
             style={{
               color: "var(--bt-ink-text)",
@@ -287,5 +300,6 @@ export default function ChronoFocus({
           </p>
 
         </div>
+      </div>
   );
 }

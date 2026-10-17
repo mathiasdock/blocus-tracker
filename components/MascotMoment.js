@@ -138,7 +138,9 @@ function CoachMoment({
         topInset: 12,
         bottomInset: width < 1024 && !focus ? 92 : 12,
       };
-      const modal = document.querySelector('dialog[open], [aria-modal="true"]');
+      // Focus owns its coach. Other modals still suspend it as before.
+      const focusModal = anchor.closest('[data-focus-modal]');
+      const modal = [...document.querySelectorAll('dialog[open], [aria-modal="true"]')].find(node => node !== focusModal);
       const text = textBox(anchor);
       const plan = modal ? null : planCoach(kind, {
         anchor: anchor.getBoundingClientRect(),
@@ -227,7 +229,7 @@ function CoachMoment({
         </span>
       )}
     </div>,
-    document.body,
+    anchorRef?.current?.closest('[data-focus-modal]') || document.body,
   );
 }
 

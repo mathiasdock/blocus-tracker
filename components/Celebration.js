@@ -9,7 +9,7 @@
 //   { kind: "streak", days }            // days ∈ {7, 30, 100}
 //   { kind: "badge",  badgeId, labelKey, descKey }
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useI18n } from "../contexts/I18nContext";
 import Mascot from "./Mascot";
 import Flame from "./Flame";
@@ -30,6 +30,7 @@ const STREAK_SUBTITLE_KEY = { 7: "streak.celebSub7", 30: "streak.celebSub30", 10
 
 export default function Celebration({ data, onClose }) {
   const { t } = useI18n();
+  const surfaceRef = useRef(null);
 
   useEffect(() => {
     if (data) playSensoryCue(data.kind === "level" ? "levelUp" : "achievement");
@@ -37,7 +38,7 @@ export default function Celebration({ data, onClose }) {
 
   useEffect(() => {
     const id = setTimeout(onClose, 5500);
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => { if (e.key === "Escape" && !e.defaultPrevented && !surfaceRef.current?.closest("[inert]")) { e.preventDefault(); e.stopPropagation(); onClose(); } };
     window.addEventListener("keydown", onKey);
     return () => { clearTimeout(id); window.removeEventListener("keydown", onKey); };
   }, [onClose]);
@@ -64,6 +65,7 @@ export default function Celebration({ data, onClose }) {
 
   return (
     <div
+      ref={surfaceRef}
       role="dialog"
       aria-modal="true"
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"

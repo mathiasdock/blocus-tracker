@@ -37,6 +37,22 @@ export default function AmbientSoundControl({ active, visible = true }) {
   const [preset, setPreset] = useState("brown");
   const [volume, setVolume] = useState(0.5);
   const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function onKey(event) {
+      // Gallery/mini-timer feedback consume Escape first in capture phase.
+      // Consume Escape only inside this panel’s owning surface.
+      if (event.key !== "Escape" || event.defaultPrevented || event.target.closest('dialog, [data-focus-modal], [aria-modal="true"]') !== rootRef.current?.closest('dialog, [data-focus-modal], [aria-modal="true"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus({ preventScroll: true });
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   // Restaure le dernier son + volume choisis (pas l'état on/off → démarre éteint).
   useEffect(() => {
@@ -96,9 +112,10 @@ export default function AmbientSoundControl({ active, visible = true }) {
   // d'état de l'iPhone (heure, réseau, Dynamic Island) et devenait intappable.
   // On le descend donc sous la zone réservée par l'OS.
   return (
-    <div ref={rootRef} className="absolute left-4 z-20"
+    <div ref={rootRef} data-focus-controls="" className="absolute left-4 z-20"
       style={{ top: "calc(1rem + env(safe-area-inset-top))", opacity: show ? 1 : 0, pointerEvents: show ? "auto" : "none", transition: "opacity 0.8s ease" }}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={t("sound.label")}

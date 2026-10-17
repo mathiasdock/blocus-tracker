@@ -17,6 +17,7 @@ export default function FocusEnvironmentControl({ preferences, visible, onOpenCh
     root.current?.querySelector("[data-gallery] button")?.focus();
     function onPointer(event) { if (!root.current?.contains(event.target)) setOpen(false); }
     function onKey(event) {
+      if (event.defaultPrevented || event.target.closest('dialog, [data-focus-modal], [aria-modal="true"]') !== root.current?.closest('dialog, [data-focus-modal], [aria-modal="true"]')) return;
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }
     }
     document.addEventListener("pointerdown", onPointer);
@@ -24,7 +25,7 @@ export default function FocusEnvironmentControl({ preferences, visible, onOpenCh
     return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey, true); };
   }, [open]);
 
-  return <div ref={root} className={styles.control} style={{ opacity: visible || open ? 1 : 0, pointerEvents: visible || open ? "auto" : "none" }}>
+  return <div ref={root} data-focus-controls="" className={styles.control} style={{ opacity: visible || open ? 1 : 0, pointerEvents: visible || open ? "auto" : "none" }}>
     <button ref={trigger} type="button" className={styles.trigger} aria-label={t("focusEnv.title")}
       aria-expanded={open} aria-controls="focus-environment-gallery" onClick={() => {
         if (!open) preferences.refresh();

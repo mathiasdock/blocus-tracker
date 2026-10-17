@@ -71,7 +71,7 @@ export default function LegalUpdateNotice() {
   return (
     // Remonte au-dessus de la barre de navigation mobile : ce rappel peut
     // revenir plusieurs sessions de suite, il ne doit pas condamner un onglet.
-    <div className="fixed inset-x-0 bottom-0 z-[2800] px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom))] pt-2 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+    <div data-legal-notice="" className="fixed inset-x-0 bottom-0 z-[2800] px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom))] pt-2 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
       <div
         className="mx-auto w-full max-w-xl rounded-2xl p-4"
         style={{

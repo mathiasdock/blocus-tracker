@@ -33,7 +33,7 @@ export default function StreakFreezeOffer({ open, streak, days, stock, busy, onA
   // Échappatoire clavier + focus sur l'action principale à l'ouverture.
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === "Escape" && !busy) onDecline(); };
+    const onKey = (e) => { if (e.key === "Escape" && !e.defaultPrevented && !acceptRef.current?.closest("[inert]") && !busy) { e.preventDefault(); e.stopPropagation(); onDecline(); } };
     document.addEventListener("keydown", onKey);
     const id = setTimeout(() => acceptRef.current?.focus(), 60);
     return () => { document.removeEventListener("keydown", onKey); clearTimeout(id); };

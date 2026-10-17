@@ -1,0 +1,14 @@
+/* No stacking context or geometry: keep Focus and its coach in the original layers. */
+.modal { display: contents; }
+
+/* A keyboard target is visible immediately, not after the pointer fade-in.
+   Pointer/touch controls keep their existing idle opacity and transitions. */
+.modal [data-focus-controls]:has(:focus-visible),
+.modal [data-focus-controls]:focus-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transition: none !important;
+}
+
+/* Focus uses a CSS scroll lock; native dialogs keep their inline locks. */
+:global(html):has(.modal), :global(body):has(.modal) { overflow: hidden; }

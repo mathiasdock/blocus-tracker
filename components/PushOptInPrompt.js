@@ -152,7 +152,7 @@ export default function PushOptInPrompt() {
   useEffect(() => {
     if (!visible) return undefined;
     surfaceRef.current?.focus({ preventScroll: true });
-    const onKey = (event) => { if (event.key === "Escape" && !busy) close(); };
+    const onKey = (event) => { if (event.key === "Escape" && !event.defaultPrevented && !surfaceRef.current?.closest("[inert]") && !busy) close(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [visible, busy, close]);
